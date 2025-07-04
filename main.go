@@ -292,6 +292,13 @@ func executePrompts(cliCommand string) error {
 				}
 				fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
 				fmt.Printf("Saved output to: %s\n", outputPath)
+				
+				// 成功時のみスクリプトを削除
+				if err := os.Remove(scriptPath); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
+				} else {
+					fmt.Printf("Deleted script: %s\n", scriptPath)
+				}
 			} else {
 				// 出力が不完全または無効な場合
 				fmt.Fprintf(os.Stderr, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
@@ -303,12 +310,6 @@ func executePrompts(cliCommand string) error {
 					fmt.Fprintf(os.Stderr, "Full output:\n%s\n", outputStr)
 				}
 				return // スクリプトを削除せずに終了
-			}
-
-			if err := os.Remove(scriptPath); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
-			} else {
-				fmt.Printf("Deleted script: %s\n", scriptPath)
 			}
 
 		}(fileName)
