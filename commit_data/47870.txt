@@ -1,0 +1,21 @@
+commit 301db3f5d2d38a13aafe5bc6efea9a3bdbfc475e
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Jan 5 00:16:40 2022 +0100
+
+    net: do not panic on nil IPNet.String()
+    
+    The code looks like it was already trying to avoid this but missed a
+    spot.
+    
+    Fixes #50271.
+    
+    Change-Id: I450adac3f618b9535b61a28e6a160eacc351d47c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373075
+    Trust: Jason Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip.go      | 3 +++
+ src/net/ip_test.go | 1 +
+ 2 files changed, 4 insertions(+)

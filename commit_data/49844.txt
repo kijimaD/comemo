@@ -1,0 +1,36 @@
+commit db84f5315ff19fd2ad70f07193749ef377a028e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 10:48:12 2022 -0700
+
+    cmd/compile/internal/noder: fix implicit conversion position
+    
+    In go.dev/cl/413396, I implemented implicit conversions by setting the
+    conversion's position to the enclosing statement that necessitated the
+    conversion. However, users actually want the position information to
+    be at the expression itself, and this seems sensible anyway.
+    
+    This was noticed because x/tools had a test for:
+    
+            fmt.Println(42)
+    
+    and it was checking where the escape analysis diagnostic for
+    `42` (really `any(42)`) was reported.
+    
+    Historically, we reported the column of the `4`; but CL 413396 caused
+    unified IR to instead report the column of the `(` instead (the
+    position associated with the call expression, which forced `42` to be
+    implicitly converted from `int` to `any`).
+    
+    I chalk this mistake up to being accustomed to working with ir, where
+    we can't reliably use n.Pos() because of how ONAME positions work, so
+    I was trying to avoid relying on the implicitly converted expression's
+    own position.
+    
+    Change-Id: I762076af6f65ebe6d444d64630722a5016dc2698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422976
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

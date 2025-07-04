@@ -1,0 +1,16 @@
+commit 061061e77c255202d01087e72fc3c370d2e21bdb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Apr 13 10:12:31 2012 +0200
+
+    cmd/6g: restore magic multiply for /=, %=.
+    
+    Also enables turning /= 2 in a right shift.
+    
+    Part of issue 2230.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6012049
+
+ src/cmd/6g/ggen.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

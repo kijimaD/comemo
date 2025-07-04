@@ -1,0 +1,13 @@
+commit 120218afeb74e717adf1397f04ef4ca6a10add03
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Feb 11 09:34:43 2014 +0100
+
+    runtime: homogenize panic strings on Plan 9
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/61410046
+
+ src/pkg/runtime/os_plan9.c | 4 ++++
+ 1 file changed, 4 insertions(+)

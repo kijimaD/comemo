@@ -1,0 +1,14 @@
+commit 0f6926474f979f4ffd27b950fd0daf7603e17f29
+Author: Jim McGrath <jimmc2@gmail.com>
+Date:   Mon Oct 11 14:39:41 2010 -0400
+
+    6l: fix Mach-O LC_RPATH
+    
+    Fixes #1177.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/2387042
+
+ src/cmd/ld/macho.c | 4 ++++
+ 1 file changed, 4 insertions(+)

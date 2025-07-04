@@ -1,0 +1,14 @@
+commit 66331532cd512ae2d506c7a120796c203c78099c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 12 17:37:39 2012 -0400
+
+    net/rpc/jsonrpc: fix test error message
+    
+    Fixes #4041.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6495121
+
+ src/pkg/net/rpc/jsonrpc/all_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

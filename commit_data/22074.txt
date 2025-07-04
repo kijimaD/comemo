@@ -1,0 +1,30 @@
+commit ce9b512cccae86cb381ef6bcf8e554a364f88aa1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 17 10:18:30 2015 -0400
+
+    runtime: copy env strings on startup
+    
+    Some versions of libc, in this case Android's bionic, point environ
+    directly at the envp memory.
+    
+    https://android.googlesource.com/platform/bionic/+/master/libc/bionic/libc_init_common.cpp#104
+    
+    The Go runtime does something surprisingly similar, building the
+    runtime's envs []string using gostringnocopy. Both libc and the Go
+    runtime reusing memory interacts badly. When syscall.Setenv uses cgo
+    to call setenv(3), C modifies the underlying memory of a Go string.
+    
+    This manifests on android/arm. With GOROOT=/data/local/tmp, a
+    runtime test calls syscall.Setenv("/os"), resulting in
+    runtime.GOROOT()=="/os\x00a/local/tmp/goroot".
+    
+    Avoid this by copying environment string memory into Go.
+    
+    Covered by runtime.TestFixedGOROOT on android/arm.
+    
+    Change-Id: Id0cf9553969f587addd462f2239dafca1cf371fa
+    Reviewed-on: https://go-review.googlesource.com/7663
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

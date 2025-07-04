@@ -1,0 +1,29 @@
+commit 8749d12bb76db77cdf37d47d666a5962b8a5928b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 1 08:22:14 2022 -0400
+
+    cmd/go: add Subversion support to the local vcstest server
+    
+    With this change applied, 'go test cmd/go/...' passes
+    even with the IP routing for vcs-test.golang.org disabled
+    using 'ip route add blackhole $VCSTEST_IP/32'.
+    
+    Fixes #27494.
+    
+    Change-Id: I45651d2429c7fea7bbf693b2f129e260e1c59891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427914
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go                    |  25 ++-
+ src/cmd/go/internal/vcweb/script.go               |   1 +
+ src/cmd/go/internal/vcweb/svn.go                  | 199 ++++++++++++++++++++++
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go      |  13 +-
+ src/cmd/go/internal/vcweb/vcweb.go                |  13 ++
+ src/cmd/go/testdata/vcstest/svn/hello.txt         |  79 +++++++++
+ src/cmd/go/testdata/vcstest/svn/nonexistent.txt   |   5 +
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 171 +++++++++++++++++++
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 141 +++++++++++++++
+ 9 files changed, 642 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 79473d6b1cec225d498f300c67a89fa589c48855
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Aug 26 20:57:47 2012 +1000
+
+    runtime: use netbsd signal ABI v2
+    
+    Use version 2 of the NetBSD signal ABI - both version 2 and version 3
+    are supported by the kernel, with near identical behaviour. However,
+    the netbsd32 compat code does not allow version 3 to be used, which
+    prevents Go netbsd/386 binaries from running in compat mode on a
+    NetBSD amd64 kernel. Switch to version 2 of the ABI, which is the
+    same version currently used by NetBSD's libc.
+    
+    R=minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6476068
+
+ src/pkg/runtime/sys_netbsd_386.s   | 2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

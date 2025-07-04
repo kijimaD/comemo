@@ -1,0 +1,17 @@
+commit 623319a8473fe947b0a95fbed33cf0824a429734
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 01:27:23 2020 +1000
+
+    cmd/link/internal/arm64: handle calls to SDYNIMPORT with internal linking
+    
+    Handle calls to symbols that are SDYNIMPORT when linking internally on arm64.
+    
+    Update #36435
+    
+    Change-Id: I8b5421171bf471cf31c91d90b8ba99511d2c9e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250181
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

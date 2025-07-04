@@ -1,0 +1,17 @@
+commit 42c8be4414e98f44c4bdb6d6cab126c8b7ed29a3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 9 10:58:35 2015 +1100
+
+    go/build: disable cgo by default for freebsd/arm
+    
+    Updates #10119
+    
+    Temporarily disable cgo by default to get the freebsd/arm
+    builder running again.
+    
+    Change-Id: I4de1f896fcac650184df77c692b102ea6fb73bba
+    Reviewed-on: https://go-review.googlesource.com/7125
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

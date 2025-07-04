@@ -1,0 +1,12 @@
+commit de5442893ddb8a4e0374a2c9a5e5b58d2f5523bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 3 13:19:07 2008 -0700
+
+    A small but powerful change in constant declarations. Proposal by ken
+    after some discussion about enums. Implementation should be trivial.
+    Wording in the doc should be improved, probably.
+    
+    SVN=125946
+
+ doc/go_lang.txt | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

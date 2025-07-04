@@ -1,0 +1,15 @@
+commit 1050c4197ad1cf3ffd1beff111f19d75fc274b3d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 23 00:03:40 2014 -0500
+
+    runtime: add comments for blank import of "unsafe"
+    
+    Change-Id: Iaad548ea90d3b70341a723450d5e4d4c2b88856f
+    Reviewed-on: https://go-review.googlesource.com/2063
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/noasm.go            | 2 +-
+ src/runtime/os_android_arm.go   | 2 +-
+ src/runtime/os_windows.go       | 2 +-
+ src/runtime/syscall2_solaris.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

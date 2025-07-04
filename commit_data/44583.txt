@@ -1,0 +1,23 @@
+commit 30c28bbf0507cba9219633192e02b68719ab8280
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 9 23:31:41 2021 -0500
+
+    cmd/go: avoid password prompts in TestScript/mod_get_private_vcs
+    
+    In some cases, this test would prompt for interactive SSH passwords in
+    order to authenticate to github.com over SSH. Setting GIT_SSH_COMMAND
+    to /bin/false prevents that, while still provoking the desired Git
+    failure mode.
+    
+    Updates #44904.
+    
+    Change-Id: Idc9fe9f47d2ccb6c8a4ea988b73d9c8c774e4079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300156
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+
+ src/cmd/go/testdata/script/mod_get_private_vcs.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit e8c4a5b8930ea0aa9c14008b0d387ac693ad5c8b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Aug 12 21:26:25 2015 +0200
+
+    cmd/trace: fix static file reference
+    
+    Use runtime.GOROOT instead of os.Getenv("GOROOT") to reference
+    trace-viewer html file. GOROOT env var is not necessary set,
+    runtime.GOROOT has a default value for such case.
+    
+    Change-Id: I906a720f6822915bd9575756e6cbf6d622857c2b
+    Reviewed-on: https://go-review.googlesource.com/13593
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

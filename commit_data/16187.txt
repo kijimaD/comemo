@@ -1,0 +1,13 @@
+commit a4196bb6c8a7016145a76587a6a67ffda8444b56
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 18 02:33:55 2013 +0800
+
+    misc/cgo/test: fix a gcc warning
+    See https://code.google.com/p/go/issues/detail?id=5227#c16.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8833044
+
+ misc/cgo/test/issue5227.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

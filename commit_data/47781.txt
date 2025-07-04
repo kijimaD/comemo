@@ -1,0 +1,20 @@
+commit f909f813a0c12fde089a6c5e18fdcb9e71759cf7
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Dec 10 14:03:20 2021 -0500
+
+    testing: update docs for fuzzcachedir
+    
+    Although most of the code seems to be already implemented
+    to support this for general use, it didn't make it in for
+    Go 1.18, so for now we should at least document that it's
+    only for use by the go command.
+    
+    Change-Id: Id559e72d590aedeaaa50bcf880bca1a385d858dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370954
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/testing/fuzz.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

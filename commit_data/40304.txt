@@ -1,0 +1,22 @@
+commit 5375c71289917ac7b25c6fa4bb0f4fa17be19a07
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Oct 16 16:05:24 2019 -0700
+
+    net/http/httptest: add EnableHTTP2 to Server
+    
+    Adds a knob EnableHTTP2, that enables an unstarted
+    Server and its respective client to speak HTTP/2,
+    but only after StartTLS has been invoked.
+    
+    Fixes #34939
+    
+    Change-Id: I287c568b8708a4d3c03e7d9eca7c323b8f4c65b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201557
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/example_test.go | 22 +++++++++++++++++++++
+ src/net/http/httptest/server.go       | 12 +++++++++++-
+ src/net/http/httptest/server_test.go  | 36 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 5db3c8f1fd93b63236be0c4fe35e6f704582fbe1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 7 14:00:26 2020 -0500
+
+    cmd/link: fix for package name attr testpoint in dwarf_test.go
+    
+    Tighten up a testpoint that looks for the compile unit
+    DW_AT_go_package_name attribute. The linker code that injects this
+    attribute was accidentally broken on the dev.link branch, but in a way
+    that wasn't detected by the test (attr was generated, but always with
+    an empty string). The new test will fail if the attr is an empty
+    string, or if we can't find the attribute for the runtime package.
+    
+    Change-Id: I8b065e7eb3486646364d0eaf48a73db6acffbd18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218483
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

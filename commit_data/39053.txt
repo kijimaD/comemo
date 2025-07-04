@@ -1,0 +1,33 @@
+commit 31c4e099158b0e4999c05ee4daf08531f6640ad4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 18 15:42:58 2019 +0000
+
+    runtime: ensure free and unscavenged spans may be backed by huge pages
+    
+    This change adds a new sysHugePage function to provide the equivalent of
+    Linux's madvise(MADV_HUGEPAGE) support to the runtime. It then uses
+    sysHugePage to mark a newly-coalesced free span as backable by huge
+    pages to make the freeHugePages approximation a bit more accurate.
+    
+    The problem being solved here is that if a large free span is composed
+    of many small spans which were coalesced together, then there's a chance
+    that they have had madvise(MADV_NOHUGEPAGE) called on them at some point,
+    which makes freeHugePages less accurate.
+    
+    For #30333.
+    
+    Change-Id: Idd4b02567619fc8d45647d9abd18da42f96f0522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173338
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mem_aix.go     |  3 +++
+ src/runtime/mem_bsd.go     |  3 +++
+ src/runtime/mem_darwin.go  |  3 +++
+ src/runtime/mem_js.go      |  3 +++
+ src/runtime/mem_linux.go   | 21 ++++++++++++---------
+ src/runtime/mem_plan9.go   |  3 +++
+ src/runtime/mem_windows.go |  3 +++
+ src/runtime/mheap.go       | 14 ++++++++++++++
+ 8 files changed, 44 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 5da1f415138e4fdc07212e7ed126288e01c4efa6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 13 17:57:42 2023 +0200
+
+    embed/internal/embedtest: test openFile.ReadAt with non-zero offset
+    
+    Also fix log messages to report expected values in the standard "got foo,
+    want bar" format.
+    
+    Change-Id: I6a9fd4abe1f86c2651c72c2bf7ac4588028e5923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484715
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/embed/internal/embedtest/embed_test.go | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

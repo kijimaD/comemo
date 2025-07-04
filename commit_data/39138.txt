@@ -1,0 +1,22 @@
+commit 337868305401dbe82a6a7235bb613392e86d8b40
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 13 11:56:15 2019 -0700
+
+    cmd/fix: mark tests as parallel
+    
+    This speeds up
+    
+    go test -short -count=1 cmd/fix
+    
+    on my machine from about 8s to about 0.05s.
+    
+    Updates #26473
+    
+    Change-Id: I698ee20704ae0aee874ba642e7b0e070ddc99194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176900
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/fix/main_test.go | 83 +++++++++++++++++++++++++-----------------------
+ 1 file changed, 43 insertions(+), 40 deletions(-)

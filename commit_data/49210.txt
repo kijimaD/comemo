@@ -1,0 +1,24 @@
+commit cb458c05a82aefb253034558b34f16dee8713274
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 25 23:29:44 2022 +0700
+
+    cmd/compile: don't inline fn with shape params, but passed no shape arg
+    
+    This is the same fix as CL 36126, but for the reverse case, function
+    with shape params but passed no shape arg. The same conversion problem
+    may occur in this case, see details explanation there.
+    
+    Fixes #51909
+    Fixes #51925
+    
+    Change-Id: Ib0c1973c7511d85b4918a252c80060f1864180cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395854
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 19 ++++++++++++-
+ test/typeparam/issue51909.go           | 30 ++++++++++++++++++++
+ test/typeparam/issue51925.go           | 52 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 100 insertions(+), 1 deletion(-)

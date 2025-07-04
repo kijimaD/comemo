@@ -1,0 +1,22 @@
+commit 506ce11f0388064bb91c984fdcf800874abb7651
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 03:15:24 2009 -0800
+
+    various tweaks to code review.
+    main one is to check at submit time that
+    user name being used in checkin message
+    is listed in the CONTRIBUTORS file.
+    this should catch misconfigurations.
+    
+    another is to cut the @domain part
+    from the R= and CC= lines on checkin
+    messages, so that cc'ing someone on
+    a change does not mean their email
+    address is recorded for all time.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1016036
+
+ lib/codereview/codereview.py | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

@@ -1,0 +1,13 @@
+commit 3956e5a0295232f63cc0b2f715be916a36708fdf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 7 12:42:02 2010 -0700
+
+    A+C: add Daniel Theophanes (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1535041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

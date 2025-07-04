@@ -1,0 +1,18 @@
+commit 600b982df992c38186ae43bd664ab58cd7042490
+Author: Revolution <35791913+zzdpk2@users.noreply.github.com>
+Date:   Tue Mar 7 08:32:32 2023 +0000
+
+    runtime: fix comment mismatch for currentConsMark
+    
+    Change-Id: Ie0ed83e17be180100f144ce61bbd2c72a64d857b
+    GitHub-Last-Rev: 9db7a90a951c0fa9d18697fa93ae14267ab9b385
+    GitHub-Pull-Request: golang/go#58910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473820
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcpacer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

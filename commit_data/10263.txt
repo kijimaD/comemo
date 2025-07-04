@@ -1,0 +1,12 @@
+commit bbd173fc3dce58d6eacee750001952371e1c1d23
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Nov 7 09:38:40 2011 +1100
+
+    html: be able to test more than one testdata file.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5351041
+
+ src/pkg/html/parse_test.go | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

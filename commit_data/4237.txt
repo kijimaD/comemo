@@ -1,0 +1,18 @@
+commit ed62d27a52c50e6351fa97a2cafe1915b132c132
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 10:29:14 2009 -0800
+
+    template: two bug fixes / nits
+      * diagnose template not created with New
+        (current code just crashes)
+      * write []byte uninterpreted
+        (current code writes fmt format: "[65 65 65 65]")
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/161075
+
+ src/pkg/template/format.go        | 6 +++++-
+ src/pkg/template/template.go      | 3 +++
+ src/pkg/template/template_test.go | 9 +++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit e04ff3d133913ae5665d0da1baeffdcd4dc93bdf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 3 02:53:01 2017 -0700
+
+    archive/tar: fix typo in documentation
+    
+    s/TypeSymLink/TypeSymlink/g
+    
+    Change-Id: I2550843248eb27d90684d0036fe2add0b247ae5a
+    Reviewed-on: https://go-review.googlesource.com/67810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/reader.go | 2 +-
+ src/archive/tar/writer.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

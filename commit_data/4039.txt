@@ -1,0 +1,15 @@
+commit 933d1850ce0091a43f94539146c53e29dd7f1392
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 14 10:28:53 2009 -0800
+
+    typos
+    
+    Fixes #171.
+    Fixes #172.
+    
+    R=agl1
+    https://golang.org/cl/154136
+
+ src/pkg/crypto/subtle/constant_time.go | 2 +-
+ src/pkg/encoding/binary/binary_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

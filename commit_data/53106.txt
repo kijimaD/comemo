@@ -1,0 +1,17 @@
+commit 72f448cb48069ddeb0c30e726fc3b9d113aaf51e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 17 21:10:44 2023 -0700
+
+    go/types, types2: factor out type matching in binary operations
+    
+    Change-Id: Ica61698b6ba00687dcd133245bfc3d87808c7bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496096
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 116 +++++++++++++++++---------------
+ src/go/types/expr.go                    | 116 +++++++++++++++++---------------
+ 2 files changed, 126 insertions(+), 106 deletions(-)

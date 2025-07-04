@@ -1,0 +1,40 @@
+commit ff046d2e28791a5db4802306a3d1324a9e58e383
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 15:22:36 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for *Node formats %s, %v
+    
+    Change-Id: I80ed668cdeab0c4342b734d34b429927e0213e5a
+    Reviewed-on: https://go-review.googlesource.com/28335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/ggen.go   |  2 +-
+ src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/arm/ggen.go     |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go   |  2 +-
+ src/cmd/compile/internal/arm64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  6 +--
+ src/cmd/compile/internal/gc/closure.go   |  4 +-
+ src/cmd/compile/internal/gc/const.go     |  2 +-
+ src/cmd/compile/internal/gc/esc.go       | 74 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/fmt.go       | 40 +++++++----------
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       | 38 ++++++++--------
+ src/cmd/compile/internal/gc/plive.go     |  4 +-
+ src/cmd/compile/internal/gc/popt.go      | 10 ++---
+ src/cmd/compile/internal/gc/range.go     |  6 +--
+ src/cmd/compile/internal/gc/reg.go       |  6 +--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       | 16 +++----
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++----
+ src/cmd/compile/internal/gc/walk.go      | 12 +++---
+ src/cmd/compile/internal/mips64/ggen.go  |  2 +-
+ src/cmd/compile/internal/mips64/gsubr.go |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/s390x/ggen.go   |  2 +-
+ src/cmd/compile/internal/s390x/gsubr.go  |  2 +-
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ src/cmd/compile/internal/x86/gsubr.go    |  2 +-
+ 29 files changed, 129 insertions(+), 137 deletions(-)

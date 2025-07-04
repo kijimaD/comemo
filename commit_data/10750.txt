@@ -1,0 +1,14 @@
+commit 6f975fbb31d97606154b8e753389fb1410a91de6
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Dec 13 14:40:28 2011 -0500
+
+    cypto/ocsp: fix tests
+    
+    Actually compare the result with expected not itself
+    
+    R=agl, bradfitz
+    CC=golang-dev, rsc
+    https://golang.org/cl/5477079
+
+ src/pkg/crypto/ocsp/ocsp_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

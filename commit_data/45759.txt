@@ -1,0 +1,15 @@
+commit e3176bbc3ec7ab3889f02432f6fd088c90fc12dd
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jun 7 10:24:11 2021 -0400
+
+    crypto/tls: fix typo in Config.NextProtos docs
+    
+    Change-Id: I916df584859595067e5e86c35607869397dbbd8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325651
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/tls/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

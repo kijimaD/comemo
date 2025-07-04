@@ -1,0 +1,20 @@
+commit 7e1832d06c0dad102e18e8db0c45f5fcc979718e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 7 18:06:12 2017 -0400
+
+    runtime: say where the compiler knows about var writeBarrier
+    
+    The runtime.writeBarrier variable tries to be helpful by telling you
+    that the compiler also knows about this variable, which you could
+    probably guess, but doesn't say how the compiler knows about it. In
+    fact, the compiler has a complete copy in builtin/runtime.go that
+    needs to be kept in sync. Say so.
+    
+    Change-Id: Ia7fb0c591cb6f9b8230decce01008b417dfcec89
+    Reviewed-on: https://go-review.googlesource.com/40150
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

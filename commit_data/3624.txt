@@ -1,0 +1,29 @@
+commit 219fb020428360b6acf170accba176a038e3a27a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 10:59:27 2009 -0700
+
+    fix build after Mercurial move.
+    various missing or incorrect files.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1014004
+
+ src/clean.bash                    |    2 +-
+ src/cmd/clean.bash                |    2 +-
+ src/cmd/cov/Makefile              |    2 +-
+ src/cmd/cov/main.c                |   12 +-
+ src/cmd/make.bash                 |    2 +-
+ src/lib9/fmt/fltfmt.c             |   15 +-
+ src/lib9/fmt/fmtnull.c            |    7 +-
+ src/lib9/fmt/strtod.c             |  532 +++++++++++++++
+ src/lib9/nan.c                    |    2 +-
+ src/lib9/time.c                   |   60 ++
+ src/lib9/utf/runetypebody-5.0.0.c | 1361 +++++++++++++++++++++++++++++++++++++
+ src/libmach/8obj.c                |    1 +
+ src/libmach/executable.c          |    7 +-
+ src/make.bash                     |    2 +-
+ src/pkg/runtime/Makefile          |   19 +-
+ src/run.bash                      |    6 -
+ test/bench/fannkuch.go            |   35 +-
+ 17 files changed, 1997 insertions(+), 70 deletions(-)

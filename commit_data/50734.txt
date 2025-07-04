@@ -1,0 +1,19 @@
+commit dc53738f58a5db038c052256a7da2b0c07ec9fcb
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:44:34 2022 +0800
+
+    internal/profile: omit comparison tool bool constant
+    
+    Change-Id: I59b3e72382433a6dd82306f026171f3af4a6cba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436717
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/internal/profile/proto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

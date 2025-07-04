@@ -1,0 +1,25 @@
+commit a1b802bde7ceab614dcf64e84f972cac5f1b2210
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 21:38:49 2020 -0700
+
+    cmd/compile: move some generic rules to strongly typed
+    
+    Move a lot of the constant folding rules to use strongly
+    typed AuxInt fields.
+    
+    We need more than a cast to convert AuxInt to, e.g., float32.
+    Make conversion functions for converting back and forth.
+    
+    Change-Id: Ia3d95ee3583ee2179a10938e20210a7617358c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227866
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 243 ++++-----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  29 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  67 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  24 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 715 ++++++++++++++-----------
+ 5 files changed, 621 insertions(+), 457 deletions(-)

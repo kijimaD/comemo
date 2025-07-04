@@ -1,0 +1,12 @@
+commit 022aac78836a96ca844efd327071a55b13cca6a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 11:10:59 2012 -0500
+
+    runtime: fix float64 hash
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5580046
+
+ src/pkg/runtime/alg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

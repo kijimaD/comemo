@@ -1,0 +1,15 @@
+commit c4af3e7c2aed20b1caa62305b29e13c84c130f4b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 26 08:28:33 2008 -0700
+
+    use embedded types to save boilerplate - almost 300 lines' worth
+    
+    R=rsc
+    DELTA=427  (53 added, 302 deleted, 72 changed)
+    OCL=17857
+    CL=17868
+
+ src/lib/reflect/type.go  | 124 ++++++----------------
+ src/lib/reflect/value.go | 267 ++++++++++-------------------------------------
+ src/lib/regexp/regexp.go |  93 +++++------------
+ 3 files changed, 117 insertions(+), 367 deletions(-)

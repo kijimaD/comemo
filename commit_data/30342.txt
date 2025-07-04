@@ -1,0 +1,18 @@
+commit ea52f4b374613134e12367288813019589f85f33
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:54:07 2017 -0800
+
+    cmd/vet/all: update whitelists for monotonic time changes
+    
+    Change-Id: Ib942cb9e0cb20821aea4274bc3ddc83a215afbcb
+    Reviewed-on: https://go-review.googlesource.com/37302
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt           | 1 -
+ src/cmd/vet/all/whitelist/darwin_386.txt    | 1 +
+ src/cmd/vet/all/whitelist/darwin_amd64.txt  | 1 +
+ src/cmd/vet/all/whitelist/windows_386.txt   | 1 +
+ src/cmd/vet/all/whitelist/windows_amd64.txt | 1 +
+ 5 files changed, 4 insertions(+), 1 deletion(-)

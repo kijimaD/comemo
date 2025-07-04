@@ -1,0 +1,18 @@
+commit daf3f082648274b0da7264bcc4794ca0dd4b999d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 1 11:01:39 2016 -0700
+
+    testing: add a method testing.CoverMode
+    
+    This makes it possible to avoid tests where coverage affects the test
+    results by skipping them (or otherwise adjusting them) when coverage
+    is enabled.
+    
+    Update #17699
+    
+    Change-Id: Ifcc36cfcd88ebd677890e82ba80ee3d696ed3d7c
+    Reviewed-on: https://go-review.googlesource.com/32483
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

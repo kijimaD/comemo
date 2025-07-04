@@ -1,0 +1,15 @@
+commit ad7320acc4c05860b1527d55a6044017013d8969
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 20:19:24 2018 +0000
+
+    net/http: document that Handlers are resposible for validating Host headers
+    
+    Fixes #23993
+    
+    Change-Id: I112415c894e8c680bfc17d53772275430e46794b
+    Reviewed-on: https://go-review.googlesource.com/115116
+    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 5 +++++
+ 1 file changed, 5 insertions(+)

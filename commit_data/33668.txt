@@ -1,0 +1,14 @@
+commit c6c0f47e92771c9b4fced87b94c04f66e5d6eba5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 13:00:42 2017 -0800
+
+    os/signal: fix t.Fatal that should be t.Fatalf
+    
+    Change-Id: I2a24b2bde9a7c641b3bc802ff8b2ddebf4990109
+    Reviewed-on: https://go-review.googlesource.com/79496
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/signal/signal_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

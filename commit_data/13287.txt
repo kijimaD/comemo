@@ -1,0 +1,27 @@
+commit 3a66bc415e674ed0ba2dd55ec7ef413fcac3778e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 5 16:24:37 2012 -0400
+
+    runtime: use OS X vsyscall for gettimeofday (amd64)
+    
+    Thanks to Dave Cheney for the magic words "comm page".
+    
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          197           33  -83.05%
+    
+    This should make profiling a little better on OS X.
+    The raw time saved is unlikely to matter: what likely matters
+    more is that it seems like OS X sends profiling signals on the
+    way out of system calls more often than it should; avoiding
+    the system call should increase the accuracy of cpu profiles.
+    
+    The 386 version would be similar but needs to do different
+    math for CPU speeds less than 1 GHz. (Apparently Apple has
+    never shipped a 64-bit CPU with such a slow clock.)
+    
+    R=golang-dev, bradfitz, dave, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/6275056
+
+ src/pkg/runtime/sys_darwin_amd64.s | 79 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 66 insertions(+), 13 deletions(-)

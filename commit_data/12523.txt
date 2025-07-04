@@ -1,0 +1,14 @@
+commit 9b7b574edcff14d916215a72b7a9fc8bb82ab16e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 8 08:53:31 2012 -0800
+
+    go/parser: use test harness for short tests
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5782044
+
+ src/pkg/go/parser/error_test.go  | 11 ++++--
+ src/pkg/go/parser/parser_test.go | 83 +++-------------------------------------
+ src/pkg/go/parser/short_test.go  | 75 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 82 deletions(-)

@@ -1,0 +1,19 @@
+commit 26a852112d1c0505846fa3efbc1060a4dbdd7ae5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 18 14:53:12 2017 -0700
+
+    test: gofmt chan/*.go
+    
+    These are functional tests, so it is safe to gofmt them.
+    
+    Change-Id: I3067279c1d49809ac6a62054448ab8a6c3de9bda
+    Reviewed-on: https://go-review.googlesource.com/43623
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/chan/fifo.go     |   1 -
+ test/chan/perm.go     |  26 ++--
+ test/chan/powser1.go  | 322 +++++++++++++++++++++------------------
+ test/chan/powser2.go  | 408 +++++++++++++++++++++++++++-----------------------
+ test/chan/select3.go  |   7 +-
+ test/chan/sendstmt.go |   2 +-
+ 6 files changed, 410 insertions(+), 356 deletions(-)

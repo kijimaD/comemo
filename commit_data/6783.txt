@@ -1,0 +1,27 @@
+commit 1ee4512b98edfadbd2e12fb983232cf08cd8b31d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Nov 22 10:59:51 2010 -0500
+
+    gc: better error message for bad type in channel send
+    
+    # test program
+    1 package main
+    2
+    3 type C chan int
+    4
+    5 func F(c C) {
+    6       c <- true
+    7 }
+    
+    # old error
+    test.go:6: cannot use true (type bool) as type int in function argument
+    
+    # new error
+    test.go:6: cannot use true (type bool) as type int in channel send
+    
+    R=rsc, ejsherry
+    CC=golang-dev
+    https://golang.org/cl/3231042
+
+ src/cmd/gc/typecheck.c | 1 +
+ 1 file changed, 1 insertion(+)

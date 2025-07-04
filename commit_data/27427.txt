@@ -1,0 +1,18 @@
+commit 6de34e6e25732757b7b40e4053c6ac7fb6d00df4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 10:54:20 2016 +0900
+
+    net: deflake TestLookupPort on Android
+    
+    Looks like some version of Android still fails with "servname not
+    supported for ai_socktype". It probably doesn't support
+    ai_socktype=SOCK_STREAM.
+    
+    Updates #14576.
+    
+    Change-Id: I77ecff147d5b759e3281b3798c60f150a4aab811
+    Reviewed-on: https://go-review.googlesource.com/23194
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 61 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 31 insertions(+), 30 deletions(-)

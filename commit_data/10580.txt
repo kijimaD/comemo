@@ -1,0 +1,15 @@
+commit 1e5aecf6ce72fa16f9e834702d083325646108b7
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Dec 2 09:52:31 2011 +1100
+
+    godoc: improved output of examples in html.
+    
+    Fixes #2467.
+    Fixes #2464.
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5447051
+
+ lib/godoc/example.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

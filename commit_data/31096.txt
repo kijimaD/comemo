@@ -1,0 +1,16 @@
+commit eacfa592201208ad80003c2e32702c968070149c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 12:28:31 2017 -0700
+
+    cmd/internal/obj: remove dead Link fields
+    
+    These are unused after CLs 39922, 40252, 40370, 40371, and 40372.
+    
+    Change-Id: I76f9276c581067a8cb555de761550d960f6e39b8
+    Reviewed-on: https://go-review.googlesource.com/40404
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/link.go | 4 ----
+ 1 file changed, 4 deletions(-)

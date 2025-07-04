@@ -1,0 +1,28 @@
+commit 75e79adaf94a3f883bd2d88467ee7c72ea18c0a3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 20 11:32:05 2020 -0400
+
+    cmd/api: limit concurrent 'go list' calls to GOMAXPROCS
+    
+    Each invocation of 'go list' may consume a significant quantity of
+    system resources, including buffers for reading files and RAM for the
+    runtime's memory footprint.
+    Very small builders may even hit swap as a result of that load,
+    further exacerbating resource contention.
+    
+    To avoid overloading small builders, restrict 'go list' calls to
+    runtime.GOMAXPROCS as it is set at the first call to loadImports.
+    
+    This also somewhat improves running time even on larger machines: on
+    my workstation, this change reduces the wall time for 'go test
+    cmd/api' by around 100ms.
+    
+    Updates #38537
+    
+    Change-Id: I968e0f961a8f1d84c27e1ab8b621b9670dcfd448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228998
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/api/goapi.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

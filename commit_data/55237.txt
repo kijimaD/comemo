@@ -1,0 +1,21 @@
+commit 77e76c4387d1ba69fc00e5e85e9e70f259675456
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 6 09:50:42 2023 -0500
+
+    cmd/go: unset CC when we remove it from PATH in TestScript/cgo_stale_precompiled
+    
+    Otherwise, if make.bash produced a relative default CC path but the
+    user has an absolute path to CC set in their environment, the test
+    will fail spuriously.
+    
+    For #64423.
+    
+    Change-Id: I0f3e1d04851585e1b39266badcda9f17489332d9
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547997
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

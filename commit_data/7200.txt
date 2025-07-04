@@ -1,0 +1,14 @@
+commit 8b8cd0e4c4005a709ac6d2203e1efbd397da5125
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 12:50:27 2011 -0500
+
+    http: follow relative redirect in Get
+    
+    Fixes #1431.
+    
+    R=bradfitz, dangabrad
+    CC=golang-dev
+    https://golang.org/cl/4077042
+
+ src/pkg/http/client.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

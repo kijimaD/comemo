@@ -1,0 +1,15 @@
+commit 6ecb39fce66e2fb08dea2d798822c8f0a93e29d5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 28 16:07:26 2013 +0800
+
+    cmd/go: fix "go run" cgo source when cgo is disabled
+    also move a cgo-depend test to appropriate source file in runtime.
+    
+    R=golang-dev, dave, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7393063
+
+ src/cmd/go/run.go                 | 10 +++++-
+ src/pkg/runtime/crash_cgo_test.go | 73 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/crash_test.go     | 73 ---------------------------------------
+ 3 files changed, 82 insertions(+), 74 deletions(-)

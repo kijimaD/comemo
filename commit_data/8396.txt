@@ -1,0 +1,14 @@
+commit 870791a5acd921eedd2ce9d3945b6da744afc208
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 14 16:54:49 2011 -0700
+
+    unicode: build maketables during testshort too
+    
+    Fixes #1825
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4535066
+
+ src/pkg/unicode/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

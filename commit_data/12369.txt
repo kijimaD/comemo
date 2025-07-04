@@ -1,0 +1,38 @@
+commit b5dc8724cb1f13c4419641fd3b666ebd46408f21
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 6 00:13:10 2012 +0900
+
+    net: make Dial and Listen behavior consistent across over platforms
+    
+    This CL changes the behavior of Dial and Listen API family.
+    
+    Previous Dial and Listen allow a combo of "tcp6" and IPv4 or IPv6
+    IPv4-mapped address as its argument, but it also makes slightly
+    different behaviors between Linux and other platforms. This CL fixes
+    such differences across over platforms by tweaking IP-level socket
+    option IPV6_V6ONLY. Consequently new Dial and Listen API family will
+    reject arguments consists of "tcp6" and IPv4 or IPv6 IPv4-mapped
+    address.
+    
+    This CL also adds a bit clarified unicast listener tests.
+    
+    Fixes #2581.
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5677086
+
+ src/pkg/net/file_test.go       |  11 +-
+ src/pkg/net/iprawsock_posix.go |   7 +
+ src/pkg/net/ipsock_posix.go    |  82 ++++---
+ src/pkg/net/net_test.go        |   8 +
+ src/pkg/net/server_test.go     |   9 +-
+ src/pkg/net/sock.go            |   4 +-
+ src/pkg/net/sockopt_bsd.go     |  13 +-
+ src/pkg/net/sockopt_linux.go   |  13 +-
+ src/pkg/net/sockopt_windows.go |  13 +-
+ src/pkg/net/tcpsock_posix.go   |   7 +
+ src/pkg/net/udpsock_posix.go   |   7 +
+ src/pkg/net/unicast_test.go    | 527 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/net/unixsock_posix.go  |   2 +-
+ 13 files changed, 593 insertions(+), 110 deletions(-)

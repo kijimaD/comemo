@@ -1,0 +1,19 @@
+commit ea14b633627f467a2e35eb7f67df6f3ed60469c0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 9 09:10:49 2023 +0100
+
+    syscall: regen zsyscall_{aix_ppc64,solaris_amd64}.go
+    
+    This renames libc_Setrlimit to libc_setrlimit after CL 476097.
+    
+    Change-Id: I217043a5086cb40d050373eaee3f897173dd678b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538936
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/zsyscall_aix_ppc64.go     | 8 ++++----
+ src/syscall/zsyscall_solaris_amd64.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

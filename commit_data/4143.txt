@@ -1,0 +1,13 @@
+commit eac41e7eba79d2adf374fc90c03f72b8b5beadf8
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 18 16:38:30 2009 -0800
+
+    crypto/x509: RawContents -> RawContent
+    
+    TBR=rsc
+    
+    R=rsc
+    https://golang.org/cl/157075
+
+ src/pkg/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 97bdac03aee805cfa54e7762037a568d85339970
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Mar 1 10:00:09 2021 -0500
+
+    cmd: upgrade golang.org/x/mod to relax import path check
+    
+    This incorporates CL 297089, which allows leading dots in import path
+    elements but not module path elements. Also added a test.
+    
+    Fixes #43985
+    Updates #34992
+    
+    Change-Id: I2d5faabd8f7b23a7943d3f3ccb6707ab5dc2ce3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297530
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                   |  2 +-
+ src/cmd/go.sum                                   |  4 +--
+ src/cmd/go/internal/get/get.go                   | 30 +++++++++++++++++-
+ src/cmd/go/testdata/script/mod_invalid_path.txt  | 24 ++++++++++++++
+ src/cmd/vendor/golang.org/x/mod/module/module.go | 40 +++++++++++++++---------
+ src/cmd/vendor/modules.txt                       |  2 +-
+ 6 files changed, 82 insertions(+), 20 deletions(-)

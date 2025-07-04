@@ -1,0 +1,25 @@
+commit b0dc54697ba34494a4d77e8d3e446070fc7b223b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jun 1 19:25:57 2018 +0200
+
+    runtime: replace calls to hasprefix with hasPrefix
+    
+    The hasprefix function is redundant and can be removed since it has
+    the same implementation as hasPrefix modulo variable names.
+    
+    Fixes #25688
+    
+    Change-Id: I499cc24a2b5c38d1301718a4e66f555fd138386f
+    Reviewed-on: https://go-review.googlesource.com/115835
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/runtime/export_debug_test.go |  2 +-
+ src/runtime/os3_plan9.go         |  2 +-
+ src/runtime/os_plan9.go          | 10 +++++-----
+ src/runtime/proc.go              |  4 ++--
+ src/runtime/string.go            |  6 +++---
+ src/runtime/traceback.go         |  4 ++--
+ src/runtime/type.go              |  4 ----
+ 7 files changed, 14 insertions(+), 18 deletions(-)

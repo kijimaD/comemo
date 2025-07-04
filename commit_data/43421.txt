@@ -1,0 +1,135 @@
+commit b2a8317b31d652b3ee293a313269b8290bcdf96c
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Oct 19 03:57:15 2020 +0000
+
+    cmd/compile: use desired info when allocating registers for live values
+    
+    When allocting registers for live values, use desired register if available,
+    this is helpful for some cases, such as (*entry).delete, which can save a
+    few of copies.
+    Besides, this patch allows more debugging information to be printed out.
+    
+    Test results of compilecmp on Linux/amd64:
+    name                      old time/op                 new time/op                 delta
+    Template                    326729362.060000ns +- 3%    329227238.775510ns +- 4%  +0.76%  (p=0.038 n=50+49)
+    Unicode                     157671860.391304ns +- 6%    156917927.320000ns +- 6%    ~     (p=0.291 n=46+50)
+    GoTypes                    1065591138.304348ns +- 2%   1063695977.434783ns +- 1%    ~     (p=0.208 n=46+46)
+    Compiler                   5053424790.760001ns +- 2%   5052729636.551020ns +- 3%    ~     (p=0.908 n=50+49)
+    SSA                       12392067635.866669ns +- 2%  12319786960.460005ns +- 2%  -0.58%  (p=0.008 n=45+50)
+    Flate                       212609767.340000ns +- 5%    213011228.085106ns +- 5%    ~     (p=0.685 n=50+47)
+    GoParser                    266870495.100000ns +- 4%    266962314.280000ns +- 3%    ~     (p=0.975 n=50+50)
+    Reflect                     660164306.551021ns +- 2%    658284470.729167ns +- 2%    ~     (p=0.069 n=49+48)
+    Tar                         292805895.720000ns +- 4%    292103626.954545ns +- 2%    ~     (p=0.321 n=50+44)
+    XML                         386294811.700000ns +- 4%    386665088.820000ns +- 4%    ~     (p=0.786 n=50+50)
+    LinkCompiler                548495788.659575ns +- 5%    549359489.102041ns +- 4%    ~     (p=0.855 n=47+49)
+    ExternalLinkCompiler       1810414270.280000ns +- 2%   1806872224.673470ns +- 2%    ~     (p=0.313 n=50+49)
+    LinkWithoutDebugCompiler    340888843.795918ns +- 5%    340341541.100000ns +- 6%    ~     (p=0.735 n=49+50)
+    [Geo mean]                   664550174.613777ns          664090221.153575ns       -0.07%
+    
+    name                      old user-time/op            new user-time/op            delta
+    Template                    565202800.000000ns +-16%    595351040.000000ns +-16%  +5.33%  (p=0.001 n=50+50)
+    Unicode                     378444740.000000ns +-14%    373825183.673469ns +-17%    ~     (p=0.458 n=50+49)
+    GoTypes                    2052073341.463415ns +-12%   2059679864.864865ns +- 7%    ~     (p=0.381 n=41+37)
+    Compiler                   9913371980.000000ns +-20%   9848836720.000002ns +-19%    ~     (p=0.781 n=50+50)
+    SSA                       25013846224.489799ns +-17%  24571896183.673466ns +-17%    ~     (p=0.132 n=49+49)
+    Flate                       314422702.127660ns +-17%    314831666.666667ns +-11%    ~     (p=0.427 n=47+45)
+    GoParser                    419496060.000000ns +- 9%    417403460.000000ns +-11%    ~     (p=0.512 n=50+50)
+    Reflect                    1233632469.387755ns +-17%   1193061073.170732ns +-13%  -3.29%  (p=0.030 n=49+41)
+    Tar                         509855937.500000ns +-10%    508700740.000000ns +-14%    ~     (p=0.890 n=48+50)
+    XML                         703511425.531915ns +-12%    694007591.836735ns +-11%    ~     (p=0.164 n=47+49)
+    LinkCompiler                993137687.500000ns +- 6%    991914714.285714ns +- 8%    ~     (p=0.860 n=48+49)
+    ExternalLinkCompiler       2193851840.000001ns +- 3%   2186672183.673470ns +- 5%    ~     (p=0.320 n=50+49)
+    LinkWithoutDebugCompiler    420800875.000000ns +-10%    422062640.000000ns +- 9%    ~     (p=0.840 n=48+50)
+    [Geo mean]                  1145156131.480097ns         1142033233.550961ns       -0.27%
+    
+    name                      old alloc/op                new alloc/op                delta
+    Template                                36.3MB +- 0%                36.3MB +- 0%    ~     (p=0.886 n=50+49)
+    Unicode                                 30.1MB +- 0%                30.1MB +- 0%    ~     (p=0.792 n=50+50)
+    GoTypes                                  118MB +- 0%                 118MB +- 0%    ~     (p=1.000 n=47+48)
+    Compiler                                 562MB +- 0%                 562MB +- 0%    ~     (p=0.205 n=50+49)
+    SSA                                     1.42GB +- 0%                1.42GB +- 0%  -0.12%  (p=0.000 n=50+50)
+    Flate                                   22.8MB +- 0%                22.8MB +- 0%    ~     (p=0.384 n=50+47)
+    GoParser                                28.0MB +- 0%                28.0MB +- 0%  -0.02%  (p=0.013 n=50+50)
+    Reflect                                 78.0MB +- 0%                78.0MB +- 0%    ~     (p=0.384 n=46+48)
+    Tar                                     34.1MB +- 0%                34.1MB +- 0%    ~     (p=0.072 n=50+50)
+    XML                                     43.1MB +- 0%                43.1MB +- 0%  -0.04%  (p=0.000 n=49+50)
+    LinkCompiler                            98.5MB +- 0%                98.5MB +- 0%  +0.01%  (p=0.012 n=50+43)
+    ExternalLinkCompiler                    89.6MB +- 0%                89.6MB +- 0%    ~     (p=0.762 n=50+50)
+    LinkWithoutDebugCompiler                56.9MB +- 0%                56.9MB +- 0%    ~     (p=0.268 n=49+48)
+    [Geo mean]                               77.7MB                      77.7MB       -0.01%
+    
+    name                      old allocs/op               new allocs/op               delta
+    Template                                  367k +- 0%                  367k +- 0%  -0.01%  (p=0.002 n=50+49)
+    Unicode                                   345k +- 0%                  345k +- 0%    ~     (p=0.981 n=50+50)
+    GoTypes                                  1.28M +- 0%                 1.28M +- 0%  -0.00%  (p=0.002 n=49+50)
+    Compiler                                 5.39M +- 0%                 5.39M +- 0%  -0.00%  (p=0.000 n=50+50)
+    SSA                                      13.9M +- 0%                 13.9M +- 0%  +0.01%  (p=0.000 n=50+50)
+    Flate                                     230k +- 0%                  230k +- 0%    ~     (p=0.815 n=50+50)
+    GoParser                                  292k +- 0%                  292k +- 0%  -0.01%  (p=0.000 n=50+50)
+    Reflect                                   977k +- 0%                  977k +- 0%  -0.00%  (p=0.035 n=50+50)
+    Tar                                       343k +- 0%                  343k +- 0%  -0.01%  (p=0.008 n=48+50)
+    XML                                       418k +- 0%                  418k +- 0%  -0.01%  (p=0.000 n=50+50)
+    LinkCompiler                              516k +- 0%                  516k +- 0%  +0.01%  (p=0.002 n=50+48)
+    ExternalLinkCompiler                      570k +- 0%                  570k +- 0%    ~     (p=0.430 n=46+50)
+    LinkWithoutDebugCompiler                  169k +- 0%                  169k +- 0%    ~     (p=0.706 n=49+49)
+    [Geo mean]                                 672k                        672k       -0.00%
+    
+    name                      old maxRSS/op               new maxRSS/op               delta
+    Template                                 34.3M +- 5%                 34.7M +- 4%  +1.24%  (p=0.004 n=50+50)
+    Unicode                                  36.2M +- 5%                 36.1M +- 8%    ~     (p=0.785 n=50+50)
+    GoTypes                                  75.7M +- 7%                 76.1M +- 6%    ~     (p=0.544 n=50+50)
+    Compiler                                  304M +- 7%                  304M +- 7%    ~     (p=0.744 n=50+50)
+    SSA                                       721M +- 6%                  723M +- 7%    ~     (p=0.724 n=49+50)
+    Flate                                    26.1M +- 3%                 26.1M +- 5%    ~     (p=0.649 n=48+49)
+    GoParser                                 29.3M +- 5%                 29.3M +- 4%    ~     (p=0.809 n=50+50)
+    Reflect                                  56.0M +- 6%                 56.3M +- 5%    ~     (p=0.350 n=50+50)
+    Tar                                      34.1M +- 3%                 33.9M +- 5%    ~     (p=0.121 n=49+50)
+    XML                                      39.6M +- 5%                 39.9M +- 4%    ~     (p=0.109 n=50+50)
+    LinkCompiler                              168M +- 1%                  168M +- 1%    ~     (p=0.578 n=49+48)
+    ExternalLinkCompiler                      179M +- 1%                  179M +- 2%    ~     (p=0.522 n=46+46)
+    LinkWithoutDebugCompiler                  137M +- 3%                  137M +- 3%    ~     (p=0.463 n=41+50)
+    [Geo mean]                                79.3M                       79.5M       +0.20%
+    
+    name                      old text-bytes              new text-bytes              delta
+    HelloSize                                812kB +- 0%                 811kB +- 0%  -0.05%  (p=0.000 n=50+50)
+    
+    name                      old data-bytes              new data-bytes              delta
+    HelloSize                               13.3kB +- 0%                13.3kB +- 0%    ~     (all equal)
+    
+    name                      old bss-bytes               new bss-bytes               delta
+    HelloSize                                206kB +- 0%                 206kB +- 0%    ~     (all equal)
+    
+    name                      old exe-bytes               new exe-bytes               delta
+    HelloSize                               1.21MB +- 0%                1.21MB +- 0%  +0.02%  (p=0.000 n=50+50)
+    
+    file      before    after     Δ       %
+    addr2line 4052949   4052453   -496    -0.012%
+    api       4948171   4947163   -1008   -0.020%
+    asm       4888889   4888049   -840    -0.017%
+    buildid   2617545   2617673   +128    +0.005%
+    cgo       4521681   4516801   -4880   -0.108%
+    compile   19139091  19137683  -1408   -0.007%
+    cover     4843191   4840359   -2832   -0.058%
+    dist      3473677   3474717   +1040   +0.030%
+    doc       3821592   3821552   -40     -0.001%
+    fix       3220587   3220059   -528    -0.016%
+    link      6587368   6582696   -4672   -0.071%
+    nm        3999858   3999186   -672    -0.017%
+    objdump   4409161   4408217   -944    -0.021%
+    pack      2394038   2393846   -192    -0.008%
+    pprof     13601271  13602487  +1216   +0.009%
+    test2json 2645148   2644604   -544    -0.021%
+    trace     10357878  10356862  -1016   -0.010%
+    vet       6779482   6778706   -776    -0.011%
+    total     106301577 106283113 -18464  -0.017%
+    
+    Change-Id: I63ac6e224e1a4756ddc1bfc4aabbaeb92d7d4273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263599
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

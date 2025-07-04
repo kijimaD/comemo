@@ -1,0 +1,21 @@
+commit 2fc21b50e4c19d60ad7c91bcfe6488e0f13abde3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 24 10:10:12 2022 -0400
+
+    cmd/go: skip link_syso tests in short mode
+    
+    These tests invoke the system C compiler and linker.
+    Skipping them saves a little over half a second of time in short mode.
+    
+    Updates #54423.
+    
+    Change-Id: I3e8aa7b53c0c91f7d1e001ec2cd5f7b4954de52d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425206
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/link_syso_deps.txt       | 3 ++-
+ src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

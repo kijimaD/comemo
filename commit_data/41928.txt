@@ -1,0 +1,36 @@
+commit 28a55d01236d27390e20bb35093c2a590ca42e47
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Apr 10 14:56:59 2020 -0400
+
+    cmd/trace: use the focustask mode for user task/region trace views
+    
+    The taskid mode is based on the goroutine-oriented trace view,
+    which displays each goroutine as a separate row. This is good when
+    inspecting the interaction and timeline among related goroutines,
+    and the user region information (associated with each goroutine)
+    in detail, but when many goroutines are involved, this mode does
+    not scale.
+    
+    The focustask mode is based on the default trace view with the
+    user task hierarchy at the top. Each row is a P and there are only
+    a handful number of Ps in most cases, so browsers can handle
+    this mode more gracefully. But, I had difficulty in displaying
+    the user region information (because a goroutine can start/stop/
+    migrate across Ps, and visualizing the stack of regions nicely
+    was complicated). It may be doable, but it's a work.
+    
+    This CL surfaces the hidden focustask mode. Moreover, use it
+    as the default user task view mode. The taskid mode can be still
+    accessible through 'goroutine view' links.
+    
+    Unlike taskid-based user annotation view that extends goroutine-based
+    trace view, the focustask view
+    
+    Change-Id: Ib691a5e1dd14695fa70a0ae67bff62817025e8c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227921
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/annotations.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

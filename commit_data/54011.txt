@@ -1,0 +1,38 @@
+commit a274b3003b8d03a0384a5bbbf6bfe459fd2c4787
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 8 01:18:17 2023 +1000
+
+    crypto/internal/bigmod: provide assembly addMulVVW* for riscv64
+    
+    This provides an assembly implementation of addMulVVW* for riscv64,
+    processing four words per loop, resulting in a performance gain
+    of 23%+ for RSA decryption/signing on a StarFive VisionFive 2:
+    
+                           │    rsa1     │                rsa2                 │
+                           │   sec/op    │   sec/op     vs base                │
+    DecryptPKCS1v15/2048-4   24.29m ± 0%   18.65m ± 0%  -23.24% (p=0.000 n=10)
+    DecryptPKCS1v15/3072-4   73.28m ± 0%   54.08m ± 0%  -26.20% (p=0.000 n=10)
+    DecryptPKCS1v15/4096-4   163.5m ± 0%   119.1m ± 0%  -27.17% (p=0.000 n=10)
+    EncryptPKCS1v15/2048-4   1.505m ± 0%   1.446m ± 0%   -3.93% (p=0.000 n=10)
+    DecryptOAEP/2048-4       24.37m ± 0%   18.72m ± 0%  -23.17% (p=0.000 n=10)
+    EncryptOAEP/2048-4       1.570m ± 0%   1.510m ± 0%   -3.84% (p=0.000 n=10)
+    SignPKCS1v15/2048-4      24.52m ± 0%   18.80m ± 0%  -23.36% (p=0.000 n=10)
+    VerifyPKCS1v15/2048-4    1.491m ± 0%   1.431m ± 0%   -4.00% (p=0.000 n=10)
+    SignPSS/2048-4           24.60m ± 0%   18.89m ± 0%  -23.21% (p=0.000 n=10)
+    VerifyPSS/2048-4         1.565m ± 0%   1.504m ± 0%   -3.87% (p=0.000 n=10)
+    geomean                  10.90m        9.066m       -16.79%
+    
+    Change-Id: I8414ba0028b0781a945610abe02c285d2387aef3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516536
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/internal/bigmod/nat_asm.go    |  2 +-
+ src/crypto/internal/bigmod/nat_noasm.go  |  2 +-
+ src/crypto/internal/bigmod/nat_riscv64.s | 91 ++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+), 2 deletions(-)

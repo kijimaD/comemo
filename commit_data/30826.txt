@@ -1,0 +1,29 @@
+commit f498929cdbafea0ba346186841b38e8a5d282ca1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 17:39:28 2017 -0700
+
+    cmd/compile: remove global var importpkg in favor of simple bool
+    
+    Pass around the imported package explicitly instead of relying
+    on a global variable.
+    
+    Unfortunately we still need a global variable to communicate to
+    the typechecker that we're in an import, but the semantic load
+    is significantly reduced as it's just a bool, set/reset in a
+    couple of places only.
+    
+    Change-Id: I4ebeae4064eb76ca0c4e2a15e4ca53813f005c29
+    Reviewed-on: https://go-review.googlesource.com/38595
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go   | 17 ++++++++------
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    | 37 ++++++++++++++++--------------
+ src/cmd/compile/internal/gc/go.go        |  2 +-
+ src/cmd/compile/internal/gc/main.go      | 39 +++++++++++++++-----------------
+ src/cmd/compile/internal/gc/noder.go     |  4 +---
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ 8 files changed, 54 insertions(+), 53 deletions(-)

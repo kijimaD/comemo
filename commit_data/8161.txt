@@ -1,0 +1,15 @@
+commit ec735c4ec8b15a340f223c20b77b8456a1ebcab3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 16:12:47 2011 -0400
+
+    gc: fix error for +string
+    
+    Fixes #1710.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4444054
+
+ src/cmd/gc/align.c       |  2 +-
+ test/fixedbugs/bug330.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

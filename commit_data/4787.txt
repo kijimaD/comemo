@@ -1,0 +1,13 @@
+commit dcabd19a37127f7074ff694cb00a3741019f8111
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 4 13:08:47 2010 -0800
+
+    A+C: Joe Poirier (individual CLA)
+    
+    R=adg, adg1
+    CC=golang-dev
+    https://golang.org/cl/202044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

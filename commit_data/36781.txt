@@ -1,0 +1,16 @@
+commit 7dda5123d8753cfd1f041e1d1537bb5493cd5e5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 28 10:41:31 2018 -0700
+
+    cmd/go: permit some more x86 compiler options
+    
+    Permit -mssse3, -maes, -mvaes, and various -mavxNNN options.
+    
+    Change-Id: If496df6b84eca37897fd603a6480c9f63e7f7382
+    Reviewed-on: https://go-review.googlesource.com/138476
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/security.go | 3 +++
+ 1 file changed, 3 insertions(+)

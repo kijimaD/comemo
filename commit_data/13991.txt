@@ -1,0 +1,21 @@
+commit af582674b0b1d4a06ca9c8bda8f66ce9e9846696
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Oct 1 10:09:08 2012 +1000
+
+    pkg/syscall: Plan 9, 64-bit: Update error checks from sys calls.
+    
+    This change updates CL 6576057 for exceptional cases where
+    return values from Syscall/RawSyscall functions are used.
+    
+    The system calls return 32-bit integers. With the recent change
+    in size of `int' in Go for amd64, the type conversion was not
+    catching `-1' return values. This change makes the conversion
+    explicitly `int32'.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6590047
+
+ src/pkg/syscall/exec_plan9.go    | 20 ++++++++++----------
+ src/pkg/syscall/syscall_plan9.go |  2 +-
+ 2 files changed, 11 insertions(+), 11 deletions(-)

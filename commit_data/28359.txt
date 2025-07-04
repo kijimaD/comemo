@@ -1,0 +1,17 @@
+commit 6fd8c006adf792e523232a026823a5444893f28f
+Author: David Stainton <dstainton415@gmail.com>
+Date:   Fri Aug 12 22:15:21 2016 +0000
+
+    syscall: add bounds checking and error returns to ParseNetlinkMessage
+    
+    Fixes #16681
+    
+    Change-Id: I6ff7ec81fe48ab06be3aae5b7ff92e9dc70960c3
+    Reviewed-on: https://go-review.googlesource.com/26990
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/syscall/netlink_linux.go      |  5 +++--
+ src/syscall/syscall_linux_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit bc972e8ef870471c3c4ba95b92c5194b37ba2871
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 15:44:12 2017 -0700
+
+    cmd/compile: remove lookupf
+    
+    Change-Id: I4de5173fa50fbf90802d1d2428824702f2118dde
+    Reviewed-on: https://go-review.googlesource.com/39030
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 6 +++---
+ src/cmd/compile/internal/gc/subr.go    | 4 ----
+ 2 files changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 4d7017dcd02a4fb35b2cd3b31b852d858bd5fbb3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 5 11:12:58 2012 +1100
+
+    doc/effective_go: minor fix
+            We have 'gofmt' and 'go fmt', but not 'go tool fmt'.
+    
+    R=golang-dev, kyle, r
+    CC=golang-dev
+    https://golang.org/cl/5739043
+
+ doc/effective_go.html | 2 +-
+ doc/effective_go.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

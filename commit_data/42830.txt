@@ -1,0 +1,16 @@
+commit 63828096f61593cd766d6e25fce74133efeb17f8
+Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
+Date:   Fri May 8 18:13:58 2020 +0800
+
+    math/big: add function example
+    
+    While reading the source code of the math/big package, I found the SetString function example of float type missing.
+    
+    Change-Id: Id8c16a58e2e24f9463e8ff38adbc98f8c418ab26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232804
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

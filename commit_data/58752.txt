@@ -1,0 +1,23 @@
+commit 1959703dddffef61760d5d4fdedc4df8d2d73438
+Author: Carlos Ramos Carreño <vnmabus@gmail.com>
+Date:   Fri Feb 14 10:14:29 2025 +0000
+
+    syscall: skip testAmbientCaps tests if there is no nobody user
+    
+    When there is not a nobody user (for example inside Docker), the
+    tests TestAmbientCaps and TestAmbientCapsUserns should be skipped
+    instead of failing.
+    
+    Fixes #71644
+    
+    Change-Id: I7f92db19e2b6f449d8d897650a0ecd89f5150f4a
+    GitHub-Last-Rev: a4c4f5bb61929b4981dc0b92d773bd4ef13d7d3d
+    GitHub-Pull-Request: golang/go#71729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/syscall/exec_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

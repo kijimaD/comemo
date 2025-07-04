@@ -1,0 +1,15 @@
+commit 59fb90ac85be4c2c024d84287e03c200ef4fa24e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 3 16:39:42 2013 -0400
+
+    cmd/go: document flag passing for tests
+    Fixes #5566.
+    
+    R=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9882043
+
+ src/cmd/go/doc.go  | 8 +++++++-
+ src/cmd/go/run.go  | 1 +
+ src/cmd/go/test.go | 7 ++++++-
+ 3 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 5876cb0e63f9cfd606fad348d6735d117cb3794d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 6 12:05:16 2009 -0700
+
+    - bufio.ReadRune fix for empty reads w/o errors
+    - added testcases
+    
+    R=rsc
+    DELTA=61  (56 added, 2 deleted, 3 changed)
+    OCL=32831
+    CL=32834
+
+ src/pkg/bufio/bufio.go      |  8 +++----
+ src/pkg/bufio/bufio_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 40bcbb30b7d6df0ef5985dfb3873ce105e724c16
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 18:05:12 2009 -0700
+
+    fix 386 build
+    
+    R=ken
+    OCL=34164
+    CL=34164
+
+ src/cmd/8g/gsubr.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

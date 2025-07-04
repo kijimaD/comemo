@@ -1,0 +1,22 @@
+commit ef40d9435b7e9631b6031f80854b1f8a6768f9de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 13:53:56 2008 -0700
+
+    6g:
+            make sure methods end up immediately following
+            the struct they are methods on.
+    ar:
+            eliminate duplicate definitions from __.PKGDEF.
+            check that multiple .6 do not give different defs for same
+                    exported type/var/func/const.
+            increase ar header name size from 16 to 64 bytes
+    
+    R=r
+    DELTA=379  (333 added, 18 deleted, 28 changed)
+    OCL=17477
+    CL=17481
+
+ include/ar.h        |   2 +-
+ src/cmd/ar/ar.c     | 395 ++++++++++++++++++++++++++++++++++++++++++++++------
+ src/cmd/gc/export.c |   8 +-
+ 3 files changed, 360 insertions(+), 45 deletions(-)

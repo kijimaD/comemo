@@ -1,0 +1,12 @@
+commit f74beebb2f40c346c0fa5d96f938dcef5297aed1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 6 18:40:30 2009 -0800
+
+    codereview: print gofmt message when aborting
+    
+    R=r
+    CC=vish
+    http://go/go-review/1026013
+
+ lib/codereview/codereview.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 7d114b5b71a03aa90fc560878acf19cc7251d216
+Author: yincong <yincong@baidu.com>
+Date:   Sun Sep 22 08:05:02 2024 +0000
+
+    text/template/parse: use correct line number in error after comment
+    
+    Fixes #69526
+    
+    Change-Id: I42467ddec02e91f24bce87185bf8d7f16f8811b0
+    GitHub-Last-Rev: 039a5b6884aa65f34cecbfcd127861a703a048da
+    GitHub-Pull-Request: golang/go#69532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614375
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/text/template/parse/lex.go      |  1 +
+ src/text/template/parse/lex_test.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+)

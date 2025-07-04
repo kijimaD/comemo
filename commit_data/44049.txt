@@ -1,0 +1,18 @@
+commit 6cff874c47bdb4567f5c84bc59d93311493caefe
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 7 15:11:46 2020 +0000
+
+    runtime/metrics: add Read examples
+    
+    This change adds two examples of using the Read function: one that reads
+    one metric and one that reads all metrics.
+    
+    Change-Id: I4940a44c9b1d65f3f7a1554e3145ff07e6492fc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275855
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics/example_test.go | 96 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

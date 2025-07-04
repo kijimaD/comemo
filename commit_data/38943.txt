@@ -1,0 +1,23 @@
+commit cbf90b0028265a6195257e31a03aae42d402dd64
+Author: BigMikes <giulio.micheloni@gmail.com>
+Date:   Sun Dec 30 15:18:58 2018 +0100
+
+    net: correct docs of KeepAlive field in Dialer type
+    
+    KeepAlive field used to report the wording "keep-alive period"
+    which may be misleading. This field does not represent the whole
+    TCP keepalive time, that is the inactivity period upon which one
+    endpoint starts probing the other end. But it acctually specifies
+    the keepalive interval, that is the time between two keepalive
+    probes.
+    
+    Fixes #29089
+    
+    Change-Id: If99b38ba108830d0e5fe527171a2f5c96a3bcde7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/155960
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go                  | 13 +++++++------
+ src/net/http/httputil/persist.go |  4 ++--
+ src/net/tcpsock.go               |  4 ++--
+ 3 files changed, 11 insertions(+), 10 deletions(-)

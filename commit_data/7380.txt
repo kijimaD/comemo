@@ -1,0 +1,15 @@
+commit 566d432f54b4692b20a09317293e80e41d9bd3da
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 5 13:55:37 2011 -0500
+
+    asn1: marshal true as 255, not 1.
+    
+    OS X, at least, appears to test |byte == 255|, not |byte != 0| to
+    establish if a bool is true or false.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4128064
+
+ src/pkg/asn1/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

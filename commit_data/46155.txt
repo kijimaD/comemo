@@ -1,0 +1,30 @@
+commit 099b819085e12ca45ac184cab5afb82538bec472
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 24 15:34:52 2021 -0700
+
+    cmd/compile: fix CheckSize() calculation for -G=3 and stencils
+    
+    Because the Align/Width of pointer types are always set when created,
+    CalcSize() never descends past a pointer. Therefore, we need to do
+    CheckSize() at every level when creating type. We need to do this for
+    types creates by types2-to-types1 conversion and also by type
+    substitution (mostly for stenciling). We also need to do
+    Defer/ResumeCheckSize() at the top level in each of these cases to deal
+    with potentially recursive types.
+    
+    These changes fix issue #47929 and also allow us to remove the
+    special-case CheckSize() call that causes the problem for issue #47901.
+    
+    Fixes #47901
+    Fixes #47929
+    
+    Change-Id: Icd8192431c145009cd6df2f4ade6db7da0f4dd3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344829
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/types.go    | 24 ++++++--------
+ src/cmd/compile/internal/typecheck/subr.go | 52 ++++++++++++++++--------------
+ test/typeparam/issue47901.go               | 21 ++++++++++++
+ test/typeparam/issue47929.go               | 29 +++++++++++++++++
+ 4 files changed, 88 insertions(+), 38 deletions(-)

@@ -1,0 +1,14 @@
+commit 337407d8473d96b11b8c4bd053bce463c347eb06
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 13:51:45 2013 -0400
+
+    testing: make parsing of -cpu more lenient
+    
+    Also add \n to error message.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12261044
+
+ src/pkg/testing/testing.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

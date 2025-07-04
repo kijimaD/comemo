@@ -1,0 +1,15 @@
+commit 2281ca169cb9f07755d905dec03d2fc7a168094b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 11:21:18 2011 -0500
+
+    gc: fix &^=
+    
+    Fixes #1394.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3879041
+
+ src/cmd/gc/walk.c        |  8 ++++----
+ test/fixedbugs/bug317.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

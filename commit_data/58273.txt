@@ -1,0 +1,27 @@
+commit 4865aadc21acebc8039f914929f03c7042b2ae8d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 21 23:39:47 2024 -0500
+
+    cmd/dist: don't test FIPS when ASAN is on
+    
+    CL 627603 added a clear error that FIPS+ASAN doesn't work, and
+    disabled a test in check_test.go. The :gofips140 test variants
+    in cmd/dist need to be disabled as well.
+    
+    Remove a return after testing.T.Skipf since it's unreachable.
+    
+    For #70321.
+    Fixes #70496.
+    
+    Change-Id: Ia53830db1260a817aff1a82cbd91b725e0791437
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631095
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go                          | 11 +++++++++--
+ src/crypto/internal/fips140/check/check.go    |  3 ++-
+ src/crypto/internal/fips140test/check_test.go |  1 -
+ 3 files changed, 11 insertions(+), 4 deletions(-)

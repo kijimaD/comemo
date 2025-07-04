@@ -1,0 +1,22 @@
+commit 86d375498fa377c7d81c5b93750e8dce2389500e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 16:18:36 2018 +0100
+
+    runtime: don't recreate netpoll timers if they don't change
+    
+    Currently we always delete both read and write timers and then
+    add them again. However, if user setups read and write deadline
+    separately, then we don't need to touch the other one.
+    
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.2µs ± 0%  17.2µs ± 0%     ~     (p=0.310 n=5+5)
+    SetReadDeadline-6      319ns ± 1%   274ns ± 2%  -13.94%  (p=0.008 n=5+5)
+    
+    Update #25729
+    
+    Change-Id: I4c869c3083521de6d0cd6ca99a7609d4dd84b4e4
+    Reviewed-on: https://go-review.googlesource.com/c/146338
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go | 71 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 42 insertions(+), 29 deletions(-)

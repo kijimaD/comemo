@@ -1,0 +1,18 @@
+commit a0acdd210b7052c332926bae9a72e8a4bae642b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 13:28:29 2012 -0800
+
+    go/printer: test that formatted code is parseable
+    
+    - Added test case for issue 1542.
+    
+    Fixes #1542.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5645080
+
+ src/pkg/go/printer/printer_test.go          |  7 +++++++
+ src/pkg/go/printer/testdata/comments.golden | 22 +++++++++++++++++++++-
+ src/pkg/go/printer/testdata/comments.input  | 22 +++++++++++++++++++++-
+ 3 files changed, 49 insertions(+), 2 deletions(-)

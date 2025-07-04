@@ -1,0 +1,21 @@
+commit 9a7544395ae5075cca2f3f5485f3503f891b5e97
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 16:01:11 2017 -0500
+
+    runtime/pprof: merge internal/protopprof into pprof package
+    
+    These are very tightly coupled, and internal/protopprof is small.
+    There's no point to having a separate package.
+    
+    Change-Id: I2c8aa49c9e18a7128657bf2b05323860151b5606
+    Reviewed-on: https://go-review.googlesource.com/36711
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go                                     |  5 ++---
+ .../pprof/{internal/protopprof/protopprof.go => proto.go}      |  9 +++------
+ .../{internal/protopprof/protopprof_test.go => proto_test.go}  | 10 +++++-----
+ .../{internal/protopprof/protomemprofile.go => protomem.go}    |  6 +++---
+ .../protopprof/protomemprofile_test.go => protomem_test.go}    |  4 ++--
+ 5 files changed, 15 insertions(+), 19 deletions(-)

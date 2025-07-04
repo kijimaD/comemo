@@ -1,0 +1,22 @@
+commit 93fcb922570ac3b601f5addbe408866641783dac
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 22:04:12 2014 -0400
+
+    cmd/gc: disallow call of *T method using **T variable
+    
+    This brings cmd/gc in line with the spec on this question.
+    It might break existing code, but that code was not conformant
+    with the spec.
+    
+    Credit to Rémy for finding the broken code.
+    
+    Fixes #6366.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=adonovan, golang-codereviews, gri
+    https://golang.org/cl/129550043
+
+ src/cmd/gc/typecheck.c   | 7 +++++--
+ test/fixedbugs/bug371.go | 6 +++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)

@@ -1,0 +1,31 @@
+commit 678ba85e5370e509c1fbfe9adb9a70d2b9212bca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 30 10:02:16 2014 +0900
+
+    undo CL 107280044 / ee11f19bc514
+    
+    preparing for the syscall package freeze.
+    
+    ««« original CL description
+    syscall: consolidate, simplify socket options for Unix-like systems
+    
+    Also exposes common socket option functions on Solaris.
+    
+    Update #7174
+    Update #7175
+    
+    LGTM=aram
+    R=golang-codereviews, aram
+    CC=golang-codereviews
+    https://golang.org/cl/107280044
+    »»»
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/121880043
+
+ src/pkg/syscall/syscall_bsd.go   | 42 +++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux.go | 34 ++++++++++++++++++
+ src/pkg/syscall/syscall_unix.go  | 74 +++++++++-------------------------------
+ 3 files changed, 92 insertions(+), 58 deletions(-)

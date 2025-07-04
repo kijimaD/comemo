@@ -1,0 +1,18 @@
+commit 299f524d90c2c11852077eba582a579d94f33fe8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 13:23:16 2011 -0400
+
+    image/png: check zlib checksum during Decode
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4987041
+
+ src/pkg/image/png/reader.go                  |  10 +++++++++
+ src/pkg/image/png/reader_test.go             |  31 +++++++++++++++++++++++++--
+ src/pkg/image/png/testdata/invalid-crc32.png | Bin 0 -> 1289 bytes
+ src/pkg/image/png/testdata/invalid-noend.png | Bin 0 -> 1277 bytes
+ src/pkg/image/png/testdata/invalid-trunc.png | Bin 0 -> 1288 bytes
+ src/pkg/image/png/testdata/invalid-zlib.png  | Bin 0 -> 1289 bytes
+ src/pkg/image/png/writer_test.go             |   4 ++--
+ 7 files changed, 41 insertions(+), 4 deletions(-)

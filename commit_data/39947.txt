@@ -1,0 +1,25 @@
+commit 861556c5d7b83a75a66549ca4c7199e343f5eb40
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 21 16:21:06 2019 -0400
+
+    debug/dwarf: expose file name table from line table reader
+    
+    Currently, the line table reader keeps the file name table internal.
+    However, there are various attributes like AttrDeclFile and
+    AttrCallFile whose value is an index into this table. Hence, in order
+    to interpret these attributes, we need access to the file name table.
+    
+    This CL adds a method to LineReader that exposes the file table of the
+    current compilation unit in order to allow consumers to interpret
+    attributes that index into this table.
+    
+    Change-Id: I6b64b815f23b3b0695036ddabe1a67c3954867dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192699
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/line.go      | 29 ++++++++++++++++++++++
+ src/debug/dwarf/line_test.go | 58 +++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 81 insertions(+), 6 deletions(-)

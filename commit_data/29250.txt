@@ -1,0 +1,14 @@
+commit 398e861d9787d7da62a385110539d74dec34c18c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 08:58:42 2016 -0700
+
+    reflect: clarify that NumMethod returns only the number of exported methods
+    
+    Fixes #17686.
+    
+    Change-Id: I7d07c367e50b448579f9855bea43df76ddb82bd0
+    Reviewed-on: https://go-review.googlesource.com/32420
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

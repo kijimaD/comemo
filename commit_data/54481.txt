@@ -1,0 +1,26 @@
+commit 00073c25f65947dc4a331dcc6b20cb215fb03341
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Aug 17 15:30:23 2023 -0400
+
+    cmd/compile/internal/inline/inlheur: rescore callsites based on result use
+    
+    Add a post-processing pass that updates the scores on callsites based
+    on how their results are used. This is similar to the "param feeds
+    unmodified into <XXX>" heuristics, but applies to returned results
+    instead: if we know that function F always returns a constant, and we
+    can see that the result from a given call feeds unmodified into an
+    if/switch, then decrease the score on the call to encourage inlining.
+    
+    Change-Id: If513765c79d868cbdf672facbff9d92ad24f909e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521819
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |   8 +-
+ .../inline/inlheur/analyze_func_callsites.go       |  14 +-
+ .../internal/inline/inlheur/funcprops_test.go      |   2 +-
+ .../inline/inlheur/score_callresult_uses.go        | 423 +++++++++++++++++++++
+ .../inline/inlheur/scoreadjusttyp_string.go        |  10 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go |   4 +-
+ .../inline/inlheur/testdata/props/returns2.go      | 228 +++++++++++
+ 7 files changed, 674 insertions(+), 15 deletions(-)

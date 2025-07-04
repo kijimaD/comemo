@@ -1,0 +1,12 @@
+commit f5f651b89a7eb028f8d9fbb50cdf0d6e2be5218e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 12 06:34:42 2012 -0700
+
+    C: Add Andreas Jellinghaus (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6494121
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

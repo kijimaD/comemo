@@ -1,0 +1,45 @@
+commit bdccb85f509d24789694df198fe7bde948aa7955
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 7 09:52:56 2023 -0400
+
+    log/slog: add Source type for source location
+    
+    Add a struct called Source that holds the function, file and line
+    of a location in the program's source code.
+    
+    When HandleOptions.AddSource is true, the ReplaceAttr function will
+    get an Attr whose key is SourceKey and whose value is a *Source.
+    
+    We use *Source instead of Source to save an allocation. The pointer
+    and the value each cause one allocation up front: the pointer when it
+    is created, and the value when it is assigned to the `any` field of a
+    slog.Value (handle.go:283). If a ReplaceAttr function wanted to modify
+    a Source value, it would have to create a new slog.Value to return,
+    causing a second allocation, but the function can modify a *Source in
+    place.
+    
+    TextHandler displays a Source as "file:line".
+    
+    JSONHandler displays a Source as a group of its non-zero fields.
+    
+    This replaces the previous design, where source location was always a
+    string with the format "file:line". The new design gives users more
+    control over how to output and consume source locations.
+    
+    Fixes #59280.
+    
+    Change-Id: I84475abd5ed83fc354b50e34325c7b246cf327c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486376
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ api/next/59280.txt                |  5 +++
+ src/log/slog/example_wrap_test.go |  5 +--
+ src/log/slog/handler.go           | 53 ++++++++----------------------
+ src/log/slog/handler_test.go      | 68 +++++++++++++++++----------------------
+ src/log/slog/logger_test.go       | 15 ++++-----
+ src/log/slog/record.go            | 53 ++++++++++++++++++++++++------
+ src/log/slog/record_test.go       | 51 +++++++++--------------------
+ src/log/slog/text_handler_test.go | 27 ----------------
+ 8 files changed, 116 insertions(+), 161 deletions(-)

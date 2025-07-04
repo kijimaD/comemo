@@ -1,0 +1,19 @@
+commit 0ffe90b50189f04d820c35991858026204dba256
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 14 19:22:43 2017 +0000
+
+    crypto/sha1, crypto/sha256: add go:noescape annotations
+    
+    Additions to:
+    https://go-review.googlesource.com/c/go/+/61570
+    https://go-review.googlesource.com/c/go/+/61550
+    
+    Change-Id: Id89e1119333a8721cb9720a04a01dab1f2705fa9
+    Reviewed-on: https://go-review.googlesource.com/77591
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/sha1/sha1block_arm64.go     | 2 +-
+ src/crypto/sha256/sha256block_arm64.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

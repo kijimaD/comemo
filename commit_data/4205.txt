@@ -1,0 +1,12 @@
+commit b320cf5bf4df27d425d5a507663344afbb3d167a
+Author: Michael Elkins <michael.elkins@gmail.com>
+Date:   Tue Nov 24 11:31:11 2009 -0800
+
+    add Take, TakeWhile, Drop, DropWhile to exp/iterable
+    
+    R=dsymonds1, rsc
+    https://golang.org/cl/156079
+
+ src/pkg/exp/iterable/iterable.go      | 74 +++++++++++++++++++++++++++++++++++
+ src/pkg/exp/iterable/iterable_test.go | 60 ++++++++++++++++++++++++++++
+ 2 files changed, 134 insertions(+)

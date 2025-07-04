@@ -1,0 +1,15 @@
+commit b87c7729ba41972ec06387f3461b604f35484a79
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Mar 12 07:16:22 2014 +0100
+
+    cmd/go: respect system CGO_CFLAGS and CGO_CXXFLAGS
+    
+    Fixes #6882
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/72080043
+
+ src/cmd/go/build.go | 73 +++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 49 insertions(+), 24 deletions(-)

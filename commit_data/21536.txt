@@ -1,0 +1,22 @@
+commit f8176f81115b5b9b58ddfe4b37e0565fd599fecd
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Feb 6 17:47:54 2015 -0800
+
+    cmd/go: stream test output if parallelism is set to 1.
+    
+    "go test -v" buffers output if more than one package is
+    being tested to avoid mixing the outputs from multiple
+    tests running in parallel. It currently enables streaming
+    if there's only a single package under test.
+    
+    It is ok to stream output from multiple tests if we know
+    that they're not going to be running in parallel.
+    
+    To see the difference: go test -v -p=1 runtime fmt -short
+    
+    Change-Id: Idc24575c899eac30d553e0bf52b86f90e189392d
+    Reviewed-on: https://go-review.googlesource.com/4153
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

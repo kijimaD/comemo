@@ -1,0 +1,20 @@
+commit 478277f81283b9e941c4fdadc253797e6d035971
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 23 22:03:29 2021 -0500
+
+    cmd/compile/internal-abi: use x87 mode, not MMX mode
+    
+    Florian Weimer pointed out that my justification for using MMX mode
+    was nonsense and that staying in x87 mode simplifies transitions to
+    and from C. Hence, switch the spec to say we're always in x87 mode.
+    
+    For #40724.
+    
+    Change-Id: Iad916b2c376db41f95614aa6897f6b1184576bb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295789
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal-abi.md | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit ebc40077088dcc546824ba2a7b4d5adf3ba33a46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 05:59:15 2012 -0800
+
+    doc: clarify gccgo support for segmented stacks
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5671081
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

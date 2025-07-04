@@ -1,0 +1,20 @@
+commit 6e0842db8bb2ec9bb0a8824cb978704f71a5c783
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Nov 21 15:53:03 2009 -0800
+
+    crypto/tls: add initial client implementation.
+    
+    R=rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/157076
+
+ src/pkg/crypto/tls/Makefile                   |   2 +
+ src/pkg/crypto/tls/ca_set.go                  |  75 +++++++++
+ src/pkg/crypto/tls/common.go                  |   4 +
+ src/pkg/crypto/tls/handshake_client.go        | 225 ++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_messages.go      |  67 +++++++-
+ src/pkg/crypto/tls/handshake_messages_test.go |  39 ++++-
+ src/pkg/crypto/tls/handshake_server.go        |   4 +-
+ src/pkg/crypto/tls/record_process.go          |   8 +-
+ src/pkg/crypto/tls/tls.go                     |  22 ++-
+ 9 files changed, 439 insertions(+), 7 deletions(-)

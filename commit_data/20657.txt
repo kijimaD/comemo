@@ -1,0 +1,14 @@
+commit 8b7da4de488461500641d6147f1b544e892386ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:03:48 2014 -0400
+
+    cmd/gc: fix print format
+    
+    Fixes 386 build.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/149620043
+
+ src/cmd/gc/reflect.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

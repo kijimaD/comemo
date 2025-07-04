@@ -1,0 +1,29 @@
+commit bd2175e1b1369bce59cdceb9282c817802a87746
+Author: Ray Wu <ray@liftoff.io>
+Date:   Tue Apr 20 10:41:37 2021 -0700
+
+    cmd/go: show warnings about symlinks only for patterns containing ...
+    
+    Go commands show a warning message any time a pattern is expanded and a
+    symlink to a directory is encountered. For monorepo with non Go projects
+    using symlinks underneath, the output of go commands could be spammed by
+    this warning.
+    
+    This commit includes the behavior change to only print this warning when
+    there's a pattern containing ... .
+    
+    Fixes #35941
+    
+    Change-Id: I094da2628bcd47b86fee8c6529d1066aa013a43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311890
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/search.go              |  2 +-
+ src/cmd/go/internal/search/search.go               |  2 +-
+ .../go/testdata/script/list_symlink_issue35941.txt | 18 +++++++++++
+ .../script/mod_tidy_symlink_issue35941.txt         | 36 ++++++++++++++++++++++
+ 4 files changed, 56 insertions(+), 2 deletions(-)

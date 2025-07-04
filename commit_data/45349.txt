@@ -1,0 +1,36 @@
+commit 15105dd4b56610e18fa4b5744c7deca069085bc5
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Apr 26 19:23:05 2021 -0400
+
+    go/types: walk all imports when determining package name ambiguity
+    
+    CL 209578 disambiguated paths among imported packages, but as
+    demonstrated in #43119, formatted types may reference packages that are
+    not directly imported.
+    
+    Fix this by recursively walking all imports to determine whether there
+    is any ambiguity in the import graph. This might result in
+    over-qualification of names, but it is straightforward and should
+    eliminate any ambiguity.
+    
+    In general this should be fine, but might introduce risk of infinite
+    recursion in the case of an importer bug, or performance problems for
+    very large import graphs. Mitigate the former by tracking seen packages,
+    and the latter by only walking the import graph once an error has been
+    produced.
+    
+    Fixes #43119
+    
+    Change-Id: If874f050ad0e808db8e354c2ffc88bc6d64fd277
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313035
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go       | 21 ++++++++++++-----
+ src/go/types/errors.go      | 27 +++++++++++++++++++++-
+ src/go/types/issues_test.go | 55 ++++++++++++++++++++++++++++++++++++++++-----
+ src/go/types/resolver.go    |  6 ++++-
+ 4 files changed, 97 insertions(+), 12 deletions(-)

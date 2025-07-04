@@ -1,0 +1,25 @@
+commit 28fb8c69871ff3edecb0951e50f7caf38943ec5d
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 4 11:43:23 2019 -0500
+
+    cmd/compile: modify swt.go to skip repeated walks of switch
+    
+    The compiler appears to contain several squirrelly corner
+    cases where nodes are double walked, some where new nodes
+    are created from walked parts.  Rather than trust that we
+    had searched hard enough for the last one, change
+    exprSwitch.walk() to return immediately if it has already
+    been walked.  This appears to be the only case where
+    double-walking a node is actually harmful.
+    
+    Fixes #29562.
+    
+    Change-Id: I0667e8769aba4c3236666cd836a934e256c0bfc5
+    Reviewed-on: https://go-review.googlesource.com/c/156317
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go |  4 ++--
+ test/fixedbugs/issue29562.go       | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

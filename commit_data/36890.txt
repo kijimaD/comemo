@@ -1,0 +1,20 @@
+commit 6933d76a7eec7a197c3416ea9f15b508ac931477
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 6 08:56:03 2018 -0700
+
+    cmd/compile: allow VARDEF at top level
+    
+    This was missed as part of adding a top-level VARDEF
+    for stack tracing (CL 134156).
+    
+    Fixes #28055
+    
+    Change-Id: Id14748dfccb119197d788867d2ec6a3b3c9835cf
+    Reviewed-on: https://go-review.googlesource.com/c/140304
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go |  1 +
+ test/fixedbugs/issue28055.go        | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

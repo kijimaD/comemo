@@ -1,0 +1,20 @@
+commit e14aad1faf6f511e342d124681bc0146e426f9aa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 11 20:30:24 2024 +0000
+
+    cmd/trace/v2: handle the -pprof flag
+    
+    Turns out we ported all the profile generation, but forgot to actually
+    support the command line flags for them! This change fixes the issue by
+    handling the different kinds of profiles and writing them out to stdout.
+    
+    Fixes #66782.
+    
+    Change-Id: I7756fb4636ce8daaf11ed471be79c86ce3d463cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578318
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/v2/main.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

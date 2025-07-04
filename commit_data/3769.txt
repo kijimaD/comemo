@@ -1,0 +1,14 @@
+commit 3de3af512d98d1f5df16d2b8daa2b28b2cd0064a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:17:36 2009 -0800
+
+    doc doc doc
+    
+    R=r
+    http://go/go-review/1016039
+
+ src/cmd/cgo/doc.go    | 35 ++++++++++++++++++
+ src/cmd/cov/doc.go    | 33 +++++++++++++++++
+ src/cmd/godefs/doc.go | 99 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godefs/main.c |  2 +-
+ 4 files changed, 168 insertions(+), 1 deletion(-)

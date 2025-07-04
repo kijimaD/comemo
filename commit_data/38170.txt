@@ -1,0 +1,24 @@
+commit 4f4c2a79d4f952b96d58aec2926b4c894245071b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 27 12:34:20 2019 -0500
+
+    runtime: scan defer closure in stack scan
+    
+    With stack objects, when we scan the stack, it scans defers with
+    tracebackdefers, but it seems to me that tracebackdefers doesn't
+    include the func value itself, which could be a stack allocated
+    closure. Scan it explicitly.
+    
+    Alternatively, we can change tracebackdefers to include the func
+    value, which in turn needs to change the type of stkframe.
+    
+    Fixes #30453.
+    
+    Change-Id: I55a6e43264d6952ab2fa5c638bebb89fdc410e2b
+    Reviewed-on: https://go-review.googlesource.com/c/164118
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mgcmark.go              |  7 +++++++
+ src/runtime/stack_test.go           |  8 ++++++++
+ src/runtime/testdata/testprog/gc.go | 23 +++++++++++++++++++++++
+ 3 files changed, 38 insertions(+)

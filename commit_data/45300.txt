@@ -1,0 +1,21 @@
+commit 1da05eb0cebed9595ee0d326d9bd67edd046af0d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 21 00:12:02 2021 -0700
+
+    spec: add unsafe.Add and unsafe.Slice
+    
+    Updates #19367.
+    Updates #40481.
+    
+    Change-Id: I578066ad68d2cd6bea50df1a534cf799e4404a7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312212
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html     | 32 +++++++++++++++++++++++++++++++-
+ src/unsafe/unsafe.go | 23 +++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

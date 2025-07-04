@@ -1,0 +1,12 @@
+commit 6606995c9135c36c7c49af030673baee506790b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Jan 28 23:44:37 2011 -0500
+
+    fix windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4124041
+
+ src/pkg/runtime/windows/mem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit fbba532fa06c6d047f0bb451ba7707908dadaaed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 20 23:11:00 2009 -0700
+
+    gccgo does not distinguish "use" and "assign" in these error
+    messages.  Match gccgo output.
+    
+    named1.go:32:2: error: argument 0 has wrong type (cannot use type bool as type Bool)
+    named1.go:33:2: error: argument 0 has wrong type (cannot use type bool as type Bool)
+    named1.go:35:5: error: incompatible type for map index (cannot use type bool as type Bool)
+    named1.go:36:12: error: incompatible type for map assignment (cannot use type Bool as type bool)
+    named1.go:38:5: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:40:2: error: argument 0 has wrong type (cannot use type bool as type Bool)
+    named1.go:42:5: error: incompatible type for receive (cannot use type bool as type Bool)
+    named1.go:46:5: error: incompatible type for type guard (cannot use type bool as type Bool)
+    named1.go:50:5: error: incompatible type for type guard (cannot use type bool as type Bool)
+    named1.go:53:2: error: argument 0 has wrong type (cannot use type bool as type Bool)
+    named1.go:54:5: error: incompatible types in assignment (cannot use type bool as type Bool)
+    
+    R=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=35943
+    CL=35943
+
+ test/named1.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

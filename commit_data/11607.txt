@@ -1,0 +1,16 @@
+commit 59e7a0295a7e133c5076d7a566110a9a6e2ed727
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 16:38:59 2012 -0800
+
+    test: test method expressions with parameters, and with import
+    
+    The gccgo compiler had two different bugs triggered by this
+    test case.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5606052
+
+ test/method4.go  | 106 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/method4a.go |  40 +++++++++++++++++++++
+ 2 files changed, 146 insertions(+)

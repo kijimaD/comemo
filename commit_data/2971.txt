@@ -1,0 +1,30 @@
+commit cd32498ba5dd12786ef50d670c6124df1b669cfe
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 13:22:37 2009 -0700
+
+    change the names to have .sh suffixes.
+    also fix the comments in the generated files.
+    
+    R=rsc
+    DELTA=949  (470 added, 465 deleted, 14 changed)
+    OCL=33197
+    CL=33201
+
+ src/pkg/syscall/{PORT => PORT.sh}                  | 24 +++++++++++-----------
+ src/pkg/syscall/{mkerrors => mkerrors.sh}          |  3 +--
+ src/pkg/syscall/{mksyscall => mksyscall.sh}        |  4 ++--
+ .../{mksysnum_darwin => mksysnum_darwin.sh}        |  2 +-
+ .../syscall/{mksysnum_linux => mksysnum_linux.sh}  |  4 ++--
+ src/pkg/syscall/zerrors_darwin_386.go              |  2 +-
+ src/pkg/syscall/zerrors_darwin_amd64.go            |  2 +-
+ src/pkg/syscall/zerrors_linux_386.go               |  2 +-
+ src/pkg/syscall/zerrors_linux_amd64.go             |  2 +-
+ src/pkg/syscall/zsyscall_darwin_386.go             |  2 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go           |  2 +-
+ src/pkg/syscall/zsyscall_linux_386.go              |  2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go            |  2 +-
+ src/pkg/syscall/zsysnum_darwin_386.go              |  2 +-
+ src/pkg/syscall/zsysnum_darwin_amd64.go            |  2 +-
+ src/pkg/syscall/zsysnum_linux_386.go               |  4 ++--
+ src/pkg/syscall/zsysnum_linux_amd64.go             |  4 ++--
+ 17 files changed, 32 insertions(+), 33 deletions(-)

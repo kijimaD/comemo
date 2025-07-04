@@ -1,0 +1,13 @@
+commit 78715cebcfcca3aaaaba4dd41ef6b82a46d7b93d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 8 11:55:05 2016 -0400
+
+    cmd/link: add s390x to link tool main function
+    
+    Change-Id: I83bc2b4a00216b069f133113e4ae9ad76c98a708
+    Reviewed-on: https://go-review.googlesource.com/21741
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,33 @@
+commit 1dc0110bf725640a9b912e3d31e6654ed1c4da9d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Aug 7 16:27:39 2019 -0400
+
+    cmd/go: improve 'go mod download' and 'go list -m' error messages
+    
+    modload.ListModules now wraps errors as module.ModuleError as
+    appropriate. The resulting errors always include the module path and
+    will include the version, if known.
+    
+    'go mod download' no longer ignores errors reported by ListModules.
+    Previously, it started requesting module info, go.mod, and zip. Those
+    requests would fail, overwriting the original failure. They were
+    usually less descriptive.
+    
+    'go mod download' with a module not in the build list (and no version
+    query) is now an error. Previously, this was silently ignored.
+    
+    Fixes #30743
+    
+    Change-Id: Icee8c1c6c5240de135a8b6ba42d6bbcdb757cdac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189323
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go            |  2 +-
+ src/cmd/go/internal/modcmd/download.go      | 20 ++++++++++++-----
+ src/cmd/go/internal/modload/list.go         | 35 ++++++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_download.txt | 10 +++++++++
+ src/cmd/go/testdata/script/mod_list.txt     |  8 +++----
+ src/cmd/go/testdata/script/mod_query.txt    |  2 +-
+ 6 files changed, 55 insertions(+), 22 deletions(-)

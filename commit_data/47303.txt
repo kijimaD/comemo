@@ -1,0 +1,16 @@
+commit fb8b1764d8e8afdaf5d8fd00af3720e42d96ad9c
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Oct 13 22:16:37 2021 +0800
+
+    errors: add errors.Unwrap example
+    
+    Change-Id: Id2336a6059f7a8d627e6c0661a4d4c05485b65f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355589
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+
+ src/errors/wrap_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

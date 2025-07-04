@@ -1,0 +1,15 @@
+commit f1973f3164e5b570b8601c18fa484be7e97171f4
+Author: uropek <uropek@gmail.com>
+Date:   Wed Oct 3 23:52:49 2018 +0000
+
+    test: fix spelling of `caught be the compiler` to `caught by the compiler`
+    
+    Change-Id: Id21cdce35963dcdb96cc06252170590224c5aa17
+    GitHub-Last-Rev: 429dad0ceba123415af308179d0d2aa9773e6323
+    GitHub-Pull-Request: golang/go#28000
+    Reviewed-on: https://go-review.googlesource.com/c/139424
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/typeswitch2.go | 2 +-
+ test/typeswitch3.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

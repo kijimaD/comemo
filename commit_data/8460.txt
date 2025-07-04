@@ -1,0 +1,15 @@
+commit 8c6dc5fea5de0bac57b088e0aa6b8f419079c338
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 22 09:48:04 2011 -0700
+
+    net: re-enable wildcard listening
+    
+    Fixes #1854.
+    
+    R=bradfitz, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4550062
+
+ src/pkg/net/ipsock.go      | 49 +++++++++++++++++++++++++++++++---------------
+ src/pkg/net/server_test.go | 31 ++++++++++++++++++++++++++---
+ 2 files changed, 61 insertions(+), 19 deletions(-)

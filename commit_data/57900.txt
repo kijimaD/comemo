@@ -1,0 +1,84 @@
+commit ac345fb7e704ede49c0c506bfd9f8d0f4b61cd7c
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Sep 13 18:47:56 2024 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize Store{64,32,8} on loong64
+    
+    On Loong64, AMSWAPDB{W,V} instructions are supported by default, and AMSWAPDB{B,H} [1]
+    is a new instruction added by LA664(Loongson 3A6000) and later microarchitectures.
+    Therefore, AMSWAPDB{W,V} (full barrier) is used to implement AtomicStore{32,64}, and
+    the traditional MOVB or the new AMSWAPDBB is used to implement AtomicStore8 according
+    to the CPU feature.
+    
+    The StoreRelease barrier on Loong64 is "dbar 0x12", but it is still necessary to
+    ensure consistency in the order of Store/Load [2].
+    
+    LoweredAtomicStorezero{32,64} was removed because on loong64 the constant "0" uses
+    the R0 register, and there is no performance difference between the implementations
+    of LoweredAtomicStorezero{32,64} and LoweredAtomicStore{32,64}.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+                    |  bench.old  |              bench.new              |
+                    |   sec/op    |   sec/op     vs base                |
+    AtomicStore64     19.61n ± 0%   13.61n ± 0%  -30.60% (p=0.000 n=20)
+    AtomicStore64-2   19.61n ± 0%   13.61n ± 0%  -30.57% (p=0.000 n=20)
+    AtomicStore64-4   19.62n ± 0%   13.61n ± 0%  -30.63% (p=0.000 n=20)
+    AtomicStore       19.61n ± 0%   13.61n ± 0%  -30.60% (p=0.000 n=20)
+    AtomicStore-2     19.62n ± 0%   13.61n ± 0%  -30.63% (p=0.000 n=20)
+    AtomicStore-4     19.62n ± 0%   13.62n ± 0%  -30.58% (p=0.000 n=20)
+    AtomicStore8      19.61n ± 0%   20.01n ± 0%   +2.04% (p=0.000 n=20)
+    AtomicStore8-2    19.62n ± 0%   20.02n ± 0%   +2.01% (p=0.000 n=20)
+    AtomicStore8-4    19.61n ± 0%   20.02n ± 0%   +2.09% (p=0.000 n=20)
+    geomean           19.61n        15.48n       -21.08%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old  |              bench.new              |
+                    |   sec/op    |   sec/op     vs base                |
+    AtomicStore64     18.03n ± 0%   12.81n ± 0%  -28.93% (p=0.000 n=20)
+    AtomicStore64-2   18.02n ± 0%   12.81n ± 0%  -28.91% (p=0.000 n=20)
+    AtomicStore64-4   18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    AtomicStore       18.02n ± 0%   12.81n ± 0%  -28.91% (p=0.000 n=20)
+    AtomicStore-2     18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    AtomicStore-4     18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    AtomicStore8      18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    AtomicStore8-2    18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    AtomicStore8-4    18.01n ± 0%   12.81n ± 0%  -28.87% (p=0.000 n=20)
+    geomean           18.01n        12.81n       -28.89%
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+    [2]: https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=gcc/config/loongarch/sync.md
+    
+    Change-Id: I4ae5e8dd0e6f026129b6e503990a763ed40c6097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581356
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ir/symtab.go              | 23 +++----
+ src/cmd/compile/internal/loong64/ssa.go            | 56 ++++++++++------
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  2 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  6 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |  5 +-
+ src/cmd/compile/internal/ssa/opGen.go              | 48 ++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 49 +++-----------
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 74 ++++++++++++++++++++--
+ src/cmd/compile/internal/ssagen/ssa.go             | 11 ++--
+ .../compile/internal/typecheck/_builtin/runtime.go |  1 +
+ src/cmd/compile/internal/typecheck/builtin.go      |  1 +
+ src/cmd/internal/goobj/builtinlist.go              |  1 +
+ src/cmd/internal/obj/loong64/doc.go                | 24 +++++++
+ src/internal/runtime/atomic/atomic_loong64.go      |  9 ++-
+ src/internal/runtime/atomic/atomic_loong64.s       | 19 +++---
+ src/internal/runtime/atomic/bench_test.go          |  8 +++
+ src/runtime/cpuflags.go                            |  3 +-
+ src/runtime/proc.go                                |  2 +
+ 18 files changed, 241 insertions(+), 101 deletions(-)

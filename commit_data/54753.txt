@@ -1,0 +1,30 @@
+commit eabf3bf6887a16c33ba6039d2ed98ff8f261de96
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 10:51:07 2023 -0400
+
+    cmd/go: serialize access to scriptDir with output
+    
+    Currently, Builder.fmtcmd can read scriptDir without taking the output
+    lock. This introduces a potential data race between the read in fmtcmd
+    and the write in Showcmd. There's also a logical race here: because
+    fmtcmd doesn't know when its output is going to be printed, Showcmd
+    may print a "cd" command between when fmtcmd is called and when its
+    output is printed. As a result, it doesn't make sense to just lock
+    around the access in fmtcmd.
+    
+    Instead, move the entire scriptDir substitution to Showcmd. This will
+    generally result in the same output. In the cases where Builder.run is
+    called with a non-empty desc, it means we may print a full path in the
+    comment line above output rather than substituting the script
+    directory. I think this is okay.
+    
+    This lets us undo the workaround in CL 536355.
+    
+    Change-Id: I617fe136eaafcc9bbb7e701b427d956aeab8a2b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/go/internal/work/exec.go | 45 ++++++++++++++++++++--------------------
+ 1 file changed, 23 insertions(+), 22 deletions(-)

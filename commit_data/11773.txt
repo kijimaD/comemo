@@ -1,0 +1,14 @@
+commit 1ceb5616292496da476f52c0125917ecff002a76
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 15:57:12 2012 +1100
+
+    regexp/syntax: add package and Parse commentary
+    
+    Fixes #2954.
+    
+    R=golang-dev, bradfitz, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5645077
+
+ src/pkg/regexp/syntax/parse.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

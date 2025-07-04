@@ -1,0 +1,18 @@
+commit 6f80e5edf464fe5321acb2b4994951fe7edfff7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 16:44:45 2015 -0400
+
+    cmd/link: reject data size > 2 GB
+    
+    We can't address more than this on amd64 anyway.
+    
+    Fixes #9862.
+    
+    Change-Id: Ifb1abae558e2e1ee2dc953a76995f3f08c60b1df
+    Reviewed-on: https://go-review.googlesource.com/11715
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/data.go | 13 ++++++++-----
+ test/fixedbugs/issue9862.go      | 15 +++++++++++++++
+ test/fixedbugs/issue9862_run.go  | 27 +++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 5 deletions(-)

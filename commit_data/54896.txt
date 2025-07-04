@@ -1,0 +1,52 @@
+commit 1d9040bf08cf8cda30b203c21de12a4b6ab66153
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 5 02:32:08 2023 +1100
+
+    syscall: provide and use ioctlPtr for all BSD platforms
+    
+    Provide ioctlPtr for all BSD platforms, then use this for BPF.
+    This reduces darwin specific code, as well as avoiding the use of
+    an indirect system call on OpenBSD.
+    
+    Updates #63900
+    
+    Change-Id: I81f3e74a3149150abe972f106903310e3cf26929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540019
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
+
+ src/syscall/bpf_bsd.go                  | 100 ++++++++---------
+ src/syscall/bpf_darwin.go               | 185 --------------------------------
+ src/syscall/syscall_bsd.go              |   2 +
+ src/syscall/syscall_darwin.go           |   2 -
+ src/syscall/syscall_openbsd_libc.go     |   1 -
+ src/syscall/zsyscall_darwin_amd64.go    |  48 ++++-----
+ src/syscall/zsyscall_darwin_amd64.s     |   4 +-
+ src/syscall/zsyscall_darwin_arm64.go    |  48 ++++-----
+ src/syscall/zsyscall_darwin_arm64.s     |   4 +-
+ src/syscall/zsyscall_dragonfly_amd64.go |  20 ++++
+ src/syscall/zsyscall_freebsd_386.go     |  20 ++++
+ src/syscall/zsyscall_freebsd_amd64.go   |  20 ++++
+ src/syscall/zsyscall_freebsd_arm.go     |  20 ++++
+ src/syscall/zsyscall_freebsd_arm64.go   |  20 ++++
+ src/syscall/zsyscall_freebsd_riscv64.go |  20 ++++
+ src/syscall/zsyscall_netbsd_386.go      |  20 ++++
+ src/syscall/zsyscall_netbsd_amd64.go    |  20 ++++
+ src/syscall/zsyscall_netbsd_arm.go      |  20 ++++
+ src/syscall/zsyscall_netbsd_arm64.go    |  20 ++++
+ src/syscall/zsyscall_openbsd_386.go     |  38 ++++---
+ src/syscall/zsyscall_openbsd_386.s      |   4 +-
+ src/syscall/zsyscall_openbsd_amd64.go   |  38 ++++---
+ src/syscall/zsyscall_openbsd_amd64.s    |   4 +-
+ src/syscall/zsyscall_openbsd_arm.go     |  38 ++++---
+ src/syscall/zsyscall_openbsd_arm.s      |   4 +-
+ src/syscall/zsyscall_openbsd_arm64.go   |  38 ++++---
+ src/syscall/zsyscall_openbsd_arm64.s    |   4 +-
+ src/syscall/zsyscall_openbsd_ppc64.go   |  38 ++++---
+ src/syscall/zsyscall_openbsd_ppc64.s    |   6 +-
+ src/syscall/zsyscall_openbsd_riscv64.go |  38 ++++---
+ src/syscall/zsyscall_openbsd_riscv64.s  |   4 +-
+ 31 files changed, 461 insertions(+), 387 deletions(-)

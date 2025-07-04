@@ -1,0 +1,18 @@
+commit 1f41f04d2c121ba229072bd954f8346a0fc6d3e4
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 4 11:01:29 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (8)
+    
+    add type casting to int32: L148-L156, L774-L778
+    
+    Toolstash-check successful
+    
+    Change-Id: Ib6544c1d7853c2811def5b18786e1fc5c18086ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256097
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 26 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 86 +++++++++++++++---------------
+ 2 files changed, 56 insertions(+), 56 deletions(-)

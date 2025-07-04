@@ -1,0 +1,14 @@
+commit 61655bc513cc3180504e8a847b45a65496c459b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 13:25:48 2011 -0500
+
+    gc: delete DUPOK definition
+    
+    The relevant header is already included.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5487062
+
+ src/cmd/gc/pgen.c | 2 --
+ 1 file changed, 2 deletions(-)

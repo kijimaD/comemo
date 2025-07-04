@@ -1,0 +1,13 @@
+commit 2679eefb314097d9382ca79fd0ae1933bee2b870
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 11 13:53:50 2008 -0700
+
+    floating <= and >= compare
+    
+    R=r
+    DELTA=8  (0 added, 0 deleted, 8 changed)
+    OCL=14091
+    CL=14091
+
+ src/cmd/6g/gsubr.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

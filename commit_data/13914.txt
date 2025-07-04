@@ -1,0 +1,33 @@
+commit 3d5ddffa306dff2a4e3546a0421191fac45ed549
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 00:06:22 2012 -0400
+
+    syscall: prepare for 64-bit ints
+    
+    This CL fixes code that incorrectly assumes that int is 32 bits wide.
+    Specifically, the socketpair system call expects a pointer to a pair
+    of int32s, not a pair of ints. Fix this inside the wrappers without
+    changing the APIs.
+    
+    Update #2188.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6552063
+
+ src/pkg/syscall/syscall_bsd.go            | 9 +++++++--
+ src/pkg/syscall/syscall_linux.go          | 7 ++++++-
+ src/pkg/syscall/syscall_linux_386.go      | 2 +-
+ src/pkg/syscall/syscall_linux_amd64.go    | 2 +-
+ src/pkg/syscall/syscall_linux_arm.go      | 2 +-
+ src/pkg/syscall/zsyscall_darwin_386.go    | 2 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 2 +-
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 2 +-
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 2 +-
+ src/pkg/syscall/zsyscall_linux_arm.go     | 2 +-
+ src/pkg/syscall/zsyscall_netbsd_386.go    | 2 +-
+ src/pkg/syscall/zsyscall_netbsd_amd64.go  | 2 +-
+ src/pkg/syscall/zsyscall_openbsd_386.go   | 2 +-
+ src/pkg/syscall/zsyscall_openbsd_amd64.go | 2 +-
+ 15 files changed, 26 insertions(+), 16 deletions(-)

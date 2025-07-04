@@ -1,0 +1,19 @@
+commit 129cfa2745a3db0fd55fd13fd46da0e75b9ce7dc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 10:30:26 2015 -0700
+
+    cmd/dist: run misc/cgo/testsovar on darwin and netbsd
+    
+    CL https://golang.org/cl/12470 has reportedly fixed the problems that
+    the misc/cgo/testsovar test encountered on darwin and netbsd.  Let's
+    actually run the test.
+    
+    Update #10360.
+    Update #11654.
+    
+    Change-Id: I4cdd27a8ec8713620e0135780a03f63cfcc538d0
+    Reviewed-on: https://go-review.googlesource.com/12702
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

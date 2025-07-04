@@ -1,0 +1,17 @@
+commit 78082dfa801d484848ac47c04ce3aa9805d2b0c9
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Mon Oct 27 12:43:14 2014 +1100
+
+    misc/makerelease/windows: fix 404 help URL in installer
+    
+    ARPHELPLINK yields 404; update the URL.
+    
+    While here, also prefix the ARPREADME and ARPURLINFOABOUT URL's with the HTTP scheme to make 'em clickable links in the Add or Remove Programs listing.
+    
+    LGTM=adg
+    R=golang-codereviews
+    CC=adg, golang-codereviews
+    https://golang.org/cl/154580045
+
+ misc/makerelease/windows/installer.wxs | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

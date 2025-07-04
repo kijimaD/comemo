@@ -1,0 +1,15 @@
+commit 2915e44dac0b51bf2ce35900532d5af65288aadb
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed Aug 30 07:50:13 2017 -0700
+
+    context: fix lint warning “drop = 0 from declaration”
+    
+    Previously, the suggested code would result in the following golint warning:
+    “should drop = 0 from declaration of var errorsOnlyKey; it is the zero value”
+    
+    Change-Id: I1a302c1e40ca89acbc76897e39097ecd04865460
+    Reviewed-on: https://go-review.googlesource.com/60290
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

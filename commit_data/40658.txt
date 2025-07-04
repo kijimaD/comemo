@@ -1,0 +1,26 @@
+commit ceca99bdebf1154879288d108c8506372e1a0173
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 28 00:50:39 2019 -0400
+
+    cmd/compile, cmd/internal/obj/ppc64: mark unsafe points
+    
+    We'll use CTR as a scratch register for call injection. Mark code
+    sequences that use CTR as unsafe for async preemption. Currently
+    it is only used in LoweredZero and LoweredMove. It is unfortunate
+    that they are nonpreemptible. But I think it is still better than
+    using LR for call injection and marking all leaf functions
+    nonpreemptible.
+    
+    Also mark the prologue of large frame functions nonpreemptible,
+    as we write below SP.
+    
+    Change-Id: I05a75431499f3f4b2f23651a7b17f7fcf2afbe06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203823
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 2 ++
+ src/cmd/internal/obj/ppc64/obj9.go           | 7 +++++++
+ 3 files changed, 11 insertions(+)

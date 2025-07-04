@@ -1,0 +1,21 @@
+commit ab6ba99484b637bad0c5a5fa2c590834c14746c7
+Author: David Benjamin <davidben@google.com>
+Date:   Fri Jul 1 16:41:09 2016 -0400
+
+    crypto/tls: Fix c.in.decrypt error handling.
+    
+    readRecord was not returning early if c.in.decrypt failed and ran
+    through the rest of the function. It does set c.in.err, so the various
+    checks in the callers do ultimately notice before acting on the result,
+    but we should avoid running the rest of the function at all.
+    
+    Also rename 'err' to 'alertValue' since it isn't actually an error.
+    
+    Change-Id: I6660924716a85af704bd3fe81521b34766238695
+    Reviewed-on: https://go-review.googlesource.com/24709
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/conn.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

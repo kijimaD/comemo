@@ -1,0 +1,23 @@
+commit dcbbd319e9cdd44d50314818ec05672b60e8f8e7
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Sep 15 07:39:19 2016 -0700
+
+    compress/gzip: add examples
+    
+    Updates #16360.
+    
+    Adds examples uing:
+    + Writer, Reader
+    + Reader.Multistream to concatenate and then
+    individually retrieve multiple gzipped files
+    + Reset
+    
+    Change-Id: I9ad9b92729a5cd58f7368eaf2db05f1cdf21063d
+    Reviewed-on: https://go-review.googlesource.com/29218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/gzip/example_test.go | 128 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 128 insertions(+)

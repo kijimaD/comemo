@@ -1,0 +1,15 @@
+commit 9dc6764d3c780cf302a8a7521d27e61102d701fc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 14 09:22:47 2014 -0700
+
+    runtime: a few optimizations of scanblock.
+    
+    Lowers gc pause time by 5-10% on test/bench/garbage
+    
+    LGTM=rsc, dvyukov
+    R=rsc, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/157810043
+
+ src/runtime/mgc0.c | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)

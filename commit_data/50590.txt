@@ -1,0 +1,20 @@
+commit eab78849fc24f890836d00c04b495e64d4fe4187
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 10:50:11 2022 +0200
+
+    cmd/go/internal, go/build: remove unused errGoBuildWithoutBuild
+    
+    Last use was removed by CL 240607.
+    
+    Change-Id: Icfe9e477c6035823bd676a2ff28e1ac202dd991e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431662
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/go/internal/imports/build.go  | 3 +--
+ src/cmd/go/internal/modindex/build.go | 3 +--
+ src/go/build/build.go                 | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

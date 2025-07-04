@@ -1,0 +1,14 @@
+commit d4177877c6d6e710d77dd8c94b91f8567f1aaa87
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Dec 7 12:23:13 2016 -0500
+
+    cmd/internal/obj: regenerate relocation strings
+    
+    Change-Id: Ib9ba8f0b8785f1b0ddb29214beb8674dc06f7422
+    Reviewed-on: https://go-review.googlesource.com/34111
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/reloctype_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

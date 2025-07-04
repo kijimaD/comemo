@@ -1,0 +1,23 @@
+commit 3360be4a1160658153c1f2643acc99452c977339
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 16 14:41:44 2023 -0700
+
+    cmd/compile: fix extraneous diff in generated files
+    
+    Looks like CL 475735 contained a not-quite-up-to-date version
+    of the generated file. Maybe ABSFL was in an earlier version of the CL
+    and was removed before checkin without regenerating the generated file?
+    
+    In any case, update the generated file. Shouldn't cause a problem, as
+    that field isn't used in x86/ssa.go.
+    
+    Change-Id: I3f0b7d41081ba3ce2cdcae385fea16b37d7de81b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477096
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/opGen.go | 1 -
+ 1 file changed, 1 deletion(-)

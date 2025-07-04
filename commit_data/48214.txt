@@ -1,0 +1,26 @@
+commit 57dda9795da20fc12c7cfb03438959302200dbc7
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 23 17:57:09 2022 -0800
+
+    test: add new test case for 51219 that triggers the types2 issue
+    
+    The existing test for 51219 didn't actually trigger the types2 issue - I
+    hadn't been able to minimize the test case yet properly. This new test
+    case issue51219b.go now does trigger the types2 issue (it's only
+    slightly different).
+    
+    Updates #51219
+    
+    Change-Id: Iaba8144b4702ff4fefec86c899b8acef127b10dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387814
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ test/typeparam/issue51219.dir/a.go                 | 39 ----------------------
+ test/typeparam/issue51219.dir/main.go              |  4 +--
+ test/typeparam/issue51219.out                      |  2 +-
+ test/typeparam/issue51219b.dir/a.go                | 37 ++++++++++++++++++++
+ .../{issue51219.dir => issue51219b.dir}/b.go       |  5 ++-
+ test/typeparam/issue51219b.dir/p.go                | 14 ++++++++
+ test/typeparam/issue51219b.go                      |  7 ++++
+ 7 files changed, 64 insertions(+), 44 deletions(-)

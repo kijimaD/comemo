@@ -1,0 +1,13 @@
+commit 9195c22e7c9f2d1ad63194644de3493f2b7ec028
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 15:17:58 2008 -0800
+
+    use new test framework in array test
+    
+    R=r
+    DELTA=30  (2 added, 5 deleted, 23 changed)
+    OCL=19627
+    CL=19632
+
+ src/lib/container/array/testarray.go | 53 +++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 28 deletions(-)

@@ -1,0 +1,10 @@
+commit 7fbe486b1a84207b4c75664257ad538384e280d8
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 7 17:34:51 2008 -0700
+
+    use new conversion syntax to simplify test
+    
+    SVN=118019
+
+ src/lib/container/vector.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

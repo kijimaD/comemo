@@ -1,0 +1,26 @@
+commit 10ad6c91de1e6de122edb7f5c3f6eae344ee861e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 2 17:15:10 2023 -0400
+
+    runtime, runtime/pprof: record instantiated symbol name in CPU profile
+    
+    For generic functions, the previous CL makes it record the full
+    instantiated symbol name in the runtime func table. This CL
+    changes the pprof package to use that name in CPU profile. This
+    way, it matches the symbol name the compiler sees, so it can apply
+    PGO.
+    
+    TODO: add a test.
+    
+    Fixes #58712.
+    
+    Change-Id: If40db01cbef5f73c279adcc9c290a757ef6955b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491678
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/pprof/proto.go   |  2 +-
+ src/runtime/pprof/runtime.go |  7 +++++++
+ src/runtime/symtab.go        | 14 ++++++++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)

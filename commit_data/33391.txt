@@ -1,0 +1,26 @@
+commit d5960e3043768d13a0593a750cbe9dfad6138c97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 24 17:15:30 2017 +0100
+
+    cmd/compile: turn some pointer params into results
+    
+    These are likely from the time when gc was written in C. There is no
+    need for any of these to be passed pointers, as the previous values are
+    not kept in any way, and the pointers are never nil. Others were left
+    untouched as they fell into one of these useful cases.
+    
+    While at it, also turn some 0/1 integers into booleans.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: Id3a9c9e84ef89536c4dc69a7fdbacd0fd7a76a9b
+    Reviewed-on: https://go-review.googlesource.com/72990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/range.go     |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 20 ++++++++------------
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      | 29 +++++++++++++----------------
+ 4 files changed, 28 insertions(+), 35 deletions(-)

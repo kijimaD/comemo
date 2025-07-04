@@ -1,0 +1,12 @@
+commit 24566d4236fff1d63e768ea087706958a2f506e2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun May 30 19:21:49 2010 +0200
+
+    doc/code: example package with tests
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1404041
+
+ doc/code.html | 85 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 85 insertions(+)

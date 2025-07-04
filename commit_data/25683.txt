@@ -1,0 +1,22 @@
+commit 9b67a5de79af56541c48c95c6d7ddc8630e1d0dc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 19:57:19 2016 +0000
+
+    net/http: add protections against misuse of ServeFile
+    
+    Martin Lenord pointed out that bad patterns have emerged in online
+    examples of how to use ServeFile, where people pass r.URL.Path[1:] to
+    ServeFile. This is unsafe. Document that it's unsafe, and add some
+    protections.
+    
+    Fixes #14110
+    
+    Change-Id: Ifeaa15534b2b3e46d3a8137be66748afa8fcd634
+    Reviewed-on: https://go-review.googlesource.com/18939
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go      | 29 +++++++++++++++++++++++++++++
+ src/net/http/fs_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

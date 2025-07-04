@@ -1,0 +1,19 @@
+commit f2df0ec7dd0552af9a7ee4ab1bf77c302f08bd57
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 21:26:55 2018 -0400
+
+    cmd/go: avoid infinite loop in go list -json -e on import cycle
+    
+    Don't chase import cycles forever preparing list JSON.
+    
+    Fixes #24086.
+    
+    Change-Id: Ia1139d0c8d813d068c367a8baee59d240a545617
+    Reviewed-on: https://go-review.googlesource.com/108016
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go              | 3 +++
+ src/cmd/go/internal/work/action.go | 6 ++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

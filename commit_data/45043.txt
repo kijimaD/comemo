@@ -1,0 +1,25 @@
+commit 0ad46889a140c3b2e72b8aa4a47ac242571c521f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 8 17:38:25 2021 -0400
+
+    cmd/compile/abi-internal: declare X15 scratch in function bodies
+    
+    X15 must be zero at function calls and returns, but can be used as
+    scratch in the middle of a function. This allows things like memmove
+    and the hashing functions to use X15 temporarily, as long as they set
+    it back to 0 before returning.
+    
+    This CL also clarifies the distinction between register meanings on
+    function call versus function return, since some of them have fixed
+    meanings at both call and return, while others only have a fixed
+    meaning at calls.
+    
+    Updates #40724.
+    
+    Change-Id: I9dad3abde42cd4d2788e8435cde6d55073dd75a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308929
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/abi-internal.md | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit fa445849d129b68e1343d1c99abeb0a02380b2cd
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sat Mar 22 17:40:17 2014 -0700
+
+    bufio: fix typo in test
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/79120043
+
+ src/pkg/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

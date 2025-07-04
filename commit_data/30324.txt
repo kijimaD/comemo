@@ -1,0 +1,25 @@
+commit e97f407ec164174187d6fbb2f7332d6fb3176e9e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Feb 15 12:41:02 2017 +0100
+
+    fmt: support sharp flag for float and complex value printing
+    
+    Added an alternate form of printing floats and complex values
+    by specifying the sharp flag.
+    
+    Output formatted using the the verbs v, e, E, f, F, g and G in
+    combination with the sharp flag will always include a decimal point.
+    
+    The alternate form specified by the sharp flag for %g and %G verbs
+    will not truncate trailing zeros and assume a default precision of 6.
+    
+    Fixes #18857.
+    
+    Change-Id: I4d776239e06d7a6a90f2d8556240a359888cb7c3
+    Reviewed-on: https://go-review.googlesource.com/37051
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go      |  4 +++-
+ src/fmt/fmt_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/fmt/format.go   | 40 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+), 1 deletion(-)

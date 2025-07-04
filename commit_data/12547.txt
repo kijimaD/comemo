@@ -1,0 +1,18 @@
+commit 98cfe6770d8530f6677ecb72a59d939c88504255
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 9 14:45:40 2012 -0800
+
+    archive/zip: verify CRC32s in non-streamed files
+    
+    We should check the CRC32s of files on EOF, even if there's no
+    data descriptor (in streamed files), as long as there's a non-zero
+    CRC32 in the file header / TOC.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5794045
+
+ src/pkg/archive/zip/reader.go                      |  23 +++---
+ src/pkg/archive/zip/reader_test.go                 |  78 ++++++++++++++++++---
+ .../archive/zip/testdata/crc32-not-streamed.zip    | Bin 0 -> 314 bytes
+ 3 files changed, 84 insertions(+), 17 deletions(-)

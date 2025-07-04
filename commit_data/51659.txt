@@ -1,0 +1,21 @@
+commit 198074abd7ec36ee71198a109d98f1ccdb7c5533
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jan 17 01:29:02 2023 +0700
+
+    cmd/compile: fix unsafe.{SliceData,StringData} escape analysis memory corruption
+    
+    Fixes #57823
+    
+    Change-Id: I54654d3ecb20b75afa9052c5c9db2072a86188d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461759
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/call.go |  6 ++-
+ test/fixedbugs/issue57823.go            | 76 +++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 1 deletion(-)

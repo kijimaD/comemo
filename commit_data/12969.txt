@@ -1,0 +1,13 @@
+commit e4127614883ed89a0e1db85ac2399253f173e75b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 26 14:24:53 2012 +0800
+
+    cmd/godoc: update App Engine README and script for Go 1
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5849053
+
+ src/cmd/godoc/README.godoc-app     | 29 +++++------------------------
+ src/cmd/godoc/setup-godoc-app.bash | 10 +++++-----
+ 2 files changed, 10 insertions(+), 29 deletions(-)

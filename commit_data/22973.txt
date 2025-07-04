@@ -1,0 +1,12 @@
+commit 64b1aa12b3c9a524179a583da13fa82dd4812559
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 11 18:02:27 2015 +0900
+
+    net: drop unnecessary cast
+    
+    Change-Id: I9b058472f5b4943db6e6f1c1243411ce61624c18
+    Reviewed-on: https://go-review.googlesource.com/9916
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

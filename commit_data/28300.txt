@@ -1,0 +1,17 @@
+commit f7fce1e2088ed888c5ced3f2649af84bc0a672b9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 22 17:20:57 2016 -0400
+
+    mime/quotedprintable: accept trailing soft line-break at the end of message
+    
+    Fixes #15486.
+    
+    Change-Id: Id879dc9acef9232003df9a0f6f54312191374a60
+    Reviewed-on: https://go-review.googlesource.com/27530
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/quotedprintable/reader.go      | 6 +++++-
+ src/mime/quotedprintable/reader_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

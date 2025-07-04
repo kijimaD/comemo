@@ -1,0 +1,17 @@
+commit dc3540d982ade0d50569abd8d054c9c66e2d9d03
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Aug 30 23:56:40 2015 +0200
+
+    compile/internal/gc: make typecheckok a bool
+    
+    Change-Id: Ib3960321a4c8164f6b221bfd15977d2f34dbc65b
+    Reviewed-on: https://go-review.googlesource.com/14175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       | 2 +-
+ src/cmd/compile/internal/gc/go.go        | 2 +-
+ src/cmd/compile/internal/gc/lex.go       | 8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit feb330dcdd86146f5c9b4e09d30e19fc920f78f4
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:22:32 2021 -0500
+
+    go/types: add test for imported constraints pre-1.18
+    
+    This is a port of CL 363834 from types2 to go/types.
+    
+    Change-Id: I32583ead4bce626e0761f4c327678050404a15c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364937
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go                     | 17 +++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue47818.go2 |  4 +++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit aaa092cfd70bbdfc577c0c9837d98fa0c416447d
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Tue Apr 7 20:19:45 2015 +0930
+
+    encoding/gob: make method doc string match method name
+    
+    Change-Id: I6859bd9c9dba30fc5eeb9bbc1de90af67984944c
+    Reviewed-on: https://go-review.googlesource.com/8526
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

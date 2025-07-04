@@ -1,0 +1,15 @@
+commit eb32228627242b043659b2157f5eb157f55bc775
+Author: Rob Pike <r@golang.org>
+Date:   Sat Dec 20 18:15:34 2008 -0800
+
+    hilbert now runs.
+    it's 25% faster and runs with 40% less memory allocation than before
+    
+    R=rsc
+    DELTA=20  (15 added, 0 deleted, 5 changed)
+    OCL=21690
+    CL=21690
+
+ src/lib/bignum.go |  5 ++++-
+ test/hilbert.go   | 20 ++++++++++++++++----
+ 2 files changed, 20 insertions(+), 5 deletions(-)

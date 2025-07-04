@@ -1,0 +1,14 @@
+commit a58fe3bd23f4a8ee6ed3321277ebf87f59ee1591
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Apr 17 09:43:27 2011 -0700
+
+    websocket: fix socket leak in test
+    
+    Possibly fixes issue 1694.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4427049
+
+ src/pkg/websocket/websocket_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit c6e0c49b4152ade7f8cc7368c82703a2d1c58f48
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Fri May 20 16:17:27 2016 -0700
+
+    cmd/go: updates go get to return exit status 0 for test file only pkgs
+    
+    Updates the behavior of `go get` to return exit status 0 when a
+    requested package only contains test files.
+    
+    Fixes #15093
+    
+    Change-Id: I76b80517d58748090f5e8c6f41178361e2d7ca54
+    Reviewed-on: https://go-review.googlesource.com/23314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go   | 12 +++++++++++-
+ src/cmd/go/get.go     |  2 +-
+ src/cmd/go/go_test.go | 11 +++++++++++
+ 3 files changed, 23 insertions(+), 2 deletions(-)

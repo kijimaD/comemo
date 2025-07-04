@@ -1,0 +1,14 @@
+commit c376d5d7fcd2bff11d85bb95525ed39f4a258ace
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 27 09:47:13 2009 -0700
+
+    bad error message
+    
+    TBR=rsc
+    DELTA=14  (14 added, 0 deleted, 0 changed)
+    OCL=29441
+    CL=29441
+
+ test/bugs/bug153.go | 14 ++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 18 insertions(+)

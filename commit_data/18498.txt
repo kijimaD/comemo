@@ -1,0 +1,18 @@
+commit e0a55a6c9826f3b0548a2d78be82931ad73ac218
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Feb 13 19:04:43 2014 +0000
+
+    cmd/gc: for loop init statement misanalyzed by escape analysis
+    
+    Logically, the init statement is in the enclosing scopes loopdepth, not inside the for loop.
+    
+    Fixes #7313.
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/62430043
+
+ src/cmd/gc/esc.c |  4 +++-
+ test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

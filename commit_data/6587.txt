@@ -1,0 +1,17 @@
+commit f16b6b14d86e53457ea5752e88c19979139208f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 21 15:41:51 2010 +1100
+
+    misc: update python scripts to specify python2 or nothing
+    
+    (Hopefully this changeset will notice my +x to googlecode_upload.py)
+    
+    Fixes #1217.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2634041
+
+ lib/codereview/codereview.py        | 2 --
+ misc/dashboard/googlecode_upload.py | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

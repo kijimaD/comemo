@@ -1,0 +1,16 @@
+commit 2ffe3255a1ba3e09105eb1c86ef221a8ccc5c515
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Jan 30 15:07:11 2015 -0800
+
+    os: allow EROFS in TestMkdirAllAtSlash
+    
+    On some systems (e.g. ChromeOS), / is mounted read-only.
+    This results in error code syscall.EROFS, which I guess
+    is just as valid as syscall.EACCES for this test.
+    
+    Change-Id: I9188d5437a1b5ac1daa9c68b95b8dcb447666ca3
+    Reviewed-on: https://go-review.googlesource.com/3676
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

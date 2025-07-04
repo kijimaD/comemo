@@ -1,0 +1,14 @@
+commit e35763469a5a800b7140a632f020bf2659b53e94
+Author: Hana <hyangah@gmail.com>
+Date:   Tue Apr 26 09:26:50 2022 -0400
+
+    README.md: update wiki link
+    
+    Change-Id: I307c3524f2031e2a3e7ada6e86c73e278481de6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402179
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

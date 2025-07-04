@@ -1,0 +1,14 @@
+commit 9ca9f31f0b4c3fbe78a214a979e5aad409c16a48
+Author: Josh Roppo <joshroppo@gmail.com>
+Date:   Sat Jul 15 13:40:22 2017 -0700
+
+    regexp: example for MatchString function
+    
+    Change-Id: I5ca5a6689f0679154c24820466f5cf0011d0aaa6
+    Reviewed-on: https://go-review.googlesource.com/48959
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

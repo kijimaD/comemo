@@ -1,0 +1,27 @@
+commit 2399302a251ef54e4669f2065f656b61d2f5c323
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 11 12:15:48 2023 -0400
+
+    cmd/compile/internal/base: keep Ctxt.Flag_optimize in sync with Flag.N
+    
+    This patch fixes an inconsistency in compiler flag handling introduced
+    accidentally in CL 521699. In the compiler we have both base.Flag.N
+    (which records whether the user has supplied the "-N" flag to disable
+    optimization) and base.Ctxt.Flag_optimize (which tracks whether
+    optimization is turned on). In this case Flag.N was updated without a
+    corresponding change to Ctxt.Flag_optimize, which led to problems with
+    DWARF generation for the runtime.
+    
+    This CL doesn't include a regression test; a test will be added later
+    in the x/debug repo in a subsequent CL.
+    
+    Updates #62523.
+    
+    Change-Id: I0c383bb43ec0a0e7c12e7e2852c0590731416d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527319
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

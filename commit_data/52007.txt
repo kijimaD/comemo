@@ -1,0 +1,21 @@
+commit 2994e9aa79718fbb0658ec5f50ee4b69276401d6
+Author: Will Hawkins <whh8b@obs.cr>
+Date:   Mon Dec 19 11:49:33 2022 -0500
+
+    net/http: support streaming POST content in wasm
+    
+    With new releases of Chrome, Opera and Deno it is possible to stream the
+    body of a POST request. Add support for using that interface when it is
+    available.
+    
+    Change-Id: Ib23d63cd3dea634bd9e267abf4e9a9bfa9c525ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458395
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/net/http/roundtrip_js.go | 112 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 96 insertions(+), 16 deletions(-)

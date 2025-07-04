@@ -1,0 +1,29 @@
+commit 0dadc4fe4fb3124fcaed535c92bdc2354205e521
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 10 16:29:26 2009 -0700
+
+    cleanup in preparation for new scoping.
+    
+    walkstate -> walkstmt
+    walktype -> walkexpr; stmts moved to walkstmt
+    
+    walktype and friends have a final Node **init
+    argument that can have side effects appended,
+    making it more explicit when they do and do not happen.
+    this replaces the old global addtop and addtotop.
+    
+    delete switch map and interface conversion cases
+    (dropped from the language months ago).
+    
+    R=ken
+    OCL=31465
+    CL=31468
+
+ src/cmd/gc/dcl.c   |  76 +++---
+ src/cmd/gc/go.h    |  42 ++--
+ src/cmd/gc/go.y    |  50 ++--
+ src/cmd/gc/sinit.c |   2 +-
+ src/cmd/gc/subr.c  |  27 ++-
+ src/cmd/gc/swt.c   |  16 +-
+ src/cmd/gc/walk.c  | 687 +++++++++++++++++++++++------------------------------
+ 7 files changed, 409 insertions(+), 491 deletions(-)

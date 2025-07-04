@@ -1,0 +1,18 @@
+commit e59c1729ba35549323c5a2facd12c23ef5c06b16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 19:28:32 2016 -0700
+
+    cmd/compile: convert data siz to int
+    
+    Follow-up to CL 20645.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Idc63c41b2be2d52e3a6ac59b3a12eb41aa2efbed
+    Reviewed-on: https://go-review.googlesource.com/20670
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go    |  6 +++---
+ src/cmd/compile/internal/gc/obj.go | 16 ++++++++--------
+ src/cmd/internal/obj/data.go       | 16 ++++++++--------
+ 3 files changed, 19 insertions(+), 19 deletions(-)

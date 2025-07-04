@@ -1,0 +1,16 @@
+commit 43156627b5eeb08e896a24095d2565acfe430a8c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 10:58:21 2015 -0700
+
+    doc: mention that go install removes binaries built by go build
+    
+    Fixes #12288.
+    
+    For inclusion in the 1.5.1 release.
+    
+    Change-Id: I9354b7eaa76000498465c4a5cbab7246de9ecb7c
+    Reviewed-on: https://go-review.googlesource.com/14382
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

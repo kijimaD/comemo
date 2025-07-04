@@ -1,0 +1,23 @@
+commit 73c67606e9659db662b195e241fdffb1d43a75e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 12 15:20:18 2012 -0800
+
+    net/http: handle 413 responses more robustly
+    
+    When HTTP bodies were too large and we didn't want to finish
+    reading them for DoS reasons, we previously found it necessary
+    to send a FIN and then pause before closing the connection
+    (which might send a RST) if we wanted the client to have a
+    better chance at receiving our error response. That was Issue 3595.
+    
+    This issue adds the same fix to request headers which
+    are too large, which might fix the Windows flakiness
+    we observed on TestRequestLimit at:
+    http://build.golang.org/log/146a2a7d9b24441dc14602a1293918191d4e75f1
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/6826084
+
+ src/pkg/net/http/server.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

@@ -1,0 +1,26 @@
+commit fe77a5413e64049af456b14ae911102681bee006
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Apr 7 03:08:46 2018 -0700
+
+    cmd/compile: fix constant pointer comparison failure
+    
+    Previously, constant pointer-typed expressions could use either Mpint
+    or NilVal as their Val depending on their construction, but const.go
+    expects each type to have a single corresponding Val kind.
+    
+    This CL changes pointer-typed expressions to exclusively use Mpint.
+    
+    Fixes #21221.
+    
+    Change-Id: I6ba36c9b11eb19a68306f0b296acb11a8c254c41
+    Reviewed-on: https://go-review.googlesource.com/105315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 22 ++++++++--------------
+ src/cmd/compile/internal/gc/const.go   | 23 ++++-------------------
+ src/cmd/compile/internal/gc/export.go  |  2 +-
+ test/const1.go                         |  4 ++--
+ test/fixedbugs/issue21221.go           | 18 ++++++++++++++++++
+ 5 files changed, 33 insertions(+), 36 deletions(-)

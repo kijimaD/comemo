@@ -1,0 +1,36 @@
+commit abf8e355a8fe4b77009cb55f6bef11f74e6ade03
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 23 17:33:35 2019 +0000
+
+    runtime: use MADV_FREE_REUSABLE on darwin
+    
+    Currently on darwin we use MADV_FREE, which unfortunately doesn't result
+    in a change in the process's RSS until pages actually get kicked out,
+    which the OS is free to do lazily (e.g. until it finds itself under
+    memory pressure).
+    
+    To remedy this, we instead use MADV_FREE_REUSABLE which has similar
+    semantics, except that it also sets a reusable bit on each page so the
+    process's RSS gets reported more accurately. The one caveat is for every
+    time we call MADV_FREE_REUSABLE on a region we must call MADV_FREE_REUSE
+    to keep the kernel's accounting updated.
+    
+    Also, because this change requires adding new constants that only exist
+    on darwin, it splits mem_bsd.go into mem_bsd.go and mem_darwin.go.
+    
+    Fixes #29844.
+    
+    Change-Id: Idb6421698511138a430807bcbbd1516cd57557c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/defs_darwin.go       |  6 ++-
+ src/runtime/defs_darwin_386.go   |  6 ++-
+ src/runtime/defs_darwin_amd64.go |  6 ++-
+ src/runtime/defs_darwin_arm.go   |  6 ++-
+ src/runtime/defs_darwin_arm64.go |  6 ++-
+ src/runtime/mem_bsd.go           | 16 +-------
+ src/runtime/mem_darwin.go        | 80 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 102 insertions(+), 24 deletions(-)

@@ -1,0 +1,28 @@
+commit 31c81500828993d99af3392742abde64194da858
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 14 22:22:34 2024 -0700
+
+    cmd/compile/internal/noder: enable type aliases in type checker
+    
+    This CL fixes an initialization loop during IR construction, that
+    stems from IR lacking first-class support for aliases. As a
+    workaround, we avoid publishing alias declarations until the RHS type
+    expression has been constructed.
+    
+    Thanks to gri@ for investigating while I was out.
+    
+    Fixes #66873.
+    
+    Change-Id: I11e0d96ea6c357c295da47f44b6ec408edef89b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585399
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go  |  4 +---
+ src/cmd/compile/internal/noder/reader.go | 25 +++++++++++++++++++++++--
+ src/cmd/compile/internal/noder/writer.go | 12 ++++++++++++
+ test/alias2.go                           | 10 +++++-----
+ test/fixedbugs/issue66873.go             | 15 +++++++++++++++
+ 5 files changed, 56 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 67a5181045d1601820ea98dff06832339e19fd16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 2 19:42:05 2014 +0900
+
+    net: make WriteTo, WriteToUnix and WriteMsgUnix fail when connectionless-mode UnixConn is already connected
+    
+    This CL tries to fill the gap between Linux and other Unix-like systems
+    in the same way UDPConn already did.
+    
+    Fixes #7677.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/83330045
+
+ src/pkg/net/unix_test.go      | 67 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/unixsock_posix.go |  6 ++++
+ 2 files changed, 73 insertions(+)

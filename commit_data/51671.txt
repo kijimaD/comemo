@@ -1,0 +1,24 @@
+commit fbf14ae166ceeb94c14b3d752c7353f5472b4e29
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 08:44:51 2022 -0500
+
+    runtime: remove arbitrary GOARCH constraints in finalizer tests
+    
+    These tests were only run on GOARCH=amd64, but the rationale given in
+    CL 11858043 was GC precision on 32-bit platforms. Today, we have far
+    more 64-bit platforms than just amd64, and I believe that GC precision
+    on 32-bit platforms has been substantially improved as well.
+    The GOARCH restriction seems unnecessary.
+    
+    Updates #57166.
+    Updates #5368.
+    
+    Change-Id: I45c608b6fa721012792c96d4ed94a6d772b90210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456120
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mfinal_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

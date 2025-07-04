@@ -1,0 +1,21 @@
+commit 90351506d47dad652d9ee8cea56ffb5c50e0e953
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 14:31:10 2013 -0700
+
+    regexp/syntax: optimize EmptyOpContext
+    
+    Minor. Saw this in a profile at few percent of CPU and was
+    curious what it was. Improves overall regexp benchmarks
+    anywhere from 0 to 3%, but they're a pain to run. You need to
+    run them in isolation for long runs to get stable numbers.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkEmptyOpContext          537          473  -11.92%
+    
+    R=golang-dev, crawshaw
+    CC=golang-dev
+    https://golang.org/cl/13407043
+
+ src/pkg/regexp/syntax/prog.go      | 29 ++++++++++++++++-------------
+ src/pkg/regexp/syntax/prog_test.go | 11 +++++++++++
+ 2 files changed, 27 insertions(+), 13 deletions(-)

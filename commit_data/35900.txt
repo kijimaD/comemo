@@ -1,0 +1,29 @@
+commit 7001ac53946bb05c88a0e7d7c3c64dfb1cca1fca
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 6 09:50:05 2018 -0400
+
+    runtime: fix abort handling on Windows
+    
+    On Windows, the IP recorded in the breakpoint exception caused by
+    runtime.abort is actually one byte after the INT3, unlike on UNIX
+    OSes. Account for this in isgoexception.
+    
+    It turns out TestAbort was "passing" on Windows anyway because abort
+    still caused a fatal panic, just not the one we were expecting. This
+    CL tightens this test to check that the runtime specifically reports a
+    breakpoint exception.
+    
+    Fixing this is related to #21382, since we use runtime.abort in
+    reporting g0 stack overflows, and it's important that we detect this
+    and not try to handle it.
+    
+    Change-Id: I66120944d138eb80f839346b157a3759c1019e34
+    Reviewed-on: https://go-review.googlesource.com/122515
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/crash_test.go     | 15 +++++++++------
+ src/runtime/signal_windows.go |  4 +++-
+ 2 files changed, 12 insertions(+), 7 deletions(-)

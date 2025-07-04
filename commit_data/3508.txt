@@ -1,0 +1,16 @@
+commit fd76b4f3851c70a083991d8e86d7432d9157737b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 10:12:37 2009 -0700
+
+    new builtin.c.boot from arm.
+    node printing fixes.
+    silence incorrect redeclaration error.
+    
+    R=ken
+    OCL=35602
+    CL=35602
+
+ src/cmd/gc/builtin.c.boot |  2 ++
+ src/cmd/gc/go.y           |  6 +++++-
+ src/cmd/gc/print.c        | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 53 insertions(+), 2 deletions(-)

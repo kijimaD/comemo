@@ -1,0 +1,16 @@
+commit 52c549fc9be7baef252448b3f6c18070d445cebf
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Nov 5 22:53:08 2009 -0800
+
+            make 5g executables run on android/arm hardware. change OABI
+            usage to EABI.
+    
+            go/test: passes 85% (296/347) on random android phone.
+    
+    R=rsc
+    http://go/go-review/1024003
+
+ src/cmd/gotest/gotest           |  2 +-
+ src/pkg/runtime/linux/arm/sys.s | 28 ++++++++++++++++++++--------
+ test/run                        |  2 +-
+ 3 files changed, 22 insertions(+), 10 deletions(-)

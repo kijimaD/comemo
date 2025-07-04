@@ -1,0 +1,19 @@
+commit 660feea72f64d9d6d619529f10afd8c042299c65
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Tue Aug 29 14:34:40 2023 -0700
+
+    runtime/pprof: print stderr on test failure
+    
+    Print Stderr on test failure to track down the intermittent
+    test failure reported in issue #62352.
+    
+    Change-Id: I547a3220dc07d05578dac093d6c028a9103b552a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524156
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/pprof/vminfo_darwin_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

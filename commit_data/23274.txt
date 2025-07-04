@@ -1,0 +1,12 @@
+commit 3e2fc94f04b2e3ff070931e7e130c1df511043ce
+Author: Alexis Imperial-Legrand <ail@google.com>
+Date:   Tue Jun 2 17:27:43 2015 +0200
+
+    debug/gosym: avoid calling the shell in test
+    
+    Change-Id: I95bf62c0f2d77dd67515921e6aefa511cce8d95d
+    Reviewed-on: https://go-review.googlesource.com/10633
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/gosym/pclntab_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

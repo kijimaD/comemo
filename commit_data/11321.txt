@@ -1,0 +1,24 @@
+commit 57007fe12b59fdc61027e5f8cba17444485ca32f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Jan 23 00:50:05 2012 -0200
+
+    encoding/xml: improve []byte handling
+    
+    Marshalling of []byte in attributes and the general
+    marshalling of named []byte types was fixed.
+    
+    A []byte field also won't be nil if an XML element
+    was mapped to it, even if the element is empty.
+    
+    Tests were introduced to make sure that *struct{}
+    fields works correctly for element presence testing.
+    No changes to the logic made in that regard.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5539070
+
+ src/pkg/encoding/xml/marshal.go      | 58 +++++++++++++++++++++---------------
+ src/pkg/encoding/xml/marshal_test.go | 50 +++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/read.go         | 12 ++++----
+ 3 files changed, 91 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit 5b3cd56038fbc76d5094c6a3373776532cbe386d
+Author: Jerrin Shaji George <jerrinsg@gmail.com>
+Date:   Thu Feb 22 15:51:10 2018 -0800
+
+    runtime: fix a few typos in comments
+    
+    Change-Id: I07a1eb02ffc621c5696b49491181300bf411f822
+    Reviewed-on: https://go-review.googlesource.com/96475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mfixalloc.go | 2 +-
+ src/runtime/mgclarge.go  | 2 +-
+ src/runtime/mgcmark.go   | 2 +-
+ src/runtime/mheap.go     | 4 ++--
+ src/runtime/symtab.go    | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

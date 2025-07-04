@@ -1,0 +1,17 @@
+commit f125b32d19cdb0e2650e8b7ae7b909b4bd0ae2a2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 12 14:03:39 2019 +0200
+
+    cmd/compile/internal/arm: merge cases in ssaGenValue
+    
+    Merge case statement for OpARMSLL, OpARMSRL and OpARMSRA into an
+    existing one using the same logic.
+    
+    Change-Id: Ic4224668228902e5188fb0559b5f1949cfea1381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171724
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm/ssa.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

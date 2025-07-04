@@ -1,0 +1,24 @@
+commit 9179c9cb5c369e075a65a2a5addd4a0e0b099b16
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 26 13:58:23 2015 -0700
+
+    cmd/compile: make sure instrumented call has type width
+    
+    The width of the type of an external variable defined with a type
+    literal may not be set when the instrumentation pass is run.  There are
+    two cases in the standard library that fail without the call to dowidth:
+    
+    ../../../src/encoding/base32/base32.go:322: constant -1000000000 overflows uintptr
+    ../../../src/encoding/base32/base32.go:329: constant -1000000000 overflows uintptr
+    ../../../src/encoding/json/encode.go:385: constant -1000000000 overflows uintptr
+    ../../../src/encoding/json/encode.go:387: constant -1000000000 overflows uintptr
+    
+    Change-Id: I7c3334f7decdb7488595ffe4090cd262d7334283
+    Reviewed-on: https://go-review.googlesource.com/16331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testsanitizers/test.bash       |  5 +++++
+ src/cmd/compile/internal/gc/racewalk.go | 16 ++++++++++++++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

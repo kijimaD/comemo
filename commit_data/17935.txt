@@ -1,0 +1,12 @@
+commit 52ee63f544a1dc5ef4b69a4638c99cbdfae34b42
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 9 18:48:44 2013 -0500
+
+    liblink: fix extern register accesses on Plan 9 (386)
+    
+    R=golang-dev, 0intro, rsc
+    CC=golang-dev
+    https://golang.org/cl/39680044
+
+ src/liblink/obj8.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 3fbe7f4f41a89b85659bcfdacb40373f49870b89
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Apr 11 10:18:49 2010 -0700
+
+    testing: update documentation to match current coding style
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/823045
+
+ src/pkg/testing/quick/quick.go   | 4 ++--
+ src/pkg/testing/script/script.go | 8 ++++----
+ src/pkg/testing/testing.go       | 8 ++++----
+ 3 files changed, 10 insertions(+), 10 deletions(-)

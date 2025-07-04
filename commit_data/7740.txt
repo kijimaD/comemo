@@ -1,0 +1,12 @@
+commit 9f2cb86fe2d4ffbaff4c9d9493e2098f757ab6ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 14:47:02 2011 -0500
+
+    spec: remove closed from language, replaced by x, ok = <-c
+    
+    R=gri, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4249065
+
+ doc/go_spec.html | 43 +++++++++++++++----------------------------
+ 1 file changed, 15 insertions(+), 28 deletions(-)

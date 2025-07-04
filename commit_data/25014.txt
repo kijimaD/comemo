@@ -1,0 +1,17 @@
+commit 5951823853916b8c6c0170286bc5f2b4793033c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 22 21:14:52 2015 -0500
+
+    cmd/go: disable TestNoteReading on dragonfly
+    
+    It started failing on the dragonfly builder at an unrelated commit
+    (one that changed the wording in a few comments in the compiler).
+    
+    Created #13364 to track this.
+    
+    Change-Id: I462880bed8ff565a9950e7e185de97d43999c5e2
+    Reviewed-on: https://go-review.googlesource.com/17143
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/note_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

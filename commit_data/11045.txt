@@ -1,0 +1,15 @@
+commit 0448ce13a0bd69b9a81e9a259b9b9bd9b58c70d6
+Author: Florian Weimer <fw@deneb.enyo.de>
+Date:   Sun Jan 8 10:02:23 2012 -0500
+
+    encoding/asn1: document support for *big.Int
+            Also add basic tests.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5533045
+
+ src/pkg/encoding/asn1/asn1.go         | 3 ++-
+ src/pkg/encoding/asn1/asn1_test.go    | 6 ++++++
+ src/pkg/encoding/asn1/marshal_test.go | 6 ++++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

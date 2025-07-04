@@ -1,0 +1,20 @@
+commit d9244f8b641e8f60ab4b6edd976f1762606649e3
+Author: Tim King <taking@google.com>
+Date:   Fri Sep 3 20:27:35 2021 +0000
+
+    Revert "go/ast: clarify when Ident.Obj is nil"
+    
+    This reverts commit 52aef05498a9e84ede16fb7ce46a2a252af05479.
+    
+    Reason for revert: After discussion on CL 347530, it is not clear this is an improvement to the documentation.
+    
+    Updates #48141
+    
+    Change-Id: I5f3d9995c5f5666b92602c4b8ec393673baa73fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347592
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

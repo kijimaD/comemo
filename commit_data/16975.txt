@@ -1,0 +1,15 @@
+commit ffb62d58a3b5cb560afa3950ccf80f1a5ae2394a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 17:36:45 2013 +1000
+
+    doc: remove jquery.js and style.css
+    
+    Somehow missed these. Moved to go.tools/cmd/godoc/template.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12234043
+
+ doc/jquery.js |   2 -
+ doc/style.css | 538 ----------------------------------------------------------
+ 2 files changed, 540 deletions(-)

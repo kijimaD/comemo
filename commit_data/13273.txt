@@ -1,0 +1,14 @@
+commit 622ace8ffe6aab56c35bf80c3a9853c833839a15
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jun 5 02:12:23 2012 +1000
+
+    net: fix botched cgo netbsd merge
+    
+    Fix botched cgo_netbsd.go merge and remove redundant +build directive.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6282048
+
+ src/pkg/net/cgo_netbsd.go | 6 ------
+ 1 file changed, 6 deletions(-)

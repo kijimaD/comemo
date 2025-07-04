@@ -1,0 +1,22 @@
+commit 0c0e8f224d5724e317952f77d215a752a3a7b7d9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 16 20:08:00 2020 -0400
+
+    runtime: don't send preemption signal if there is a signal pending
+    
+    If multiple threads call preemptone to preempt the same M, it may
+    send many signals to the same M such that it hardly make
+    progress, causing live-lock problem. Only send a signal if there
+    isn't already one pending.
+    
+    Fixes #37741.
+    
+    Change-Id: Id94adb0b95acbd18b23abe637a8dcd81ab41b452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223737
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime2.go    |  4 ++++
+ src/runtime/signal_unix.go | 10 +++++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 235a7c57be4a25a72c631acc8d3401e2f14c419d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 15 10:45:05 2020 +0700
+
+    cmd/compile: remove guard for OCOMPLEX in evconst
+    
+    After CL 166983, the guard for OCOMPLEX in evconst is not necessary
+    anymore.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1d4a9b447bad9ba0289fc7f997febc0e0b4167ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214837
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go | 4 ----
+ 1 file changed, 4 deletions(-)

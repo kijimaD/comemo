@@ -1,0 +1,19 @@
+commit 259d2347d2eed687e1b55a9b7e33cbc735db2064
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon May 13 13:01:17 2024 +0000
+
+    net/netip: replace != nil with != "" in comment
+    
+    Change-Id: Ie204f90e51c210efe520a075b917c6178e109676
+    GitHub-Last-Rev: 9ca21ff92fbce5b60b904cdaf1e32632dbcdd0c6
+    GitHub-Pull-Request: golang/go#67341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585155
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/netip/netip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

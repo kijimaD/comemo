@@ -1,0 +1,15 @@
+commit 40fa8c200cc18a361843a526f3e0116e5dfd006f
+Author: citizen233 <mengrenxiong@gmail.com>
+Date:   Tue Sep 28 14:05:20 2021 +0800
+
+    cmd/go/internal/modcmd: fix "go mod editwork" error text
+    
+    Fixes #48583
+    
+    Change-Id: I863ece5c546c383a2f46b8b1a36cbf9f2526d3ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352709
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/modcmd/editwork.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 724d0720b3e110f64598bf789cbe2a6a1b3b0fd8
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Fri Feb 5 05:47:46 2021 +0000
+
+    doc/go1.16: add missed heading tag in vet section
+    
+    Add missed heading tag in CL 276373.
+    
+    For #40700
+    
+    Change-Id: Ida9e8861589bbc296a5a1cecbf9fe33fa09ed0ca
+    GitHub-Last-Rev: d218f8d4b70b20c30422863db7bed3683e3218e6
+    GitHub-Pull-Request: golang/go#44111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289869
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Tim King <taking@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 2 ++
+ 1 file changed, 2 insertions(+)

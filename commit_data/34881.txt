@@ -1,0 +1,18 @@
+commit 3e31eb6b84d923adb764fa4af920cec5902eae60
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 6 18:44:00 2018 +0200
+
+    test/codegen: port arm64 slice zeroing tests
+    
+    Finish porting arm64 slice zeroing codegen tests; delete them from
+    asm_test.
+    
+    Change-Id: Id2532df8ba1c340fa662a6b5238daa3de30548be
+    Reviewed-on: https://go-review.googlesource.com/105136
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 154 --------------------------------
+ test/codegen/memcombine.go              |  52 ++++++++++-
+ 2 files changed, 48 insertions(+), 158 deletions(-)

@@ -1,0 +1,13 @@
+commit 527669e6b19156245e5f47a95e8c39ac0b164e18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 15:23:29 2008 -0700
+
+    set -e doesn't apply to ( ) blocks
+    
+    R=r
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=18044
+    CL=18068
+
+ src/run.bash | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit bc98cea9418b8d3bec037ac16a46639576af9c06
+Author: Ramazan AYYILDIZ <rayyildiz@gmail.com>
+Date:   Tue Oct 31 11:19:48 2017 +0100
+
+    strings: add examples for specialCase
+    
+    Change-Id: Ifa0384722dd879af7f5edb7b7aaac5ede3cff46d
+    Reviewed-on: https://go-review.googlesource.com/74690
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/example_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

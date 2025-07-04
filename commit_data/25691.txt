@@ -1,0 +1,22 @@
+commit b460d1d52ffe911828dee58352d3cebbe04d5f30
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 27 13:18:35 2016 -0800
+
+    cmd/internal/obj/x86: skip test when GOHOSTARCH is set
+    
+    It's causing the darwin-386 builder to fail with:
+    
+    --- FAIL: TestDynlink (0.07s)
+        obj6_test.go:118: error exit status 3 output go tool: no such tool "asm"
+    FAIL
+    FAIL    cmd/internal/obj/x86    0.073s
+    
+    So skip it for now. It's tested in enough other places.
+    
+    Change-Id: I9a98ad7b8be807005750112d892ac6c676c17dd5
+    Reviewed-on: https://go-review.googlesource.com/18989
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/x86/obj6_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,16 @@
+commit 2701dadbac7d3bf166124f19659f9b906a026e0a
+Author: Luka Zakrajšek <tr00.g33k@gmail.com>
+Date:   Mon Mar 17 15:52:52 2014 -0700
+
+    net/http: Request Body error should not be ignored.
+    
+    Fixes #7521.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/76320043
+
+ src/pkg/net/http/requestwrite_test.go | 40 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/transfer.go          | 15 +++++++++++--
+ 2 files changed, 53 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 0b3d39c70018c6f149129abb3b05ce8ccffcf292
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 19 15:04:14 2018 -0400
+
+    cmd/compile: don't run gc/ssa_test/TestGenFlowGraph in short mode
+    
+    The test runs far too long for -short mode (4 seconds).
+    
+    Also removed useless test of now-disconnected knob
+    (GO_SSA_PHI_LOC_CUTOFF), which cuts 4 seconds to 2 seconds (which
+    is still too long), and finished removing the disconnected knob.
+    
+    Updates #26469.
+    
+    Change-Id: I6c594227c4a5aaffee46832049bdbbf570d86e60
+    Reviewed-on: https://go-review.googlesource.com/125075
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go |  7 ++--
+ src/cmd/compile/internal/ssa/config.go  | 72 ++++++++++++---------------------
+ 2 files changed, 29 insertions(+), 50 deletions(-)

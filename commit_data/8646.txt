@@ -1,0 +1,18 @@
+commit 63dae3c3becfabce9454e062297f8b4a22fc69a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 7 14:37:06 2011 -0400
+
+    compress/lzw: do not use background goroutines
+    
+    Programs expect that Read and Write are synchronous.
+    The background goroutines make the implementation
+    a little easier, but they introduce asynchrony that
+    trips up calling code.  Remove them.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4548080
+
+ src/pkg/compress/lzw/reader.go      | 223 +++++++++++++++++++++---------------
+ src/pkg/compress/lzw/writer_test.go |   8 +-
+ 2 files changed, 135 insertions(+), 96 deletions(-)

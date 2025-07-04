@@ -1,0 +1,20 @@
+commit 3e1e66fa05017f15b7e91307275975a6584cd205
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 26 10:15:29 2017 -0400
+
+    cmd/link: don't pass -gdwarf-2 to external linker
+    
+    Don't pass -gdwarf-2 to the external linker when external linkage is
+    requested. The Go compiler is now emitting DWARF version 4, so this
+    doesn't seem needed any more.
+    
+    Fixes #22455
+    
+    Change-Id: Ic4122c55e946619a266430f2d26f06d6803dd232
+    Reviewed-on: https://go-review.googlesource.com/73672
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

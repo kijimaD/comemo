@@ -1,0 +1,15 @@
+commit 711d1ad7eebc4aecfb3a326f16af206b7b99ff6c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 9 15:50:57 2014 -0700
+
+    runtime: be a lot more lenient on smhasher avalanche test.
+    
+    Fixes #7943
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98170043
+
+ src/pkg/runtime/hash_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

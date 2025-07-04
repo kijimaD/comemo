@@ -1,0 +1,14 @@
+commit 3e40f13cf3bf3f23f3f2f60dec174a1bdad57f16
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:51:24 2016 -0800
+
+    cmd/compile: eliminate global fileparser
+    
+    Change-Id: I9b8b13731ccc2ba33d21642b12cc614dde0804b1
+    Reviewed-on: https://go-review.googlesource.com/19752
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/lex.go    |  8 ++++----
+ src/cmd/compile/internal/gc/parser.go | 19 ++++---------------
+ 2 files changed, 8 insertions(+), 19 deletions(-)

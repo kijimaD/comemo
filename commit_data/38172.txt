@@ -1,0 +1,21 @@
+commit 8eef74b493e48f3dfac6619b01ac7efe26c134b5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 08:25:35 2019 +0100
+
+    misc/android,misc/ios: evaluate current working directory symlinks
+    
+    Previous CLs added symlink evaulation to GOROOT and GOPATH.
+    Unfortunately that only fixed tests that ran outside GOROOT.
+    
+    To fix the standard library tests, evaluate symlinks in the current
+    working directory as well.
+    
+    Change-Id: Ia406a968235ae4321a1002567520105998582d15
+    Reviewed-on: https://go-review.googlesource.com/c/164699
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 4 ++++
+ misc/ios/go_darwin_arm_exec.go  | 4 ++++
+ 2 files changed, 8 insertions(+)

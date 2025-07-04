@@ -1,0 +1,14 @@
+commit 34bb7a0bb27e20e477ee5c910603ed58c49b6173
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 17:07:06 2008 -0700
+
+    gobuild -m: replace value of $GOARCH and $GOOS
+            in Makefile with $(GOARCH) and $(GOOS)
+    
+    R=r
+    DELTA=40  (38 added, 0 deleted, 2 changed)
+    OCL=15905
+    CL=15908
+
+ src/cmd/gobuild/gobuild.c | 42 ++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 40 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 45e214fb62389214896700ded97b6585c103af9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 18 15:47:50 2013 -0700
+
+    test: add a test that gccgo failed to compile
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13451045
+
+ test/fixedbugs/bug477.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

@@ -1,0 +1,14 @@
+commit 4ba27e27f388e746846106b112c318460473b012
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 7 21:55:32 2010 -0800
+
+    godoc: use file instead of file set for computing line info
+    
+    Reduces indexing time by ~10%; from ~44s to ~39s, best of 3 runs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3510041
+
+ src/cmd/godoc/index.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

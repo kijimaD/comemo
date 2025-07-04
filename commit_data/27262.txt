@@ -1,0 +1,16 @@
+commit 082881daf84a0ce3aae847c64b483c04d471e088
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue May 3 11:10:26 2016 +0200
+
+    misc/cgo/fortran: fix gfortran compile test
+    
+    Fixes #14544
+    
+    Change-Id: I58b0b164ebbfeafe4ab32039a063df53e3018a6d
+    Reviewed-on: https://go-review.googlesource.com/22730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Sean Lake <odysseus9672@gmail.com>
+
+ misc/cgo/fortran/test.bash | 16 ++++++++++++++++
+ src/cmd/dist/test.go       |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

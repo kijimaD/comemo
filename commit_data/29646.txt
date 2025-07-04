@@ -1,0 +1,19 @@
+commit e2d5e54e504117e3f141b6c2ab52389aa04fdb79
+Author: Kaviraj <kavirajkanagaraj@gmail.com>
+Date:   Wed Nov 23 19:03:46 2016 +0530
+
+    net: document that Header.Get key is case insensitive
+    
+    Document that key in Header.Get(key) is case insensitive in
+    http.Header, mail.Header, textproto.Header.
+    
+    Fixes #18019
+    
+    Change-Id: Iba7932491e02e555190b6fce053088b580a853ef
+    Reviewed-on: https://go-review.googlesource.com/33530
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/header.go      | 6 ++++--
+ src/net/mail/message.go     | 4 ++++
+ src/net/textproto/header.go | 4 +++-
+ 3 files changed, 11 insertions(+), 3 deletions(-)

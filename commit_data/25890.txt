@@ -1,0 +1,17 @@
+commit 14113b3a89624ee6d97a7847b68361158ad43822
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 10:44:31 2016 -0800
+
+    cmd/internal/obj: don't crash on nil in Prog.String
+    
+    I can't remember just how this happened to me, but I got an unfortunate
+    crash with some set of cmd/compile debug options and source code.
+    
+    Change-Id: Ibef6129c50b68dad0594ac439466bfbc4b32a095
+    Reviewed-on: https://go-review.googlesource.com/19920
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/util.go | 4 ++++
+ 1 file changed, 4 insertions(+)

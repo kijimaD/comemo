@@ -1,0 +1,15 @@
+commit b6bfc92df363606f982517f8c9bb840ebaef9053
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Apr 7 18:19:16 2013 -0700
+
+    runtime: fix race on hashmap flags field
+    Use atomic operations on flags field to make sure we aren't
+    losing a flag update during parallel map operations.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/8377046
+
+ src/pkg/runtime/hashmap.c   | 33 ++++++++++++++++++++++++---------
+ src/pkg/runtime/map_test.go | 25 ++++++++++++++++++++++---
+ 2 files changed, 46 insertions(+), 12 deletions(-)

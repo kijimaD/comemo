@@ -1,0 +1,13 @@
+commit a03e8a5be017f4741c029c04a3333bb655ab8059
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Wed Jan 8 21:22:18 2014 +0100
+
+    plan9: lookup query must seek to offset 0 before reading or
+           writing /net/dns or /net/cs (see nbd(8)).
+    
+    R=golang-codereviews
+    CC=0intro, golang-codereviews, rsc
+    https://golang.org/cl/49060043
+
+ src/pkg/net/lookup_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

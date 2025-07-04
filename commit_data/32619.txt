@@ -1,0 +1,17 @@
+commit 84188296e93dd4d26cb0a75a03a9096794e01e2f
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Jul 4 09:11:04 2017 +0200
+
+    cmd/compile: more compact representation of DW_AT_high_pc
+    
+    DWARF version 4 allows DW_AT_high_pc to be represented as a constant
+    offset from DW_AT_low_pc, this can help save up to 7 bytes per
+    function/lexical scope.
+    
+    Change-Id: I93638d83638ecad4d0d1bfe27348eae6139820c9
+    Reviewed-on: https://go-review.googlesource.com/60530
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

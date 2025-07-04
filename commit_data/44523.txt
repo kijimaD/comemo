@@ -1,0 +1,22 @@
+commit 31df4e3fcd0c961684a027188a391f6db1ab3439
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Nov 16 17:50:01 2020 +0800
+
+    cmd/link: add relocs type for mips64x
+    
+    The race detector of llvm adds four reloc types even with -fPIC
+    
+    elf.R_MIPS_CALL16
+    elf.R_MIPS_GPREL32
+    elf.R_MIPS_64
+    elf.R_MIPS_GOT_DISP
+    
+    Change-Id: If73119dcba14ef74395273eb680f52a0aa853217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270297
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 67077cc1ca18c10a36a744d5d3516cb06034ced9
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Mar 14 12:33:44 2011 -0400
+
+    build: remove duplicate dependency in Make.cmd
+    
+    R=golang-dev, dfc, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4274048
+
+ src/Make.cmd | 2 --
+ 1 file changed, 2 deletions(-)

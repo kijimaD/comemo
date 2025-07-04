@@ -1,0 +1,13 @@
+commit 7889e03477467f8fb5d3cacbd06b016779c9692c
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 2 15:31:21 2008 -0700
+
+    go method
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=13765
+    CL=13765
+
+ src/cmd/6g/gen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

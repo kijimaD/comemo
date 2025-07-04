@@ -1,0 +1,19 @@
+commit c25c3710986c3c71d09141c458a6f56fea4d88ab
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 18 21:56:12 2015 -0500
+
+    runtime: use more natural types in struct workbuf
+    
+    Until recently, struct workbuf had only lfnode and uintptr fields
+    before the obj array to make it convenient to compute the size of the
+    obj array.  It slowly grew more fields until this became inconvenient
+    enough that it was restructured to make the size computation easy.
+    Now the size computation doesn't care what the field types are, so
+    switch to more natural types.
+    
+    Change-Id: I966140ba7ebb4aeb41d5c66d9d2a3bdc17dd4bcf
+    Reviewed-on: https://go-review.googlesource.com/5262
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgcwork.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

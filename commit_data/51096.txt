@@ -1,0 +1,79 @@
+commit 44cabb802af220388aa1d74776e076e75c53aeb0
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 28 17:10:59 2022 -0400
+
+    cmd/compile: if GOGC is not set, temporarily boost it for rapid starting heap growth
+    
+    Benchmarking suggests about a 14-17% reduction in user build time,
+    about 3.5-7.8% reduction for wall time.  This helps most builds
+    because small packages are common. Latest benchmarks (after the last
+    round of improvement):
+    
+    (12 processors) https://perf.golang.org/search?q=upload:20221102.20
+    (GOMAXPROCS=2)  https://perf.golang.org/search?q=upload:20221103.1
+    (48 processors) https://perf.golang.org/search?q=upload:20221102.19
+    
+    (The number of compiler workers is capped at min(4, GOMAXPROCS))
+    
+    An earlier, similar version of this CL at one point observed a 27%
+    reduction in user build time (building 40+ benchmarks, 20 times), but
+    the current form is judged to be the most reliable; it may be
+    profitable to tweak the numbers slightly later, and/or to adjust the
+    number of compiler workers.
+    
+    We've talked about doing this in the past, the "new"(ish) metrics
+    package makes it a more tractable proposition.
+    
+    The method here is:
+    
+    1. If os.Getenv("GOGC") is empty, then increase GOGC to a large value,
+    calculated to grow the heap to 32 + 4 * compile_parallelism before a
+    GC occurs (e.g., on a >= 4 processor box, 64M).  In practice,
+    sometimes GC occurs before that, but this still results in fewer GCs
+    and saved time.  This is "heap goal".
+    
+    2. Use a finalizer to approximately detect when GC occurs, and use
+    runtime metrics to track progress towards the goal heap size,
+    readjusting GOGC to retarget it as necessary.  Reset GOGC to 100 when
+    the heap is "close enough" to the goal.
+    
+    One feared failure mode of doing this is that the finalizer will be
+    slow to run and the heap will grow exceptionally large before GOGC is
+    reset; I monitored the heap size at reset and exit across several
+    boxes with a variety of processor counts and extra noise
+    (including several builds in parallel, including a laptop with a busy
+    many-tabs browser running) and overshoot effectively does not occur.
+    
+    In some cases the compiler's heap grows so rapidly that estimated live
+    exceeds the GC goal, but this is not delayed-finalizer overshoot; the
+    compiler is just using that much memory.  In a small number of cases
+    (3% of GCs in make.bash) the new goal is larger than predicted by as
+    much as 38%, so check for that and redo the adjustment.
+    
+    I considered instead using the maximum heap size limit +
+    GC-detecting-finalizer + reset instead, but to me that seemed like it
+    might have a worse bad-case outcome; if the reset is delayed, it's
+    possible the GC would start running frequently, making it harder to
+    run the finalizer, reach 50% utilization, and the extra GCs would
+    lose the advantage.  This might also perform badly in the case that a
+    rapidly growing heap outruns goal.  In practice, this sort of
+    overshoot hasn't been observed, and a goal of 64M is small enough to
+    tolerate plenty of overshoot anyway.
+    
+    This version of the CL includes a comment urging anyone who sees the
+    code and thinks it would work for them, to update a bug (to be
+    created if the CL is approved) with information about their
+    situation/experience, so that we may consider creating some more
+    official and reliable way of obtaining the same result.
+    
+    Change-Id: I45df1c927c1a7d7503ade1abd1a3300e27516633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436235
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/base/base.go  | 194 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/base/debug.go |   1 +
+ src/cmd/compile/internal/gc/main.go    |   6 +
+ 3 files changed, 201 insertions(+)

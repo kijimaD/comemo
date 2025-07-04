@@ -1,0 +1,18 @@
+commit 5f48662c5aab0f8c594b77ca183687264121f6b5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 14 10:37:33 2023 -0500
+
+    doc/go1.22: pre-announce dropping macOS 10.15 support
+    
+    For #64207.
+    For #23011.
+    
+    Change-Id: I17ff221718aef03e9cda0ae4eb7b79896933553a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.22.html | 3 +++
+ 1 file changed, 3 insertions(+)

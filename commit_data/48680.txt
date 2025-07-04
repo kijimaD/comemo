@@ -1,0 +1,22 @@
+commit 0b3cb1a56cde72066645a182c93bd710708c45f5
+Author: Jared Horvat <horvski@gmail.com>
+Date:   Mon Apr 4 18:07:01 2022 +0000
+
+    doc/go_spec.html: update type identity example
+    
+    In the Type identity section, the example provides various types as givens.
+    
+    The example refers to the type *T5, but it is not provided in the givens.
+    
+    I am assuming this was a typo, and was meant to refer to *A1 or *B1.
+    *B1 seems to be in alignment with the rest of the provided examples.
+    
+    Change-Id: I554319ee8bca185c3643559321417e8b2a544ba0
+    GitHub-Last-Rev: e80560d32abcb36c51554606beb09a53d45f0062
+    GitHub-Pull-Request: golang/go#52143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398075
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

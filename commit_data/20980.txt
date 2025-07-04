@@ -1,0 +1,14 @@
+commit 8476d4cf2937fc261bbcf2890ba39d815bce3ae5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 13 19:00:48 2014 +1100
+
+    net/http: document Response.Body Read+Close interaction with keep-alive
+    
+    Fixes #5645
+    
+    Change-Id: Ifb46d6faf7ac838792920f6fe00912947478e761
+    Reviewed-on: https://go-review.googlesource.com/1531
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/net/http/response.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

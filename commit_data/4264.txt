@@ -1,0 +1,12 @@
+commit e919275825d65806986035715d705387e72048b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 16:15:53 2009 -0800
+
+    Integrated feedback by Ken.
+    Easy stuff in this round, more to come.
+    
+    R=iant, rsc, r, ken2
+    https://golang.org/cl/163058
+
+ doc/go_spec.html | 76 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 37 insertions(+), 39 deletions(-)

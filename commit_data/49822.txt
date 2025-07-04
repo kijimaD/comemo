@@ -1,0 +1,20 @@
+commit 8003efe1b5520476c62c7fa6798150a61d621cde
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 9 01:32:22 2022 -0700
+
+    test: relax live.go for GOEXPERIMENT=unified
+    
+    This CL applies the same change to test/live.go that was previously
+    applied to test/live_regabi.go in golang.org/cl/415240. This wasn't
+    noticed at the time though, because GOEXPERIMENT=unified was only
+    being tested on linux-amd64, which is a regabi platform.
+    
+    Change-Id: I0c75c2b7097544305e4174c2f5ec6ec283c81a8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422254
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ test/live.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

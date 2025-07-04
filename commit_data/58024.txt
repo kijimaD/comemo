@@ -1,0 +1,31 @@
+commit 9489a2c9a7a5b9364824e8fb342209d8121f05ff
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 13:05:57 2024 +0100
+
+    crypto/internal/impl: use base package name
+    
+    Otherwise we risk using crypto/aes in one place and
+    crypto/internal/fips/aes in another.
+    
+    Change-Id: I8f498c9457875a9a11c4576281432b5b1c0278c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624737
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../internal/fips/sha256/sha256block_amd64.go      |  4 ++--
+ .../internal/fips/sha256/sha256block_arm64.go      |  2 +-
+ .../internal/fips/sha256/sha256block_ppc64x.go     |  2 +-
+ .../internal/fips/sha256/sha256block_s390x.go      |  2 +-
+ src/crypto/internal/fips/sha3/sha3_s390x.go        |  2 +-
+ src/crypto/internal/fips/sha3/sha3_test.go         | 22 +++++++++++-----------
+ .../internal/fips/sha512/sha512block_amd64.go      |  2 +-
+ .../internal/fips/sha512/sha512block_arm64.go      |  2 +-
+ .../internal/fips/sha512/sha512block_ppc64x.go     |  2 +-
+ .../internal/fips/sha512/sha512block_s390x.go      |  2 +-
+ src/crypto/internal/impl/impl.go                   |  7 ++++++-
+ src/crypto/sha256/sha256_test.go                   |  8 ++++----
+ src/crypto/sha512/sha512_test.go                   | 12 ++++++------
+ src/go/build/deps_test.go                          |  2 +-
+ 14 files changed, 38 insertions(+), 33 deletions(-)

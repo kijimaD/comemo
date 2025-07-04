@@ -1,0 +1,33 @@
+commit 6129f37367686edf7c2732fbb5300d5f28203743
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 17 15:04:36 2016 -0700
+
+    cmd/compile: inline convT2{I,E} when result doesn't escape
+    
+    No point in calling a function when we can build the interface
+    using a known type (or itab) and the address of a local.
+    
+    Get rid of third arg (preallocated stack space) to convT2{I,E}.
+    
+    Makes go binary smaller by 0.2%
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkEfaceInteger-8     16.7          10.1          -39.52%
+    
+    Update #17118
+    Update #15375
+    
+    Change-Id: I9724a1f802bfa1e3957bf1856b55558278e198a2
+    Reviewed-on: https://go-review.googlesource.com/29373
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 151 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/fixedbugs_test.go  |   2 +-
+ src/cmd/compile/internal/gc/iface_test.go      | 128 +++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go            |  36 +++---
+ src/runtime/iface.go                           |  16 +--
+ test/live.go                                   |   4 +-
+ 7 files changed, 235 insertions(+), 106 deletions(-)

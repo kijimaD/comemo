@@ -1,0 +1,14 @@
+commit 834edc4257b45176d8bbacc4d612a43372f9556b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 15 15:39:25 2012 +1000
+
+    exp/html/atom: add some more atoms.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6298085
+
+ src/pkg/exp/html/atom/gen.go        |    5 +
+ src/pkg/exp/html/atom/table.go      | 1082 ++++++++++++++++++-----------------
+ src/pkg/exp/html/atom/table_test.go |    5 +
+ 3 files changed, 556 insertions(+), 536 deletions(-)

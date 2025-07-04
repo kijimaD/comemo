@@ -1,0 +1,13 @@
+commit 4113ca5fb1820026c7d4851df8cb9903d5e0d3c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 11:02:18 2009 -0700
+
+    explain exp
+    
+    R=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=35732
+    CL=35775
+
+ src/pkg/exp/README | 3 +++
+ 1 file changed, 3 insertions(+)

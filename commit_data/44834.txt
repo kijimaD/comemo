@@ -1,0 +1,18 @@
+commit 23ffb5b9ae9e6e313df648d8bf6ab7b8f5ff0cf1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 26 23:29:25 2021 +0700
+
+    runtime: overwrite existing keys for mapassign_faststr variant
+    
+    Fixes #45045
+    
+    Change-Id: Ifcc7bd31591870446ce3e5127489a0b887d413f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305089
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map_faststr.go   |  3 +++
+ test/fixedbugs/issue45045.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

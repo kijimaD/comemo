@@ -1,0 +1,13 @@
+commit 75af013229e9d22da8ed3272f9f936016b085365
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 24 14:19:49 2012 +0400
+
+    net/http: add parallel client/server benchmark
+    R=bradfitz@golang.org
+    
+    R=bradfitz
+    CC=bradfitz, dave, dsymonds, gobot, golang-dev
+    https://golang.org/cl/6441134
+
+ src/pkg/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

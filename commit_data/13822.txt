@@ -1,0 +1,16 @@
+commit db3c800d19a394d76531f001dbb09e13a6630712
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 14 12:53:30 2012 +1000
+
+    misc/dashboard/builder: use c:\ as default buildroot on windows
+    
+    We have some tests (misc/cgo/test) that are disabled only because
+    they will fail to run on go builder - see issue 3358 for details.
+    This change will allow us to enable these tests.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6493118
+
+ misc/dashboard/builder/main.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

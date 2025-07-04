@@ -1,0 +1,22 @@
+commit b00d967706377725b11acc16478e645ca7dd4431
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 20 08:51:06 2014 +1100
+
+    fmt: make %F a synonym for %f
+    Rationale:
+            It already is for scanning.
+            It is accepted for complexes already, but doesn't work.
+            It's analogous to %G and %E.
+            C accepts it too, and we try to be roughly compatible.
+    Fixes #7518.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/77580044
+
+ src/pkg/fmt/doc.go      | 1 +
+ src/pkg/fmt/fmt_test.go | 4 ++++
+ src/pkg/fmt/format.go   | 4 ++--
+ src/pkg/fmt/print.go    | 4 ++--
+ 4 files changed, 9 insertions(+), 4 deletions(-)

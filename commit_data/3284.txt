@@ -1,0 +1,15 @@
+commit aaaa1fc69b33e39284df07d09047494d824395f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 15 17:29:08 2009 -0700
+
+    make 6g match spec:
+            no semicolon allowd after package clause.
+            semicolon allowed after import statement.
+            no doubled semicolons allowed
+    
+    R=ken
+    OCL=34674
+    CL=34674
+
+ src/cmd/gc/go.y | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

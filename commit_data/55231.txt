@@ -1,0 +1,22 @@
+commit 2b4425759cd90edfb8f4ff4e8be397062ba99d91
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 6 14:03:17 2023 -0800
+
+    doc: add release notes for changes to encoding/json package
+    
+    The escaping of certain control characters has been changed.
+    The change is compliant with the JSON specification.
+    The JSON package never promised exactly how JSON formatted
+    and has historically changed its representation over time.
+    
+    Change-Id: I8b23f503cfff86c460f642693b50dee24038fb0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548075
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

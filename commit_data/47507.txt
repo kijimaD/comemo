@@ -1,0 +1,23 @@
+commit 3d7cb23e3d5e7880d582f1b0300064bd1138f3ee
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 16 18:44:08 2021 -0500
+
+    cmd/compile: emit definition of 'any' when compiling runtime
+    
+    Include the predefined type 'any' in the list of other important
+    predefined types that are emitted when compiling the runtime package
+    (uintptr, string, etc).
+    
+    Fixes #49619.
+    
+    Change-Id: I4a851ba2f302fbc3a425e65daa325c6bf83659da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364377
+    Trust: Than McIntosh <thanm@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  1 +
+ test/fixedbugs/issue49619.go                    | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

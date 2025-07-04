@@ -1,0 +1,18 @@
+commit a25a34abe986bd78ab9a543d2a96cbce427a4f3c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Aug 25 11:10:52 2022 +0800
+
+    runtime: convert mcache.flushGen to atomic type
+    
+    For #53821
+    
+    Change-Id: I90ab52a45b7fb6b9e3ff1d6ea97251549306c7aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425435
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mcache.go | 13 +++++++------
+ src/runtime/mgc.go    |  2 +-
+ 2 files changed, 8 insertions(+), 7 deletions(-)

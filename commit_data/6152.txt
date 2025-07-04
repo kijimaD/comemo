@@ -1,0 +1,17 @@
+commit 2fe0f8da52d01bb2bf705a7b0f4fec933b65c6ea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 2 10:01:34 2010 +1000
+
+    http: add PostForm function to post url-encoded key/value data.
+    
+    This is a common task, so it makes sense to have a helper to do it.
+    
+    (App Engine doesn't like "Transfer-Encoding: chunked" for POST
+    bodies, which is the default for regular Post.)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2113041
+
+ src/pkg/http/client.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

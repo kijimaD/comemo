@@ -1,0 +1,16 @@
+commit 1e1c9dc2c8143127b1ef8bd5e32b294e856586a6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Mar 11 13:05:24 2015 -0400
+
+    cmd/9g: use REGZERO instead of REG_R0 if we want the zero register
+    
+    This will make the intention clearer.
+    This is migrated from pre-c2go CL 4930.
+    
+    Change-Id: I9103126a05323daedd729a43b94b2be8cd7408c9
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7410
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/9g/ggen.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

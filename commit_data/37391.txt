@@ -1,0 +1,20 @@
+commit 6d620fc42ec2ae61cfedcd37d24afd8cb7654164
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Nov 13 16:13:42 2018 -0700
+
+    test: move empty header file in builddir, buildrundir to temp directory
+    
+    Move the empty header file created by "builddir", "buildrundir"
+    directives to t.tempDir. The file was accidentally placed in the
+    same directory as the source code and this was a vestige of CL 146999.
+    
+    Fixes #28781
+    
+    Change-Id: I3d2ada5f9e8bf4ce4f015b9bd379b311592fe3ce
+    Reviewed-on: https://go-review.googlesource.com/c/149458
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/run.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

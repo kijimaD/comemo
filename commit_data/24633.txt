@@ -1,0 +1,20 @@
+commit 21f35b33c21ae047b366c548d6d5b926a3d93f53
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 15 12:22:46 2015 -0400
+
+    runtime: use a 64kb system stack on arm
+    
+    I went looking for an arm system whose stacks are by default smaller
+    than 64KB. In fact the smallest common linux target I could find was
+    Android, which like iOS uses 1MB stacks.
+    
+    Fixes #11873
+    
+    Change-Id: Ieeb66ad095b3da18d47ba21360ea75152a4107c6
+    Reviewed-on: https://go-review.googlesource.com/14602
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_arm.s    | 3 ++-
+ src/runtime/os1_linux.go | 5 ++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

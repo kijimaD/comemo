@@ -1,0 +1,12 @@
+commit 1c7cc5bd7af087a4d1cd1ac7c2b4703b7e7fdc3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 24 08:59:09 2010 -0700
+
+    cc: fix typo
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/720041
+
+ src/cmd/cc/cc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

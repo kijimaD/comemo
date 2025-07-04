@@ -1,0 +1,25 @@
+commit 7a7624a3fa4665e8d75919746b6d762d3984d471
+Author: Kevin Albertson <kevin.albertson@mongodb.com>
+Date:   Tue Feb 16 14:40:49 2021 +0000
+
+    cmd/go: permit .tbd files as a linker flag
+    
+    A .tbd file is a macOS text-based stub library and is a valid input to
+    the macOS linker. This change adds .tbd to the allow-list for acceptable
+    linker flags.
+    
+    Fixes golang/go#44263
+    
+    Change-Id: Ie5439a13325dbc908e42f95ec70aca518bb549f9
+    GitHub-Last-Rev: 6055c3b5fa8c8146c0c5c976aa8e1d219e01e414
+    GitHub-Pull-Request: golang/go#44276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292269
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 4 ++--
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

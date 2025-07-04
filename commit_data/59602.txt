@@ -1,0 +1,96 @@
+commit 5b17e2f92782bd81589b89d4cd9fbb26cae2bcd5
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri May 16 11:05:03 2025 +0800
+
+    crypto/subtle: optimize function xorBytes using SIMD on loong64
+    
+    On the Loongson-3A6000-HV and Loongson-3A5000, there has been
+    a significant improvement in all performance metrics except
+    for '8Bytes', which has experienced a decline, as follows.
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/subtle
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                                       |  bench.old   |              bench.new              |
+                                       |    sec/op    |   sec/op     vs base                |
+    XORBytes/8Bytes                       7.282n ± 0%   8.805n ± 0%  +20.91% (p=0.000 n=10)
+    XORBytes/128Bytes                     14.43n ± 0%   10.01n ± 0%  -30.63% (p=0.000 n=10)
+    XORBytes/2048Bytes                   110.60n ± 0%   46.57n ± 0%  -57.89% (p=0.000 n=10)
+    XORBytes/8192Bytes                    418.7n ± 0%   161.8n ± 0%  -61.36% (p=0.000 n=10)
+    XORBytes/32768Bytes                   3.220µ ± 0%   1.673µ ± 0%  -48.04% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes0Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes1Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes2Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes3Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes4Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes5Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes6Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes7Offset       7.621n ± 0%   9.305n ± 0%  +22.10% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes0Offset    14.430n ± 0%   9.973n ± 0%  -30.88% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes1Offset     20.83n ± 0%   11.03n ± 0%  -47.05% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes2Offset     20.83n ± 0%   11.03n ± 0%  -47.07% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes3Offset     20.83n ± 0%   11.03n ± 0%  -47.07% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes4Offset     20.83n ± 0%   11.03n ± 0%  -47.05% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes5Offset     20.83n ± 0%   11.03n ± 0%  -47.05% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes6Offset     20.83n ± 0%   11.03n ± 0%  -47.05% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes7Offset     20.83n ± 0%   11.03n ± 0%  -47.05% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes0Offset   110.60n ± 0%   46.82n ± 0%  -57.67% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes1Offset    234.4n ± 0%   109.3n ± 0%  -53.37% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes2Offset    234.4n ± 0%   109.3n ± 0%  -53.37% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes3Offset    234.4n ± 0%   109.3n ± 0%  -53.37% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes4Offset    234.5n ± 0%   109.3n ± 0%  -53.39% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes5Offset    234.4n ± 0%   109.3n ± 0%  -53.37% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes6Offset    234.4n ± 0%   109.3n ± 0%  -53.37% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes7Offset    234.5n ± 0%   109.3n ± 0%  -53.39% (p=0.000 n=10)
+    geomean                               39.42n        26.00n       -34.05%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/subtle
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                                       |  bench.old   |              bench.new              |
+                                       |    sec/op    |   sec/op     vs base                |
+    XORBytes/8Bytes                       11.21n ± 0%   12.41n ± 1%  +10.70% (p=0.000 n=10)
+    XORBytes/128Bytes                     18.22n ± 0%   13.61n ± 0%  -25.30% (p=0.000 n=10)
+    XORBytes/2048Bytes                   162.20n ± 0%   48.46n ± 0%  -70.13% (p=0.000 n=10)
+    XORBytes/8192Bytes                    629.8n ± 0%   163.8n ± 0%  -73.99% (p=0.000 n=10)
+    XORBytes/32768Bytes                  4731.0n ± 1%   632.8n ± 0%  -86.63% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes0Offset       11.61n ± 1%   12.42n ± 0%   +6.98% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes1Offset       11.61n ± 0%   12.41n ± 0%   +6.89% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes2Offset       11.61n ± 0%   12.42n ± 0%   +6.98% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes3Offset       11.61n ± 0%   12.41n ± 0%   +6.89% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes4Offset       11.61n ± 0%   12.42n ± 0%   +6.98% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes5Offset       11.61n ± 0%   12.41n ± 0%   +6.89% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes6Offset       11.61n ± 0%   12.41n ± 1%   +6.89% (p=0.000 n=10)
+    XORBytesAlignment/8Bytes7Offset       11.61n ± 0%   12.42n ± 0%   +6.98% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes0Offset     17.82n ± 0%   13.62n ± 0%  -23.57% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes1Offset     26.62n ± 0%   18.43n ± 0%  -30.78% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes2Offset     26.64n ± 0%   18.43n ± 0%  -30.85% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes3Offset     26.65n ± 0%   18.42n ± 0%  -30.90% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes4Offset     26.65n ± 0%   18.42n ± 0%  -30.88% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes5Offset     26.62n ± 0%   18.42n ± 0%  -30.82% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes6Offset     26.63n ± 0%   18.42n ± 0%  -30.84% (p=0.000 n=10)
+    XORBytesAlignment/128Bytes7Offset     26.64n ± 0%   18.42n ± 0%  -30.86% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes0Offset   161.80n ± 0%   48.25n ± 0%  -70.18% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes1Offset    354.6n ± 0%   189.2n ± 0%  -46.64% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes2Offset    354.6n ± 0%   189.2n ± 0%  -46.64% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes3Offset    354.7n ± 0%   189.2n ± 0%  -46.66% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes4Offset    354.7n ± 0%   189.2n ± 1%  -46.66% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes5Offset    354.7n ± 0%   189.2n ± 0%  -46.66% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes6Offset    354.7n ± 0%   189.2n ± 0%  -46.66% (p=0.000 n=10)
+    XORBytesAlignment/2048Bytes7Offset    354.8n ± 0%   189.2n ± 0%  -46.67% (p=0.000 n=10)
+    geomean                               56.46n        36.46n       -35.42%
+    
+    Change-Id: I66e150b132517e9ff4827abf796812ffe608c052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/internal/fips140/subtle/xor_asm.go     |   2 +-
+ src/crypto/internal/fips140/subtle/xor_loong64.go |  39 +++
+ src/crypto/internal/fips140/subtle/xor_loong64.s  | 389 ++++++++++++++++++----
+ src/crypto/internal/fips140deps/cpu/cpu.go        |   3 +
+ 4 files changed, 359 insertions(+), 74 deletions(-)

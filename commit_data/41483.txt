@@ -1,0 +1,19 @@
+commit bec91cecef72265835b6227593c28d517cad211c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 18:15:38 2020 -0500
+
+    cmd/go: convert TestPackageNotStaleWithTrailingSlash to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I1020feaa4ddb40ff52c46728bc4973cea4c7b066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214391
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                 | 19 -------------------
+ .../script/build_package_not_stale_trailing_slash.txt | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 19 deletions(-)

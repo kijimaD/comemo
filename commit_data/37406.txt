@@ -1,0 +1,22 @@
+commit e500ffd88cb906014320607c6a03a5fd05ee84cf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 14:20:58 2018 -0400
+
+    runtime: track all heap arenas in a slice
+    
+    Currently, there's no efficient way to iterate over the Go heap. We're
+    going to need this for fast free page sweeping, so this CL adds a
+    slice of all allocated heap arenas. This will also be useful for
+    generational GC.
+    
+    For #18155.
+    
+    Change-Id: I58d126cfb9c3f61b3125d80b74ccb1b2169efbcc
+    Reviewed-on: https://go-review.googlesource.com/c/138076
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 21 +++++++++++++++++++++
+ src/runtime/mheap.go  | 11 ++++++++++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

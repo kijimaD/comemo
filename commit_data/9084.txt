@@ -1,0 +1,12 @@
+commit 5d929a9c9236f146bcb49a1c7a0d29e0b93a76ae
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 15 13:45:22 2011 +1000
+
+    go/build: less aggressive failure when GOROOT not found
+    
+    R=golang-dev, rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4743041
+
+ src/pkg/go/build/path.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

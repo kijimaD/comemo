@@ -1,0 +1,13 @@
+commit e1821692caf23cade9de7e150b13188dd0c97479
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 11 23:10:00 2014 -0400
+
+    cmd/ld: add go-specific dwarf type information
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/116720043
+
+ src/cmd/ld/dwarf.c | 112 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 65 insertions(+), 47 deletions(-)

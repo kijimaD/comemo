@@ -1,0 +1,41 @@
+commit 504212bbd704a3235da58ecda5f05962c5f30acb
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Sat Apr 1 03:43:20 2023 +0800
+
+    cmd/internal/obj/loong64: add atomic memory access instructions support
+    
+    The AM* atomic access instruction performs a sequence of “read-modify-write”
+    operations on a memory cell atomically. Specifically, it retrieves the old
+    value at the specified address in memory and writes it to the general register
+    rd, performs some simple operations on the old value in memory and the value
+    in the general register rk, and then write the result of the operation back
+    to the memory address pointed to by general register rj.
+    
+    Go asm syntax:
+            AM{SWAP/ADD/AND/OR/XOR/MAX/MIN}[DB]{W/V} RK, (RJ), RD
+            AM{MAX/MIN}[DB]{WU/VU} RK, (RJ), RD
+    
+    Equivalent platform assembler syntax:
+            am{swap/add/and/or/xor/max/min}[_db].{w/d} rd, rk, rj
+            am{max/min}[_db].{wu/du} rd, rk, rj
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I99ea4553ae731675180d63691c19ef334e7e7817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481577
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/loong64.go            |  4 ++
+ src/cmd/asm/internal/asm/asm.go                 | 14 ++++-
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 50 ++++++++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 50 ++++++++++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 48 +++++++++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 79 ++++++++++++++++++++++++-
+ 6 files changed, 241 insertions(+), 4 deletions(-)

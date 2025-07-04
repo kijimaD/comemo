@@ -1,0 +1,19 @@
+commit 3cbe7ea7e9de8547699537e78b76cfbc119e485d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 13 12:11:00 2015 +0900
+
+    os: fix TestProgWideChdir on darwin
+    
+    On darwin, /tmp and /var directories are usually linked to /private.
+    
+    % cd $TMPDIR; pwd -L
+    /var/.../T
+    % pwd -P
+    /private/var/.../T
+    
+    Change-Id: I277ff2d096344d9a80e6004a83e9fc3e1716348c
+    Reviewed-on: https://go-review.googlesource.com/8842
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/os/os_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

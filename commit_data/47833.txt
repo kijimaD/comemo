@@ -1,0 +1,17 @@
+commit 87b2a54827b5a845e9b29ede9414495e3e869f2e
+Author: clamyang <clamyang2018@gmail.com>
+Date:   Sun Dec 19 03:03:38 2021 +0000
+
+    runtime: mgc.go typo fix: becuse -> because
+    
+    Change-Id: I5019d5b9520e47a99a6136f615b6c9468073cc3c
+    GitHub-Last-Rev: 1a5392925a0c4e9b2915620fee3efa79ae14af20
+    GitHub-Pull-Request: golang/go#50239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373055
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

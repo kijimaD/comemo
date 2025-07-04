@@ -1,0 +1,21 @@
+commit 6be21b9f020e2fd899712db068f49e9a7326f15d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 28 14:24:14 2014 -0400
+
+    misc/vim/readme.txt: workaround weird OS X vim bug.
+    The vi bundled with OS X has a weird bug in that if you turn off
+    filetype in .vimrc when it's not turned on, even a clean exit of
+    vi will return 1 which breaks almost everything.
+    
+    While we're at it, add hint to change $GOROOT to its actual value
+    in .vimrc.
+    
+    Fixes #7865.
+    
+    LGTM=robert.hencke, dsymonds
+    R=golang-codereviews, robert.hencke, gobot, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/96800046
+
+ misc/vim/readme.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

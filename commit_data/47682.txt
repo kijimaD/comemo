@@ -1,0 +1,22 @@
+commit 8da66a35cab2de4f7ce0215c47929be624eeb03d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 2 19:05:27 2021 -0500
+
+    cmd/compile: set PPC64's MAXWIDTH as other architectures
+    
+    PPC64's MAXWIDTH is set as 1<<60 whereas on other 64-bit
+    architetures it is set as 1<<50. Set to 1<<50 for consistency. The
+    toolchain cannot handle such large program anyway.
+    
+    May fix PPC64 build.
+    
+    Change-Id: Ic3972a089b2f14a96e4ded57ef218d763c924a6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368955
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/ppc64/galign.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

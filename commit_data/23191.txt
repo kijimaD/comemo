@@ -1,0 +1,14 @@
+commit 71cc675572654c4e22e10150a909c3ab048233cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 18:17:38 2015 -0700
+
+    math/big: implement fmt.Formatter-compatible (*Float).Format
+    
+    Change-Id: I22fdba8ecaecf4e9201b845e65d982cac09f254a
+    Reviewed-on: https://go-review.googlesource.com/10499
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv_test.go    | 141 ++++++++++++++++++++++++++++++++++++++
+ src/math/big/floatexample_test.go |   8 +--
+ src/math/big/ftoa.go              |  98 +++++++++++++++++++++++++-
+ 3 files changed, 240 insertions(+), 7 deletions(-)

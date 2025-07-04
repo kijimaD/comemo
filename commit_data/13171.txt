@@ -1,0 +1,38 @@
+commit 1423ecb1266c9af288caa2723988a326adf7118e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri May 25 14:08:51 2012 +1000
+
+    image/png: optimize the paeth filter implementation.
+    
+    image/png benchmarks:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkPaeth                         10            7  -29.21%
+    BenchmarkDecodeGray               2381745      2241620   -5.88%
+    BenchmarkDecodeNRGBAGradient      9535555      8835100   -7.35%
+    BenchmarkDecodeNRGBAOpaque        8189590      7611865   -7.05%
+    BenchmarkDecodePaletted           1300688      1301940   +0.10%
+    BenchmarkDecodeRGB                6760146      6317082   -6.55%
+    BenchmarkEncodePaletted           6048596      6122666   +1.22%
+    BenchmarkEncodeRGBOpaque         18891140     19474230   +3.09%
+    BenchmarkEncodeRGBA              78945350     78552600   -0.50%
+    
+    Wall time for Denis Cheremisov's PNG-decoding program given in
+    https://groups.google.com/group/golang-nuts/browse_thread/thread/22aa8a05040fdd49
+    Before: 2.25s
+    After:  2.27s
+    Delta:  +1%
+    
+    The same program, but with a different PNG input file
+    (http://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png)
+    and only 100 iterations instead of 1000
+    Before: 4.78s
+    After:  4.42s
+    Delta:  -8%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6242056
+
+ src/pkg/image/png/paeth_test.go | 51 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/png/reader.go     | 33 ++++++++++++++++----------
+ 2 files changed, 72 insertions(+), 12 deletions(-)

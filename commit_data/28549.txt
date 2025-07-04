@@ -1,0 +1,20 @@
+commit 7de7d20e9f14c3a8fb9a3bcf6a36a299c74e9ddd
+Author: Oliver Tonnhofer <olt@bogosoft.com>
+Date:   Tue Sep 27 15:24:00 2016 +0200
+
+    image/png: improve compression by skipping filter for paletted images
+    
+    Compression of paletted images is more efficient if they are not filtered.
+    This patch skips filtering for cbP8 images.
+    The improvements are demonstrated at https://github.com/olt/compressbench
+    
+    Fixes #16196
+    
+    Change-Id: Ie973aad287cacf9057e394bb01cf0e4448a77618
+    Reviewed-on: https://go-review.googlesource.com/29872
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/png/writer.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

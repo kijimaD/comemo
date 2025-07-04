@@ -1,0 +1,26 @@
+commit 26a6131bacb5dbc491f77329557580df0a310858
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 19 14:35:41 2016 -0700
+
+    cmd/compile: fix 4-byte unaligned load rules
+    
+    The 2-byte rule was firing before the 4-byte rule, preventing
+    the 4-byte rule from firing.  Update the 4-byte rule to use
+    the results of the 2-byte rule instead.
+    
+    Add some tests to make sure we don't regress again.
+    
+    Fixes #17147
+    
+    Change-Id: Icfeccd9f2b96450981086a52edd76afb3191410a
+    Reviewed-on: https://go-review.googlesource.com/29382
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  82 ++++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/386.rules   |  38 +++-------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  38 +++-------
+ src/cmd/compile/internal/ssa/rewrite386.go   | 109 +++++++--------------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 109 +++++++--------------------
+ 5 files changed, 151 insertions(+), 225 deletions(-)

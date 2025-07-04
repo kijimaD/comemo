@@ -1,0 +1,14 @@
+commit 88d544e01dbae663e7d041feb74045aeebbc6518
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Fri Aug 9 13:42:24 2013 +1000
+
+    misc/pprof: pprof on windows does not provide demangled names
+    
+    Fixes #6034.
+    
+    R=golang-dev, bradfitz, alex.brainman, dan.kortschak
+    CC=golang-dev
+    https://golang.org/cl/12311044
+
+ misc/pprof | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

@@ -1,0 +1,13 @@
+commit de0c1c9cf5598e53a335d14c1fc8d0f42fe81ebc
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jun 4 18:35:26 2012 +0200
+
+    exp/locale/collate: somehow an incorrect version of tables was checked in earlier.
+    Regenerated tables using maketables.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6248067
+
+ src/pkg/exp/locale/collate/tables.go | 122 +++++++++++++++++------------------
+ 1 file changed, 61 insertions(+), 61 deletions(-)

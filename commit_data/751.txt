@@ -1,0 +1,13 @@
+commit 566e3b20432ef9d6db80c6c8f79100ad25781d09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 26 16:41:50 2008 -0700
+
+    - added language with respect to init() restrictions
+    
+    R=r
+    DELTA=10  (9 added, 0 deleted, 1 changed)
+    OCL=16016
+    CL=16016
+
+ doc/go_spec.txt | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

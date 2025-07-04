@@ -1,0 +1,17 @@
+commit 1853411d8376570295711f9084d494d458822578
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:44:35 2021 -0800
+
+    testing/fstest: test that ReadDirFile on a non-dir fails
+    
+    ReadDirFile implementations should return an error for non-directories.
+    
+    Change-Id: I99888562cb6cf829017904ae8c1e8887a416c4cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296391
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/fstest/testfs.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

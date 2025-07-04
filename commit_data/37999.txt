@@ -1,0 +1,16 @@
+commit 34291f5f3e0a40eac110132b620b1444c2123d0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 18:04:32 2019 -0500
+
+    cmd/internal/goobj: make the buildGoobj test helper work in module mode
+    
+    Updates #30228
+    
+    Change-Id: I8dd4a1f94dfd3be324a4f213941a20fa1b8b1215
+    Reviewed-on: https://go-review.googlesource.com/c/162832
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/internal/goobj/goobj_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

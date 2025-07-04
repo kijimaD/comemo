@@ -1,0 +1,25 @@
+commit e9ffda45c8b7d409a5b951d6a74b8241c026fad5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 14:48:54 2016 -0800
+
+    cmd/go: don't clobber `go env GOGCCFLAGS`
+    
+    When CC is set in the environment, the mkEnv function sets its version
+    of CC to the first word $CC and sets GOGCCFLAGS to the remainder. That
+    worked since Go 1 but was broken accidentally by
+    https://golang.org/cl/6409, which changed the code such that `go env`
+    calls mkEnv twice. The second call to mkEnv would clobber GOGCCFLAGS
+    based on the value of CC set by the first call. Go back to the old
+    handling by only calling mkEnv once.
+    
+    Fixes #15457.
+    
+    Change-Id: I000a1ebcc48684667e48f2b9b24605867b9e06cd
+    Reviewed-on: https://go-review.googlesource.com/33293
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/bug.go     | 2 +-
+ src/cmd/go/env.go     | 2 +-
+ src/cmd/go/go_test.go | 6 ++++++
+ src/cmd/go/main.go    | 4 +++-
+ 4 files changed, 11 insertions(+), 3 deletions(-)

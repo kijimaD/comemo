@@ -1,0 +1,18 @@
+commit d92bc7a55aa11777bdb4605eda6536c64defb0d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 07:27:07 2019 -0400
+
+    encoding/json: document HTML escaping in Compact
+    
+    Make explicit that Compact does HTML escaping.
+    
+    Fixes #30357.
+    
+    Change-Id: I4648f8f3e907d659db977d07253f716df6e07d7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173417
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go | 11 ++++++-----
+ src/encoding/json/indent.go |  3 +++
+ 2 files changed, 9 insertions(+), 5 deletions(-)

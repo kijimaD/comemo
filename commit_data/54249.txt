@@ -1,0 +1,21 @@
+commit 111ab754324e5d5646f84354bc1a134907baaa49
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Aug 25 16:42:42 2023 +0000
+
+    log/slog: use atomic.Pointer instead of atomic.Value
+    
+    There is no need to use atomic.Value, atomic.Pointer should also
+    be more performant here.
+    
+    Change-Id: I04cc1befbe1112665a9d9e16197ea3caef5e5fa3
+    GitHub-Last-Rev: 577902519ff744c936c5e707802f66aeae32c760
+    GitHub-Pull-Request: golang/go#62288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+
+ src/log/slog/logger.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,81 @@
+commit 7c405444417f4f5412f96f0406cabd081e95b603
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 8 16:29:27 2024 -0500
+
+    internal/runtime/maps: use match to skip non-full slots in iteration
+    
+    Iteration over swissmaps with low load (think map with large hint but
+    only one entry) is signicantly regressed vs old maps. See noswiss vs
+    swiss-tip below (+60%).
+    
+    Currently we visit every single slot and individually check if the slot
+    is full or not.
+    
+    We can do much better by using the control word to find all full slots
+    in a group in a single operation. This lets us skip completely empty
+    groups for instance.
+    
+    Always using the control match approach is great for maps with low load,
+    but is a regression for mostly full maps. Mostly full maps have the
+    majority of slots full, so most calls to mapiternext will return the
+    next slot. In that case, doing the full group match on every call is
+    more expensive than checking the individual slot.
+    
+    Thus we take a hybrid approach: on each call, we first check an
+    individual slot. If that slot is full, we're done. If that slot is
+    non-full, then we fall back to doing full group matches.
+    
+    This trade-off works well. Both mostly empty and mostly full maps
+    perform nearly as well as doing all matching and all individual,
+    respectively.
+    
+    The fast path is placed above the slow path loop rather than combined
+    (with some sort of `useMatch` variable) into a single loop to help the
+    compiler's code generation. The compiler really struggles with code
+    generation on a combined loop for some reason, yielding ~15% additional
+    instructions/op.
+    
+    Comparison with old maps prior to this CL:
+    
+                                                     │    noswiss    │              swiss-tip               │
+                                                     │    sec/op     │    sec/op      vs base               │
+    MapIter/Key=int64/Elem=int64/len=6-12               11.53n ±  2%    10.64n ±  2%   -7.72% (p=0.002 n=6)
+    MapIter/Key=int64/Elem=int64/len=64-12             10.180n ±  2%    9.670n ±  5%   -5.01% (p=0.004 n=6)
+    MapIter/Key=int64/Elem=int64/len=65536-12           10.78n ±  1%    10.15n ±  2%   -5.84% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=6-12        6.116n ±  2%    6.840n ±  2%  +11.84% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=64-12       2.403n ±  2%    3.892n ±  0%  +61.95% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=65536-12    1.940n ±  3%    3.237n ±  1%  +66.81% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=6-12                66.20n ±  2%    60.14n ±  3%   -9.15% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=64-12               97.24n ±  1%   171.35n ±  1%  +76.21% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=65536-12            826.1n ± 12%    842.5n ± 10%        ~ (p=0.937 n=6)
+    geomean                                             17.93n          20.96n        +16.88%
+    
+    After this CL:
+    
+                                                     │    noswiss    │              swiss-cl               │
+                                                     │    sec/op     │    sec/op     vs base               │
+    MapIter/Key=int64/Elem=int64/len=6-12               11.53n ±  2%    10.90n ± 3%   -5.42% (p=0.002 n=6)
+    MapIter/Key=int64/Elem=int64/len=64-12             10.180n ±  2%    9.719n ± 9%   -4.53% (p=0.043 n=6)
+    MapIter/Key=int64/Elem=int64/len=65536-12           10.78n ±  1%    10.07n ± 2%   -6.63% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=6-12        6.116n ±  2%    7.022n ± 1%  +14.82% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=64-12       2.403n ±  2%    1.475n ± 1%  -38.63% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=65536-12    1.940n ±  3%    1.210n ± 6%  -37.67% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=6-12                66.20n ±  2%    61.54n ± 2%   -7.02% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=64-12               97.24n ±  1%   110.10n ± 1%  +13.23% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=65536-12            826.1n ± 12%    504.7n ± 6%  -38.91% (p=0.002 n=6)
+    geomean                                             17.93n          15.29n       -14.74%
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10
+    Change-Id: Ic07f9df763239e85be57873103df5007144fdaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627156
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/group.go |  21 ++-
+ src/internal/runtime/maps/table.go | 288 +++++++++++++++++++++++++++----------
+ src/runtime/map_test.go            |  32 +++++
+ 3 files changed, 268 insertions(+), 73 deletions(-)

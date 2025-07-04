@@ -1,0 +1,25 @@
+commit 7ef9f7250e2abece8b688cc4fcadc3e32d93f0fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 13:42:53 2017 -0500
+
+    cmd/go: fix missing conversions in -json output
+    
+    1. Apply JSON conversion when -bench is in use.
+    2. Apply JSON conversion to "no test files" result.
+    3. Apply JSON conversion to test case-ending SKIP status.
+    
+    Fixes #22769.
+    Fixes #22790.
+    
+    Change-Id: I67ad656fc58bacae8c51d23b1e6d543cad190f08
+    Reviewed-on: https://go-review.googlesource.com/81535
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                        | 21 ++++++++++++++-------
+ src/cmd/go/internal/test/test.go             | 10 ++++++++--
+ src/cmd/go/testdata/src/skipper/skip_test.go |  7 +++++++
+ src/cmd/internal/test2json/test2json.go      | 23 +++++++++++++++++++----
+ src/cmd/test2json/main.go                    |  4 ++--
+ 5 files changed, 50 insertions(+), 15 deletions(-)

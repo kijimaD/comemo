@@ -1,0 +1,91 @@
+commit 33b92cd6ce46c61a4d00a86b88971534773dd4a8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 18:11:07 2017 -0500
+
+    reflect: use sync.Map instead of RWMutex for type caches
+    
+    This provides a significant speedup when using reflection-heavy code
+    on many CPU cores, such as when marshaling or unmarshaling protocol
+    buffers.
+    
+    updates #17973
+    updates #18177
+    
+    name                       old time/op    new time/op     delta
+    Call                          239ns ±10%      245ns ± 7%       ~     (p=0.562 n=10+9)
+    Call-6                        201ns ±38%       48ns ±29%    -76.39%  (p=0.000 n=10+9)
+    Call-48                       133ns ± 8%       12ns ± 2%    -90.92%  (p=0.000 n=10+8)
+    CallArgCopy/size=128          169ns ±12%      197ns ± 2%    +16.35%  (p=0.000 n=10+7)
+    CallArgCopy/size=128-6        142ns ± 9%       34ns ± 7%    -76.10%  (p=0.000 n=10+9)
+    CallArgCopy/size=128-48       125ns ± 3%        9ns ± 7%    -93.01%  (p=0.000 n=8+8)
+    CallArgCopy/size=256          177ns ± 8%      197ns ± 5%    +11.24%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-6        148ns ±11%       35ns ± 6%    -76.23%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-48       127ns ± 4%        9ns ± 9%    -92.66%  (p=0.000 n=10+9)
+    CallArgCopy/size=1024         196ns ± 6%      228ns ± 7%    +16.09%  (p=0.000 n=10+9)
+    CallArgCopy/size=1024-6       143ns ± 6%       42ns ± 5%    -70.39%  (p=0.000 n=8+8)
+    CallArgCopy/size=1024-48      130ns ± 7%       10ns ± 1%    -91.99%  (p=0.000 n=10+8)
+    CallArgCopy/size=4096         330ns ± 9%      351ns ± 5%     +6.20%  (p=0.004 n=10+9)
+    CallArgCopy/size=4096-6       173ns ±14%       62ns ± 6%    -63.83%  (p=0.000 n=10+8)
+    CallArgCopy/size=4096-48      141ns ± 6%       15ns ± 6%    -89.59%  (p=0.000 n=10+8)
+    CallArgCopy/size=65536       7.71µs ±10%     7.74µs ±10%       ~     (p=0.859 n=10+9)
+    CallArgCopy/size=65536-6     1.33µs ± 4%     1.34µs ± 6%       ~     (p=0.720 n=10+9)
+    CallArgCopy/size=65536-48     347ns ± 2%      344ns ± 2%       ~     (p=0.202 n=10+9)
+    PtrTo                        30.2ns ±10%     41.3ns ±11%    +36.97%  (p=0.000 n=10+9)
+    PtrTo-6                       126ns ± 6%        7ns ±10%    -94.47%  (p=0.000 n=9+9)
+    PtrTo-48                     86.9ns ± 9%      1.7ns ± 9%    -98.08%  (p=0.000 n=10+9)
+    FieldByName1                 86.6ns ± 5%     87.3ns ± 7%       ~     (p=0.737 n=10+9)
+    FieldByName1-6               19.8ns ±10%     18.7ns ±10%       ~     (p=0.073 n=9+9)
+    FieldByName1-48              7.54ns ± 4%     7.74ns ± 5%     +2.55%  (p=0.023 n=9+9)
+    FieldByName2                 1.63µs ± 8%     1.70µs ± 4%     +4.13%  (p=0.020 n=9+9)
+    FieldByName2-6                481ns ± 6%      490ns ±10%       ~     (p=0.474 n=9+9)
+    FieldByName2-48               723ns ± 3%      736ns ± 2%     +1.76%  (p=0.045 n=8+8)
+    FieldByName3                 10.5µs ± 7%     10.8µs ± 7%       ~     (p=0.234 n=8+8)
+    FieldByName3-6               2.78µs ± 3%     2.94µs ±10%     +5.87%  (p=0.031 n=9+9)
+    FieldByName3-48              3.72µs ± 2%     3.91µs ± 5%     +4.91%  (p=0.003 n=9+9)
+    InterfaceBig                 10.8ns ± 5%     10.7ns ± 5%       ~     (p=0.849 n=9+9)
+    InterfaceBig-6               9.62ns ±81%     1.79ns ± 4%    -81.38%  (p=0.003 n=9+9)
+    InterfaceBig-48              0.48ns ±34%     0.50ns ± 7%       ~     (p=0.071 n=8+9)
+    InterfaceSmall               10.7ns ± 5%     10.9ns ± 4%       ~     (p=0.243 n=9+9)
+    InterfaceSmall-6             1.85ns ± 5%     1.79ns ± 1%     -2.97%  (p=0.006 n=7+8)
+    InterfaceSmall-48            0.49ns ±20%     0.48ns ± 5%       ~     (p=0.740 n=7+9)
+    New                          28.2ns ±20%     26.6ns ± 3%       ~     (p=0.617 n=9+9)
+    New-6                        4.69ns ± 4%     4.44ns ± 3%     -5.33%  (p=0.001 n=9+9)
+    New-48                       1.10ns ± 9%     1.08ns ± 6%       ~     (p=0.285 n=9+8)
+    
+    name                       old alloc/op   new alloc/op    delta
+    Call                          0.00B           0.00B            ~     (all equal)
+    Call-6                        0.00B           0.00B            ~     (all equal)
+    Call-48                       0.00B           0.00B            ~     (all equal)
+    
+    name                       old allocs/op  new allocs/op   delta
+    Call                           0.00            0.00            ~     (all equal)
+    Call-6                         0.00            0.00            ~     (all equal)
+    Call-48                        0.00            0.00            ~     (all equal)
+    
+    name                       old speed      new speed       delta
+    CallArgCopy/size=128        757MB/s ±11%    649MB/s ± 1%    -14.33%  (p=0.000 n=10+7)
+    CallArgCopy/size=128-6      901MB/s ± 9%   3781MB/s ± 7%   +319.69%  (p=0.000 n=10+9)
+    CallArgCopy/size=128-48    1.02GB/s ± 2%  14.63GB/s ± 6%  +1337.98%  (p=0.000 n=8+8)
+    CallArgCopy/size=256       1.45GB/s ± 9%   1.30GB/s ± 5%    -10.17%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-6     1.73GB/s ±11%   7.28GB/s ± 7%   +320.76%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-48    2.00GB/s ± 4%  27.46GB/s ± 9%  +1270.85%  (p=0.000 n=10+9)
+    CallArgCopy/size=1024      5.21GB/s ± 6%   4.49GB/s ± 8%    -13.74%  (p=0.000 n=10+9)
+    CallArgCopy/size=1024-6    7.18GB/s ± 7%  24.17GB/s ± 5%   +236.64%  (p=0.000 n=9+8)
+    CallArgCopy/size=1024-48   7.87GB/s ± 7%  98.43GB/s ± 1%  +1150.99%  (p=0.000 n=10+8)
+    CallArgCopy/size=4096      12.3GB/s ± 6%   11.7GB/s ± 5%     -5.00%  (p=0.008 n=9+9)
+    CallArgCopy/size=4096-6    23.8GB/s ±16%   65.6GB/s ± 5%   +175.02%  (p=0.000 n=10+8)
+    CallArgCopy/size=4096-48   29.0GB/s ± 7%  279.6GB/s ± 6%   +862.87%  (p=0.000 n=10+8)
+    CallArgCopy/size=65536     8.52GB/s ±11%   8.49GB/s ± 9%       ~     (p=0.842 n=10+9)
+    CallArgCopy/size=65536-6   49.3GB/s ± 4%   49.0GB/s ± 6%       ~     (p=0.720 n=10+9)
+    CallArgCopy/size=65536-48   189GB/s ± 2%    190GB/s ± 2%       ~     (p=0.211 n=10+9)
+    
+    https://perf.golang.org/search?q=upload:20170426.3
+    
+    Change-Id: Iff68f18ef69defb7f30962e21736ac7685a48a27
+    Reviewed-on: https://go-review.googlesource.com/41871
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 287 +++++++++++++++++++---------------------------------
+ 1 file changed, 105 insertions(+), 182 deletions(-)

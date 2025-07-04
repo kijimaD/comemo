@@ -1,0 +1,20 @@
+commit 919e85ae056a238789af6bb2d7b34fe9fdde4ebb
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Jan 20 19:56:51 2018 +0100
+
+    misc,src: add support for specifying adb flags to the android harness
+    
+    Introduce GOANDROID_ADB_FLAGS for additional flags to adb invocations.
+    With GOANDROID_ADG_FLAGS, the Android builders can distinguish between
+    emulator and device builds.
+    
+    Change-Id: I11729926a523ee27f6a3795cb2cfb64a9454f0a5
+    Reviewed-on: https://go-review.googlesource.com/88795
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/android/go_android_exec.go      |  3 +++
+ misc/cgo/testcshared/cshared_test.go | 20 +++++++++++++++-----
+ src/androidtest.bash                 |  8 ++++----
+ 3 files changed, 22 insertions(+), 9 deletions(-)

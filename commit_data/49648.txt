@@ -1,0 +1,21 @@
+commit de8101d21bcf5f1097bcfaf3a1b55820ba70dce9
+Author: Jun10ng <zeonll@outlook.com>
+Date:   Sat Jul 16 14:31:14 2022 +0000
+
+    runtime: fix typos
+    
+    "finializer" =>  "finalizer"
+    
+    Change-Id: Ia3c12bff8556b6a8d33b700c59357f47502757b1
+    GitHub-Last-Rev: c64cf47974020c8480039ba61d0890bdc07a3b0f
+    GitHub-Pull-Request: golang/go#53917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417915
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

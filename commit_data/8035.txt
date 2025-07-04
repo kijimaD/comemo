@@ -1,0 +1,14 @@
+commit e7c4a6dfcaf88644f08fbc6ddc5904f4857aafb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 8 13:53:32 2011 -0400
+
+    gc: fix weird error message
+    
+    Fixes #1670.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4386045
+
+ src/cmd/gc/subr.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,14 @@
+commit bb53b1c2506c23d72644231a056836e3b9a3f094
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 16 10:46:25 2010 +1100
+
+    build: add another --no-print-directory
+    
+    Fixes #1344.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/3584042
+
+ src/pkg/deps.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 7b7a854c041fc15ca11bf760617f11dc31aaa519
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Mon May 7 07:34:53 2018 +0000
+
+    runtime: fix a typo mistake in comments
+    
+    Change-Id: I33790af9fd0c2f6fdeaf9778c1381e0e6d697abb
+    Reviewed-on: https://go-review.googlesource.com/111755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

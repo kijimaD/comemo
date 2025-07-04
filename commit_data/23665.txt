@@ -1,0 +1,21 @@
+commit 1a4e1770f6869a14c93c8e20a2671a2f32351621
+Author: Larz Conwell <larzconwell@gmail.com>
+Date:   Sat May 16 23:01:39 2015 -0400
+
+    encoding/json: Only allow string option for valid types
+    
+    The "string" option only applies for strings, floats, integers, and
+    booleans as per the documentation. So when decoding ignore the "string"
+    option if the value is not of one of the types mentioned. This matches
+    the Marshal step which also ignores the "string" option for invalid
+    types.
+    
+    Fixes #9812
+    
+    Change-Id: I0fb2b43d0668bc0e2985886d989abbf2252070e2
+    Reviewed-on: https://go-review.googlesource.com/10183
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++++
+ src/encoding/json/encode.go      | 15 ++++++++++++++-
+ 2 files changed, 38 insertions(+), 1 deletion(-)

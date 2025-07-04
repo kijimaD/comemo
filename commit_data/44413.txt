@@ -1,0 +1,20 @@
+commit d822ffebc59d27190ac145a71c726dad35769225
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed Feb 24 21:08:52 2021 +0200
+
+    test: fix inline.go test for linux-amd64-noopt
+    
+    math.Float32bits was not being inlined across package boundaries.
+    Create a private func that can be inlined with -l.
+    
+    Change-Id: Ic50bf4727dd8ade09d011eb204006b7ee88db34a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295989
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/inline.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit 7f7be843e96a531d989e2790ceba45782158ffdd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 16:56:33 2017 +1000
+
+    cmd/link: introduce and use peFile.addInitArray
+    
+    Change-Id: I4377c478159129ab3f3b5ddc58d1944f8f4a4b07
+    Reviewed-on: https://go-review.googlesource.com/56320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 72 ++++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 38 deletions(-)

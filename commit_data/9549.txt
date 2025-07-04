@@ -1,0 +1,22 @@
+commit 22d5f9aae364f8d9d77fa67abf791b7d8046af56
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Aug 30 11:42:30 2011 +1000
+
+    exp/template/html: Added handling for URL attributes.
+    
+    1. adds a urlPart field to context
+    2. implements tURL to figure out the URL part
+    3. modifies joinContext to allow common context mismatches
+       around branches to be ignored when not material as in
+       <a href="/foo{{if .HasQuery}}?q={{.Query}}{{/if}}">
+    4. adds a pipeline function that filters dynamically inserted
+       protocols to prevent code injection via URLs.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4957041
+
+ src/pkg/exp/template/html/context.go     | 36 +++++++++++++-
+ src/pkg/exp/template/html/escape.go      | 78 ++++++++++++++++++++++++++---
+ src/pkg/exp/template/html/escape_test.go | 84 +++++++++++++++++++++++++++++---
+ 3 files changed, 183 insertions(+), 15 deletions(-)

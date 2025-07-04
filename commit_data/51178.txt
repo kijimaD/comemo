@@ -1,0 +1,23 @@
+commit 342751a695835fb99ad8b8f9b9f3f818e9086b86
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 17:07:40 2022 -0800
+
+    cmd/go/testdata: don't set GOPATH=NUL in test
+    
+    An upcoming change to the filepath package to make IsAbs("NUL")==false
+    on Windows will cause this test to fail, since it sets GOPATH=NUL and
+    GOPATH must be an absolute path.
+    
+    Set GOPATH to the name of a text file instead. (The intent is that GOPATH
+    be set to a path that is not writable.)
+    
+    For #56217.
+    
+    Change-Id: I18e645fe11547d02d1a2e0e580085e6348c4009a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448896
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_init_empty.txt | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 338a891e79444de97d6f485b1632d42899c47c6d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:47:01 2016 -0800
+
+    cmd/compile: eliminate pushedio and savedstate
+    
+    While here, get drop the lexlineno{++,--} hacks for canned imports.
+    They were added in commit d3237f9, but don't seem to serve any
+    purpose.
+    
+    Change-Id: I00f9e6be0ae9f217f2fa113b85e041dfd0303757
+    Reviewed-on: https://go-review.googlesource.com/19652
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/go.go     |  2 --
+ src/cmd/compile/internal/gc/lex.go    | 51 +++++++----------------------------
+ src/cmd/compile/internal/gc/parser.go | 14 ++++++++--
+ 3 files changed, 22 insertions(+), 45 deletions(-)

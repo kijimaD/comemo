@@ -1,0 +1,14 @@
+commit 668fa7f67726b45fec8a0c2fb56697d7d5497762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 7 15:06:29 2009 -0700
+
+    Update the unsafe docs for the new type implementation.
+    Please correct as needed.
+    
+    R=rsc,r
+    DELTA=10  (4 added, 1 deleted, 5 changed)
+    OCL=31305
+    CL=31305
+
+ src/pkg/unsafe/unsafe.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

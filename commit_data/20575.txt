@@ -1,0 +1,38 @@
+commit 259f0ffade606f121bb99884371693ed1aef2841
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 29 12:44:50 2014 -0700
+
+    spec: specify variable initialization order explicitly
+    
+    The existing spec rules on package initialization were
+    contradictory: They specified that 1) dependent variables
+    are initialized in dependency order, and 2) independent
+    variables are initialized in declaration order. This 2nd
+    rule cannot be satisfied in general. For instance, for
+    
+    var (
+            c = b + 2
+            a = 0
+            b = 1
+    )
+    
+    because of its dependency on b, c must be initialized after b,
+    leading to the partial order b, c. Because a is independent of
+    b but is declared before b, we end up with the order: a, b, c.
+    But a is also independent of c and is declared after c, so the
+    order b, c, a should also be valid in contradiction to a, b, c.
+    
+    The new rules are given in form of an algorithm which outlines
+    initialization order explicitly.
+    
+    gccgo and go/types already follow these rules.
+    
+    Fixes #8485.
+    
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken, gordon.klaus, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/142880043
+
+ doc/go_spec.html | 53 +++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 16 deletions(-)

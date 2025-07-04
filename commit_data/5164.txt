@@ -1,0 +1,12 @@
+commit bd1690ce5ef2cf9e636ff51fe91532fcb475f288
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 13:30:32 2010 -0700
+
+    fix build
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/837041
+
+ src/cmd/godoc/godoc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

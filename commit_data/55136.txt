@@ -1,0 +1,25 @@
+commit 2c424edd91a07ef200ff639c205ddf6f51a17351
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Nov 21 22:57:59 2023 +0000
+
+    internal/abi, runtime,  reflect, cmd: merge maxZero const into internal/abi
+    
+    For #59670
+    
+    Change-Id: If38a74ad067a3ea3ff551c0c25c8ef41abec114b
+    GitHub-Last-Rev: fb1f2f3c9f320017627bc3342b061e1e7f6f7fad
+    GitHub-Pull-Request: golang/go#64268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543655
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/walk/assign.go |  3 ++-
+ src/cmd/compile/internal/walk/expr.go   |  3 ++-
+ src/cmd/compile/internal/walk/walk.go   |  1 -
+ src/internal/abi/map.go                 |  3 +++
+ src/reflect/value.go                    | 11 ++++-------
+ src/runtime/map.go                      |  3 +--
+ 6 files changed, 12 insertions(+), 12 deletions(-)

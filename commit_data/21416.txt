@@ -1,0 +1,14 @@
+commit 56ba3fb765bbdc0d32b8e3a75e8fcdd23507d447
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 19 14:54:53 2015 +1100
+
+    log: add SetOutput method on Logger
+    
+    Fixes #9629
+    
+    Change-Id: I66091003b97742ca6d857fe51d609833ab727216
+    Reviewed-on: https://go-review.googlesource.com/3023
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/log/log.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

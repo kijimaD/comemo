@@ -1,0 +1,20 @@
+commit d6e6140c988e0b276fa5559190ede3494ea73cf0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 10 10:49:33 2022 -0400
+
+    cmd/compile: fix boolean comparison on RISCV64
+    
+    Following CL 405114, for RISCV64.
+    
+    May fix RISCV64 builds.
+    
+    Updates #52788.
+    
+    Change-Id: Ifc34658703d1e8b97665e7b862060152e3005d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405553
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 47 ++++++++++++++++++++++++--
+ 2 files changed, 50 insertions(+), 3 deletions(-)

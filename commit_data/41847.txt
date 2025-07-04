@@ -1,0 +1,15 @@
+commit 281d41cb400fdc3f5581bb0e479f2e9ff02fe833
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Apr 5 16:51:10 2020 +0800
+
+    A+C: add Andy Pan (individual CLA)
+    
+    https://go-review.googlesource.com/q/author:panjf2000%2540gmail.com
+    
+    Change-Id: I05c73d848b8f40dc864a18c733ca3f47b1eab54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227004
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

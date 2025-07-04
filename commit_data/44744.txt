@@ -1,0 +1,26 @@
+commit 196b104bc172c8ba7e0565293722de319071ade3
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:03 2021 -0600
+
+    cmd/internal/obj/ppc64: consolidate memory classifications
+    
+    Several classifications exist only to help disambiguate an
+    implied register (i.e $0/R0 as the implied second register
+    argument when loading constants, or pseudo-registers used
+    exclusively by the assembler front-end).
+    
+    The register determination is folded into getimpliedreg. The
+    classifications and their related optab entries are removed
+    or updated.
+    
+    Change-Id: Iffb167aa9fa57fbc1a537c79fbdfb36cb38f9d95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301789
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/ppc64/a.out.go   |   8 +--
+ src/cmd/internal/obj/ppc64/anames9.go |   4 --
+ src/cmd/internal/obj/ppc64/asm9.go    | 114 ++++++++++------------------------
+ 3 files changed, 35 insertions(+), 91 deletions(-)

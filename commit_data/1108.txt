@@ -1,0 +1,22 @@
+commit 9c9cc2c9d8bd2303e1f0c3619c1451ac469fc086
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 11 18:18:34 2008 -0800
+
+    Recognize gccgo error messages.  This uses GCCGO_ERROR, which
+    is recognized by the gccgo testsuite but is ignored by the
+    errchk script used with 6g.
+    
+    method1.go:7:1: error: redefinition of 'M': parameter types changed
+    method1.go:6:1: note: previous definition of 'M' was here
+    method1.go:10:1: error: redefinition of 'f': parameter types changed
+    method1.go:9:1: note: previous definition of 'f' was here
+    method1.go:13:1: error: redefinition of 'g': parameter names changed
+    method1.go:12:1: note: previous definition of 'g' was here
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=18962
+    CL=19058
+
+ test/method1.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

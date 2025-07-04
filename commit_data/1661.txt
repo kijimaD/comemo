@@ -1,0 +1,15 @@
+commit 0c4010a74725e789321f86895403bbeddd11cb14
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 10 16:44:04 2009 -0800
+
+    change DirInfo->dirInfo now that 6g export bug is fixed
+    
+    R=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=24788
+    CL=24805
+
+ src/lib/os/dir_amd64_darwin.go | 2 +-
+ src/lib/os/dir_amd64_linux.go  | 2 +-
+ src/lib/os/file.go             | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

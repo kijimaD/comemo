@@ -1,0 +1,16 @@
+commit a56a3876e8221ed125ffdd017efcbdded651d99b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 10 13:04:06 2014 +1100
+
+    misc/makerelease: handle git sub-repositories
+    
+    Also: checkout sub-repos from Mercurial manually
+    instead of using "go get". (for the 1.4 release)
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/190720043
+
+ misc/makerelease/makerelease.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

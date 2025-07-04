@@ -1,0 +1,12 @@
+commit 309863aec4802bba22a3e9e5fa75cd5d1a0e1d93
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 09:33:51 2012 +1100
+
+    compress/gzip: remove dead code
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5645074
+
+ src/pkg/compress/gzip/gunzip.go | 1 -
+ 1 file changed, 1 deletion(-)

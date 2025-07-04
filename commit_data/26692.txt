@@ -1,0 +1,20 @@
+commit 060501dc0ef178dc38afb195f65186562e6dc84e
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Apr 4 16:13:35 2016 +0200
+
+    cmd/compile: constant fold modulo
+    
+    Fixes #15079
+    
+    Change-Id: Ib4dd9eab322da39234008e040100e75cb58761b3
+    Reviewed-on: https://go-review.googlesource.com/21501
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../compile/internal/gc/testdata/arithConst_ssa.go | 8618 +++++++++++++-------
+ .../compile/internal/gc/testdata/divbyzero_ssa.go  |    9 +
+ .../internal/gc/testdata/gen/arithConstGen.go      |   26 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   14 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  218 +-
+ 5 files changed, 5831 insertions(+), 3054 deletions(-)

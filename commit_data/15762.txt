@@ -1,0 +1,13 @@
+commit 4dd1b8999a8a10cc3a2f226e187ac6a973e606c1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 19:04:47 2013 +0400
+
+    cmd/dist: support goos,goarch build tags
+    This is necessary to submit netpoll for linux,386 linux,amd64
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7470050
+
+ src/cmd/dist/build.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 649f341e95626afa56ca67c5595c8f35780b29a8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 5 16:09:50 2019 -0500
+
+    cmd: update x/mod to CL 205497
+    
+    Also revert an incidental 'gofmt' of a vendored file from CL 205240.
+    
+    Updates #34822
+    
+    Change-Id: I82a015d865db4d865b4776a8013312f25dbb9181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205539
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  2 ++
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    | 41 +++++++++++++++++++++-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  6 +++-
+ .../x/tools/go/analysis/internal/facts/facts.go    |  1 +
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 50 insertions(+), 4 deletions(-)

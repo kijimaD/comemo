@@ -1,0 +1,30 @@
+commit 370682ae98d7edc3ce9772d6d1d746df93ba9e6d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 2 16:34:51 2020 -0500
+
+    runtime: disable preemption in startm
+    
+    startm contains a critical section from when it takes ownership of a P
+    (either on function entry or call to pidleput) until it wakes the M
+    receiving the P. If preempted in this critical section, the owned P is
+    left in limbo. If preempted for a GC stop, there will be nothing to stop
+    the owned P and STW will wait forever.
+    
+    golang.org/cl/232298 introduced the first call to startm that is not on
+    the system stack (via a wakep call), introducing the possibility of
+    preemption. Disable preemption in startm to ensure this remains
+    non-preemptible.
+    
+    Since we're not always on the system stack anymore, we also need to be
+    careful in allocm.
+    
+    Updates #42237
+    
+    Change-Id: Icb95eef9eb262121856485316098331beea045da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267257
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 50 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 42 insertions(+), 8 deletions(-)

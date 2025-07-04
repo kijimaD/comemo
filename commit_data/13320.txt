@@ -1,0 +1,19 @@
+commit 50452720ba8a582d24870bfe0b4d1a97e6652f4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 13:05:01 2012 -0400
+
+    regexp/syntax: unexport ErrUnexpectedParen
+    
+    This new error is the only API change in the current draft of
+    Go 1.0.2 CLs. I'd like to include the CL that introduced it,
+    because it replaces a mysterious 'internal error' with a
+    useful error message, but I don't want any API changes,
+    so unexport the error constant for now. It can be
+    re-exported for Go 1.1.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6294055
+
+ src/pkg/regexp/syntax/parse.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

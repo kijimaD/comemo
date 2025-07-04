@@ -1,0 +1,16 @@
+commit cc5cbee1b6a942d2f55c01697f464be9d2a56818
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Apr 23 22:00:16 2012 -0300
+
+    net/http: allow clients to disable keep-alive
+    
+    Fixes #3540.
+    
+    R=golang-dev, bradfitz, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5996044
+
+ src/pkg/net/http/request.go    | 16 ++++++++++++++--
+ src/pkg/net/http/serve_test.go | 15 +++++++++++----
+ src/pkg/net/http/server.go     |  3 +--
+ 3 files changed, 26 insertions(+), 8 deletions(-)

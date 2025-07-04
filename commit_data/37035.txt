@@ -1,0 +1,25 @@
+commit 38df4c177b06441b40ac707f1eede49488da2396
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 16:15:13 2018 +0200
+
+    cmd/internal/xcoff: add new debug package for cmd
+    
+    This commit adds a new package in cmd/internal which aims
+    to debug and load XCOFF files.
+    
+    Updates: #25893, #28037
+    
+    Change-Id: I47db495bedfa43e9129a831b9b8bbc35b703567b
+    Reviewed-on: https://go-review.googlesource.com/c/138727
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/nacl/testzip.proto                            |   3 +
+ src/cmd/internal/xcoff/file.go                     | 687 +++++++++++++++++++++
+ src/cmd/internal/xcoff/file_test.go                | 102 +++
+ .../xcoff/testdata/gcc-ppc32-aix-dwarf2-exec       | Bin 0 -> 54694 bytes
+ .../xcoff/testdata/gcc-ppc64-aix-dwarf2-exec       | Bin 0 -> 57152 bytes
+ src/cmd/internal/xcoff/testdata/hello.c            |   7 +
+ src/cmd/internal/xcoff/xcoff.go                    | 367 +++++++++++
+ 7 files changed, 1166 insertions(+)

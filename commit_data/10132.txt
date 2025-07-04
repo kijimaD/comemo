@@ -1,0 +1,12 @@
+commit 785baa86f12f9f9a2746f66e59bae7c4cf032424
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 18:04:29 2011 -0700
+
+    html: fix print argument in test
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5302069
+
+ src/pkg/html/token_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

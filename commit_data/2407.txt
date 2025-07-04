@@ -1,0 +1,12 @@
+commit b28d84f644a7fd25f94fd62e44aff7dae28baf57
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 23:52:43 2009 -0700
+
+    8l: add AIMULW
+    
+    R=ken
+    OCL=29972
+    CL=29972
+
+ src/cmd/8l/span.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

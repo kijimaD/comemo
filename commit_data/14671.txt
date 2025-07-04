@@ -1,0 +1,16 @@
+commit 2ad67147936bb1bf1f95d2a2ae41deab236712e9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 17 08:33:51 2012 -0800
+
+    syscall: lazily populate the environment cache on Plan 9
+    
+    This decreases the amount of system calls during the
+    first call to Getenv. Calling Environ will still read
+    in all environment variables and populate the cache.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6939048
+
+ src/pkg/syscall/env_plan9.go | 36 +++++++++++++++++++++++-------------
+ 1 file changed, 23 insertions(+), 13 deletions(-)

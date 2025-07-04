@@ -1,0 +1,26 @@
+commit 0a37002367502fc24d7753e360954da290ffb71a
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 7 23:16:46 2014 +1100
+
+    crypto/sha512: block implementation in amd64 assembly
+    
+    Benchmark on Intel(R) Xeon(R) CPU X5650  @ 2.67GHz
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes         1779         1114  -37.38%
+    BenchmarkHash1K             9848         4894  -50.30%
+    BenchmarkHash8K            68513        32187  -53.02%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes         4.50         7.18    1.60x
+    BenchmarkHash1K           103.97       209.19    2.01x
+    BenchmarkHash8K           119.57       254.51    2.13x
+    
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/37150044
+
+ src/pkg/crypto/sha512/sha512block.go      |   2 +
+ src/pkg/crypto/sha512/sha512block_amd64.s | 273 ++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha512/sha512block_decl.go |  11 ++
+ 3 files changed, 286 insertions(+)

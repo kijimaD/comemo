@@ -1,0 +1,22 @@
+commit fbd5ad585d03ee750b7d58a85cf0d40079b28833
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 24 09:20:42 2014 +0900
+
+    syscall: regenerate z-files for darwin
+    
+    Updates z-files from 10.7 kernel-based to 10.9 kernel-based.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/102610045
+
+ api/except.txt                          |  24 +++++
+ src/pkg/syscall/mkerrors.sh             |  30 ++++++
+ src/pkg/syscall/mksysnum_darwin.pl      |  28 +++++-
+ src/pkg/syscall/types_darwin.go         |   9 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 173 +++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_darwin_amd64.go | 173 +++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zsysnum_darwin_386.go   |  21 +++-
+ src/pkg/syscall/zsysnum_darwin_amd64.go |  21 +++-
+ 8 files changed, 464 insertions(+), 15 deletions(-)

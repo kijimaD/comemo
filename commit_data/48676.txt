@@ -1,0 +1,23 @@
+commit 7fbabe8d57de184c75bc938fa619235711bc4229
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Wed Mar 2 16:32:16 2022 +0800
+
+    cmd/compile: use shlx&shrx instruction for GOAMD64>=v3
+    
+    The SHRX/SHLX instruction can take any general register as the shift count operand, and can read source from memory. This CL introduces some operators to combine load and shift to one instruction.
+    
+    For #47120
+    
+    Change-Id: I13b48f53c7d30067a72eb2c8382242045dead36a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385174
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |  17 ++
+ src/cmd/compile/internal/ssa/addressingmodes.go |  16 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |   3 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  29 ++-
+ src/cmd/compile/internal/ssa/opGen.go           | 272 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    |  88 ++++++++
+ test/codegen/bmi.go                             |  16 ++
+ 7 files changed, 436 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit a287c4aa38c9c71f823a0c366871f7f4452a602c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 15:33:19 2021 -0800
+
+    spec: add type parameter types
+    
+    - add section on type parameters
+    - added two sections on the scope of type parameters
+    - expanded general section on types accordingly
+    - introduced the notion of a named type which will
+      help in simplifying various rules (subsequent CLs)
+    
+    Change-Id: I49c1ed7d6d4f951d751f0a3ca5dfb637e49829f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365414
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 62 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 53 insertions(+), 9 deletions(-)

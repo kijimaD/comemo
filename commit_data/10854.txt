@@ -1,0 +1,14 @@
+commit 96a5780db882b4bd4a1f4b69e185833e5bedffcb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Dec 17 13:14:18 2011 +1100
+
+    go/build: remove 'go/build' from error messages
+    
+    This leads to really confusing messages in goinstall.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5495074
+
+ src/pkg/go/build/path.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

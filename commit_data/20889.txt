@@ -1,0 +1,14 @@
+commit 1a60ea1c01a627f4a0852fd0f4a37ba2c0eabc3c
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Wed Nov 12 10:01:23 2014 -0800
+
+    A+C: add another email address for Emil Hessman
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/143470043
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

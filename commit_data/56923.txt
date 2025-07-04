@@ -1,0 +1,20 @@
+commit afe0e600548c97338474a83c9665be45cccfb045
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 10 09:52:33 2024 -0700
+
+    cmd/compile: give function position on function-too-big error
+    
+    Update #67916
+    
+    Change-Id: Iec3603c136b30ff6f760783c175eeb7e6ce139ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591675
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/bitvec/bv.go      | 5 +++--
+ src/cmd/compile/internal/liveness/arg.go   | 2 +-
+ src/cmd/compile/internal/liveness/plive.go | 2 +-
+ 3 files changed, 5 insertions(+), 4 deletions(-)

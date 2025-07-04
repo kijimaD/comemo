@@ -1,0 +1,16 @@
+commit 8f8a393b40535b02f358196f5fbdb855c92bb0fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 09:29:31 2009 -0700
+
+    bug fix: do not modify (string) literals in any way even if they
+    contain tabs or line breaks
+    
+    R=rsc
+    DELTA=57  (19 added, 12 deleted, 26 changed)
+    OCL=35749
+    CL=35770
+
+ src/pkg/go/printer/printer.go                  | 63 ++++++++++++++------------
+ src/pkg/go/printer/testdata/expressions.go     | 10 ++--
+ src/pkg/go/printer/testdata/expressions.golden | 10 ++--
+ 3 files changed, 45 insertions(+), 38 deletions(-)

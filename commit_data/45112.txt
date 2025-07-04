@@ -1,0 +1,82 @@
+commit efaf75a2166d397b2050cc0bb1b60b0c80698e2d
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Mar 5 10:57:48 2021 -0500
+
+    go/*,cmd/gofmt: guard AST changes with the typeparams build tag
+    
+    This CL changes our approach to guarding type parameter functionality
+    and API. Previously, we guarded type parameter functionality with the
+    parser.parseTypeParams parser mode, and were in the process of hiding
+    the type parameter API behind the go1.18 build constraint.
+    
+    These mechanisms had several limitations:
+     + Requiring the parser.parseTypeParams mode to be set meant that
+       existing tooling would have to opt-in to type parameters in all
+       places where it parses Go files.
+     + The parseTypeParams mode value had to be copied in several places.
+     + go1.18 is not specific to typeparams, making it difficult to set up
+       the builders to run typeparams tests.
+    
+    This CL addresses the above limitations, and completes the task of
+    hiding the AST API, by switching to a new 'typeparams' build constraint
+    and adding a new go/internal/typeparams helper package.
+    
+    The typeparams build constraint is used to conditionally compile the new
+    AST changes. The typeparams package provides utilities for accessing and
+    writing the new AST data, so that we don't have to fragment our parser
+    or type checker logic across build constraints. The typeparams.Enabled
+    const is used to guard tests that require type parameter support.
+    
+    The parseTypeParams parser mode is gone, replaced by a new
+    typeparams.DisableParsing mode with the opposite sense. Now, type
+    parameters are only parsed if go/parser is compiled with the typeparams
+    build constraint set AND typeparams.DisableParsing not set. This new
+    parser mode allows opting out of type parameter parsing for tests.
+    
+    How exactly to run tests on builders is left to a follow-up CL.
+    
+    Updates #44933
+    
+    Change-Id: I3091e42a2e5e2f23e8b2ae584f415a784b9fbd65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300649
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/gofmt.go                             | 11 ----
+ src/cmd/gofmt/gofmt_test.go                        |  9 ++--
+ .../{gofmt_go1.18.go => gofmt_typeparams_test.go}  |  6 +--
+ src/go/ast/ast.go                                  | 62 +++++-----------------
+ src/go/ast/ast_notypeparams.go                     | 28 ++++++++++
+ src/go/ast/ast_typeparams.go                       | 51 ++++++++++++++++++
+ src/go/ast/walk.go                                 | 15 ++----
+ src/go/ast/walk_notypeparams.go                    | 17 ++++++
+ src/go/ast/walk_typeparams.go                      | 30 +++++++++++
+ src/go/build/deps_test.go                          |  1 +
+ src/go/internal/typeparams/common.go               | 13 +++++
+ src/go/internal/typeparams/notypeparams.go         | 38 +++++++++++++
+ src/go/internal/typeparams/typeparams.go           | 61 +++++++++++++++++++++
+ src/go/parser/error_test.go                        |  7 ++-
+ src/go/parser/interface.go                         |  7 ---
+ src/go/parser/parser.go                            | 42 ++++++++-------
+ src/go/parser/resolver.go                          |  6 +--
+ src/go/parser/resolver_test.go                     |  7 ++-
+ src/go/parser/short_test.go                        | 29 ++++++----
+ src/go/printer/nodes.go                            | 19 ++++---
+ src/go/printer/printer_test.go                     | 18 +++----
+ src/go/printer/testdata/declarations.golden        | 11 ----
+ src/go/printer/testdata/declarations.input         |  9 ----
+ src/go/printer/testdata/generics.golden            | 10 ++++
+ src/go/printer/testdata/generics.input             |  8 +++
+ src/go/types/api_test.go                           | 14 ++++-
+ src/go/types/{api_go1.18.go => api_typeparams.go}  |  4 +-
+ .../{api_go1.18_test.go => api_typeparams_test.go} |  4 +-
+ src/go/types/assignments.go                        | 14 -----
+ src/go/types/call.go                               |  4 +-
+ src/go/types/check_test.go                         | 11 ++--
+ src/go/types/decl.go                               |  7 +--
+ src/go/types/exprstring.go                         |  9 ++--
+ src/go/types/resolver.go                           |  7 +--
+ src/go/types/typexpr.go                            | 41 +++++++-------
+ 35 files changed, 417 insertions(+), 213 deletions(-)

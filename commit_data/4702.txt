@@ -1,0 +1,12 @@
+commit c40c974d33e925d3f1f32a1c708fdb55aadcd764
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 13:27:10 2010 -0800
+
+    dashboard: look for key in $GOROOT before $HOME
+    
+    TBR=agl1
+    CC=golang-dev
+    https://golang.org/cl/195076
+
+ misc/dashboard/buildcontrol.py | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

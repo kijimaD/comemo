@@ -1,0 +1,22 @@
+commit 703bd8362350a0c1742d6eb9017ebbf13fcbbbdd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 3 17:07:00 2015 +1000
+
+    cmd/compile: use []*Node instead of NodeList in sinit
+    
+    This is a first of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
+    
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: Iad10b75e42b5b24e1694407841282fa3bab2dc9f
+    Reviewed-on: https://go-review.googlesource.com/14232
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 125 +++++++++++++++--------------------
+ test/initloop.go                     |  17 +++++
+ 2 files changed, 71 insertions(+), 71 deletions(-)

@@ -1,0 +1,37 @@
+commit ab5031fb86e6d7121483e38d742235994972a0cf
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Thu May 31 06:46:50 2018 +0000
+
+    syscall: fix EpollWait for arm64
+    
+    The SYS_EPOLL_WAIT syscall doesn't exist on arm64. This CL implements EpollWait
+    with SYS_EPOLL_PWAIT syscall.
+    
+    Change-Id: Ica9107a58d7da45351fe2e900f59bec5b7b18f39
+    Reviewed-on: https://go-review.googlesource.com/115735
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux.go           |  1 -
+ src/syscall/syscall_linux_386.go       |  1 +
+ src/syscall/syscall_linux_amd64.go     |  1 +
+ src/syscall/syscall_linux_arm.go       |  1 +
+ src/syscall/syscall_linux_arm64.go     |  1 +
+ src/syscall/syscall_linux_mips64x.go   |  1 +
+ src/syscall/syscall_linux_mipsx.go     |  1 +
+ src/syscall/syscall_linux_ppc64x.go    |  1 +
+ src/syscall/syscall_linux_s390x.go     |  1 +
+ src/syscall/zsyscall_linux_386.go      | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_amd64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_arm.go      | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_arm64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips.go     | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips64.go   | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips64le.go | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mipsle.go   | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_ppc64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_ppc64le.go  | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_s390x.go    | 34 +++++++++++++++++-----------------
+ 20 files changed, 195 insertions(+), 188 deletions(-)

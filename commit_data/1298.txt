@@ -1,0 +1,15 @@
+commit 6478df1c418421cd3a148f77d732ce4c57486314
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 8 17:45:50 2008 -0800
+
+    avoid skew in time.Tick; remove errors from time.Seconds, time.Nanoseconds
+    
+    R=r
+    DELTA=46  (21 added, 10 deleted, 15 changed)
+    OCL=20785
+    CL=20787
+
+ src/lib/time/tick.go      | 23 ++++++++++++++++++++---
+ src/lib/time/tick_test.go |  4 ++--
+ src/lib/time/time.go      | 34 ++++++++++++++--------------------
+ 3 files changed, 36 insertions(+), 25 deletions(-)

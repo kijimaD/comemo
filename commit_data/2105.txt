@@ -1,0 +1,13 @@
+commit 7a98315c9615b2ae75398df5b0f9b2c0c57b2844
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 28 17:20:18 2009 -0700
+
+    allow "defer close(chan)"
+    bug found by anton
+    
+    R=r
+    OCL=28001
+    CL=28001
+
+ src/cmd/gc/go.y | 39 ++++++++++++++++++++++-----------------
+ 1 file changed, 22 insertions(+), 17 deletions(-)

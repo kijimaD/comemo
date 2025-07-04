@@ -1,0 +1,16 @@
+commit 00e14afa0d7afdd710ef16080f0fdcbc4abd951a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 12 11:24:17 2019 -0800
+
+    test: add another test case for #35518
+    
+    Updates #35518.
+    
+    Change-Id: Icd052c8c68aae32696b5831a29e04cc4cb224b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206820
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue35518.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

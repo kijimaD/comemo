@@ -1,0 +1,37 @@
+commit 18705721807abd31888609920cce6a2b59e67ab7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 2 09:51:12 2015 -0400
+
+    runtime: enlarge GC work buffer size
+    
+    Currently the GC work buffers are only 256 bytes and hence can record
+    only 24 64-bit pointer. They were reduced from 4K in commits db7fd1c
+    and a15818f as a way to minimize the amount of work the per-P workbuf
+    caches could "hide" from the mark phase and carry in to the mark
+    termination phase. However, this approach wasn't very robust and we
+    later added a "mark 2" phase to address this problem head-on.
+    
+    Because of mark 2, there's now no benefit to having very small work
+    buffers. But there are plenty of downsides: small work buffers
+    increase contention on the work lists, increase the frequency and
+    hence net overhead of acquiring and releasing work buffers, and
+    somewhat increase memory overhead of the GC.
+    
+    This commit expands work buffers back to 4K (504 64-bit pointers).
+    This reduces the rate of writes to work.full in the garbage benchmark
+    from a peak of ~780,000 writes/sec to a peak of ~32,000 writes/sec.
+    
+    This has negligible effect on the go1 benchmarks. It slightly slows
+    down the garbage benchmark.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.37ms ± 5%  5.60ms ± 2%  +4.37%  (p=0.000 n=20+20)
+    
+    Change-Id: Ic9cc28e7a125d23d9faf4f5e690fb8aa9bcdfb28
+    Reviewed-on: https://go-review.googlesource.com/15893
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcwork.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

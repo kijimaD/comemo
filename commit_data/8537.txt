@@ -1,0 +1,12 @@
+commit c6fd1e011569e713c9290386bab6a9966504f872
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon May 30 12:20:00 2011 +1000
+
+    misc/vim: limit Fmt command to Go buffers.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4548072
+
+ misc/vim/ftplugin/go/fmt.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

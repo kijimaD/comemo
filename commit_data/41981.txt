@@ -1,0 +1,19 @@
+commit 29d925dfcf7dc577e46d4557a5ef6eaa7f2a67af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 16 18:26:12 2020 -0700
+
+    test: add test for nil check / bounds check compiler confusion
+    
+    This test started failing at CL 228106 and was fixed by CL 228677.
+    
+    Fixes #38496
+    
+    Change-Id: I2dadcd99227347e8d28179039f5f345e728c4595
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228698
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/fixedbugs/issue38496.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

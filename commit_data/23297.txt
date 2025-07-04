@@ -1,0 +1,12 @@
+commit e597e63d6a737977b96254ab13bc8a0804b8e5c0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 8 14:21:27 2015 -0700
+
+    doc/go1.5.txt: mention that testing/quick now generates nil pointers.
+    
+    Change-Id: I358b17304f95fdd8e6c0a64fa29f185c701fe338
+    Reviewed-on: https://go-review.googlesource.com/10805
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

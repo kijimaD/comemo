@@ -1,0 +1,19 @@
+commit ed139c1e372d5b02e6a4f05edbbf08894082b359
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 2 20:51:10 2008 -0700
+
+    more on arbitrary receiver types
+    this CL passes the tests, but should
+    be considered unstable
+    
+    R=r
+    OCL=16390
+    CL=16390
+
+ src/cmd/6g/gg.h   |  3 +++
+ src/cmd/6g/obj.c  | 39 ++++++++++++++++++++++++++++++------
+ src/cmd/gc/dcl.c  | 38 ++++++++---------------------------
+ src/cmd/gc/go.h   |  2 +-
+ src/cmd/gc/subr.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/gc/walk.c | 22 ++++++++++++++-------
+ 6 files changed, 110 insertions(+), 53 deletions(-)

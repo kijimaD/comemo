@@ -1,0 +1,26 @@
+commit 9f65e99ad4bdc85e979f12fb5e4d7f4e4b8a7693
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 13:51:47 2011 -0800
+
+    go/printer, gofmt: don't write too many newlines
+    
+    In some rare cases, gofmt would accept more than the maximum
+    number of empty lines (1) between source code snippets.
+    
+    The actual change is in printer.go, lines 773-775; the rest
+    is some minor restructuring.
+    
+    Applied gofmt -w src misc .
+    
+    Fixes #2387.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5496047
+
+ src/cmd/cgo/godefs.go                         |   1 -
+ src/pkg/bytes/buffer_test.go                  |   1 -
+ src/pkg/go/printer/nodes.go                   |   5 +-
+ src/pkg/go/printer/printer.go                 | 100 +++++++++++++-------------
+ src/pkg/go/printer/testdata/statements.golden |   2 -
+ 5 files changed, 55 insertions(+), 54 deletions(-)

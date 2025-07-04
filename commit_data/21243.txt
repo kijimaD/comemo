@@ -1,0 +1,14 @@
+commit bc244008afa9cb0bf6c900fe75673dc349b67a8c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 13 17:17:53 2015 +1100
+
+    runtime: move SetErrorMode constants into function so they are not exported
+    
+    Change-Id: Ib1a2adbcdbd7d96f9b4177abc3c9cf0ab09c1df4
+    Reviewed-on: https://go-review.googlesource.com/2716
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_windows.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

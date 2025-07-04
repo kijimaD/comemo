@@ -1,0 +1,25 @@
+commit d231cb82494c59b7a5db0eb6304dcb5e5bce198f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 26 17:24:12 2015 -0400
+
+    runtime: repeat bitmap for slice of GCprog n-1 times, not n times
+    
+    Currently, to write out the bitmap of a slice of a type with a GCprog,
+    we construct a new GCprog that executes the underlying type's GCprog
+    to write out the bitmap once and then repeats those bits n more times.
+    This results in n+1 repetitions of the bitmap, which is one more
+    repetition than it should be. This corrupts the bitmap of the heap
+    following the slice and may write past the mapped bitmap memory and
+    segfault.
+    
+    Fix this by repeating the bitmap only n-1 more times.
+    
+    Fixes #11430.
+    
+    Change-Id: Ic24854363bffc5a755b66f257339f9309ada3aa5
+    Reviewed-on: https://go-review.googlesource.com/11570
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

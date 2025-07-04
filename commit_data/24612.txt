@@ -1,0 +1,15 @@
+commit 28ef4c38c8ad12de60aa741d46c3978a64faf54c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 10:41:15 2015 -0700
+
+    cmd/link/internal/ld: export data may be marked with $$ or $$B
+    
+    Preparation for dealing with binary export format. Accept $$B
+    as marker for export data. For now, skip that data if found.
+    
+    Change-Id: I464ba22aaedcf349725379d91070fc900d93b7a2
+    Reviewed-on: https://go-review.googlesource.com/16222
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/link/internal/ld/go.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

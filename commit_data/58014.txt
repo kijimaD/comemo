@@ -1,0 +1,22 @@
+commit 01e1e5c20438145df65a2fb79c77e3d5c3eb6831
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 4 15:52:02 2024 -0800
+
+    runtime/internal/maps: remove entryMask
+    
+    It is easily recomputed as capacity-1.
+    
+    This reduces a table from 40 to 32 bytes (on 64-bit archs).
+    That gets us down one sizeclass.
+    
+    Change-Id: Icb74fb2de50baa18ca62052c7b2fe8e6af4c8837
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625198
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  8 +++-----
+ src/internal/runtime/maps/group.go                |  4 ----
+ src/internal/runtime/maps/table.go                | 13 +++++++------
+ 3 files changed, 10 insertions(+), 15 deletions(-)

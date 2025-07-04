@@ -1,0 +1,12 @@
+commit 33d10e4d32db8fede59977355767bfa91ae06bad
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 14:40:07 2009 -0800
+
+    explain the situation with unicode and identifiers
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156044
+
+ doc/go_lang_faq.html | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

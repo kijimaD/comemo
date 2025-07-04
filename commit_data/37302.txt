@@ -1,0 +1,48 @@
+commit 05a85f493c046967bd6d94392ff6f5fda1a8703e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 5 21:00:52 2018 -0500
+
+    crypto/tls: remove a forgotten note to future self
+    
+    Now, this is embarrassing. While preparing CL 142818, I noticed a
+    possible vulnerability in the existing code which I was rewriting. I
+    took a note to go back and assess if it was indeed an issue, and in case
+    start the security release process. The note unintentionally slipped
+    into the commit. Fortunately, there was no vulnerability.
+    
+    What caught my eye was that I had fixed the calculation of the minimum
+    encrypted payload length from
+    
+        roundUp(explicitIVLen+macSize+1, blockSize)
+    
+    to (using the same variable names)
+    
+        explicitIVLen + roundUp(macSize+1, blockSize)
+    
+    The explicit nonce sits outside of the encrypted payload, so it should
+    not be part of the value rounded up to the CBC block size.
+    
+    You can see that for some values of the above, the old result could be
+    lower than the correct value. An unexpectedly short payload might cause
+    a panic during decryption (a DoS vulnerability) or even more serious
+    issues due to the constant time code that follows it (see for example
+    Yet Another Padding Oracle in OpenSSL CBC Ciphersuites [1]).
+    
+    In practice, explicitIVLen is either zero or equal to blockSize, so it
+    does not change the amount of rounding up necessary and the two
+    formulations happen to be identical. Nothing to see here.
+    
+    It looked more suspicious than it is in part due to the fact that the
+    explicitIVLen definition moved farther into hc.explicitNonceLen() and
+    changed name from IV (which suggests a block length) to nonce (which
+    doesn't necessarily). But anyway it was never meant to surface or be
+    noted, except it slipped, so here we are for a boring explanation.
+    
+    [1] https://blog.cloudflare.com/yet-another-padding-oracle-in-openssl-cbc-ciphersuites/
+    
+    Change-Id: I365560dfe006513200fa877551ce7afec9115fdf
+    Reviewed-on: https://go-review.googlesource.com/c/147637
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/conn.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

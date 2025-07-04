@@ -1,0 +1,22 @@
+commit f57ebed35132d02e5cf016f324853217fb545e91
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 4 17:27:38 2022 -0400
+
+    cmd/go: allow -mod=vendor to be set outside of a module
+    
+    It will behave as if teh command-line-arguments module was vendored,
+    with zero dependencies, much as -mod=readonly works.
+    
+    Fixes #56536
+    
+    Change-Id: Ia02dda2f90d006b5917c3ae002ccb714987f27a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448019
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/import.go              | 28 +++++++++--------
+ src/cmd/go/internal/modload/init.go                |  8 ++++-
+ .../go/testdata/script/vendor_outside_module.txt   | 36 ++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 13 deletions(-)

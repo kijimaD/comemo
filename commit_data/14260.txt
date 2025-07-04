@@ -1,0 +1,15 @@
+commit c15afa887a038a3f4c70f1e38aac31084ee9f846
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 31 10:52:59 2012 -0700
+
+    src/lib9/utf: update to Unicode 6.2.0
+    Fixes #2874.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6820068
+
+ src/lib9/utf/Makefile                              |   4 +-
+ src/lib9/utf/runetype.c                            |   2 +-
+ .../{runetypebody-6.0.0.h => runetypebody-6.2.0.h} | 122 +++++++++++++++++----
+ 3 files changed, 101 insertions(+), 27 deletions(-)

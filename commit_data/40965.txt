@@ -1,0 +1,12 @@
+commit d542b13134b842a2b4b6b897fc78a1434f595b5d
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Sun Dec 8 22:14:52 2019 +0530
+
+    runtime/race: correct typo s/is/in
+    
+    Change-Id: Ic79d97c2aa107c0e5c4a8906ad757b0390228bef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/race.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit ccdb50931f815fdf8de16f876478d7a1d0ee6696
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 16:15:05 2014 -0500
+
+    cmd/gc, runtime: make assertI2T and variants not variadic
+    
+    A side effect of this change is that when assertI2T writes to the
+    memory for the T being extracted, it can use typedmemmove
+    for write barriers.
+    
+    There are other ways we could have done this, but this one
+    finishes a TODO in package runtime.
+    
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
+    
+    Change-Id: Icbc8aabfd8a9b1f00be2e421af0e3b29fa54d01e
+    Reviewed-on: https://go-review.googlesource.com/2279
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/builtin.c  |  26 +++---
+ src/cmd/gc/order.c    |  28 ++++++-
+ src/cmd/gc/runtime.go |  26 +++---
+ src/cmd/gc/walk.c     | 114 ++++++++++++--------------
+ src/runtime/iface.go  | 219 ++++++++++++++++++++++----------------------------
+ src/runtime/malloc.go |   4 +-
+ 6 files changed, 197 insertions(+), 220 deletions(-)

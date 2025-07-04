@@ -1,0 +1,25 @@
+commit deefcb26233c8acd089e9ae1d247c13891b6c55c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 29 14:46:57 2018 -0700
+
+    go/types: ignore artificial cycles introduced via method declarations
+    
+    At the moment, method declarations are type-checked together with
+    they receiver base types. This is a known problem (to be fixed early
+    for Go 1.12) but with the new cycle detection algorithm now also
+    introduced artifical type cycles.
+    
+    This change pushes a special marker on the cycle path in those cases
+    so that these cycles can be ignored.
+    
+    Fixes #26124.
+    
+    Change-Id: I64da4ccc32d4ae293da48880c892154a1c6ac3fe
+    Reviewed-on: https://go-review.googlesource.com/121757
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/decl.go             | 28 ++++++++++++++++++++++++++--
+ src/go/types/testdata/issues.src | 24 ++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 2 deletions(-)

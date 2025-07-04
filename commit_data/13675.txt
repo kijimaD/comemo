@@ -1,0 +1,15 @@
+commit 0a115d72c16961f60a0c2e559b5fab3ca1046993
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 23 16:44:44 2012 -0400
+
+    crypto/tls: return better error message in the case of an SSLv2 handshake.
+    
+    Update #3930
+    Return a better error message in this situation.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6474055
+
+ src/pkg/crypto/tls/conn.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,32 @@
+commit a46285f8c2389b92952c1484daacfccf70a17047
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 21 11:24:56 2023 -0800
+
+    net/url: consider an empty base Path as equivalent to / in JoinPath
+    
+    A Path that starts with / is absolute.
+    A Path that starts with any other character is relative.
+    
+    The meaning of a Path of "" is not defined,
+    but RequestURI converts a "" Path to "/"
+    and an empty Path may represent a URL with just
+    a hostname and no trailing / such as "http://localhost".
+    
+    Handle empty paths in the base URL of JoinPath consistently with
+    RequestURI, so that joining to an empty base produces an absolute
+    path rather than a relative one.
+    
+            u, _ := url.Parse("http://localhost")
+            u = u.JoinPath("x")
+            fmt.Println(u.Path) // "/x", not "x"
+    
+    Fixes #58605
+    
+    Change-Id: Iacced9c173b0aa693800dd01caf774f3f9a66d56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469935
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/url/url.go      |   7 +-
+ src/net/url/url_test.go | 180 +++++++++++++++++++++++++++++-------------------
+ 2 files changed, 114 insertions(+), 73 deletions(-)

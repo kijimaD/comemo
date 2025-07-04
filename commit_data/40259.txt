@@ -1,0 +1,17 @@
+commit e7394e178d0ccf2053238b5cb28805f3062907c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 15 13:39:13 2019 -0400
+
+    cmd/go: omit new 'vendor/modules.txt' annotations if the go version is 1.13 or lower
+    
+    Updates #33848
+    
+    Change-Id: I887d78179d467030f4177d1834ccefee28a55c8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201257
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go           | 40 ++++++++++++++++----------
+ src/cmd/go/testdata/script/mod_vendor_auto.txt | 17 +++++++----
+ 2 files changed, 36 insertions(+), 21 deletions(-)

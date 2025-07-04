@@ -1,0 +1,12 @@
+commit bd4f5af1073bb36948047909aed9501f7bec2db9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 17:16:58 2009 -0800
+
+    - missing makefile
+    
+    R=r
+    OCL=25714
+    CL=25714
+
+ src/lib/lang/Makefile | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

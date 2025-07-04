@@ -1,0 +1,25 @@
+commit f0be3cc5476bd726707985a6382ae6a2d6fa8968
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 17 20:34:34 2021 +1100
+
+    runtime: unbreak linux/riscv64 following regabi merge
+    
+    Unbreak the linux/riscv64 port by storing the zero value register to memory,
+    rather than the current code that is moving a zero intermediate to the stack
+    pointer register (ideally this should be caught by the assembler). This was
+    broken in CL#272568.
+    
+    On riscv64 a zero immediate value cannot be moved directly to memory, rather
+    a register needs to be loaded with zero and then stored. Alternatively, the
+    the zero value register (aka X0) can be used directly.
+    
+    Change-Id: Id57121541d50c9993cec5c2270b638b184ab9bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292894
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

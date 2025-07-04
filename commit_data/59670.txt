@@ -1,0 +1,26 @@
+commit 4158ca8d7c521aee5cc48f285f559e74845e973c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 8 16:27:36 2025 -0700
+
+    crypto: add a test for disallowed instructions
+    
+    WORD and BYTE usage in crypto assembly cores is an anti-pattern which
+    makes extremely sensitive code significantly harder to understand, and
+    can result in unexpected behavior.
+    
+    Because of this, we've decided to ban their usage in the crypto/ tree
+    (as part of the cryptography assembly policy).
+    
+    This test walks the crypto/ tree looking for assembly files (those with
+    the filetype .s) and look for lines that match the regular rexpression
+    "(^|;)\s(BYTE|WORD)\s".
+    
+    Change-Id: I60b5283e05e8588fa53273904a9611a411741f72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671099
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/crypto_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

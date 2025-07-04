@@ -1,0 +1,22 @@
+commit 1a5350e123e9ef8ce4fb27470e58a4bb58a445f0
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jul 20 11:31:39 2018 +0100
+
+    go/doc: do not treat methods as test functions
+    
+    The example code was treating a method starting with Test
+    as a test function when considering whether to produce
+    a whole-file example or not. As a method can never be
+    a test function, this isn't correct.
+    
+    Change-Id: Idd8ec9eaf0904af076e941d7fe7d967f6b7eef78
+    Reviewed-on: https://go-review.googlesource.com/125257
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/doc/example.go      |  2 +-
+ src/go/doc/example_test.go | 82 ++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 73 insertions(+), 11 deletions(-)

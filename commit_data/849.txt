@@ -1,0 +1,14 @@
+commit 0f0648d33c27e00398a707f0670f93228322bf8f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 10 18:42:19 2008 -0700
+
+    convert from integer indexes to interface variables.
+    update printing.
+    
+    R=rsc
+    DELTA=194  (60 added, 41 deleted, 93 changed)
+    OCL=16942
+    CL=16945
+
+ usr/r/regexp/regexp.go | 277 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 148 insertions(+), 129 deletions(-)

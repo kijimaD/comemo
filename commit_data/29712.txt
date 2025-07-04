@@ -1,0 +1,14 @@
+commit b42d4a8b0e99c38bb25010ce169da9ef4af85da6
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue Oct 18 17:32:26 2016 -0700
+
+    doc: document go1.7.3 and add note to go1.7.2 that it should not be used
+    
+    Change-Id: I3dd1513e927733ce5c63928da772cb81760ba869
+    Reviewed-on: https://go-review.googlesource.com/31442
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/33794
+
+ doc/devel/release.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

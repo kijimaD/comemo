@@ -1,0 +1,32 @@
+commit 03da2690c9fefdbaff613f9ccc224b5f0abfbe16
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Nov 12 06:24:36 2016 -0500
+
+    cmd/link, runtime, plugin: versioning
+    
+    In plugins and every program that opens a plugin, include a hash of
+    every imported package.
+    
+    There are two versions of each hash: one local and one exported.
+    As the program starts and plugins are loaded, the first exported
+    symbol for each package becomes the canonical version.
+    
+    Any subsequent plugin's local package hash symbol has to match the
+    canonical version.
+    
+    Fixes #17832
+    
+    Change-Id: I4e62c8e1729d322e14b1673bada40fa7a74ea8bc
+    Reviewed-on: https://go-review.googlesource.com/33161
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/altpath/src/common/common.go   | 11 +++++++
+ .../testplugin/altpath/src/plugin-mismatch/main.go | 17 +++++++++++
+ misc/cgo/testplugin/src/host/host.go               |  9 ++++++
+ misc/cgo/testplugin/test.bash                      |  1 +
+ src/cmd/link/internal/ld/lib.go                    |  2 +-
+ src/cmd/link/internal/ld/symtab.go                 | 35 ++++++++++++++++++++++
+ src/plugin/plugin_dlopen.go                        |  8 +++--
+ src/runtime/plugin.go                              |  9 ++++--
+ src/runtime/symtab.go                              | 12 +++++++-
+ 9 files changed, 98 insertions(+), 6 deletions(-)

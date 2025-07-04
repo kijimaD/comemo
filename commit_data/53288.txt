@@ -1,0 +1,20 @@
+commit a7cb7df45a83bfb6ebf7dd6d0e9c191c5d69f44b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Mar 20 20:28:47 2023 -0700
+
+    net/http/pprof: adjust URL in package doc
+    
+    The indentation makes the URL be treated as a code block,
+    thus preventing automatic detection of this URL.
+    Avoid using a code block for this.
+    
+    Change-Id: Ie37ae18ec0969ef2d5a6e3b92b2512dac093dbf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/pprof/pprof.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 2c780a35b986dec270640115fb3f28a9e1affeaf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 3 14:17:04 2014 +1000
+
+    runtime: increase windows prof thread priority sooner
+    
+    If system is busy burning cpu, it takes long time (about 300ms on
+    windows builders) to adjust prof thread priority. Once adjusted, prof
+    thread runs ahead of everyone else, but due to initial slowness, it
+    does not capture prof snapshots until start-up period is completed.
+    
+    Change prof thread priority sooner, so it can start captures straight
+    away.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/134360043
+
+ src/pkg/runtime/os_windows.c | 1 +
+ 1 file changed, 1 insertion(+)

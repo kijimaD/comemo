@@ -1,0 +1,22 @@
+commit 11dba2ec2d8fcedc1da0103925c254586ef51120
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 20 10:47:52 2015 -0700
+
+    html/template: fix crash when escaping incomplete template
+    
+    text/template turned this into an error but html/template crashed.
+    Refactor text/template.Execute to export a new function,
+    text/template.DefinedTemplates, so html/template can get the same
+    helpful error message in this case, and invoke it when there is no
+    definition for a template being escaped.
+    
+    Fixes #10204.
+    
+    Change-Id: I1d04e9e7ebca829bc08509caeb65e75da969711f
+    Reviewed-on: https://go-review.googlesource.com/7855
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/html/template/escape_test.go | 15 +++++++++++++++
+ src/html/template/template.go    |  3 +++
+ src/text/template/exec.go        | 39 +++++++++++++++++++++++++--------------
+ 3 files changed, 43 insertions(+), 14 deletions(-)

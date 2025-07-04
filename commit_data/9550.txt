@@ -1,0 +1,15 @@
+commit ae891b55289c4147d2c6271759f97ea00246bf17
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Tue Aug 30 14:43:54 2011 +1000
+
+    windows/386: clean stack after syscall (it is necessary after call cdecl functions and does not have an effect after stdcall)
+    
+    Result of discussion here: http://groups.google.com/group/golang-nuts/browse_thread/thread/357c806cbb57ca62
+    
+    R=golang-dev, bradfitz, alex.brainman, hectorchu, rsc
+    CC=golang-dev
+    https://golang.org/cl/4961045
+
+ src/pkg/runtime/syscall_windows_test.go | 61 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/sys.s       |  5 ++-
+ 2 files changed, 65 insertions(+), 1 deletion(-)

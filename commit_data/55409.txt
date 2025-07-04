@@ -1,0 +1,18 @@
+commit 9c663e8bf7bc3ebc205bc578a63b4a7a43e5c0e0
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Jan 16 00:32:40 2024 +0100
+
+    hash/crc32: fix codegen to align with manual changes
+    
+    Update gen_const_ppc64le.go to match the manual changes applied in
+    CL 478976.
+    
+    Change-Id: I79a0d014a2a151750f898517b2771b312f3437bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555996
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/hash/crc32/gen_const_ppc64le.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

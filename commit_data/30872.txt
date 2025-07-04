@@ -1,0 +1,25 @@
+commit a0d6d3855f103db492afb43b243d2ed52959f575
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 14:48:24 2017 -0700
+
+    cmd/compile: construct typename in walk instead of SSA conversion
+    
+    This eliminates references to lineno and
+    other globals from ssa conversion.
+    
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I9792074fab0036b42f454b79139d0b27db913fb5
+    Reviewed-on: https://go-review.googlesource.com/38721
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go    | 12 ++++--------
+ src/cmd/compile/internal/gc/subr.go   |  9 +++++++++
+ src/cmd/compile/internal/gc/swt.go    | 16 ++++++++++------
+ src/cmd/compile/internal/gc/syntax.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go   | 15 ++++++++++++---
+ 5 files changed, 38 insertions(+), 20 deletions(-)

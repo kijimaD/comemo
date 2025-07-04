@@ -1,0 +1,21 @@
+commit 49f54e8617e43071b4e37d43a322357dae0e2c2d
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Fri Apr 21 23:34:39 2017 +0200
+
+    cmd/go/internal/work: more TestRespectSetgidDir fixes
+    
+    Hopefully the last refactoring of TestRespectGroupSticky:
+    * Properly tested (+simplified) FreeBSD fix
+    * Tested on Darwin (10.12.4)
+    * Rename to TestRespectSetgidDir (I believe this is the accepted
+      terminology)
+    
+    Fixes golang/go#19596.
+    
+    Change-Id: I8d689ac3e245846cb3f1338ea13e35be512ccb9c
+    Reviewed-on: https://go-review.googlesource.com/41430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build_test.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

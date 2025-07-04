@@ -1,0 +1,15 @@
+commit 43cf5505fcc3cdf4d02a4970af0b8a441ac274ef
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 30 21:57:50 2012 -0700
+
+    regexp: fix a couple of bugs in the documentation
+    Byte slices are not strings.
+    
+    Fixes #3687.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6257074
+
+ src/pkg/regexp/regexp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

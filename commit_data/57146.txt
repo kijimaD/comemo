@@ -1,0 +1,42 @@
+commit 0b4ab20d2cb30279c11a31cc6bd9324b14a4a38e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 7 13:09:18 2024 -0400
+
+    go/types, types2: only use fileVersion if 1.21 or greater
+    
+    Only honor //go:build language version downgrades if the version
+    specified is 1.21 or greater. Before 1.21 the version in //go:build
+    lines didn't have the meaning of setting the file's language version.
+    
+    This fixes an issue that was appearing in GOPATH builds: Go 1.23 started
+    providing -lang versions to the compiler in GOPATH mode (among other
+    places) which it wasn't doing before.
+    
+    For example, take a go file with a //go:build line specifying go1.10.
+    If that file used a 1.18 feature, that use would compile fine with a Go
+    1.22 toolchain. But, before this change, it would produce an error when
+    compiling with the 1.23 toolchain because it set the language version to
+    1.20 and disallowed the 1.18 feature. This breaks backwards
+    compatibility: when the build tag was added, it did not have the meaning
+    of restricting the language version.
+    
+    Fixes #68658
+    
+    Change-Id: I4ac2b45a981cd019183d52ba324ba8f0fed93a8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603895
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Commit-Queue: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go         |  8 ++++++--
+ src/cmd/compile/internal/types2/check.go            | 15 ++++++++++++++-
+ src/go/types/api_test.go                            |  8 ++++++--
+ src/go/types/check.go                               | 15 ++++++++++++++-
+ src/internal/types/testdata/check/go1_20_19.go      |  2 +-
+ src/internal/types/testdata/check/go1_21_19.go      |  2 +-
+ src/internal/types/testdata/check/go1_21_22.go      | 16 ++++++++++++++++
+ src/internal/types/testdata/check/go1_22_21.go      | 16 ++++++++++++++++
+ src/internal/types/testdata/fixedbugs/issue66285.go |  7 +------
+ test/fixedbugs/issue63489a.go                       | 20 ++++++++++++--------
+ 10 files changed, 87 insertions(+), 22 deletions(-)

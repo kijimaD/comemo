@@ -1,0 +1,26 @@
+commit e9445547b6d04edc358ae60e2eb29db88fd67654
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 27 14:20:15 2014 -0800
+
+    runtime: move stack shrinking until after sweepgen is incremented.
+    
+    Before GC, we flush all the per-P allocation caches.  Doing
+    stack shrinking mid-GC causes these caches to fill up.  At the
+    end of gc, the sweepgen is incremented which causes all of the
+    data in these caches to be in a bad state (cached but not yet
+    swept).
+    
+    Move the stack shrinking until after sweepgen is incremented,
+    so any caching that happens as part of shrinking is done with
+    already-swept data.
+    
+    Reenable stack copying.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/69620043
+
+ src/pkg/runtime/mgc0.c | 8 +++++---
+ src/pkg/runtime/proc.c | 1 -
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit ef462153de8f756a6f214ec24ccc541fe99f58ad
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 9 09:24:50 2016 +0100
+
+    C: add Martin Möhrmann's google.com email (Google CLA)
+    
+    Change-Id: Ia439c4a3c873ef24f60f8ee54a74f767fdaafd29
+    Reviewed-on: https://go-review.googlesource.com/32799
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

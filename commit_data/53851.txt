@@ -1,0 +1,19 @@
+commit ca3630122827828afb1d34c776f021472b117519
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 1 10:03:40 2023 -0700
+
+    reflect: make linkable cross-references in documentation
+    
+    This makes it easier to click around in documentation on pkg.go.dev.
+    
+    Change-Id: Idc67c312bc72c612e660607e5400b43ecc110bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514895
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/type.go  |   8 +--
+ src/reflect/value.go | 138 +++++++++++++++++++++++++--------------------------
+ 2 files changed, 73 insertions(+), 73 deletions(-)

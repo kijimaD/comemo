@@ -1,0 +1,19 @@
+commit e5b733570598646e9726d053db5a30114165f9d6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 15 13:47:47 2017 +1100
+
+    fmt: clarify wording of * flag
+    
+    The complainant is confused by the ambiguity of 'next' in the
+    phrase 'next operand'. It seems clear enough to me that things
+    are always read left to right when formatting, but to calm the
+    waters we add a clarifying parenthetical.
+    
+    Fixes #22275
+    
+    Change-Id: I82418c1e987db736f4bee0faa53fe715c9cde8f5
+    Reviewed-on: https://go-review.googlesource.com/71010
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/fmt/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

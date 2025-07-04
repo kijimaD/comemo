@@ -1,0 +1,25 @@
+commit bba460499c689de85e895fb2fac8ad3d09d4cd2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 16:25:37 2021 -0700
+
+    cmd/compile/internal/types2: don't export TypeSet
+    
+    For now don't export TypeSet in the interest of
+    keeping the types2 API surface small(er).
+    
+    This is a clean port of CL 341289 from go/types.
+    
+    Change-Id: I50c747629f25472f2ec5ba59d7f543ee3c1c423b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344610
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/interface.go   |  4 +--
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/typeset.go     | 46 +++++++++++++-------------
+ src/cmd/compile/internal/types2/union.go       |  4 +--
+ src/cmd/compile/internal/types2/universe.go    |  2 +-
+ 5 files changed, 29 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit 12126752cce71b7d44a07bdb17ba5ff8e99e9229
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 16:28:46 2015 -0800
+
+    cmd/compile: associate tracking issue numbers with TODOs
+    
+    Comment changes only.
+    
+    Change-Id: Ib365b3cd16af9995cb0a2cce48fbe35d73899438
+    Reviewed-on: https://go-review.googlesource.com/16898
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    |  6 +++---
+ src/cmd/compile/internal/gc/parser.go | 24 ++++++++++++++++++------
+ 2 files changed, 21 insertions(+), 9 deletions(-)

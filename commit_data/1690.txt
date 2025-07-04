@@ -1,0 +1,14 @@
+commit eb3823a44d7ee50d213d2eeb8cb3b24791e6f5b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 20:44:21 2009 -0800
+
+    allow hex, octal in Atoi, etc.
+    
+    R=r
+    DELTA=169  (79 added, 23 deleted, 67 changed)
+    OCL=25079
+    CL=25083
+
+ src/lib/strconv/atoi.go      |  97 +++++++++++++++++++++++---------
+ src/lib/strconv/atoi_test.go | 131 ++++++++++++++++++++++++-------------------
+ 2 files changed, 142 insertions(+), 86 deletions(-)

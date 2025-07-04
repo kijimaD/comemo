@@ -1,0 +1,17 @@
+commit d7a8d3eb085ec2c52cf80f6f65bc9ca2ce85a929
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 10 13:05:02 2015 -0400
+
+    cmd/go: fix go get -u with internal
+    
+    Fixes #11307.
+    Fixes #11055.
+    
+    Change-Id: I8d6b04cb509e62e27d6935b91ffe35fdaea4ebcd
+    Reviewed-on: https://go-review.googlesource.com/12028
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/get.go     | 28 +++++++++++++++++-----------
+ src/cmd/go/go_test.go | 15 +++++++++++++++
+ 2 files changed, 32 insertions(+), 11 deletions(-)

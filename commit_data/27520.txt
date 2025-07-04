@@ -1,0 +1,16 @@
+commit a1f7db88f8c70a7520ce870a71706032f173739f
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 23 22:05:51 2016 -0400
+
+    runtime: document scanstack
+    
+    Also mark it go:systemstack and explain why.
+    
+    Change-Id: I88baf22741c04012ba2588d8e03dd3801d19b5c0
+    Reviewed-on: https://go-review.googlesource.com/23390
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,19 @@
+commit e6138185db7f0c3390109b3324fc7478f7e20f97
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 8 22:00:13 2024 +0700
+
+    cmd/compile/internal/typecheck: simplify checkmake/checkunsafesliceorstring
+    
+    types2 handles all constant-related bounds checks in user Go code now,
+    so it's safe to remove the constants check from these functions.
+    
+    Change-Id: I4e3fb5d22f9bbc95878c7df2ee3b0eb1819f8dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611677
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 28 -------------------------
+ 1 file changed, 28 deletions(-)

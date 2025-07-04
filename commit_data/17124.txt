@@ -1,0 +1,15 @@
+commit ba6cf63cba611d8d4602781bd8abf5bade2af3ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 9 09:23:27 2013 -0700
+
+    net: give C.getaddrinfo a hint that we only want SOCK_STREAM answers
+    
+    This should be more efficient everywhere, and appears to be
+    required on Solaris.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12583046
+
+ src/pkg/net/cgo_unix.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

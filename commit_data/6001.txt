@@ -1,0 +1,26 @@
+commit d75074974a5ab23878afbaad29616bfebae28004
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 11 21:25:52 2010 -0700
+
+    gofmt: if a semicolon is found unexpectedly, report detailed cause
+    
+    go/scanner: return information on semicolon (real or inserted) when
+                found in source
+    go/parser:  better error message when a semicolon is found unexpectedly
+    
+    For instance, if an unexpected semicolon is found that was automatically
+    inserted, the parser error message is now:
+    
+        "expected '}', found newline"
+    
+    Fixes #1006.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1936044
+
+ src/cmd/gofmt/test.sh              |  3 ++-
+ src/pkg/go/parser/parser.go        | 10 +++++++---
+ src/pkg/go/scanner/scanner.go      | 10 +++++++---
+ src/pkg/go/scanner/scanner_test.go | 17 ++++++++++++-----
+ 4 files changed, 28 insertions(+), 12 deletions(-)

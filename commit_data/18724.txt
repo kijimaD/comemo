@@ -1,0 +1,27 @@
+commit 709b12ffe63b6f13a344286f9ff6afed7c283887
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 3 18:58:28 2014 -0800
+
+    net/http: fix location of StateHijacked and StateActive
+    
+    1) Move StateHijacked callback earlier, to make it
+    panic-proof.  A Hijack followed by a panic didn't previously
+    result in ConnState getting fired for StateHijacked.  Move it
+    earlier, to the time of hijack.
+    
+    2) Don't fire StateActive unless any bytes were read off the
+    wire while waiting for a request. This means we don't
+    transition from New or Idle to Active if the client
+    disconnects or times out. This was documented before, but not
+    implemented properly.
+    
+    This CL is required for an pending fix for Issue 7264
+    
+    LGTM=josharian
+    R=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/69860049
+
+ src/pkg/net/http/serve_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 16 ++++++++-----
+ 2 files changed, 63 insertions(+), 6 deletions(-)

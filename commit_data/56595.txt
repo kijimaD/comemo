@@ -1,0 +1,17 @@
+commit 16ab55f07f5791b1d7f3566907121ac069b144e9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 21 10:04:53 2024 +0200
+
+    internal/cpu: remove unused const cpuid_SSE2
+    
+    It's unused since CL 344350.
+    
+    Change-Id: I1aacb9d3db6798aa7013a58603112894e2281002
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587035
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/cpu/cpu_x86.go | 3 ---
+ 1 file changed, 3 deletions(-)

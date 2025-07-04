@@ -1,0 +1,12 @@
+commit febde3882ba432c58f3272f72fcb0a2d1d339db4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 13:52:49 2010 -0800
+
+    sort.Search: more typos
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3042041
+
+ src/pkg/sort/search_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

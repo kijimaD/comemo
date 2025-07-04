@@ -1,0 +1,23 @@
+commit bcfe519d58e0ef99faad76b7d13108cd48d75e32
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 1 13:57:46 2014 -0400
+
+    runtime: fix correctness test at end of traceback
+    
+    We were requiring that the defer stack and the panic stack
+    be completely processed, thinking that if any were left over
+    the stack scan and the defer stack/panic stack must be out
+    of sync. It turns out that the panic stack may well have
+    leftover entries in some situations, and that's okay.
+    
+    Fixes #8132.
+    
+    LGTM=minux, r
+    R=golang-codereviews, minux, r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/100900044
+
+ src/pkg/runtime/traceback_arm.c | 13 +++++++--
+ src/pkg/runtime/traceback_x86.c | 59 ++++++++++++++++++++++++++++++++++++++++-
+ test/fixedbugs/issue8132.go     | 32 ++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 3 deletions(-)

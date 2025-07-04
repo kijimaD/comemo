@@ -1,0 +1,14 @@
+commit 2f2577a4f60498c84e564da7e3e4cb97edec2e2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 16:18:13 2009 -0700
+
+    bug161, fixed
+    
+    R=ken
+    OCL=29907
+    CL=29907
+
+ src/cmd/gc/dcl.c         |  6 ++++++
+ src/cmd/gc/subr.c        |  2 +-
+ test/fixedbugs/bug161.go | 17 +++++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 805f6b3f5db714ce8f7dae2776748f6df96f288b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 24 12:59:02 2024 -0400
+
+    cmd/dist: reject accidental use of internal packages from bootstrap toolchain
+    
+    The compiler was accidentally using internal/godebug from
+    the Go 1.20 bootstrap toolchain and didn't get the behavior
+    it expected. Generalizing, we should never assume we know
+    the behavior of an internal package from an earlier bootstrap
+    toolchain, so disallow that case in cmd/dist.
+    
+    Change-Id: I41e079f6120f4081124619bbe2b30069c96b9f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581496
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/buildtool.go | 68 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 62 insertions(+), 6 deletions(-)

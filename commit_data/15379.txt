@@ -1,0 +1,22 @@
+commit b1b67a36ace635744cd261ee6f3441d1044c66b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 15:23:57 2013 -0500
+
+    reflect: stop using run-time code generation
+    
+    Step 3 of http://golang.org/s/go11func.
+    
+    Fixes #3736.
+    Fixes #3738.
+    Fixes #4081.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7393050
+
+ src/pkg/reflect/asm_386.s   |  15 ++----
+ src/pkg/reflect/asm_amd64.s |  15 ++----
+ src/pkg/reflect/asm_arm.s   |  10 ++--
+ src/pkg/reflect/makefunc.go | 122 ++++++--------------------------------------
+ src/pkg/reflect/value.go    |   5 +-
+ 5 files changed, 32 insertions(+), 135 deletions(-)

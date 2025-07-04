@@ -1,0 +1,20 @@
+commit 2123dfba651e3522ed039d1b38fde91ededf47a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 8 05:48:34 2021 +0000
+
+    Revert "cmd/compile/internal/noder: limit the number of goroutine"
+    
+    This reverts commit c274a7c03be7b69d54d3307b954f6a0eb298c860.
+    
+    Reason for revert: this can cause a compiler deadlock, and there's
+    no demonstrable benefit to making the change.
+    
+    Change-Id: I42325ddea68d37db16fd0061c5baaee112b755b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308369
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/noder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

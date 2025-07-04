@@ -1,0 +1,15 @@
+commit 260db6ea5a3dbf12a95fd438704e01cae42e3f56
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 30 12:08:35 2012 -0800
+
+    build: fix buildscript breakage after all.bash
+    
+    Fix from Russ. Tested that multiple builds in a row
+    work again.
+    
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5599047
+
+ src/buildscript.sh | 2 ++
+ 1 file changed, 2 insertions(+)

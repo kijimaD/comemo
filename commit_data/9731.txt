@@ -1,0 +1,16 @@
+commit 5d5d7f12290d2beaf1f3fe78cc3807f4dbc6dd23
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Sep 19 10:21:34 2011 -0400
+
+        crypto/blowfish: exposing the blowfish key schedule
+    
+    Mostly useful for the coming crypto/bcrypt package
+    
+    R=bradfitz, agl, rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/5013043
+
+ src/pkg/crypto/blowfish/block.go         | 105 ++++++++++++++++++++++++++++---
+ src/pkg/crypto/blowfish/blowfish_test.go |  18 ++++++
+ src/pkg/crypto/blowfish/cipher.go        |  26 +++++++-
+ 3 files changed, 141 insertions(+), 8 deletions(-)

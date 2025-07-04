@@ -1,0 +1,12 @@
+commit fa8bc8a6483cae53460810a797a8ef322d1cca64
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 17:39:04 2012 +1100
+
+    os: fix build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5674070
+
+ src/pkg/os/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 6ec9a1da2d48fdc94093feb0ea3465129e11fc24
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Tue Oct 19 04:11:46 2021 -0500
+
+    internal/bytealg: fix Separator length check for Index/ppc64le
+    
+    Modified condition in the ASM implementation of indexbody to
+    determine if separator length crosses 16 bytes to BGT from BGE
+    to avoid incorrectly crossing a page.
+    
+    Also fixed IndexString to invoke indexbodyp9 when on the POWER9
+    platform
+    
+    Change-Id: I0602a797cc75287990eea1972e9e473744f6f5a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356849
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/internal/bytealg/index_ppc64x.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

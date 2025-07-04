@@ -1,0 +1,16 @@
+commit 4a91d5501754f36dd09c23d99bbfa0bba37fe6f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 26 16:50:31 2019 -0800
+
+    cmd/go: preserve more env vars for TestScript child processes
+    
+    These are required when testing gccgo.
+    
+    Change-Id: I6a81d7f4d48292c32a8b3b15ef44d859ab3aa26e
+    Reviewed-on: https://go-review.googlesource.com/c/163861
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/script_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

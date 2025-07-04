@@ -1,0 +1,15 @@
+commit e8a74dcad96b134ba29a7edbc3bc84ba597e7c64
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 22:24:29 2014 -0400
+
+    runtime: fix solaris build, part 2
+    
+    This file was already assigned to another CL
+    so it didn't make it into the build fix CL. Sigh.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/144850043
+
+ src/runtime/os_solaris.go | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)

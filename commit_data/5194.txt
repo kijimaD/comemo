@@ -1,0 +1,16 @@
+commit c72f491ac227ad334c5593be39fc812e8393a91f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 31 17:01:16 2010 +1100
+
+    godashboard: new stylesheet, build status pagination
+    
+    R=rsc, gri, r
+    CC=golang-dev
+    https://golang.org/cl/822044
+
+ misc/dashboard/godashboard/app.yaml         |  5 +-
+ misc/dashboard/godashboard/gobuild.py       | 23 +++++++-
+ misc/dashboard/godashboard/main.html        | 77 +++++++------------------
+ misc/dashboard/godashboard/package.html     | 76 ++++++-------------------
+ misc/dashboard/godashboard/static/style.css | 87 +++++++++++++++++++++++++++++
+ 5 files changed, 148 insertions(+), 120 deletions(-)

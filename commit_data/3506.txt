@@ -1,0 +1,20 @@
+commit d0aac0ace143e7936e914a49323193e15136dbee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 11 23:51:46 2009 -0700
+
+    introduce non-strict mode in xml parser,
+    good enough to parse some html.
+    
+    in reader, add "comment" tag to collect
+    comment text.
+    
+    do not allocate during Unmarshal unless pointer is nil.
+    
+    R=r
+    DELTA=441  (416 added, 1 deleted, 24 changed)
+    OCL=35586
+    CL=35594
+
+ src/pkg/xml/read.go |  45 ++++--
+ src/pkg/xml/xml.go  | 414 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 437 insertions(+), 22 deletions(-)

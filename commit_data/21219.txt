@@ -1,0 +1,17 @@
+commit 5664eda73368fc146f24609f518da22cad0d0b2a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 8 05:13:28 2015 -0500
+
+    cmd/go: document import path checking
+    
+    This is a replay of CL 189760043 that is in release-branch.go1.4,
+    but not in master branch somehow.
+    
+    Change-Id: I11eb40a24273e7be397e092ef040e54efb8ffe86
+    Reviewed-on: https://go-review.googlesource.com/2541
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/doc.go   | 21 ++++++++++++++++++++-
+ src/cmd/go/help.go  | 21 ++++++++++++++++++++-
+ src/cmd/go/mkdoc.sh |  2 +-
+ 3 files changed, 41 insertions(+), 3 deletions(-)

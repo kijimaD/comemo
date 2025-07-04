@@ -1,0 +1,13 @@
+commit 2f2423c81da3764b5c8ba6a87506083468cc9926
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 15:09:59 2015 -0700
+
+    net/http: TimeoutHandler test ported to HTTP/2
+    
+    Change-Id: I69e62199140e5cf203696af17d4816f3a5f13bd1
+    Reviewed-on: https://go-review.googlesource.com/17434
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

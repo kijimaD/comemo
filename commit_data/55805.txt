@@ -1,0 +1,28 @@
+commit b159c99eb7eb292b62ec120d83bd25454cfa1fae
+Author: huweiwen <huweiwen.hww@alibaba-inc.com>
+Date:   Thu Feb 22 03:10:48 2024 +0000
+
+    cmd/go/internal/vcs: use git log to avoid unnecessary objects
+    
+    "git show" by default shows the diff from the previous commit. "-s"
+    suppress all output from the diff machinery. But it will still try to
+    fetch the relevant objects, which may be unavailable if the repository
+    is a partial clone.
+    
+    Use "git log" instead, which only needs the commit object.
+    
+    Fixes #65339
+    
+    Change-Id: I766a680321cd22d5fdbd08d24cb777ef964bdb7c
+    GitHub-Last-Rev: 87a8ba435251f2a72aa18f2820ccb8ea5b379d69
+    GitHub-Pull-Request: golang/go#65341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559075
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go                     |  6 +--
+ .../go/testdata/script/build_git_missing_tree.txt  | 51 ++++++++++++++++++++++
+ .../go/testdata/script/version_buildvcs_git.txt    |  2 +-
+ 3 files changed, 55 insertions(+), 4 deletions(-)

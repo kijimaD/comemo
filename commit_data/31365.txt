@@ -1,0 +1,18 @@
+commit 259d60995d735523fc25939c35847538eb0d0670
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Apr 24 17:26:41 2017 +0300
+
+    runtime: align mcentral by cache line size
+    
+    This may improve perormance during concurrent access
+    to mheap.central array from multiple CPU cores.
+    
+    Change-Id: I8f48dd2e72aa62e9c32de07ae60fe552d8642782
+    Reviewed-on: https://go-review.googlesource.com/41550
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

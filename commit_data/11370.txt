@@ -1,0 +1,15 @@
+commit c3b9650caa7715c8961dcb5d7503b90b6dbae7cb
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jan 25 11:42:00 2012 +1100
+
+    net/http: parse CONNECT requests
+    
+    Fixes #2755
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5571052
+
+ src/pkg/net/http/readrequest_test.go | 69 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/request.go          | 22 ++++++++++++
+ 2 files changed, 91 insertions(+)

@@ -1,0 +1,18 @@
+commit 5ffbca4823455d42ef6314c67c1cc346599d65bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 18:00:54 2015 -0700
+
+    math/big: fix Float.Float64 conversion for denormal corner cases
+    
+    - This change uses the same code as for Float32 and fixes the case
+      of a number that gets rounded up to the smallest denormal.
+    
+    - Enabled correspoding test case.
+    
+    Change-Id: I8aac874a566cd727863a82717854f603fbdc26c6
+    Reviewed-on: https://go-review.googlesource.com/10352
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 74 ++++++++++++++++++++++++----------------------
+ src/math/big/float_test.go |  5 ++--
+ 2 files changed, 40 insertions(+), 39 deletions(-)

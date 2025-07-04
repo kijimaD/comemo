@@ -1,0 +1,16 @@
+commit 619cc9fa4152399dde89d2a4700ee737cae444e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:25:44 2019 -0800
+
+    go/internal/gccgoimporter: remove temporary directories in test
+    
+    Updates #30500
+    
+    Change-Id: I42716c2bfd7f087303bc63d7518e32b52fd0d762
+    Reviewed-on: https://go-review.googlesource.com/c/164862
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/internal/gccgoimporter/importer_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

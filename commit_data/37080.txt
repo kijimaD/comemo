@@ -1,0 +1,32 @@
+commit 6994731ec2babb6a4f2bbbb08dbe649767a25942
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Aug 27 17:15:39 2018 -0400
+
+    internal/bytealg: improve asm for memequal on ppc64x
+    
+    This includes two changes to the memequal function.
+    
+    Previously the asm implementation on ppc64x for Equal called the internal
+    function memequal using a BL, whereas the other asm implementations for
+    bytes functions on ppc64x used BR. The BR is preferred because the BL
+    causes the calling function to stack a frame. This changes Equal so it
+    uses BR and is consistent with the others.
+    
+    This also uses vsx instructions where possible to improve performance
+    of the compares for sizes over 32.
+    
+    Here are results from the sizes affected:
+    
+    Equal/32             8.40ns ± 0%     7.66ns ± 0%    -8.81%  (p=0.029 n=4+4)
+    Equal/4K              193ns ± 0%      144ns ± 0%   -25.39%  (p=0.029 n=4+4)
+    Equal/4M              346µs ± 0%      277µs ± 0%   -20.08%  (p=0.029 n=4+4)
+    Equal/64M            7.66ms ± 1%     7.27ms ± 0%    -5.10%  (p=0.029 n=4+4)
+    
+    Change-Id: Ib6ee2cdc3e5d146e2705e3338858b8e965d25420
+    Reviewed-on: https://go-review.googlesource.com/c/143060
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/bytealg/equal_ppc64x.s | 64 +++++++++++++++----------------------
+ 1 file changed, 26 insertions(+), 38 deletions(-)

@@ -1,0 +1,12 @@
+commit a52855535a78ce3519c3d5a4dac99208f75a53d3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 26 09:37:17 2013 -0700
+
+    doc: fix typo in go 1.1 doc
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7725049
+
+ doc/go1.1.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

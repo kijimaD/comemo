@@ -1,0 +1,23 @@
+commit 021e0c5f1fa3e67912f4084ec7ad2381c5bd71d5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 12:40:23 2016 -0900
+
+    cmd/link: add array append version of methods
+    
+    Used by DWARF writer changes in a followup CL.
+    
+    Change-Id: I6ec40dcfeaba909d9b8f6cf2603bc5b85c1fa873
+    Reviewed-on: https://go-review.googlesource.com/20073
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go  |  3 +++
+ src/cmd/link/internal/arm/obj.go    |  3 +++
+ src/cmd/link/internal/arm64/obj.go  |  3 +++
+ src/cmd/link/internal/ld/lib.go     |  5 ++++-
+ src/cmd/link/internal/ld/symtab.go  | 26 ++++++++++++++++++++++++++
+ src/cmd/link/internal/mips64/obj.go |  6 ++++++
+ src/cmd/link/internal/ppc64/obj.go  |  6 ++++++
+ src/cmd/link/internal/x86/obj.go    |  3 +++
+ 8 files changed, 54 insertions(+), 1 deletion(-)

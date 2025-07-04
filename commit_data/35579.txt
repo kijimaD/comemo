@@ -1,0 +1,145 @@
+commit 161874da2ab6d5372043a1f3938a81a19d1165ad
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Jun 1 17:29:59 2018 -0300
+
+    all: update comment URLs from HTTP to HTTPS, where possible
+    
+    Each URL was manually verified to ensure it did not serve up incorrect
+    content.
+    
+    Change-Id: I4dc846227af95a73ee9a3074d0c379ff0fa955df
+    Reviewed-on: https://go-review.googlesource.com/115798
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/format.go                   |  2 +-
+ src/archive/zip/struct.go                   |  4 ++--
+ src/cmd/cgo/out.go                          |  2 +-
+ src/cmd/compile/internal/gc/phi.go          |  2 +-
+ src/cmd/compile/internal/ssa/sparsemap.go   |  2 +-
+ src/cmd/compile/internal/ssa/sparseset.go   |  2 +-
+ src/cmd/dist/sys_windows.go                 |  2 +-
+ src/cmd/go/go_test.go                       |  2 +-
+ src/cmd/internal/obj/s390x/a.out.go         |  2 +-
+ src/cmd/link/internal/amd64/asm.go          |  2 +-
+ src/cmd/link/internal/ld/lib.go             |  2 +-
+ src/cmd/link/internal/ld/macho.go           |  2 +-
+ src/cmd/link/internal/ld/pe.go              |  2 +-
+ src/cmd/link/internal/loadelf/ldelf.go      |  2 +-
+ src/cmd/link/internal/wasm/asm.go           |  2 +-
+ src/compress/bzip2/bzip2.go                 |  2 +-
+ src/compress/flate/deflate.go               |  2 +-
+ src/compress/lzw/reader_test.go             |  2 +-
+ src/compress/zlib/reader_test.go            |  2 +-
+ src/crypto/aes/aes_test.go                  |  2 +-
+ src/crypto/aes/block.go                     |  4 ++--
+ src/crypto/aes/const.go                     |  2 +-
+ src/crypto/cipher/cfb_test.go               |  2 +-
+ src/crypto/cipher/cipher.go                 |  2 +-
+ src/crypto/cipher/gcm.go                    |  2 +-
+ src/crypto/ecdsa/ecdsa_test.go              |  2 +-
+ src/crypto/elliptic/elliptic.go             |  6 +++---
+ src/crypto/elliptic/p224.go                 |  4 ++--
+ src/crypto/elliptic/p256.go                 |  6 +++---
+ src/crypto/elliptic/p256_amd64.go           |  2 +-
+ src/crypto/elliptic/p256_asm_amd64.s        |  2 +-
+ src/crypto/elliptic/p256_asm_s390x.s        | 10 +++++-----
+ src/crypto/hmac/hmac.go                     |  2 +-
+ src/crypto/hmac/hmac_test.go                |  4 ++--
+ src/crypto/rc4/rc4_test.go                  |  4 ++--
+ src/crypto/rsa/rsa.go                       |  2 +-
+ src/crypto/sha256/sha256block_386.s         |  2 +-
+ src/crypto/sha256/sha256block_amd64.s       |  2 +-
+ src/crypto/sha256/sha256block_ppc64le.s     |  2 +-
+ src/crypto/sha512/sha512block_amd64.s       |  4 ++--
+ src/crypto/sha512/sha512block_ppc64le.s     |  2 +-
+ src/crypto/tls/common.go                    |  6 +++---
+ src/crypto/tls/conn.go                      |  4 ++--
+ src/crypto/tls/handshake_messages.go        | 18 +++++++++---------
+ src/crypto/tls/key_agreement.go             |  4 ++--
+ src/crypto/tls/prf.go                       |  2 +-
+ src/crypto/x509/pkix/pkix.go                |  2 +-
+ src/crypto/x509/sha2_windows_test.go        |  2 +-
+ src/encoding/json/decode.go                 |  2 +-
+ src/encoding/json/number_test.go            |  2 +-
+ src/encoding/xml/xml.go                     | 12 ++++++------
+ src/hash/crc32/crc32.go                     |  8 ++++----
+ src/hash/crc32/crc32_amd64.s                |  2 +-
+ src/hash/crc64/crc64.go                     |  2 +-
+ src/html/template/attr.go                   |  8 ++++----
+ src/html/template/content.go                |  4 ++--
+ src/html/template/context.go                |  4 ++--
+ src/html/template/css.go                    | 12 ++++++------
+ src/html/template/escape.go                 |  4 ++--
+ src/html/template/html.go                   |  4 ++--
+ src/html/template/js.go                     |  2 +-
+ src/html/template/js_test.go                |  4 ++--
+ src/html/template/transition.go             |  6 +++---
+ src/image/color/palette/gen.go              |  2 +-
+ src/image/color/palette/palette.go          |  2 +-
+ src/image/color/ycbcr.go                    |  6 +++---
+ src/image/gif/reader.go                     |  2 +-
+ src/image/jpeg/reader.go                    | 10 +++++-----
+ src/image/png/reader.go                     |  6 +++---
+ src/internal/poll/fd_windows.go             |  6 +++---
+ src/math/all_test.go                        |  2 +-
+ src/math/big/float.go                       |  2 +-
+ src/math/big/float_test.go                  |  4 ++--
+ src/math/big/floatconv_test.go              |  4 ++--
+ src/math/big/prime.go                       |  4 ++--
+ src/math/big/prime_test.go                  |  4 ++--
+ src/math/big/ratconv_test.go                |  4 ++--
+ src/math/cmplx/cmath_test.go                |  2 +-
+ src/math/erfinv.go                          |  2 +-
+ src/math/exp_amd64.s                        |  2 +-
+ src/math/rand/exp.go                        |  2 +-
+ src/mime/multipart/multipart.go             |  4 ++--
+ src/mime/quotedprintable/writer_test.go     |  2 +-
+ src/net/conf.go                             |  4 ++--
+ src/net/conf_test.go                        |  2 +-
+ src/net/dnsconfig_unix.go                   |  2 +-
+ src/net/http/cgi/child.go                   |  2 +-
+ src/net/http/client.go                      |  2 +-
+ src/net/http/cookie.go                      |  4 ++--
+ src/net/http/httputil/reverseproxy.go       |  2 +-
+ src/net/http/server.go                      |  2 +-
+ src/net/http/sniff.go                       |  2 +-
+ src/net/http/transport.go                   |  2 +-
+ src/net/tcpsock_posix.go                    |  2 +-
+ src/net/textproto/reader.go                 |  2 +-
+ src/net/textproto/reader_test.go            |  2 +-
+ src/os/env_test.go                          |  2 +-
+ src/os/file_unix.go                         |  2 +-
+ src/os/sys_unix.go                          |  2 +-
+ src/regexp/exec.go                          |  4 ++--
+ src/regexp/regexp.go                        |  4 ++--
+ src/regexp/syntax/compile.go                |  2 +-
+ src/runtime/defs3_linux.go                  |  2 +-
+ src/runtime/internal/atomic/sys_linux_arm.s |  2 +-
+ src/runtime/memmove_amd64.s                 |  2 +-
+ src/runtime/mgclarge.go                     |  4 ++--
+ src/runtime/proc.go                         |  4 ++--
+ src/runtime/race/output_test.go             |  2 +-
+ src/runtime/race_amd64.s                    |  2 +-
+ src/runtime/sema.go                         |  4 ++--
+ src/runtime/stubs.go                        |  2 +-
+ src/runtime/sys_windows_386.s               |  2 +-
+ src/runtime/sys_windows_amd64.s             |  2 +-
+ src/runtime/vdso_linux.go                   |  2 +-
+ src/runtime/vlop_arm_test.go                |  2 +-
+ src/sort/sort_test.go                       |  2 +-
+ src/strconv/atof_test.go                    |  4 ++--
+ src/strconv/extfloat.go                     |  2 +-
+ src/strconv/ftoa_test.go                    |  4 ++--
+ src/strings/search.go                       |  4 ++--
+ src/strings/search_test.go                  |  2 +-
+ src/syscall/env_windows.go                  |  2 +-
+ src/syscall/exec_windows.go                 |  2 +-
+ src/syscall/route_freebsd_32bit.go          |  2 +-
+ src/syscall/security_windows.go             |  2 +-
+ src/syscall/types_windows.go                |  2 +-
+ src/time/zoneinfo_read.go                   |  2 +-
+ src/time/zoneinfo_unix.go                   |  2 +-
+ src/unicode/maketables.go                   |  4 ++--
+ src/unicode/utf16/utf16_test.go             |  2 +-
+ 130 files changed, 206 insertions(+), 206 deletions(-)

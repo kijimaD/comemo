@@ -1,0 +1,17 @@
+commit 8d428ed218d2b65dbb4abbd9be870c95439a2b14
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 19 12:04:10 2016 +0900
+
+    net: don't return io.EOF from zero byte reads on Plan 9
+    
+    Updates #15735.
+    Fixes #15741.
+    
+    Change-Id: Ic4ad7e948e8c3ab5feffef89d7a37417f82722a1
+    Reviewed-on: https://go-review.googlesource.com/23199
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

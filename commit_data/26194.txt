@@ -1,0 +1,16 @@
+commit 9c8f549abbc339fce83f96d80500ab9160a4c84d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 10 12:29:31 2016 -0800
+
+    cmd/compile: continue is the new goto loop
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I014613985005780d1a622c1981b35a94cda798bb
+    Reviewed-on: https://go-review.googlesource.com/20530
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

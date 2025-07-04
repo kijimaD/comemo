@@ -1,0 +1,12 @@
+commit 9876fd99d6e95ef2fc983ee3f2fc68a5e5b685a1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 12 12:20:54 2012 +0100
+
+    C: add David McLeish (Google CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6814120
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

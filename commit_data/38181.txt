@@ -1,0 +1,19 @@
+commit 412f659280607b06de9b25569cf668ea8f23dd57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 07:12:24 2019 -0800
+
+    net: return poll.SendFile error from sendFile
+    
+    We were accidentally ignoring any error returned by poll.SendFile.
+    Noticed by reading the code. It could only change behavior if the
+    sendfile system call both wrote some bytes and returned an error.
+    
+    Change-Id: I0693d6ec0a30f5a86b78d38793899ca29fb9e156
+    Reviewed-on: https://go-review.googlesource.com/c/164760
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/sendfile_linux.go    | 4 ++--
+ src/net/sendfile_unix_alt.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

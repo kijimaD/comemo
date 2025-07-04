@@ -1,0 +1,25 @@
+commit e280035fc1afdf4c1855d74bc4178ff0a8a18332
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 1 04:14:37 2012 -0800
+
+    gc, cc: avoid using the wrong library when building the compilers
+    
+    This can happen on Plan 9 if we we're building
+    with the 32-bit and 64-bit host compilers, one
+    after the other.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5599053
+
+ .hgignore           | 2 +-
+ src/cmd/5c/Makefile | 2 +-
+ src/cmd/5g/Makefile | 2 +-
+ src/cmd/6c/Makefile | 2 +-
+ src/cmd/6g/Makefile | 2 +-
+ src/cmd/8c/Makefile | 2 +-
+ src/cmd/8g/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ src/cmd/gc/Makefile | 2 +-
+ src/cmd/gc/go.h     | 2 ++
+ 10 files changed, 11 insertions(+), 9 deletions(-)

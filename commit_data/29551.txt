@@ -1,0 +1,21 @@
+commit d338f2e1470227afcadde977f2f2ab07d65088db
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 16 13:35:59 2016 +0900
+
+    net: don't run TestTCPBig unconditionally
+    
+    The test requires tons of memory and results various failures, mainly
+    runtime errors and process termination by SIGKILL, caused by resource
+    exhaustion when the node under test doesn't have much resources.
+    
+    This change makes use of -tcpbig flag to enable the test.
+    
+    Change-Id: Id53fa5d88543e2e60ca9bb4f55a1914ccca844e1
+    Reviewed-on: https://go-review.googlesource.com/33254
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/main_test.go    | 2 ++
+ src/net/tcpsock_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

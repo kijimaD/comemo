@@ -1,0 +1,16 @@
+commit 270848509bcfa0ecc72006d6325011bcb3096026
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 12 20:26:27 2014 -0700
+
+    mime/multipart: add NewReader example
+    
+    Fixes #7888
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/100420043
+
+ src/pkg/mime/multipart/example_test.go | 53 ++++++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/multipart.go    | 10 +++++--
+ 2 files changed, 60 insertions(+), 3 deletions(-)

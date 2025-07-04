@@ -1,0 +1,16 @@
+commit e689118852c9c1841ee4c17aeeb3ec3a5242e9a2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 24 10:04:01 2024 -0700
+
+    crypto/tls: skip bogo suite on windows builders
+    
+    Updates #66913
+    
+    Change-Id: Ie6bb262ee95593d23a93ef06656a561a7b1006ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581515
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/crypto/tls/bogo_shim_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

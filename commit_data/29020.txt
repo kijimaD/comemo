@@ -1,0 +1,19 @@
+commit 95f3e47456e42899b64d3740eab1dd7ee1db5bf9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 24 14:19:18 2016 -0500
+
+    cmd/compile: add rule to use ANDN for a&^b on ppc64x
+    
+    Adds a rule to generate ANDN for AND x ^y.
+    
+    Fixes #17567
+    
+    Change-Id: I3b978058d5663f32c42b1af19bb207eac5622615
+    Reviewed-on: https://go-review.googlesource.com/31769
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+)

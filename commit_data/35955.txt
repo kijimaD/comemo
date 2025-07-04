@@ -1,0 +1,16 @@
+commit a07ee41a334f6bbcda2e642e1d05d73c21bab746
+Author: Caleb Martinez <accounts@calebmartinez.com>
+Date:   Wed Jul 11 13:40:14 2018 +0000
+
+    time: add clarification to Timer.Stop documentation
+    
+    Fixes #26220
+    
+    Change-Id: I05703912be594d985ad3ccb3a9757ae21ec738ab
+    GitHub-Last-Rev: e4649847e015e573ee169c7d6db29b9437841afd
+    GitHub-Pull-Request: golang/go#26293
+    Reviewed-on: https://go-review.googlesource.com/122715
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/tick.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

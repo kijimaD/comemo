@@ -1,0 +1,26 @@
+commit 7cfa7d69259590319524c3715df4a39b39924bc3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 8 14:14:15 2020 +0100
+
+    testing: tests and benchmarks can assume flag.Parsed
+    
+    testing.M.Run has this bit of code:
+    
+            if !flag.Parsed() {
+                    flag.Parse()
+            }
+    
+    It makes sense, and it's common knowledge for many Go developers that
+    test flags are automatically parsed by the time tests and benchmarks are
+    run. However, the docs didn't clarify that. The previous wording only
+    mentioned that flag.Parse isn't run before TestMain, which doesn't
+    necessarily mean that it's run afterwards.
+    
+    Fixes #38952.
+    
+    Change-Id: I85f7a9dce637a23c5cb9abc485d47415c1a1ca27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232806
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

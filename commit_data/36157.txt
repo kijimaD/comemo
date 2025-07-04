@@ -1,0 +1,12 @@
+commit 5332b5e75acdd17c6d0afe84c014be8528765fe2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 27 14:16:45 2018 -0700
+
+    doc: mention Faccessat flags support in go1.11
+    
+    Change-Id: I4d01be5330db06877065aabe7a3faf69bce0dfb2
+    Reviewed-on: https://go-review.googlesource.com/126515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

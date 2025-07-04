@@ -1,0 +1,22 @@
+commit d6bce32a3607222075734bf4363ca3fea02ea1e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 9 15:05:09 2014 -0800
+
+    net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS
+    
+    Our default behavior for the common cases shouldn't lead to
+    leaked TCP connections (e.g. from people closing laptops) when
+    their Go servers are exposed to the open Internet without a
+    proxy in front.
+    
+    Too many users on golang-nuts have learned this the hard way.
+    
+    No API change. Only ListenAndServe and ListenAndServeTLS are
+    updated.
+    
+    R=golang-codereviews, cespare, gobot, rsc, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/48300043
+
+ src/pkg/net/http/server.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

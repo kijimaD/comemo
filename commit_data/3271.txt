@@ -1,0 +1,12 @@
+commit 678625d8df97f5be380cee4c81e0232679ae8e00
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 09:54:22 2009 -0700
+
+    minutiae: pass 1
+    
+    DELTA=174  (65 added, 10 deleted, 99 changed)
+    OCL=34625
+    CL=34639
+
+ doc/go_spec.html | 271 +++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 163 insertions(+), 108 deletions(-)

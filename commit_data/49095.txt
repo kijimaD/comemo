@@ -1,0 +1,32 @@
+commit 1efe38750a1f29c946fde694738c4ba2ed48ff98
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat May 7 13:58:24 2022 +0800
+
+    cmd/compile: teach prove about and operation
+    
+    For this code:
+    z &= 63
+    _ = x<<z | x>>(64-z)
+    Now can prove 'x<<z' in bound. In ppc64 lowering pass, it will not
+    produce an extra '(ANDconst <typ.Int64> [63] z)' causing
+    codegen/rotate.go failed. Just remove the type check in rewrite rules
+    as the workaround.
+    
+    Removes 32 bounds checks during make.bat.
+    
+    Fixes #52563.
+    
+    Change-Id: I14ed2c093ff5638dfea7de9bc7649c0f756dd71a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404315
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 28 ++++++++--------
+ src/cmd/compile/internal/ssa/prove.go        |  3 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 48 ++++++++++++++--------------
+ test/prove.go                                |  8 +++++
+ 4 files changed, 49 insertions(+), 38 deletions(-)

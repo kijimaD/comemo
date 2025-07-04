@@ -1,0 +1,12 @@
+commit 5b663057b79fdc3354dd5aa210bb6a729b2610ec
+Author: Bjorn Tipling <bjorn.tipling@gmail.com>
+Date:   Sun Feb 12 12:18:00 2012 +1100
+
+    html/template: Added more explicit wording about examples and documentation.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5654062
+
+ src/pkg/html/template/doc.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit bd64e8104175ef68911180f1d0dbbd79e247e555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 16 21:48:07 2009 -0700
+
+    Recognize gccgo error message.
+    
+    const2.go:7:9: error: expected '='
+    
+    Uses '.' to recognize the quotation marks, as the actual
+    characters printed depend on the user's locale.
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=26360
+    CL=26373
+
+ test/const2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

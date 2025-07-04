@@ -1,0 +1,51 @@
+commit 619679a3971fad8ff4aa231d7942c95579ceff23
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 3 17:14:55 2018 -0500
+
+    cmd/compile: add IsStmt breakpoint info to src.lico
+    
+    Add IsStmt information to src.lico so that suitable lines
+    for breakpoints (or not) can be noted, eventually for
+    communication to the debugger via the linker and DWARF.
+    
+    The expectation is that the front end will apply statement
+    boundary marks because it has best information about the
+    input, and the optimizer will attempt to preserve these.
+    The exact method for placing these marks is still TBD;
+    ideally stopping "at" line N in unoptimized code will occur
+    at a point where none of the side effects of N have occurred
+    and all of the inputs for line N can still be observed.
+    The optimizer will work with the same markings supplied
+    for unoptimized code.
+    
+    It is a goal that non-optimizing compilation should conserve
+    statement marks.
+    
+    The optimizer will also use the not-a-statement annotation
+    to indicate instructions that have a line number (for
+    profiling purposes) but should not be the target of
+    debugger step, next, or breakpoints.  Because instructions
+    marked as statements are sometimes removed, a third value
+    indicating that a position (instruction) can serve as a
+    statement if the optimizer removes the current instruction
+    marked as a statement for the same line.  The optimizer
+    should attempt to conserve statement marks, but it is not
+    a bug if some are lost.
+    
+    Includes changes to html output for GOSSAFUNC to indicate
+    not-default is-a-statement with bold and not-a-statement
+    with strikethrough.
+    
+    Change-Id: Ia22c9a682f276e2ca2a4ef7a85d4b6ebf9c62b7f
+    Reviewed-on: https://go-review.googlesource.com/93663
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go   |   2 +-
+ src/cmd/compile/internal/ssa/html.go |   4 +-
+ src/cmd/internal/obj/util.go         |  12 ++--
+ src/cmd/internal/src/pos.go          | 115 ++++++++++++++++++++++++++++++++---
+ src/cmd/internal/src/pos_test.go     |  32 ++++++++++
+ src/cmd/internal/src/xpos.go         |  32 ++++++++++
+ src/cmd/internal/src/xpos_test.go    |  24 ++++++++
+ 7 files changed, 206 insertions(+), 15 deletions(-)

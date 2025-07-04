@@ -1,0 +1,30 @@
+commit 0cc1290174751971d282196e21ec9037b217e5a5
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Mar 27 03:21:17 2020 +0000
+
+    runtime: converge duplicate calls to netpollBreak into one
+    
+    There might be some concurrent (maybe not concurrent, just sequential but in a short time window) and duplicate calls to `netpollBreak`, trying to wake up a net-poller. If one has called `netpollBreak` and that waking event hasn't been received by epollwait/kevent/..., then the subsequent calls of `netpollBreak` ought to be ignored or in other words, these calls should be converged into one.
+    
+    Benchmarks go1.13.5 darwin/amd64:
+    
+    benchmark-func           time/op (old)  time/op (new)  delta
+    BenchmarkNetpollBreak-4  29668ns ±1%    3131ns ±2%     -89.45%
+    
+    mem/B (old)  mem/B (new)  delta
+    154B ±13%    0B ±0%       -100%
+    
+    Change-Id: I3cf757a5d6edc5a99adad7aea3baee4b7f2a8f5c
+    GitHub-Last-Rev: 15bcfbab8a5db51f65da01315a5880a5dbf9e028
+    GitHub-Pull-Request: golang/go#36294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212737
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll_epoll.go   | 36 ++++++++++++++++++++++--------------
+ src/runtime/netpoll_kqueue.go  | 30 +++++++++++++++++++-----------
+ src/runtime/netpoll_os_test.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/netpoll_solaris.go | 27 +++++++++++++++++----------
+ src/runtime/netpoll_windows.go | 16 ++++++++++++----
+ 5 files changed, 98 insertions(+), 39 deletions(-)

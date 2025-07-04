@@ -1,0 +1,15 @@
+commit 1f6d130b14054f57a530dce20b19a79a55c4fc0d
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 15:54:10 2011 +0100
+
+    gc: add forgotten typecheck in a lonely corner of sinit
+    
+    Fixes #2549
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5484060
+
+ src/cmd/gc/sinit.c       |  7 ++++---
+ test/fixedbugs/bug387.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

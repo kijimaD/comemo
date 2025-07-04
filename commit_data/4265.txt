@@ -1,0 +1,11 @@
+commit 2a54997baac338b5ffc7c6d0c90fab2137f1325c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 1 16:18:27 2009 -0800
+
+    gob: fix build
+    
+    TBR=r
+    https://golang.org/cl/163064
+
+ src/pkg/gob/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

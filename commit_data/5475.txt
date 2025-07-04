@@ -1,0 +1,17 @@
+commit 1d4e2d1adc9884d97ab3fc9e2766441f2de7d554
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Sat May 15 10:06:54 2010 -0700
+
+    cmath: add package description
+    
+    Also update range of Phase and Polar due to signed zero.
+    [Phase(cmplx(-1, +0)) = pi and Phase(cmplx(-1, -0)) = -pi]
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1235041
+
+ src/pkg/cmath/abs.go   | 2 ++
+ src/pkg/cmath/phase.go | 2 +-
+ src/pkg/cmath/polar.go | 2 +-
+ 3 files changed, 4 insertions(+), 2 deletions(-)

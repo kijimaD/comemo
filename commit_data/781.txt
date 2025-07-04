@@ -1,0 +1,14 @@
+commit a4f15640aa169a4443b45fc147ebee43f0837358
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 14:03:13 2008 -0700
+
+    i can import "net" in package net
+    and still have a variable named "net"
+    
+    R=r
+    DELTA=18  (0 added, 0 deleted, 18 changed)
+    OCL=16220
+    CL=16222
+
+ src/lib/net/net.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

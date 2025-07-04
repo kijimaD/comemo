@@ -1,0 +1,17 @@
+commit ffa663c9b3c942cbde590bb792179dcca52224b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 26 15:38:08 2023 -0400
+
+    net/http/cgi: propagate LD_LIBRARY_PATH on Android
+    
+    Android is functionally a variant on linux, and should be
+    treated as such.
+    
+    Change-Id: I08056f00bf98c1935c8cc3c859a6c72fe1a48efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489395
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/cgi/host.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

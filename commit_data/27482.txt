@@ -1,0 +1,75 @@
+commit 1f8d2768987ea1d7f1bc4d6bbfe59b2a8e98d9b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 23:28:56 2016 +0000
+
+    A+C: automated update (subrepos)
+    
+    Add Abe Haskins (individual CLA)
+    Add Ahmy Yulrizka (individual CLA)
+    Add Akihiro Suda (individual CLA)
+    Add Alex Vaghin (corporate CLA for Google Inc.)
+    Add Arlo Breault (individual CLA)
+    Add Audrey Lim (individual CLA)
+    Add Benjamin Wester (corporate CLA for Square, Inc.)
+    Add Bryan Chan (corporate CLA for IBM)
+    Add Christy Perez (corporate CLA for IBM)
+    Add Colin Edwards (individual CLA)
+    Add David Brophy (individual CLA)
+    Add David Sansome (individual CLA)
+    Add Diwaker Gupta (individual CLA)
+    Add Doug Anderson (corporate CLA for Google Inc.)
+    Add Dustin Carlino (corporate CLA for Google Inc.)
+    Add Ernest Chiang (individual CLA)
+    Add Ethan Burns (corporate CLA for Google Inc.)
+    Add Gary Elliott (corporate CLA for Google Inc.)
+    Add Hallgrimur Gunnarsson (corporate CLA for Google Inc.)
+    Add Hironao OTSUBO (individual CLA)
+    Add Holden Huang (individual CLA)
+    Add Idora Shinatose (individual CLA)
+    Add Irieda Noboru (individual CLA)
+    Add Jeff Craig (corporate CLA for Google Inc.)
+    Add Joe Henke (individual CLA)
+    Add John Schnake (individual CLA)
+    Add Jonathan Amsterdam (corporate CLA for Google Inc.)
+    Add Kenji Kaneda (individual CLA)
+    Add Kenneth Shaw (individual CLA)
+    Add Mark Severson (individual CLA)
+    Add Martin Garton (individual CLA)
+    Add Mathias Leppich (individual CLA)
+    Add Maxwell Krohn (individual CLA)
+    Add Niall Sheridan (individual CLA)
+    Add Nick Patavalis (individual CLA)
+    Add Nick Petroni (individual CLA)
+    Add Omar Jarjur (corporate CLA for Google Inc.)
+    Add Özgür Kesim (individual CLA)
+    Add Peter Gonda (corporate CLA for Google Inc.)
+    Add Pierre Durand (individual CLA)
+    Add Quentin Smith (corporate CLA for Google Inc.)
+    Add Ricardo Padilha (individual CLA)
+    Add Riku Voipio (corporate CLA for Linaro Limited)
+    Add Roland Shoemaker (individual CLA)
+    Add Sam Hug (individual CLA)
+    Add Sam Whited (individual CLA)
+    Add Sami Commerot (corporate CLA for Google Inc.)
+    Add Scott Mansfield (corporate CLA for Netflix, Inc.)
+    Add Sean Harger (corporate CLA for Google Inc.)
+    Add Simon Jefford (individual CLA)
+    Add Sridhar Venkatakrishnan (individual CLA)
+    Add Tim Swast (corporate CLA for Google Inc.)
+    Add Timothy Studd (individual CLA)
+    Add Tipp Moseley (corporate CLA for Google Inc.)
+    Add Toby Burress (corporate CLA for Google Inc.)
+    Add Tzu-Jung Lee (corporate CLA for Currant)
+    Add Vadim Grek (individual CLA)
+    Add Xudong Zhang (individual CLA)
+    
+    Updates #12042
+    
+    Change-Id: I4119a8829119a2b8a9abbea9f52ceebb04878764
+    Reviewed-on: https://go-review.googlesource.com/23306
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ AUTHORS      | 38 ++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+)

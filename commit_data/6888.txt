@@ -1,0 +1,15 @@
+commit 66f7463e8035680080f7285aafb72da31a12c6ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 14:31:46 2010 -0500
+
+    syscall: fix linux/arm build
+    
+    bug introduced at
+    https://golang.org/cl/2331044
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3440046
+
+ src/pkg/syscall/syscall_linux_arm.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,19 @@
+commit dbb6232724d9602da9139481c2706862911e3f95
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 15 10:23:41 2010 -0700
+
+    big: implemented format support for fmt library, MulRange
+    
+    - support for binary prefix 0b (to match fmt.Format)
+    - renamed nat.new -> nat.setUint64 for consistency
+    - more tests
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1233041
+
+ src/pkg/big/int.go      |  81 ++++++++++++++++++++----
+ src/pkg/big/int_test.go | 161 ++++++++++++++++++++++++++++++++++++++----------
+ src/pkg/big/nat.go      |  37 ++++++-----
+ src/pkg/big/nat_test.go |  34 +++++-----
+ 4 files changed, 234 insertions(+), 79 deletions(-)

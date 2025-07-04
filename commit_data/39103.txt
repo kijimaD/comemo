@@ -1,0 +1,29 @@
+commit b4a472b1c3b7ae48cf6128e5f0594439dc20d081
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 15:10:29 2019 -0400
+
+    syscall: fix vet complaints for all dragonfly, freebsd, netbsd, openbsd
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOSes,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    
+    For #31916.
+    
+    Change-Id: Id2e1223497bd0cd6e880cd81f3ece6363e58219f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176104
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/vet/all/whitelist/dragonfly_amd64.txt |  6 ------
+ src/cmd/vet/all/whitelist/freebsd_386.txt     | 10 ----------
+ src/cmd/vet/all/whitelist/freebsd_amd64.txt   |  5 -----
+ src/cmd/vet/all/whitelist/netbsd_386.txt      | 10 ----------
+ src/cmd/vet/all/whitelist/netbsd_arm.txt      |  3 ---
+ src/cmd/vet/all/whitelist/openbsd_386.txt     | 10 ----------
+ src/syscall/asm9_unix2_amd64.s                |  8 +++++---
+ src/syscall/asm_netbsd_arm.s                  |  2 +-
+ src/syscall/asm_unix_386.s                    | 20 ++++++++++----------
+ 9 files changed, 16 insertions(+), 58 deletions(-)

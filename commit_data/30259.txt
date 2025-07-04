@@ -1,0 +1,18 @@
+commit 7aeb915d6b1f90657e67e4722d13624b7109b8d5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 11:36:25 2017 -0500
+
+    runtime: remove unused debug.wbshadow
+    
+    The wbshadow implementation was removed a year and a half ago in
+    1635ab7dfe, but the GODEBUG setting remained. Remove the GODEBUG
+    setting since it doesn't do anything.
+    
+    Change-Id: I19cde324a79472aff60acb5cc9f7d4aa86c0c0ed
+    Reviewed-on: https://go-review.googlesource.com/36618
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/runtime1.go | 2 --
+ 1 file changed, 2 deletions(-)

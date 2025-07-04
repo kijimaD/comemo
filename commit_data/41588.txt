@@ -1,0 +1,16 @@
+commit 3afa86d632859ec61207ce307ba69394e0c7462d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 9 12:46:45 2020 -0700
+
+    cmd/compile: remove -largemodel flag from docs
+    
+    It does nothing (it can't even be parsed).
+    
+    Change-Id: I29abdddea1955d2ad93a97696f6542fa47cdb954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222672
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/doc.go | 2 --
+ 1 file changed, 2 deletions(-)

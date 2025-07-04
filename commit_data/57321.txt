@@ -1,0 +1,57 @@
+commit d91a2e5b11cc1badd7c760a911218a64d91ac8b0
+Author: Zxilly <zxilly@outlook.com>
+Date:   Tue Sep 3 17:46:10 2024 +0000
+
+    cmd: replace many sort.Interface with slices.Sort and SortFunc
+    
+    with slices there's no need to implement sort.Interface
+    
+    Change-Id: I59167e78881cb1df89a71e33d738d6aeca7adb71
+    GitHub-Last-Rev: 507ba84453f7305b6b2bf6317292111c00c93ffe
+    GitHub-Pull-Request: golang/go#68724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/dwarfgen/dwarf.go      |  6 +-
+ src/cmd/compile/internal/importer/gcimporter.go |  6 --
+ src/cmd/compile/internal/importer/iimport.go    |  5 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 36 +++++-----
+ src/cmd/compile/internal/ssa/_gen/main.go       | 11 ++-
+ src/cmd/compile/internal/ssa/cse.go             | 93 ++++++++-----------------
+ src/cmd/compile/internal/ssa/debug.go           | 30 +++-----
+ src/cmd/compile/internal/ssa/html.go            | 17 ++---
+ src/cmd/compile/internal/ssa/schedule.go        | 19 +++--
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  4 +-
+ src/cmd/compile/internal/types/size.go          |  3 +-
+ src/cmd/compile/internal/types/sort.go          | 23 +++---
+ src/cmd/compile/internal/types2/resolver.go     |  1 +
+ src/cmd/compile/internal/types2/typeset.go      |  1 +
+ src/cmd/cover/cover.go                          | 13 ++--
+ src/cmd/fix/fix.go                              | 14 ----
+ src/cmd/fix/main.go                             | 10 ++-
+ src/cmd/internal/dwarf/dwarf.go                 | 17 ++---
+ src/cmd/internal/obj/arm/asm5.go                | 40 ++++-------
+ src/cmd/internal/obj/arm64/asm7.go              | 32 +++------
+ src/cmd/internal/obj/dwarf.go                   | 13 ++--
+ src/cmd/internal/obj/loong64/asm.go             | 40 ++++-------
+ src/cmd/internal/obj/mips/asm0.go               | 40 ++++-------
+ src/cmd/internal/obj/objfile.go                 | 16 ++---
+ src/cmd/internal/obj/s390x/asmz.go              | 45 ++++--------
+ src/cmd/internal/objfile/macho.go               |  9 +--
+ src/cmd/internal/objfile/objfile.go             | 13 ++--
+ src/cmd/internal/objfile/pe.go                  |  3 +-
+ src/cmd/internal/objfile/plan9obj.go            |  3 +-
+ src/cmd/link/internal/ld/dwarf.go               | 26 +++----
+ src/cmd/link/internal/ld/elf.go                 |  7 +-
+ src/cmd/link/internal/ld/pe.go                  |  7 +-
+ src/cmd/link/internal/ld/symtab.go              | 14 ----
+ src/cmd/link/internal/ld/typelink.go            | 15 ++--
+ src/cmd/link/internal/loader/symbolbuilder.go   | 18 ++---
+ src/go/types/resolver.go                        |  1 +
+ src/go/types/typeset.go                         |  1 +
+ 38 files changed, 239 insertions(+), 417 deletions(-)

@@ -1,0 +1,33 @@
+commit 522be4e01000abe771362984f8d351c8452cceef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 16 11:34:14 2023 -0700
+
+    go/types, types2: remove superfluous argument test in Checker.arguments
+    
+    There's only two places which call Checker.arguments: Checker.callExpr
+    and Checker.builtin. Both ensure that the passed argument list doesn't
+    contain type expressions, so we don't need that extra check at the start
+    of Checker.arguments.
+    
+    The remaining check causes Checker.arguments to exit early if any of
+    the passed arguments is invalid. This reduces the number of reported
+    errors in rare cases but is executed all the time.
+    If the extra errors are a problem, it would be better to not call
+    Checker.arguments in the first place, or only do the extra check
+    before Checker.arguments reports an error.
+    
+    Removing this code for now. Removes a long-standing TODO.
+    
+    Change-Id: Ief654b680eb6b6a768bb1b4c621d3c8169953f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495395
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go             | 11 -----------
+ src/go/types/call.go                                | 11 -----------
+ src/internal/types/testdata/check/expr3.go          |  2 +-
+ src/internal/types/testdata/fixedbugs/issue39634.go |  2 +-
+ 4 files changed, 2 insertions(+), 24 deletions(-)

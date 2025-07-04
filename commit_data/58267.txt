@@ -1,0 +1,29 @@
+commit 9aaef91d3e75994f19d33a4fcee08b5225432af6
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Nov 21 17:52:50 2024 -0500
+
+    crypto/mlkem: init package
+    
+    This commit exposes the crypto/internal/mlkem package as a public crypto
+    package based on the linked proposal. Since we've already implemented
+    this internal to the FIPS boundary this largely defers to that
+    implementation.
+    
+    Updates #70122
+    
+    Change-Id: I5ec9c2783c4d44583244c6d16597704a51e9b738
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630240
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/70122.txt                                 |  32 +++++++
+ doc/next/6-stdlib/4-mlkem.md                       |   3 +
+ doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md   |   1 +
+ src/crypto/mlkem/mlkem1024.go                      |  96 +++++++++++++++++++
+ src/crypto/mlkem/mlkem768.go                       | 106 +++++++++++++++++++++
+ .../{internal/fips140test => mlkem}/mlkem_test.go  |  40 ++++++--
+ src/go/build/deps_test.go                          |   2 +
+ 7 files changed, 272 insertions(+), 8 deletions(-)

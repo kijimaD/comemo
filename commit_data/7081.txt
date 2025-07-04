@@ -1,0 +1,26 @@
+commit fee3aca2e02a44b51d3f41b94701055de434ae6b
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jan 11 14:38:14 2011 -0500
+
+    syscall: fix mksysnum_linux.sh
+    
+    A few system call numbers on x86 Linux are
+    defined in terms of a previous definition,
+    
+    e.g.,
+            #define __NR_timer_create       259
+            #define __NR_timer_settime      (__NR_timer_create+1)
+            ...
+            #define __NR_mq_open            277
+            #define __NR_mq_unlink          (__NR_mq_open+1)
+    
+    This change assumes the numbers are sorted
+    sequentially in the input file.
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/3946041
+
+ src/pkg/syscall/mksysnum_linux.sh    | 16 ++++++++++++----
+ src/pkg/syscall/zsysnum_linux_386.go | 13 +++++++++++++
+ 2 files changed, 25 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 76c54c11935121d1c8f4158f900366d68f9a76d8
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Dec 6 14:40:45 2013 -0800
+
+    runtime: add GODEBUG option for an electric fence like heap mode
+    
+    When enabled this new debugging mode will allocate objects on
+    their own page and never recycle memory addresses.  This is an
+    essential tool to root cause a broad class of heap corruption.
+    
+    R=golang-dev, dave, daniel.morsing, dvyukov, rsc, iant, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/22060046
+
+ src/pkg/runtime/extern.go  | 14 +++++++++-----
+ src/pkg/runtime/malloc.goc |  7 +++++--
+ src/pkg/runtime/mgc0.c     |  5 ++++-
+ src/pkg/runtime/runtime.c  |  1 +
+ src/pkg/runtime/runtime.h  |  1 +
+ 5 files changed, 20 insertions(+), 8 deletions(-)

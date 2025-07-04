@@ -1,0 +1,29 @@
+commit 35c05542938416cde6a366505c24568ea5ccd98e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 2 16:51:14 2018 -0400
+
+    cmd/asm: rename R18 to R18_PLATFORM on ARM64
+    
+    In ARM64 ABI, R18 is the "platform register", the use of which is
+    OS specific. The OS could choose to reserve this register. In
+    practice, it seems fine to use R18 on Linux but not on darwin (iOS).
+    
+    Rename R18 to R18_PLATFORM to prevent accidental use. There is no
+    R18 usage within the standard library (besides tests, which are
+    updated).
+    
+    Fixes #26110
+    
+    Change-Id: Icef7b9549e2049db1df307a0180a3c90a12d7a84
+    Reviewed-on: https://go-review.googlesource.com/c/147218
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/asm.html                                 |  1 +
+ src/cmd/asm/internal/arch/arch.go            |  3 ++
+ src/cmd/asm/internal/asm/operand_test.go     |  1 +
+ src/cmd/asm/internal/asm/testdata/arm64.s    |  8 ++---
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 54 ++++++++++++++--------------
+ src/cmd/internal/obj/arm64/doc.go            | 10 +++---
+ 6 files changed, 41 insertions(+), 36 deletions(-)

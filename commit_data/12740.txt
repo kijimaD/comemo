@@ -1,0 +1,12 @@
+commit 73b5eb38c1b15dc9bf8d35c285d0c8019ec33b53
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 24 10:14:25 2012 +1100
+
+    docs/articles/wiki: minor fixes
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5900046
+
+ doc/articles/wiki/wiki.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

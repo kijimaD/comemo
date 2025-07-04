@@ -1,0 +1,19 @@
+commit 7fd9564fcd3715a2aaf2bf4df1096f71ff40ef15
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 14:43:41 2022 -0500
+
+    cmd/compile: allow fieldtrack of unexported fields
+    
+    The fieldtrack support is experimental and used mainly inside Google,
+    where we have included this change for years. No reason not to make
+    it in the public copy.
+    
+    Change-Id: I5233e4e775ccce60a17098c007aed8c82a0425d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387355
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/walk/expr.go | 3 ---
+ 1 file changed, 3 deletions(-)

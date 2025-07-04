@@ -1,0 +1,23 @@
+commit c8a58f29dcb2b4f38ca4fcf4d2a2a80f606c9573
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 8 17:28:09 2021 -0400
+
+    cmd/go: add test to check for a potential workspace loading issue
+    
+    This test checks that we load the same graph regardless of the path to
+    the requested module in the workspace.
+    
+    We currently don't. This will be fixed in a future change that redoes
+    workspace mode's usage of the Requirements structure.
+    
+    For #45713
+    
+    Change-Id: Id02cbb60a38619d840dbf1e70173ce853c0c167a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348649
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/work_prune.txt | 104 ++++++++++++++++++++++++++++++
+ 1 file changed, 104 insertions(+)

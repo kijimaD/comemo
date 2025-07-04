@@ -1,0 +1,14 @@
+commit 5f7337769c4a09c34d32ca29ffdeb5c5c19aca41
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 13 13:38:36 2012 -0800
+
+    spec: change the wording regarding select statement choice
+    s/pseudo-random fair/uniform pseudo-random/
+    This careful word choice soothes the theoretically inclined.
+    
+    R=golang-dev, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/5528098
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

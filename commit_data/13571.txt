@@ -1,0 +1,14 @@
+commit 2f2df2aceb4fdd02ac4a93e43a823a55341c9439
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 4 18:02:12 2012 +0300
+
+    cmd/go: allow to use syso files with cgo
+    I have C functions implemented in .syso file (rather than .so or inlined in .go file).
+    W/o this change the gcc invocation fails with undefined symbols.
+    
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6352076
+
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

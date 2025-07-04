@@ -1,0 +1,28 @@
+commit 804850d87b7581daa54c0aa4b1972e2d08b4b8f7
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 15:19:23 2023 -0400
+
+    cmd/cgo/internal/testcarchive: build on all platforms
+    
+    This test package uses syscall.SIGSEGV and syscall.SIGPIPE, which are
+    defined on most, but not all platforms. Normally this test runs as
+    part of dist test, which only registers this test on platforms that
+    support c-archive build mode, which includes all platforms that define
+    these signals. But this doesn't help if you're just trying to type
+    check everything in cmd.
+    
+    Add build constraints so that this package type checks on all
+    platforms.
+    
+    Fixes #60164.
+    Updates #37486.
+    
+    Change-Id: Id3f9ad4cc9f80146de16aedcf85d108a77215ae6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494659
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

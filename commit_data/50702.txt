@@ -1,0 +1,21 @@
+commit 545adcfe89458c5df714c27992064733b07491f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 29 11:18:09 2022 -0700
+
+    go/types, types2: use "generic" rather than "parameterized" in error messages
+    
+    Fix a couple of places where we still use "parameterized".
+    
+    Change-Id: I2c70356d4e363ee709c5ef19ec8786956d5e9001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436815
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go           | 2 +-
+ src/cmd/compile/internal/types2/operand.go        | 2 +-
+ src/go/types/decl.go                              | 2 +-
+ src/go/types/operand.go                           | 2 +-
+ src/internal/types/testdata/examples/functions.go | 4 ++--
+ 5 files changed, 6 insertions(+), 6 deletions(-)

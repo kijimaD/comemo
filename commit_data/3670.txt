@@ -1,0 +1,12 @@
+commit b691e08e2cbdbcc3963c78a60a80d0ff235600ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 28 18:17:24 2009 -0700
+
+    clarify rule for channel send
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018002
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

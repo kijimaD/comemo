@@ -1,0 +1,45 @@
+commit d4dda76b5fc320a94430c62a31e1481986104488
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 9 16:19:56 2017 -0400
+
+    cmd/link: one DWARF compilation unit per package
+    
+    Currently, the linker generates one huge DWARF compilation unit for
+    the entire Go binary. This commit creates a separate compilation unit
+    and line table per Go package.
+    
+    We temporarily lose compilation unit PC range information, since it's
+    now discontiguous, so harder to emit. We'll bring it back in the next
+    commit.
+    
+    Beyond being "more traditional", this has various technical
+    advantages:
+    
+    * It should speed up line table lookup, since that requires a
+      sequential scan of the line table. With this change, a debugger can
+      first locate the per-package line table and then scan only that line
+      table.
+    
+    * Once we emit compilation unit PC ranges again, this should also
+      speed up various other debugger reverse PC lookups.
+    
+    * It puts us in a good position to move more DWARF generation into the
+      compiler, which could produce at least the CU header, per-function
+      line table fragments, and per-function frame unwinding info that the
+      linker could simply paste together.
+    
+    * It will let us record a per-package compiler command-line flags
+      (#22168).
+    
+    Change-Id: Ibac642890984636b3ef1d4b37fe97f4453c2cc84
+    Reviewed-on: https://go-review.googlesource.com/69973
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go          |   2 -
+ src/cmd/link/internal/ld/dwarf.go        | 170 ++++++++++++++++++++-----------
+ src/cmd/link/internal/objfile/objfile.go |   1 +
+ src/cmd/link/internal/sym/symbol.go      |   1 +
+ 4 files changed, 110 insertions(+), 64 deletions(-)

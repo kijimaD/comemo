@@ -1,0 +1,14 @@
+commit 10cdb92000de7d6b5489f33e12e4533fdbb3f69c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 19 12:00:40 2013 -0700
+
+    doc: fix another broken link
+    
+    Fixes #5316
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8871043
+
+ doc/articles/godoc_documenting_go_code.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

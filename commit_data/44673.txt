@@ -1,0 +1,24 @@
+commit de2b27dee761143116b2ecb303b67e018c5e7473
+Author: Prajwal Koirala <16564273+Prajwal-Koirala@users.noreply.github.com>
+Date:   Mon Mar 15 06:13:23 2021 +0000
+
+    all: run gofmt
+    
+    Fixes #44980
+    
+    Change-Id: Icef35319d1582d8367c8911e15d11b0224957327
+    GitHub-Last-Rev: 2113e97e837c1ef5de9ba6a7bd62db92e644c500
+    GitHub-Pull-Request: golang/go#45005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301632
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ misc/cgo/testplugin/testdata/method2/main.go       |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |  2 +-
+ src/cmd/cover/testdata/toolexec.go                 |  2 +-
+ src/cmd/go/testdata/addmod.go                      |  2 +-
+ .../obj/riscv/testdata/testbranch/branch_test.go   |  8 ++---
+ src/cmd/link/internal/ld/elf.go                    | 39 +++++++++++-----------
+ .../internal/ld/testdata/deadcode/ifacemethod3.go  |  2 +-
+ src/runtime/testdata/testwinsignal/main.go         | 38 ++++++++++-----------
+ 8 files changed, 47 insertions(+), 48 deletions(-)

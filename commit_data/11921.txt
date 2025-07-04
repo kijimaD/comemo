@@ -1,0 +1,12 @@
+commit eccc22e542bf5161a789b9956caa4d500208ea1e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 14:20:21 2012 +1100
+
+    doc: fix snapshot notes
+    
+    R=bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5675056
+
+ doc/devel/weekly.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

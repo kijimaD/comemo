@@ -1,0 +1,23 @@
+commit 4300f105147dc0da9d1034704ad1cd24bedde5da
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 13:36:42 2021 -0500
+
+    build: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4
+    
+    Preparation for #44505, but safe for Go 1.18.
+    Also fixes the default build on Macs, at least for
+    people who have a $HOME/go1.17 or have run
+    
+            go install golang.org/dl/go1.17@latest
+            go1.17 download
+    
+    Change-Id: I822f93e75498620fad87db2436376148c42f6bff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369914
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 13 ++++++++++++-
+ src/make.bash             |  9 ++++++++-
+ src/make.bat              |  2 ++
+ src/make.rc               |  3 +++
+ 4 files changed, 25 insertions(+), 2 deletions(-)

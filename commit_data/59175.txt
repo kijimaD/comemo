@@ -1,0 +1,30 @@
+commit 440a8f7024044387a6e440fc003bd8fd61908c81
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 25 16:42:51 2025 +0100
+
+    internal/poll: support async file operations on Windows
+    
+    This CL adds support for async file operations on Windows. The affected
+    functions are Read, Write, Pread, and Pwrite.
+    
+    The code has been slightly refactored to avoid duplication. Both the
+    async and sync variants follow the same code path, with the exception of
+    the async variant passes an overlapped structure to the syscalls
+    and supports the use of a completion port.
+    
+    This doesn't change any user-facing behavior, as the os package still
+    sets the pollable parameter to false when calling FD.Init.
+    
+    For #19098.
+    
+    Change-Id: Iead6e51fa8f57e83456eb5ccdce28c2ea3846cc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660595
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/poll/fd_windows.go                  | 164 +++++++++++-----
+ src/internal/poll/fd_windows_test.go             | 240 +++++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go  |  11 ++
+ src/internal/syscall/windows/zsyscall_windows.go |  23 +++
+ 4 files changed, 390 insertions(+), 48 deletions(-)

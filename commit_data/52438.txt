@@ -1,0 +1,19 @@
+commit cd25a3a416d2752cc8a61e1cad09c4fc8b549ecc
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 28 19:57:40 2023 +0000
+
+    Revert "cmd/link: use path from "cc --print-prog-name ar" for c-archive buildmode"
+    
+    This reverts commit https://go-review.git.corp.google.com/c/go/+/479775
+    
+    Reason for revert: fails with ios-arm64-corellium builder
+    
+    Change-Id: Iae61b994a39ff6c70af8a302f7a46de0097edf3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479917
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 39 ++++++++++++++++-----------------------
+ 1 file changed, 16 insertions(+), 23 deletions(-)

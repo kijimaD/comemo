@@ -1,0 +1,19 @@
+commit 42515418a99f2540427a5d32189f6d44fb06939e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 10:24:31 2021 +0700
+
+    reflect: correct documentation of Value.UnsafeAddr
+    
+    The doc mentions that "UnsafeAddr returns a _pointer_ to v's data", but
+    it returns a uintptr instead, which don't have pointer semantic.
+    
+    Change-Id: I557d5597cbc485356ca803eb496a99d6db8c63ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350690
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

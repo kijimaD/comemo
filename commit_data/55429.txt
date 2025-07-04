@@ -1,0 +1,29 @@
+commit 749ebaa4460af237f9facbc43af3e055802dc0be
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 23 17:08:50 2024 -0500
+
+    net: ignore Dial errors in TestAcceptTimeout
+    
+    Also use DialContext instead of just Dial so that we can ensure
+    the call returns before we close the listener.
+    
+    The Dial in this test is intended to complete before the call to
+    Accept, but there is no synchronization to ensure that and sometimes
+    it doesn't happen. That's ok and mostly immaterial to the test, but it
+    does mean we need to ignore Dial errors (which can happen when the
+    listener is closed), and we need to be a little more careful about not
+    dialing a port that may have already been reused by some other test.
+    
+    Fixes #65240.
+    Updates #17948.
+    
+    Change-Id: Ife1b5c3062939441b58f4c096461bf5d7841889b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/timeout_test.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

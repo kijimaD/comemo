@@ -1,0 +1,16 @@
+commit 274fc7600d9397e1ddffbe55a73271e438312a87
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 26 17:18:24 2014 +1100
+
+    fmt: document order of application of %T, %p and the special interfaces
+    Their priority was not documented.
+    
+    Fixes #7571.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/80360043
+
+ src/pkg/fmt/doc.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

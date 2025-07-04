@@ -1,0 +1,17 @@
+commit 2dd7a6d41f2d28d7eb2209e8887ca80c461b52cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 21:47:10 2015 -0800
+
+    math/big: always round after the sign is set
+    
+    Some rounding modes are affected by the sign of the value to
+    be rounded. Make sure the sign is set before round is called.
+    Added tests (that failed before the fix).
+    
+    Change-Id: Idd09b8fcbab89894fede0b9bc922cda5ddc87930
+    Reviewed-on: https://go-review.googlesource.com/4876
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/big/float.go      | 16 +++++++-------
+ src/math/big/float_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 7 deletions(-)

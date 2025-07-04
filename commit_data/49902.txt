@@ -1,0 +1,22 @@
+commit 05ff045dfeab582503a15c4233161aa8b6be179d
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sun Aug 14 09:56:34 2022 +0000
+
+    net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *
+    
+    Fixes #41773
+    
+    Change-Id: I432ad5410d5e3bb0aff3a6e0eea6906ab1b214e2
+    GitHub-Last-Rev: 57d1ee249dcdf46c54214d0636f235e5c62af213
+    GitHub-Pull-Request: golang/go#49014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/41773.txt         |  1 +
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  6 +++++-
+ 3 files changed, 37 insertions(+), 1 deletion(-)

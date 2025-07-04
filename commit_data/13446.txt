@@ -1,0 +1,13 @@
+commit 3be9f0b30a0ad1b10a82ae215c0a384460cd3f0e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Jul 8 11:56:26 2012 +1000
+
+    A+C: Matthew Jibson (individual CLA).
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6349082
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit f5037ee127ed3b92b46f96ba6d033fa11683fee2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 27 23:30:53 2014 -0700
+
+    net/http: make ServeContent support dates in If-Range headers
+    
+    Fixes #8367
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/116300044
+
+ src/pkg/net/http/fs.go      | 25 +++++++++++++++++--------
+ src/pkg/net/http/fs_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 8 deletions(-)

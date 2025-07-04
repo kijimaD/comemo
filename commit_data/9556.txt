@@ -1,0 +1,16 @@
+commit e1cfb6f3a909d2918155d72676dd80c956bbdf6e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Aug 30 14:33:16 2011 -0300
+
+    cgo: fix GoBytes
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4956051
+
+ misc/cgo/test/Makefile     |  1 +
+ misc/cgo/test/callback.go  |  2 +-
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/helpers.go   | 35 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/string.goc |  2 ++
+ 5 files changed, 40 insertions(+), 1 deletion(-)

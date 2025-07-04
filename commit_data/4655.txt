@@ -1,0 +1,12 @@
+commit c634189d562cb1ef1496ddd8a8176ee0e88f8f80
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 14:24:17 2010 -0800
+
+    typo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/190103
+
+ src/pkg/expvar/expvar_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit d97bbabbaaeb28e374267c19aae5072d356c1353
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 19 09:21:51 2010 -0700
+
+    gc: cmplx typecheck bug fix
+    
+    Fixes #729.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/875048
+
+ src/cmd/gc/typecheck.c |  2 +-
+ test/cmplx.go          | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

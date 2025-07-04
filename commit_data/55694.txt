@@ -1,0 +1,30 @@
+commit f63faf3689e215ef1f23d26316b2dae910df9f20
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 20 17:15:43 2024 +0000
+
+    net: don't force cgo resolver for .local subdomain queries
+    
+    The cgo resolver sends DNS queries for .local subdomain
+    lookups, just as we do in the go resolver.
+    We don't need to fallback to the cgo resolver for this
+    domains when nsswitch.conf uses only file and dns modules.
+    
+    This has a benefit that we select a consistent resolver,
+    that is only based on the system configuration, regardless
+    of the queried domain.
+    
+    Updates #63978
+    
+    Change-Id: I9166103adb94d7ab52992925f413f361130e7c52
+    GitHub-Last-Rev: e2bc5874cb5c9165e3cc058e9effe36d0ce68cd6
+    GitHub-Pull-Request: golang/go#63986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540555
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/net/conf.go      | 17 +++++++----------
+ src/net/conf_test.go |  4 ++--
+ src/net/net.go       |  3 +--
+ 3 files changed, 10 insertions(+), 14 deletions(-)

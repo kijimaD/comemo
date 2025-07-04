@@ -1,0 +1,18 @@
+commit 70a8a41e97246b82fa4a39cb27a7c47e7af55a57
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 00:57:27 2023 +1000
+
+    cmd/go/testdata/mod: add golang toolchain test data for openbsd/ppc64
+    
+    Updates #56001
+    
+    Change-Id: Ic7b4ecb2e471292894c54610e8acda8822c890fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518275
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ ...g.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

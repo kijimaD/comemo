@@ -1,0 +1,14 @@
+commit 58845656e8d0e64e2a7a29d6633682ce6b0df2d8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 9 08:43:19 2013 -0700
+
+    test: update bug086.go for current gccgo behaviour
+    
+    bug086.go:14:1: error: missing return at end of function
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12697043
+
+ test/fixedbugs/bug086.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

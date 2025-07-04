@@ -1,0 +1,17 @@
+commit eee70b07c197e3cd48d4d41315a31ffba901b6b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 16:46:42 2011 -0700
+
+    go spec: unsafe.Alignof/Offsetof/Sizeof return uintptr
+    
+    This is (indirectly) a language change. Per e-mail discussion
+    on golang-dev.
+    
+    Fixes #1943.
+    
+    R=rsc, iant, r, ken
+    CC=golang-dev
+    https://golang.org/cl/4581058
+
+ doc/go_spec.html | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

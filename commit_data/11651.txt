@@ -1,0 +1,13 @@
+commit 39611ec880779c4e093a4789c7d1a16d25f50795
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Mon Feb 6 12:40:59 2012 -0500
+
+    cmd/go: fixed panic on `go clean -n` and `go clean -x`.
+            also made generated scripts act more like running go clean itself
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5624049
+
+ src/cmd/go/clean.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

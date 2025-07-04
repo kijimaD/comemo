@@ -1,0 +1,22 @@
+commit 7f0757b3940799661ed31838c6a4b377b69d96f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 08:46:00 2017 -0700
+
+    cmd/compile: make node.Likely a flag
+    
+    node.Likely may once have held -1/0/+1,
+    but it is now only 0/1.
+    
+    With improved SSA heuristics,
+    it may someday go away entirely.
+    
+    Change-Id: I6451d17fd7fb47e67fea4d39df302b6db00ea57b
+    Reviewed-on: https://go-review.googlesource.com/41760
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/init.go   | 4 ++--
+ src/cmd/compile/internal/gc/ssa.go    | 8 ++++++--
+ src/cmd/compile/internal/gc/syntax.go | 4 +++-
+ 3 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit ea435a31f966c02a43eff865beab5b9aeb0716fd
+Author: limeidan <limeidan@loongson.cn>
+Date:   Tue Mar 12 19:55:39 2024 +0800
+
+    cmd/compile/internal/ssa: enable testcases TestDebugLinesPushback and TestDebugLinesConvert on loong64
+    
+    Change-Id: Id5c12c9edf278f2419900ebbfb0b7f388bafc9b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604177
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

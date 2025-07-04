@@ -1,0 +1,24 @@
+commit 434e4caf1b93530b225494ba30d9e39ba15ecf4f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 19 01:01:07 2019 +1000
+
+    cmd/internal/obj/riscv: implement floating point instructions
+    
+    Add support for assembling various single-precision and double-precision
+    floating point instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: Iac1aec9b03bb6cbf116b229daeef944d4df550fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196839
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  71 ++++++++++-
+ src/cmd/internal/obj/riscv/anames.go         |   4 +-
+ src/cmd/internal/obj/riscv/cpu.go            |   4 +-
+ src/cmd/internal/obj/riscv/obj.go            | 174 +++++++++++++++++++++++++++
+ 4 files changed, 248 insertions(+), 5 deletions(-)

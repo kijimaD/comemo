@@ -1,0 +1,23 @@
+commit 7a095c32366593f637a95bc927c63454125e3015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 15 15:14:55 2020 -0400
+
+    cmd/go/internal/modload: avoid a network fetch when querying a valid semantic version
+    
+    Test this behavior incidentally in a test for ambiguous import errors.
+    (I rediscovered the error when writing the new test.)
+    
+    For #32567
+    Updates #28806
+    
+    Change-Id: I323f05145734e5cf99818b9f04d65075f7c0f787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255046
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/query.go               | 21 ++++++--
+ .../testdata/script/mod_get_ambiguous_import.txt   | 60 ++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 4 deletions(-)

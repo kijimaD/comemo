@@ -1,0 +1,12 @@
+commit d1e06dab7c23109be4b24912212fedf3b155bfc7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Nov 18 02:47:17 2012 +0800
+
+    runtime: don't assume AT_RANDOM provide 4-byte aligned ptr
+    
+    R=dave, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6854056
+
+ src/pkg/runtime/signal_linux_arm.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

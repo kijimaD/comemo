@@ -1,0 +1,20 @@
+commit b72678f37f2087ebf515bf6927bdd102723b28bf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 23 12:46:18 2017 +0100
+
+    net: skip TestLookupLongTXT on Plan 9
+    
+    CL 79555 added TestLookupLongTXT. However, this test is
+    failing on Plan 9, because the DNS resolver (ndb/dns)
+    only returns a single TXT record.
+    
+    Updates #22857.
+    
+    Change-Id: I33cdc63a3d3de4d1c7f2684934316c44992fb9e2
+    Reviewed-on: https://go-review.googlesource.com/79695
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

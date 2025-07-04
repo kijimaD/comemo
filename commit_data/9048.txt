@@ -1,0 +1,48 @@
+commit 4c986d86b142d82cbf1064f2a01b49eaf649fe8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 13 09:40:53 2011 -0700
+
+    exp/eval, exp/ogle: remove packages eval and ogle
+    
+    An externally maintained version of exp/eval can
+    be found at: https://bitbucket.org/binet/go-eval/ .
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4695047
+
+ src/pkg/Makefile              |    1 -
+ src/pkg/exp/eval/Makefile     |   37 -
+ src/pkg/exp/eval/abort.go     |   85 --
+ src/pkg/exp/eval/bridge.go    |  164 ----
+ src/pkg/exp/eval/compiler.go  |   92 --
+ src/pkg/exp/eval/eval_test.go |  263 ------
+ src/pkg/exp/eval/expr.go      | 2015 -----------------------------------------
+ src/pkg/exp/eval/expr1.go     | 1874 --------------------------------------
+ src/pkg/exp/eval/expr_test.go |  355 --------
+ src/pkg/exp/eval/func.go      |   70 --
+ src/pkg/exp/eval/gen.go       |  375 --------
+ src/pkg/exp/eval/main.go      |   93 --
+ src/pkg/exp/eval/scope.go     |  207 -----
+ src/pkg/exp/eval/stmt.go      | 1299 --------------------------
+ src/pkg/exp/eval/stmt_test.go |  343 -------
+ src/pkg/exp/eval/test.bash    |   35 -
+ src/pkg/exp/eval/type.go      | 1252 -------------------------
+ src/pkg/exp/eval/typec.go     |  409 ---------
+ src/pkg/exp/eval/value.go     |  586 ------------
+ src/pkg/exp/eval/world.go     |  188 ----
+ src/pkg/exp/ogle/Makefile     |   29 -
+ src/pkg/exp/ogle/abort.go     |   35 -
+ src/pkg/exp/ogle/arch.go      |  125 ---
+ src/pkg/exp/ogle/cmd.go       |  373 --------
+ src/pkg/exp/ogle/event.go     |  280 ------
+ src/pkg/exp/ogle/frame.go     |  212 -----
+ src/pkg/exp/ogle/goroutine.go |  117 ---
+ src/pkg/exp/ogle/main.go      |    9 -
+ src/pkg/exp/ogle/process.go   |  521 -----------
+ src/pkg/exp/ogle/rruntime.go  |  271 ------
+ src/pkg/exp/ogle/rtype.go     |  288 ------
+ src/pkg/exp/ogle/rvalue.go    |  515 -----------
+ src/pkg/exp/ogle/vars.go      |  272 ------
+ src/run.bash                  |    5 -
+ 34 files changed, 12795 deletions(-)

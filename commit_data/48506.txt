@@ -1,0 +1,19 @@
+commit 2792a414c69d9e6bacee217f6beb92352fe3c2a4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 23 01:25:45 2022 +0700
+
+    cmd/compile/internal/types: remove anyBroke
+    
+    anyBroke now always return false, we can get rid of it.
+    
+    Updates #51691
+    
+    Change-Id: Idab5bc9f9f222cc63e50bdde2b23b9404a4bd74e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394557
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/type.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

@@ -1,0 +1,19 @@
+commit 4e0749a47805912a528326e3a63e5f0342b19b59
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed May 30 15:50:12 2012 +1000
+
+    exp/html: Convert \r and \r\n to \n when tokenizing
+    
+    Also escape "\r" as "&#13;" when rendering HTML.
+    
+    Pass 2 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6260046
+
+ src/pkg/exp/html/escape.go                         |  4 ++-
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |  4 +--
+ src/pkg/exp/html/token.go                          | 35 +++++++++++++++++++++-
+ src/pkg/exp/html/token_test.go                     | 27 +++++++++++++++++
+ 4 files changed, 66 insertions(+), 4 deletions(-)

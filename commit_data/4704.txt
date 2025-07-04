@@ -1,0 +1,20 @@
+commit a186b77b038ba7e185129253d5a1e283682e9421
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 15:37:08 2010 -0800
+
+    gc: implement defer print/println/panic/panicln
+    
+    Fixes #219.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/194097
+
+ src/cmd/gc/builtin.c.boot |  47 ++++++-------
+ src/cmd/gc/runtime.go     |   1 +
+ src/cmd/gc/walk.c         | 172 ++++++++++++++++++++++++++++++++++------------
+ src/pkg/runtime/print.c   |  87 +++++++++++++++++++----
+ src/pkg/runtime/runtime.h |   1 +
+ test/deferprint.go        |  14 ++++
+ test/golden.out           |   4 ++
+ 7 files changed, 246 insertions(+), 80 deletions(-)

@@ -1,0 +1,17 @@
+commit a09e61395ee5e71c4c4a37fa0faed87592a04834
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 15:27:26 2014 -0400
+
+    runtime: move stubs.goc code into runtime.c
+    
+    Now that the calling conventions are the same,
+    there's no danger to using plain C for these.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/134580043
+
+ src/pkg/runtime/runtime.c | 48 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stubs.goc | 57 -----------------------------------------------
+ 2 files changed, 48 insertions(+), 57 deletions(-)

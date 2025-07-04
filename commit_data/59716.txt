@@ -1,0 +1,18 @@
+commit b78e38065efd5f4079564b9e8e3529950ba0dd52
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 21 13:02:59 2025 -0700
+
+    runtime: define lock ranking between weak pointers and synctest
+    
+    Fixes #73817
+    
+    Change-Id: I0101bdc797237b4c7eb58b414c71b009b0b44447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/internal/synctest/synctest_test.go | 13 +++++++++++++
+ src/runtime/lockrank.go                |  2 +-
+ src/runtime/mklockrank.go              | 10 +++++++++-
+ 3 files changed, 23 insertions(+), 2 deletions(-)

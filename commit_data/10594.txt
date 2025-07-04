@@ -1,0 +1,14 @@
+commit 7d15eda95dd24ef0998631b6ac289fa79f053521
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 12:30:56 2011 -0500
+
+    gc: do not allow slice of array literal
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5440083
+
+ src/cmd/gc/typecheck.c   |  9 ++++++--
+ test/complit1.go         | 24 ++++++++++++++++++++++
+ test/fixedbugs/bug268.go | 53 ------------------------------------------------
+ 3 files changed, 31 insertions(+), 55 deletions(-)

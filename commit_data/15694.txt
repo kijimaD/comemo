@@ -1,0 +1,18 @@
+commit 7b4ac31cab7480084f45c2890c4ebd877944bc49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 16:50:44 2013 -0400
+
+    cmd/dist: make cc rule match what cmd/go uses
+    
+    We added -I$GOROOT/pkg/$GOOS_$GOARCH in cmd/go
+    (I think for use by cgo and swig, primarily) but didn't
+    update cmd/dist. I was testing some other code and
+    found that my changes built with cmd/go but failed
+    during the initial bootstrap. Make them match again.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7707044
+
+ src/cmd/dist/build.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit 55875977eb7e4f5b926127ec76217f37c7fd3713
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 14:48:01 2016 -0700
+
+    cmd/compile: dedup Pragma switch
+    
+    Change-Id: I2d01f692ae30a166079976b86bf0b7a439f05d5c
+    Reviewed-on: https://go-review.googlesource.com/28178
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go   | 92 ++++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/noder.go | 46 +-----------------
+ 2 files changed, 51 insertions(+), 87 deletions(-)

@@ -1,0 +1,19 @@
+commit 5aa174557a83cf83399d7bdd7f39702fdd028e3e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 27 11:02:06 2009 -0700
+
+    clean up for public use: make some stuff private, add doc comments.
+    
+    R=rsc
+    DELTA=298  (202 added, 0 deleted, 96 changed)
+    OCL=32006
+    CL=32224
+
+ src/pkg/gob/codec_test.go   |  15 ++--
+ src/pkg/gob/decode.go       |  42 +++++-----
+ src/pkg/gob/decoder.go      |  21 +++--
+ src/pkg/gob/encoder.go      | 198 ++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/gob/encoder_test.go |   6 +-
+ src/pkg/gob/type.go         |  96 ++++++++++++---------
+ src/pkg/gob/type_test.go    |   8 +-
+ 7 files changed, 294 insertions(+), 92 deletions(-)

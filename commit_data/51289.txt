@@ -1,0 +1,18 @@
+commit af7437cc8a62ca21b907628aed3ee484d4220317
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:44:36 2022 -0500
+
+    cmd/pack: use the test binary as 'pack' instead of rebuilding it
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: Ifaf396465f54ad0a28977b6c0a4b87dbc359de37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450706
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/pack/pack_test.go | 52 ++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 40 insertions(+), 12 deletions(-)

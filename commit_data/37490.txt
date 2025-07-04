@@ -1,0 +1,22 @@
+commit 440368da526b69fe9a500e29ce9cd84aa7cc6c35
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 10 10:03:27 2018 -0400
+
+    cmd/go/internal/imports: resolve symlinks in ScanDir
+    
+    We were using the mode reported by ReadDir to decide whether each
+    entry is a file, but in the case of symlinks that isn't sufficient: a
+    symlink could point to either a file or a directory, and if it is a
+    file we should treat it as such.
+    
+    Fixes #28107
+    
+    Change-Id: Icf6e495dce427a7b1124c9cc9f085e40a215c169
+    Reviewed-on: https://go-review.googlesource.com/c/141097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/imports/scan.go        | 10 ++++++++++
+ src/cmd/go/testdata/script/mod_symlink.txt | 23 +++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

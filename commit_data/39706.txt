@@ -1,0 +1,17 @@
+commit 52cff70100b5c382339ea3ba9c262f7831d2a965
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Jul 26 13:22:08 2019 +0800
+
+    cmd/compile: truncate constant arithmetic result with typed complex numbers
+    
+    Fixes #33285
+    
+    Change-Id: Idd125e3342058051216be3f105330aef987320c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187697
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go | 12 ++++++++---
+ test/const.go                        | 39 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 81ec3f6a6ccd65abc85fc1f5d16af0a4b426029b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 15 19:22:45 2017 +1100
+
+    internal/poll: remove unused poll.pollDesc methods
+    
+    Change-Id: Ic2b20c8238ff0ca5513d32e54ef2945fa4d0c3d2
+    Reviewed-on: https://go-review.googlesource.com/37033
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_poll_runtime.go | 8 --------
+ 1 file changed, 8 deletions(-)

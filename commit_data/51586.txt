@@ -1,0 +1,16 @@
+commit db36eca33c389871b132ffb1a84fd534a349e8d8
+Author: Xiao Cui <constantine124@gmail.com>
+Date:   Wed Dec 28 19:35:13 2022 -0500
+
+    doc/go1.20: fix typos
+    
+    Change-Id: Ie2e583cba9e9bec7d642e323e77fb2d9b05dc7bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459780
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

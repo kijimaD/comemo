@@ -1,0 +1,24 @@
+commit dba623b1c7663016c79edbec517f8c8e7feb1437
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 23 18:40:02 2013 -0400
+
+    runtime: reduce frame size for runtime.cgocallback_gofunc
+    
+    Tying preemption to stack splits means that we have to able to
+    complete the call to exitsyscall (inside cgocallbackg at least for now)
+    without any stack split checks, meaning that the whole sequence
+    has to work within 128 bytes of stack, unless we increase the size
+    of the red zone. This CL frees up 24 bytes along that critical path
+    on amd64. (The 32-bit systems have plenty of space because all
+    their words are smaller.)
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11676043
+
+ src/pkg/runtime/asm_386.s   | 61 ++++++++++++++++++---------------------------
+ src/pkg/runtime/asm_amd64.s | 59 +++++++++++++++++--------------------------
+ src/pkg/runtime/asm_arm.s   | 48 +++++++++++++----------------------
+ src/pkg/runtime/cgocall.c   | 23 ++++++++++++++---
+ src/pkg/runtime/proc.c      |  8 +++---
+ 5 files changed, 88 insertions(+), 111 deletions(-)

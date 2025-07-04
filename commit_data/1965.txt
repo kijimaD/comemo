@@ -1,0 +1,31 @@
+commit ac6ebfdea9e52a82bb55f7eb28c79619e2ffba10
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 6 21:28:04 2009 -0700
+
+    add method Value() Value to InterfaceValue.
+    use Value() in print to print underlying value
+    from interface.
+    
+    before:
+            package main
+            import "fmt"
+            func main() {
+                    x := []interface{} {1, "hello", 2.5};
+                    fmt.Println(x[0], x[1], x[2], x);
+            }
+    
+            1 hello 2.5 [<non-nil interface> <non-nil interface> <non-nil interface>]
+    
+    after:
+            1 hello 2.5 [1 hello 2.5]
+    
+    R=r
+    DELTA=44  (22 added, 16 deleted, 6 changed)
+    OCL=27139
+    CL=27141
+
+ src/lib/fmt/fmt_test.go     | 22 ++++------------------
+ src/lib/fmt/print.go        |  7 +++----
+ src/lib/reflect/all_test.go | 10 ++++++++++
+ src/lib/reflect/value.go    | 11 +++++++++++
+ 4 files changed, 28 insertions(+), 22 deletions(-)

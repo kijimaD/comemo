@@ -1,0 +1,20 @@
+commit daae72e88e39cbc34659457b4a91b483f88ae19b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 09:43:49 2020 -0700
+
+    cmd/compile: refactor out eqstring
+    
+    Refactor out creating the two Nodes needed to check string equality.
+    Preliminary work to other optimizations.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I72e824dac904e579b8ba9a3669a94fa1471112d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230204
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go  | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go | 19 ++++---------------
+ 2 files changed, 30 insertions(+), 15 deletions(-)

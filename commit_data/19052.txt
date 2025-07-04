@@ -1,0 +1,18 @@
+commit af923df89ee65428b0a8cba7323e9397926ea0e6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 7 17:35:44 2014 -0700
+
+    runtime: fix heapdump bugs.
+    
+    Iterate the right number of times in arrays and channels.
+    Handle channels with zero-sized objects in them.
+    Output longer type names if we have them.
+    Compute argument offset correctly.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/82980043
+
+ src/pkg/runtime/heapdump.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

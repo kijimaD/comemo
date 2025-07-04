@@ -1,0 +1,19 @@
+commit f981a9f7ded779749dca199e0893aa08529b52ec
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 14:10:37 2021 -0500
+
+    go/types: clearer object string for type parameters
+    
+    This is a port of CL 361401 to go/types.
+    
+    Change-Id: I5b1c7cf1d7a819b2902c304f884492ec02c7eaa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362737
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/object.go          | 21 +++++++----
+ src/go/types/object_test.go     | 78 +++++++++++++++++++++++++++++++++++++++++
+ src/go/types/typestring_test.go |  7 +++-
+ 3 files changed, 98 insertions(+), 8 deletions(-)

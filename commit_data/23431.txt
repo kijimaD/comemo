@@ -1,0 +1,18 @@
+commit 9f3a2d5f9abb148c4e543a3e7046b46d0bb9cc07
+Author: Andrey Petrov <andrey.petrov@shazow.net>
+Date:   Thu Jun 18 21:43:01 2015 +0200
+
+    doc: clarify duplicate symbol condition in cgo
+    
+    Spell out what will happen if a declaration and definition is included
+    in the same file, should help people who run into duplicate symbol
+    errors and search for relevant keywords.
+    
+    This edit is based on opening issue #11263 erroneously.
+    
+    Change-Id: I0645a9433b8668d2ede9b9a3f6550d802c26388b
+    Reviewed-on: https://go-review.googlesource.com/11247
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

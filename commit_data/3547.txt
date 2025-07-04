@@ -1,0 +1,13 @@
+commit ee3e97c778fe3f9b8b3c73ffa5695dc10e6499fb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 15 00:27:26 2009 -0700
+
+    forgot to update the body when i changed the receiver type.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35759
+    CL=35761
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

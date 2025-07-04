@@ -1,0 +1,21 @@
+commit a4e950ec9ed4b862245451a5d167138c73d8c2e9
+Author: Yazen2017 <yazen.shunnar@gmail.com>
+Date:   Sat Feb 17 17:24:21 2018 -0500
+
+    doc: improve clarity of map index examples
+    
+    The fourth example for map indexing states you have a map of type [K]V
+    and attempts to read in a variable of type T.  Further, the example
+    is meant to showcase the boolean return variable saying whether the
+    map contained a key, but overrides to type T.  This will not compile.
+    
+    Changed last updated date to February 18
+    
+    Fixes: #23895
+    
+    Change-Id: I63c52adbcd989afd4855e329e6c727f4c01f7881
+    Reviewed-on: https://go-review.googlesource.com/94906
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

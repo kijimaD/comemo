@@ -1,0 +1,15 @@
+commit 12b05bf8fd63634589f71d6ba9d8519d0ae8184b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 11 13:39:28 2015 +1200
+
+    cmd/go: support -buildmode=shared with gccgo
+    
+    Change-Id: Id93b8ab42fa311ce32209734ec9a0813f8736e25
+    Reviewed-on: https://go-review.googlesource.com/9914
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go |  87 +++++++++-
+ src/cmd/go/build.go                | 322 ++++++++++++++++++++++++-------------
+ src/cmd/go/pkg.go                  |   7 +-
+ 3 files changed, 297 insertions(+), 119 deletions(-)

@@ -1,0 +1,28 @@
+commit 451a1fa46d0449dc6982b38ba51cf94ebc750eca
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:49:44 2011 -0400
+
+    exec: introduce ExitError
+    
+    The existing code uses *os.Waitmsg as an os.Error,
+    but *os.Waitmsg is really just a stringer.
+    
+    Introduce an explicit error type for the real error.
+    
+    Not to be submitted until just before error goes in;
+    the gofix for error updates type assertions
+            err.(*os.Waitmsg)
+    to
+            err.(*exec.ExitError)
+    
+    The seemingly redundant String method will become
+    an Error method when error goes in, and will no longer
+    be redundant.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5331044
+
+ src/pkg/exec/exec.go      | 15 ++++++++++++---
+ src/pkg/exec/exec_test.go |  8 ++++----
+ 2 files changed, 16 insertions(+), 7 deletions(-)

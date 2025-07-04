@@ -1,0 +1,15 @@
+commit a42a396846453e44ff9abadc1430a8c0c6a11e25
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 24 18:43:43 2019 +0700
+
+    syscall: remove un-used const ptrSize
+    
+    Change-Id: Ic809a533f9c4042373bdad3ba1cd237d203bacff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202881
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_darwin.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 606c6c371ad3d089d59d15393f7c49b063fc0eca
+Author: shaoliming <shaojacobi@gmail.com>
+Date:   Fri Jun 17 05:01:26 2022 +0000
+
+    encoding/xml: check nil pointer in DecodeElement
+    
+    Fixes #53350
+    
+    Change-Id: Id5e1f4016db5f1d4349ee1a76a9dfe3aeae83cee
+    GitHub-Last-Rev: 45add121612a8144c2525828bd7386c4adb05174
+    GitHub-Pull-Request: golang/go#53407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412634
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+
+ src/encoding/xml/read.go      |  4 ++++
+ src/encoding/xml/read_test.go | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+)

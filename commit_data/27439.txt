@@ -1,0 +1,23 @@
+commit 5d92aefc18317578226a3873fb8fc37411cd2184
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 16:18:32 2016 +0000
+
+    vendor, net/http: update vendored hpack
+    
+    Updates x/net/http2/hpack to rev 6050c111 for:
+    
+       http2/hpack: forbid excess and invalid padding in hpack decoder
+       https://golang.org/cl/23067
+    
+    Updates #15614
+    
+    Change-Id: I3fbf9b265bfa5e49e6aa97d8c34e08214cfcc49a
+    Reviewed-on: https://go-review.googlesource.com/23208
+    Reviewed-by: Carl Mastrangelo <notcarl@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../golang.org/x/net/http2/hpack/hpack_test.go     | 41 +++++++++++++++++++++
+ src/vendor/golang.org/x/net/http2/hpack/huffman.go | 42 ++++++++++++++++------
+ 2 files changed, 73 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit aedf298daf508b564e4dddc7687fff8822315a5e
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jul 7 09:32:17 2021 -0700
+
+    io/fs: document requirement that ReadDir return an unwrapped io.EOF
+    
+    This requirement ensures that ReadDir implementations are as compatible
+    as possible with "*os.File".ReadDir.
+    
+    The testing/fstest package already tests for equality to io.EOF.
+    
+    Updates #47062.
+    Fixes #47086.
+    
+    Change-Id: I54f911a34e507a3db0abc4da55a19b7a50b35041
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333149
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/io/fs/fs.go | 1 +
+ 1 file changed, 1 insertion(+)

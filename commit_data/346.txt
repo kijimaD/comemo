@@ -1,0 +1,13 @@
+commit 526200345cd6b1e1449f7adb62f05410ff01a44a
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 14 14:33:39 2008 -0700
+
+    synch chan
+    
+    SVN=127055
+
+ src/runtime/Makefile  |   1 +
+ src/runtime/chan.c    |  94 +++++++++++++++++++--
+ src/runtime/runtime.c | 228 --------------------------------------------------
+ src/runtime/runtime.h |  15 +++-
+ 4 files changed, 100 insertions(+), 238 deletions(-)

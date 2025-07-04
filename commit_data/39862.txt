@@ -1,0 +1,35 @@
+commit 0e015e20cfe7265635af605d274ff8dc2de5b3a2
+Author: Lucas Bremgartner <lucas@bremis.ch>
+Date:   Tue Sep 10 18:52:02 2019 +0000
+
+    encoding/json: fix and optimize marshal for quoted string
+    
+    Since Go 1.2 every string can be marshaled to JSON without error even if it
+    contains invalid UTF-8 byte sequences. Therefore there is no need to use
+    Marshal again for the only reason of enclosing the string in double quotes.
+    Not using Marshal here also removes the error check as there has not been a
+    way for Marshal to fail anyway.
+    
+    name          old time/op    new time/op    delta
+    Issue34127-4     360ns ± 3%     200ns ± 3%  -44.56%  (p=0.008 n=5+5)
+    
+    name          old alloc/op   new alloc/op   delta
+    Issue34127-4     56.0B ± 0%     40.0B ± 0%  -28.57%  (p=0.008 n=5+5)
+    
+    name          old allocs/op  new allocs/op  delta
+    Issue34127-4      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.008 n=5+5)
+    
+    Fixes #34154
+    
+    Change-Id: Ib60dc11980f9b20d8bef2982de7168943d632263
+    GitHub-Last-Rev: 9b0ac1d4c5318b6bf9ed7930320f2bd755f9939c
+    GitHub-Pull-Request: golang/go#34127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193604
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/bench_test.go  | 16 ++++++++++++++++
+ src/encoding/json/encode.go      | 10 +++++-----
+ src/encoding/json/stream_test.go | 10 ++++++++++
+ 3 files changed, 31 insertions(+), 5 deletions(-)

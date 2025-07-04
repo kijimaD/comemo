@@ -1,0 +1,12 @@
+commit d88f717da66f0349fbbcaff9dc9de09244476e37
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 12 16:17:14 2011 -0800
+
+    disable arm registifier for the moment
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/3970041
+
+ src/cmd/5g/reg.c | 1 +
+ 1 file changed, 1 insertion(+)

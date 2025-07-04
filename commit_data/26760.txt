@@ -1,0 +1,20 @@
+commit d636d7907c46b728b07b58669ec1fa1158105579
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 15:43:07 2016 -0700
+
+    bytes: add ContainsAny
+    
+    This function is present in the strings package but missing from bytes,
+    and we would like to keep the two packages consistent.
+    
+    Add it to bytes, and copy the test over as well.
+    
+    Fixes #15140
+    
+    Change-Id: I5dbd28da83a9fe741885794ed15f2af2f826cb3c
+    Reviewed-on: https://go-review.googlesource.com/21562
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go      |  5 +++++
+ src/bytes/bytes_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

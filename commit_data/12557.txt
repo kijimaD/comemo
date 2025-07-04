@@ -1,0 +1,16 @@
+commit 0c74d867c5e5c008c7043e3549fb2b30b0d43506
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 12 13:20:25 2012 +1100
+
+    misc/dist: minimum target requirement is 10.6 for Darwin
+         As we've dropped support for Mac OS X 10.5, I think the generated .pkg
+         should reflect that decision.
+         But this CL make it impossible to generate pkg on Mac OS X 10.6, at least
+         for me.
+    
+    R=adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5798051
+
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

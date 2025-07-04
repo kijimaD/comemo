@@ -1,0 +1,15 @@
+commit a09b7fdd6c94dbf9a4f52140ce8043ad521a2cfb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 10:16:59 2008 -0700
+
+    snapshot:
+    - fallthrough stat, label decls
+    - improved printing layout
+    
+    R=r
+    OCL=17283
+    CL=17283
+
+ usr/gri/pretty/parser.go  | 35 +++++++++++------------
+ usr/gri/pretty/printer.go | 73 ++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 64 insertions(+), 44 deletions(-)

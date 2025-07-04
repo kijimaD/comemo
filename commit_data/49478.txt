@@ -1,0 +1,16 @@
+commit 0cd0c12f576a3be39f44d20145eba334adce0bba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 15 14:40:13 2022 +0200
+
+    doc/go1.19: use matching closing tag in unix build constraint heading
+    
+    Change-Id: Idb990eac60e334a5901b2d6cdc2380225d011dd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412294
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

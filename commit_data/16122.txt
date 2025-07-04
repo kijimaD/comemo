@@ -1,0 +1,14 @@
+commit 4235fa8f2a1e3b9f162a477b7ce210b98e84eb65
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sun Apr 7 11:37:37 2013 -0700
+
+    runtime, runtime/debug, runtime/race: deflake tests
+    
+    R=golang-dev, dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8366044
+
+ src/pkg/runtime/crash_test.go         | 20 ++++++++++++++++++--
+ src/pkg/runtime/debug/garbage_test.go |  2 ++
+ src/pkg/runtime/race/race_test.go     |  2 +-
+ 3 files changed, 21 insertions(+), 3 deletions(-)

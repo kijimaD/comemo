@@ -1,0 +1,17 @@
+commit 770fac4586a9c8c4647cb6ff79443ec246ae32c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 17 15:45:40 2019 -0700
+
+    math/big: avoid MinExp exponent wrap-around in 'x' Text format
+    
+    Fixes #34343.
+    
+    Change-Id: I74240c8f431f6596338633a86a7a5ee1fce70a65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196057
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/floatconv_test.go | 4 ++++
+ src/math/big/ftoa.go           | 3 +--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

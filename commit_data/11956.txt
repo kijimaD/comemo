@@ -1,0 +1,16 @@
+commit aed20a6951948ef7f6edd1f4160fc8c1d3e8df56
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 16 02:01:46 2012 -0200
+
+    encoding/xml: add MarshalIndent and move the example
+    
+    An unindented XML example is hard to follow. MarshalIndent
+    allows moving the example over to a test file (and fixing it).
+    
+    R=golang-dev, r, gustavo, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5674050
+
+ src/pkg/encoding/xml/example_test.go | 43 ++++++++++++++++++
+ src/pkg/encoding/xml/marshal.go      | 87 ++++++++++++++++++++++++------------
+ 2 files changed, 101 insertions(+), 29 deletions(-)

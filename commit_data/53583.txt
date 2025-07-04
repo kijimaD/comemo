@@ -1,0 +1,19 @@
+commit 3891ecbd3551bb9dad706175fc447dcc5c43eacf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 15:15:25 2023 -0400
+
+    go/internal/gcimporter: skip TestImportTypeparamTests if GOROOT/test is missing
+    
+    cmd/distpack removes GOROOT/test, so skip the test if it isn't there.
+    
+    For #24904.
+    
+    Change-Id: Iac381517d0540056b2ccea0dc1bd716113b18468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504117
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

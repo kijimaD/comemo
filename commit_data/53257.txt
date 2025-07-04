@@ -1,0 +1,36 @@
+commit cf624a612743d1ff9d010072f978bd4417c0522d
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Wed Apr 12 11:23:13 2023 +0800
+
+    cmd/asm: refine some APIs related to Prog.RestArgs[]
+    
+    Before this CL, we use GetFrom3&SetFrom3 to get or set a source operand
+    which not fit into Prog.Reg. Those APIs operate the first element in
+    Prog.RestArgs without checking the type so they're fragile to break if
+    we have more than one different type of operands in the slice, which
+    will be a common case in Arm64.
+    
+    This CL deprecates & renames some APIs related to Prog.RestArgs to make
+    those APIs more reasonable and robust than before.
+    
+    Change-Id: I70d56edc1f23ccfffbcd6df34844e2cef2288432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493355
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/asm/internal/asm/asm.go         | 44 ++++++++++-----------
+ src/cmd/compile/internal/amd64/ssa.go   | 16 ++++----
+ src/cmd/compile/internal/arm/ssa.go     |  4 +-
+ src/cmd/compile/internal/arm64/ssa.go   | 12 +++---
+ src/cmd/compile/internal/ppc64/ssa.go   | 28 ++++++-------
+ src/cmd/compile/internal/riscv64/ssa.go |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go   | 18 ++++-----
+ src/cmd/compile/internal/x86/ssa.go     |  2 +-
+ src/cmd/internal/obj/link.go            | 70 +++++++++++++++------------------
+ src/cmd/internal/obj/pass.go            |  4 +-
+ src/cmd/internal/obj/riscv/obj.go       |  2 +-
+ src/cmd/internal/obj/x86/obj6.go        |  2 +-
+ 12 files changed, 99 insertions(+), 105 deletions(-)

@@ -1,0 +1,14 @@
+commit 9dc4b1ca90c6fa3fc2d25c451f655712431f9dd8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 18:45:51 2008 -0800
+
+    make Copyn take and return int64.
+    add Copy.
+    
+    R=gri
+    DELTA=52  (37 added, 1 deleted, 14 changed)
+    OCL=19557
+    CL=19559
+
+ src/lib/io.go | 66 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 15 deletions(-)

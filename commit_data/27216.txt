@@ -1,0 +1,18 @@
+commit d5e3d08b3ad0048c540727b5512f29ecc70ef51a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 15:19:11 2016 -0400
+
+    runtime: use morePointers and isPointer in more places
+    
+    This makes this code better self-documenting and makes it easier to
+    find these places in the future.
+    
+    Change-Id: I31dc5598ae67f937fb9ef26df92fd41d01e983c3
+    Reviewed-on: https://go-review.googlesource.com/22631
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgocall.go | 5 ++---
+ src/runtime/mgcmark.go | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

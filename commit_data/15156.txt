@@ -1,0 +1,12 @@
+commit 514f10b9ab59c3aa7689fad9c22557f7037e8c42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 7 09:58:42 2013 -0800
+
+    net: skip TestMulticastListener on Solaris
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7308060
+
+ src/pkg/net/multicast_posix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

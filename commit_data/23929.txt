@@ -1,0 +1,14 @@
+commit b63fb59de89aef5e8f41969bee8a851ac3946c63
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 31 12:03:48 2015 +1000
+
+    test/bench/shootout: clean up binaries after run
+    
+    Update #11943
+    
+    Change-Id: I3e6592876bf16d2f9129995b723ecf69c069653d
+    Reviewed-on: https://go-review.googlesource.com/12913
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/bench/shootout/timing.sh | 3 +++
+ 1 file changed, 3 insertions(+)

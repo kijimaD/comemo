@@ -1,0 +1,18 @@
+commit a25af2e99e21fe9011d4057cfab1e0cb0ffb3cdb
+Author: Paul Nasrat <pnasrat@google.com>
+Date:   Wed Jan 14 14:32:01 2015 -0500
+
+    runtime: fix runtime-gdb script loading
+    
+    runtime.rtype was a copy of reflect.rtype - update script to use that directly.
+    Introduces a basic test which will skip on systems without appropriate GDB.
+    
+    Fixes #9326
+    
+    Change-Id: I6ec74e947bd2e1295492ca34b3a8c1b49315a8cb
+    Reviewed-on: https://go-review.googlesource.com/2821
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 59 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)

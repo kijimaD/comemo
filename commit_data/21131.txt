@@ -1,0 +1,15 @@
+commit 307e2706cbf4b9bf7247cf8118908a3cdff93fd7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jan 1 22:40:11 2015 +0100
+
+    cmd/gc: update issue tracker link
+    
+    Updated the issue tracker link the compiler prints out
+    when asking for a bug report after an internal error.
+    
+    Change-Id: I092b118130f131c6344d9d058bea4ad6379032b8
+    Reviewed-on: https://go-review.googlesource.com/2218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

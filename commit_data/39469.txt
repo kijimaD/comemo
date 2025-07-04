@@ -1,0 +1,24 @@
+commit b97ec8e57f7a27eea76814bad5c74aa8f0617bb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 27 13:26:51 2019 -0700
+
+    text/scanner: remove AllowDigitSeparator flag again
+    
+    The scanner was changed to accept the new Go number literal syntax
+    of which separators are a part. Making them opt-in is inconsistent
+    with the rest of the changes. For comparison, the strconv package
+    also accepts the new number literals including separators with the
+    various conversion routines, if no explicit number base is given.
+    
+    Updates #28493.
+    
+    Change-Id: Ifaae2225a9565364610813658bfe692901dd3ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184080
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.13.txt                   |  3 ---
+ src/text/scanner/scanner.go      | 30 +++++++++++++++---------------
+ src/text/scanner/scanner_test.go |  3 +--
+ 3 files changed, 16 insertions(+), 20 deletions(-)

@@ -1,0 +1,26 @@
+commit 1f11ea6c41e6ef323e9201649ad4863808342669
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 9 10:30:40 2023 +0200
+
+    cmd/go: fix TestScript/gotoolchain* when go.env doesn't set GOTOOLCHAIN=auto
+    
+    Some of the TestScript/gotoolchain* tests assume that go.env contains
+    GOTOOLCHAIN=auto, but that's not always the case, for example CI
+    environments may set it to `local` to avoid downloading a new toolchain.
+    
+    This commit fixes the tests to work regardless of the value of
+    GOTOOLCHAIN in go.env.
+    
+    Fixes #60685
+    
+    Change-Id: Ieda22574f8a028893762274cf9db721c9d69bf7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go                        | 1 +
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 8 +-------
+ 2 files changed, 2 insertions(+), 7 deletions(-)

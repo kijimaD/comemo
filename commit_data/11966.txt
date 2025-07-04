@@ -1,0 +1,14 @@
+commit dfef0c2dcc829b6d20bf91f9fbab6ed5afc71918
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 17:36:06 2012 +1100
+
+    html/template: clone is implemented elsewhere, so delete this implementation
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5676064
+
+ src/pkg/html/template/clone.go      | 90 -------------------------------------
+ src/pkg/html/template/clone_test.go | 82 ---------------------------------
+ src/pkg/html/template/escape.go     |  2 +-
+ 3 files changed, 1 insertion(+), 173 deletions(-)

@@ -1,0 +1,20 @@
+commit 914c626cae8aaa205198dba839cb8526de3a2046
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Jan 18 21:46:59 2010 -0800
+
+    Significant extension to http.Response, which now adheres to the
+    usage pattern of http.Request and paves the way to persistent connection
+    handling.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/185043
+
+ src/pkg/http/Makefile       |   2 +
+ src/pkg/http/chunked.go     |  56 ++++++
+ src/pkg/http/client.go      |  95 +--------
+ src/pkg/http/request.go     |   9 +-
+ src/pkg/http/response.go    | 480 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rpc/client.go       |   2 +-
+ src/pkg/websocket/client.go |   2 +-
+ 7 files changed, 550 insertions(+), 96 deletions(-)

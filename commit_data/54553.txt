@@ -1,0 +1,21 @@
+commit b7e0dfc437edf6d744dfdf9f4613bee26ea08e31
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 12 09:34:43 2023 -0500
+
+    cmd/compile: add rules to avoid unnecessary MOVDaddr for PPC64
+    
+    This adds some rules to recognize MOVDaddr in those cases where
+    it is just adding 0 to a ptr value. Instead the ptr value can just
+    be used.
+    
+    Change-Id: I95188defc9701165c86bbea70d14d037a9e54853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527698
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 35 +++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

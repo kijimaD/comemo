@@ -1,0 +1,15 @@
+commit 4a7fed4d909ec71f03057692918ac3eb70511190
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 19 19:41:27 2011 -0500
+
+            crypto/twofish: update with rsc's comments
+    
+            TBR=rsc
+    
+    R=rsc
+    CC=berengar.lehr, golang-dev
+    https://golang.org/cl/4050042
+
+ src/pkg/crypto/twofish/twofish.go      | 136 ++++++++++++++++-----------------
+ src/pkg/crypto/twofish/twofish_test.go |   4 +-
+ 2 files changed, 70 insertions(+), 70 deletions(-)

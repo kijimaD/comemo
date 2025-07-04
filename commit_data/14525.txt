@@ -1,0 +1,23 @@
+commit 9c2f410206221473a9773849ab9749c6602ce11a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 29 18:00:51 2012 -0800
+
+    net/http: don't send chunked encoding on 204 responses
+    
+    RFC 2616: "The 204 response MUST NOT include a message-body,
+    and thus is always terminated by the first empty line after
+    the header fields."
+    
+    Previously we'd trigger chunked encoding by default on
+    responses, and then when finishing the request we'd write the
+    chunk trailers, which counted as a message-body.
+    
+    Fixes #4454
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6782139
+
+ src/pkg/net/http/server.go         |  2 ++
+ src/pkg/net/http/transport_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

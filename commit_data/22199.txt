@@ -1,0 +1,12 @@
+commit ffc229935f0f616418260f06a68eec32a38ac6e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 27 14:25:25 2015 +0100
+
+    doc: add more performance items to go1.5.txt
+    
+    Change-Id: Ia7a08bc855db87890d35b2a1667e245ce5ecf472
+    Reviewed-on: https://go-review.googlesource.com/8197
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)

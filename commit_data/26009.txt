@@ -1,0 +1,19 @@
+commit 2faf5bca2e23be26fd0fc3a373bee7a354813861
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 2 11:30:29 2016 -0800
+
+    cmd/compile: introduce linestr helper to simplify line reporting
+    
+    Change-Id: Ic9ca792b55cc4ebd0ac6cfa2fbdb58030893bacd
+    Reviewed-on: https://go-review.googlesource.com/20132
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go  | 10 +++++-----
+ src/cmd/compile/internal/gc/esc.go  | 24 ++++++++++++------------
+ src/cmd/compile/internal/gc/gen.go  |  4 ++--
+ src/cmd/compile/internal/gc/lex.go  |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go  |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go | 20 ++++++++++++--------
+ 6 files changed, 37 insertions(+), 33 deletions(-)

@@ -1,0 +1,18 @@
+commit a680a85ea7f3876c78d093fbb2690db6ca8eda8b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 6 13:04:34 2017 -0700
+
+    cmd/compile/internal/gc: simplify export info
+    
+    Followup to previous typenod CL. Changes export data format, but only
+    the compiler-specific section, so no version bump.
+    
+    Change-Id: I0c21737141f3d257366b29b2a9211bc7217c39ee
+    Reviewed-on: https://go-review.googlesource.com/39797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 11 +----------
+ src/cmd/compile/internal/gc/bimport.go | 10 +---------
+ 2 files changed, 2 insertions(+), 19 deletions(-)

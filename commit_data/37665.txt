@@ -1,0 +1,16 @@
+commit a35ddcc222dc84c5a510f5440713b70c07162b0f
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Dec 12 17:05:06 2018 -0500
+
+    syscall: update doc comment to match behavior for Proc.Call
+    
+    golang.org/cl/147117 increased the number of arguments permitted
+    by Proc.Call on Windows, but the doc comment was never updated.
+    
+    Change-Id: Iea5eb9e0aafbc1025d5fcb8665d028b2254c183a
+    Reviewed-on: https://go-review.googlesource.com/c/153825
+    Reviewed-by: Channing Kimble-Brown <ckimblebrown@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/syscall/dll_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

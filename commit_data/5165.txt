@@ -1,0 +1,12 @@
+commit 299cd38f0ade7762ff20685a74466543eb42d5d2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 29 13:39:16 2010 -0700
+
+    strings.FIelds: slight simplification.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/833042
+
+ src/pkg/strings/strings.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

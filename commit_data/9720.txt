@@ -1,0 +1,23 @@
+commit 9fd26872cb11e603fe91a927c22730061cc3ac0b
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 17 17:57:59 2011 +1000
+
+    runtime: implement pprof support for windows
+    
+    Credit to jp for proof of concept.
+    
+    R=alex.brainman, jp, rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4960057
+
+ src/pkg/runtime/runtime.h              |   3 +
+ src/pkg/runtime/windows/386/defs.h     |   4 ++
+ src/pkg/runtime/windows/386/signal.c   |   6 +-
+ src/pkg/runtime/windows/386/sys.s      |  43 +++++++++----
+ src/pkg/runtime/windows/amd64/defs.h   |   4 ++
+ src/pkg/runtime/windows/amd64/signal.c |   6 +-
+ src/pkg/runtime/windows/amd64/sys.s    |  40 +++++++++---
+ src/pkg/runtime/windows/defs.c         |   6 ++
+ src/pkg/runtime/windows/os.h           |   4 +-
+ src/pkg/runtime/windows/thread.c       | 110 ++++++++++++++++++++++++++++++++-
+ 10 files changed, 192 insertions(+), 34 deletions(-)

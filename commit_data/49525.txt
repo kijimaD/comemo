@@ -1,0 +1,19 @@
+commit 73475ef0350e84b35a6aa1b593448a9497b62440
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 23 17:53:01 2022 -0700
+
+    go/types, types2: print qualified object names in cycle errors
+    
+    Fixes #50788.
+    
+    Change-Id: Id1ed7d9c0687e3005e28598373fd5634178c78ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413895
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go | 22 ++++++++++++++++++----
+ src/go/types/decl.go                    | 22 ++++++++++++++++++----
+ test/fixedbugs/issue50788.dir/a.go      |  9 +++++++++
+ test/fixedbugs/issue50788.dir/b.go      |  9 +++++++++
+ test/fixedbugs/issue50788.go            |  7 +++++++
+ 5 files changed, 61 insertions(+), 8 deletions(-)

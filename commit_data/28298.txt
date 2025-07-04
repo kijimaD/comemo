@@ -1,0 +1,15 @@
+commit f15915af4effbbe6895ae69be02d22ac016927d5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 15:21:12 2016 -0700
+
+    cmd/vet: ignore printf failures in cmd
+    
+    This is a temporary measure to work around #17057.
+    It will be reverted when #17057 is fixed.
+    
+    Change-Id: I21c02f63f3530774c91065cfed5d9c566839ed9f
+    Reviewed-on: https://go-review.googlesource.com/28959
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

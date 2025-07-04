@@ -1,0 +1,30 @@
+commit 4534fdb14424b3805693c49d64e498adff6322b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 6 16:52:14 2014 -0400
+
+    runtime: fix panic stack during runtime.Goexit during panic
+    
+    A runtime.Goexit during a panic-invoked deferred call
+    left the panic stack intact even though all the stack frames
+    are gone when the goroutine is torn down.
+    The next goroutine to reuse that struct will have a
+    bogus panic stack and can cause the traceback routines
+    to walk into garbage.
+    
+    Most likely to happen during tests, because t.Fatal might
+    be called during a deferred func and uses runtime.Goexit.
+    
+    This "not enough cleared in Goexit" failure mode has
+    happened to us multiple times now. Clear all the pointers
+    that don't make sense to keep, not just gp->panic.
+    
+    Fixes #8158.
+    
+    LGTM=iant, dvyukov
+    R=iant, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/102220043
+
+ src/pkg/runtime/proc.c      |  6 ++++++
+ test/fixedbugs/issue8158.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

@@ -1,0 +1,37 @@
+commit 1079a5c08a8682c35c43cd75737ed94b5999d9ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 31 15:15:13 2023 -0700
+
+    go/types, types2: better error message for some inference failures
+    
+    For a unification failure involving a constraint, rather than just
+    reporting (for instance)
+    
+            S does not match []E
+    
+    now report the inferred type for the type parameter, use spec
+    terminology when referring to the constraint, and print the
+    constraint in full:
+    
+            S (type func()) does not satisfy ~[]E
+    
+    There's more we can do, but this is better than what we had.
+    
+    For #60542.
+    
+    Change-Id: I033369fa0dfc475f0ec0da0582e8cbefb109f3cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499639
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go            |  8 ++++++--
+ src/go/types/infer.go                               |  8 ++++++--
+ src/internal/types/testdata/examples/inference.go   | 18 +++++++++++-------
+ src/internal/types/testdata/fixedbugs/issue45985.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue49112.go |  8 ++++----
+ src/internal/types/testdata/fixedbugs/issue51472.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue60542.go | 12 ++++++++++++
+ 7 files changed, 41 insertions(+), 17 deletions(-)

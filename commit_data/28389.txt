@@ -1,0 +1,18 @@
+commit 27eebbabc23366552508f4b13375f8729b90aacb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 00:52:36 2016 -0700
+
+    cmd/compile, runtime: remove throwreturn
+    
+    Change-Id: If8d27cf1cd8d650ed0ba332448d3174d80b6b0ca
+    Reviewed-on: https://go-review.googlesource.com/29217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 198 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
+ src/cmd/compile/internal/gc/go.go              |   2 -
+ src/cmd/compile/internal/gc/pgen.go            |   1 -
+ src/runtime/panic.go                           |   4 -
+ 5 files changed, 99 insertions(+), 107 deletions(-)

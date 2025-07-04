@@ -1,0 +1,52 @@
+commit 8b3df525a28c7aac6f8bc7e8186fe68f2c779737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 17:33:28 2009 -0700
+
+    Modify error regexps to match gccgo error messages.
+    
+    const1.go:23:13: error: integer constant overflow
+    const1.go:25:13: error: integer constant overflow
+    const1.go:26:14: error: integer constant overflow
+    const1.go:27:18: error: integer constant overflow
+    const1.go:28:19: error: integer constant overflow
+    const1.go:29:16: error: integer constant overflow
+    const1.go:29:25: error: integer constant overflow
+    const1.go:30:13: error: integer constant overflow
+    const1.go:33:14: error: integer constant overflow
+    const1.go:34:14: error: integer constant overflow
+    const1.go:36:22: error: integer constant overflow
+    const1.go:37:7: error: integer constant overflow
+    const1.go:38:8: error: integer constant overflow
+    const1.go:39:7: error: integer constant overflow
+    const1.go:40:7: error: integer constant overflow
+    const1.go:41:8: error: integer constant overflow
+    const1.go:44:23: error: integer constant overflow
+    const1.go:46:13: error: integer constant overflow
+    const1.go:47:24: error: integer constant overflow
+    const1.go:48:24: error: integer constant overflow
+    const1.go:49:22: error: integer constant overflow
+    const1.go:51:23: error: integer constant overflow
+    const1.go:52:19: error: division by zero
+    const1.go:58:11: error: division by zero
+    const1.go:43:17: error: integer constant overflow
+    const1.go:45:13: error: integer constant overflow
+    const1.go:55:19: error: floating point overflow
+    const1.go:56:28: error: floating point overflow
+    const1.go:57:11: error: floating point overflow
+    const1.go:64:2: error: argument 0 has wrong type
+    const1.go:65:2: error: argument 0 has wrong type
+    const1.go:66:2: error: argument 0 has wrong type
+    const1.go:68:2: error: argument 0 has wrong type
+    const1.go:69:2: error: argument 0 has wrong type
+    const1.go:70:4: error: floating point constant truncated to integer
+    const1.go:72:2: error: argument 0 has wrong type
+    const1.go:73:2: error: argument 0 has wrong type
+    const1.go:74:2: error: argument 0 has wrong type
+    
+    R=rsc
+    DELTA=34  (0 added, 0 deleted, 34 changed)
+    OCL=26560
+    CL=26560
+
+ test/const1.go | 68 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

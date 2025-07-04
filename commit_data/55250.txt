@@ -1,0 +1,20 @@
+commit fe1b2f95e6dbfb6e6212bb391706ae62eb0ae5ec
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 29 16:09:26 2023 -0500
+
+    doc: describe for loop changes (lifetime, range int; range func experiment)
+    
+    See also https://go.dev/wiki/RangefuncExperiment, written as a companion
+    to this change.
+    
+    For #61422.
+    
+    Change-Id: I129bf38dd2fa4aef47454138b4ca5ed18653aecf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go1.22.html | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

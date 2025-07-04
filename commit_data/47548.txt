@@ -1,0 +1,19 @@
+commit 24898d6948e1651aab909a5abccbfde64dc359cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 10:02:08 2021 -0800
+
+    spec: various clarifications/fixes for method sets and interfaces
+    
+    - fixed a typo in the method set section
+    - express in the syntax that ~T denotes an underlying type
+    - be more precise when talking about types vs type terms
+    - refer to "unions" rather than "union expressions"
+    - make it clear in the spec title that this is WIP
+    
+    Change-Id: I9b2c4b1f77bc50dd574ed6893bedd40529c320fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365154
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)

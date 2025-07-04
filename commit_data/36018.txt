@@ -1,0 +1,24 @@
+commit 1546ab5a3925b07c86f05ccfa4c8b4c2b818790e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Jul 17 08:39:30 2018 +0100
+
+    cmd/compile: keep autos if their address reaches a control value
+    
+    Autos must be kept if their address reaches the control value of a
+    block. We didn't see this before because it is rare for an auto's
+    address to reach a control value without also reaching a phi or
+    being written to memory. We can probably optimize away the
+    comparisons that lead to this scenario since autos cannot alias
+    with pointers from elsewhere, however for now we take the
+    conservative approach and just ensure the auto is properly
+    initialised if its address reaches a control value.
+    
+    Fixes #26407.
+    
+    Change-Id: I02265793f010a9e001c3e1a5397c290c6769d4de
+    Reviewed-on: https://go-review.googlesource.com/124335
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go |  8 +++++
+ test/fixedbugs/issue26407.go              | 58 +++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+)

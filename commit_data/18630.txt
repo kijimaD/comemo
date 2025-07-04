@@ -1,0 +1,17 @@
+commit c7612f3426977332b471acb8f1928a1cd027f896
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 24 18:01:28 2014 -0500
+
+    crypto/tls: report TLS version in ConnectionState.
+    
+    Fixes #7231.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68250043
+
+ src/pkg/crypto/tls/common.go                |  1 +
+ src/pkg/crypto/tls/conn.go                  |  1 +
+ src/pkg/crypto/tls/handshake_server_test.go | 17 +++++++++++++++++
+ 3 files changed, 19 insertions(+)

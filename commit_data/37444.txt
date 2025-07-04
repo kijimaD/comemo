@@ -1,0 +1,19 @@
+commit 108414946ee29d9c997354494a808b86bdd0c209
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Mon Nov 19 22:11:33 2018 +0000
+
+    regexp: add matching and finding examples
+    
+    This commit adds examples for Match, Find,
+    FindAllSubmatch, FindSubmatch and Match functions.
+    
+    Change-Id: I2bdf8c3cee6e89d618109397378c1fc91aaf1dfb
+    GitHub-Last-Rev: 33f34b7adca2911a4fff9638c93e846fb0021465
+    GitHub-Pull-Request: golang/go#28837
+    Reviewed-on: https://go-review.googlesource.com/c/150020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

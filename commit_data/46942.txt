@@ -1,0 +1,27 @@
+commit fe7df4c4d043fc65800bbec7f575c1ba50327aa9
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Tue Oct 19 19:39:21 2021 +0800
+
+    cmd/compile: use MOVBE instruction for GOAMD64>=v3
+    
+    In CL 354670, I copied some existing rules for convenience but forgot
+    to update the last rule which broke `GOAMD64=v3 ./make.bat`
+    
+    Revive CL 354670
+    
+    Change-Id: Ic1e2047c603f0122482a4b293ce1ef74d806c019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356810
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   7 +-
+ src/cmd/compile/internal/amd64/versions_test.go |  27 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   6 +
+ src/cmd/compile/internal/ssa/opGen.go           |  64 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ++++++++++++++++++++++++
+ test/codegen/memcombine.go                      |  36 ++--
+ 7 files changed, 389 insertions(+), 20 deletions(-)

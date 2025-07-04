@@ -1,0 +1,14 @@
+commit cf09920c0f9dcb8ef9c85cf02e51e876e52845e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:46:51 2016 -0700
+
+    cmd/compile: place OIDATA next to OITAB
+    
+    Change-Id: Ia499125714e272af87562de5e5d23e68a112df58
+    Reviewed-on: https://go-review.googlesource.com/31938
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

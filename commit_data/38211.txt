@@ -1,0 +1,39 @@
+commit 83610c90bbe4f5f0b18ac01da3f3921c2f7090e4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 3 18:31:33 2019 +0000
+
+    os/exec: don't use the echo binary for a benchmark
+    
+    Most notably, it's missing on Windows machines. For example,
+    windows-amd64-race started failing consistently:
+    
+            --- FAIL: BenchmarkExecEcho
+                bench_test.go:15: could not find echo: exec: "echo": executable file not found in %PATH%
+    
+    We can also reproduce this from Linux with Wine:
+    
+            $ GOOS=windows go test -bench=. -benchtime=1x -run=- -exec wine
+            --- FAIL: BenchmarkExecEcho
+                bench_test.go:15: could not find echo: exec: "echo": executable file not found in %PATH%
+    
+    Instead, use the "hostname" program, which is available on Windows too.
+    Interestingly enough, it's also slightly faster than "echo". Any program
+    is fine as long as it's close enough to a no-op, though.
+    
+            name        old time/op    new time/op    delta
+            ExecEcho-8     422µs ± 0%     395µs ± 0%  -6.39%  (p=0.004 n=6+5)
+    
+            name        old alloc/op   new alloc/op   delta
+            ExecEcho-8    6.39kB ± 0%    6.42kB ± 0%  +0.53%  (p=0.002 n=6+6)
+    
+            name        old allocs/op  new allocs/op  delta
+            ExecEcho-8      36.0 ± 0%      36.0 ± 0%    ~     (all equal)
+    
+    Change-Id: I772864d69979172b5cf807552c84d0e165e73051
+    Reviewed-on: https://go-review.googlesource.com/c/164704
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/bench_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit f2c36df9a2192bf970eaa410655c3e1776580f83
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 4 15:08:03 2016 -0500
+
+    misc/cgo/testcshared: print a little more about GOROOT on failure
+    
+    For #13789.
+    
+    Change-Id: I83973298a35afcf55627f0a72223098306a51f4b
+    Reviewed-on: https://go-review.googlesource.com/18233
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash | 2 ++
+ 1 file changed, 2 insertions(+)

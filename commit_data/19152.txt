@@ -1,0 +1,14 @@
+commit 44f96d4488fb6f11e7b1a3b7197fd47267e00dd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 20:06:08 2014 -0400
+
+    addr2line, objdump: write doc comments
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/88050046
+
+ src/cmd/addr2line/main.go | 15 +++++++++++++--
+ src/cmd/objdump/main.go   | 28 ++++++++++++++++++++++++++--
+ 2 files changed, 39 insertions(+), 4 deletions(-)

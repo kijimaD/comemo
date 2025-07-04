@@ -1,0 +1,14 @@
+commit 697cb17b30ee6388dc17b7e60d1332455fd91ba4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 17 10:14:29 2008 -0800
+
+    trailing white space
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=21403
+    CL=21415
+
+ src/cmd/gc/mksys.c     | 2 +-
+ src/cmd/gc/sysimport.c | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

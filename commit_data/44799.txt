@@ -1,0 +1,20 @@
+commit 29ed12d4c7e61f6b4cc38d5b3d5eb885294f7878
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 23 15:44:46 2021 -0700
+
+    testing: update permitted number of -race goroutines
+    
+    The value 8128 appears to be correct as of 2021-03-23. The value is
+    determined by the value of kMaxTid currently at
+    
+    https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/tsan/rtl/tsan_defs.h#L68
+    
+    Fixes #45193
+    
+    Change-Id: If4a30d7dbebd6775bede42f565dc8a741b8b036c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304254
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

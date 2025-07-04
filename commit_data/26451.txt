@@ -1,0 +1,13 @@
+commit 77f4b773e72b0840a1ce0b314cba44dff9fbaf31
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Tue Mar 22 06:37:16 2016 +0100
+
+    encoding/json, internal/testenv: use Fatalf
+    
+    Change-Id: I64dd09e76d811000a914776fdad47808e3895690
+    Reviewed-on: https://go-review.googlesource.com/20989
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/encoding/json/decode_test.go | 2 +-
+ src/internal/testenv/testenv.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

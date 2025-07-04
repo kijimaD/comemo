@@ -1,0 +1,17 @@
+commit a142d6587cb6a7ac59ebf49120167c96bdc3bcf6
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Mon Nov 22 01:26:48 2021 +0000
+
+    doc: go1.18 release notes for CLs 323318/332771
+    
+    Updates #47694
+    
+    Change-Id: Ib76737996a701906117e096eb6d05b388576a874
+    GitHub-Last-Rev: 05b96499651bb4e90617460a72f1df9f2c8615f3
+    GitHub-Pull-Request: golang/go#49588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363840
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/go1.18.html | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

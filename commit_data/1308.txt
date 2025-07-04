@@ -1,0 +1,15 @@
+commit f5cfadde4783acd31671c3eca71cb9994c896b53
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 9 16:33:02 2008 -0800
+
+    implement two TODOs in reflect:
+    - delete vestigial SetString method
+    - make type map use interface instead of *interface
+    
+    R=rsc
+    DELTA=31  (0 added, 7 deleted, 24 changed)
+    OCL=20861
+    CL=20863
+
+ src/lib/reflect/type.go | 53 +++++++++++++++++++++----------------------------
+ 1 file changed, 23 insertions(+), 30 deletions(-)

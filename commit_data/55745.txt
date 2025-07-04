@@ -1,0 +1,20 @@
+commit f8654408d65cc9dd839df9589d7d01c1af9d51f0
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Feb 15 08:13:43 2024 -0500
+
+    go/build: add check for allowed vendor packages
+    
+    Add a test that checks that all vendored packages in both src/ and
+    src/cmd are on an allowlist.
+    
+    For #65678.
+    
+    Change-Id: Ie9982f8b69c9c0fc6fef41c9dadeb464ecd7781a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/go/build/vendor_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

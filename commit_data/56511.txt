@@ -1,0 +1,22 @@
+commit 6a05055780e1beef8231ab1e05ffaf5754b1e5b6
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 16 14:08:12 2024 +0000
+
+    go/ast: fix bug handling the result of yield in Preorder
+    
+    Once yield returns false, ast.Preorder must not call yield on any more
+    nodes. Even after the function passed to ast.Inspect returns false, it
+    may be invoked again with a non-nil node. Therefore, we must explicitly
+    truncate the inspection.
+    
+    For #66339
+    
+    Change-Id: I2b01e4e96a2d7aca785467c15ab59da13208c161
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585520
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/ast/walk.go      |  5 +++--
+ src/go/ast/walk_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

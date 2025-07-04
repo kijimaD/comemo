@@ -1,0 +1,18 @@
+commit 7576179aa3de1afc372da5ac9e9d4bcbdf226560
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 11 07:47:41 2013 -0500
+
+    spec: document fp rounding during explicit constant conversion
+    
+    The gc compilers already behave this way. It was an explicit
+    decision during the very long constant design discussions,
+    but it appears not to have made it into the spec.
+    
+    Fixes #4398.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7313069
+
+ doc/go_spec.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

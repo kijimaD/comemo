@@ -1,0 +1,12 @@
+commit 18b39f20ef9743df24a1b0a4fa2bc94e719e5c70
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 17 13:43:59 2010 -0800
+
+    json: fix Fatal call in test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3751041
+
+ src/pkg/json/decode_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

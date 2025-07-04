@@ -1,0 +1,11 @@
+commit c40342252530d69b55ff66f0cff71c2aae01b694
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 15:12:52 2009 -0800
+
+    tag new release at 4015/cb140bac9ab0
+    
+    R=r
+    https://golang.org/cl/154100
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

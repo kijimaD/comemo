@@ -1,0 +1,51 @@
+commit e97bd776f9cb9c1ab781262a4a0827351fc04775
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 3 20:39:23 2023 +0000
+
+    runtime: make the memory limit heap goal headroom proportional
+    
+    Currently if GOGC=off and GOMEMLIMIT is set, then the synchronous
+    scavenger is likely to work fairly often to maintain the limit, since
+    the heap goal goes right up to the edge of the memory limit (minus a
+    fixed 1 MiB of headroom).
+    
+    If the application's allocation rate is high, and page-level
+    fragmentation is high, then most allocations will scavenge.
+    
+    This change mitigates this problem by adding a proportional component
+    to constant headroom added to the memory-limit-based heap goal. This
+    means the runtime will have much more headroom before fragmentation
+    forces memory to be eagerly scavenged.
+    
+    The proportional headroom in this case is 3%, or ~30 MiB for a 1 GiB
+    heap. This technically will increase GC frequency in the GOGC=off case
+    by a tiny amount, but will likely have a positive impact on both
+    allocation throughput and latency that outweighs this difference.
+    
+    I wrote a small program to reproduce this issue and confirmed that the
+    issue is resolved by this patch:
+    
+    https://github.com/golang/go/issues/57069#issuecomment-1551746565
+    
+    This value of 3% is chosen as it seems to be a inflection point in this
+    particular small program. 2% still resulted in quite a bit of eager
+    scavenging work. I confirmed this results in a GC frequency increase of
+    about 3%.
+    
+    This choice is still somewhat arbitrary because the program is
+    arbitrary, so perhaps worth revisiting in the future. Still, it should
+    help a good number of programs.
+    
+    Fixes #57069.
+    
+    Change-Id: Icb9829db0dfefb4fe42a0cabc5aa8d35970dd7d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460375
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go   |  9 ++++----
+ src/runtime/mgcpacer.go      | 51 +++++++++++++++++++++++++++++---------------
+ src/runtime/mgcpacer_test.go | 23 +++++++++++++++-----
+ 3 files changed, 57 insertions(+), 26 deletions(-)

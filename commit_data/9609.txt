@@ -1,0 +1,15 @@
+commit f2460a8c5797888638ee5073460580d494470939
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Sep 7 19:03:11 2011 +0200
+
+    gc: treat DOTMETH like DOT in escape analysis.
+    
+    Fixes #2225
+    
+    R=rsc, nigeltao, dave
+    CC=bradfitz, golang-dev, mikioh.mikioh
+    https://golang.org/cl/4972056
+
+ src/cmd/gc/esc.c | 2 ++
+ test/escape2.go  | 8 ++++++++
+ 2 files changed, 10 insertions(+)

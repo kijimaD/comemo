@@ -1,0 +1,15 @@
+commit 6a060200ccf2f3bb9cc5cf1df84ab1da1f5c3f31
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 17:22:51 2010 -0700
+
+    8g: out of register bug
+    
+    Fixes #806.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1281042
+
+ src/cmd/8g/cgen.c        | 12 ++++++++----
+ test/fixedbugs/bug283.go | 19 +++++++++++++++++++
+ 2 files changed, 27 insertions(+), 4 deletions(-)

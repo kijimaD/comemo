@@ -1,0 +1,20 @@
+commit 41d189a3f68bbda96fcaf83b7db5d69d51c58bcf
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Sep 30 15:04:36 2024 +0000
+
+    text/template: use correct verbs for reflect.Value
+    
+    Fixes #69708.
+    
+    Change-Id: I7a0347aff75cc8dad3f6c36966b1d03822a78dc9
+    GitHub-Last-Rev: fcc15513e48ceae68b846e1dff69b459defb2614
+    GitHub-Pull-Request: golang/go#69713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/text/template/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

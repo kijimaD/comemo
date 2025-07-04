@@ -1,0 +1,13 @@
+commit 4011733d3c6366a5b64bfec70e667554ce406aac
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 15:23:57 2009 -0700
+
+    allow nil user map
+    
+    R=r
+    DELTA=5  (3 added, 0 deleted, 2 changed)
+    OCL=27371
+    CL=27389
+
+ src/lib/template/template.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

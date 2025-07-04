@@ -1,0 +1,28 @@
+commit b78b54ff83bab4587f0df5747f432d1b3e7e6846
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 17:11:32 2017 -0400
+
+    cmd/compile: elide write barriers for copy of notinheap pointers
+    
+    Currently copy and append for types containing only scalars and
+    notinheap pointers still get compiled to have write barriers, even
+    though those write barriers are unnecessary. Fix these to use
+    HasHeapPointer instead of just Haspointer so that they elide write
+    barriers when possible.
+    
+    This fixes the unnecessary write barrier in runtime.recordspan when it
+    grows the h.allspans slice. This is important because recordspan gets
+    called (*very* indirectly) from (*gcWork).tryGet, which is
+    go:nowritebarrierrec. Unfortunately, the compiler's analysis has no
+    hope of seeing this because it goes through the indirect call
+    fixalloc.first, but I saw it happen.
+    
+    Change-Id: Ieba3abc555a45f573705eab780debcfe5c4f5dd1
+    Reviewed-on: https://go-review.googlesource.com/73413
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go |  4 ++--
+ test/notinheap3.go                  | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

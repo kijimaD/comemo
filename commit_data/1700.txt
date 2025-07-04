@@ -1,0 +1,14 @@
+commit 4137f02bb7ffa637fb0f34275e61f80bb95e49da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 19 16:47:58 2009 -0800
+
+    - permit ()'s in types (TODO: update spec)
+    - accept embedded interfaces in interfaces
+    - missing: output incorrect, but at least all source code is accepted again
+    
+    R=r
+    OCL=25223
+    CL=25223
+
+ usr/gri/pretty/parser.go | 35 ++++++++++++++++++++++++-----------
+ 1 file changed, 24 insertions(+), 11 deletions(-)

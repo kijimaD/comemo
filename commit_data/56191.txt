@@ -1,0 +1,26 @@
+commit 16df5330e410cfc702d942eb0cf3707ccdfd2c1d
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Mar 28 15:08:38 2024 +0800
+
+    net: bifurcate the TCP Keep-Alive mechanism into Solaris and illumos
+    
+    Fixes #65812
+    
+    Change-Id: I63facb32eeddbe9b6e0279f1c039779ba2e2ab7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575015
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/tcpconn_keepalive_conf_posix_test.go |   2 +-
+ src/net/tcpconn_keepalive_illumos_test.go    | 120 +++++++++++++++++++++++++++
+ src/net/tcpconn_keepalive_solaris_test.go    |   2 +-
+ src/net/tcpconn_keepalive_test.go            |  11 +--
+ src/net/tcpsock.go                           |   7 ++
+ src/net/tcpsockopt_solaris.go                |   2 +
+ src/net/tcpsockopt_unix.go                   |   2 +-
+ 7 files changed, 136 insertions(+), 10 deletions(-)

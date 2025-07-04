@@ -1,0 +1,13 @@
+commit becf6222cc48c6fa1950eda2ee1f24a8ae4465bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 13:43:19 2009 -0700
+
+    allow &^= in assignments
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=29889
+    CL=29889
+
+ src/lib/go/parser/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

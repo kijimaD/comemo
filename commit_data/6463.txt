@@ -1,0 +1,12 @@
+commit 4138fdd8504ca6decf41e7f9cdd4b189e4a1f849
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 6 23:56:13 2010 +0200
+
+    playground.html: filesystem is not a word.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/2370043
+
+ doc/playground.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

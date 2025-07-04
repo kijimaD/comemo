@@ -1,0 +1,30 @@
+commit 42bb59a37212201eac68006b8bb7a2bcc4f160ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 14:32:48 2015 -0700
+
+    cmd/go, cmd/cgo: support -buildmode=c-archive for gccgo
+    
+    This extends the cgo changes in http://golang.org/cl/8094 to gccgo.
+    It also adds support for setting runtime_iscgo correctly for gccgo;
+    the gc runtime bases the variable on the runtime/cgo package, but
+    gccgo has no equivalent to that package.
+    
+    The go tool supports -buildmode=c-archive for gccgo by linking all the
+    Go objects together using -r.  For convenience this object is then put
+    into an archive file.
+    
+    The go tool now passes -fsplit-stack when building C code for gccgo on
+    386 and amd64.  This is required for using -r and will also cut down
+    on unnecessary stack splits.
+    
+    The go tool no longer applies standard package cgo LDFLAGS when using
+    gccgo.  This is mainly to avoid getting confused by the LDFLAGS in the
+    runtime/cgo package that gccgo does not use.
+    
+    Change-Id: I1d0865b2a362818a033ca9e9e901d0ce250784e7
+    Reviewed-on: https://go-review.googlesource.com/9511
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/cgo/out.go  |  20 +++++++++
+ src/cmd/go/build.go | 118 ++++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 117 insertions(+), 21 deletions(-)

@@ -1,0 +1,14 @@
+commit af848926431da0345fd78c0dba0a513df44ee1cf
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Dec 6 10:52:43 2011 +1100
+
+    godoc: Show type examples between variables and methods.
+    
+    Fixes #2466.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5451094
+
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

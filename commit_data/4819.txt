@@ -1,0 +1,12 @@
+commit 96476b4c3ed246d2840296d647cd5d68cd35c0af
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Feb 9 13:20:22 2010 -0800
+
+    make units compile
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/206044
+
+ src/cmd/goyacc/units.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

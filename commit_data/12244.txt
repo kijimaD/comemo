@@ -1,0 +1,15 @@
+commit 740d5038667d385f99eb42d54381b330390f0417
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Feb 28 11:28:10 2012 +1100
+
+    net: add stubs for NetBSD
+    
+    This fixes the build of package net for GOOS=NetBSD.
+    Of course, a real implementation would be even better.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5693065
+
+ src/pkg/net/sockoptip_netbsd.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

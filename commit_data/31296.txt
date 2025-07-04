@@ -1,0 +1,21 @@
+commit ffd7cfce4b6113280783136b6580f5bca55e27e2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 17:10:58 2017 +0900
+
+    os, syscall: fix errno in Seek on windows
+    
+    Current implementation use EPIPE as an error for Seek on pipes.
+    According to http://pubs.opengroup.org/onlinepubs/009695399/functions/lseek.html,
+    it should use ESPIPE instead.
+    
+    Fixes #20066
+    
+    Change-Id: I24c3b95be946bc19a287d6b10f447b034a9a1283
+    Reviewed-on: https://go-review.googlesource.com/41311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go              | 26 ++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go |  2 +-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

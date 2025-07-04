@@ -1,0 +1,22 @@
+commit 47e3c4bc74f5f260cbc9c5e6d1ababde0a114a97
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Nov 8 18:10:30 2021 -0800
+
+    cmd/compile: disable doubleCheck and remove unused checkDictionary
+    
+    In stencil.go, change doubleCheck to false, which will turn off some
+    double-checking code which isn't needed generally, now that we have lots
+    of tests of end-to-end runs.
+    
+    Also, removed checkDictionary() which is unused and is unlikely to be
+    useful in the future.
+    
+    Change-Id: I4e5acceab80f4904b174422bae21ca82cf04f943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361923
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 50 +------------------------------
+ 1 file changed, 1 insertion(+), 49 deletions(-)

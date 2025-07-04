@@ -1,0 +1,44 @@
+commit 051e99292f0b3551936e841e6aa6484ec66dd906
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 25 12:19:47 2024 +0100
+
+    os: reuse buffer pool more aggressively in readdir
+    
+    We can reuse the buffer pool more aggressively when reading a directory
+    by returning the buffer to the pool as soon as we get to the end of the
+    directory, rather than waiting until the the os.File is closed.
+    
+    This yields a significant memory usage reduction when traversing
+    nested directories recursively via os.File#ReadDir (and friends),
+    as the file pointers tends to be closed only after the entire
+    traversal is done. For example, this pattern is used in os.RemoveAll.
+    These are the improvements observed in BenchmarkRemoveAll:
+    
+    goos: linux
+    goarch: amd64
+    pkg: os
+    cpu: AMD EPYC 7763 64-Core Processor
+                │   old.txt   │            new.txt            │
+                │   sec/op    │   sec/op     vs base          │
+    RemoveAll-4   3.847m ± 2%   3.823m ± 1%  ~ (p=0.143 n=10)
+    
+                │   old.txt    │               new.txt                │
+                │     B/op     │     B/op      vs base                │
+    RemoveAll-4   39.77Ki ± 2%   17.63Ki ± 1%  -55.68% (p=0.000 n=10)
+    
+                │  old.txt   │              new.txt              │
+                │ allocs/op  │ allocs/op   vs base               │
+    RemoveAll-4   510.0 ± 0%   503.0 ± 0%  -1.37% (p=0.000 n=10)
+    
+    Change-Id: I70e1037378a02f1d670ccb7b275ee55f0caa6d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573358
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/os/dir_unix.go       |  7 ++++++-
+ src/os/dir_windows.go    |  7 ++++++-
+ src/os/removeall_test.go | 17 +++++++++++++++++
+ 3 files changed, 29 insertions(+), 2 deletions(-)

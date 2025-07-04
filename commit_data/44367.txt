@@ -1,0 +1,25 @@
+commit 42cd40ee74050391e4714eefa8aeb0242b93b0f5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 12 15:55:25 2021 -0800
+
+    cmd/compile: improve bit test code
+    
+    Some bit test instruction generation stopped triggering after
+    the change to addressing modes. I suspect this was just because
+    ANDQload was being generated before the rewrite rules could discover
+    the BTQ. Fix that by decomposing the ANDQload when it is surrounded
+    by a TESTQ (thus re-enabling the BTQ rules).
+    
+    Fixes #44228
+    
+    Change-Id: I489b4a5a7eb01c65fc8db0753f8cec54097cadb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291749
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 54 ++++++++++++++++++++++++++++
+ test/codegen/bits.go                         |  9 +++++
+ 3 files changed, 68 insertions(+)

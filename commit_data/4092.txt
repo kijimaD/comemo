@@ -1,0 +1,12 @@
+commit 27c3147676ae373cc8b9fc0ba982163fcc4d7f48
+Author: Sergio Luis O. B. Correia <sergio@larces.uece.br>
+Date:   Tue Nov 17 09:02:41 2009 -0800
+
+    Add myself to list of AUTHORS/CONTRIBUTORS for Go.
+    
+    R=rsc
+    https://golang.org/cl/154180
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit f43a8dea92cd84f6ed53cb51904c7c2ed4c89b07
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 10 17:21:03 2015 +0900
+
+    net: disable WriteMsgUDP tests on nacl, windows (fix build)
+    
+    Change-Id: I695b89ec2b63233d94c49c4a40a57b50350ec67c
+    Reviewed-on: https://go-review.googlesource.com/4350
+    TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/udp_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

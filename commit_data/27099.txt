@@ -1,0 +1,17 @@
+commit c4c182140adedf300800778127840e3b8b9f7423
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Apr 23 21:18:34 2016 +0200
+
+    internal/trace: fix event ordering for coarse timestamps
+    
+    Arm arch uses coarse-grained kernel timer as cputicks.
+    As the result sort.Sort smashes trace entirely. Use sort.Stable instead.
+    
+    Change-Id: Idfa017a86a489be58cf239f7fe56d7f4b66b52a9
+    Reviewed-on: https://go-review.googlesource.com/22317
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/trace/order.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

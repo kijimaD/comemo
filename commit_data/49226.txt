@@ -1,0 +1,53 @@
+commit 420a1fb223da8830ca8b30e503fd9bfa7d99be3b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 16 17:49:01 2022 -0400
+
+    all: update vendored golang.org/x/{arch,sys,term} for Go 1.19 release
+    
+    The Go 1.19 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    This CL updates only the lower-level modules arch, sys, term for better
+    bisection. The next CL will update further ones.
+    
+    For #36905.
+    
+    Change-Id: I15f6f8b015f8e425571f4f072d6942c806c6ec3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ .../golang.org/x/arch/arm64/arm64asm/condition.go  |   8 +-
+ .../x/arch/arm64/arm64asm/condition_util.go        |  18 +--
+ .../golang.org/x/arch/arm64/arm64asm/decode.go     |  23 ++-
+ .../golang.org/x/arch/arm64/arm64asm/inst.go       | 158 +++++++++++++++++++++
+ .../golang.org/x/arch/arm64/arm64asm/plan9x.go     |  36 ++---
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     |   3 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   4 +
+ .../vendor/golang.org/x/arch/x86/x86asm/tables.go  |   3 +-
+ src/cmd/vendor/golang.org/x/sys/plan9/syscall.go   |   1 +
+ .../vendor/golang.org/x/sys/plan9/syscall_plan9.go |  10 ++
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   6 +
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   2 +-
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |   2 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 112 +++++++--------
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   2 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  24 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   6 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  24 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   6 +
+ .../golang.org/x/sys/windows/exec_windows.go       |  10 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |   1 -
+ src/cmd/vendor/golang.org/x/term/term.go           |  10 +-
+ src/cmd/vendor/modules.txt                         |   6 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |   4 +-
+ src/vendor/modules.txt                             |   2 +-
+ 29 files changed, 377 insertions(+), 128 deletions(-)

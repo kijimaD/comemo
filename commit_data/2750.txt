@@ -1,0 +1,14 @@
+commit 821897bc966cd9fe841016df089c413eab85f74e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 17 16:22:55 2009 -0700
+
+    - better documentation
+    - code cleanup
+    
+    R=rsc,austin
+    DELTA=28  (12 added, 2 deleted, 14 changed)
+    OCL=31808
+    CL=31810
+
+ src/pkg/bignum/bignum.go | 40 +++++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

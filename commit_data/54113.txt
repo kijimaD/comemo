@@ -1,0 +1,30 @@
+commit 009ca22fe2936c9a7a5a9e5364fe061688b27697
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 17:43:15 2023 -0700
+
+    cmd/compile/internal/typecheck: refactor and simplify DeclFunc
+    
+    This CL refactors typecheck.DeclFunc to require the caller to have
+    already constructed the ir.Func and signature type using ir.NewFunc
+    and types.NewSignature, and simplifies typecheck.DeclFunc to simply
+    return the slices of param and results ONAMEs.
+    
+    typecheck.DeclFunc was the last reason that ir.Field still exists, so
+    this CL also gets rid of that.
+    
+    Change-Id: Ib398420bac2fd135a235810b8af1635fa754965c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520977
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/type.go          | 21 --------
+ src/cmd/compile/internal/pkginit/init.go     | 19 ++++---
+ src/cmd/compile/internal/reflectdata/alg.go  | 48 ++++++++++-------
+ src/cmd/compile/internal/ssagen/abi.go       | 11 ++--
+ src/cmd/compile/internal/staticinit/sched.go |  4 +-
+ src/cmd/compile/internal/typecheck/dcl.go    | 78 +++++++++++-----------------
+ src/cmd/compile/internal/typecheck/subr.go   | 22 ++++----
+ 7 files changed, 93 insertions(+), 110 deletions(-)

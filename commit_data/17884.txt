@@ -1,0 +1,17 @@
+commit a664b4945703f2b92a81e4aafc8c6dcaa796296d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 13 21:29:34 2013 -0500
+
+    doc/asm: more about SP, ARM R11
+    
+    Also rename URL to /doc/asm.
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/26170043
+
+ doc/asm.html      | 53 +++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/5a/doc.go |  2 +-
+ src/cmd/6a/doc.go |  4 ++--
+ src/cmd/8a/doc.go |  2 +-
+ 4 files changed, 49 insertions(+), 12 deletions(-)

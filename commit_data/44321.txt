@@ -1,0 +1,27 @@
+commit 5b76343a1040571e3d2249168a00a4dc814e920a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 13:27:10 2020 -0400
+
+    go/build: prefer //go:build over // +build lines
+    
+    Part of //go:build change (#41184).
+    See https://golang.org/design/draft-gobuild
+    
+    - Reject files with multiple //go:build lines.
+    - If a file has both //go:build and // +build lines, only use the //go:build line.
+    - Otherwise fall back to // +build lines
+    - Use go/build/constraint for parsing both //go:build and // +build lines.
+    
+    For Go 1.17.
+    
+    Change-Id: I32e2404d8ce266230f767718dc7cc24e77b425e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240607
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go      | 139 +++++++++++++++++++++------------------------
+ src/go/build/build_test.go |  88 +++++++++++++++++++---------
+ src/go/build/deps_test.go  |   2 +-
+ 3 files changed, 127 insertions(+), 102 deletions(-)

@@ -1,0 +1,15 @@
+commit a65a095ca423c21bdd53a6a8300b501b88d60137
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Sat Apr 24 16:19:07 2021 +0200
+
+    cmd/go/internal/bug: remove duplicate code
+    
+    Change-Id: I8a14b2fbb44f7ed1ea126cf27adc447f33fdf6f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313170
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/bug/bug.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

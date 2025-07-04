@@ -1,0 +1,17 @@
+commit 45bae64015975a4d7ede597a55397545571d8bc5
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Thu Nov 25 09:41:06 2021 +0800
+
+    A+C: add Chaoqun Han (individual CLA)
+    
+    Change-Id: Id4aa067ef84510a31992d7d32cc697dd8b8342f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367035
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

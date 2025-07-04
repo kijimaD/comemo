@@ -1,0 +1,12 @@
+commit faf611a07a7630a075fba3a555db7831e002122a
+Author: Brady Sullivan <brady@bsull.com>
+Date:   Fri Sep 16 15:25:07 2016 -0700
+
+    net/http: rename Post's parameter from bodyType to contentType
+    
+    Change-Id: Ie1b08215c02ce3ec72a4752f4b800f23345ff99d
+    Reviewed-on: https://go-review.googlesource.com/29362
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

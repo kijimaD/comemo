@@ -1,0 +1,56 @@
+commit 46f138f288cf5c8a34cf5688cb6bea9deafb4f84
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 10:49:57 2022 -0500
+
+    cmd/compile, go/types: fix checking of bad type switch
+    
+    Consider the following program:
+    
+            package p
+    
+            func f() {
+                    x := 1
+                    v := 2
+                    switch v.(type) {
+                    case int:
+                            println(x)
+                            println(x / 0)
+                    case 1:
+                    }
+            }
+    
+    Before this CL, the compiler prints:
+    
+            x.go:4:2: x declared but not used
+            x.go:6:9: v (variable of type int) is not an interface
+    
+    x is in fact used, and other errors in the switch go undiagnosed.
+    
+    This commit fixes that problem by processing the switch statement
+    even when the 'not an interface' error is reported.
+    
+    Now the compiler drops the spurious 'declared but not used'
+    and adds two previously undiagnosed problems:
+    
+            x.go:6:9: v (variable of type int) is not an interface
+            x.go:9:15: invalid operation: division by zero
+            x.go:10:7: 1 is not a type
+    
+    go/types was printing roughly the same thing the compiler did before,
+    and now still prints roughly the same thing the compiler does after.
+    (The only differences are in the exact reported columns.)
+    
+    Fixes #50493.
+    
+    Change-Id: I317883f29077b1b4bbd0e8793617fd3bb31aa0f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379117
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/stmt.go                  | 15 ++++++++-------
+ src/cmd/compile/internal/types2/testdata/check/stmt0.src | 14 +++++++++++++-
+ src/go/types/stmt.go                                     | 14 +++++++-------
+ src/go/types/testdata/check/stmt0.src                    | 14 +++++++++++++-
+ 4 files changed, 41 insertions(+), 16 deletions(-)

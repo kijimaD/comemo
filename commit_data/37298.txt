@@ -1,0 +1,15 @@
+commit 67018e9b684d1a9686a37053307476cd32358c17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 16:29:04 2018 -0700
+
+    cmd/go: document the go statement in a go.mod file
+    
+    Change-Id: I8db276ec371de56871ce3250f27de1d1dee4b473
+    Reviewed-on: https://go-review.googlesource.com/c/147279
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 15 +++++++++------
+ src/cmd/go/internal/modload/help.go | 15 +++++++++------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

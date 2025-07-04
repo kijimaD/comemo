@@ -1,0 +1,19 @@
+commit a34a97d88d9aac5f0ca8422243ea15c89fa8d880
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 00:25:32 2022 +0700
+
+    cmd/compile: disable append of make test on noopt builder
+    
+    Updates #53888
+    
+    Change-Id: I34ef2c5bd23816e1991cfec2bef4cae72676b523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422037
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/test/issue53888_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

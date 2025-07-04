@@ -1,0 +1,20 @@
+commit 0deb49f9c09d15bf0e4c5ec843bd374f9a377e97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 13 11:55:30 2016 -0700
+
+    cmd/go: include .syso files even if CGO_ENABLED=0
+    
+    A .syso file may include information that should go into the object file
+    that is not object code, and should be included even if not using cgo.
+    The example in the issue is a Windows manifest file.
+    
+    Fixes #16050.
+    
+    Change-Id: I1f4f3f80bb007e84d153ca2d26e5919213ea4f8d
+    Reviewed-on: https://go-review.googlesource.com/24032
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/go/go_test.go | 22 ++++++++++++++++++++++
+ src/cmd/go/pkg.go     |  3 ++-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

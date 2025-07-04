@@ -1,0 +1,35 @@
+commit 81c9b1d65f3e416e134a30484c4bd6563aa825b5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 17 01:02:26 2022 +0700
+
+    cmd/compile: fix broken IR for iface -> eface
+    
+    For implementing interface to empty interface conversion, the compiler
+    generate code like:
+    
+            var res *uint8
+            res = itab
+            if res != nil {
+                    res = res.type
+            }
+    
+    However, itab has type *uintptr, so the assignment is broken. The
+    problem is not shown up, until CL 450215, which call typecheck on this
+    broken assignment.
+    
+    To fix this, just cast itab to *uint8 when doing the conversion.
+    
+    Fixes #56768
+    
+    Change-Id: Id42792d18e7f382578b40854d46eecd49673792c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451256
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/walk/convert.go |  8 ++++---
+ test/fixedbugs/issue56768.go             | 37 ++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

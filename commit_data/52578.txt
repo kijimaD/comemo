@@ -1,0 +1,33 @@
+commit ee522e2cdad04a43bc9374776483b6249eb97ec9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Apr 6 06:11:14 2023 +1000
+
+    cmd/compile/internal/amd64: improve fix up code for signed division
+    
+    In order to avoid a CPU exception resulting from signed overflow, the signed
+    division code tests if the divisor is -1 and if it is, runs fix up code to
+    manually compute the quotient and remainder (thus avoiding IDIV and potential
+    signed overflow).
+    
+    However, the way that this is currently structured means that the normal code
+    path for the case where the divisor is not -1 results in five instructions
+    and two branches (CMP, JEQ, followed by sign extension, IDIV and another JMP
+    to skip over the fix up code).
+    
+    Rework the fix up code such that the final JMP is incurred by the less likely
+    divisor is -1 code path, rather than more likely code path (which is already
+    more expensive due to IDIV). This result in a four instruction sequence
+    (CMP, JNE, sign extension, IDIV), with only a single branch.
+    
+    Updates #59089
+    
+    Change-Id: Ie8d065750a178518d7397e194920b201afeb0530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482658
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go | 36 +++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

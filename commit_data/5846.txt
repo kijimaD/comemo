@@ -1,0 +1,15 @@
+commit f6b93ab432dd43d030ecfc7240e8282a7d7e409a
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 19 16:10:46 2010 -0700
+
+    change floating literal normalization
+    from word-oriented to bit-oriented.
+    this will increase fp literal precision
+    by up to a full word.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1859044
+
+ src/cmd/gc/mparith3.c | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)

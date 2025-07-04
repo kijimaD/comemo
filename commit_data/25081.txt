@@ -1,0 +1,21 @@
+commit 17360accab554328f61bf7c057e05e0aea585140
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 17:03:01 2015 -0800
+
+    cmd/cgo: make the char * pointer in GoString const
+    
+    This makes it more convenient for C code to use GoString with string
+    constants.  Since Go string values are immutable, the const qualifier is
+    appropriate in C.
+    
+    Change-Id: I5fb3cdce2ce5079f1f0467a1544bb3a1eb27b811
+    Reviewed-on: https://go-review.googlesource.com/17067
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/callback.go  | 17 +++++++++++++++++
+ misc/cgo/test/callback_c.c |  8 ++++++++
+ misc/cgo/test/cgo_test.go  |  1 +
+ src/cmd/cgo/out.go         |  2 +-
+ 4 files changed, 27 insertions(+), 1 deletion(-)

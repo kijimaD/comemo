@@ -1,0 +1,20 @@
+commit 9a57fa31ff35024b9f628e7eae39bfd35bf90d77
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 16:09:16 2016 -0700
+
+    net/http: document ResponseWriter read-vs-write concurrency rules
+    
+    Summary: Go's HTTP/1.x server closes the request body once writes are
+    flushed. Go's HTTP/2 server supports concurrent read & write.
+    
+    Added a TODO to make the HTTP/1.x server also support concurrent
+    read+write. But for now, document it.
+    
+    Updates #15527
+    
+    Change-Id: I81f7354923d37bfc1632629679c75c06a62bb584
+    Reviewed-on: https://go-review.googlesource.com/23011
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

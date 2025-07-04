@@ -1,0 +1,20 @@
+commit ab331c0254d4462dde6640ec9b00fecc828f4162
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 14 19:43:31 2021 +0100
+
+    runtime/cgo: use correct lean and mean macro
+    
+    WIN64_LEAN_AND_MEAN is not the correct macro to use and doesn't ever
+    exist.
+    
+    Change-Id: I32a5523cc0f7cc3f3a4d022071cf81f88db39aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291634
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 2 +-
+ src/runtime/cgo/gcc_windows_amd64.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

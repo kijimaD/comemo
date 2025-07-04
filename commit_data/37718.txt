@@ -1,0 +1,21 @@
+commit e4535772ca3f11084ee5fa4d4bd3a542e143b80f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 15 18:52:26 2018 +1100
+
+    os: make Stat work on FAT file system
+    
+    It appears calling GetFileInformationByHandleEx with
+    FILE_ATTRIBUTE_TAG_INFO fails on FAT file system. FAT does not
+    support symlinks, so assume there are no symlnks when
+    GetFileInformationByHandleEx returns ERROR_INVALID_PARAMETER.
+    
+    Fixes #29214
+    
+    Change-Id: If2d9f3288bd99637681ab5fd4e4581c77b578a69
+    Reviewed-on: https://go-review.googlesource.com/c/154377
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/types_windows.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

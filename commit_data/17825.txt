@@ -1,0 +1,16 @@
+commit 7d9acff7511c85ee6d187bdb33b3237f0c04df55
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 21 19:01:24 2013 -0400
+
+    crypto/x509: name constraints should be a disjunction.
+    
+    The code was requiring that all constraints be met, but it should be
+    satisfied by meeting *any* of them.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/15570044
+
+ src/pkg/crypto/x509/verify.go      |   6 +-
+ src/pkg/crypto/x509/verify_test.go | 183 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 188 insertions(+), 1 deletion(-)

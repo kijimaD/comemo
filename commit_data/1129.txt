@@ -1,0 +1,14 @@
+commit e875055461d9b99fb4dfe2d8022098578a27a17e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Nov 14 16:24:27 2008 -0800
+
+    switch
+    
+    R=r
+    OCL=19288
+    CL=19288
+
+ src/cmd/6g/gen.c      | 175 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/gc/walk.c     |   6 +-
+ src/runtime/hashmap.c |   2 +-
+ 3 files changed, 175 insertions(+), 8 deletions(-)

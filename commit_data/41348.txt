@@ -1,0 +1,20 @@
+commit 4f020a52c5830a490d7e0f76b221ac51d32f1305
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Tue Nov 26 13:45:15 2019 -0500
+
+    crypto/x509: correct error message for trailing issuer data
+    
+    The error message for trailing data after the X.509 issuer should
+    correctly state "issuer" instead of "subject", which appears just above
+    this code.
+    
+    Fixes #35841
+    
+    Change-Id: Iea2605ce97f2b084eb78e88f2c27d7d43749d022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208978
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

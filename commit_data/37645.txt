@@ -1,0 +1,21 @@
+commit f36a53e95ca86cc57349dc9320f9d87fef783708
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Dec 5 17:27:24 2018 +0100
+
+    go/internal/gccgoimporter: add XCOFF support
+    
+    This commit adds support to read XCOFF files and AIX big archives in
+    go/internal/gccgoimporter.
+    
+    Fixes: #29113
+    
+    Change-Id: Id84d40358ff98fae5a576d1ebdd65980896365b9
+    Reviewed-on: https://go-review.googlesource.com/c/152720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/build/deps_test.go                 |  2 +-
+ src/go/internal/gccgoimporter/ar.go       | 27 ++++++++++++++++++++++++--
+ src/go/internal/gccgoimporter/importer.go | 32 ++++++++++++++++++++++---------
+ 3 files changed, 49 insertions(+), 12 deletions(-)

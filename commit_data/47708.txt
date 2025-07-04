@@ -1,0 +1,23 @@
+commit 9ecb853cf2252f3cd9ed2e7b3401d17df2d1ab06
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 6 13:33:54 2021 -0500
+
+    doc/go1.18: minor tweaks to generics section
+    
+    This CL reorders the bullet points in the generics section to more
+    closely match what I think users will consider most important. I put
+    the ~ token before the mention of ~T in interfaces to avoid a forward
+    reference, though I wonder if we actually want to spent a couple more
+    sentences saying what union and ~T types are, since most people are
+    going to care about that a lot more than they care about the low-level
+    detail that there's a new token.
+    
+    For #47694.
+    
+    Change-Id: Ib84f096ef6346a711801268ce362b64fa423d3f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369734
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

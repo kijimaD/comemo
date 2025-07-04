@@ -1,0 +1,85 @@
+commit 360962420c484427bbc16e1f8699ee5cccc4f012
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 14:58:14 2009 -0800
+
+    casify, cleanup sys
+    
+    R=r
+    OCL=22978
+    CL=22984
+
+ doc/progs/cat.go               |   4 +-
+ doc/progs/cat_rot13.go         |   4 +-
+ doc/progs/helloworld3.go       |   2 +-
+ src/cmd/gc/export.c            |   5 +-
+ src/cmd/gc/sys.go              | 163 ++++++++++++++++++++---------------------
+ src/cmd/gc/sysimport.c         | 149 ++++++++++++++++++-------------------
+ src/lib/flag.go                |  20 ++---
+ src/lib/fmt/print.go           |   5 +-
+ src/lib/math/exp.go            |   8 +-
+ src/lib/math/floor.go          |   4 +-
+ src/lib/math/fmod.go           |   6 +-
+ src/lib/math/log.go            |   4 +-
+ src/lib/math/pow.go            |   6 +-
+ src/lib/math/sin.go            |   4 +-
+ src/lib/math/sqrt.go           |   4 +-
+ src/lib/math/tan.go            |   2 +-
+ src/lib/os/os_env.go           |   7 +-
+ src/lib/reflect/type.go        |   9 ++-
+ src/lib/reflect/value.go       |   6 +-
+ src/lib/regexp/regexp.go       |   9 ++-
+ src/lib/strconv/atof.go        |   4 +-
+ src/lib/strconv/ftoa.go        |   4 +-
+ src/lib/sync/mutex.go          |   8 +-
+ src/lib/sync/mutex_test.go     |  12 +--
+ src/lib/testing.go             |   4 +-
+ src/libmach_amd64/darwin.c     |   8 ++
+ src/runtime/Makefile           |   1 -
+ src/runtime/chan.c             |  10 +--
+ src/runtime/iface.c            |   8 +-
+ src/runtime/proc.c             |  15 ++--
+ src/runtime/rt0_amd64.s        |   4 +-
+ src/runtime/rt1_amd64_darwin.c |   4 +-
+ src/runtime/rt1_amd64_linux.c  |   6 +-
+ src/runtime/rt2_amd64.c        |   2 +-
+ src/runtime/rune.c             | 133 ---------------------------------
+ src/runtime/runtime.c          | 101 +++++++++++--------------
+ src/runtime/runtime.h          |  22 +++---
+ src/runtime/sema.c             |  10 +--
+ src/runtime/sys_amd64_darwin.s |   2 +-
+ src/runtime/sys_amd64_linux.s  |   6 +-
+ src/runtime/sys_file.c         |  75 -------------------
+ test/235.go                    |   2 +-
+ test/args.go                   |   6 +-
+ test/bugs/bug130.go            |   2 +-
+ test/chan/fifo.go              |   2 +-
+ test/chan/goroutines.go        |   6 +-
+ test/chan/nonblock.go          |   2 +-
+ test/chan/powser1.go           |   4 +-
+ test/chan/powser2.go           |   4 +-
+ test/chan/sieve.go             |   2 +-
+ test/char_lit.go               |   4 +-
+ test/env.go                    |   6 +-
+ test/fixedbugs/bug006.go       |   2 +-
+ test/fixedbugs/bug059.go       |   2 +-
+ test/fixedbugs/bug060.go       |   2 +-
+ test/fixedbugs/bug097.go       |   4 +-
+ test/fixedbugs/bug120.go       |   2 +-
+ test/if1.go                    |   4 +-
+ test/int_lit.go                |   4 +-
+ test/interface4.go             |   2 +-
+ test/interface6.go             |   2 +-
+ test/ken/chan.go               |  14 ++--
+ test/readfile.go               |   6 +-
+ test/string_lit.go             |   4 +-
+ test/switch1.go                |   4 +-
+ test/utf.go                    |   8 +-
+ usr/gri/gosrc/compilation.go   |  12 +--
+ usr/gri/gosrc/go.go            |   4 +-
+ usr/gri/gosrc/scanner.go       |   4 +-
+ usr/gri/gosrc/test_scanner.go  |  14 ++--
+ usr/gri/pretty/compilation.go  |   2 +-
+ usr/gri/pretty/platform.go     |  64 +++++++++-------
+ usr/gri/pretty/pretty.go       |   6 +-
+ usr/gri/pretty/untab.go        |   2 +-
+ 74 files changed, 430 insertions(+), 638 deletions(-)

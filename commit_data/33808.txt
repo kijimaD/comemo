@@ -1,0 +1,12 @@
+commit ba2db584c77feda13f0a6df3ebf5a225bf0a8225
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Dec 6 16:15:08 2017 +0100
+
+    doc: fix spelling in editor guide
+    
+    Change-Id: If16f069f410d043fd11864a4c1a7d54b5b4922d2
+    Reviewed-on: https://go-review.googlesource.com/82200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

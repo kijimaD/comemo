@@ -1,0 +1,15 @@
+commit 73b8baa1bdd76e0e5d898243c9d1d4ee2e6268e3
+Author: Ryan Slade <ryanslade@gmail.com>
+Date:   Thu Aug 8 10:00:24 2013 -0700
+
+    net/mail: AddressList fails to parse addresses with a dot
+    
+    Fixes #4938.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12657044
+
+ src/pkg/net/mail/message.go      |  2 +-
+ src/pkg/net/mail/message_test.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

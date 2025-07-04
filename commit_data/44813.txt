@@ -1,0 +1,15 @@
+commit 4d66d77cd22812de4526e3973bc3314040a939a5
+Author: Elias506 <56119080+Elias506@users.noreply.github.com>
+Date:   Thu Mar 25 14:46:15 2021 +0000
+
+    database/sql: remove unnecessary types in composite literals
+    
+    Change-Id: I30c576f826c82cbc62ce28ea7f4886702bd6605d
+    GitHub-Last-Rev: 2fead200dba13ec74d81e842d8bae97d1e67fcc4
+    GitHub-Pull-Request: golang/go#42618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270000
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ src/database/sql/fakedb_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

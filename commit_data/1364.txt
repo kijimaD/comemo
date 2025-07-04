@@ -1,0 +1,27 @@
+commit e29ce175eda2016b93e755b6a5ae759b5b692834
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 15:42:28 2008 -0800
+
+    malloc in runtime (not used by default)
+    
+    R=r
+    DELTA=1551  (1550 added, 0 deleted, 1 changed)
+    OCL=21404
+    CL=21538
+
+ src/lib/Makefile        |   1 +
+ src/lib/malloc.go       |  19 +++
+ src/runtime/Makefile    |   6 +
+ src/runtime/malloc.c    | 169 ++++++++++++++++++++++
+ src/runtime/malloc.h    | 364 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mcache.c    |  61 ++++++++
+ src/runtime/mcentral.c  | 191 +++++++++++++++++++++++++
+ src/runtime/mfixalloc.c |  52 +++++++
+ src/runtime/mheap.c     | 361 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/msize.c     | 164 ++++++++++++++++++++++
+ src/runtime/proc.c      |   5 +
+ src/runtime/runtime.h   |   5 +-
+ test/malloc1.go         |  26 ++++
+ test/mallocrand.go      |  86 ++++++++++++
+ test/mallocrep.go       |  56 ++++++++
+ 15 files changed, 1565 insertions(+), 1 deletion(-)

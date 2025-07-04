@@ -1,0 +1,12 @@
+commit 1c675ac89de6be3adff87047c62b4352b0da0310
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 5 09:34:52 2012 +1000
+
+    cmd/gc: add commentary to the OXXX constants.
+    
+    R=rsc, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6495074
+
+ src/cmd/gc/go.h | 237 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 153 insertions(+), 84 deletions(-)

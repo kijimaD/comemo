@@ -1,0 +1,25 @@
+commit 81d567146eb94678d401e282f99885010411df39
+Author: David Chase <drchase@google.com>
+Date:   Fri May 13 12:09:21 2022 -0400
+
+    runtime: add go:yeswritebarrierrec to panic functions
+    
+    Panic avoids any write barriers in the runtime by checking first
+    and throwing if called inappropriately, so it is "okay".  Adding
+    this annotation repairs recursive write barrier checking, which
+    becomes more thorough when the local package naming convention
+    is changed from "" to the actual package name.
+    
+    This CL is a prerequisite for a pending code cleanup,
+    https://go-review.googlesource.com/c/go/+/393715
+    
+    Updates #51734.
+    
+    Change-Id: If831a3598c6c8cd37a8e9ba269f822cd81464a13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405900
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/runtime/panic.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,0 +1,25 @@
+commit 0e6a6c510f870709ac7bba8470bed7f862f579b1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 15:05:08 2015 -0400
+
+    runtime: simplify process for starting GC goroutine
+    
+    Currently, when allocation reaches the GC trigger, the runtime uses
+    readyExecute to start the GC goroutine immediately rather than wait
+    for the scheduler to get around to the GC goroutine while the mutator
+    continues to grow the heap.
+    
+    Now that the scheduler runs the most recently readied goroutine when a
+    goroutine yields its time slice, this rigmarole is no longer
+    necessary. The runtime can simply ready the GC goroutine and yield
+    from the readying goroutine.
+    
+    Change-Id: I3b4ebadd2a72a923b1389f7598f82973dd5c8710
+    Reviewed-on: https://go-review.googlesource.com/9292
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go   | 22 +++++++++-------------
+ src/runtime/proc1.go | 39 ---------------------------------------
+ 2 files changed, 9 insertions(+), 52 deletions(-)

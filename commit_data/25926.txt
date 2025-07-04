@@ -1,0 +1,17 @@
+commit 5c613e9162aad2ea171d401754d97ea2be1442ce
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 16:18:34 2016 +0000
+
+    sync/atomic: new file for plan9_arm support
+    
+    Atomic load/store/add/swap routines, as for other ARM platforms, but with DMB inserted
+    for load/store (assuming that "atomic" also implies acquire/release memory ordering).
+    
+    Change-Id: I70a283d8f0ae61a66432998ce59eac76fd940c67
+    Reviewed-on: https://go-review.googlesource.com/18965
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/asm_plan9_arm.s | 108 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 108 insertions(+)

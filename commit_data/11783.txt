@@ -1,0 +1,21 @@
+commit e0b2ce34017472c684dfceae23879925711e0f88
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Feb 10 22:50:55 2012 +0100
+
+    cmd/gc: suspend safemode during typecheck of inlined bodies.
+    
+    Should be obviously correct.  Includes minimal test case.
+    A future CL should clear up the logic around typecheckok and importpkg != nil someday.
+    
+    R=rsc, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5652057
+
+ src/cmd/gc/inl.c       | 72 +++++++++++++++++++++++++++++++++++++++++++++-----
+ test/golden.out        |  2 ++
+ test/run               |  2 +-
+ test/safe/main.go      | 14 ++++++++++
+ test/safe/nousesafe.go |  8 ++++++
+ test/safe/pkg.go       | 16 +++++++++++
+ test/safe/usesafe.go   |  8 ++++++
+ 7 files changed, 115 insertions(+), 7 deletions(-)

@@ -1,0 +1,24 @@
+commit 35f2aba2830483270249d4f34250e38af88bd33d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 25 11:14:48 2022 -0400
+
+    os: skip TestRemoveAllRace on dragonfly
+    
+    This test occasionally fails on the dragonfly-amd64 builder with
+    "directory not empty". Since that is the only platform on which we
+    observe these failures, and since the test had a different (and also
+    invalid-looking) failure mode prior to this one (in #50716), we
+    suspect that it is due to either a bug in the platform or a
+    platform-specific Go bug.
+    
+    For #52301.
+    
+    Change-Id: Id36c499651b9c48e6b8b0107d01f73d2a7b6bab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402155
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

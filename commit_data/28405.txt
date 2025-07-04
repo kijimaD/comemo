@@ -1,0 +1,17 @@
+commit e888b81a11df98d352580358e1ba524d05904d69
+Author: Vitor De Mario <vitordemario@gmail.com>
+Date:   Thu Sep 15 20:46:20 2016 -0300
+
+    doc: change variable name in Effective Go
+    
+    Effective Go has references to a function call f(c, req) made by ServeHTTP mixed with f(w,
+    req). c is dropped in favor of w to maintain consistency
+    
+    Fixes #17128
+    
+    Change-Id: I6746fd115ed5a58971fd24e54024d29d18ead1fa
+    Reviewed-on: https://go-review.googlesource.com/29311
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

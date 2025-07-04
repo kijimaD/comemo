@@ -1,0 +1,13 @@
+commit ffd0961313423d51bddf2fa46a384fd3a13e3fe8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 11:54:12 2010 -0800
+
+    godoc: fix initialization issue
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/207111
+
+ src/cmd/godoc/godoc.go | 2 +-
+ src/cmd/godoc/main.go  | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

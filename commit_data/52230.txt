@@ -1,0 +1,19 @@
+commit ad3ea0134f5013ab14c38e72a4daddf95b8443ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 9 14:44:46 2023 -0800
+
+    cmd/compile/internal/types2: record error code in Error struct
+    
+    go/types already does this, if slightly differently.
+    
+    Change-Id: I9cf5f493714d865deec5ad23e2ee9b5c5d3f2f0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475197
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go    | 2 ++
+ src/cmd/compile/internal/types2/errors.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 2e90192b0e774f44a2d918509e0bd32823ce5c2c
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sun Mar 27 10:06:12 2016 +0300
+
+    cmd/link: refactor symbol lookup
+    
+    Calling the read only Linkrlookup will now not cause the name
+    string to escape. So a lookup can be performed on a []byte
+    casted to a string without allocating. This will help a followup
+    cl and it is also much simpler and cleaner.
+    Performance not impacted by this.
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.51 ± 6%  0.51 ± 5%   ~     (p=0.192 n=98+98)
+    
+    Change-Id: I7846ba3160eb845a3a29cbf0be703c47369ece16
+    Reviewed-on: https://go-review.googlesource.com/21187
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/ldelf.go   |  2 +-
+ src/cmd/link/internal/ld/ldmacho.go |  2 +-
+ src/cmd/link/internal/ld/ldpe.go    |  2 +-
+ src/cmd/link/internal/ld/link.go    | 12 ++++----
+ src/cmd/link/internal/ld/objfile.go |  2 +-
+ src/cmd/link/internal/ld/sym.go     | 59 +++++++++++--------------------------
+ 6 files changed, 28 insertions(+), 51 deletions(-)

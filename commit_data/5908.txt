@@ -1,0 +1,14 @@
+commit 2c0bbf99b94a96b27eff2bcdaab406500ebd1366
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 29 10:50:09 2010 -0700
+
+    fmt.Print: fix bug in placement of spaces introduced when ...T went in.
+    Fixes #976.
+    
+    R=rsc, chris tighe, r
+    CC=golang-dev
+    https://golang.org/cl/1697057
+
+ src/pkg/fmt/fmt_test.go | 20 ++++++++++++++++++++
+ src/pkg/fmt/print.go    | 10 +++++-----
+ 2 files changed, 25 insertions(+), 5 deletions(-)

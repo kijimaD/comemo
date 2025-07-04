@@ -1,0 +1,18 @@
+commit da360f30e90fe1a2766f8748b65c17fbffa25392
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 24 07:22:26 2017 -0700
+
+    cmd/go: always copy files on Windows
+    
+    Copying ensures that we respect the NTFS permissions of the parent folder.
+    I don't know if there is a way to tell when it is safe to simply rename.
+    
+    Fixes #22343
+    
+    Change-Id: I424bfe655b53b0e0fe425ce92bbc15450d52d851
+    Reviewed-on: https://go-review.googlesource.com/72910
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/go/internal/work/exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

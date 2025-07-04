@@ -1,0 +1,16 @@
+commit da0d23e5cdb305681a55c5475ff2db3e9a254cd4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 10 17:07:42 2017 +0000
+
+    runtime: remove unused ratep parameter
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: Iabcdfec2ae42c735aa23210b7183080d750682ca
+    Reviewed-on: https://go-review.googlesource.com/38030
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,57 @@
+commit d324f2143b2b7dade319ce70261f3441041710e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 30 09:40:01 2011 -0400
+
+    runtime: parallelize garbage collector mark + sweep
+    
+    Running test/garbage/parser.out.
+    
+    On a 4-core Lenovo X201s (Linux):
+    31.12u 0.60s 31.74r      1 cpu, no atomics
+    32.27u 0.58s 32.86r      1 cpu, atomic instructions
+    33.04u 0.83s 27.47r      2 cpu
+    
+    On a 16-core Xeon (Linux):
+    33.08u 0.65s 33.80r      1 cpu, no atomics
+    34.87u 1.12s 29.60r      2 cpu
+    36.00u 1.87s 28.43r      3 cpu
+    36.46u 2.34s 27.10r      4 cpu
+    38.28u 3.85s 26.92r      5 cpu
+    37.72u 5.25s 26.73r      6 cpu
+    39.63u 7.11s 26.95r      7 cpu
+    39.67u 8.10s 26.68r      8 cpu
+    
+    On a 2-core MacBook Pro Core 2 Duo 2.26 (circa 2009, MacBookPro5,5):
+    39.43u 1.45s 41.27r      1 cpu, no atomics
+    43.98u 2.95s 38.69r      2 cpu
+    
+    On a 2-core Mac Mini Core 2 Duo 1.83 (circa 2008; Macmini2,1):
+    48.81u 2.12s 51.76r      1 cpu, no atomics
+    57.15u 4.72s 51.54r      2 cpu
+    
+    The handoff algorithm is really only good for two cores.
+    Beyond that we will need to so something more sophisticated,
+    like have each core hand off to the next one, around a circle.
+    Even so, the code is a good checkpoint; for now we'll limit the
+    number of gc procs to at most 2.
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4641082
+
+ src/pkg/runtime/darwin/386/sys.s   |  33 ++-
+ src/pkg/runtime/darwin/amd64/sys.s |  39 ++-
+ src/pkg/runtime/darwin/os.h        |   1 +
+ src/pkg/runtime/darwin/thread.c    |  14 +
+ src/pkg/runtime/linux/386/sys.s    |  31 ++-
+ src/pkg/runtime/linux/amd64/sys.s  |  22 +-
+ src/pkg/runtime/linux/arm/sys.s    |  22 +-
+ src/pkg/runtime/linux/thread.c     |   7 +-
+ src/pkg/runtime/malloc.h           |  21 +-
+ src/pkg/runtime/mgc0.c             | 521 ++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/print.c            |   6 +-
+ src/pkg/runtime/proc.c             | 142 +++++++---
+ src/pkg/runtime/runtime.h          |   7 +-
+ test/garbage/Makefile              |   2 +-
+ test/garbage/parser.go             |  10 -
+ 15 files changed, 709 insertions(+), 169 deletions(-)

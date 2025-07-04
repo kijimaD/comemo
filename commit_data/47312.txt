@@ -1,0 +1,24 @@
+commit 8f923a4e3c03829874b43291f2bdfd12e2d8189b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Nov 2 21:33:23 2021 +0100
+
+    net/netip: add missing encoding.BinaryUnmarshaler to AddrPort and Prefix
+    
+    The Addr type got an encoding.BinaryUnmarshaler implementation, but not
+    AddrPort and Prefix. This commit adds the missing implementation of that
+    interface to these types. It also adds two round trip tests that follow
+    the template of the existing one for Addr.
+    
+    Updates #49298.
+    
+    Change-Id: Iac633aed8aac579960815bb64d06ff3181214841
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360875
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/leaf_alts.go  | 11 ++++++
+ src/net/netip/netip.go      | 54 ++++++++++++++++++++++++++++
+ src/net/netip/netip_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 150 insertions(+), 3 deletions(-)

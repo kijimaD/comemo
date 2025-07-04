@@ -1,0 +1,24 @@
+commit 5ce92d0384ecc8aa0247a9c280acbb6a65e4585e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 24 22:09:51 2018 -0700
+
+    net: deflake lookup tests
+    
+    The build dashboard is dotted with net test failures.
+    We cannot declare all builders to have flaky networks,
+    although all fundamentally do.
+    
+    Instead, add a simple retry/backoff loop to the ones that
+    show up most commonly on the dashboard at this moment.
+    
+    If this approach works well in practice, we can
+    incrementally apply it to other flaky net tests.
+    
+    Change-Id: I69c1ca6ce5b347ad549c7eb18d0438373f6e2489
+    Reviewed-on: https://go-review.googlesource.com/102397
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 40 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 37 insertions(+), 3 deletions(-)

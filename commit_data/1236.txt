@@ -1,0 +1,15 @@
+commit 0a20746cacb74ced746381456ce2fbd1a6658168
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 14:51:01 2008 -0800
+
+    remove old .6 after install,
+    so that compilation of other .6
+    will use the copy in goroot/pkg
+    
+    R=r
+    DELTA=3  (1 added, 0 deleted, 2 changed)
+    OCL=19931
+    CL=19933
+
+ src/lib/Makefile | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

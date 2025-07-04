@@ -1,0 +1,19 @@
+commit 91bb1d734ecb44f687f3549ace10ee8f70e977a8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 18 20:07:11 2019 -0500
+
+    runtime: move m.thread to mOS
+    
+    This field is only used on Windows.
+    
+    Change-Id: I12d4df09261f8e7ad54c2abd7beda669af28c8e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207778
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 2 ++
+ src/runtime/runtime2.go   | 3 +--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

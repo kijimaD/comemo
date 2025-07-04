@@ -1,0 +1,25 @@
+commit 5fbf35dc3fadd29785739fcec061d42157ea7861
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 15:47:18 2016 -0400
+
+    time: be consistent about representation of UTC location in Time struct
+    
+    In the zero Time, the (not user visible) nil *Location indicates UTC.
+    In the result of t.UTC() and other ways to create times in specific
+    zones, UTC is indicated by a non-nil *Location, specifically &utcLoc.
+    This creates a representation ambiguity exposed by comparison with ==
+    or reflect.DeepEqual or the like.
+    
+    Change time.Time representation to use only nil, never &utcLoc,
+    to represent UTC. This eliminates the ambiguity.
+    
+    Fixes #15716.
+    
+    Change-Id: I7dcc2c20ce6b073e1daae323d3e49d17d1d52802
+    Reviewed-on: https://go-review.googlesource.com/31144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/format.go    |  8 ++++----
+ src/time/time.go      | 29 +++++++++++++++++++----------
+ src/time/time_test.go | 19 ++++++++++++++++++-
+ 3 files changed, 41 insertions(+), 15 deletions(-)

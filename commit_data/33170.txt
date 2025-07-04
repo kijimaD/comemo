@@ -1,0 +1,15 @@
+commit 5313d3f23694fdc051ed095960345df01670107e
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Oct 19 15:49:43 2017 +0300
+
+    testing/iotest: fix NewReadLogger documentation typo
+    
+    Change-Id: I094af156e7b8c31af3162d943a8c61268803ab89
+    Reviewed-on: https://go-review.googlesource.com/71830
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/iotest/logger.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

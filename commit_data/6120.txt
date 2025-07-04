@@ -1,0 +1,17 @@
+commit 8935c8489ab4cbc19e727329cffa28565331644b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 27 14:49:49 2010 -0700
+
+    gofmt: permit omission of first index in slice expression
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/2053041
+
+ src/pkg/go/ast/ast.go                          | 2 +-
+ src/pkg/go/parser/parser.go                    | 5 ++++-
+ src/pkg/go/printer/nodes.go                    | 6 ++++--
+ src/pkg/go/printer/testdata/expressions.golden | 4 ++++
+ src/pkg/go/printer/testdata/expressions.input  | 4 ++++
+ src/pkg/go/printer/testdata/expressions.raw    | 4 ++++
+ 6 files changed, 21 insertions(+), 4 deletions(-)

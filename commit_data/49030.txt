@@ -1,0 +1,22 @@
+commit fdb640b7a1324c2a4fc579389c4bc287ea90f1db
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 22 10:16:24 2021 -0800
+
+    crypto/x509: disable signing with MD5WithRSA
+    
+    MD5 is hopelessly broken, we already don't allow verification of
+    MD5 signatures, we shouldn't support generating them.
+    
+    Fixes #42125
+    
+    Change-Id: Ib25d750e6fc72a03198a505ac71e6d2c99eff2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285872
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/x509/x509.go      | 15 ++++++---------
+ src/crypto/x509/x509_test.go |  4 ++--
+ 2 files changed, 8 insertions(+), 11 deletions(-)

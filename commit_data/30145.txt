@@ -1,0 +1,22 @@
+commit 87ad863f359de3760578acb7f7a4d7e333c9cdc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 21:13:30 2017 -0800
+
+    runtime: use atomic ops for fwdSig, make sigtable immutable
+    
+    The fwdSig array is accessed by the signal handler, which may run in
+    parallel with other threads manipulating it via the os/signal package.
+    Use atomic accesses to ensure that there are no problems.
+    
+    Move the _SigHandling flag out of the sigtable array. This makes sigtable
+    immutable and safe to read from the signal handler.
+    
+    Change-Id: Icfa407518c4ebe1da38580920ced764898dfc9ad
+    Reviewed-on: https://go-review.googlesource.com/36321
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime2.go    |  1 -
+ src/runtime/signal_unix.go | 55 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 40 insertions(+), 16 deletions(-)

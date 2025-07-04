@@ -1,0 +1,15 @@
+commit 20130f141f869b3fa81a9bcdecd78c59b898459e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 11 14:46:49 2013 -0800
+
+    database/sql: document args, add a couple examples
+    
+    Fixes #3460
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7096046
+
+ src/pkg/database/sql/example_test.go | 45 ++++++++++++++++++++++++++++++++++++
+ src/pkg/database/sql/sql.go          |  1 +
+ 2 files changed, 46 insertions(+)

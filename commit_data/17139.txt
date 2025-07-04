@@ -1,0 +1,18 @@
+commit b78410bda13cc10c1e59dfdcc935b3155450b44e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 18:44:00 2013 -0400
+
+    cmd/api: eliminate duplicate package import work
+    
+    On my Mac, cuts the API checks from 15 seconds to 6 seconds.
+    Also clean up some tag confusion: go run list-of-files ignores tags.
+    
+    R=bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/12699048
+
+ src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/api/run.go   |  4 ++--
+ src/run.bash         |  2 +-
+ src/run.bat          |  2 +-
+ 4 files changed, 60 insertions(+), 6 deletions(-)

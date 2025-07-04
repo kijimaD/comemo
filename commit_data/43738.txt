@@ -1,0 +1,18 @@
+commit 2c80de74d57de74cc50ba7195392cada4e9c3ea2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Nov 7 12:03:36 2020 +0700
+
+    cmd/link: fix invalid usage of reflect.SliceHeader
+    
+    Caught by "go vet" built with golang.org/cl/248192.
+    
+    Change-Id: I446083533dd82ecef8db591beb7bd3d70b040d4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268099
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/outbuf_windows.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 4e5296d4ba82a5f547d4519e88147adcbbaa2953
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:58:33 2009 -0800
+
+    fixups for memory model document
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016018
+
+ doc/go_mem.html | 76 ++++++++++++++++++++++++---------------------------------
+ 1 file changed, 32 insertions(+), 44 deletions(-)

@@ -1,0 +1,15 @@
+commit 2c15d45131bbad55c710427a2ea5a1b383e9811c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 13:53:33 2014 -0400
+
+    net/http: document server recovering panics
+    
+    Fixes #8594.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145760043
+
+ src/net/http/server.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

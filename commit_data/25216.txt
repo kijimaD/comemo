@@ -1,0 +1,15 @@
+commit 371e44e5a1bf4201ade2ebb67e110176825eef9c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 17:51:23 2015 +0000
+
+    runtime/race: update two stale references
+    
+    Fixes #13550
+    
+    Change-Id: I407daad8b94f6773d7949ba27981d26cbfd2cdf4
+    Reviewed-on: https://go-review.googlesource.com/17682
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/race/race.go                 | 2 +-
+ src/runtime/race/testdata/select_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

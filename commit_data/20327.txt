@@ -1,0 +1,15 @@
+commit c01c2c8895e9efe48dfef89cb3c0414539962505
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 21:16:35 2014 -0400
+
+    runtime: eliminate Go -> C -> block paths for Solaris
+    
+    LGTM=aram, r
+    R=golang-codereviews, aram, r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/141180043
+
+ src/pkg/runtime/netpoll.go   | 15 +++++++++++----
+ src/pkg/runtime/os_solaris.c | 10 ++++++++++
+ src/pkg/runtime/panic1.go    | 13 ++++++++++++-
+ 3 files changed, 33 insertions(+), 5 deletions(-)

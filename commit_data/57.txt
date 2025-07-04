@@ -1,0 +1,10 @@
+commit a0d5d8089a95e6c62259b28be14fe2ee7ec84d3c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 17 17:03:29 2008 -0700
+
+    Added discussion of new, nil, and initialization.
+    
+    SVN=116022
+
+ doc/go_lang.txt | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 81 insertions(+), 2 deletions(-)

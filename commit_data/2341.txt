@@ -1,0 +1,15 @@
+commit cc7c31baa4fb6ccc074287bb24e98cbb8b219a6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 29 13:46:43 2009 -0700
+
+    64-bit integer math bugs
+    
+    R=r
+    DELTA=46  (46 added, 0 deleted, 0 changed)
+    OCL=29569
+    CL=29614
+
+ test/bugs/bug155.go | 23 +++++++++++++++++++++++
+ test/bugs/bug156.go | 21 +++++++++++++++++++++
+ test/golden.out     | 10 ++++++++++
+ 3 files changed, 54 insertions(+)

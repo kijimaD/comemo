@@ -1,0 +1,19 @@
+commit 349d398ea3d2f12b09791a1946e3d8d5baecd0c4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 14 10:00:57 2022 +0100
+
+    cmd/compile/internal/base, cmd/internal/bio: use syscall.Mmap on aix
+    
+    Change-Id: Ic28612952eb9abf14425f0bb14043b10f6050d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450195
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/mapfile_read.go | 2 +-
+ src/cmd/internal/bio/buf_mmap.go              | 2 +-
+ src/cmd/internal/bio/buf_nommap.go            | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

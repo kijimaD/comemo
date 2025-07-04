@@ -1,0 +1,20 @@
+commit 99e37e98b474f27a29ccc89d781f211869b53fa2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 24 17:17:38 2018 -0500
+
+    cmd/internal/obj/arm: support NOFRAME
+    
+    This adds support on arm for the NOFRAME symbol attribute used by
+    ppc64 and s390x in preference to using a frame size of -4. This is
+    modeled on ppc64's implementation of NOFRAME.
+    
+    This passes toolstash -cmp.
+    
+    Change-Id: I0d15e81770e54222ae329ce4496da0601673677f
+    Reviewed-on: https://go-review.googlesource.com/92039
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/obj5.go | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)

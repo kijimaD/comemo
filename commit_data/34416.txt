@@ -1,0 +1,33 @@
+commit 879a1ff1e494188a7aec8f094fac9bd71850d392
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:39:01 2018 +0100
+
+    test: improve asmcheck syntax
+    
+    asmcheck comments now support a compact form of specifying
+    multiple checks for each platform, using the following syntax:
+    
+       amd64:"SHL\t[$]4","SHR\t[$]4"
+    
+    Negative checks are also parsed using the following syntax:
+    
+       amd64:-"ROR"
+    
+    though they are still not working.
+    
+    Moreover, out-of-line comments have been implemented. This
+    allows to specify asmchecks on comment-only lines, that will
+    be matched on the first subsequent non-comment non-empty line.
+    
+        // amd64:"XOR"
+        // arm:"EOR"
+    
+        x ^= 1
+    
+    Change-Id: I110c7462fc6a5c70fd4af0d42f516016ae7f2760
+    Reviewed-on: https://go-review.googlesource.com/97816
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/codegen/rotate.go |  2 ++
+ test/run.go            | 74 ++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 56 insertions(+), 20 deletions(-)

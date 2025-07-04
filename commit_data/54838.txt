@@ -1,0 +1,20 @@
+commit 0aa21972792e2888c9d7a16eaace9724fc8655e4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Oct 29 02:07:01 2023 +1100
+
+    os/signal: use syscall.Wait4 directly in tests
+    
+    Rather than using syscall.Syscall6 with SYS_WAIT4, use syscall.Wait4
+    directly.
+    
+    Updates #59667
+    
+    Change-Id: I50fea3b7d10003dbc632aafd5e170a9fe96d6f42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538459
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/signal/signal_cgo_test.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 97bcf049f76441846ea190fcd41cd5cf0a8b2284
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 12 16:09:27 2010 -0700
+
+    big: added a few missing functions:
+    - sign to determine if a value is < 0, == 0, > 0
+    - abs to compute absolute value
+    - Rat.IsInt to test if a rational number is representable as an integer
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1761042
+
+ src/pkg/big/int.go      | 25 +++++++++++++++++++++++++
+ src/pkg/big/int_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/big/rat.go      | 25 +++++++++++++++++++++++++
+ src/pkg/big/rat_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 125 insertions(+)

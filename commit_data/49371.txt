@@ -1,0 +1,27 @@
+commit 162b88265ed41e61d6af20f7ad2039ddcdf51a2c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 3 19:15:24 2022 +0000
+
+    cmd/compile/internal/escape: escape values with >PtrSize alignment
+    
+    After CL 381317 there exist values that may have an alignment greater
+    than the pointer size for that platform. Specifically, atomic.{Ui|I}nt64
+    may be aligned to 8 bytes on a 32-bit platform. If such a value, or
+    a container for the value, gets stack-allocated, it's possible that it
+    won't be aligned correctly, because the maximum alignment we enforce on
+    stacks is governed by the pointer size. Changing that would be a
+    significant undertaking, so just escape these values to the heap
+    instead, where we're sure they'll actually be aligned correctly.
+    
+    Change is by rsc@, I'm just shepherding it through code review.
+    
+    For #50860.
+    
+    Change-Id: I51669561c0a13ecb84f821020e144c58cb528418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410131
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/utils.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

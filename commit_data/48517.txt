@@ -1,0 +1,13 @@
+commit b2643c673970676065e4683bbbaa087db694bbc9
+Author: Romanos Skiadas <rom.skiad@gmail.com>
+Date:   Wed Mar 23 13:47:08 2022 +0200
+
+    runtime: update framepointer_enabled doc
+    
+    Change-Id: I69e64ebf8c11145ce32aa4c11178e3a47d22fb84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

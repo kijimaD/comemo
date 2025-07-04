@@ -1,0 +1,18 @@
+commit d1dbfe582748fd081ab1093564534bbda9a8b3bd
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Mon Jun 27 09:16:42 2011 -0400
+
+    crypto: replace "crypto/block" with "crypto/cipher" in comments
+    
+    Documentation mentioned the obsolete package "crypto/block",
+    which has been replaced with "crypto/cipher".
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/4654064
+
+ src/pkg/crypto/aes/cipher.go      | 4 ++--
+ src/pkg/crypto/blowfish/cipher.go | 4 ++--
+ src/pkg/crypto/twofish/twofish.go | 2 +-
+ src/pkg/crypto/xtea/cipher.go     | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

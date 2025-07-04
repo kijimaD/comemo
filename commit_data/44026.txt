@@ -1,0 +1,28 @@
+commit 8981092d71aee273d27b0e11cf932a34d4d365c1
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 03:20:36 2020 +0100
+
+    cmd/link: ignore SEH marking on PE objects
+    
+    Microsoft's linker looks at whether all input objects have an empty
+    section called @feat.00. If all of them do, then it enables SEH;
+    otherwise it doesn't enable that feature. So, since around the Windows
+    XP SP2 era, most tools that make PE objects just tack on that section,
+    so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
+    so in theory, none of this really matters to us. But actually, if the
+    linker tries to ingest an object with @feat.00 -- which are produced by
+    LLVM's resource compiler, for example -- it chokes because of the
+    IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
+    @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
+    are called @feat.00.
+    
+    Change-Id: I1d7bfcf6001186c53e2c487c5ac251ca65efefee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268239
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

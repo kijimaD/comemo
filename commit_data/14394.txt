@@ -1,0 +1,56 @@
+commit 1120982590113361a985dffa8963283cebaa70c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 13:06:29 2012 -0500
+
+    reflect: add ArrayOf, ChanOf, MapOf, SliceOf
+    
+    In order to add these, we need to be able to find references
+    to such types that already exist in the binary. To do that, introduce
+    a new linker section holding a list of the types corresponding to
+    arrays, chans, maps, and slices.
+    
+    To offset the storage cost of this list, and to simplify the code,
+    remove the interface{} header from the representation of a
+    runtime type. It was used in early versions of the code but was
+    made obsolete by the kind field: a switch on kind is more efficient
+    than a type switch.
+    
+    In the godoc binary, removing the interface{} header cuts two
+    words from each of about 10,000 types. Adding back the list of pointers
+    to array, chan, map, and slice types reintroduces one word for
+    each of about 500 types. On a 64-bit machine, then, this CL *removes*
+    a net 156 kB of read-only data from the binary.
+    
+    This CL does not include the needed support for precise garbage
+    collection. I have created issue 4375 to track that.
+    
+    This CL also does not set the 'algorithm' - specifically the equality
+    and copy functions - for a new array correctly, so I have unexported
+    ArrayOf for now. That is also part of issue 4375.
+    
+    Fixes #2339.
+    
+    R=r, remyoudompheng, mirtchovski, iant
+    CC=golang-dev
+    https://golang.org/cl/6572043
+
+ src/cmd/gc/go.h                |   3 +-
+ src/cmd/gc/lex.c               |   4 +
+ src/cmd/gc/reflect.c           |  64 +++--
+ src/cmd/ld/data.c              |  20 +-
+ src/cmd/ld/decodesym.c         |   6 +-
+ src/cmd/ld/dwarf.c             |   2 +-
+ src/cmd/ld/go.c                |   8 +-
+ src/cmd/ld/lib.h               |   1 +
+ src/cmd/ld/symtab.c            |   6 +
+ src/pkg/reflect/all_test.go    |  82 ++++++
+ src/pkg/reflect/export_test.go |   2 +
+ src/pkg/reflect/makefunc.go    |   2 +-
+ src/pkg/reflect/type.go        | 559 ++++++++++++++++++++++++++++++-----------
+ src/pkg/reflect/value.go       | 134 +++++-----
+ src/pkg/runtime/iface.c        |  29 +--
+ src/pkg/runtime/runtime-gdb.py |  16 +-
+ src/pkg/runtime/type.go        |  12 +-
+ src/pkg/runtime/type.h         |  16 +-
+ src/pkg/runtime/typekind.h     |   4 +-
+ 19 files changed, 671 insertions(+), 299 deletions(-)

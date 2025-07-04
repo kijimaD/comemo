@@ -1,0 +1,42 @@
+commit 30d3ebe36701b16678a51144eb3c5e958f382bd7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jul 7 21:40:28 2018 +0100
+
+    encoding/json: remove alloc when encoding short byte slices
+    
+    If the encoded bytes fit in the bootstrap array encodeState.scratch, use
+    that instead of allocating a new byte slice.
+    
+    Also tweaked the Encoding vs Encoder heuristic to use the length of the
+    encoded bytes, not the length of the input bytes. Encoding is used for
+    allocations of up to 1024 bytes, as we measured 2048 to be the point
+    where it no longer provides a noticeable advantage.
+    
+    Also added some benchmarks. Only the first case changes in behavior.
+    
+    name                 old time/op    new time/op    delta
+    MarshalBytes/32-4       420ns ± 1%     383ns ± 1%   -8.69%  (p=0.002 n=6+6)
+    MarshalBytes/256-4      913ns ± 1%     915ns ± 0%     ~     (p=0.580 n=5+6)
+    MarshalBytes/4096-4    7.72µs ± 0%    7.74µs ± 0%     ~     (p=0.340 n=5+6)
+    
+    name                 old alloc/op   new alloc/op   delta
+    MarshalBytes/32-4        112B ± 0%       64B ± 0%  -42.86%  (p=0.002 n=6+6)
+    MarshalBytes/256-4       736B ± 0%      736B ± 0%     ~     (all equal)
+    MarshalBytes/4096-4    7.30kB ± 0%    7.30kB ± 0%     ~     (all equal)
+    
+    name                 old allocs/op  new allocs/op  delta
+    MarshalBytes/32-4        2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.002 n=6+6)
+    MarshalBytes/256-4       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    MarshalBytes/4096-4      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    
+    Updates #5683.
+    
+    Change-Id: I5fa55c27bd7728338d770ae7c0756885ba9a5724
+    Reviewed-on: https://go-review.googlesource.com/122462
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/bench_test.go | 28 ++++++++++++++++++++++++++++
+ src/encoding/json/encode.go     | 18 +++++++++++++-----
+ 2 files changed, 41 insertions(+), 5 deletions(-)

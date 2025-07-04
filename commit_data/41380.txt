@@ -1,0 +1,28 @@
+commit 6e5652bebede2d53484a872f6d1dfeb498b0b50c
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Feb 3 14:42:32 2020 +0100
+
+    time: add Ticker.Reset
+    
+    This CL implements Ticker.Reset method in time package.
+    
+    Benchmark:
+    name                 time/op
+    TickerReset-12       6.41µs ±10%
+    TickerResetNaive-12  95.7µs ±12%
+    
+    Fixes #33184
+    
+    Change-Id: I12c651f81e452541bcbbc748b45f038aae1f8dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217362
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next.txt          |  1 +
+ doc/go1.15.html       | 10 ++++++++++
+ src/runtime/time.go   |  8 +++++++-
+ src/time/sleep.go     |  1 +
+ src/time/tick.go      |  9 +++++++++
+ src/time/tick_test.go | 29 +++++++++++++++++++++++++++--
+ 6 files changed, 55 insertions(+), 3 deletions(-)

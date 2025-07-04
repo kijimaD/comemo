@@ -1,0 +1,20 @@
+commit 7a480a8c9b3c43550f232a79af43fd99716e4595
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Sep 30 16:02:12 2013 -0700
+
+    undo CL 14154043 / 3e485428767e
+    
+    ««« original CL description
+    encoding/gob: do not hide pointer argument for the garbage collector
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14154043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/14165043
+
+ src/pkg/encoding/gob/decode.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

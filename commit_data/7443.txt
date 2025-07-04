@@ -1,0 +1,12 @@
+commit ca5179d3f6889185f2aa3fb985f34a963015d133
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Feb 11 13:22:35 2011 -0800
+
+    5ld: stoped generating 64-bit eor
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4182049
+
+ src/cmd/5l/asm.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

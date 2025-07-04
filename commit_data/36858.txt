@@ -1,0 +1,22 @@
+commit 4c1c839a3d2270d846f5a6d1cd1287e8560f0265
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 4 10:46:20 2018 -0400
+
+    runtime: clarify table of arena sizes
+    
+    Currently the table of arena sizes mixes the number of entries in the
+    L1 with the size of the L2. While the size of the L2 is important,
+    this makes it hard to see what's actually going on because there's an
+    implicit factor of sys.PtrSize.
+    
+    This changes the L2 column to say both the number of entries and the
+    size that results in. This should hopefully make the relations between
+    the columns of the table clearer, since they can now be plugged
+    directly into the given formula.
+    
+    Change-Id: Ie677adaef763b893a2f620bd4fc3b8db314b3a1e
+    Reviewed-on: https://go-review.googlesource.com/c/139697
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/malloc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

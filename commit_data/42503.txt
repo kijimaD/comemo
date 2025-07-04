@@ -1,0 +1,28 @@
+commit 2a4e71c752875f84dc0061f75fdcbfc96ae8d5f2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 9 22:00:18 2020 -0400
+
+    run.bat: do not unset GOROOT_FINAL before running tests
+    
+    This removes the same logic from run.bat that was removed from
+    cmd/dist in CL 236819.
+    
+    The duplicated logic was removed from run.bash and run.rc in CL 6531,
+    but that part of run.bat was apparently missed (and not noticed
+    because its effect was redundant).
+    
+    Also fix a path-separator bug in cmd/addr2line.TestAddr2Line that was
+    exposed as a result.
+    
+    Fixes #39478
+    Updates #39385
+    
+    Change-Id: I00054966cf92ef92a03681bf23de7f45f46fbb5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237359
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 8 +++++---
+ src/run.bat                         | 5 -----
+ 2 files changed, 5 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit eb1227737ef62cf3e84aea4f3c67ccc5f0221190
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 17:34:02 2012 -0800
+
+    A+C: Add James P. Cooper (Individual CLA)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5573071
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

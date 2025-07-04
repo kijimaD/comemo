@@ -1,0 +1,28 @@
+commit 5079129deb6beaf1b9efee2a9cd51c7beb98188b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 14 17:34:07 2011 -0700
+
+    http: DoS protection: cap non-Handler Request.Body reads
+    
+    Previously, if an http.Handler didn't fully consume a
+    Request.Body before returning and the request and the response
+    from the handler indicated no reason to close the connection,
+    the server would read an unbounded amount of the request's
+    unread body to advance past the request message to find the
+    next request's header. That was a potential DoS.
+    
+    With this CL there's a threshold under which we read
+    (currently 256KB) in order to keep the connection in
+    keep-alive mode, but once we hit that, we instead
+    switch into a "Connection: close" response and don't
+    read the request body.
+    
+    Fixes #2093 (along with number of earlier CLs)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5268043
+
+ src/pkg/http/serve_test.go |  45 ++++++++++++++++--
+ src/pkg/http/server.go     | 114 ++++++++++++++++++++++++++-------------------
+ 2 files changed, 108 insertions(+), 51 deletions(-)

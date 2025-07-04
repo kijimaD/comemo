@@ -1,0 +1,14 @@
+commit f3310124277638d3eb4fdcfe86966b9c41fe4954
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 25 09:35:55 2013 -0700
+
+    spec: update prose in Constants section
+    
+    Fixes #5952.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/11812043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 3e5c2c155645ebaed62e4481430c455045b0fff5
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Nov 17 08:49:32 2022 +0000
+
+    net: return errNoSuchHost when no entry found in /etc/hosts and order is hostLookupFiles
+    
+    When /etc/nsswitch.conf lists: "hosts: files" then LookupHost returns two nils when no entry inside /etc/hosts is found.
+    
+    Change-Id: I96d68a079dfe009655c84cf0e697ce19a5bb6698
+    GitHub-Last-Rev: 894f066bbcc7c975f1975bd0d1dcb5726f590bc5
+    GitHub-Pull-Request: golang/go#56747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450875
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf_test.go           |  2 +-
+ src/net/dnsclient_unix.go      |  6 ++-
+ src/net/dnsclient_unix_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit a30d24fad99a95c8f65f8677ad9404e090aeb13a
+Author: Gregory Man <man.gregory@gmail.com>
+Date:   Wed Mar 28 11:44:10 2018 +0300
+
+    net/http: strip password from error message
+    
+    Strip password from URL then stringifying it to error.
+    
+    Fixes #24572
+    
+    Change-Id: I1751ea9ccf87e7dff50c4c2a2010bf3f865702f8
+    Reviewed-on: https://go-review.googlesource.com/102855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      | 13 +++++++++++--
+ src/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

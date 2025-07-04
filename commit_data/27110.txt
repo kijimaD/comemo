@@ -1,0 +1,41 @@
+commit f12bd8a5a8f8485f13793f03d4803a924923badb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 21 11:55:33 2016 -0700
+
+    cmd/compile: encapsulate OSLICE* representation
+    
+    As a nice side-effect, this allows us to
+    unify several code paths.
+    
+    The terminology (low, high, max, simple slice expr,
+    full slice expr) is taken from the spec and
+    the examples in the spec.
+    
+    This is a trial run. The plan, probably for Go 1.8,
+    is to change slice expressions to use Node.List
+    instead of OKEY, and to do some similar
+    tree structure changes for other ops.
+    
+    Passes toolstash -cmp. No performance change.
+    all.bash passes with GO_GCFLAGS=-newexport.
+    
+    Updates #15350
+    
+    Change-Id: Ic1efdc36e79cdb95ae1636e9817a3ac8f83ab1ac
+    Reviewed-on: https://go-review.googlesource.com/22425
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go   |   7 ++-
+ src/cmd/compile/internal/gc/bimport.go   |  12 +++-
+ src/cmd/compile/internal/gc/cgen.go      |  10 +---
+ src/cmd/compile/internal/gc/fmt.go       |  34 +++++++----
+ src/cmd/compile/internal/gc/inl.go       |   2 +-
+ src/cmd/compile/internal/gc/order.go     |  26 +++-----
+ src/cmd/compile/internal/gc/parser.go    |  15 ++---
+ src/cmd/compile/internal/gc/racewalk.go  |   6 +-
+ src/cmd/compile/internal/gc/sinit.go     |   7 ++-
+ src/cmd/compile/internal/gc/ssa.go       |  47 ++++++---------
+ src/cmd/compile/internal/gc/subr.go      |  62 +++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 100 +++++++------------------------
+ src/cmd/compile/internal/gc/walk.go      |  76 ++++++++++++-----------
+ 13 files changed, 205 insertions(+), 199 deletions(-)

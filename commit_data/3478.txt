@@ -1,0 +1,23 @@
+commit 7ecfb021f3d39833ecb39cf875611cd9808589c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 8 08:48:33 2009 -0700
+
+    - rewrite declaration printing to take full use of discardable tabwriter columns
+    - honor line breaks in multi-line expressions
+    - do not add extra indentation to multi-line string lists
+    - don't put blanks around simple function calls and conversions
+    - do not modify `` strings
+    - added extra test cases
+    
+    R=rsc
+    DELTA=398  (246 added, 51 deleted, 101 changed)
+    OCL=35453
+    CL=35465
+
+ src/pkg/go/printer/printer.go                   | 290 +++++++++++++-----------
+ src/pkg/go/printer/testdata/declarations.go     |  26 +++
+ src/pkg/go/printer/testdata/declarations.golden |  26 ++-
+ src/pkg/go/printer/testdata/expressions.go      |  60 ++++-
+ src/pkg/go/printer/testdata/expressions.golden  |  65 +++++-
+ src/pkg/go/printer/testdata/linebreaks.golden   |   6 +-
+ 6 files changed, 334 insertions(+), 139 deletions(-)

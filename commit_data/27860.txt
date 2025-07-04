@@ -1,0 +1,22 @@
+commit 5ae82307696458269b373d82c072347d87a2a554
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 2 12:41:42 2016 -0700
+
+    cmd/compile: use shorter versions of zero-extend ops
+    
+    Only need to zero-extend to 32 bits and we get the top
+    32 bits zeroed for free.
+    
+    Only the WQ change actually generates different code.
+    The assembler did this optimization for us in the other two cases.
+    But we might as well do it during SSA so -S output more closely
+    matches the actual generated instructions.
+    
+    Change-Id: I3e4ac50dc4da124014d4e31c86e9fc539d94f7fd
+    Reviewed-on: https://go-review.googlesource.com/23711
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 6 +++---
+ src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

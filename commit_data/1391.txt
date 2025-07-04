@@ -1,0 +1,12 @@
+commit 2b33a134a86817edf441d260421d2a6d8c32e7d4
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Dec 20 16:07:56 2008 -0800
+
+    regfree
+    
+    R=r
+    OCL=21685
+    CL=21687
+
+ src/cmd/6g/gen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

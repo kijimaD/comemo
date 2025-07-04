@@ -1,0 +1,24 @@
+commit e572218d1273bf54bf8cafd39f93f22de196dd55
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 26 09:42:59 2020 +0200
+
+    cmd/compile: fix escape reason for MAKESLICE with no cap
+    
+    When explaining why the slice from a make() call escapes for the -m -m
+    message, we print "non-const size" if any one of Isconst(n.Left) and
+    Isconst(n.Right) return false; but for OMAKESLICE nodes with no cap,
+    n.Right is nil, so Isconst(n.Right, CTINT) will be always false.
+    
+    Only call Isconst on n.Right if it's not nil.
+    
+    Fixes #41635
+    
+    Change-Id: I8729801a9b234b68ae40adad64d66fa7653adf09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257641
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/gc/escape.go |  2 +-
+ test/fixedbugs/issue41635.go          | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

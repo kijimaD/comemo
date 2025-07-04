@@ -1,0 +1,22 @@
+commit 53aec79ce05cd5eff1c8f5576b553d3c429227c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 22:08:51 2016 -0800
+
+    cmd/link: for -buildmode=exe pass -no-pie to external linker
+    
+    On some systems the external linker defaults to PIE. On some systems
+    DT_TEXTREL does not work correctly. When both are true we have a bad
+    situation: any Go program built with the default buildmode (exe) that
+    uses external linking will fail to run. Fix this by passing -no-pie to
+    the external linker, if the option is supported.
+    
+    Fixes #17847.
+    
+    Change-Id: I9b5ff97825d8b7f494f96d29c4c04f72b53dbf4e
+    Reviewed-on: https://go-review.googlesource.com/33106
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)

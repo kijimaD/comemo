@@ -1,0 +1,14 @@
+commit 32b879c674b46249dc3e1db48c0076f5c11aa7a4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 17 15:09:34 2018 -0800
+
+    doc: explain how to use "go vet -shadow"
+    
+    Fixes #29260
+    
+    Change-Id: I419b74d06380113f4bd32b9aeb053c3be36208d5
+    Reviewed-on: https://go-review.googlesource.com/c/154584
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go1.12.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

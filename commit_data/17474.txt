@@ -1,0 +1,20 @@
+commit 1116f74e08a8ccd551830c239c3ee20668ad2c5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 5 23:06:34 2013 -0400
+
+    test/nilptr: add more tests
+    
+    These tests were suggested in golang.org/issue/6080.
+    They were fixed as part of the new nil pointer checks
+    that I added a few weeks ago.
+    
+    Recording the tests as part of marking the issue closed.
+    
+    Fixes #6080.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13255049
+
+ test/nilptr.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,0 +1,21 @@
+commit 7dd9c385f6896c7dcb5d76353e52e36c81af2838
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 20:23:51 2016 +0000
+
+    Revert "cmd/compile: inline convI2E"
+    
+    This reverts commit 395d36a67df8d25b35617ec8709f0164ae2f655e.
+    
+    Appears to be responsible for builder failures.
+    
+    Change-Id: Ic6c6307f662767e529060b88704a9f074785d99e
+    Reviewed-on: https://go-review.googlesource.com/31310
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 153 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/compile/internal/gc/walk.go            |  34 +-----
+ src/runtime/iface.go                           |  10 ++
+ 4 files changed, 92 insertions(+), 106 deletions(-)

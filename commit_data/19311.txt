@@ -1,0 +1,15 @@
+commit e3eee85b0d4010be0a1a24fb6a423945c156fb3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 9 15:49:21 2014 -0700
+
+    net/url: correct documentation of Values.Add
+    
+    Fixes #7816.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98160043
+
+ src/pkg/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

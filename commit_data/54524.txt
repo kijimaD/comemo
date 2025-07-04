@@ -1,0 +1,28 @@
+commit 01987d3117d46688f2a31b03cb0c463d322381e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 31 15:06:03 2023 -0700
+
+    go/types, types2: pass *TypeName instead of *Named as def (defined) type
+    
+    This permits using the same mechanism not just for *Named types but
+    also future Alias types.
+    
+    Change-Id: Ia8dee413d8dff7b08ab073ce03a4779603c4f396
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524897
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go      |  6 ++--
+ src/cmd/compile/internal/types2/decl.go      |  8 ++---
+ src/cmd/compile/internal/types2/interface.go |  6 ++--
+ src/cmd/compile/internal/types2/named.go     |  6 ----
+ src/cmd/compile/internal/types2/typexpr.go   | 54 +++++++++++++++++-----------
+ src/go/types/call.go                         |  6 ++--
+ src/go/types/decl.go                         |  8 ++---
+ src/go/types/interface.go                    |  6 ++--
+ src/go/types/named.go                        |  6 ----
+ src/go/types/typexpr.go                      | 54 +++++++++++++++++-----------
+ 10 files changed, 90 insertions(+), 70 deletions(-)

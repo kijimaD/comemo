@@ -1,0 +1,30 @@
+commit 23ed9f0f761ba1e6729fcb85c27ede93b10ad11e
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Mar 30 07:22:35 2023 +0000
+
+    net: treat EAI_NODATA as errNoSuchHost
+    
+    man getaddrinfo:
+    EAI_NODATA
+                  The specified network host exists, but does not have any
+                  network addresses defined.
+    
+    In the go resolver we treat this kind of error as nosuchhost.
+    
+    Change-Id: I69fab6f8da8e3a86907e65104bca9f055968633a
+    GitHub-Last-Rev: b4891e2addaeccecb242d0485daa168bb55cf54e
+    GitHub-Pull-Request: golang/go#57507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459955
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/syscall/unix/net_darwin.go |  1 +
+ src/net/cgo_unix.go                     |  2 +-
+ src/net/cgo_unix_cgo.go                 |  7 ++++
+ src/net/cgo_unix_syscall.go             |  1 +
+ src/net/lookup_test.go                  | 64 +++++++++++++++++++++++++++++++++
+ 5 files changed, 74 insertions(+), 1 deletion(-)

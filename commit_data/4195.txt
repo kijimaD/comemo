@@ -1,0 +1,19 @@
+commit 2b1133ff863172d669defea18761a84e4a343d80
+Author: Sergio Luis O. B. Correia <sergio@larces.uece.br>
+Date:   Mon Nov 23 16:00:26 2009 -0800
+
+    cmd/cc: change getquoted() to accept whitespaces.
+    
+    getquoted() currently checks for whitespaces and returns nil
+    if it finds one. this prevents us from having go in a path
+    containing whitespaces, as the #pragma dynld directives are
+    processed through the said function.
+    
+    this commit makes getquoted() accept whitespaces, and this is
+    also needed for solving issue #115.
+    
+    R=rsc
+    https://golang.org/cl/157066
+
+ src/cmd/cc/dpchk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

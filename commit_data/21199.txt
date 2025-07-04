@@ -1,0 +1,14 @@
+commit f7e43f14d324815b0884ed1dfee5d655f273e91e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 7 14:24:18 2015 -0800
+
+    runtime: remove stray commas in assembly
+    
+    Change-Id: I4dc97ff8111bdc5ca6e4e3af06aaf4f768031c68
+    Reviewed-on: https://go-review.googlesource.com/2473
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_386.s      | 6 +++---
+ src/runtime/asm_amd64.s    | 6 +++---
+ src/runtime/asm_amd64p32.s | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

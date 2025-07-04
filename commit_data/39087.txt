@@ -1,0 +1,27 @@
+commit b56d1bad29abc4e92491c8a66bdca310831b1d8e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 30 14:45:35 2019 -0400
+
+    cmd/compile: emit DWARF call_line attrs with data4 form on iOS
+    
+    When targeting iOS, change the format (DWARF "form") of the call line
+    attribute for inlined subroutine DIEs, to work around an apparent bug
+    in /usr/bin/symbols on Darwin.
+    
+    [Just for posterity: there is nothing wrong with using DW_FORM_udata
+    for the call_line attribute form; this is perfectly legal DWARF (and
+    is in fact recommended by the standard relative to data4, which is
+    less descriptive and often takes more space). The form switch is there
+    just to make the Apple tools happy.]
+    
+    Updates #31459.
+    
+    Change-Id: Iaf362788a8c6684eea4cde8956c0661b694cecc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174538
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go      | 59 +++++++++++++++++++++++++++++++-----
+ src/cmd/internal/dwarf/dwarf_defs.go |  2 ++
+ 2 files changed, 54 insertions(+), 7 deletions(-)

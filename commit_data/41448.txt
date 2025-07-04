@@ -1,0 +1,29 @@
+commit 7a03d79498a32eb099d6f82aa8b19e813630be65
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Nov 4 09:19:59 2019 -0800
+
+    crypto/x509: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+    
+    "SSL_CERT_DIR" is meant to hold more than one directory, when a colon
+    is used as a delimiter. However, we assumed it'd be a single directory
+    for all root certificates.
+    OpenSSL and BoringSSL properly respected the colon separated
+    "SSL_CERT_DIR", as per:
+    * OpenSSL https://github.com/openssl/openssl/blob/12a765a5235f181c2f4992b615eb5f892c368e88/crypto/x509/by_dir.c#L153-L209
+    * BoringSSL https://github.com/google/boringssl/blob/3ba9586bc081f67903c89917f23e74a0662ba953/crypto/x509/by_dir.c#L194-L247
+    
+    This change adds that parity to loadSystemRoots.
+    
+    RELNOTE=yes
+    
+    Fixes #35325
+    
+    Change-Id: I0d554a00ccc34300a7f0529aa741ee7e2d5762f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205237
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_unix.go      | 17 ++++----
+ src/crypto/x509/root_unix_test.go | 81 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 7 deletions(-)

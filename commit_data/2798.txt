@@ -1,0 +1,14 @@
+commit 18840f5429523f75d40a7337582667acd70f8f70
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 17:58:25 2009 -0700
+
+    constant keys for array initializers
+    
+    R=ken
+    OCL=32261
+    CL=32261
+
+ src/cmd/gc/sinit.c       |  3 +++
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug176.go | 14 ++++++++++++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 79985fa569d7a9592e276a902a95122696216275
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 22 11:27:18 2008 -0700
+
+    - exclude newfn.go from tests - cannot be parsed syntactically alone
+    in general
+    
+    R=rsc
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=17624
+    CL=17624
+
+ usr/gri/pretty/test.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

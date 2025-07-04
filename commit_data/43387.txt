@@ -1,0 +1,24 @@
+commit f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 19 20:45:01 2020 -0400
+
+    cmd/go/internal/renameio: include ios in the darwin test-flake mitigation
+    
+    Because the "ios" build constraint implies "darwin", it is already
+    included in the general "darwin" flakiness workaround in
+    cmd/go/internal/robustio. We just need to relax the renameio test
+    to avoid false-positives there.
+    
+    I do not expect this change to drive the rate of false-positives down
+    to zero, but it should at least reduce noise on the build dashboard.
+    
+    For #42066
+    
+    Change-Id: Ia33dbd33295fce5b3261b4831f2807ce29b82e65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263777
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/renameio/renameio_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

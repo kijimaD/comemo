@@ -1,0 +1,19 @@
+commit daec057602d9a18f4464343e66d74b08ea41cce6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 28 14:43:58 2021 -0500
+
+    runtime: port memmove, memclr to register ABI on ppc64x
+    
+    This allows memmove and memclr to be invoked using the new
+    register ABI on ppc64x.
+    
+    Change-Id: Ie397a942d7ebf76f62896924c3bb5b3a3dbba73e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352891
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/memclr_ppc64x.s  | 4 +++-
+ src/runtime/memmove_ppc64x.s | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

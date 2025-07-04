@@ -1,0 +1,15 @@
+commit acad4e0cf9adecc1aaf4e3c0bc9529737b60bf4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 16 15:02:08 2011 -0500
+
+    A+C: Olivier Antoine (individual CLA)
+    
+    Also sort name lists.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4191044
+
+ AUTHORS      | 3 ++-
+ CONTRIBUTORS | 9 +++++----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

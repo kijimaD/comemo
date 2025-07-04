@@ -1,0 +1,18 @@
+commit 238af7700e6e61d75b108d8d67e354b3b2c49aee
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 1 12:13:46 2012 +1100
+
+    net: fix windows build
+    
+    Ignore result of setting SO_BROADCAST.
+    
+    Disable TestSimpleListenMulticastUDP as
+    setIPv4MulticastInterface is not implemented.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5610044
+
+ src/pkg/net/multicast_test.go  | 2 +-
+ src/pkg/net/sockopt_windows.go | 6 +-----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

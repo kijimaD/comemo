@@ -1,0 +1,15 @@
+commit 42aec4c03857a9bfcc8e445b2ae6abe1c7a055b4
+Author: Vitor De Mario <vitordemario@gmail.com>
+Date:   Sat Jul 15 11:25:37 2017 -0600
+
+    io/ioutil: add example for ReadFile
+    
+    Change-Id: I062ec0606a741c8aa1b74f3f4b4e4fd47f76fed5
+    Reviewed-on: https://go-review.googlesource.com/48775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/example_test.go | 12 ++++++++++++
+ src/io/ioutil/testdata/hello  |  1 +
+ 2 files changed, 13 insertions(+)

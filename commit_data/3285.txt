@@ -1,0 +1,20 @@
+commit f249c4114c11b2f236395b08c66afc2a2be4c303
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 15 21:58:45 2009 -0700
+
+    basic DWARF reading.
+    
+    R=r
+    DELTA=949  (949 added, 0 deleted, 0 changed)
+    OCL=34676
+    CL=34678
+
+ src/pkg/Make.deps            |   1 +
+ src/pkg/Makefile             |   2 +
+ src/pkg/debug/dwarf/Makefile |  15 ++
+ src/pkg/debug/dwarf/buf.go   | 157 +++++++++++++++++++
+ src/pkg/debug/dwarf/const.go | 352 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/dwarf/entry.go | 284 ++++++++++++++++++++++++++++++++++
+ src/pkg/debug/dwarf/open.go  |  79 ++++++++++
+ src/pkg/debug/dwarf/unit.go  |  63 ++++++++
+ 8 files changed, 953 insertions(+)

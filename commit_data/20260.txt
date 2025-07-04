@@ -1,0 +1,17 @@
+commit d8cbbe68024256ef4ead0a9d4d9d874c28f41a31
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Sep 3 00:56:50 2014 +0200
+
+    runtime: don't allocate a new string in snprintf
+    
+    This fixes the Plan 9 build.
+    
+    Fix issue 8621.
+    
+    LGTM=iant
+    R=rsc, mattn.jp, iant
+    CC=golang-codereviews
+    https://golang.org/cl/135280043
+
+ src/pkg/runtime/print1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

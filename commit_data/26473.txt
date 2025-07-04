@@ -1,0 +1,21 @@
+commit c1892b9c4b321b03973aa4433ec7cd8fe0a307a9
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 23 11:11:34 2016 +0100
+
+    cmd/compile: don't simplify nilchecks in loops
+    
+    khr: Lifting the nil check out of the loop altogether is an admirable
+    goal, and this rewrite is one step on the way. But without lifting it
+    out of the loop, the rewrite is just hurting us.
+    
+    Fixes #14917
+    
+    Change-Id: Idb917f37d89f50f8e046d5ebd7c092b1e0eb0633
+    Reviewed-on: https://go-review.googlesource.com/21040
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 ---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 38 --------------------------
+ 2 files changed, 42 deletions(-)

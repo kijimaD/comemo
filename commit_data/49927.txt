@@ -1,0 +1,34 @@
+commit e1b62efaf33988a5153510898d37309cee78f26e
+Author: ErikPelli <erikpellizzon1@gmail.com>
+Date:   Sun Aug 14 07:46:22 2022 +0000
+
+    encoding/base64: optimize decodemap memory set
+    
+    The existing implementation has an execution time higher in the benchmark than this one.
+    This is an optimized implementation using the copy() function and a constant 256 bytes string with the values to be copied.
+    
+    ```
+    name           old time/op    new time/op    delta
+    NewEncoding-4     329ns ± 1%     231ns ± 1%  -29.72%  (p=0.008 n=5+5)
+    
+    name           old speed      new speed      delta
+    NewEncoding-4   778MB/s ± 1%  1108MB/s ± 1%  +42.29%  (p=0.008 n=5+5)
+    ```
+    
+    Fixes #53211
+    
+    Change-Id: I80fe62aa40623125ef81ae9164a8405eed30b71b
+    GitHub-Last-Rev: 55dce6f636ad29a70daa935169710c22f44ab31f
+    GitHub-Pull-Request: golang/go#53212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410194
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/base32/base32.go      | 27 +++++++++++++++++++++------
+ src/encoding/base64/base64.go      | 25 ++++++++++++++++++++-----
+ src/encoding/base64/base64_test.go | 10 ++++++++++
+ 3 files changed, 51 insertions(+), 11 deletions(-)

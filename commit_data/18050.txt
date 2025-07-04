@@ -1,0 +1,12 @@
+commit c22e79b37b95c1313ec9bee70147cade6461fb29
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Dec 18 10:19:07 2013 -0800
+
+    encoding/asn1: add more test cases for BitString.At and TestUTCTime, add test for ObjectIdentifier.Equal
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/42740043
+
+ src/pkg/encoding/asn1/asn1_test.go | 39 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

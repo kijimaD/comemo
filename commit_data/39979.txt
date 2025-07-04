@@ -1,0 +1,30 @@
+commit 20f0bcb0c1bab90069c850de696fb2f466dc5ba9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 19 14:58:10 2019 -0700
+
+    go/types: don't clone interface methods when embedding them
+    
+    https://golang.org/cl/191257 significantly changed (and simplified)
+    the computation of interface method sets with embedded interfaces.
+    Specifically, when adding methods from an embedded interface, those
+    method objects (Func Objects) were cloned so that they could have a
+    different source position (the embedding position rather than the
+    original method position) for better error messages.
+    
+    This causes problems for code that depends on the identity of method
+    objects that represent the same method, embedded or not.
+    
+    This CL avoids the cloning. Instead, while computing the method set
+    of an interface, a position map is carried along that tracks
+    embedding positions. The map is not needed anymore after type-
+    checking.
+    
+    Updates #34421.
+    
+    Change-Id: I8ce188136c76fa70fba686711167db29a049f46d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196561
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/object_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ src/go/types/typexpr.go     | 33 +++++++++++++++++++++++----------
+ 2 files changed, 66 insertions(+), 11 deletions(-)

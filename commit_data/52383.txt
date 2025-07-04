@@ -1,0 +1,34 @@
+commit d35dd190ff30fcbab6909ac68ae5114b157b9009
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 22 12:19:23 2023 -0400
+
+    net/http: improve logging in TestServerSetKeepAlivesEnabledClosesConns
+    
+    - Log the actual addresses reported, in case that information is relevant.
+    
+    - Keep going after the first error, so that we report more information
+      about the idle connections after they have been used. (Was the first
+      connection dropped completely, or did it later show up as idle?)
+    
+    - Remove the third request at the end of the test. It had been
+      assuming that the address for a new connection would always be
+      different from the address for the just-closed connection; however,
+      that assumption does not hold in general.
+    
+    Removing the third request addresses one of the two failure modes seen
+    in #55195. It may help in investigating the other failure mode, but I
+    do not expect it to fix the failures entirely. (I suspect that the
+    other failure mode is a synchronization bug in returning the idle
+    connection from the first request.)
+    
+    For #55195.
+    
+    Change-Id: If9604ea68db0697268288ce9812dd57633e83fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478515
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

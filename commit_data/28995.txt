@@ -1,0 +1,22 @@
+commit a1813fcb839e21e46208a5294df87097a44bd05a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 15:01:03 2016 -0400
+
+    cmd/go: referee another vendor vs symlink fight
+    
+    Avoid crash in the specific case reported in #15201 but also
+    print more useful error message, avoiding slice panic.
+    
+    Fixes #15201.
+    Fixes #16167.
+    Fixes #16566.
+    
+    Change-Id: I66499621e9678a05bc9b12b0da77906cd7027bdd
+    Reviewed-on: https://go-review.googlesource.com/31665
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/pkg.go     | 19 ++++++++++++++++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 71c9a4948a38d0bd9430b42b50f8e5312c8bc9f0
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Mon Jun 23 17:38:17 2014 -0700
+
+    net/http: remove a duplicated check
+    
+    The previous call to parseRange already checks whether
+    all the ranges start before the end of file.
+    
+    LGTM=robert.hencke, bradfitz
+    R=golang-codereviews, robert.hencke, gobot, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/91880044
+
+ src/pkg/net/http/fs.go | 6 ------
+ 1 file changed, 6 deletions(-)

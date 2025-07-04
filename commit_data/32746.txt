@@ -1,0 +1,63 @@
+commit 57c79febda993fe2f4b43db07476219e7b07b452
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 31 14:52:20 2017 -0700
+
+    archive/tar: add Reader.WriteTo and Writer.ReadFrom
+    
+    To support the efficient packing and extracting of sparse files,
+    add two new methods:
+            func Reader.WriteTo(io.Writer) (int64, error)
+            func Writer.ReadFrom(io.Reader) (int64, error)
+    
+    If the current archive entry is sparse and the provided io.{Reader,Writer}
+    is also an io.Seeker, then use Seek to skip past the holes.
+    If the last region in a file entry is a hole, then we seek to 1 byte
+    before the EOF:
+            * for Reader.WriteTo to write a single byte
+            to ensure that the resulting filesize is correct.
+            * for Writer.ReadFrom to read a single byte
+            to verify that the input filesize is correct.
+    
+    The downside of this approach is when the last region in the sparse file
+    is a hole. In the case of Reader.WriteTo, the 1-byte write will cause
+    the last fragment to have a single chunk allocated.
+    However, the goal of ReadFrom/WriteTo is *not* the ability to
+    exactly reproduce sparse files (in terms of the location of sparse holes),
+    but rather to provide an efficient way to create them.
+    
+    File systems already impose their own restrictions on how the sparse file
+    will be created. Some filesystems (e.g., HFS+) don't support sparseness and
+    seeking forward simply causes the FS to write zeros. Other filesystems
+    have different chunk sizes, which will cause chunk allocations at boundaries
+    different from what was in the original sparse file. In either case,
+    it should not be a normal expectation of users that the location of holes
+    in sparse files exactly matches the source.
+    
+    For users that really desire to have exact reproduction of sparse holes,
+    they can wrap os.File with their own io.WriteSeeker that discards the
+    final 1-byte write and uses File.Truncate to resize the file to the
+    correct size.
+    
+    Other reasons we choose this approach over special-casing *os.File because:
+            * The Reader already has special-case logic for io.Seeker
+            * As much as possible, we want to decouple OS-specific logic from
+            Reader and Writer.
+            * This allows other abstractions over *os.File to also benefit from
+            the "skip past holes" logic.
+            * It is easier to test, since it is harder to mock an *os.File.
+    
+    Updates #13548
+    
+    Change-Id: I0a4f293bd53d13d154a946bc4a2ade28a6646f6a
+    Reviewed-on: https://go-review.googlesource.com/60872
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/common.go      |   9 +-
+ src/archive/tar/reader.go      | 155 ++++++++++++-----------
+ src/archive/tar/reader_test.go | 134 +++++++++++---------
+ src/archive/tar/tar_test.go    | 178 +++++++++++++++++++++++++++
+ src/archive/tar/writer.go      | 103 ++++++++++------
+ src/archive/tar/writer_test.go | 270 ++++++++++++++++++++++-------------------
+ 6 files changed, 558 insertions(+), 291 deletions(-)

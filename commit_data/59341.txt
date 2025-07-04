@@ -1,0 +1,21 @@
+commit 336626bac4c62b617127d41dccae17eed0350b0f
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 14 13:36:58 2025 -0700
+
+    cmd/compile: ensure we evaluate side effects of len() arg
+    
+    For any len() which requires the evaluation of its arg (according to the spec).
+    
+    Update #72844
+    
+    Change-Id: Id2b0bcc78073a6d5051abd000131dafdf65e7f26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658097
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go   | 25 +++++++++++++++++--------
+ src/cmd/compile/internal/walk/builtin.go |  5 +++--
+ test/fixedbugs/issue72844.go             |  4 ++--
+ 3 files changed, 22 insertions(+), 12 deletions(-)

@@ -1,0 +1,15 @@
+commit 9686ab2da96310a03f2825d33997fc4cd41804d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 27 14:02:00 2010 -0400
+
+    8g: use FCHS, not FMUL, for minus float
+    
+    Fixes #1052.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2055041
+
+ src/cmd/8g/cgen.c  | 11 ++---------
+ src/cmd/8g/gsubr.c |  5 +++++
+ 2 files changed, 7 insertions(+), 9 deletions(-)

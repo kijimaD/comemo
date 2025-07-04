@@ -1,0 +1,14 @@
+commit d1bd332a6730b8246177a9213ea11bbeebcf38c4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 2 16:35:42 2012 +1100
+
+    os: sleep 5ms after process has exited on windows
+    
+    Fixes #2866.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5719047
+
+ src/pkg/os/exec_windows.go | 5 +++++
+ 1 file changed, 5 insertions(+)

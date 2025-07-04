@@ -1,0 +1,16 @@
+commit c90739e41ebb7e0c0adc1bbdad61a08dc240dffe
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Mon Nov 12 15:35:11 2012 -0500
+
+    encoding/json: skip unexpected null values
+    
+    As discussed in issue 2540, nulls are allowed for any type in JSON so they should not result in an error during Unmarshal.
+    Fixes #2540.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6759043
+
+ src/pkg/encoding/json/decode.go      |  4 +--
+ src/pkg/encoding/json/decode_test.go | 47 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 3 deletions(-)

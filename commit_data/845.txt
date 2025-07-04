@@ -1,0 +1,12 @@
+commit 0adc1db7575e90a186567d703c0d142558f330ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 10 16:14:13 2008 -0700
+
+    until 6g implements it, warn about using int in interface.
+    
+    R=ken
+    OCL=16935
+    CL=16935
+
+ src/cmd/gc/subr.c | 4 ++++
+ 1 file changed, 4 insertions(+)

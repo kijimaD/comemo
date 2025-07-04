@@ -1,0 +1,21 @@
+commit de5b418bea70aaf27de1f47e9b5813940d1e15a4
+Author: zzkcode <zzk819166453@gmail.com>
+Date:   Thu Nov 30 11:39:29 2023 +0000
+
+    runtime: let the fault thread to crash the process
+    
+    Let the fault thread to crash the program to make sure while gdb coredump file could see the correct backtrace in the number one thread in gdb.
+    
+    Fixes #63277.
+    
+    Change-Id: Ie4473f76f0feba596091433918bcd35a4ff7e11b
+    GitHub-Last-Rev: f4615c23f663a2f0794ca9e5c86fc2f0cc8552d7
+    GitHub-Pull-Request: golang/go#63666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536895
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/runtime-gdb_unix_test.go | 216 +++++++++++++++++++++++++++++------
+ src/runtime/signal_unix.go           |  37 ++++--
+ 2 files changed, 206 insertions(+), 47 deletions(-)

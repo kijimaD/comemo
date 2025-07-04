@@ -1,0 +1,49 @@
+commit d71863adbf7a834d28cf3594aef09baf71dbfdc1
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri Apr 14 23:25:01 2017 +0200
+
+    vendor: update golang_org/x/net/route package
+    
+    Update the route package to git rev 6b27048a.
+    
+    Introduce the following changes:
+     - 6b27048 route: drop support for go1.5
+     - b7fd658 route: fix typo
+     - 41bba8d route: add support for the manipulation of routing informaion
+    
+    Updates #19967
+    
+    Change-Id: Id2bb93df97a45254a2df2b048db0143e3e52bbdf
+    Reviewed-on: https://go-review.googlesource.com/40830
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang_org/x/net/route/address.go       | 152 ++++++++++++++++++++-
+ src/vendor/golang_org/x/net/route/binary.go        |   2 +-
+ src/vendor/golang_org/x/net/route/defs_darwin.go   |   8 ++
+ .../golang_org/x/net/route/defs_dragonfly.go       |   8 ++
+ src/vendor/golang_org/x/net/route/defs_freebsd.go  |   8 ++
+ src/vendor/golang_org/x/net/route/defs_netbsd.go   |   8 ++
+ src/vendor/golang_org/x/net/route/defs_openbsd.go  |  12 ++
+ src/vendor/golang_org/x/net/route/message.go       |   8 +-
+ src/vendor/golang_org/x/net/route/message_test.go  | 129 ++++++++++++++++-
+ src/vendor/golang_org/x/net/route/route.go         |  59 +++++++-
+ src/vendor/golang_org/x/net/route/route_classic.go |  36 +++++
+ src/vendor/golang_org/x/net/route/route_openbsd.go |  35 ++++-
+ src/vendor/golang_org/x/net/route/sys.go           |   7 +-
+ src/vendor/golang_org/x/net/route/sys_darwin.go    |  45 +++---
+ src/vendor/golang_org/x/net/route/sys_dragonfly.go |  39 +++---
+ src/vendor/golang_org/x/net/route/sys_freebsd.go   |  39 +++---
+ src/vendor/golang_org/x/net/route/sys_netbsd.go    |  34 +++--
+ src/vendor/golang_org/x/net/route/sys_openbsd.go   |  39 +++---
+ src/vendor/golang_org/x/net/route/syscall.go       |   5 -
+ src/vendor/golang_org/x/net/route/syscall.s        |   8 --
+ src/vendor/golang_org/x/net/route/zsys_darwin.go   |   6 +
+ .../golang_org/x/net/route/zsys_dragonfly.go       |   6 +
+ .../golang_org/x/net/route/zsys_freebsd_386.go     |   6 +
+ .../golang_org/x/net/route/zsys_freebsd_amd64.go   |   6 +
+ .../golang_org/x/net/route/zsys_freebsd_arm.go     |   6 +
+ src/vendor/golang_org/x/net/route/zsys_netbsd.go   |   6 +
+ src/vendor/golang_org/x/net/route/zsys_openbsd.go  |  10 ++
+ 27 files changed, 602 insertions(+), 125 deletions(-)

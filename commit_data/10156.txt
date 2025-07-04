@@ -1,0 +1,15 @@
+commit a7e473be95d02b754e120f4616520c263c4a5268
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Oct 31 12:59:06 2011 -0700
+
+    time: add RFC1123 with numeric timezone format
+    
+    Fixes #841.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5322058
+
+ src/pkg/time/format.go    | 12 ++++++------
+ src/pkg/time/time_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

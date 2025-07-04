@@ -1,0 +1,14 @@
+commit d593f4a4d51cb4a6be8fb808800978cea6b97d9a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 19:10:31 2015 +0300
+
+    test: add tests for escape analysis of function parameters
+    
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I002ac5965ec6748adafa2c4c657c97d8f7ff75d0
+    Reviewed-on: https://go-review.googlesource.com/5311
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_param.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 326 insertions(+)

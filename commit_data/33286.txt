@@ -1,0 +1,17 @@
+commit 67a7d5d88503646a7e411cf5ae9c38e485b9be1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 20:36:14 2017 -0400
+
+    misc/cgo/testshared: don't assume mtimes trigger rebuilds
+    
+    The upcoming CL 73212 will see through mtime modifications.
+    Change the underlying file too.
+    
+    Change-Id: Ib23b4136a62ee87bce408b76bb0385451ae7dcd2
+    Reviewed-on: https://go-review.googlesource.com/74130
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 103 ++++++++++++++++++++++++++++---------
+ 1 file changed, 78 insertions(+), 25 deletions(-)

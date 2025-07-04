@@ -1,0 +1,20 @@
+commit a10a209b23f877c80d8a5f3ebda1ce4b492ac3a9
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jan 7 10:11:08 2022 -0800
+
+    net/http/httputil: ignore CloseNotify when a non-background context is present
+    
+    If the http.Request passed to ReverseProxy.ServeHTTP has a context
+    with a non-nil Done channel, don't watch the ResponseWriter's
+    CloseNotify channel.
+    
+    Avoids starting an extra background goroutine in the common case.
+    
+    Change-Id: I1328f3e02d3025caa0f446a2f20dfc14ef604c64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376415
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

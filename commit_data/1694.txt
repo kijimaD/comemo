@@ -1,0 +1,13 @@
+commit d0424faf176fc4ebd6fe5104817a0839cd740e3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 17 13:40:28 2009 -0800
+
+    few more Sizeof.
+    
+    R=r
+    DELTA=3  (0 added, 1 deleted, 2 changed)
+    OCL=25106
+    CL=25106
+
+ src/lib/reflect/type.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

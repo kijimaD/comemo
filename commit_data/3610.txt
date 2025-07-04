@@ -1,0 +1,14 @@
+commit c2eb89af925530de6d6fa216605b12c77afc2e7c
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Oct 21 09:44:23 2009 -0700
+
+    change stack splitting comparisons from signed to unsigned (oversight)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=35911
+    CL=35952
+
+ src/cmd/5l/noop.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

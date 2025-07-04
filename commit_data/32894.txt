@@ -1,0 +1,12 @@
+commit 33c06b1d46522d7a0f34e0662ecb4c4eba6ffd3c
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Sep 29 10:01:56 2017 -0700
+
+    cmd/compile: fix spelling mistake
+    
+    Change-Id: Id900636ee58a39aaa3dc1c601cb83706d3e2fbe8
+    Reviewed-on: https://go-review.googlesource.com/67190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

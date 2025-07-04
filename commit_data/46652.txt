@@ -1,0 +1,15 @@
+commit e7a25731697111ea939e4cb05d638c76cdb6f0c2
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Mon Sep 27 22:54:16 2021 +0800
+
+    compress/gzip: add missing license
+    
+    Change-Id: I80c2c6054f6a5be3555c72056159a47f927f9a44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352409
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/compress/gzip/issue14937_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

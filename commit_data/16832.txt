@@ -1,0 +1,21 @@
+commit 21b9d1473838b34911629e754f5cd2165411c1f4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Jul 20 23:31:51 2013 +0200
+
+    regexp: use a very fast random generator for benchmarks.
+    
+    Calls into math/rand are very slow, especially under race
+    detector because of heap accesses.
+    
+    go test -bench . -run none -benchtime .1s
+    Before: 23.0s
+    After:  17.4s
+    
+    Fixes #5837.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/11564044
+
+ src/pkg/regexp/exec_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

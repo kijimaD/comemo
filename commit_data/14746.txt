@@ -1,0 +1,37 @@
+commit 888111e081fc8eda605d5c2706f14d0f9473fae2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 26 12:48:26 2012 -0800
+
+    exp/types: configurable types.Check API
+    
+    - added Context type for configuration of type checker
+    - type check all function and method bodies
+    - (partial) fixes to shift hinting (still not complete)
+    - revamped test harness - does not rely on specific position
+      representation anymore, just a standard (compiler) error
+      message
+    - lots of bug fixes
+    
+    R=adonovan, rsc
+    CC=golang-dev
+    https://golang.org/cl/6948071
+
+ src/pkg/exp/gotype/gotype.go            |   7 +-
+ src/pkg/exp/gotype/gotype_test.go       |  37 ++++---
+ src/pkg/exp/types/api.go                |  65 +++++++++++
+ src/pkg/exp/types/builtins.go           |  71 ++++++++++--
+ src/pkg/exp/types/check.go              | 187 ++++++++++++++++++++------------
+ src/pkg/exp/types/check_test.go         | 133 +++++++++++------------
+ src/pkg/exp/types/const.go              |  78 ++++++-------
+ src/pkg/exp/types/errors.go             |  20 ++--
+ src/pkg/exp/types/expr.go               | 108 +++++++++++-------
+ src/pkg/exp/types/operand.go            |   6 +-
+ src/pkg/exp/types/stmt.go               |  27 ++++-
+ src/pkg/exp/types/testdata/builtins.src |  16 +++
+ src/pkg/exp/types/testdata/decls1.src   |   8 ++
+ src/pkg/exp/types/testdata/decls2a.src  |   6 +-
+ src/pkg/exp/types/testdata/expr0.src    |  16 +++
+ src/pkg/exp/types/testdata/stmt0.src    |  10 ++
+ src/pkg/exp/types/types.go              |  22 +---
+ src/pkg/exp/types/types_test.go         |  10 +-
+ 18 files changed, 529 insertions(+), 298 deletions(-)

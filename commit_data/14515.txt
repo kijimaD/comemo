@@ -1,0 +1,19 @@
+commit 28b599425dd535539f9001d42ec4dd4d472f3195
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 28 11:29:25 2012 +1100
+
+    net: move deadline logic into pollServer
+    
+    Update #4434.
+    
+    The proposal attempts to reduce the number of places where fd,{r,w}deadline is checked and updated in preparation for issue 4434. In doing so the deadline logic is simplified by letting the pollster return errTimeout from netFD.Wait{Read,Write} as part of the wakeup logic.
+    
+    The behaviour of setting n = 0 has been restored to match rev 2a55e349097f, which was the previous change to fd_unix.go before CL 6851096.
+    
+    R=jsing, bradfitz, mikioh.mikioh, rsc
+    CC=fullung, golang-dev
+    https://golang.org/cl/6850110
+
+ src/pkg/net/fd_unix.go      | 75 ++++++++++++++++-----------------------------
+ src/pkg/net/fd_unix_test.go | 47 ++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 49 deletions(-)

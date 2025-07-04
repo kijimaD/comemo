@@ -1,0 +1,27 @@
+commit 63ef9059a2e920d22522f9be068df357fab3d1f6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 18:29:10 2023 +0000
+
+    Revert "runtime: get a better g0 stack bound in needm"
+    
+    This reverts CL 479915.
+    
+    Reason for revert: breaks a lot google internal tests.
+    
+    Change-Id: I13a9422e810af7ba58cbf4a7e6e55f4d8cc0ca51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481055
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go     | 54 ------------------------------
+ misc/cgo/testcarchive/testdata/libgo9/a.go | 14 --------
+ misc/cgo/testcarchive/testdata/main9.c     | 24 -------------
+ src/runtime/cgo.go                         |  2 --
+ src/runtime/cgo/callbacks.go               |  9 -----
+ src/runtime/cgo/gcc_stack_darwin.c         | 21 ------------
+ src/runtime/cgo/gcc_stack_unix.c           | 32 ------------------
+ src/runtime/cgo/gcc_stack_windows.c        |  7 ----
+ src/runtime/proc.go                        | 22 +++---------
+ src/runtime/signal_unix.go                 |  4 +--
+ 10 files changed, 7 insertions(+), 182 deletions(-)

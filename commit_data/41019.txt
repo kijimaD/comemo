@@ -1,0 +1,17 @@
+commit 24f08103d2dad591a77c2b716f9a13fc7bb234fc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:08:26 2019 +1100
+
+    cmd/internal/obj/riscv: handle FEQ/FNEG/SEQZ/SNEZ
+    
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I5e7f45955e1dfdb9d09cc6a4e6f3ce81216d411d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204628
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 52 ++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

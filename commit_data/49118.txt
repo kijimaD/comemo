@@ -1,0 +1,19 @@
+commit 482669db62bc5b6537727d621555a46eccb6173d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 10 15:18:21 2022 +0000
+
+    runtime: add lock partial order edge for trace and wbufSpans and mheap
+    
+    This edge represents the case of executing a write barrier under the
+    trace lock: we might use the wbufSpans lock to get a new trace buffer,
+    or mheap to allocate a totally new one.
+    
+    Fixes #52794.
+    
+    Change-Id: Ia1ac2c744b8284ae29f4745373df3f9675ab1168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405476
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/lockrank.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

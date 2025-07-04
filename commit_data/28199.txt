@@ -1,0 +1,16 @@
+commit 1a04b4abe78a152da5ccd801bf13a1df7ddfa8aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 14:52:59 2016 -0700
+
+    net/http/httputil: t.Error -> t.Errorf
+    
+    Found by vet.
+    
+    Change-Id: I09b79d68c7a5fc97e0edda4700a82bfbb00a4f45
+    Reviewed-on: https://go-review.googlesource.com/28486
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

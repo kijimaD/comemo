@@ -1,0 +1,20 @@
+commit 47caf6424c9bcaedb100feae83032b5afcb1bcc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 16:03:12 2008 -0800
+
+    6l: generate gotypesigs on demand.
+    add sys.unreflect, which uses gotypesigs.
+    
+    R=r
+    DELTA=170  (152 added, 12 deleted, 6 changed)
+    OCL=18396
+    CL=18404
+
+ src/cmd/6l/go.c        | 97 +++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/6l/l.h         |  2 ++
+ src/cmd/6l/obj.c       |  1 +
+ src/cmd/6l/pass.c      |  2 +-
+ src/cmd/gc/sys.go      |  1 +
+ src/cmd/gc/sysimport.c |  1 +
+ src/runtime/iface.c    | 72 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 158 insertions(+), 18 deletions(-)

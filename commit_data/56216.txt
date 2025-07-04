@@ -1,0 +1,22 @@
+commit 07496729c58dd58316b01c8bb81aa21a925ae006
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 15 17:53:14 2024 -0400
+
+    runtime/pprof: test for Darwin flake in TestVMInfo
+    
+    If it contains
+    "No process corpse slots currently available, waiting to get one"
+    skip the test in short mode, so that run.bash works reliably
+    on developer laptops, but the flake is still recorded on builders.
+    
+    The problem also seems to get better after a laptop reboot?
+    
+    Updates #62352.
+    
+    Change-Id: I12e8f594f0b830bacda5d8bfa594782345764c4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/pprof/vminfo_darwin_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

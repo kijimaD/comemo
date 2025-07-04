@@ -1,0 +1,22 @@
+commit af59742d0f6abe96eb5d68151b4d2ccb45d5ed89
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Feb 7 10:57:33 2017 -0500
+
+    net/http: don't modify Request in StripPrefix
+    
+    As of https://golang.org/cl/21530, rules are updated to state
+    that Handlers shouldn't modify the provided Request. This change
+    updates StripPrefix to follow that rule.
+    
+    Resolves #18952.
+    
+    Change-Id: I29bbb580722e871131fa75a97e6e038ec64fdfcd
+    Reviewed-on: https://go-review.googlesource.com/36483
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 10 ++++++++++
+ src/net/http/server.go     |  8 ++++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

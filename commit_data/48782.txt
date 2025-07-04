@@ -1,0 +1,21 @@
+commit dd97871282c28f1572f7cfe67395f848f69abb4b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 14 11:14:36 2022 -0400
+
+    debug/dwarf: better stmt list attr checking in LineReader
+    
+    Check for insane statement list attribute values when
+    constructing LineReader's for a compilation unit.
+    
+    Fixes #52354.
+    
+    Change-Id: Icb5298db31f6c5fe34c44e0ed4fe277a7cd676b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400255
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/dwarf/line.go      |  2 +-
+ src/debug/dwarf/line_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

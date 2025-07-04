@@ -1,0 +1,42 @@
+commit b3750ff52d7da7d35c590451ba50833149ac3fc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 2 23:32:41 2012 -0500
+
+    build: rename $GOROOT/bin/go-tool to $GOROOT/bin/tool.
+    
+    The go- is redundant now that the directory is required
+    to be inside $GOROOT.  Rob LGTMed the idea.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5618044
+
+ src/Make.ctool                       |  10 +-
+ src/Make.inc                         |  12 +-
+ src/buildscript.sh                   |   3 +-
+ src/buildscript/darwin_386.sh        | 294 +++++++++++++++++-----------------
+ src/buildscript/darwin_amd64.sh      | 292 +++++++++++++++++-----------------
+ src/buildscript/freebsd_386.sh       | 294 +++++++++++++++++-----------------
+ src/buildscript/freebsd_amd64.sh     | 292 +++++++++++++++++-----------------
+ src/buildscript/linux_386.sh         | 294 +++++++++++++++++-----------------
+ src/buildscript/linux_amd64.sh       | 292 +++++++++++++++++-----------------
+ src/buildscript/linux_arm.sh         | 300 +++++++++++++++++------------------
+ src/buildscript/netbsd_386.sh        | 294 +++++++++++++++++-----------------
+ src/buildscript/netbsd_amd64.sh      | 292 +++++++++++++++++-----------------
+ src/buildscript/openbsd_386.sh       | 294 +++++++++++++++++-----------------
+ src/buildscript/openbsd_amd64.sh     | 292 +++++++++++++++++-----------------
+ src/buildscript/plan9_386.sh         | 294 +++++++++++++++++-----------------
+ src/buildscript/windows_386.sh       | 298 +++++++++++++++++-----------------
+ src/buildscript/windows_amd64.sh     | 296 +++++++++++++++++-----------------
+ src/cmd/cov/Makefile                 |   2 +-
+ src/cmd/go/pkg.go                    |   4 +-
+ src/cmd/go/tool.go                   |   4 +-
+ src/cmd/prof/Makefile                |   4 +-
+ src/make.bash                        |  13 +-
+ src/pkg/exp/types/gcimporter_test.go |   2 +-
+ src/pkg/runtime/autogen.sh           |   4 +-
+ src/pkg/runtime/mkasmh.sh            |   2 +-
+ src/pkg/runtime/mkgodefs.sh          |   2 +-
+ test/fixedbugs/bug302.go             |   2 +-
+ test/run                             |   6 +-
+ 28 files changed, 2094 insertions(+), 2094 deletions(-)

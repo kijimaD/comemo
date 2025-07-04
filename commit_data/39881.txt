@@ -1,0 +1,25 @@
+commit 396d62533013a39b527db4b02195e816e36dbf9a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 23 16:28:23 2019 +1000
+
+    compress/lzw: fix comment re high-code invariant
+    
+    The listed invariant, while technically true, was misleading, and the
+    invariant can be tightened. We never actually get to (d.hi ==
+    d.overflow), due to the "d.hi--" line in the decoder.decode method.
+    
+    This is a comment-only commit, changing the comment to match the code.
+    
+    A follow-up commit could restore the comment, changing the code to match
+    the original intented invariant. But the first step is to have the
+    comment and the code say the same thing.
+    
+    Change-Id: Ifc9f78d5060454fc107af9be298026bf3043d400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191358
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/lzw/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

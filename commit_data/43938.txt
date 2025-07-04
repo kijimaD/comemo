@@ -1,0 +1,24 @@
+commit bacb307b80747deaf6a017f5b3cee4e3cb115f61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 3 12:02:00 2020 -0800
+
+    test: match gofrontend error messages
+    
+    fixedbugs/bug487.go:17:17: error: function result count mismatch
+    fixedbugs/bug487.go:18:16: error: function result count mismatch
+    
+    fixedbugs/issue6977.go:37:26: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:38:21: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:39:26: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:40:21: error: duplicate method ‘m’
+    
+    Change-Id: Ie3c8a4650cd8f4c239bdceac25dc188a6a50ca34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275178
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug487.go    | 4 ++--
+ test/fixedbugs/issue6977.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

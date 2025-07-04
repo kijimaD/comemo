@@ -1,0 +1,18 @@
+commit b4c28d918072b26527426d1f4df89ab93179376d
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sat Sep 6 19:35:46 2014 +0200
+
+    runtime, syscall: rewrite syscall_solaris.goc in Go
+    
+    LGTM=dave, rsc
+    R=khr, dvyukov, dave, gobot, rsc
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/133220044
+
+ src/pkg/runtime/syscall_solaris.c     |  23 +++
+ src/pkg/runtime/syscall_solaris.go    | 322 +++++++++++++++++++++++++++++
+ src/pkg/runtime/syscall_solaris.goc   | 374 ----------------------------------
+ src/pkg/runtime/thunk_solaris_amd64.s |  88 ++++++++
+ src/pkg/syscall/asm_solaris_amd64.s   |  76 ++++++-
+ src/pkg/syscall/so_solaris.go         |   2 +-
+ 6 files changed, 509 insertions(+), 376 deletions(-)

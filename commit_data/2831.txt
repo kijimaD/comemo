@@ -1,0 +1,15 @@
+commit f9057c7b5966ed4e89026c5750525522108b77cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 29 16:23:17 2009 -0700
+
+    break tabwriter columns when starting a new block of indented statements
+    
+    R=r
+    DELTA=16  (15 added, 0 deleted, 1 changed)
+    OCL=32475
+    CL=32481
+
+ src/pkg/go/printer/printer.go          | 2 +-
+ src/pkg/go/printer/testdata/golden1.go | 7 +++++++
+ src/pkg/go/printer/testdata/source1.go | 8 ++++++++
+ 3 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 1084ab98b77cc9c231a7e21257f223b49046019b
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat Dec 10 10:04:33 2011 -0800
+
+    spec: adjust complex constant example
+    
+    Fixes https://golang.org/cl/5444053/#msg41
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5478058
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit aadd32223d12868b526179701d437e1670ad058f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 29 18:17:42 2008 -0700
+
+    Test that floating point constants resolve to type "float".
+    Currently 6g seems to resolve them to type "double".
+    
+    R=ken,r
+    DELTA=30  (30 added, 0 deleted, 0 changed)
+    OCL=16132
+    CL=16152
+
+ test/bugs/bug109.go | 24 ++++++++++++++++++++++++
+ test/golden.out     | 11 +++++++++++
+ 2 files changed, 35 insertions(+)

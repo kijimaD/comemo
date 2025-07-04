@@ -1,0 +1,17 @@
+commit 0d34f5f09b155a9a7496490d6204f6f18179f098
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Wed Jan 29 17:09:28 2020 -0500
+
+    doc/go1.14.html: describe the runtime/pprof change
+    
+    golang.org/cl/204636
+    golang.org/cl/205097
+    
+    Updates #36874
+    
+    Change-Id: I773868fd027e9cc2187f0a738900f0fcb7711635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216877
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,19 @@
+commit 1a21dbc5720326b0e325a54c3e01c0e50b32eb03
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Mar 18 20:52:58 2014 -0700
+
+    bytes: fix panic in Map
+    
+    utf8.RuneLen returns -1 for an invalid rune. In that case we
+    need to extend the internal buffer at least by 3 for \uFFFD.
+    
+    Fixes #7577.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/77420044
+
+ src/pkg/bytes/bytes.go      |  6 +++++-
+ src/pkg/bytes/bytes_test.go | 10 ++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

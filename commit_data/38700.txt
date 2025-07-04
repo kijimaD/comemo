@@ -1,0 +1,14 @@
+commit 2ab75c0f40fa452d275da896017cf7222fb7ca30
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Tue Apr 9 10:10:21 2019 +0900
+
+    syscall: gofmt -w -s
+    
+    Change-Id: Ib46f1a528e16cd0c2617defbf4dcd1f1b582cdc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171101
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/fs_js.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,26 @@
+commit 3c255e8bc6964ebee580b44835ddbe95c893e29f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 14:17:20 2018 -0500
+
+    runtime: record extra information in throwOnGCWork crashes
+    
+    Currently we only know the slot address and the value being written in
+    the throwOnGCWork crash tracebacks, and we have to infer the old value
+    from what's dumped by gcWork.checkPut. Sometimes these old values
+    don't make sense, like when we see a write of a nil pointer to a
+    freshly-allocated object, yet we observe marking a value (where did
+    that pointer come from?).
+    
+    This CL adds the old value of the slot and the first two pointers in
+    the buffer to the traceback.
+    
+    For #27993.
+    
+    Change-Id: Ib70eead1afb9c06e8099e520172c3a2acaa45f80
+    Reviewed-on: https://go-review.googlesource.com/c/154597
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mwbbuf.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

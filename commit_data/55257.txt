@@ -1,0 +1,16 @@
+commit 9db508d46fe201ecc6184ebd7b73770ed38fbdf9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 11 18:43:11 2023 +0000
+
+    doc: fix formatting of runtime and runtime/trace release notes
+    
+    For #61422.
+    
+    Change-Id: I621627140d2d5ebede9b932a7e55fbe92ded5249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548935
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ doc/go1.22.html | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

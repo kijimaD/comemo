@@ -1,0 +1,16 @@
+commit a8c5e87b1e5ef224a10440bff6b79b605570cd3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 1 19:42:22 2014 -0400
+
+    runtime: fix Stack
+    
+    Fixes #8626.
+    
+    LGTM=bradfitz
+    R=golang-codereviews
+    CC=bradfitz, golang-codereviews, iant, r
+    https://golang.org/cl/137050043
+
+ src/pkg/runtime/mprof.go      |  4 ++--
+ src/pkg/runtime/stack_test.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

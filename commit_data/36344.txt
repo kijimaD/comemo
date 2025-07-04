@@ -1,0 +1,33 @@
+commit 692307aa839252285ebb91b4072e3c05ff554341
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Aug 19 13:53:57 2018 +0100
+
+    cmd/go: fix modload infinite directory loop
+    
+    It is possible to enter the parent-walking directory loop in a way that
+    it will loop forever - if mdir is empty, and d reaches ".". To avoid
+    this, make sure that the 'd = filepath.Dir(d)' step only happens if the
+    parent directory is actually different than the current directory.
+    
+    This fixes some of the tests like TestImport/golang.org_x_net_context,
+    which were never finishing before.
+    
+    While at it, also fix TestImport/golang.org_x_net, which seems to have
+    the wrong expected error. The root of the x/net repo doesn't have a
+    go.mod file, nor is part of a module itself, so it seems like the
+    expected error should reflect that.
+    
+    After these two changes, 'go test cmd/go/internal/modload' passes on my
+    linux/amd64 machine.
+    
+    Fixes #27080.
+    
+    Change-Id: Ie8bab0f9fbc9f447844cbbc64117420d9087db1b
+    Reviewed-on: https://go-review.googlesource.com/129778
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/import.go      | 9 ++++++++-
+ src/cmd/go/internal/modload/import_test.go | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

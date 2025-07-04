@@ -1,0 +1,13 @@
+commit e28ccebd3ab43003655d9bff91abb7a20e8676b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 11 18:23:28 2008 -0700
+
+    - simplified the ideal number terminology for better readability
+    
+    R=r
+    DELTA=24  (0 added, 10 deleted, 14 changed)
+    OCL=15188
+    CL=15188
+
+ doc/go_spec.txt | 34 ++++++++++++----------------------
+ 1 file changed, 12 insertions(+), 22 deletions(-)

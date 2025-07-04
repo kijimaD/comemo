@@ -1,0 +1,22 @@
+commit 41eabc0fc7cc9bc40a66dd0edd0ae676c8965ec9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 2 15:47:41 2017 -0700
+
+    cmd/compile: fix merge rules for panic calls
+    
+    Use entire inlining call stack to decide whether two panic calls
+    can be merged. We used to merge panic calls when only the leaf
+    line numbers matched, but that leads to places higher up the call
+    stack being merged incorrectly.
+    
+    Fixes #22083
+    
+    Change-Id: Ia41400a80de4b6ecf3e5089abce0c42b65e9b38a
+    Reviewed-on: https://go-review.googlesource.com/67632
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ test/fixedbugs/issue22083.go       | 41 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 7c7081f514c9ec4820a842f7ef07394df4d41bab
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 15:12:32 2016 -0400
+
+    sync/atomic: don't atomically write pointers twice
+    
+    sync/atomic.StorePointer (which is implemented in
+    runtime/atomic_pointer.go) writes the pointer twice (through two
+    completely different code paths, no less). Fix it to only write once.
+    
+    Change-Id: Id3b2aef9aa9081c2cf096833e001b93d3dd1f5da
+    Reviewed-on: https://go-review.googlesource.com/21999
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/atomic_pointer.go | 1 -
+ 1 file changed, 1 deletion(-)

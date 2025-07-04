@@ -1,0 +1,19 @@
+commit 6c74db40247737da2d3c3ffe1871d9cf67afd0a5
+Author: Mark Glines <mark@glines.org>
+Date:   Wed Jul 31 03:46:15 2019 +0000
+
+    cmd/go: look for .go.buildinfo section when looking for ELF version
+    
+    Based on original fix from Mark Glines in golang.org/cl/186737
+    
+    Fixes #31861
+    
+    Change-Id: Ibd583a3aa8f8b8eefade998aa2ac757b55140937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188957
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/version/exe.go     | 5 +++++
+ src/cmd/go/testdata/script/version.txt | 7 +++++++
+ 2 files changed, 12 insertions(+)

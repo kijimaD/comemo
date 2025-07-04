@@ -1,0 +1,29 @@
+commit 519f223aa2b55372b473d1a883435b64b9f77365
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Apr 8 13:02:21 2021 -0700
+
+    cmd/compile: reduce overhead of RParams in types.Type
+    
+    Changed RParams in types.Type to be a pointer to a slice, rather than a
+    slice itself, in order to reduce it from three words to one words, since
+    the large majority of types will not be generic or instantiated from a
+    generic type.
+    
+    Additional cleanup: remove operation OTYPEINST, which we don't have need
+    of, since all type instantiations are either handled by types2 or happen
+    automatically during some form of stenciling.
+    
+    Both of these are useful cleanups before the Go 1.17 freeze.
+    
+    Change-Id: I61ad56b3c698b30d2cb5a2cdd12263202c54f49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308770
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/ir/node.go           |  1 -
+ src/cmd/compile/internal/ir/op_string.go      | 51 +++++++++++++--------------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 27 +++++++-------
+ 4 files changed, 41 insertions(+), 40 deletions(-)

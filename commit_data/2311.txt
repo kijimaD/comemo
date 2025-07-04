@@ -1,0 +1,19 @@
+commit 5ecd010beb79781702ec019f04194c6781bfce60
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 16:23:54 2009 -0700
+
+    more 8g.
+    test/turing.go runs if you move the big array off its stack.
+    
+    finally remembered to g4 add cgen.c gsubr.c
+    
+    R=ken
+    OCL=29408
+    CL=29408
+
+ src/cmd/8g/cgen.c  |  897 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8g/gg.h    |    3 +-
+ src/cmd/8g/ggen.c  |  157 ++++++-
+ src/cmd/8g/gsubr.c | 1161 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8g/list.c  |   18 +-
+ 5 files changed, 2224 insertions(+), 12 deletions(-)

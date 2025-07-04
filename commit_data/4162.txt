@@ -1,0 +1,15 @@
+commit 4db3a166b2ac52590dd7201221cc90ae3f2213e6
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Nov 19 20:43:30 2009 -0800
+
+    archive/tar: Make Reader and Writer more closely follow io.Reader and io.Writer interfaces
+    
+    There's no functional change here. io gives the Read and Write methods byte slice arguments, but tar called them uint8. It's the same thing, but I think this is clearer and it matches what other packages do.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157099
+
+ src/pkg/archive/tar/reader.go | 2 +-
+ src/pkg/archive/tar/writer.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

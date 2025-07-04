@@ -1,0 +1,15 @@
+commit 3484d5462d27660fb6e85f290e7dd24fcafa99b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 9 14:10:36 2012 +1100
+
+    net/http: remove an errant space
+    
+    Made the godoc overview section oddly indented
+    compared to the other code blocks.
+    
+    R=golang-dev, mikioh.mikioh, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5645060
+
+ src/pkg/net/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

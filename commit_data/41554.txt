@@ -1,0 +1,130 @@
+commit e37cc298636abcd500aa8acc7375d001c431c64e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon May 20 11:55:56 2019 -0700
+
+    cmd/compile: optimize integer-in-range checks
+    
+    This CL incorporates code from CL 201206 by Josh Bleecher Snyder
+    (thanks Josh).
+    
+    This CL restores the integer-in-range optimizations in the SSA
+    backend. The fuse pass is enhanced to detect inequalities that
+    could be merged and fuse their associated blocks while the generic
+    rules optimize them into a single unsigned comparison.
+    
+    For example, the inequality `x >= 0 && x < 10` will now be optimized
+    to `unsigned(x) < 10`.
+    
+    Overall has a fairly positive impact on binary sizes.
+    
+    name                      old time/op       new time/op       delta
+    Template                        192ms ± 1%        192ms ± 1%    ~     (p=0.757 n=17+18)
+    Unicode                        76.6ms ± 2%       76.5ms ± 2%    ~     (p=0.603 n=19+19)
+    GoTypes                         694ms ± 1%        693ms ± 1%    ~     (p=0.569 n=19+20)
+    Compiler                        3.26s ± 0%        3.27s ± 0%  +0.25%  (p=0.000 n=20+20)
+    SSA                             7.41s ± 0%        7.49s ± 0%  +1.10%  (p=0.000 n=17+19)
+    Flate                           120ms ± 1%        120ms ± 1%  +0.38%  (p=0.003 n=19+19)
+    GoParser                        152ms ± 1%        152ms ± 1%    ~     (p=0.061 n=17+19)
+    Reflect                         422ms ± 1%        425ms ± 2%  +0.76%  (p=0.001 n=18+20)
+    Tar                             167ms ± 1%        167ms ± 0%    ~     (p=0.730 n=18+19)
+    XML                             233ms ± 4%        231ms ± 1%    ~     (p=0.752 n=20+17)
+    LinkCompiler                    927ms ± 8%        928ms ± 8%    ~     (p=0.857 n=19+20)
+    ExternalLinkCompiler            1.81s ± 2%        1.81s ± 2%    ~     (p=0.513 n=19+20)
+    LinkWithoutDebugCompiler        556ms ±10%        583ms ±13%  +4.95%  (p=0.007 n=20+20)
+    [Geo mean]                      478ms             481ms       +0.52%
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        270ms ± 5%        269ms ± 7%    ~     (p=0.925 n=20+20)
+    Unicode                         134ms ± 7%        131ms ±14%    ~     (p=0.593 n=18+20)
+    GoTypes                         981ms ± 3%        987ms ± 2%  +0.63%  (p=0.049 n=19+18)
+    Compiler                        4.50s ± 2%        4.50s ± 1%    ~     (p=0.588 n=19+20)
+    SSA                             10.6s ± 2%        10.6s ± 1%    ~     (p=0.141 n=20+19)
+    Flate                           164ms ± 8%        165ms ±10%    ~     (p=0.738 n=20+20)
+    GoParser                        202ms ± 5%        203ms ± 6%    ~     (p=0.820 n=20+20)
+    Reflect                         587ms ± 6%        597ms ± 3%    ~     (p=0.087 n=20+18)
+    Tar                             230ms ± 6%        228ms ± 8%    ~     (p=0.569 n=19+20)
+    XML                             311ms ± 6%        314ms ± 5%    ~     (p=0.369 n=20+20)
+    LinkCompiler                    878ms ± 8%        887ms ± 7%    ~     (p=0.289 n=20+20)
+    ExternalLinkCompiler            1.60s ± 7%        1.60s ± 7%    ~     (p=0.820 n=20+20)
+    LinkWithoutDebugCompiler        498ms ±12%        489ms ±11%    ~     (p=0.398 n=20+20)
+    [Geo mean]                      611ms             611ms       +0.05%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       36.1MB ± 0%       36.0MB ± 0%  -0.32%  (p=0.000 n=20+20)
+    Unicode                        28.3MB ± 0%       28.3MB ± 0%  -0.03%  (p=0.000 n=19+20)
+    GoTypes                         121MB ± 0%        121MB ± 0%    ~     (p=0.226 n=16+20)
+    Compiler                        563MB ± 0%        563MB ± 0%    ~     (p=0.166 n=20+19)
+    SSA                            1.32GB ± 0%       1.33GB ± 0%  +0.88%  (p=0.000 n=20+19)
+    Flate                          22.7MB ± 0%       22.7MB ± 0%  -0.02%  (p=0.033 n=19+20)
+    GoParser                       27.9MB ± 0%       27.9MB ± 0%  -0.02%  (p=0.001 n=20+20)
+    Reflect                        78.3MB ± 0%       78.2MB ± 0%  -0.01%  (p=0.019 n=20+20)
+    Tar                            34.0MB ± 0%       34.0MB ± 0%  -0.04%  (p=0.000 n=20+20)
+    XML                            43.9MB ± 0%       43.9MB ± 0%  -0.07%  (p=0.000 n=20+19)
+    LinkCompiler                    205MB ± 0%        205MB ± 0%  +0.44%  (p=0.000 n=20+18)
+    ExternalLinkCompiler            223MB ± 0%        223MB ± 0%  +0.03%  (p=0.000 n=20+20)
+    LinkWithoutDebugCompiler        139MB ± 0%        142MB ± 0%  +1.75%  (p=0.000 n=20+20)
+    [Geo mean]                     93.7MB            93.9MB       +0.20%
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         363k ± 0%         361k ± 0%  -0.58%  (p=0.000 n=20+19)
+    Unicode                          329k ± 0%         329k ± 0%  -0.06%  (p=0.000 n=19+20)
+    GoTypes                         1.28M ± 0%        1.28M ± 0%  -0.01%  (p=0.000 n=20+20)
+    Compiler                        5.40M ± 0%        5.40M ± 0%  -0.01%  (p=0.000 n=20+20)
+    SSA                             12.7M ± 0%        12.8M ± 0%  +0.80%  (p=0.000 n=20+20)
+    Flate                            228k ± 0%         228k ± 0%    ~     (p=0.194 n=20+20)
+    GoParser                         295k ± 0%         295k ± 0%  -0.04%  (p=0.000 n=20+20)
+    Reflect                          949k ± 0%         949k ± 0%  -0.01%  (p=0.000 n=20+20)
+    Tar                              337k ± 0%         337k ± 0%  -0.06%  (p=0.000 n=20+20)
+    XML                              418k ± 0%         417k ± 0%  -0.17%  (p=0.000 n=20+20)
+    LinkCompiler                     553k ± 0%         554k ± 0%  +0.22%  (p=0.000 n=20+19)
+    ExternalLinkCompiler            1.52M ± 0%        1.52M ± 0%  +0.27%  (p=0.000 n=20+20)
+    LinkWithoutDebugCompiler         186k ± 0%         186k ± 0%  +0.06%  (p=0.000 n=20+20)
+    [Geo mean]                       723k              723k       +0.03%
+    
+    name                      old text-bytes    new text-bytes    delta
+    HelloSize                       828kB ± 0%        828kB ± 0%  -0.01%  (p=0.000 n=20+20)
+    
+    name                      old data-bytes    new data-bytes    delta
+    HelloSize                      13.4kB ± 0%       13.4kB ± 0%    ~     (all equal)
+    
+    name                      old bss-bytes     new bss-bytes     delta
+    HelloSize                       180kB ± 0%        180kB ± 0%    ~     (all equal)
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    HelloSize                      1.23MB ± 0%       1.23MB ± 0%  -0.33%  (p=0.000 n=20+20)
+    
+    file      before    after     Δ       %
+    addr2line 4320075   4311883   -8192   -0.190%
+    asm       5191932   5187836   -4096   -0.079%
+    buildid   2835338   2831242   -4096   -0.144%
+    compile   20531717  20569099  +37382  +0.182%
+    cover     5322511   5318415   -4096   -0.077%
+    dist      3723749   3719653   -4096   -0.110%
+    doc       4743515   4739419   -4096   -0.086%
+    fix       3413960   3409864   -4096   -0.120%
+    link      6690119   6686023   -4096   -0.061%
+    nm        4269616   4265520   -4096   -0.096%
+    pprof     14942189  14929901  -12288  -0.082%
+    trace     11807164  11790780  -16384  -0.139%
+    vet       8384104   8388200   +4096   +0.049%
+    go        15339076  15334980  -4096   -0.027%
+    total     132258257 132226007 -32250  -0.024%
+    
+    Fixes #30645.
+    
+    Change-Id: If551ac5996097f3685870d083151b5843170aab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165998
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/branchelim.go       |   16 +-
+ src/cmd/compile/internal/ssa/compile.go          |    6 +-
+ src/cmd/compile/internal/ssa/fuse.go             |   13 +-
+ src/cmd/compile/internal/ssa/fuse_comparisons.go |  157 +
+ src/cmd/compile/internal/ssa/fuse_test.go        |   12 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules   |   48 +
+ src/cmd/compile/internal/ssa/nilcheck_test.go    |   18 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go   | 4654 +++++++++++++++++-----
+ test/codegen/fuse.go                             |  197 +
+ 9 files changed, 4087 insertions(+), 1034 deletions(-)

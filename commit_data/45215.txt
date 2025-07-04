@@ -1,0 +1,18 @@
+commit a9c244a849659a696a970b0cb862b2d1f66671bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 17 00:46:53 2021 -0400
+
+    test: add liveness test for regabi
+    
+    With defer/go wrapping and register arguments, some liveness info
+    changed and live.go test was disabled for regabi. This CL adds a
+    new one for regabi.
+    
+    Change-Id: I65f03a6ef156366d8b76c62a16251c3e818f4b02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311369
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/live.go        |   3 +-
+ test/live_regabi.go | 719 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 721 insertions(+), 1 deletion(-)

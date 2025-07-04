@@ -1,0 +1,27 @@
+commit 59d80227effa3027a37b1aa85eef88d1df7b1e81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 9 18:36:53 2022 -0800
+
+    spec: clean up intro and replace bolded text with prose
+    
+    - Remove "Draft" disclaimer. We're not done but the spec
+      is in usable shape with respect to generics features.
+    
+    - Remove section on "Earlier version" and fold information
+      into the "Intro" section.
+    
+    - Remove caveat for shifts: the rules for arithmetic operators
+      on type parameters apply for them as well.
+    
+    - Simply state that we don't support arguments of type parameter
+      type for the built-ins real, imag, and complex.
+    
+    Fixes #51182.
+    
+    Change-Id: I6df1427de685cfe7055b64e91753aa7ebff70565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391695
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 29 ++++++++++-------------------
+ 1 file changed, 10 insertions(+), 19 deletions(-)

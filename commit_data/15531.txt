@@ -1,0 +1,14 @@
+commit 418dd410db78d7f3034464db55440d89a08d9318
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 11:51:32 2013 -0500
+
+    syscall: disable TestPassFD on openbsd
+    
+    Update #4956.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7417048
+
+ src/pkg/syscall/passfd_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

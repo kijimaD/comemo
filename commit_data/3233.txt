@@ -1,0 +1,15 @@
+commit 506c00809231f7ab7413314bbfe7c2ce016f046b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 8 15:41:14 2009 -0700
+
+    cosmetic changes:
+    - fixed a couple of broken links
+    - changed some explicit section references into implicit ones
+    
+    R=r
+    DELTA=27  (0 added, 2 deleted, 25 changed)
+    OCL=34461
+    CL=34461
+
+ doc/go_spec.html | 52 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 25 insertions(+), 27 deletions(-)

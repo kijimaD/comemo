@@ -1,0 +1,21 @@
+commit 2a6e6999a45a88999930cd879c919f6b93aaa868
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 14 22:13:19 2012 +0100
+
+    runtime, time: accelerate tests in short mode.
+    
+                                       before   after
+    go test -short time                4.144s  1.215s
+    go test -short runtime             1.315s  0.351s
+    go test -short -cpu=1,2,4 runtime  4.376s  1.266s
+    
+    Partially solves issue 3015.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/5673045
+
+ src/pkg/runtime/gc_test.go |  6 +++++-
+ src/pkg/time/sleep_test.go | 16 +++++++++-------
+ src/pkg/time/tick_test.go  | 15 ++++++++++-----
+ 3 files changed, 24 insertions(+), 13 deletions(-)

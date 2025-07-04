@@ -1,0 +1,14 @@
+commit d448d18cb4762118342abf61455a5c2da900f2df
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 11:47:04 2008 -0700
+
+    test and fix non-blocking chan ops on buffered chans
+    
+    R=ken
+    DELTA=68  (19 added, 0 deleted, 49 changed)
+    OCL=15966
+    CL=15969
+
+ src/runtime/chan.c    |  19 ++++++++-
+ test/chan/nonblock.go | 114 +++++++++++++++++++++++++-------------------------
+ 2 files changed, 76 insertions(+), 57 deletions(-)

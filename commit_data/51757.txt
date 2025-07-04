@@ -1,0 +1,23 @@
+commit 01636cf3fd35787cf6df449414d5db00b3e89692
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 14 14:36:46 2022 -0500
+
+    syscall: export X__ifi_pad and X_f on s390x and riscv64
+    
+    This brings the exported field names on these GOARCHes
+    in line with the other supported linux platforms.
+    
+    Fixes #57313.
+    
+    Change-Id: I2107a7116ba60dc0c0a27f776318e3eb69e51682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457557
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/syscall/mkpost.go               | 10 ++++++++--
+ src/syscall/ztypes_linux_riscv64.go |  2 +-
+ src/syscall/ztypes_linux_s390x.go   | 14 +++++++-------
+ 3 files changed, 16 insertions(+), 10 deletions(-)

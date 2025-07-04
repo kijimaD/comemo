@@ -1,0 +1,35 @@
+commit 2a68c6c27c447321842cb89d89c47059a15ff5ff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 09:36:24 2016 -0800
+
+    cmd/compile: more nodeSeq conversions
+    
+    Found by temporarily flipping fields from *NodeList to Nodes and fixing
+    all the compilation errors.  This CL does not actually change any
+    fields.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: Ib98fa37e8752f96358224c973a743618a6a0e736
+    Reviewed-on: https://go-review.googlesource.com/20320
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       | 54 ++++++++++++------------
+ src/cmd/compile/internal/gc/bexport.go   |  6 +--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   | 70 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/const.go     | 58 ++++++++++++--------------
+ src/cmd/compile/internal/gc/dcl.go       | 54 ++++++++++++------------
+ src/cmd/compile/internal/gc/esc.go       | 25 ++++++------
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       | 16 ++++----
+ src/cmd/compile/internal/gc/order.go     | 54 ++++++++++++------------
+ src/cmd/compile/internal/gc/select.go    |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 10 ++++-
+ src/cmd/compile/internal/gc/typecheck.go | 50 ++++++++++++-----------
+ src/cmd/compile/internal/gc/unsafe.go    |  6 +--
+ src/cmd/compile/internal/gc/walk.go      | 54 +++++++++++++-----------
+ 15 files changed, 234 insertions(+), 229 deletions(-)

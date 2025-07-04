@@ -1,0 +1,12 @@
+commit 96ee10fb71771590f95cef7c478ddca3665d4b22
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Mon Dec 30 11:39:47 2013 -0800
+
+    reflect: add DeepEqual slice of slice inequality test
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/46510043
+
+ src/pkg/reflect/all_test.go | 1 +
+ 1 file changed, 1 insertion(+)

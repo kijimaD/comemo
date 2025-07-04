@@ -1,0 +1,31 @@
+commit 2730170f633811ca42aa4086aab6396c58449535
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 26 11:33:28 2022 -0400
+
+    cmd/{go,cover}: fix for -coverprofile path capture with local pkg
+    
+    When coverage testing a local package (defined by a relative import
+    path such as "./foo/bar") the convention when "-coverprofile" is used
+    has been to capture source files by full pathname, as opposed to
+    recording the full import path or the invented import path
+    ("command-line-arguments/") created by the go command in the case of
+    building named Go files. Doing this makes it much easier to use
+    collected profiles with "go tool -cover -html=<profile>".
+    
+    The support for this feature/convention wound up being inadvertantly
+    dropped during the GOEXPERIMENT=coverageredesign implementation; this
+    patch restores it.
+    
+    Fixes #56433.
+    
+    Change-Id: Ib9556fdc86011b00c155caa614ab23e5148f3eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445917
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cover/cover.go                             | 12 ++++++-
+ src/cmd/go/internal/work/exec.go                   |  1 +
+ .../script/cover_test_localpkg_filepath.txt        | 40 ++++++++++++++++++++++
+ src/internal/coverage/cmddefs.go                   |  7 ++++
+ 4 files changed, 59 insertions(+), 1 deletion(-)

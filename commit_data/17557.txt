@@ -1,0 +1,23 @@
+commit 611b182190e759879b3988077daf7d52eb831b5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 13:25:30 2013 -0400
+
+    go/build: reject directory with only cgo files if cgo not in use
+    
+    The old test for "no Go files" was p.Name == "", meaning we never
+    saw a Go package statement. That test fails if there are cgo files
+    that we parsed (and recorded the package name) but then chose
+    not to use (because cgo is not available).
+    
+    Test the actual file lists instead.
+    
+    Fixes #6078.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13661043
+
+ src/cmd/go/test.bash                 | 13 +++++++++++++
+ src/cmd/go/testdata/src/cgotest/m.go |  5 +++++
+ src/pkg/go/build/build.go            |  4 +++-
+ 3 files changed, 21 insertions(+), 1 deletion(-)

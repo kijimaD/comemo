@@ -1,0 +1,12 @@
+commit 8bfb3045db81ca43612bcbc3ec929528ab9b43b2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 23:00:40 2016 -0400
+
+    cmd/dist: enable -shared and external linking tests on s390x
+    
+    Change-Id: Iedd01ef3a9d2831cb55c53b7a1984e7e932f4249
+    Reviewed-on: https://go-review.googlesource.com/20932
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

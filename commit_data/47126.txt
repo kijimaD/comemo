@@ -1,0 +1,19 @@
+commit 71e6ab8f958bf346f9e0b46c4a35310615360215
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 18:06:15 2021 -0400
+
+    go/types: slice exprs to accept type sets with single underlying types
+    
+    This is a port of CL 357779 to go/types. A test error message was
+    repositioned on the sliced operand.
+    
+    Change-Id: Ie775c128f70d9cb08a2eba54b8bc082134ec3200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359876
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/index.go                      | 21 +++++++++++++--------
+ src/go/types/testdata/check/typeparams.go2 |  5 +++++
+ 2 files changed, 18 insertions(+), 8 deletions(-)

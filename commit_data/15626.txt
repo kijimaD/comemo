@@ -1,0 +1,17 @@
+commit 8aafb44b0bbba85535feb67e7ae0f4f254524c0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 09:18:48 2013 -0500
+
+    runtime: fix cgo callbacks on windows
+    
+    Fixes #4955.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7563043
+
+ misc/cgo/test/cthread.go            |  5 +----
+ src/pkg/runtime/sys_windows_386.s   | 43 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_windows_amd64.s | 32 +++++++++++++++++++++++++++
+ src/pkg/runtime/thread_windows.c    | 19 +++-------------
+ 4 files changed, 79 insertions(+), 20 deletions(-)

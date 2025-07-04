@@ -1,0 +1,14 @@
+commit 9991227229a711b8c606bc93ea0731f8b43823bf
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 11:05:05 2015 +1000
+
+    doc: document new linker -X syntax in go1.5.html
+    
+    Fixes #11973.
+    
+    Change-Id: Icffa3213246663982b7cc795982e0923e272f405
+    Reviewed-on: https://go-review.googlesource.com/12919
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.html | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

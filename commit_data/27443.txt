@@ -1,0 +1,16 @@
+commit 6ab45c09f6fc1bde56e3a72e50505b9a5021aaaf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 13 09:02:40 2016 -0700
+
+    runtime: add KeepAlive function
+    
+    Fixes #13347.
+    
+    Change-Id: I591a80a1566ce70efb5f68e3ad69e7e3ab98cd9b
+    Reviewed-on: https://go-review.googlesource.com/23102
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mfinal.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

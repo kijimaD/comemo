@@ -1,0 +1,13 @@
+commit fbfb1d9e72cd83aef4c3988f678744a763888de8
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 31 17:46:26 2010 -0700
+
+    mkrunetype: install a Makefile and tweak it slightly so it can be built.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2813041
+
+ src/lib9/utf/Makefile     | 16 ++++++++++++++++
+ src/lib9/utf/mkrunetype.c | 19 ++++++++-----------
+ 2 files changed, 24 insertions(+), 11 deletions(-)

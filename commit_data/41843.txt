@@ -1,0 +1,48 @@
+commit fff7509d472778cae5e652dbe2479929c666c24f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 19 10:58:28 2019 -0800
+
+    cmd/compile: add intrinsic HasCPUFeature for checking cpu features
+    
+    Before using some CPU instructions, we must check for their presence.
+    We use global variables in the runtime package to record features.
+    
+    Prior to this CL, we issued a regular memory load for these features.
+    The downside to this is that, because it is a regular memory load,
+    it cannot be hoisted out of loops or otherwise reordered with other loads.
+    
+    This CL introduces a new intrinsic just for checking cpu features.
+    It still ends up resulting in a memory load, but that memory load can
+    now be floated to the entry block and rematerialized as needed.
+    
+    One downside is that the regular load could be combined with the comparison
+    into a CMPBconstload+NE. This new intrinsic cannot; it generates MOVB+TESTB+NE.
+    (It is possible that MOVBQZX+TESTQ+NE would be better.)
+    
+    This CL does only amd64. It is easy to extend to other architectures.
+    
+    For the benchmark in #36196, on my machine, this offers a mild speedup.
+    
+    name      old time/op  new time/op  delta
+    FMA-8     1.39ns ± 6%  1.29ns ± 9%  -7.19%  (p=0.000 n=97+96)
+    NonFMA-8  2.03ns ±11%  2.04ns ±12%    ~     (p=0.618 n=99+98)
+    
+    Updates #15808
+    Updates #36196
+    
+    Change-Id: I75e2fcfcf5a6df1bdb80657a7143bed69fca6deb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212360
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  6 ++++++
+ src/cmd/compile/internal/gc/ssa.go             |  9 +++------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 21 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  3 +++
+ test/codegen/mathbits.go                       | 12 ++++++++----
+ 8 files changed, 46 insertions(+), 10 deletions(-)

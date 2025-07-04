@@ -1,0 +1,16 @@
+commit 6732ad94c763be17dd5ae86f2dd51f1046026712
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 6 20:18:15 2013 -0700
+
+    runtime: make CgoMal alloc field void*
+    
+    This makes it an unsafe.Pointer in Go so the garbage collector
+    will treat it as a pointer to untyped data, not a pointer to
+    bytes.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/8286045
+
+ src/pkg/runtime/runtime.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

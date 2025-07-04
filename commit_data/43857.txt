@@ -1,0 +1,18 @@
+commit 3f5a97514b16c432d9699a0f1a913fabd3c0cb86
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 20 16:40:49 2020 -0500
+
+    cmd/go/internal/modload: remove a stale comment for EditBuildList
+    
+    For #36460
+    Updates #37438
+    
+    Change-Id: I1626d40e78b110035a893b1b80dbd2279bf50ffe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272128
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/buildlist.go | 3 ---
+ 1 file changed, 3 deletions(-)

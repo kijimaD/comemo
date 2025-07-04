@@ -1,0 +1,25 @@
+commit 08918ba43851d28e860fdaeb79aed0738639a394
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 5 15:46:45 2012 -0800
+
+    gc: avoid meaningless constant overflow error for inverted slice range
+    
+    Used to say:
+    
+    issue4251.go:12: inverted slice range
+    issue4251.go:12: constant -1 overflows uint64
+    issue4251.go:16: inverted slice range
+    issue4251.go:16: constant -1 overflows uint64
+    issue4251.go:20: inverted slice range
+    issue4251.go:20: constant -1 overflows uint64
+    
+    With this patch, only gives the "inverted slice range" errors.
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6871058
+
+ src/cmd/gc/typecheck.c      | 28 ++++++++++++++++++++++------
+ src/cmd/gc/walk.c           |  4 ----
+ test/fixedbugs/issue4251.go | 21 +++++++++++++++++++++
+ 3 files changed, 43 insertions(+), 10 deletions(-)

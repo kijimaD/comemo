@@ -1,0 +1,13 @@
+commit 0c3243053465e0e4482fb5040c2e4e16972751cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 16:22:13 2009 -0800
+
+    free(nil)
+    
+    R=iant
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=22467
+    CL=22471
+
+ src/runtime/malloc.c | 3 +++
+ 1 file changed, 3 insertions(+)

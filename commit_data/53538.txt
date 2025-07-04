@@ -1,0 +1,25 @@
+commit b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 12 16:11:35 2023 -0400
+
+    cmd/link: fix log formats for log.Fatal calls
+    
+    link contains many calls to log.Fatal, but it uses the default log output
+    format, which is configured for server programs, not command-line tools.
+    Set it up for command-line tools instead.
+    
+    Changes errors like
+    
+    2023/06/12 14:32:24 reference to undefined builtin "runtime.gcWriteBarrier" from package "internal/abi"
+    
+    to
+    
+    link: reference to undefined builtin "runtime.gcWriteBarrier" from package "internal/abi"
+    Change-Id: I3565960408c03f2f499a7517ec18c01870eb166c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502698
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

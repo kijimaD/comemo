@@ -1,0 +1,16 @@
+commit 06c72f3627ea749d8579d0d590fd715b2d5e512f
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Dec 14 19:39:02 2020 +0800
+
+    A+C: change email address for Baokun Lee
+    
+    Change-Id: Ib82e1c8c549c91e20c5aff5e50736617c6831f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277792
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

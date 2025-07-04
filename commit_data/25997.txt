@@ -1,0 +1,20 @@
+commit 3afbb690d5dd87949c87a8dd8d88cb4f3489f644
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 2 00:46:36 2016 +0000
+
+    net/url: fix parsing of URLs ending in question mark
+    
+    Fixes parsing regression from https://golang.org/cl/19931 which
+    added the URL.ForceQuery field.
+    
+    Fixes #14573
+    
+    Change-Id: I89575cab3f778b1bf78b2389623c866450b26943
+    Reviewed-on: https://go-review.googlesource.com/20116
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/url/url.go      |  2 +-
+ src/net/url/url_test.go | 15 +++++++++++++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

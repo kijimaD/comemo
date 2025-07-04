@@ -1,0 +1,18 @@
+commit 972cc3e7c2c0a14fe2c88fc4264f293fc045745f
+Author: go101 <tapir.liu@gmail.com>
+Date:   Tue Sep 5 03:53:29 2023 +0000
+
+    testing: add doc to not call Init concurrently
+    
+    Change-Id: I2e218805fbe4858be125df97bdaf921799315799
+    GitHub-Last-Rev: 32b798d75f7ec0f72e18a65932ad93d8e5f1040a
+    GitHub-Pull-Request: golang/go#62410
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525015
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

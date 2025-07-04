@@ -1,0 +1,14 @@
+commit ab331f7a7d4d818cf2d37f0767863464f3fac2e2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 8 15:12:00 2009 -0800
+
+    new sort interface - no structs, just slices.
+    
+    R=rsc
+    DELTA=37  (0 added, 7 deleted, 30 changed)
+    OCL=22330
+    CL=22342
+
+ src/lib/sort.go      | 43 ++++++++++++++++++-------------------------
+ src/lib/sort_test.go | 24 ++++++++++++------------
+ 2 files changed, 30 insertions(+), 37 deletions(-)

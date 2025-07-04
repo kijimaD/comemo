@@ -1,0 +1,12 @@
+commit 185a309737fdb8ccd139473fea2178285fec2456
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:18:34 2008 -0700
+
+    fix build: new net Makefile
+    
+    TBR=r
+    OCL=15996
+    CL=15996
+
+ src/lib/net/Makefile | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

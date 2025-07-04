@@ -1,0 +1,16 @@
+commit 103d75666344725d724eb570da735ef1583000aa
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 20 14:23:25 2010 -0700
+
+    loader fix
+    static init redo
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2254041
+
+ src/cmd/gc/go.h    |   3 +-
+ src/cmd/gc/sinit.c | 144 ++++++++++++++++++++++++++++++++++-------------------
+ src/cmd/gc/walk.c  |   4 +-
+ src/cmd/ld/dwarf.c |   2 +-
+ 4 files changed, 98 insertions(+), 55 deletions(-)

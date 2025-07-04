@@ -1,0 +1,22 @@
+commit 2863969cc3a5c17cc69a2d967911954b5cc1f7ad
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 16:41:39 2019 -0500
+
+    cmd/go: convert TestIssue7108 to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ic16a0c6c1eabeba003b9cff620e2911078fd6cf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212813
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                       |  8 --------
+ src/cmd/go/testdata/script/test_badtest.txt | 19 ++++++++++++++++++-
+ src/cmd/go/testdata/src/notest/hello.go     |  6 ------
+ 3 files changed, 18 insertions(+), 15 deletions(-)

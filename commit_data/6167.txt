@@ -1,0 +1,19 @@
+commit 2b4218f321e227c9d566dd10fbe4db78aa9fa8f1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 3 18:03:08 2010 +1000
+
+    image: introduce Config type and DecodeConfig function, to decode an
+    image's color model and dimensions without allocating and decoding its
+    actual pixels.
+    
+    Fixes #695.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2151042
+
+ src/pkg/image/format.go      |  49 +++++++++++-----
+ src/pkg/image/image.go       |   6 ++
+ src/pkg/image/jpeg/reader.go |  29 ++++++++--
+ src/pkg/image/png/reader.go  | 135 +++++++++++++++++++++++++++++--------------
+ 4 files changed, 155 insertions(+), 64 deletions(-)

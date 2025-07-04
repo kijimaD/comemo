@@ -1,0 +1,15 @@
+commit 832e87500ebb2d20da00d2930283521f366e3b0e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jun 16 13:35:27 2011 +1000
+
+    go/build: support building cgo packages on non intel platforms
+    
+    See https://golang.org/cl/4572045/
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4627041
+
+ src/pkg/go/build/build.go      | 11 +++++++----
+ src/pkg/go/build/build_test.go |  7 -------
+ 2 files changed, 7 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 7e14bd81f42ddab2dda331a3395ec36b3a299837
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 17:19:36 2010 -0500
+
+    runtime: debugging help on 386
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3502041
+
+ src/pkg/runtime/386/asm.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

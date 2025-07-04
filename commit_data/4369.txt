@@ -1,0 +1,16 @@
+commit 5f5dcfbc155dddb3b07345682cfdd0511a317723
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 16:55:03 2009 -0800
+
+    - gofmt these files
+    - remove use of implicit string concatenation
+    - these appear to be the only files correctly compiling under test
+      that used implicit string concatenation
+    
+    R=rsc
+    https://golang.org/cl/172043
+
+ test/64bit.go       | 449 ++++++++++++++++++++++++----------------------------
+ test/bench/fasta.go |  12 +-
+ test/string_lit.go  |  52 +++---
+ 3 files changed, 243 insertions(+), 270 deletions(-)

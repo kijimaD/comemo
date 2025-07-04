@@ -1,0 +1,23 @@
+commit 066620f0d8597116a62d9423669ca569646de5ff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 23 14:30:56 2021 +0000
+
+    runtime: ensure no GC is running in TestParallelRWMutexReaders
+    
+    Currently this test makes it clear that it's unsafe for a GC to run,
+    otherwise a deadlock could occur, so it calls SetGCPercent(-1). However,
+    a GC may be actively in progress, and SetGCPercent is not going to end
+    any in-progress GC. Call runtime.GC to block until at least the current
+    GC is over.
+    
+    Updates #49680.
+    
+    Change-Id: Ibdc7d378e8cf7e05270910e92effcad8c6874e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366534
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/rwmutex_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

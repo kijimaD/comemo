@@ -1,0 +1,14 @@
+commit a25e40df4755cd05b8e142d2b4280c36756a9360
+Author: Michael MacInnis <michael.p.macinnis@gmail.com>
+Date:   Mon Feb 16 16:27:20 2015 -0500
+
+    doc: Add reminder to go1.5.txt for os/signal changes
+    
+    Document addition of Ignore and Reset: https://golang.org/cl/3580
+    
+    Change-Id: I33aac149cd1921b87f887028c0365ba0ab9adb02
+    Reviewed-on: https://go-review.googlesource.com/4980
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

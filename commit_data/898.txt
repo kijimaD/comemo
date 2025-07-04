@@ -1,0 +1,12 @@
+commit ab9db8a5f8b8047d007b6187cd5fd0a9db7f8fff
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 17:45:32 2008 -0700
+
+    cleanup - delete unneeded vargen++
+    
+    R=ken
+    OCL=17394
+    CL=17394
+
+ src/cmd/gc/dcl.c | 2 --
+ 1 file changed, 2 deletions(-)

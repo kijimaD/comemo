@@ -1,0 +1,22 @@
+commit e2970a4591084d25c8bbd3e0648f8228f9defa2e
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sun Feb 10 22:44:03 2019 +0200
+
+    text/template: add a slice function to the predefined global functions
+    
+    The new slice function returns the result of slicing its first argument by
+    the following arguments. Thus {{slice x 1 3}} is, in Go syntax, x[1:3].
+    Each sliced item must be a string, slice, or array.
+    
+    Closed #30153
+    
+    RELNOTE=yes
+    
+    Change-Id: I63188c422848cee3d383a64dc4d046e3a1767c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161762
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/doc.go       |  5 +++
+ src/text/template/exec_test.go | 33 ++++++++++++++-
+ src/text/template/funcs.go     | 93 ++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 114 insertions(+), 17 deletions(-)

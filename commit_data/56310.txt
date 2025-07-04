@@ -1,0 +1,18 @@
+commit 0e7f5cf30ba43f4d388803642b4173e5af20e761
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 26 14:47:37 2024 -0400
+
+    doc/README.md: discourage RELNOTE in CLs
+    
+    Release notes should always be files under doc/next. Make it clear that
+    this is the only way to add them: RELNOTE markers in CLs are no longer
+    supported.
+    
+    Change-Id: I34d77eb876f57b84ecdc7e5ecbf3eb5c91e6fed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582075
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/README.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

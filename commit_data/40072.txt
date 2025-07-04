@@ -1,0 +1,29 @@
+commit c729116332ffb66a21dd587e3ee003cb8d0b16fe
+Author: Mohit Verma <vmohit.93@gmail.com>
+Date:   Fri Sep 27 15:59:03 2019 -0700
+
+    cmd/compile: use Node.Right for OAS2* nodes (cleanup)
+    
+    This CL changes cmd/compile to use Node.Right instead of
+    Node.Rlist for OAS2FUNC/OAS2RECV/OAS2MAPR/OAS2DOTTYPE nodes.
+    Fixes #32293
+    
+    Change-Id: I4c9d9100be2d98d15e016797f934f64d385f5faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/escape.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/fmt.go       |  3 +--
+ src/cmd/compile/internal/gc/iexport.go   |  8 +++++++-
+ src/cmd/compile/internal/gc/initorder.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go       | 27 +++++++++++++--------------
+ src/cmd/compile/internal/gc/order.go     | 14 +++++++-------
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/select.go    |  4 +---
+ src/cmd/compile/internal/gc/ssa.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++---
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
+ 12 files changed, 55 insertions(+), 52 deletions(-)

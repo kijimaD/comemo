@@ -1,0 +1,15 @@
+commit c026c37f33c6037dcf71e16a1e79f78f3b5165c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 24 13:10:24 2017 -0700
+
+    cmd/compile/internal/gc: remove unused parameter to importfile
+    
+    Change-Id: Icf69862554d0121ec24e3c162d5c48630a03b99a
+    Reviewed-on: https://go-review.googlesource.com/38583
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go  | 2 +-
+ src/cmd/compile/internal/gc/noder.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

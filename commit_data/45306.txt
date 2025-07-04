@@ -1,0 +1,65 @@
+commit 5963f0a332496a68f1eb2d0c6a5badd73c9f046d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 23 09:31:19 2021 +0700
+
+    cmd/vendor: get golang.org/x/tools@f946a157eef
+    
+    To bring in the fix for sigchanyzer pass to detect valid usage of
+    unbuffer channel to builtin make.
+    
+    Fixes #45043
+    
+    Change-Id: I60d2ee90f7c111183b33747008903a7df88b76ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312631
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |  3 +-
+ src/cmd/go.sum                                     | 21 +++---
+ .../x/sys/unix/{asm_darwin_386.s => asm_bsd_386.s} | 10 +--
+ .../unix/{asm_darwin_amd64.s => asm_bsd_amd64.s}   |  8 +--
+ .../x/sys/unix/{asm_netbsd_arm.s => asm_bsd_arm.s} |  8 +--
+ .../unix/{asm_netbsd_amd64.s => asm_bsd_arm64.s}   |  8 +--
+ .../vendor/golang.org/x/sys/unix/asm_darwin_arm.s  | 30 --------
+ .../golang.org/x/sys/unix/asm_darwin_arm64.s       | 30 --------
+ .../golang.org/x/sys/unix/asm_dragonfly_amd64.s    | 29 --------
+ .../vendor/golang.org/x/sys/unix/asm_freebsd_386.s | 29 --------
+ .../golang.org/x/sys/unix/asm_freebsd_amd64.s      | 29 --------
+ .../vendor/golang.org/x/sys/unix/asm_freebsd_arm.s | 29 --------
+ .../golang.org/x/sys/unix/asm_freebsd_arm64.s      | 29 --------
+ .../vendor/golang.org/x/sys/unix/asm_netbsd_386.s  | 29 --------
+ .../golang.org/x/sys/unix/asm_netbsd_arm64.s       | 29 --------
+ .../vendor/golang.org/x/sys/unix/asm_openbsd_386.s | 29 --------
+ .../golang.org/x/sys/unix/asm_openbsd_amd64.s      | 29 --------
+ .../vendor/golang.org/x/sys/unix/asm_openbsd_arm.s | 29 --------
+ .../golang.org/x/sys/unix/asm_openbsd_arm64.s      | 29 --------
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |  2 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |  9 ++-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |  2 +-
+ .../golang.org/x/sys/unix/syscall_illumos.go       | 53 +++++++++++++-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  1 +
+ .../golang.org/x/sys/unix/syscall_linux_s390x.go   |  2 +-
+ .../golang.org/x/sys/unix/syscall_solaris.go       |  7 +-
+ .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  | 25 +++++++
+ .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  | 25 +++++++
+ .../golang.org/x/sys/unix/zerrors_freebsd_arm.go   |  9 +++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  5 ++
+ .../golang.org/x/sys/unix/zerrors_solaris_amd64.go |  3 +
+ .../golang.org/x/sys/unix/zerrors_zos_s390x.go     |  1 +
+ .../x/sys/unix/zsyscall_illumos_amd64.go           | 28 +++++++-
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go | 10 +++
+ .../x/sys/unix/zsyscall_solaris_amd64.go           |  5 +-
+ .../golang.org/x/sys/unix/ztypes_illumos_amd64.go  | 40 +++++++++++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 11 +++
+ .../golang.org/x/sys/windows/security_windows.go   | 16 ++++-
+ .../golang.org/x/sys/windows/types_windows.go      |  3 +
+ .../x/tools/go/analysis/passes/inspect/inspect.go  |  4 +-
+ .../go/analysis/passes/sigchanyzer/sigchanyzer.go  | 18 +++++
+ src/cmd/vendor/modules.txt                         |  5 +-
+ src/go.mod                                         |  4 +-
+ src/go.sum                                         |  9 +--
+ .../golang.org/x/net/dns/dnsmessage/message.go     | 83 +++++++++++++++++++++-
+ src/vendor/modules.txt                             |  4 +-
+ 46 files changed, 383 insertions(+), 438 deletions(-)

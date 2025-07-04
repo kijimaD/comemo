@@ -1,0 +1,25 @@
+commit 9c97af99bcfe0baee2f36a8723347fd13c05c757
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 11 14:34:00 2011 -0500
+
+    syscall: add sockaddr_dl, sysctl with routing message support for darwin, freebsd
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4171043
+
+ src/pkg/syscall/mkerrors.sh              |  23 +++--
+ src/pkg/syscall/syscall_bsd.go           |  54 ++++++++++-
+ src/pkg/syscall/syscall_darwin.go        |  12 +++
+ src/pkg/syscall/syscall_freebsd.go       |  12 +++
+ src/pkg/syscall/types_darwin.c           |  33 ++++++-
+ src/pkg/syscall/types_freebsd.c          |  31 +++++-
+ src/pkg/syscall/zerrors_darwin_386.go    |  82 ++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go  |  82 ++++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_386.go   |  76 +++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  76 +++++++++++++++
+ src/pkg/syscall/ztypes_darwin_386.go     | 135 ++++++++++++++++++++++----
+ src/pkg/syscall/ztypes_darwin_amd64.go   | 135 ++++++++++++++++++++++----
+ src/pkg/syscall/ztypes_freebsd_386.go    | 160 +++++++++++++++++++++++++------
+ src/pkg/syscall/ztypes_freebsd_amd64.go  | 160 +++++++++++++++++++++++++------
+ 14 files changed, 958 insertions(+), 113 deletions(-)

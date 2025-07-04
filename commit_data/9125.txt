@@ -1,0 +1,16 @@
+commit 42effdf096d9c04aaacfdc48853937e9cbad2c09
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 19 14:02:23 2011 +1000
+
+    go/build: fixes for windows paths
+    
+    R=golang-dev, mattn.jp, adg
+    CC=golang-dev
+    https://golang.org/cl/4746047
+
+ src/pkg/go/build/path.go              |  9 ++++++---
+ src/pkg/path/filepath/path.go         |  2 +-
+ src/pkg/path/filepath/path_plan9.go   |  9 +++++++--
+ src/pkg/path/filepath/path_unix.go    |  9 +++++++--
+ src/pkg/path/filepath/path_windows.go | 20 ++++++++++++++++----
+ 5 files changed, 37 insertions(+), 12 deletions(-)

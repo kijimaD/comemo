@@ -1,0 +1,14 @@
+commit 61e963e9c649714a88433d50afa679ec91e05e33
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 11 14:22:33 2017 -0800
+
+    testing: fix copy/paste in docs
+    
+    Follow-up to CL 36791.
+    
+    Change-Id: I1c4831e5dfe90c205782e970ada7faff8a009daa
+    Reviewed-on: https://go-review.googlesource.com/36890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

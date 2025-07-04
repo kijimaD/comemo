@@ -1,0 +1,14 @@
+commit 383a3601dd3567e97c856b5ac05e635ea53e2f8e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 29 10:06:43 2015 +1000
+
+    misc/nacl: fix nacl build
+    
+    Update testzip.proto to reflect vendoring of golang.org/x/arch.
+    
+    Change-Id: I532da1100f74d1e9887eb3cf26974660ae818d92
+    Reviewed-on: https://go-review.googlesource.com/14007
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/nacl/testzip.proto | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

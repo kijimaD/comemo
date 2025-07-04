@@ -1,0 +1,18 @@
+commit 6c2a35ae0c29306b53a4a5925627ee7235a8c450
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 11:08:36 2016 -0500
+
+    test/fixedbugs: enable issue 10607 test on ppc64le
+    
+    ppc64le supports both internal and external linking so I don't
+    think there is any reason for it to skip this test.
+    
+    Change-Id: I05c80cc25909c0364f0a1fb7d20766b011ea1ebb
+    Reviewed-on: https://go-review.googlesource.com/32854
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

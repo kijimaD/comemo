@@ -1,0 +1,23 @@
+commit 12fc21733625e119dc4e9a3228d5bc0ab56d1988
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 11:43:19 2009 -0700
+
+    cgo checkpoint.
+    can write all 3 output files and then compile them by hand.
+    
+    R=r
+    DELTA=919  (841 added, 16 deleted, 62 changed)
+    OCL=34954
+    CL=34973
+
+ src/cmd/cgo/Makefile      |  26 +++
+ src/cmd/cgo/ast.go        |  88 ++++++++--
+ src/cmd/cgo/gcc.go        | 432 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/cgo/gmp.go        |  82 +++++----
+ src/cmd/cgo/main.go       |  55 ++++--
+ src/cmd/cgo/out.go        | 203 ++++++++++++++++++++++
+ src/cmd/cgo/stdio.go      |  27 +++
+ src/libcgo/cgocall.c      |  12 ++
+ src/pkg/runtime/cgocall.c |  23 +++
+ src/pkg/runtime/cgocall.h |   5 +-
+ 10 files changed, 885 insertions(+), 68 deletions(-)

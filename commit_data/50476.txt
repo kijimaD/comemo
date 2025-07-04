@@ -1,0 +1,44 @@
+commit 4baa486983204fdff64f80809627f79a538d8d82
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Sep 9 09:59:21 2022 -0700
+
+    all: remove unnecessary allocations from w.WriteString(fmt.Sprint*(...)) by fmt.Fprint*(w, ...)
+    
+    Noticed in a manual audit from a customer codebase that the pattern
+    
+        w.WriteString(fmt.Sprint*(args...))
+    
+    was less efficient and in most cases we can just invoke:
+    
+        fmt.Fprint*(w, args...)
+    
+    and from the simple benchmarks we can see quick wins in all dimensions:
+    
+    $ benchstat before.txt after.txt
+    name            old time/op    new time/op    delta
+    DetailString-8    5.48µs ±23%    4.40µs ±11%  -19.79%  (p=0.000 n=20+17)
+    
+    name            old alloc/op   new alloc/op   delta
+    DetailString-8    2.63kB ± 0%    2.11kB ± 0%  -19.76%  (p=0.000 n=20+20)
+    
+    name            old allocs/op  new allocs/op  delta
+    DetailString-8      63.0 ± 0%      50.0 ± 0%  -20.63%  (p=0.000 n=20+20)
+    
+    Change-Id: I47a2827cd34d6b92644900b1bd5f4c0a3287bdb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429861
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/abt/avlint32.go        | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
+ src/cmd/compile/internal/syntax/scanner_test.go | 8 ++++----
+ src/cmd/compile/internal/types/fmt.go           | 2 +-
+ src/go/types/exprstring.go                      | 2 +-
+ src/internal/fmtsort/sort_test.go               | 2 +-
+ src/runtime/trace/annotation_test.go            | 2 +-
+ src/runtime/wincallback.go                      | 8 ++++----
+ 8 files changed, 14 insertions(+), 14 deletions(-)

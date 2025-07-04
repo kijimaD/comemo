@@ -1,0 +1,14 @@
+commit d8440016011147ac62a5e532021f3cceffa77065
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 15 16:55:51 2013 +1100
+
+    mime: do not test for .wav on windows
+    
+    Even builders don't have that mime type
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7314106
+
+ src/pkg/mime/type_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

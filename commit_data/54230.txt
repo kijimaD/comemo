@@ -1,0 +1,25 @@
+commit faf564644d9948e001db7c4f61a0ac9a61283003
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jul 25 12:47:05 2023 +0100
+
+    go/scanner: give specific error for curvy “abc” quotes
+    
+    Code examples sometimes mistakenly use curvy quotes,
+    leading to hard-to-spot invalid token errors.
+    This change makes the error message explicit.
+    
+    (An alternative change would be to accept them in place
+    of "abc" and emit an error, but the extra check would
+    likely add an unacceptable dynamic cost to string scanning.)
+    
+    Fixes #61450
+    
+    Change-Id: Ie2b18c958c6f8f71a56ac193a94a8d16eea839db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512855
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/scanner/scanner.go      | 8 +++++++-
+ src/go/scanner/scanner_test.go | 1 +
+ 2 files changed, 8 insertions(+), 1 deletion(-)

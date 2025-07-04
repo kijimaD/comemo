@@ -1,0 +1,20 @@
+commit b83610699a4ea7da22a146c0eefe0ae4d5ac4610
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sun May 9 09:05:45 2021 +0200
+
+    cmd/compile: record regabi status in DW_AT_producer
+    
+    Records if regabi was enabled during compilation in the DW_AT_producer
+    attribute of each compile unit.
+    This is useful to debuggers that support the debugCall protocol.
+    
+    Change-Id: I5ad2c48ebf126aeb8bfb459b53a1a5304550036a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318050
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

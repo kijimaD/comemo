@@ -1,0 +1,13 @@
+commit 883048daab77cf11617fe8583f1496af67186031
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 12:58:50 2011 -0700
+
+    http: add Transport.MaxIdleConnsPerHost
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4280079
+
+ src/pkg/http/transport.go      | 22 +++++++++++++++--
+ src/pkg/http/transport_test.go | 54 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 73 insertions(+), 3 deletions(-)

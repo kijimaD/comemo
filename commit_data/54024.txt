@@ -1,0 +1,28 @@
+commit 294e1b260e8fe29d44dad615f6dbf064309d6228
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 15 14:17:02 2023 -0700
+
+    go/types, types2: don't verify infer result if no Config.Error is given
+    
+    With no error handler installed, an error leads to an (internal panic
+    and) immediate abort of type checking. Not all invariants hold up in
+    this case, but it also doesn't matter.
+    
+    In Checker.infer, verify result conditions always if an error handler
+    is installed, but only then.
+    
+    Fixes #61938.
+    
+    Change-Id: I4d3d61bbccc696a75639fee5010f5d3cef17e855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519775
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go       |  6 +++++-
+ src/cmd/compile/internal/types2/issues_test.go | 16 ++++++++++++++++
+ src/go/types/infer.go                          |  6 +++++-
+ src/go/types/issues_test.go                    | 16 ++++++++++++++++
+ 4 files changed, 42 insertions(+), 2 deletions(-)

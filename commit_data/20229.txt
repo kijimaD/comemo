@@ -1,0 +1,20 @@
+commit a287567d3cd108513d337f647a3902d3b7fade34
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 30 18:15:55 2014 -0700
+
+    runtime: fix Linux build
+    
+    Make the definition of the EpollEvent data field consistent
+    across architectures, adapt the other use of it in
+    netpoll_epoll for the new definition, and use uint64 rather
+    than uintptr.
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/137890043
+
+ src/pkg/runtime/defs_linux_386.h | 2 +-
+ src/pkg/runtime/defs_linux_arm.h | 2 +-
+ src/pkg/runtime/netpoll_epoll.c  | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

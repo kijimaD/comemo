@@ -1,0 +1,29 @@
+commit 88d2f9112a0a8afd3a29ac1479d4f17847f16803
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 20 16:34:30 2016 -0700
+
+    cmd/compile: fix type of static closure pointer
+    
+      var x *X = ...
+      defer x.foo()
+    
+    As part of the defer, we need to calculate &(*X).foo·f.  This expression
+    is the address of the static closure that will call (*X).foo when a
+    pointer to that closure is used in a call/defer/go.  This pointer is not
+    currently properly typed in SSA.  It is a pointer type, but the base
+    type is nil, not a proper type.
+    
+    This turns out not to be a problem currently because we never use the
+    type of these SSA values.  But I'm trying to change that (to be able to
+    spill them) in CL 28391.  To fix, use uint8 as the fake type of the
+    closure.
+    
+    Change-Id: Ieee388089c9af398ed772ee8c815122c347cb633
+    Reviewed-on: https://go-review.googlesource.com/29444
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go  | 6 ++++++
+ src/cmd/compile/internal/gc/subr.go | 3 +++
+ 2 files changed, 9 insertions(+)

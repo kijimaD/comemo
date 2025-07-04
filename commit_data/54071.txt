@@ -1,0 +1,33 @@
+commit 2c51ea11b0f96ece871f84f83fb393ff80ec8f4a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 22:37:42 2023 -0700
+
+    cmd/compile/internal/typecheck: push ONEW into go/defer wrappers
+    
+    Currently, we rewrite:
+    
+            go f(new(T))
+    
+    into:
+    
+            tmp := new(T)
+            go func() { f(tmp) }()
+    
+    However, we can both shrink the closure and improve escape analysis by
+    instead rewriting it into:
+    
+            go func() { f(new(T)) }()
+    
+    This CL does that.
+    
+    Change-Id: Iae16a476368da35123052ca9ff41c49159980458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520340
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/typecheck/stmt.go |  2 +-
+ test/fixedbugs/issue31573.go               | 24 ++++++++++++------------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

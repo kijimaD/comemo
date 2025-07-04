@@ -1,0 +1,14 @@
+commit 9666a959cf0f9e622f9442a3e5cc0a941e0957f4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 21 07:50:10 2012 +0100
+
+    test: fix bug423.go to actually fail with older releases.
+    
+    The supposedly overflowing variable was registerized.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5687061
+
+ test/fixedbugs/bug423.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 961837dec23f900bbf8b04230c72397a0aab4be6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 3 18:55:59 2019 +0000
+
+    Revert "cmd/go: add a Latest field to the output of 'go mod download -json'"
+    
+    This reverts CL 183841.
+    
+    Fixes #34533
+    
+    Reason for revert: Introduced a significant performance regression for repos with many incompatible-version tags.
+    
+    Change-Id: I75d7fd76e6e1a0902b114b00167b38439e0f8221
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198699
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                              |  1 -
+ src/cmd/go/internal/modcmd/download.go             | 30 ----------------------
+ src/cmd/go/testdata/script/mod_download.txt        |  4 +--
+ src/cmd/go/testdata/script/mod_download_latest.txt | 20 ---------------
+ src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 ---------------
+ 5 files changed, 1 insertion(+), 74 deletions(-)

@@ -1,0 +1,26 @@
+commit d544591d72ade40d34d7a8ee70e7239ae63b4116
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue May 11 11:44:24 2021 +0800
+
+    cmd/dist: add asan tests for global objects in testsanitizers package
+    
+    Add tests to test that -asan in Go can detect the error memory access
+    to the global objects.
+    
+    Updates #44853.
+    
+    Change-Id: I612a048460b497d18389160b66e6f818342d3941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321716
+    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ misc/cgo/testsanitizers/asan_test.go               |  5 ++++
+ .../testsanitizers/testdata/asan_global1_fail.go   | 25 +++++++++++++++++
+ .../testsanitizers/testdata/asan_global2_fail.go   | 31 ++++++++++++++++++++++
+ .../testsanitizers/testdata/asan_global3_fail.go   | 28 +++++++++++++++++++
+ .../testsanitizers/testdata/asan_global4_fail.go   | 25 +++++++++++++++++
+ misc/cgo/testsanitizers/testdata/asan_global5.go   | 22 +++++++++++++++
+ 6 files changed, 136 insertions(+)

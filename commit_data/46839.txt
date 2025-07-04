@@ -1,0 +1,25 @@
+commit aa1c6f56398882fea0969396666004d6ea7ddd57
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Aug 26 17:14:12 2021 -0500
+
+    cmd/internal/obj/ppc64: fix mtocrf, cleanup other CR ops
+    
+    Fix "MOVW CRx, Rx" and "MOVFL Rx, constant", The FXM field was not
+    encoded correctly.
+    
+    Generate mtocrf instead of mtcrf when a CRx argument is used. This
+    form is much faster.
+    
+    Simplify several conditional statements which test if the register
+    argument is REG_CR or one of REG_CRx if the tested argument is known
+    to be matched as C_CREG. Likewise, a4 is (the From3 arg) is always
+    TYPE_NONE in the existing optab entries for type_ 69.
+    
+    Change-Id: I3a4749b1cbfdfab6a2616586ae59e932e01dae50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352789
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 13 ++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 43 +++++++++++++++----------------
+ 2 files changed, 34 insertions(+), 22 deletions(-)

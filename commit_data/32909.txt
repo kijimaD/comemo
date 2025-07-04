@@ -1,0 +1,16 @@
+commit c4d63a0d34d1876868245f5bafc86d3cc00e3763
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Sep 9 16:52:58 2017 -0700
+
+    crypto/x509: abstract SAN parsing function
+    
+    We'll need this for handling name constraints during verification.
+    
+    Change-Id: I4ef19d9489fb2a9ae9a62699d81cef92a21fda28
+    Reviewed-on: https://go-review.googlesource.com/62692
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/crypto/x509/x509.go | 44 +++++++++++++++++++++++++++-----------------
+ 1 file changed, 27 insertions(+), 17 deletions(-)

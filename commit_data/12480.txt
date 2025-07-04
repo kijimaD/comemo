@@ -1,0 +1,20 @@
+commit 4aab8806e7f245a9deb5bf77c8ff2dd10bf24bf5
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Wed Mar 7 13:51:05 2012 -0500
+
+    deps: allow crypto/x509 to use syscall
+    
+    Allows the Windows part of CL 5700087 to land.
+    
+    I had build tested CL 5753060 (which allows
+    crypto/x509 to use cgo and io/ioutil), and
+    didn't spot any errors on Windows.
+    
+    Turns out I was wrong.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5753065
+
+ src/pkg/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 8d4abd788c82227cd6706d9a5718129437b993da
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 16 08:11:21 2024 +0000
+
+    net/http: add comments that servemux121.go should remain frozen
+    
+    Change-Id: I6d1e02ffd07dbb722669abb2e72784dcb2bfffd0
+    GitHub-Last-Rev: 55a82f724a32237be059ae0696cf023db414f1d0
+    GitHub-Pull-Request: golang/go#66848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579118
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/servemux121.go | 4 ++++
+ 1 file changed, 4 insertions(+)

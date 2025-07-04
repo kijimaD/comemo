@@ -1,0 +1,12 @@
+commit 14903f65984a113d2558195b2dd862368d1c96ef
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Fri Aug 9 12:51:21 2013 -0700
+
+    strings: add test for Count
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12541050
+
+ src/pkg/strings/strings_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

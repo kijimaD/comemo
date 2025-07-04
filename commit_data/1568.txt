@@ -1,0 +1,13 @@
+commit 4a903e0b32be5a590880ceb7379e68790602c29d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 27 09:29:40 2009 -0800
+
+     defer statement
+    
+    R=r
+    DELTA=30  (26 added, 0 deleted, 4 changed)
+    OCL=23533
+    CL=23569
+
+ doc/go_spec.txt | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)

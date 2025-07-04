@@ -1,0 +1,40 @@
+commit 394ac818b037ab8a3714b8a23e06e17a1e05aace
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 5 18:03:59 2016 -0700
+
+    cmd/compile: add and enable (internal) option to only track named types
+    
+    The new export format keeps track of all types that are exported.
+    If a type is seen that was exported before, only a reference to
+    that type is emitted. The importer maintains a list of all the
+    seen types and uses that list to resolve type references.
+    
+    The existing compiler infrastructure's invariants assumes that
+    only named types are referred to before they are fully set up.
+    Referring to unnamed incomplete types causes problems. One of
+    the issues was #15548.
+    
+    Added a new internal flag 'trackAllTypes' to enable/disable
+    this type tracking. With this change only named types are
+    tracked.
+    
+    Verified that this fix also addresses #15548, even w/o the
+    prior fix for that issue (in fact that prior fix is turned
+    off if trackAllTypes is disabled because it's not needed).
+    
+    The test for #15548 covers also this change.
+    
+    For #15548.
+    
+    Change-Id: Id0b3ff983629703d025a442823f99649fd728a56
+    Reviewed-on: https://go-review.googlesource.com/22839
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go        |  36 ++++-
+ src/cmd/compile/internal/gc/bimport.go        |  23 ++-
+ src/cmd/compile/internal/gc/builtin.go        | 204 +++++++++++++-------------
+ src/go/internal/gcimporter/bimport.go         |  56 +++++--
+ src/go/internal/gcimporter/gcimporter_test.go |   4 +-
+ test/fixedbugs/bug398.go                      |  15 +-
+ 6 files changed, 205 insertions(+), 133 deletions(-)

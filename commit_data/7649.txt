@@ -1,0 +1,13 @@
+commit 9e25eccf48338902740bae65a2e40f68a2b8a842
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 6 10:50:07 2011 -0800
+
+    gob: clean up getTypeInfo (address a TODO)
+    also fix a caching bug.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4261049
+
+ src/pkg/gob/type.go | 66 +++++++++++++++++++++++------------------------------
+ 1 file changed, 29 insertions(+), 37 deletions(-)

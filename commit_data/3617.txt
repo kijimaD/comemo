@@ -1,0 +1,18 @@
+commit c6e904d5801170863424a7f50e70edc532c93cd4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 21 19:52:11 2009 -0700
+
+    have http server in-line PDF files.
+    add go course pdf files to doc/ for godoc to serve.
+    fix links to point to those files.
+    
+    R=rsc
+    DELTA=7  (4 added, 0 deleted, 3 changed)
+    OCL=35972
+    CL=35981
+
+ doc/GoCourseDay1.pdf | Bin 0 -> 801481 bytes
+ doc/GoCourseDay2.pdf | Bin 0 -> 806917 bytes
+ doc/GoCourseDay3.pdf | Bin 0 -> 530944 bytes
+ src/pkg/http/fs.go   |   1 +
+ 4 files changed, 1 insertion(+)

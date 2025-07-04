@@ -1,0 +1,18 @@
+commit e535d6776c060da5f1947c4290159be0eb60ed6c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 6 21:47:29 2022 +0000
+
+    Revert "runtime/pprof: unskip TestTimeVDSO on Android"
+    
+    This reverts CL 455358, commit 98da0fb43fb481a25b3b4399cd9f517fe94d9f3f.
+    
+    Reason for revert: still failing https://build.golang.org/log/c9f13a76069f523b5b4a37a75ec52b30a1f3427a
+    
+    Change-Id: I8246d233c4fb86781b882f19dea82065cc21bc26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455696
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/pprof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

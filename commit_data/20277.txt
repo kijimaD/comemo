@@ -1,0 +1,16 @@
+commit 93805d711ce1d489af032c617a1ae19ef07922e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 23:10:15 2014 -0400
+
+    runtime: give 2 words back in notetsleep_internal
+    
+    I really hoped we could avoid this nonsense, but it appears not.
+    
+    Should fix windows/amd64 build breakage.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/137120043
+
+ src/pkg/runtime/lock_sema.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

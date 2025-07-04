@@ -1,0 +1,25 @@
+commit fe4e59e78b30fb76936fdc02fa0ce044ca465c09
+Author: Matthew Horsnell <matthew.horsnell@gmail.com>
+Date:   Tue Jun 28 14:25:58 2022 +0100
+
+    runtime internal/cpu: rename "Zeus" "NeoverseV1".
+    
+    Rename "Zeus" to "NeoverseV1" for the partnum 0xd40 to be
+    consistent with the documentation of MIDR_EL1 as described in
+    https://developer.arm.com/documentation/101427/0101/?lang=en
+    
+    Change-Id: I2e3d5ec76b953a831cb4ab0438bc1c403648644b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414775
+    Reviewed-by: Jonathan Swinney <jswinney@amazon.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/cpu/cpu.go             | 2 +-
+ src/internal/cpu/cpu_arm64.go       | 2 +-
+ src/internal/cpu/cpu_arm64_hwcap.go | 2 +-
+ src/runtime/cpuflags_arm64.go       | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

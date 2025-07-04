@@ -1,0 +1,23 @@
+commit ee29dbe43eeb28a2834803e8e1275f1dccb18bc2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 28 10:53:44 2024 -0700
+
+    go/types, types2: don't lose alias information during unification
+    
+    While at it, rename asTypeParam to asBoundTypeParam for clarity.
+    
+    For #67547.
+    Fixes #67628.
+    
+    Change-Id: I2f447c4cd4d72f5315fe9323d82fcb9bf33657c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588797
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/unify.go           | 31 +++++++++++-----------
+ src/go/types/unify.go                              | 31 +++++++++++-----------
+ .../types/testdata/fixedbugs/issue67628.go         | 17 ++++++++++++
+ 3 files changed, 49 insertions(+), 30 deletions(-)

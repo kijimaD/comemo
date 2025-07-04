@@ -1,0 +1,20 @@
+commit 3def15cd20dc136e033a5866086ce862dc36bd52
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 17:34:07 2019 -0800
+
+    cmd/compile: move all constant folding logic into evconst
+    
+    All setconst calls now happen within evconst. While here, get rid of
+    callrecv, which (incompletely) duplicates the logic of hascallchan.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic67b9dd2a1b397d4bc25e8c8b6f81daf4f6cfb75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166980
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 57 +++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 96 +-------------------------------
+ 2 files changed, 58 insertions(+), 95 deletions(-)

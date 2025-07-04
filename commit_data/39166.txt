@@ -1,0 +1,41 @@
+commit 4f76871bd75530682964bd81d050e280c5309438
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 18:55:02 2019 -0400
+
+    cmd/go: run full 'go vet' during 'go test' for packages in GOROOT
+    
+    Now that the main tree complies with 'go vet', enable all vet checks
+    during 'go test' in the main tree. This helps surface helpful errors
+    while developing, instead of having to wait for the misc-vet-vetall builder.
+    
+    During 'go test', the additional vet checks are essentially free:
+    the vet invocations themselves take only 8 seconds total for the entire tree.
+    
+    Also update buildall.bash (used by the misc-compile builders)
+    to run 'go vet std cmd' for each GOOS/GOARCH pair.
+    This is not as free, since in general it can require recompiling
+    packages with their tests included before invoking vet.
+    (That compilation was going on anyway in the 'go test' case.)
+    
+    On my Mac laptop, ./buildall.bash freebsd used to take
+    68+16+17+18 = 119 seconds for make.bash and then
+    the builds of the three freebsd architectures.
+    Now it takes 68+16+23+17+23+18+24 = 189 seconds, 60% longer.
+    Some of this is spent doing unnecessary cgo work.
+    Still, this lets us shard the vet checks and match all.bash.
+    
+    Fixes #20119.
+    For #31916.
+    
+    Change-Id: I6b0c40bac47708a688463c7fca12c0fc23ab2751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176439
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash                    |  6 +++-
+ src/cmd/go/internal/load/test.go     |  1 +
+ src/cmd/go/internal/test/test.go     |  4 +++
+ src/cmd/go/internal/test/testflag.go |  1 +
+ src/cmd/go/internal/work/exec.go     | 59 ++++++++++++++++++++++--------------
+ 5 files changed, 47 insertions(+), 24 deletions(-)

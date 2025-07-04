@@ -1,0 +1,31 @@
+commit d3072b838366e7cc6b9af9767d3648f6e62bae8b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 10 15:48:37 2020 -0500
+
+    cmd/go: in 'go get', only load retractions for resolved versions
+    
+    Previously, 'go get' loaded retractions for every module in the build
+    list, which took a long time and usually wasn't helpful.
+    
+    This rolls forward CL 269019, which was reverted in CL 270521. The new
+    revision adds a call to modload.ListModules at the end of 'go get' to
+    ensure .info files are cached for everything in the build list.
+    
+    Fixes #42185
+    
+    Change-Id: I684f66c5e674384d5a0176fbc8317e5530b8a915
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270858
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 160 +++++++++++++--------
+ src/cmd/go/internal/modload/build.go               |   8 +-
+ src/cmd/go/internal/modload/modfile.go             |  20 +--
+ ...ple.com_retract_ambiguous_nested_v1.9.0-bad.txt |  10 ++
+ .../example.com_retract_ambiguous_other_v1.0.0.txt |  12 ++
+ .../mod/example.com_retract_ambiguous_v1.0.0.txt   |   9 ++
+ src/cmd/go/testdata/script/mod_get_retract.txt     |  19 ++-
+ .../testdata/script/mod_get_retract_ambiguous.txt  |  10 ++
+ .../go/testdata/script/mod_retract_rationale.txt   |  14 +-
+ src/cmd/go/testdata/script/mod_retract_rename.txt  |   2 +-
+ 10 files changed, 174 insertions(+), 90 deletions(-)

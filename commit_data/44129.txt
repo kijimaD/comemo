@@ -1,0 +1,17 @@
+commit ff196c3e84b7e8d47285a0833d0458db3286f8ec
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 15 15:23:23 2021 +0100
+
+    crypto/x509: update iOS bundled roots to version 55188.40.9
+    
+    Updates #38843
+    
+    Change-Id: If76844e1caf23f98d814de89f77610de59d96a34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284134
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/x509/root.go     |   6 +-
+ src/crypto/x509/root_ios.go | 280 +-------------------------------------------
+ 2 files changed, 6 insertions(+), 280 deletions(-)

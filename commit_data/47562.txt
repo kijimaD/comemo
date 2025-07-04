@@ -1,0 +1,25 @@
+commit be18cd51dec6ac460949e96231dd05becc2cbcf7
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Nov 19 12:13:04 2021 -0800
+
+    cmd/compile: ensure generic function is loaded when it needs to be re-exported
+    
+    In the case where we need to re-export a generic function/method from
+    another package in the export data of the current package, make sure it
+    is loaded before trying to write it out.
+    
+    Fixed #49667
+    
+    Change-Id: I177754bb762689f34cf5c8ad246d43f1cdbbf195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365837
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  6 ++++++
+ test/typeparam/issue49667.dir/a.go            | 12 ++++++++++++
+ test/typeparam/issue49667.dir/b.go            | 11 +++++++++++
+ test/typeparam/issue49667.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue49667.go                  |  7 +++++++
+ 5 files changed, 47 insertions(+)

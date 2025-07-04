@@ -1,0 +1,13 @@
+commit 822da408147e4cf74b38013cbc8b1090b31da738
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jun 7 19:01:07 2013 +0100
+
+    cmd/go: update go vet documentation
+    
+    R=rsc, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/10110043
+
+ src/cmd/go/doc.go | 2 +-
+ src/cmd/go/vet.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

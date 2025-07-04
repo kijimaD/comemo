@@ -1,0 +1,17 @@
+commit 98fff8ffb2446b4f844afa8f0aa79679083db37b
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 8 22:16:08 2009 -0700
+
+    dupok, gcc compile fix, sync and syscall asm fix
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=27  (18 added, 0 deleted, 9 changed)
+    OCL=35503
+    CL=35505
+
+ src/cmd/5l/l.h                  |  1 +
+ src/cmd/5l/obj.c                | 13 ++++++++++---
+ src/cmd/ld/lib.c                |  7 ++++++-
+ src/pkg/syscall/asm_linux_arm.s |  9 ++++++---
+ 4 files changed, 23 insertions(+), 7 deletions(-)

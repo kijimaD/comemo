@@ -1,0 +1,21 @@
+commit 125eca0f7210da1bbf1a4a1460a87d1c33366b99
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Mar 6 04:46:07 2021 +1100
+
+    cmd/compile: improve IsNonNil rule on riscv64
+    
+    IsNonNil is readily implemented using SNEZ on riscv64, removing over 8,000
+    instructions from the go binary. Other rules will improve on this sequence,
+    however in this case it makes sense to use a direct simplification.
+    
+    Change-Id: Ib4068599532398afcd05f51d160673ef5fb5e5a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299230
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 18 ++----------------
+ 2 files changed, 3 insertions(+), 17 deletions(-)

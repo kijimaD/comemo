@@ -1,0 +1,31 @@
+commit 4b92cd4ec101e8d69e01e9ed5f3a6db12e2a55a0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 15:59:38 2016 -0500
+
+    cmd/link: make Allsym a slice
+    
+    Looks a tiny bit faster, which is a surprise. Probably noise.
+    Motivation is making the LSym structure a little easier to understand.
+    
+    Linking juju, best of 10:
+    
+    before: real 0m4.811s user 0m5.582s
+    after:  real 0m4.611s user 0m5.267s
+    
+    Change-Id: Idbedaf4a6e6e199036a1bbb6760e98c94ed2c282
+    Reviewed-on: https://go-review.googlesource.com/20142
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/ar.go     |  2 +-
+ src/cmd/link/internal/ld/data.go   |  4 ++--
+ src/cmd/link/internal/ld/elf.go    |  8 +++-----
+ src/cmd/link/internal/ld/go.go     | 17 +++++++----------
+ src/cmd/link/internal/ld/lib.go    |  6 +++---
+ src/cmd/link/internal/ld/link.go   |  3 +--
+ src/cmd/link/internal/ld/macho.go  |  2 +-
+ src/cmd/link/internal/ld/pe.go     |  4 ++--
+ src/cmd/link/internal/ld/sym.go    | 20 ++++++++------------
+ src/cmd/link/internal/ld/symtab.go |  2 +-
+ 10 files changed, 29 insertions(+), 39 deletions(-)

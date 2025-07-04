@@ -1,0 +1,16 @@
+commit 45fe306ac85dae6fa599b51f215090b73cf75bad
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Dec 9 19:10:52 2012 +0100
+
+    cmd/[568]g: recycle ONAME nodes used in regopt to denote registers.
+    
+    The reported decrease in memory usage is about 5%.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6902064
+
+ src/cmd/5g/reg.c | 9 +++++++--
+ src/cmd/6g/reg.c | 9 +++++++--
+ src/cmd/8g/reg.c | 9 +++++++--
+ 3 files changed, 21 insertions(+), 6 deletions(-)

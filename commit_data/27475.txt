@@ -1,0 +1,20 @@
+commit db5af0d7115781be12f510322ee01556fb1e6d16
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 20:58:44 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev 4d07e8a49 for CL 23287:
+    
+       http2: let handlers close Request.Body without killing streams
+       https://golang.org/cl/23287
+    
+    Fixes #15425
+    
+    Change-Id: I20b6e37cd09aa1d5a040c122ca0daf14b8916559
+    Reviewed-on: https://go-review.googlesource.com/23301
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

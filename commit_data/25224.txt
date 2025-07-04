@@ -1,0 +1,19 @@
+commit 8233ecd1b284170695d1d1b501dfab03921f3e20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 10 10:24:03 2015 -0800
+
+    net/http: make NewRequest with empty method mean GET
+    
+    Until recently, we always permitted an empty string to NewRequest.
+    Keep that property, since it broke tests within in Google when trying
+    out Go 1.6, and probably would've broken others too.
+    
+    Change-Id: Idddab1ae7b9423d5caac00af2c897fe1065b600b
+    Reviewed-on: https://go-review.googlesource.com/17699
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request.go      | 6 ++++++
+ src/net/http/request_test.go | 7 +++++++
+ 2 files changed, 13 insertions(+)

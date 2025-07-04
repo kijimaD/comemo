@@ -1,0 +1,20 @@
+commit bac922c6e15f6c6b7378178087e0772c7aa0745a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 19:15:07 2009 -0700
+
+    move portable code generation (basic statements) to gc.
+    
+    R=ken
+    OCL=26929
+    CL=26929
+
+ src/cmd/6g/align.c  |   2 -
+ src/cmd/6g/gen.c    | 592 +++-------------------------------------------------
+ src/cmd/6g/gg.h     |  25 ---
+ src/cmd/6g/gsubr.c  |  18 ++
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/align.c  |  32 +++
+ src/cmd/gc/gen.c    | 505 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h     |  79 +++++--
+ src/cmd/gc/lex.c    |   5 +-
+ 9 files changed, 658 insertions(+), 601 deletions(-)

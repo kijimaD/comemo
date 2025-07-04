@@ -1,0 +1,27 @@
+commit e0d029f75846f84f79e63f6100c57047f4a3fa98
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 2 17:44:43 2021 -0400
+
+    runtime: avoid gp.lockedm race in exitsyscall0
+    
+    Following https://golang.org/cl/291329, exitsyscall0 accesses gp.lockedm
+    after releasing gp to the global runq. This creates a race window where
+    another M may schedule the (unlocked) G, which subsequently calls
+    LockOSThread, setting gp.lockedm and thus causing exitsyscall0 to think
+    it should call stoplockedm.
+    
+    Avoid this race by checking if gp is locked before releasing it to the
+    global runq.
+    
+    Fixes #46524
+    
+    Change-Id: I3acdaf09e7a2178725adbe61e985130e9ebd0680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324350
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit b89bcc1daeed9980c5ba8a255b37877493952874
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 3 16:45:21 2016 +0900
+
+    cmd/go: re-enable TestCgoConsistentResults on solaris
+    
+    Updates #13247.
+    
+    Change-Id: If5e4c9f4db05f58608b0eeed1a2312a04015b207
+    Reviewed-on: https://go-review.googlesource.com/23741
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

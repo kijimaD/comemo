@@ -1,0 +1,14 @@
+commit 145c18365e09434d1571625b1edea5b770cb17cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 13 09:03:24 2011 -0700
+
+    doc: minor homepage tweak
+    
+    Don't imply that the tour isn't browser-based.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5265041
+
+ doc/root.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

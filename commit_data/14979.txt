@@ -1,0 +1,14 @@
+commit 3c25cd27844fb3baf69db81199fbef4a9f9834c6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 24 20:26:08 2013 +0400
+
+    runtime: increase stack limit in a test
+    Otherwise the test is flaky.
+    Fixes #4698.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7133071
+
+ src/pkg/runtime/stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

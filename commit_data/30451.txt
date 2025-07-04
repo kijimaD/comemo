@@ -1,0 +1,32 @@
+commit b6c600fc9a75fd6f4b6f4478058b95902ae6be94
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 28 15:51:29 2017 -0800
+
+    cmd/compile/internal/gc: separate builtin and real runtime packages
+    
+    The builtin runtime package definitions intentionally diverge from the
+    actual runtime package's, but this only works as long as they never
+    overlap.
+    
+    To make it easier to expand the builtin runtime package, this CL now
+    loads their definitions into a logically separate "go.runtime"
+    package.  By resetting the package's Prefix field to "runtime", any
+    references to builtin definitions will still resolve against the real
+    package runtime.
+    
+    Fixes #14482.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I539c0994deaed4506a331f38c5b4d6bc8c95433f
+    Reviewed-on: https://go-review.googlesource.com/37538
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/go.go        | 10 +++++++++-
+ src/cmd/compile/internal/gc/main.go      |  9 +++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ test/runtime.go                          |  2 +-
+ 5 files changed, 19 insertions(+), 6 deletions(-)

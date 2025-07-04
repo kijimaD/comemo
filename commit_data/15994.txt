@@ -1,0 +1,21 @@
+commit f38811979cefe7cd61b34c5580e2d10f65f243db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 15:47:39 2013 -0700
+
+    go/printer: use strings.Split instead of specialized code
+    
+    With the faster strings package, the difference between
+    the specialized code and strings.Split is in the noise:
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkPrint     16724291     16686729   -0.22%
+    
+    (Measured on a Mac Pro, 2.8GHz Quad-core Intel Xeon,
+    4GB 800 MHz DDR2, Mac OS X 10.8.3)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8100044
+
+ src/pkg/go/printer/printer.go | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)

@@ -1,0 +1,13 @@
+commit b2b15d1230f3b4f669b5dd171c31e1b081bffede
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 19 12:02:54 2013 +1000
+
+    net/http: document and test Client.Post treating Reader body as ReadCloser
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11542044
+
+ src/pkg/net/http/client.go         |  7 +++++--
+ src/pkg/net/http/transport_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 2 deletions(-)

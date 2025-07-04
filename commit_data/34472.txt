@@ -1,0 +1,30 @@
+commit 917e72697e653a9a3be3325e6640e50d2098aa5b
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Tue Aug 22 09:35:46 2017 +0000
+
+    crypto/aes: optimize arm64 AES implementation
+    
+    This patch makes use of arm64 AES instructions to accelerate AES computation
+    and only supports optimization on Linux for arm64
+    
+    name        old time/op    new time/op     delta
+    Encrypt-32     255ns ± 0%       26ns ± 0%   -89.73%
+    Decrypt-32     256ns ± 0%       26ns ± 0%   -89.77%
+    Expand-32      990ns ± 5%      901ns ± 0%    -9.05%
+    
+    name        old speed      new speed       delta
+    Encrypt-32  62.5MB/s ± 0%  610.4MB/s ± 0%  +876.39%
+    Decrypt-32  62.3MB/s ± 0%  610.2MB/s ± 0%  +879.6%
+    
+    Fixes #18498
+    
+    Change-Id: If416e5a151785325527b32ff72f6da3812493ed0
+    Reviewed-on: https://go-review.googlesource.com/64490
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/crypto/aes/asm_arm64.s       | 107 +++++++++++++++++++++++++++++++++++++++
+ src/crypto/aes/cipher_arm64.go   |  73 ++++++++++++++++++++++++++
+ src/crypto/aes/cipher_generic.go |   2 +-
+ 3 files changed, 181 insertions(+), 1 deletion(-)

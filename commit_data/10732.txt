@@ -1,0 +1,12 @@
+commit f6972ba62b6a605c6c3e156112772f1e8366c127
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 13 10:12:45 2011 +0900
+
+    net: fix typo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5488052
+
+ src/pkg/net/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 77e0f060e39496a4590a88ef91d8202f86773256
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 6 22:08:46 2014 -0400
+
+    C: Patrick Riley (Google CLA)
+    
+    LGTM=iant
+    R=dsymonds, iant
+    CC=golang-codereviews, pfr
+    https://golang.org/cl/98970045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

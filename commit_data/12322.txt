@@ -1,0 +1,13 @@
+commit 47d614e667d15aa324ec1909ae2422202947ff20
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 2 11:52:46 2012 +1100
+
+    doc: update go1 for html changes
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5713054
+
+ doc/go1.html | 6 ++++++
+ doc/go1.tmpl | 6 ++++++
+ 2 files changed, 12 insertions(+)

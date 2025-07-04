@@ -1,0 +1,18 @@
+commit 908af6529c1d3094da999fdafe79313c41826afa
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 10 22:10:58 2025 +0000
+
+    archive/zip: error on ReadDir if there are invalid file names
+    
+    Fixes #50179
+    
+    Change-Id: I616a6d1279d025e345d2daa6d44b687c8a2d09e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/archive/zip/reader.go      |  7 +++++++
+ src/archive/zip/reader_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

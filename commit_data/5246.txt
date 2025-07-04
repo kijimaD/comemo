@@ -1,0 +1,15 @@
+commit 24c58174b27e1cd2cbaa34e392c6a9e7957a6afa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 7 20:38:02 2010 -0700
+
+    runtime: use explicit flag when finalizer goroutine is waiting
+    
+    Avoids spurious wakeups during other sleeping by that goroutine.
+    Fixes #711.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/902041
+
+ src/pkg/runtime/mgc0.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

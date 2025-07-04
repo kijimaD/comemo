@@ -1,0 +1,12 @@
+commit a0c9fb6bd359f111f19176ff176244b91a3e7eaa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 13 10:24:41 2020 -0800
+
+    hash/maphash: mention the results are 64-bit integers
+    
+    Change-Id: I0d2ba52d79c34d77d475ec8d673286d0e56b826b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219340
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/hash/maphash/maphash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 3fd491747247e95d00e24feccd1568b9e7eb37b4
+Author: Hollow Man <hollowman@hollowman.ml>
+Date:   Fri Nov 20 16:44:15 2020 +0000
+
+    doc: fix misspelling of “initialization” in diagnostics.html
+    
+    initilization -> initialization
+    
+    Change-Id: Ie5edd30559941f2d044280d8d586c2c2692d5b69
+    GitHub-Last-Rev: 7495a8c7227bc9c574c93861e5fedc1bada0397c
+    GitHub-Pull-Request: golang/go#42749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272026
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ doc/diagnostics.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

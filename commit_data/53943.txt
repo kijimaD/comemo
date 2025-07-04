@@ -1,0 +1,25 @@
+commit 2d5ce9b729c0edded841301bd73d68d5e95aa28b
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Aug 7 15:57:54 2023 -0700
+
+    net/http: sanitize User-Agent header in request writer
+    
+    Apply the same transformations to the User-Agent header value that we
+    do to other headers.
+    
+    Avoids header and request smuggling in Request.Write and
+    Request.WriteProxy. RoundTrip already validates values in
+    Request.Header, and didn't allow bad User-Agent values to
+    make it as far as the request writer.
+    
+    Fixes #61824
+    
+    Change-Id: I360a915c7e08d014e0532bd5af196a5b59c89395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516836
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/request.go      |  2 ++
+ src/net/http/request_test.go | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+)

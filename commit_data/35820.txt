@@ -1,0 +1,14 @@
+commit 87b7b667e566403c2ccc5801b94aadae471f5738
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 27 16:50:39 2018 +0000
+
+    net/http/httptrace: add clarification never added to CL 67430
+    
+    Updates #19761
+    
+    Change-Id: Iac3bd4c40002f8e348452b50bff54dee3210d447
+    Reviewed-on: https://go-review.googlesource.com/121236
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httptrace/trace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

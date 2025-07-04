@@ -1,0 +1,12 @@
+commit e243d242d750f19cd1c3aefa7da1ad238f21502e
+Author: kargakis <mkargaki@redhat.com>
+Date:   Tue Oct 27 16:25:08 2015 +0100
+
+    reflect: Comment fix
+    
+    Change-Id: I86cdd5c1d7b6f76d3474d180e75ea0c732241080
+    Reviewed-on: https://go-review.googlesource.com/16309
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 0043c1efbb53e72cbd1b41c32812ca3c78d8e169
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Mar 8 00:08:49 2022 +0000
+
+    fmt: use tabs for indentation
+    
+    Replace 24 spaces added in CL 389434 with 3 tabs,
+    so the new line is indented like other lines around it.
+    
+    Updates #51419.
+    
+    Change-Id: Ic3e50023a01f233c52dda53c36de2c461222d95c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390674
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Adam Shannon <adamkshannon@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

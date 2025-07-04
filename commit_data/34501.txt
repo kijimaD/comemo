@@ -1,0 +1,12 @@
+commit 06572356602c414b84019693cec7286882aa845e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 7 10:20:19 2018 +0100
+
+    database/sql: fix typo in comment
+    
+    Change-Id: Ie2966bae1dc2e542c42fb32d8059a4b2d4690014
+    Reviewed-on: https://go-review.googlesource.com/99115
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

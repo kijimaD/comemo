@@ -1,0 +1,23 @@
+commit 56bc3098f4ed42b272a45c246dcd42d28d89a69a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 10 18:47:37 2022 +0000
+
+    sync: improve linearity test robustness
+    
+    This change improves the robustness of the locklinear test in the
+    following ways:
+    
+    * It removes allocations from the timing, which may be very variable if
+      we're unlucky.
+    * It ensures that goroutines are properly cleaned up before the test
+      function returns, reducing the chance that they bleed into repeat
+      attempts. It also stops timing before this cleanup.
+    
+    Fixes #32986.
+    
+    Change-Id: I3a8096e6922f23d899ad602e2845bdfc639ed742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409894
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/sync/mutex_test.go | 36 +++++++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)

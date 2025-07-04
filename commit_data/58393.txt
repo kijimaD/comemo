@@ -1,0 +1,20 @@
+commit 08725f9de28726b52c2e62a37cd378d10f10c110
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 13 17:16:44 2024 +0100
+
+    crypto/internal/cryptotest: skip TestAllocations on s390x
+    
+    TestXAESAllocations fails like #70448, and crypto/rand's fails in FIPS
+    mode. We can't keep chasing these without even a LUCI builder.
+    
+    Updates #67307
+    
+    Change-Id: I5d0edddf470180a321dec55cabfb018db62eb940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636055
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/crypto/internal/cryptotest/allocations.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

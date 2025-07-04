@@ -1,0 +1,21 @@
+commit bd622872f4fc2bf09b75f59c461e5c38e10f91ec
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 18 17:39:31 2019 -0400
+
+    doc: add skeleton module documentation with headings
+    
+    Sections will be filled in with individual CLs before Go 1.14.
+    
+    NOTE: This document is currently in Markdown for ease of writing /
+    reviewing. Before Go 1.14, we will either ensure that x/website
+    can render Markdown (flavor TBD) or check in a rendered HTML file that
+    can be displayed directly.
+    
+    Updates #33637
+    
+    Change-Id: Icd43fa2bdb7d256b28a56b93214b70343f43492e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202081
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/modules.md | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

@@ -1,0 +1,18 @@
+commit 8dd069b52a87d482e219e16e92390b1d415db486
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 08:53:20 2016 -0700
+
+    androidtest.bash: require GOARCH
+    
+    When finding the pkg dir, androidtest.bash assumes
+    that GOARCH is set. Require it up front.
+    
+    Change-Id: I143f7b59ad9d98b9c3cfb53c1d65c2d33a6acc12
+    Reviewed-on: https://go-review.googlesource.com/27926
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/androidtest.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

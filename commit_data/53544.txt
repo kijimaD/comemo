@@ -1,0 +1,16 @@
+commit 8faa79e91f52727fdf6c3fa2e96d1068a8b2f3df
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Mon Jun 12 09:00:26 2023 -0700
+
+    sort: comments directing new code to use the slices package when applicable
+    
+    Change-Id: I0d4e902736fb3a75d128a088901055bece6c1a71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ src/sort/sort.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

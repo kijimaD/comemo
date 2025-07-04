@@ -1,0 +1,27 @@
+commit f44e58703115af61e7b03416273031d788c076f1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Feb 3 10:36:47 2017 +0100
+
+    math: check overflow in amd64 Exp implementation
+    
+    Unlike the pure go implementation used by every other architecture,
+    the amd64 asm implementation of Exp does not fail early if the
+    argument is known to overflow. Make it fail early.
+    
+    Cost of the check is < 1ns (on an old Sandy Bridge machine):
+    
+    name   old time/op  new time/op  delta
+    Exp-4  18.3ns ± 1%  18.7ns ± 1%  +2.08%  (p=0.000 n=18+20)
+    
+    Fixes #14932
+    Fixes #18912
+    
+    Change-Id: I04b3f9b4ee853822cbdc97feade726fbe2907289
+    Reviewed-on: https://go-review.googlesource.com/36271
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 30 ++++++++++++++++++++++++++++--
+ src/math/exp_amd64.s |  7 ++++++-
+ 2 files changed, 34 insertions(+), 3 deletions(-)

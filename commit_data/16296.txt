@@ -1,0 +1,24 @@
+commit f1583bb9563827fe132c97798657a6c60e6a0457
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 15:50:46 2013 -0700
+
+    encoding/json: allocate less in NewEncoder
+    
+    The *Encoder is almost always garbage. It doesn't need an
+    encodeState inside of it (and its bytes.Buffer), since it's
+    only needed locally inside of Encode.
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkEncoderEncode         2562         2553   -0.35%
+    
+    benchmark                 old bytes    new bytes    delta
+    BenchmarkEncoderEncode          283          102  -63.96%
+    
+    R=r
+    CC=gobot, golang-dev
+    https://golang.org/cl/9365044
+
+ src/pkg/encoding/json/encode.go      | 20 ++++++++++++++++++++
+ src/pkg/encoding/json/stream.go      |  9 +++++----
+ src/pkg/encoding/json/stream_test.go | 13 +++++++++++++
+ 3 files changed, 38 insertions(+), 4 deletions(-)

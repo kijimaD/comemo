@@ -1,0 +1,18 @@
+commit d76f0957505b0d2e981effd19c24fe2b8e8c7b8e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 6 16:28:18 2009 -0700
+
+    semi-weekly snapshot:
+    - format-driven pretty printing now handles all of Go code
+    - better error handling
+    
+    R=r
+    OCL=28370
+    CL=28372
+
+ usr/gri/pretty/ast.txt        |  87 ++++++++++++++-----------
+ usr/gri/pretty/format.go      | 146 ++++++++++++++++++++++--------------------
+ usr/gri/pretty/format_test.go |   2 +-
+ usr/gri/pretty/pretty.go      |  35 ++++++++--
+ usr/gri/pretty/test.sh        |  26 +++++++-
+ 5 files changed, 180 insertions(+), 116 deletions(-)

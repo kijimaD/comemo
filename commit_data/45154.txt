@@ -1,0 +1,16 @@
+commit 083a26c7d2faa8194782856c6f4efce47703df01
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 14 16:18:58 2021 -0700
+
+    cmd/compile: propagate pragmas from generic function to stenciled implementation
+    
+    Change-Id: I28a1910890659aaa449ffd2a847cd4ced5a8600d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310211
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ test/typeparam/pragma.go                  | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

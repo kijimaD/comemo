@@ -1,0 +1,18 @@
+commit 76f981c8d86ec122da50a140f8843eb636ac8240
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Jan 14 14:13:58 2017 +0100
+
+    net/http: skip TestServerHijackGetsBackgroundByte on Plan 9
+    
+    CL 5232 added TestServerHijackGetsBackgroundByte, which is failing
+    on Plan 9, because CloseWrite is not implemented on Plan 9 yet.
+    
+    Updates #17906.
+    Updates #18657.
+    
+    Change-Id: I3c2f73760b0f767f3f9ed2698c855372170e0481
+    Reviewed-on: https://go-review.googlesource.com/35178
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,14 @@
+commit 7d3be61386bd7aab350b443808e2b0e5171033a9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 13 16:34:52 2014 +1000
+
+    doc: link to new downloads page
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/102340044
+
+ doc/go1.html     | 2 +-
+ doc/install.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

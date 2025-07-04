@@ -1,0 +1,116 @@
+commit 69b74c3953eac1a28febb893d1e8e383ffbe5209
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 13:26:16 2008 -0700
+
+    import the plan 9 libraries libc (lib9) and libbio into the tree.
+    remove the dependency on /home/r.
+    
+    SVN=122482
+
+ include/bio.h             |  117 +++++
+ include/fmt.h             |  116 +++++
+ include/libc.h            |  364 ++++++++++++++
+ include/u.h               |  208 ++++++++
+ src/clean.bash            |   18 +
+ src/cmd/6a/Makefile       |    4 +-
+ src/cmd/6c/Makefile       |    4 +-
+ src/cmd/6g/Makefile       |    4 +-
+ src/cmd/6l/Makefile       |    4 +-
+ src/cmd/cc/Makefile       |    2 +-
+ src/cmd/gc/Makefile       |    2 +-
+ src/lib9/Makefile         |  126 +++++
+ src/lib9/_exits.c         |   35 ++
+ src/lib9/_p9dir.c         |  315 +++++++++++++
+ src/lib9/argv0.c          |   34 ++
+ src/lib9/atoi.c           |   45 ++
+ src/lib9/await.c          |  179 +++++++
+ src/lib9/cleanname.c      |   78 +++
+ src/lib9/create.c         |   99 ++++
+ src/lib9/dirfstat.c       |   54 +++
+ src/lib9/dirfwstat.c      |   78 +++
+ src/lib9/dirstat.c        |   57 +++
+ src/lib9/dirwstat.c       |   43 ++
+ src/lib9/dup.c            |   36 ++
+ src/lib9/errstr.c         |  106 +++++
+ src/lib9/exec.c           |   33 ++
+ src/lib9/execl.c          |   53 +++
+ src/lib9/exitcode.c       |   34 ++
+ src/lib9/fmt/charstod.c   |   88 ++++
+ src/lib9/fmt/dofmt.c      |  629 +++++++++++++++++++++++++
+ src/lib9/fmt/dorfmt.c     |   65 +++
+ src/lib9/fmt/errfmt.c     |   30 ++
+ src/lib9/fmt/fltfmt.c     |  677 ++++++++++++++++++++++++++
+ src/lib9/fmt/fmt.c        |  235 +++++++++
+ src/lib9/fmt/fmtdef.h     |  119 +++++
+ src/lib9/fmt/fmtfd.c      |   51 ++
+ src/lib9/fmt/fmtfdflush.c |   37 ++
+ src/lib9/fmt/fmtlocale.c  |   69 +++
+ src/lib9/fmt/fmtlock.c    |   31 ++
+ src/lib9/fmt/fmtnull.c    |   48 ++
+ src/lib9/fmt/fmtprint.c   |   51 ++
+ src/lib9/fmt/fmtquote.c   |  274 +++++++++++
+ src/lib9/fmt/fmtrune.c    |   43 ++
+ src/lib9/fmt/fmtstr.c     |   31 ++
+ src/lib9/fmt/fmtvprint.c  |   52 ++
+ src/lib9/fmt/fprint.c     |   33 ++
+ src/lib9/fmt/nan64.c      |   93 ++++
+ src/lib9/fmt/pow10.c      |   60 +++
+ src/lib9/fmt/print.c      |   33 ++
+ src/lib9/fmt/seprint.c    |   33 ++
+ src/lib9/fmt/smprint.c    |   33 ++
+ src/lib9/fmt/snprint.c    |   34 ++
+ src/lib9/fmt/sprint.c     |   45 ++
+ src/lib9/fmt/test.c       |   65 +++
+ src/lib9/fmt/vfprint.c    |   37 ++
+ src/lib9/fmt/vseprint.c   |   44 ++
+ src/lib9/fmt/vsmprint.c   |   87 ++++
+ src/lib9/fmt/vsnprint.c   |   43 ++
+ src/lib9/fmtlock2.c       |   38 ++
+ src/lib9/fork.c           |   46 ++
+ src/lib9/getenv.c         |   50 ++
+ src/lib9/getfields.c      |   62 +++
+ src/lib9/getuser.c        |   41 ++
+ src/lib9/getwd.c          |   34 ++
+ src/lib9/jmp.c            |   42 ++
+ src/lib9/main.c           |   38 ++
+ src/lib9/nan.c            |   52 ++
+ src/lib9/notify.c         |  297 ++++++++++++
+ src/lib9/nulldir.c        |   35 ++
+ src/lib9/open.c           |   87 ++++
+ src/lib9/pipe.c           |   39 ++
+ src/lib9/readn.c          |   47 ++
+ src/lib9/rfork.c          |  153 ++++++
+ src/lib9/seek.c           |   33 ++
+ src/lib9/strecpy.c        |   42 ++
+ src/lib9/sysfatal.c       |   47 ++
+ src/lib9/tokenize.c       |  132 ++++++
+ src/lib9/utf/rune.c       |  177 +++++++
+ src/lib9/utf/runetype.c   | 1151 +++++++++++++++++++++++++++++++++++++++++++++
+ src/lib9/utf/utfdef.h     |   47 ++
+ src/lib9/utf/utfecpy.c    |   37 ++
+ src/lib9/utf/utflen.c     |   37 ++
+ src/lib9/utf/utfnlen.c    |   41 ++
+ src/lib9/utf/utfrrune.c   |   45 ++
+ src/lib9/utf/utfrune.c    |   44 ++
+ src/lib9/utf/utfutf.c     |   41 ++
+ src/libbio/Makefile       |   64 +++
+ src/libbio/bbuffered.c    |   46 ++
+ src/libbio/bfildes.c      |   35 ++
+ src/libbio/bflush.c       |   59 +++
+ src/libbio/bgetc.c        |   79 ++++
+ src/libbio/bgetd.c        |   62 +++
+ src/libbio/bgetrune.c     |   73 +++
+ src/libbio/binit.c        |  179 +++++++
+ src/libbio/boffset.c      |   50 ++
+ src/libbio/bprint.c       |   54 +++
+ src/libbio/bputc.c        |   46 ++
+ src/libbio/bputrune.c     |   49 ++
+ src/libbio/brdline.c      |  120 +++++
+ src/libbio/brdstr.c       |   60 +++
+ src/libbio/bread.c        |   71 +++
+ src/libbio/bseek.c        |   85 ++++
+ src/libbio/bwrite.c       |   64 +++
+ src/make.bash             |    7 +
+ src/runtime/clean.bash    |    5 +
+ test/golden.out           |    3 +-
+ 106 files changed, 9552 insertions(+), 12 deletions(-)

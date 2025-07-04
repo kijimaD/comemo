@@ -1,0 +1,12 @@
+commit 5b7e50a0aaf639fea3899c5946ed7339add5fb09
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 21:37:12 2010 -0400
+
+    runtime: fix freebsd build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/2296041
+
+ src/pkg/runtime/freebsd/mem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

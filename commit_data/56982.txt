@@ -1,0 +1,20 @@
+commit 1b7285d1ab38212433a78dc32a0421250a35c921
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 18 11:32:18 2024 -0700
+
+    go/types, types2: factor out method receiver validation
+    
+    While at it, slightly regroup surounding code for clarity.
+    
+    For #51343.
+    
+    Change-Id: Ibb3a58c2ea138afae0be5315d98f698d7633b22a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593455
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/signature.go | 118 ++++++++++++++-------------
+ src/go/types/signature.go                    | 118 ++++++++++++++-------------
+ 2 files changed, 124 insertions(+), 112 deletions(-)

@@ -1,0 +1,26 @@
+commit 8c37d486c83c46f8b53d21409bd0249e1335b16c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jan 21 14:53:47 2023 +0700
+
+    go/types, types2: refuse pointer to array as argument to "clear" builtin
+    
+    The accepted proposal only permits map and slice types.
+    
+    Updates #56351
+    
+    Change-Id: I95cf4c856a5ecfcdf564601b6215eda3cb6ba86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463075
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/builtins.go      | 8 ++------
+ src/cmd/compile/internal/types2/builtins_test.go | 2 --
+ src/go/types/builtins.go                         | 8 ++------
+ src/go/types/builtins_test.go                    | 2 --
+ src/internal/types/errors/codes.go               | 2 +-
+ src/internal/types/testdata/check/builtins0.go   | 2 +-
+ src/internal/types/testdata/check/builtins1.go   | 2 +-
+ 7 files changed, 7 insertions(+), 19 deletions(-)

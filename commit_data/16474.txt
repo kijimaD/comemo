@@ -1,0 +1,14 @@
+commit 022818c142ebc62da9a0e3a86c728ab36c047027
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 4 01:40:53 2013 +0800
+
+    doc/articles: use C90 standard functions in the cgo article.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9953043
+
+ doc/articles/c_go_cgo.html | 12 ++++++------
+ doc/progs/cgo1.go          |  4 ++--
+ doc/progs/cgo2.go          |  4 ++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)

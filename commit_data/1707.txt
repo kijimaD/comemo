@@ -1,0 +1,12 @@
+commit ce2bc3aabc3b0187110b24ddca1768ff51818868
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 22 15:39:50 2009 -0800
+
+    add logo to documentation directory.
+    
+    R=rsc
+    OCL=25293
+    CL=25293
+
+ doc/logo_blue.png | Bin 0 -> 7107 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

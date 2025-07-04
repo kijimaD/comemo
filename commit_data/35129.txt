@@ -1,0 +1,16 @@
+commit 50a583966a69d7be86e6e32f0fd842a176e62db4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 16:03:26 2018 -0400
+
+    encoding/base64: fix format error
+    
+    Found by pending CL to make cmd/vet auto-detect printf wrappers.
+    
+    Change-Id: I2ad06647b7b41cf68859820a60eeac2e689ca2e6
+    Reviewed-on: https://go-review.googlesource.com/109344
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

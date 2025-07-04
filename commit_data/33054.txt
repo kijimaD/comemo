@@ -1,0 +1,18 @@
+commit 624630b8247ca8150e10417f0da3e2fb2ce19eac
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 11 09:28:47 2017 -0700
+
+    cmd/compile: fold constant comparisions into SETxxmem ops.
+    
+    Fixes #22198
+    
+    Change-Id: I5cb91c73069af8b16a2580d28756efd58c84b690
+    Reviewed-on: https://go-review.googlesource.com/69990
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   60 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1180 +++++++++++++++++++++++++-
+ test/fixedbugs/issue22198.go                 |   18 +
+ 3 files changed, 1256 insertions(+), 2 deletions(-)

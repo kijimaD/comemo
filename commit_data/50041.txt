@@ -1,0 +1,24 @@
+commit 28afa5b1761ba6bb51a4c831e9ee0b9812de8bc5
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Mon Jul 11 11:58:39 2022 +0300
+
+    runtime/pprof: add memory mapping info for Windows
+    
+    Fixes #43296
+    
+    Change-Id: Ib277c2e82c95f71a7a9b7fe1b22215ead7a54a88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416975
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/syscall/windows/memory_windows.go   | 20 +++++--
+ src/internal/syscall/windows/syscall_windows.go  | 27 +++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 18 ++++++
+ src/runtime/pprof/pe.go                          | 19 ++++++
+ src/runtime/pprof/proto.go                       | 24 ++------
+ src/runtime/pprof/proto_other.go                 | 30 ++++++++++
+ src/runtime/pprof/proto_test.go                  | 30 ++++++++++
+ src/runtime/pprof/proto_windows.go               | 73 ++++++++++++++++++++++++
+ 8 files changed, 216 insertions(+), 25 deletions(-)

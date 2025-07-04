@@ -1,0 +1,20 @@
+commit 0cc710dca63b79ed2dd6ce9375502e76e5fc0484
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri May 13 12:33:27 2016 -0400
+
+    reflect: fix method type string
+    
+    By picking up a spurious tFlagExtraStar, the method type was printing
+    as unc instead of func.
+    
+    Updates #15673
+    
+    Change-Id: I0c2c189b99bdd4caeb393693be7520b8e3f342bf
+    Reviewed-on: https://go-review.googlesource.com/23103
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 21 +++++++++++++++++++++
+ src/reflect/type.go     |  1 +
+ 2 files changed, 22 insertions(+)

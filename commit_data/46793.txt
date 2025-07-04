@@ -1,0 +1,19 @@
+commit 39bbf08e7139d0e041b0633945a42d0621d2897e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 6 18:23:06 2021 -0700
+
+    cmd/compile/internal/types2: implement copy for generic argument types
+    
+    For now, the underlying types of the the argument types' constraints
+    must be a single type that is a slice (the source operand may also
+    be a string).
+    
+    Change-Id: I9e705e3349c9242f126b9c3e0af65e9ffb25fe6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354432
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go        |  4 +--
+ .../internal/types2/testdata/check/builtins.go2    | 37 ++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 3 deletions(-)

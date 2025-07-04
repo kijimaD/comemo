@@ -1,0 +1,16 @@
+commit 7594440ef134ddebc2864d207815eb325adda13f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 7 17:55:25 2013 -0500
+
+    cmd/8g: add a few missing splitclean
+    
+    Fixes #887.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7303061
+
+ src/cmd/8g/ggen.c          |  2 ++
+ src/cmd/8g/gsubr.c         |  2 +-
+ test/fixedbugs/issue887.go | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

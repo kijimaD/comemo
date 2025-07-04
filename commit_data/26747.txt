@@ -1,0 +1,16 @@
+commit 0d375381963d1236b1f70546386ffe92dddb59fc
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Tue Apr 5 23:54:50 2016 +0800
+
+    cmd/vet: do not treat declaration as asignment in atomic check
+    
+    Fixes #15118
+    
+    Change-Id: Iad56ed412535c8ac0a01c4bd7769fd3d37688ac9
+    Reviewed-on: https://go-review.googlesource.com/21526
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/atomic.go          | 3 +++
+ src/cmd/vet/testdata/atomic.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

@@ -1,0 +1,18 @@
+commit 76c94eb7064c9f84e41a2329efb0986cad1fb306
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 6 17:24:23 2022 -0700
+
+    cmd/asm/internal/asm: don't set testOut in testErrors
+    
+    It's set but the output is never used.
+    
+    Change-Id: I36ecb9c5f087a85289529907ede9f9bfc295d739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428637
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go | 1 -
+ 1 file changed, 1 deletion(-)

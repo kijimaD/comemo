@@ -1,0 +1,35 @@
+commit d6294e00f029d93b8552827bce1f24f67458d3f2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 04:56:10 2022 -0700
+
+    cmd/compile: fix devirtualization bug with unified IR
+    
+    As a consistency check in devirtualization, when we determine `i` (of
+    interface type `I`) always has dynamic type `T`, we insert a type
+    assertion `i.(T)`. This emits an itab check for `go:itab.T,I`, but
+    it's always true (and so SSA optimizes it away).
+    
+    However, if `I` is instead the generic interface type `I[T]`, then
+    `go:itab.T,I[int]` and `go:itab.T,I[go.shape.int]` are equivalent but
+    distinct itabs. And notably, we'll have originally created the
+    interface value using the former; but the (non-dynamic) TypeAssertExpr
+    created by devirtualization would ultimately emit a comparison against
+    the latter. This comparison would then evaluate false, leading to a
+    spurious type assertion panic at runtime.
+    
+    The comparison is just meant as an extra safety check, so it should be
+    safe to just disable. But for now, it's simpler/safer to just punt on
+    devirtualization in this case. (The non-unified frontend doesn't
+    devirtualize this either.)
+    
+    Change-Id: I6a8809bcfebc9571f32e289fa4bc6a8b0d21ca46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424774
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ .../compile/internal/devirtualize/devirtualize.go  | 19 ++++++++++++++++
+ test/typeparam/mdempsky/21.go                      | 26 ++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

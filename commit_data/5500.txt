@@ -1,0 +1,14 @@
+commit 9e497c3656183595ee9054e8561b28f37ccaff8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 20 17:34:22 2010 -0700
+
+    gc: disallow · in Go programs
+    
+    Fixes #793.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1249043
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

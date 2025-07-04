@@ -1,0 +1,24 @@
+commit 7c9b9af76e5a182ea9f94da5e48d378ed70f73cf
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 12 17:24:05 2009 -0700
+
+    Convert interpreter to whole-package compilation.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=334  (110 added, 211 deleted, 13 changed)
+    OCL=33135
+    CL=33137
+
+ usr/austin/eval/Makefile    |  20 ++++++++
+ usr/austin/eval/compiler.go |  24 ---------
+ usr/austin/eval/decls.go    |  19 -------
+ usr/austin/eval/expr.go     |  30 -----------
+ usr/austin/eval/func.go     |   5 --
+ usr/austin/eval/scope.go    |   1 -
+ usr/austin/eval/stmt.go     |   4 +-
+ usr/austin/eval/type.go     | 119 +++++++++++++++++++++++++++++++++++++++-----
+ usr/austin/eval/typec.go    |   9 ----
+ usr/austin/eval/util.go     |   1 -
+ usr/austin/eval/value.go    | 119 --------------------------------------------
+ 11 files changed, 127 insertions(+), 224 deletions(-)

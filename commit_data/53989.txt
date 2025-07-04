@@ -1,0 +1,31 @@
+commit ac64a3628b54f47dc3aa84fc4527fd753db7b834
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 20:19:59 2023 +1000
+
+    runtime/cgo: rename crosscall_386 to crosscall1 and standardise API
+    
+    Most architectures have a crosscall1 function that takes a function
+    pointer, a setg_gcc function pointer and a g pointer. However,
+    crosscall_386 only takes a function pointer and the call to setg_gcc
+    is performed in the thread entry function.
+    
+    Rename crosscall_386 to crosscall1 for consistency with other
+    architectures, as well as standardising the API - while not strictly
+    necessary, it will allow for further deduplication as the calling
+    code becomes more consistent.
+    
+    Change-Id: I77cf42e1e15e0a4c5802359849a849c32cebd92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518618
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/gcc_386.S         | 14 ++++++++++----
+ src/runtime/cgo/gcc_freebsd_386.c |  8 ++------
+ src/runtime/cgo/gcc_linux_386.c   |  8 ++------
+ src/runtime/cgo/gcc_netbsd_386.c  |  8 ++------
+ src/runtime/cgo/gcc_openbsd_386.c |  8 ++------
+ src/runtime/cgo/gcc_windows_386.c |  6 ++++--
+ src/runtime/cgo/libcgo.h          |  5 -----
+ 7 files changed, 22 insertions(+), 35 deletions(-)

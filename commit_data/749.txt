@@ -1,0 +1,12 @@
+commit 5267db394c36c8d2e2f4110fc4d979a832b72860
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:31:17 2008 -0700
+
+    add os.Pipe
+    
+    R=r
+    OCL=15989
+    CL=16001
+
+ src/lib/os/os_file.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

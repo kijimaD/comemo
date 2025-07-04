@@ -1,0 +1,20 @@
+commit 126150d0f665e1a5a5103f85f4d7b1ff97f71f9d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 13:28:03 2008 -0700
+
+    lots of new tests
+    
+    SVN=121464
+
+ test/for.go        |  56 ++++++++++++++
+ test/func.go       |  97 +++++++++++++++++++++++++
+ test/helloworld.go |  12 +++
+ test/if.go         |  94 ++++++++++++++++++++++++
+ test/iota.go       |  30 ++++++++
+ test/literal.go    | 210 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/run           |   3 +-
+ test/runtests.sh   |   9 ---
+ test/sieve.go      |   8 +-
+ test/switch.go     | 131 +++++++++++++++++++++++++++++++++
+ test/turing.go     |   2 +-
+ 11 files changed, 637 insertions(+), 15 deletions(-)

@@ -1,0 +1,15 @@
+commit 379b5a39213ab8c995a1726c9e461df31aa72aac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 28 18:42:26 2008 -0700
+
+    - steps towards implementation of div and mod
+    - string conversion in different bases
+    - tracked down a 6g bug, use work-around for now
+    
+    R=r
+    OCL=17981
+    CL=17981
+
+ usr/gri/bignum/bignum.go      | 487 +++++++++++++++++++++++++++---------------
+ usr/gri/bignum/bignum_test.go |  14 +-
+ 2 files changed, 324 insertions(+), 177 deletions(-)

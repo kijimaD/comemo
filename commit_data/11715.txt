@@ -1,0 +1,14 @@
+commit cf80ccd8f666a839466af874aefa0ee02c58efdc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 07:09:52 2012 +1100
+
+    doc/go1: mention that the compiler catches TotalSize and NewReaderSize
+    Today is Size day and the compiler will reject old code using these functions.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5644053
+
+ doc/go1.html | 5 ++---
+ doc/go1.tmpl | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

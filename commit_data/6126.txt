@@ -1,0 +1,12 @@
+commit 3972908ead6c0f65f5c8812218c0c9bc677b8e93
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Aug 30 09:59:59 2010 +1000
+
+    crypto/tls: Fix doc typo
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2073041
+
+ src/pkg/crypto/tls/conn.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

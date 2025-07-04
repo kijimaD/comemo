@@ -1,0 +1,22 @@
+commit 4b38200bfd2d4718730e63cc991e7163ed0d7fd9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 14 23:02:56 2017 +0900
+
+    cmd/go: correctly quote environment variables in -x output
+    
+    This fixes the -x output so that when it reports environment variables they
+    are correctly quoted for later execution by the shell.
+    Also fix -x output to use the right path to the pack tool, and note when
+    we are touching a file.
+    
+    Fixes #21427
+    
+    Change-Id: I323ef4edf9905b08bc26944b94183d8da2fa9675
+    Reviewed-on: https://go-review.googlesource.com/55350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go             | 49 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/build.go | 17 ++++++++++----
+ 2 files changed, 62 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 2d26a65f8f1a6fcb0948803589061d99b94fa993
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 5 10:07:41 2018 +1200
+
+    cmd/link: do not pass -no-pie to host linker when -linkshared is passed
+    
+    As the comment above the code I'm changing says, when building with
+    -buildmode=exe, the default compiler flags produce code incompatible with PIE.
+    But when -linkshared is passed, the default compiler flags are not used so this
+    does not apply. And now I've found a system (linux/arm64 with glibc 2.27) where
+    this combination of flags causes a problem, albeit for reasons I don't really
+    understand, so stop passing -no-pie when -linkshared is passed.
+    
+    Change-Id: I412ec7941dc0cb89e6d1b171fc29288aadcb9f20
+    Reviewed-on: https://go-review.googlesource.com/104815
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

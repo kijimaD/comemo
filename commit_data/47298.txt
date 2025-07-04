@@ -1,0 +1,15 @@
+commit 3e9e02412e7770e46c7e725e17dee09a7d79f32c
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Tue Oct 12 14:27:02 2021 +0800
+
+    bytes: add example with (*Buffer).Cap, (*Buffer).Read, (*Buffer).ReadByte
+    
+    Change-Id: Ieb107fdfccde9f054491f667a384b16f7af71dea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355289
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/bytes/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

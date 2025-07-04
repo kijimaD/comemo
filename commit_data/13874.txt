@@ -1,0 +1,14 @@
+commit 2e7aaeddc4498788fe98bb9052af67894566ee5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 20 00:58:34 2012 +0800
+
+    src/all.bat: fix banner
+    we need to restore %PATH% before calling "dist banner", so that
+    it could suggest the user to add %GOROOT%/bin to %PATH% if necessary.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6525049
+
+ src/all.bat | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

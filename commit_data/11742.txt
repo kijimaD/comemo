@@ -1,0 +1,14 @@
+commit 00651a2e6317230f85209a49a74cf466c29ec00c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 09:12:32 2012 +1100
+
+    database/sql: rename ErrTransactionFinished to ErrTxDone
+    
+    Part of issue 2843
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5646063
+
+ src/pkg/database/sql/sql.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

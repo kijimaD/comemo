@@ -1,0 +1,22 @@
+commit 5d754bfaea484c7b6673019c8c7f2811749cda41
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 16:22:04 2009 -0800
+
+    gc: bug fixes.
+      * better error for lookup of unexported field
+      * do not assign "ideal string" type to typed string literal
+      * do not confuse methods and fields during interface check
+    
+    Fixes #410.
+    Fixes #411.
+    Fixes #426.
+    
+    R=ken2
+    https://golang.org/cl/179069
+
+ src/cmd/gc/subr.c        |  6 +++++-
+ src/cmd/gc/typecheck.c   | 25 +++++++++++++++----------
+ test/fixedbugs/bug229.go | 20 ++++++++++++++++++++
+ test/fixedbugs/bug230.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/bug231.go | 22 ++++++++++++++++++++++
+ 5 files changed, 87 insertions(+), 11 deletions(-)

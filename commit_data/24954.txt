@@ -1,0 +1,15 @@
+commit 918a2644f2ba67af43cfab201bc4c3f41f8bfeb7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 16:34:06 2015 -0500
+
+    cmd/compile: fix Val vs Opt collision
+    
+    Fixes #12686.
+    
+    Change-Id: I7a9f49dbd1f60b1d0240de57787753b425f9548c
+    Reviewed-on: https://go-review.googlesource.com/17031
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 16 ++++++++++++----
+ test/fixedbugs/issue12686.go         | 16 ++++++++++++++++
+ 2 files changed, 28 insertions(+), 4 deletions(-)

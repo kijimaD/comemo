@@ -1,0 +1,19 @@
+commit 4dce6dbb1e3269211e9dafb6a406035696993574
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 27 15:50:36 2019 -0700
+
+    math/big: temporarily disable buggy shlVU assembly for arm64
+    
+    This addresses the failures we have seen in #31084. The correct
+    fix is to find the actual bug in the assembly code.
+    
+    Updates #31084.
+    
+    Change-Id: I437780c53d0c4423d742e2e3b650b899ce845372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169721
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/arith_arm64.s | 4 ++++
+ 1 file changed, 4 insertions(+)

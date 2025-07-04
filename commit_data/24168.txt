@@ -1,0 +1,26 @@
+commit eaea5ade2b5f60c6dfd72a08c9243e1651778332
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 22:49:18 2015 +1200
+
+    cmd/asm: fix handling of nested #if[n]defs
+    
+    The lexer needs to process all #if[n]defs, even those found when processing is
+    disabled by a preceding failed conditional, or the first #endif in something
+    like:
+    
+        #ifdef <undefined>
+        #ifdef whatever
+        #endif
+        #endif
+    
+    terminates the first #ifdef and the second causes an error. And then the
+    processing of the inner #ifdefs needs to ignore their argument when they are
+    disabled by an outer failed condition.
+    
+    Change-Id: Iba259498f1e16042f5b7580b9c000bb0599733d0
+    Reviewed-on: https://go-review.googlesource.com/14253
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/lex/input.go    |  13 +++--
+ src/cmd/asm/internal/lex/lex_test.go | 106 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 115 insertions(+), 4 deletions(-)

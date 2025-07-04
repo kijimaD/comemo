@@ -1,0 +1,22 @@
+commit 02deb77f6db19f5894d836790a64bd4dea86feb0
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 8 11:47:16 2017 -0700
+
+    cmd/compile: fix println()
+    
+    println with no arguments accidentally doesn't print a newline.
+    
+    Introduced at CL 55097
+    
+    Fixes #21808
+    
+    Change-Id: I9fc7b4271b9b31e4c9b6078f055195dc3907b62c
+    Reviewed-on: https://go-review.googlesource.com/62390
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  8 ++++----
+ test/fixedbugs/issue21808.go        | 17 +++++++++++++++++
+ test/fixedbugs/issue21808.out       |  3 +++
+ 3 files changed, 24 insertions(+), 4 deletions(-)

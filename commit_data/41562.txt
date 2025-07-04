@@ -1,0 +1,63 @@
+commit 18a6fd44bb9de9399dba86a4c1ae1e56f967bcda
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Nov 21 14:38:25 2019 +0800
+
+    bytes, strings: moves indexRabinKarp function to internal/bytealg
+    
+    In order to facilitate optimization of IndexAny and LastIndexAny, this patch moves
+    three Rabin-Karp related functions indexRabinKarp, hashStr and hashStrRev in strings
+    package to initernal/bytealg. There are also three functions in the bytes package with
+    the same names and functions but different parameter types. To highlight this, this
+    patch also moves them to internal/bytealg and gives them slightly different names.
+    
+    Related benchmark changes on amd64 and arm64:
+    
+    name          old time/op    new time/op    delta
+    pkg:strings goos:linux goarch:amd64
+    Index-16        14.0ns ± 1%    14.1ns ± 2%    ~     (p=0.738 n=5+5)
+    LastIndex-16    15.5ns ± 1%    15.7ns ± 4%    ~     (p=0.897 n=5+5)
+    pkg:bytes goos:linux goarch:amd64
+    Index/10-16     26.5ns ± 1%    26.5ns ± 0%    ~     (p=0.873 n=5+5)
+    Index/32-16     26.2ns ± 0%    25.7ns ± 0%  -1.68%  (p=0.008 n=5+5)
+    Index/4K-16     5.12µs ± 4%    5.14µs ± 2%    ~     (p=0.841 n=5+5)
+    Index/4M-16     5.44ms ± 3%    5.34ms ± 2%    ~     (p=0.056 n=5+5)
+    Index/64M-16    85.8ms ± 3%    84.6ms ± 0%  -1.37%  (p=0.016 n=5+5)
+    
+    name          old speed      new speed      delta
+    pkg:bytes goos:linux goarch:amd64
+    Index/10-16    377MB/s ± 1%   377MB/s ± 0%    ~     (p=1.000 n=5+5)
+    Index/32-16   1.22GB/s ± 1%  1.24GB/s ± 0%  +1.66%  (p=0.008 n=5+5)
+    Index/4K-16    800MB/s ± 4%   797MB/s ± 2%    ~     (p=0.841 n=5+5)
+    Index/4M-16    771MB/s ± 3%   786MB/s ± 2%    ~     (p=0.056 n=5+5)
+    Index/64M-16   783MB/s ± 3%   793MB/s ± 0%  +1.36%  (p=0.016 n=5+5)
+    
+    name         old time/op   new time/op   delta
+    pkg:strings goos:linux goarch:arm64
+    Index-8       22.6ns ± 0%   22.5ns ± 0%    ~     (p=0.167 n=5+5)
+    LastIndex-8   17.5ns ± 0%   17.5ns ± 0%    ~     (all equal)
+    pkg:bytes goos:linux goarch:arm64
+    Index/10-8    25.0ns ± 0%   25.0ns ± 0%    ~     (all equal)
+    Index/32-8     160ns ± 0%    160ns ± 0%    ~     (all equal)
+    Index/4K-8    6.26µs ± 0%   6.26µs ± 0%    ~     (p=0.167 n=5+5)
+    Index/4M-8    6.30ms ± 0%   6.31ms ± 0%    ~     (p=1.000 n=5+5)
+    Index/64M-8    101ms ± 0%    101ms ± 0%    ~     (p=0.690 n=5+5)
+    
+    name         old speed     new speed     delta
+    pkg:bytes goos:linux goarch:arm64
+    Index/10-8   399MB/s ± 0%  400MB/s ± 0%  +0.08%  (p=0.008 n=5+5)
+    Index/32-8   200MB/s ± 0%  200MB/s ± 0%    ~     (p=0.127 n=4+5)
+    Index/4K-8   654MB/s ± 0%  654MB/s ± 0%  +0.01%  (p=0.016 n=5+5)
+    Index/4M-8   665MB/s ± 0%  665MB/s ± 0%    ~     (p=0.833 n=5+5)
+    Index/64M-8  665MB/s ± 0%  665MB/s ± 0%    ~     (p=0.913 n=5+5)
+    
+    Change-Id: Icce3bc162bb8613ac36dc963a46c51f8e82ab842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208638
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go              |  68 ++--------------------
+ src/bytes/bytes_test.go         |  24 +++++++-
+ src/internal/bytealg/bytealg.go | 125 ++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go          |  68 ++--------------------
+ 4 files changed, 156 insertions(+), 129 deletions(-)

@@ -1,0 +1,23 @@
+commit 3313880bdcb29d24dc5068b3a0f1bdd102c12b13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 14:16:23 2023 -0800
+
+    go/types, types2: use a comparer struct to control the identical predicate
+    
+    This makes it easier to configure the behavior of identical: we can
+    simply add fields to the comparer instead of adding more parameters
+    to identical.
+    
+    Change-Id: I9a6f5451b3ee5c37e71486060653c5a6e8f24304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464937
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go        |  7 ++++--
+ src/cmd/compile/internal/types2/predicates.go | 31 ++++++++++++++++-----------
+ src/go/types/api.go                           |  7 ++++--
+ src/go/types/predicates.go                    | 31 ++++++++++++++++-----------
+ 4 files changed, 46 insertions(+), 30 deletions(-)

@@ -1,0 +1,17 @@
+commit 544d36514a8aaaa7309cc398e3e23c1c8fc5e3c8
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sat Jan 27 22:09:25 2018 -0500
+
+    cmd/go/internal/test: remove redundant if statement
+    
+    Just return the result of the function call as they are
+    both functionally equivalent.
+    
+    Change-Id: Ia7847c9b018475051bf6f7a7c532b515bd68c024
+    Reviewed-on: https://go-review.googlesource.com/90375
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/test/test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

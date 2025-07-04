@@ -1,0 +1,18 @@
+commit 9abbe277105f9b9a3b4c5905e7faf9a02827ce18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 19 13:46:49 2020 -0800
+
+    test: skip issue11656.go on mips/mips64/ppc64
+    
+    For #11656
+    For #43283
+    
+    Change-Id: I1fcf2b24800f421e36201af43130b487abe605b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279312
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ test/fixedbugs/issue11656.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,24 @@
+commit 6965b01ea248cabb70c3749fd218b36089a21efb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 21 14:56:26 2020 +1100
+
+    runtime: allow for usleep2HighRes to run without TLS setup
+    
+    This change adjusts usleep2HighRes so it does not crash when TLS is
+    not configured. When g is not available, usleep2HighRes just calls
+    usleep2 instead.
+    
+    Updates #8687
+    
+    Change-Id: Idbb80f7b71d1da350a6a7df7c49154eb1ffe29a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271907
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Simon Rozman <simon@rozman.si>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/sys_windows_386.s   | 11 ++++++++++-
+ src/runtime/sys_windows_amd64.s | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

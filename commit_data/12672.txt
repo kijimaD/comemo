@@ -1,0 +1,12 @@
+commit 2b3fd37066694374d6ea6c6c6f2df8cad08410eb
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Fri Mar 16 15:33:05 2012 -0700
+
+    godoc: use FormatText for formating code in html template.
+    
+    R=golang-dev, rsc, r, adg, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5835046
+
+ src/cmd/godoc/template.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

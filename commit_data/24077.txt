@@ -1,0 +1,20 @@
+commit 6ec1809b8372028e0bf1f87b15cddf06a6dbc8af
+Author: Ulrich Kunitz <uli.kunitz@gmail.com>
+Date:   Thu Aug 20 18:56:18 2015 +0200
+
+    cmd/compile: fix register allocation for == operator
+    
+    The issue 12226 has been caused by the allocation of the same register
+    for the equality check of two byte values. The code in cgen.go freed the
+    register for the second operand before the allocation of the register
+    for the first operand.
+    
+    Fixes #12226
+    
+    Change-Id: Ie4dc33a488bd48a17f8ae9b497fd63c1ae390555
+    Reviewed-on: https://go-review.googlesource.com/13771
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go |  2 +-
+ test/fixedbugs/issue12226.go        | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

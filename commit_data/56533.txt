@@ -1,0 +1,53 @@
+commit 664088b898330a2c73121c5a6f2d4dbec5b180d7
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue May 7 15:37:10 2024 -0400
+
+    internal/trace: remove remnanats of v1 tracer
+    
+    This change removes unused parts of the v1 tracer in preperation of
+    the move of the v2 tracer into the trace package.
+    
+    Updates #67367
+    
+    Change-Id: I3e53a8afdef72dc90c2d5b514380d1077d284bc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584537
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/gc.go                           |  158 ---
+ src/internal/trace/gc_test.go                      |   37 -
+ src/internal/trace/goroutines.go                   |  358 -------
+ src/internal/trace/mkcanned.bash                   |   20 -
+ src/internal/trace/order.go                        |  285 -----
+ src/internal/trace/parser.go                       | 1102 --------------------
+ src/internal/trace/parser_test.go                  |  123 ---
+ src/internal/trace/summary.go                      |    8 +
+ src/internal/trace/testdata/http_1_10_good         |  Bin 2201 -> 0 bytes
+ src/internal/trace/testdata/http_1_11_good         |  Bin 2779 -> 0 bytes
+ src/internal/trace/testdata/http_1_19_good         |  Bin 28172 -> 0 bytes
+ src/internal/trace/testdata/http_1_21_good         |  Bin 6744 -> 0 bytes
+ src/internal/trace/testdata/http_1_5_good          |  Bin 42218 -> 0 bytes
+ src/internal/trace/testdata/http_1_7_good          |  Bin 1971 -> 0 bytes
+ src/internal/trace/testdata/http_1_9_good          |  Bin 2187 -> 0 bytes
+ src/internal/trace/testdata/stress_1_10_good       |  Bin 370999 -> 0 bytes
+ src/internal/trace/testdata/stress_1_11_good       |  Bin 370129 -> 0 bytes
+ src/internal/trace/testdata/stress_1_19_good       |  Bin 322338 -> 0 bytes
+ src/internal/trace/testdata/stress_1_21_good       |  Bin 353725 -> 0 bytes
+ src/internal/trace/testdata/stress_1_5_good        |  Bin 7446 -> 0 bytes
+ src/internal/trace/testdata/stress_1_5_unordered   |  Bin 8194 -> 0 bytes
+ src/internal/trace/testdata/stress_1_7_good        |  Bin 396526 -> 0 bytes
+ src/internal/trace/testdata/stress_1_9_good        |  Bin 365129 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_10_good     |  Bin 6338 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_11_good     |  Bin 4882 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_19_good     |  Bin 7448 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_21_good     |  Bin 5002 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_5_good      |  Bin 6997 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_7_good      |  Bin 2055 -> 0 bytes
+ .../trace/testdata/stress_start_stop_1_9_good      |  Bin 6271 -> 0 bytes
+ .../trace/testdata/user_task_region_1_11_good      |  Bin 2000 -> 0 bytes
+ .../trace/testdata/user_task_region_1_19_good      |  Bin 1922 -> 0 bytes
+ .../trace/testdata/user_task_region_1_21_good      |  Bin 2404 -> 0 bytes
+ src/internal/trace/writer.go                       |   49 -
+ src/runtime/testdata/testprogcgo/issue29707.go     |   60 --
+ src/runtime/trace_cgo_test.go                      |   52 +-
+ 36 files changed, 11 insertions(+), 2241 deletions(-)

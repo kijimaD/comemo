@@ -1,0 +1,20 @@
+commit 342764a21606ba6f964400cc747ee6c9a88fc959
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Mon Nov 26 11:40:32 2018 +0300
+
+    runtime/pprof/internal/profile: use idiomatic swapping
+    
+    gogrep found only one such case with the pattern below:
+    
+            $tmp := $x; $x = $y; $y = $tmp
+    
+    R=1.13
+    
+    Change-Id: I6e46fb5ef2887f24fa9fc451323a8cef272e2886
+    Reviewed-on: https://go-review.googlesource.com/c/151200
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/pprof/internal/profile/profile.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

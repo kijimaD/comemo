@@ -1,0 +1,20 @@
+commit 86cd9c11764f16a2dcc551336e3aac7ad9f78d3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 6 20:51:36 2017 -0800
+
+    runtime: only call netpoll if netpollinited returns true
+    
+    This fixes a race on old Linux kernels, in which we might temporarily
+    set epfd to an invalid value other than -1. It's also the right thing
+    to do. No test because the problem only occurs on old kernels.
+    
+    Fixes #22606
+    
+    Change-Id: Id84bdd6ae6d7c5d47c39e97b74da27576cb51a54
+    Reviewed-on: https://go-review.googlesource.com/76319
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/proc.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

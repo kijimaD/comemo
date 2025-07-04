@@ -1,0 +1,18 @@
+commit d64a2bddf0da7593de2336381452483f35de6020
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 14 11:16:57 2010 -0400
+
+    tabs
+    
+    TBR=lvd
+    CC=golang-dev
+    https://golang.org/cl/2194041
+
+ src/cmd/6l/asm.c   | 44 ++++++++++++++++++++++----------------------
+ src/cmd/6l/obj.c   |  2 +-
+ src/cmd/8l/asm.c   | 16 ++++++++--------
+ src/cmd/8l/obj.c   |  2 +-
+ src/cmd/ld/dwarf.c |  6 +++---
+ src/cmd/ld/go.c    |  4 ++--
+ src/cmd/ld/macho.c |  2 +-
+ 7 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,0 +1,37 @@
+commit 3ac37c72ae56a229bdc75986a4071b29bd7298c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 19:42:01 2015 -0500
+
+    liblink: place DATA size in from3.offset always
+    
+    Like the TEXT/GLOBL flags, this was split between from.scale and reg,
+    neither of which is appropriate.
+    
+    Change-Id: I2a16ef066a53b6edb7afb16cce108c0d1d26389c
+    Reviewed-on: https://go-review.googlesource.com/3576
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ include/link.h      |   1 -
+ src/cmd/5a/a.y      |   6 +-
+ src/cmd/5a/y.tab.c  | 182 +++++++++----------
+ src/cmd/5g/gobj.c   |  33 ++--
+ src/cmd/6a/a.y      |  17 +-
+ src/cmd/6a/y.tab.c  | 502 +++++++++++++++++++++++++--------------------------
+ src/cmd/6g/gobj.c   |  27 ++-
+ src/cmd/8a/a.y      |  17 +-
+ src/cmd/8a/y.tab.c  | 504 ++++++++++++++++++++++++++--------------------------
+ src/cmd/8g/gobj.c   |  33 ++--
+ src/cmd/9a/a.y      |  18 +-
+ src/cmd/9a/y.tab.c  | 140 ++++++++-------
+ src/cmd/9g/gobj.c   |  27 ++-
+ src/liblink/data.c  |   2 +-
+ src/liblink/list5.c |   2 +-
+ src/liblink/list6.c |   4 +-
+ src/liblink/list8.c |   4 +-
+ src/liblink/list9.c |   2 +-
+ src/liblink/obj5.c  |   7 -
+ src/liblink/obj6.c  |   8 -
+ src/liblink/obj8.c  |   7 -
+ src/liblink/obj9.c  |   8 -
+ 22 files changed, 800 insertions(+), 751 deletions(-)

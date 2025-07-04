@@ -1,0 +1,34 @@
+commit fbdfa99246ecbb04954a042a5809c4748415574d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 16 12:16:17 2015 -0800
+
+    runtime: for c-archive/c-shared, don't install unnecessary signal handlers
+    
+    Only install signal handlers for synchronous signals that become
+    run-time panics.  Set the SA_ONSTACK flag for other signal handlers as
+    needed.
+    
+    Fixes #13028.
+    Update #12465.
+    Update #13034.
+    Update #13042.
+    
+    Change-Id: I28375e70641f60630e10f3c86e24b6e4f8a35cc9
+    Reviewed-on: https://go-review.googlesource.com/17903
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/main2.c              | 185 +++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo2/libgo2.go |  45 ++++++
+ misc/cgo/testcarchive/test.bash            |  27 +++-
+ misc/cgo/testcshared/main4.c               | 214 +++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo4/libgo4.go  |  45 ++++++
+ misc/cgo/testcshared/test.bash             |  38 +++--
+ misc/cgo/testsigfwd/main.go                |  60 +++++++-
+ src/os/signal/doc.go                       |  13 +-
+ src/runtime/signal1_unix.go                |   8 ++
+ src/runtime/signal2_unix.go                |  11 +-
+ src/runtime/sys_darwin_amd64.s             |   6 +-
+ src/runtime/sys_linux_arm.s                |   4 +
+ 12 files changed, 635 insertions(+), 21 deletions(-)

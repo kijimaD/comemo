@@ -1,0 +1,25 @@
+commit 827584e2f3a76c6a94447197fc6dcb8152382369
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Sep 17 07:49:47 2019 +0000
+
+    runtime: check for nil g in msancall() on arm64
+    
+    The current msanwrite() segfaults during libpreinit
+    when built with -msan on arm64. The cause is msancall()
+    in runtime/msan_arm64.s called by msanwrite() assumes
+    that it is always called with a valid g, leading to a
+    segfult.
+    
+    This CL adds a check for nil g in msancall().
+    
+    Fixes #34338
+    
+    Change-Id: If4ad7e37556cd1d99346c1a7b4852651d1e4e4aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196157
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/msan_arm64.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

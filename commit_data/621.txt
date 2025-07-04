@@ -1,0 +1,20 @@
+commit ad71110669d2bd8be95225b778498a8268b050f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 11 17:48:20 2008 -0700
+
+    - rewrote section on numeric literals (grammar easier to read,
+    separate between ints and floats, added language regarding the
+    type of numeric literals)
+    - added language with respect to the scope of labels
+    - introduced ideal types for the purpose of the spec
+    - added language to expressions, operands
+    - added some more formal language about ideal type conversion
+      (probably not 100% correct yet)
+    
+    R=r
+    DELTA=145  (69 added, 4 deleted, 72 changed)
+    OCL=15165
+    CL=15186
+
+ doc/go_spec.txt | 221 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 143 insertions(+), 78 deletions(-)

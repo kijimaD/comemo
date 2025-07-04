@@ -1,0 +1,48 @@
+commit bed1f90d080da467d6abd416f76681ef58c9f79e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 16:03:26 2015 -0500
+
+    cmd/internal/gc: delete Strlit, Zconv
+    
+    Strlit was just a poor excuse for a Go string.
+    Use a Go string.
+    In the one case where it was a string-or-nil (Type.Note), use a *string.
+    
+    Zconv was a poor excuse for %q. Use %q.
+    The only important part about Zconv's implementation
+    was that the compiler and linker agreed on the quoting rules.
+    Now they both use %q instead of having two Zconvs.
+    
+    This CL *does* change the generated object files, because the
+    quoted strings end up in symbol names.
+    For example the string "\r\n" used to be named go.string."\r\n"
+    and is now go.string."\x0d\n".
+    
+    Change-Id: I5c0d38e1570ffc495f0db1a20273c9564104a7e8
+    Reviewed-on: https://go-review.googlesource.com/6519
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/5g/cgen.go               |  6 +--
+ src/cmd/6g/cgen.go               |  9 ++--
+ src/cmd/8g/cgen.go               |  6 +--
+ src/cmd/9g/cgen.go               |  6 +--
+ src/cmd/internal/gc/closure.go   |  2 +-
+ src/cmd/internal/gc/const.go     | 21 +++++----
+ src/cmd/internal/gc/dcl.go       |  9 ++--
+ src/cmd/internal/gc/esc.go       | 24 ++++------
+ src/cmd/internal/gc/export.go    | 20 ++++----
+ src/cmd/internal/gc/fmt.go       | 64 +++-----------------------
+ src/cmd/internal/gc/go.go        | 15 ++----
+ src/cmd/internal/gc/go.y         | 10 ++--
+ src/cmd/internal/gc/lex.go       | 98 ++++++++++++++++++++++------------------
+ src/cmd/internal/gc/obj.go       | 30 ++++--------
+ src/cmd/internal/gc/order.go     |  2 +-
+ src/cmd/internal/gc/reflect.go   |  8 ++--
+ src/cmd/internal/gc/sinit.go     |  4 +-
+ src/cmd/internal/gc/subr.go      | 52 ++++++++++-----------
+ src/cmd/internal/gc/typecheck.go | 16 +++----
+ src/cmd/internal/gc/walk.go      | 10 ++--
+ src/cmd/internal/gc/y.go         | 10 ++--
+ src/cmd/internal/ld/go.go        | 46 +------------------
+ 22 files changed, 179 insertions(+), 289 deletions(-)

@@ -1,0 +1,19 @@
+commit 285a18436d480ef91b2af236d5ddd2fa7fa49de8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 20 15:58:55 2016 +1000
+
+    debug/pe: pretty section.go code
+    
+    Introduce (*SectionHeader32).fullName and add documentation comments.
+    
+    Updates #15345
+    
+    Change-Id: I8f3b8ab9492642d62e7aad010c91c68daea3f14b
+    Reviewed-on: https://go-review.googlesource.com/22301
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go    | 10 +++-------
+ src/debug/pe/section.go | 27 ++++++++++++++++++++++++---
+ 2 files changed, 27 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit 4241b758af286be67cb510a68164b8f95c99ff06
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 15:45:40 2015 -0800
+
+    cmd/asm: add a couple of operand parses discovered by end-to-end test
+    
+    Missing cases for JMP $4 and foo+4(SB):AX. Both are odd but 8a accepts them
+    and they seem valid.
+    
+    Change-Id: Ic739f626fcc79ace1eaf646c5dfdd96da59df165
+    Reviewed-on: https://go-review.googlesource.com/5693
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go          |  3 +++
+ src/cmd/asm/internal/asm/operand_test.go | 16 ++++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        | 18 ++++++++++++++----
+ 3 files changed, 33 insertions(+), 4 deletions(-)

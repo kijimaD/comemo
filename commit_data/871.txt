@@ -1,0 +1,12 @@
+commit 237eea4ea5e8d67aeb900e84762f967bd0d29fa5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 15 17:13:00 2008 -0700
+
+    - updated makefile for gccgo
+    
+    R=r
+    OCL=17243
+    CL=17245
+
+ usr/gri/pretty/Makefile.iant | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

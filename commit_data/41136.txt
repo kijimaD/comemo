@@ -1,0 +1,18 @@
+commit 71239b4f491698397149868c88d2c851de2cd49b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Jan 17 17:59:59 2020 -0300
+
+    runtime: fix wrong offset when calling ppc64x nanotime syscall
+    
+    There is a wrong offset when getting the results of a clock_gettime
+    syscall. Although the syscall will never be called in native ppc64x,
+    QEMU doesn't implement VDSO, so it will return wrong values.
+    
+    Fixes #36592
+    
+    Change-Id: Icf838075228dcdd62cf2c1279aa983e5993d66ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215397
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/sys_linux_ppc64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

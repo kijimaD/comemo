@@ -1,0 +1,12 @@
+commit 2c20eda1d8214ceab0ef051dc691161d11abc946
+Author: Preetam Jinka <pj@preet.am>
+Date:   Wed Apr 1 11:49:24 2015 -0400
+
+    compress/flate: fix typo in comment
+    
+    Change-Id: I32ec2d8cb838fb850b3779726cf347dac21dff68
+    Reviewed-on: https://go-review.googlesource.com/8322
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/compress/flate/deflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

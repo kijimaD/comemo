@@ -1,0 +1,14 @@
+commit d3c3c15b1769c7167fb4188dbdb95b8f1d24c5e5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 30 18:57:27 2010 +1000
+
+    http: client_test nil pointer fix
+    
+    Fixes #893.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1687045
+
+ src/pkg/http/client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

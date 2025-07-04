@@ -1,0 +1,17 @@
+commit 3000795c83336b83608a8104fdb2a4643b43e941
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Jul 24 15:07:01 2018 -0700
+
+    cmd/dist: support windows/arm
+    
+    Updates #26148
+    
+    Change-Id: I4744ebcc77fda3acc1301a1d8857754c0ee797fa
+    Reviewed-on: https://go-review.googlesource.com/130056
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go       | 1 +
+ src/cmd/dist/sys_windows.go | 3 +++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,12 @@
+commit a5f19812cf0a8be6df68b9f90a8b80d734b6e862
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 24 16:25:45 2018 -0700
+
+    go/types: fix lhs/rhs mixup in docs
+    
+    Change-Id: Ifd51636c9254de51b8a21371d7507a9481bcca0a
+    Reviewed-on: https://go-review.googlesource.com/109142
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

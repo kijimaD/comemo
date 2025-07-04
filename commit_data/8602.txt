@@ -1,0 +1,12 @@
+commit 6c2b434820462f6b58c4cce397cc94dec2189c95
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 3 09:48:42 2011 +1000
+
+    doc: add Belarusian FAQ translation
+    
+    R=golang-dev, dchest
+    CC=golang-dev
+    https://golang.org/cl/4564057
+
+ doc/docs.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

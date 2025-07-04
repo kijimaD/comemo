@@ -1,0 +1,23 @@
+commit 3687f77069a8f40a596be7bd848985990908f0d9
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Tue Aug 1 16:01:13 2023 -0700
+
+    runtime/internal: switch GOWASIRUNTIME default
+    
+    CL 513235 switched the default wasip1 runtime in the misc/wasm
+    executable script, but it missed this use of the GOWASIRUNTIME
+    environment variable. Update this instance to make the default runtime
+    choice consistent.
+    
+    Change-Id: Iff7f96231422747a38d65d13a940f6e9d04d835d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/runtime/internal/wasitest/tcpecho_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

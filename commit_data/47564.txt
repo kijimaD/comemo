@@ -1,0 +1,13 @@
+commit 0c3b4a358ad6813d6aad111d0d0c45dce84cbeec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 12:16:39 2021 -0800
+
+    spec: add type parameter lists
+    
+    Change-Id: I29e9188a0fa1326c2755a9b86aeb47feaa8019be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365274
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 195 +++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 175 insertions(+), 20 deletions(-)

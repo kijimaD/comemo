@@ -1,0 +1,15 @@
+commit a6ffab6b6743a490151aadfd2f2a79244a84e03a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 19 13:02:36 2017 +1000
+
+    misc/cgo/testcshared: temporarily skip testing on android
+    
+    For #21513
+    
+    Change-Id: Ibe9479f8afc6f425779a737a807ff2f839a4f311
+    Reviewed-on: https://go-review.googlesource.com/57250
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testcshared/cshared_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

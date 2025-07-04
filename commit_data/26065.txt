@@ -1,0 +1,31 @@
+commit 55c65d4a97bb578418c39f74a42e3748e075e0e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 13:16:48 2016 -0800
+
+    cmd/compile: change export.go and fmt.go to use nodeSeq
+    
+    Also fix some uses of nodeSeqIterator.Len, and fix the implementation in
+    nodesIterator.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I228871470234b7f1314ffd2aae8a4c0624c35f98
+    Reviewed-on: https://go-review.googlesource.com/20231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go      |  4 +-
+ src/cmd/compile/internal/gc/bexport.go  |  4 +-
+ src/cmd/compile/internal/gc/export.go   | 22 ++++-----
+ src/cmd/compile/internal/gc/fmt.go      | 82 +++++++++++----------------------
+ src/cmd/compile/internal/gc/inl.go      |  6 +--
+ src/cmd/compile/internal/gc/order.go    |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go |  6 +--
+ src/cmd/compile/internal/gc/ssa.go      |  6 +--
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   |  2 +-
+ src/cmd/compile/internal/gc/walk.go     |  8 ++--
+ 11 files changed, 54 insertions(+), 90 deletions(-)

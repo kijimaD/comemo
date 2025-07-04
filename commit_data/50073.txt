@@ -1,0 +1,24 @@
+commit 7f632f76db65f28038b8797fbfe5e15a9f63e387
+Author: Axel Wagner <axel.wagner.hh@googlemail.com>
+Date:   Thu Aug 18 16:18:34 2022 +0200
+
+    encoding/xml: add (*Encoder).Close
+    
+    Flush can not check for unclosed elements, as more data might be encoded
+    after Flush is called. Close implicitly calls Flush and also checks that
+    all opened elements are closed as well.
+    
+    Fixes #53346
+    
+    Change-Id: I889b9f5ae54e5dfabb9e6948d96c5ed7bc1110f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424777
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ api/next/53346.txt               |  1 +
+ src/encoding/xml/marshal.go      | 81 ++++++++++++++++++++++++++++++++++++----
+ src/encoding/xml/marshal_test.go | 58 ++++++++++++++++++++++++++++
+ 3 files changed, 133 insertions(+), 7 deletions(-)

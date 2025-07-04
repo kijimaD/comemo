@@ -1,0 +1,14 @@
+commit ca9876dd2f1b8f4a00b1ff4be58baaa6ff774a39
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 31 11:25:51 2015 -0500
+
+    doc: fix typo
+    
+    Fixes #13780.
+    
+    Change-Id: I629e2ba79b74d693e04c3747812c9a686cae5335
+    Reviewed-on: https://go-review.googlesource.com/18218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

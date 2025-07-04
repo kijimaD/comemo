@@ -1,0 +1,15 @@
+commit 2770c507a54770b38c8654357cf0f47e3f0f3052
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 17:13:13 2017 -0800
+
+    cmd/compile: fix position for "missing type in composite literal" error
+    
+    Fixes #18231.
+    
+    Change-Id: If1615da4db0e6f0516369a1dc37340d80c78f237
+    Reviewed-on: https://go-review.googlesource.com/37018
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  5 +----
+ test/fixedbugs/issue18231.go             | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

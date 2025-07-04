@@ -1,0 +1,28 @@
+commit d06b0db5bd4c898bd162e16ab603081ab62a527c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 14 15:08:22 2016 -0400
+
+    cmd/link: when pruning methods also prune funcType
+    
+    Remove method type information for pruned methods from any program
+    that does not reflect on methods. This can be a significant saving:
+    
+            addr2line: -310KB (8.8%)
+    
+    A future update might want to consider a more aggressive variant of
+    this: setting the Type and Func fields of reflect.Method to nil for
+    unexported methods. That would shrink cmd/go by 2% and jujud by 2.6%
+    but could be considered an API change. So this CL sticks to the
+    uncontroversial change.
+    
+    For #6853.
+    
+    Change-Id: I5d186d9f822dc118ee89dc572c4912a3b3c72577
+    Reviewed-on: https://go-review.googlesource.com/20701
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 16 ++------
+ src/cmd/link/internal/ld/deadcode.go   | 74 ++++++++++++++++++++++++----------
+ 2 files changed, 57 insertions(+), 33 deletions(-)

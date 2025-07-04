@@ -1,0 +1,20 @@
+commit 6e549d2dfdc390e493a8d9b5de6ba38c4ccd14f2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 15 14:47:05 2017 -0700
+
+    cmd/compile: add regress test for #20682
+    
+    Minimal reconstruction of reported failure case.
+    
+    Manually verified that test fails with CL 45911 reverted.
+    
+    Change-Id: Ia5d11500d91b46ba1eb5d841db3987edb9136c39
+    Reviewed-on: https://go-review.googlesource.com/45970
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/fixedbugs/issue20682.dir/p.go | 13 +++++++++++++
+ test/fixedbugs/issue20682.dir/q.go | 13 +++++++++++++
+ test/fixedbugs/issue20682.dir/r.go | 11 +++++++++++
+ test/fixedbugs/issue20682.go       |  7 +++++++
+ 4 files changed, 44 insertions(+)

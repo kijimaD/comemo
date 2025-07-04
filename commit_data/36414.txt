@@ -1,0 +1,17 @@
+commit c92354f46e468f89fcf1497e7c9e2f3c66025dfa
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Sun May 20 22:35:02 2018 +0530
+
+    all: use consistent shebang line across all shell scripts
+    
+    Change-Id: I4aac882b1b618a388d0748a427dc998203d3a1b2
+    Reviewed-on: https://go-review.googlesource.com/113856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/mkalldocs.sh | 2 +-
+ src/naclmake.bash       | 2 +-
+ src/nacltest.bash       | 2 +-
+ src/runtime/mknacl.sh   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

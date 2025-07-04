@@ -1,0 +1,24 @@
+commit 51ac0f0f4cb432204dee3d434335fd1e61ca8446
+Author: Polina Osadcha <polliosa@google.com>
+Date:   Thu Jun 18 16:17:13 2020 +0300
+
+    strings: optimize Replace by using a strings.Builder
+    
+    name        old time/op    new time/op    delta
+    ReplaceAll     162ns ±26%     134ns ±26%  -17.44%  (p=0.014 n=10+10)
+    
+    name        old alloc/op   new alloc/op   delta
+    ReplaceAll     32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    name        old allocs/op  new allocs/op  delta
+    ReplaceAll      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Ia8377141d3adb84c7bd94e511ac8f739915aeb40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245197
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/strings/strings.go      | 12 ++++++------
+ src/strings/strings_test.go |  9 +++++++++
+ 2 files changed, 15 insertions(+), 6 deletions(-)

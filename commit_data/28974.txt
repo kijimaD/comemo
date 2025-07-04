@@ -1,0 +1,20 @@
+commit 6ca662ca0e1a41077bd93501a5d04668474bca69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 11:43:12 2016 -0700
+
+    net/http: make Redirect escape non-ASCII in Location header
+    
+    Only ASCII is permitted there.
+    
+    Fixes #4385
+    
+    Change-Id: I63708b04a041cdada0fdfc1f2308fcb66889a27b
+    Reviewed-on: https://go-review.googlesource.com/31732
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/http.go       | 25 +++++++++++++++++++++++++
+ src/net/http/serve_test.go | 27 +++++++++------------------
+ src/net/http/server.go     |  2 +-
+ 3 files changed, 35 insertions(+), 19 deletions(-)

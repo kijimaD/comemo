@@ -1,0 +1,16 @@
+commit 8aadcc551e1610d4185c36624c8105f4303fe7ec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 6 10:16:17 2016 -0400
+
+    cmd/compile: intrinsify math.Sqrt when compiling "math" itself
+    
+    Fixes #17354.
+    
+    Change-Id: I0e018c8c3e791fc6cc1925dbbc18c2151ba9a111
+    Reviewed-on: https://go-review.googlesource.com/30539
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

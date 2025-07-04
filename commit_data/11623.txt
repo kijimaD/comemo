@@ -1,0 +1,13 @@
+commit 2943ca6b35fe5355d2ce7210f8473f4dcd3f8c9f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Feb 4 21:55:38 2012 +1100
+
+    doc/go1.html: style tweak for expvar notes.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5608061
+
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

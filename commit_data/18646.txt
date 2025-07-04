@@ -1,0 +1,17 @@
+commit 8a8b5cba67da4e16aef2ab7704bb079cc8771cf3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 25 10:55:26 2014 -0800
+
+    crypto/sha1: restore accidental removal of arm build tag
+    
+    Regression from https://golang.org/cl/68490043/diff/60001/src/pkg/crypto/sha1/sha1block_decl.go
+    
+    Fixes arm build.
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/68080046
+
+ src/pkg/crypto/sha1/sha1block_decl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

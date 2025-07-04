@@ -1,0 +1,22 @@
+commit 0aede73917c89d048211b3731fb19157acfe4431
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 7 10:00:58 2017 -0400
+
+    cmd/internal/obj/arm: don't split instructions on NaCl
+    
+    We insert guard instructions after each "dangerous" instruction
+    to make NaCl's validator happy. This happens before asmout. If
+    in asmout an instruction is split to two dangerous instructions,
+    but only one guard instruction is inserted, the validation fails.
+    Therefore don't split instructions on NaCl.
+    
+    Fixes #20595.
+    
+    Change-Id: Ie34f209bc7d907d6d16ecef6721f88420981ac01
+    Reviewed-on: https://go-review.googlesource.com/45021
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

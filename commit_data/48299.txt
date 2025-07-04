@@ -1,0 +1,25 @@
+commit d168c4f29682e032a14bb8f5ca23af08a6834635
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 02:27:35 2022 -0800
+
+    test: additional generic type switch test coverage
+    
+    None of the current generic type switch test cases exercise type
+    switches where the instantiated case is an interface type.
+    
+    Change-Id: I9272fa61b8dde1fe1a3702d524d4f40253ef19b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390354
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/typeparam/typeswitch1.go  |  2 ++
+ test/typeparam/typeswitch1.out |  2 ++
+ test/typeparam/typeswitch2.go  | 14 ++++++++------
+ test/typeparam/typeswitch2.out |  6 ++++--
+ test/typeparam/typeswitch3.go  |  8 ++++++++
+ test/typeparam/typeswitch3.out |  3 +++
+ test/typeparam/typeswitch4.go  |  8 ++++++++
+ test/typeparam/typeswitch4.out |  3 +++
+ 8 files changed, 38 insertions(+), 8 deletions(-)

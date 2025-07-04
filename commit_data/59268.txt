@@ -1,0 +1,28 @@
+commit a42e337edee375a91f304bb890e7ec24594058b9
+Author: Dmitrii Martynov <fkr011288@gmail.com>
+Date:   Wed Apr 2 13:58:18 2025 +0300
+
+    runtime: explicitly exclude a potential deadlock in the scheduler
+    
+    The following sequence in the scheduler may potentially lead to
+    deadlock:
+    - globrunqget() -> runqput() -> runqputslow() -> globrunqputbatch()
+    However, according to the current logic of the scheduler it is not
+    possible to face the deadlock.
+    
+    The patch explicitly excludes the deadlock, even though it is impossible
+    situation at the moment.
+    
+    Additionally, the "runq" and "globrunq" APIs were partially refactored,
+    which allowed to minimize the usage of these APIs by each other.
+    This will prevent situations described in the CL.
+    
+    Change-Id: I7318f935d285b95522998e0903eaa6193af2ba48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662216
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/proc.go | 77 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 53 insertions(+), 24 deletions(-)

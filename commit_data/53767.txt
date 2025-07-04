@@ -1,0 +1,22 @@
+commit 862fa6d099fb046e90efd537b2c0ac2667c23d90
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 21 12:50:48 2023 -0700
+
+    sort: add gen_sort_variants support for x/exp/slices
+    
+    Also add a go:generate command to the standard library slices package.
+    
+    For #61374
+    
+    Change-Id: I7aae8e451b7c6c4390e0344257478d1a96a14189
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511660
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/slices/sort.go            |   2 +
+ src/sort/gen_sort_variants.go | 125 ++++++++++++++++++++++++++++++------------
+ 2 files changed, 92 insertions(+), 35 deletions(-)

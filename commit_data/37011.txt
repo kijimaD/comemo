@@ -1,0 +1,16 @@
+commit 5ddec2488862899a31688025004bfffa5f7b242b
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Oct 17 09:41:09 2018 -0700
+
+    os: change UserHomeDir to use USERPROFILE on windows
+    
+    Fixes #28182
+    
+    Change-Id: I49c2117fba6325c234512f937ff2edfa9477f52f
+    Reviewed-on: https://go-review.googlesource.com/c/142886
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

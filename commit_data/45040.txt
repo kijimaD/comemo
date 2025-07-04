@@ -1,0 +1,17 @@
+commit 6951da56b0ae2cd4250fc1b0350d090aed633ac1
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 9 14:53:33 2021 +0000
+
+    Revert "cmd/compile: ensure spills of int/float reg args land in abi slots"
+    
+    This reverts CL 308510.
+    
+    Reason for revert: It breaks "GOEXPERIMENT=regabi,regabiargs ./make.bash"
+    
+    Change-Id: I553654690ec73120f8a6258dd80623853c430df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308932
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/stackalloc.go | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

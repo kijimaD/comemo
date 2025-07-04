@@ -1,0 +1,18 @@
+commit 89c532e8b29ae8ea944f6b6ba887d57ac5faf387
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 12 11:27:01 2023 -0800
+
+    doc/go1.22: document minor net/http changes
+    
+    For #51971
+    For #61679
+    
+    Change-Id: Ie7b44201a9c40f5563c6d6051d22ae807ad0480d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549198
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.22.html | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

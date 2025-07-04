@@ -1,0 +1,15 @@
+commit 666f5b4a89c52901c26b992a05fd54479fd6fad9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 18 11:38:39 2014 -0700
+
+    expvar: don't recursively acquire Map.RLock
+    
+    Fixes #7575
+    
+    LGTM=iant
+    R=dvyukov, iant
+    CC=golang-codereviews
+    https://golang.org/cl/77540044
+
+ src/pkg/expvar/expvar.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

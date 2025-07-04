@@ -1,0 +1,12 @@
+commit 058149f153d7ef7b777df1b3ca20edbc9f49c5c1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 14 01:51:42 2012 +0400
+
+    runtime/pprof: fix comments
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6460082
+
+ src/pkg/runtime/pprof/pprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

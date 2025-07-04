@@ -1,0 +1,12 @@
+commit e680710d0e3e8c335f6cf7c63f205bf569a3ef5a
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Apr 23 13:13:51 2013 -0700
+
+    doc/code.html: remove doubled word; modify the tab to space.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8919043
+
+ doc/code.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

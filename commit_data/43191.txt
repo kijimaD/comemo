@@ -1,0 +1,24 @@
+commit a9c75ecd3da2d87ce08b2e75bd4f332185cd7fc8
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 2 15:48:50 2020 -0700
+
+    cmd/compile: export notinheap annotation to object file
+    
+    In the rare case when a cgo type makes it into an object file, we need
+    the go:notinheap annotation to go with it.
+    
+    Fixes #41761
+    
+    Change-Id: I541500cb1a03de954881aef659f96fc0b7738848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259297
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/test/testdata/issue41761.go    | 20 ++++++++++++++++++++
+ misc/cgo/test/testdata/issue41761a/a.go | 14 ++++++++++++++
+ src/cmd/compile/internal/gc/iexport.go  |  2 ++
+ src/cmd/compile/internal/gc/iimport.go  |  2 +-
+ src/cmd/compile/internal/gc/lex.go      |  2 +-
+ 5 files changed, 38 insertions(+), 2 deletions(-)

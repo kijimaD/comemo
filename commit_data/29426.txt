@@ -1,0 +1,15 @@
+commit 119c30eaf24c3d4f46ba1411f5cddbabb86bd840
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:17:34 2015 -0500
+
+    internal/syscall/windows: add GetModuleFileName
+    
+    For os.Executable. Updates #12773.
+    
+    Change-Id: Iff6593514b7453b6c5e1f20079e35cb4992cc74a
+    Reviewed-on: https://go-review.googlesource.com/32877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+)

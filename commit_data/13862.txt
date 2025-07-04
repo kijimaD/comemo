@@ -1,0 +1,16 @@
+commit 99b6e9f73b2b6a9e4d415064a271bfe579b8b66c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 18 23:42:18 2012 +0400
+
+    race: cmd/cgo changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
+    This change breaks circular dependency between runtime/race and syscall packages.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6498079
+
+ src/cmd/cgo/main.go | 1 +
+ src/cmd/cgo/out.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

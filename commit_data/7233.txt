@@ -1,0 +1,12 @@
+commit 507a753c4b1cc92775a80e54571c78ea6c2671f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 25 10:48:44 2011 -0500
+
+    CONTRIBUTORS: add David Anderson (Google CLA)
+    
+    R=agl1, danderson
+    CC=golang-dev
+    https://golang.org/cl/4029044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

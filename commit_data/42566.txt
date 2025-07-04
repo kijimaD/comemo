@@ -1,0 +1,12 @@
+commit c143a5f2a692c2da6a5d29ca9a9462df3a17e0dc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 26 18:24:15 2020 +0200
+
+    doc/go1.15: fix bad link to crypto/tls
+    
+    Change-Id: Ie81579cbb1873349a91280f5aebe59624fcb1ef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240157
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.15.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

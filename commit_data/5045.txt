@@ -1,0 +1,17 @@
+commit 226c2ec25683e77bcc6bb54190bea006787d92ea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 12 18:16:21 2010 -0800
+
+    godoc: support for multiple packages in a directory
+    - smartly select the "right" package
+    - provide a list of other packages
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/466042
+
+ lib/godoc/package.html |  8 +++++
+ lib/godoc/package.txt  |  8 +++++
+ src/cmd/godoc/godoc.go | 85 +++++++++++++++++++++++++++++++++++---------------
+ src/cmd/godoc/main.go  |  6 ++--
+ 4 files changed, 80 insertions(+), 27 deletions(-)

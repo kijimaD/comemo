@@ -1,0 +1,12 @@
+commit 35b2bfc8daa9ebeabfae8106e39b223c137f523a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 13:10:23 2011 -0400
+
+    gotest: use $GCFLAGS like make does
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5297044
+
+ src/cmd/gotest/gotest.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

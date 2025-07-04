@@ -1,0 +1,13 @@
+commit 26f43a089e9d77cdb8c7c7f2c600631283de91f2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 12 18:40:41 2013 -0400
+
+    doc: fix small HTML problems
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/14629043
+
+ doc/code.html             | 2 +-
+ doc/codewalk/codewalk.xml | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

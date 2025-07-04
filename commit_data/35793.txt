@@ -1,0 +1,41 @@
+commit 6fdbed0543cf8f4e21ab45938f5b04028877e861
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Sat Jun 23 01:15:19 2018 -0400
+
+    runtime: respect timeout in semasleep on Darwin
+    
+    semasleep on Darwin was refactored in https://golang.org/cl/118736 to
+    use the pthread_cond_timedwait function from libc. The new code
+    incorrectly assumed that pthread_cond_timedwait took a timeout relative
+    to the current time, when it in fact it takes a timeout specified in
+    absolute time. semasleep thus specified a timeout well in the past,
+    causing it to immediately exceed the timeout and spin hot. This was the
+    source of a large performance hit to CockroachDB (#26019).
+    
+    Adjust semasleep to instead call pthread_cond_timedwait_relative_np,
+    which properly interprets its timeout parameter as relative to the
+    current time.
+    
+    pthread_cond_timedwait_relative_np is non-portable, but using
+    pthread_cond_timedwait correctly would require two calls to
+    gettimeofday: one in the runtime package to convert the relative timeout
+    to absolute time, then another in the pthread library to convert back to
+    a relative offset [0], as the Darwin kernel expects a relative offset.
+    
+    [0]: https://opensource.apple.com/source/libpthread/libpthread-301.30.1/src/pthread_cond.c.auto.html
+    
+    Fix #26019.
+    
+    Change-Id: I1a8c2429f79513b43d2b256365cd9166d235af8b
+    Reviewed-on: https://go-review.googlesource.com/120635
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_darwin.go       | 2 +-
+ src/runtime/sys_darwin.go      | 8 ++++----
+ src/runtime/sys_darwin_386.s   | 4 ++--
+ src/runtime/sys_darwin_amd64.s | 4 ++--
+ src/runtime/sys_darwin_arm.s   | 4 ++--
+ src/runtime/sys_darwin_arm64.s | 4 ++--
+ 6 files changed, 13 insertions(+), 13 deletions(-)

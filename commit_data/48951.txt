@@ -1,0 +1,36 @@
+commit 7a22c8a07f0909ea4da71df7379640cc281bda12
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 15:32:16 2021 +0800
+
+    cmd/cgo: configure cgo tool for loong64
+    
+    Define pointer and int type size for loong64
+    Add "-mabi=lp64d" argument to gcc
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I9699fd9af0112e72193ac24b736b85c580887a0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342305
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go  | 2 ++
+ src/cmd/cgo/main.go | 2 ++
+ 2 files changed, 4 insertions(+)

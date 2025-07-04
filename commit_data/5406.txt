@@ -1,0 +1,25 @@
+commit 407dbb42d40374ac4a9ecd54a5f8f13ee5d165d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 11:54:27 2010 -0700
+
+    big: improved computation of "karatsuba length" for faster multiplies
+    
+    This results in an improvement of > 35% for the existing Mul benchmark
+    using the same karatsuba threshold, and an improvement of > 50% with
+    a slightly higher threshold (32 instead of 30):
+    
+    big.BenchmarkMul           500     6731846 ns/op (old alg.)
+    big.BenchmarkMul           500     4351122 ns/op (new alg.)
+    big.BenchmarkMul           500     3133782 ns/op (new alg., new theshold)
+    
+    Also:
+    - tweaked calibrate.go, use same benchmark as for Mul benchmark
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1037041
+
+ src/pkg/big/calibrate_test.go | 95 ++++++++++++++++++++++---------------------
+ src/pkg/big/nat.go            | 30 +++++++++-----
+ src/pkg/big/nat_test.go       | 16 +++++---
+ 3 files changed, 77 insertions(+), 64 deletions(-)

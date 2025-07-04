@@ -1,0 +1,29 @@
+commit e802f211b0d3f9dac5c4ca56c9f83df0cb745070
+Author: Dominique Lefevre <domingolefevre@gmail.com>
+Date:   Thu Aug 24 10:15:29 2023 +0300
+
+    cmd/compile: special-case MethodByName(string literal) to keep the DCE enabled.
+    
+    Normally, a call to MethodByName() disables the DCE because the linker
+    assumes that any method can be accessed this way. This pessimises
+    the code generation for k8s.io/apimachinery which needs MethodByName()
+    to verify whether or not a struct implements DeepCopyInto(). It cannot
+    cast a struct to `interface { DeepCopyInto() Foo }` because the return
+    type may vary. Instead, it does the following:
+    
+      if m := reflect.ValueOf(obj).MethodByName("DeepCopyInto"); ... {
+    
+    In this case there is no need to disable the DCE altogether. It
+    suffices to add a relocation to keep methods named DeepCopyInto().
+    
+    Fixes #62257.
+    
+    Change-Id: I583c2f04d8309a8807de75cd962c04151baeeb1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522436
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/expr.go | 83 +++++++++++++++++++++++++----------
+ 1 file changed, 61 insertions(+), 22 deletions(-)

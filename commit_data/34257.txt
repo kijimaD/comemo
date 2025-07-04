@@ -1,0 +1,16 @@
+commit eb5925f5ff6e3690ce2d9fa680829560cbb11970
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 19 21:03:12 2018 +0000
+
+    text/template: remove associate's error return
+    
+    It's always nil, so simplify its signature. Found with unparam.
+    
+    Change-Id: I45dd0f868ec2f5de98a970776be686417c8d73b6
+    Reviewed-on: https://go-review.googlesource.com/95235
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/template.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

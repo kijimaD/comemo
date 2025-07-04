@@ -1,0 +1,13 @@
+commit dcff89057bc0e0d7cb14cf414f2df6f5fb1a41ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 13:51:25 2010 -0700
+
+    rpc: abstract client and server encodings
+    
+    R=r
+    CC=golang-dev, rog
+    https://golang.org/cl/811046
+
+ src/pkg/rpc/client.go |  70 +++++++++++++++++++++++++++-------
+ src/pkg/rpc/server.go | 102 +++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 131 insertions(+), 41 deletions(-)

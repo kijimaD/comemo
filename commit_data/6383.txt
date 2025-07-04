@@ -1,0 +1,15 @@
+commit 6f32c8295353ba781a840366319dd7c312ba9a43
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 25 06:58:34 2010 +1000
+
+    utf8: Add new type String to automate string indexing by code point.
+    
+    R=rsc, rog
+    CC=golang-dev
+    https://golang.org/cl/2275041
+
+ src/pkg/utf8/Makefile       |   1 +
+ src/pkg/utf8/string.go      | 166 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/utf8/string_test.go |  70 +++++++++++++++++++
+ src/pkg/utf8/utf8_test.go   |  38 +++++++---
+ 4 files changed, 264 insertions(+), 11 deletions(-)

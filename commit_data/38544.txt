@@ -1,0 +1,16 @@
+commit 50fe9461eb551d3df340c36fb3f24f9faf461422
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 07:16:53 2019 +1100
+
+    fmt: fix spelling mistake in example
+    
+    Mea culpa. Beat Takeshi, sumimasen.
+    
+    Fixes #31023.
+    
+    Change-Id: Ie2f27a5867724a8a1b8c3082c3389c8fd6d1dee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/example_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

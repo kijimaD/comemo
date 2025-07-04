@@ -1,0 +1,37 @@
+commit 9169c27eaa5d3209b687249b5045c27f73327715
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 21 17:25:48 2011 -0700
+
+    test: match gccgo error messages
+    
+    bug363.go:13:12: error: invalid context-determined non-integer type for shift operand
+    bug363.go:16:12: error: invalid context-determined non-integer type for shift operand
+    
+    pointer.go:34:6: error: incompatible type in initialization (pointer to interface type has no methods)
+    pointer.go:36:6: error: incompatible type in initialization
+    
+    method2.go:15:1: error: invalid pointer or interface receiver type
+    method2.go:16:1: error: invalid pointer or interface receiver type
+    method2.go:21:1: error: invalid pointer or interface receiver type
+    method2.go:22:1: error: invalid pointer or interface receiver type
+    method2.go:28:15: error: type ‘*Val’ has no method ‘val’
+    method2.go:33:11: error: reference to undefined field or method ‘val’
+    
+    shift1.go:19:16: error: invalid context-determined non-integer type for shift operand
+    shift1.go:24:19: error: invalid context-determined non-integer type for shift operand
+    shift1.go:25:17: error: invalid context-determined non-integer type for shift operand
+    shift1.go:18:18: error: shift of non-integer operand
+    shift1.go:26:13: error: floating point constant truncated to integer
+    shift1.go:33:15: error: integer constant overflow
+    shift1.go:34:15: error: integer constant overflow
+    shift1.go:35:17: error: integer constant overflow
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5081051
+
+ test/fixedbugs/bug363.go  | 4 ++--
+ test/interface/pointer.go | 2 +-
+ test/method2.go           | 8 ++++----
+ test/shift1.go            | 8 ++++----
+ 4 files changed, 11 insertions(+), 11 deletions(-)

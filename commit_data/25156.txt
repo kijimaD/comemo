@@ -1,0 +1,29 @@
+commit 481eedce62015f9f7ed390bb01b1afc63300b0e6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 2 15:48:06 2015 -0800
+
+    archive/tar: properly format GNU base-256 encoding
+    
+    Motivation:
+    * Previous implementation silently failed when an integer overflow
+    occurred. Now, we report an ErrFieldTooLong.
+    * Previous implementation did not encode in two's complement format and was
+    unable to encode negative numbers.
+    
+    The relevant GNU specification says:
+    <<<
+    GNU format uses two's-complement base-256 notation to store values
+    that do not fit into standard ustar range.
+    >>>
+    
+    Fixes #12436
+    
+    Change-Id: I09c20602eabf8ae3a7e0db35b79440a64bfaf807
+    Reviewed-on: https://go-review.googlesource.com/17425
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/writer.go      | 26 +++++++++++--
+ src/archive/tar/writer_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 4 deletions(-)

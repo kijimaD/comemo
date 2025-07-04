@@ -1,0 +1,13 @@
+commit 21a460d3ab53de0ebe6f7ba6dd995caccfe21c57
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 18 10:22:11 2018 -0500
+
+    doc/go1.10: address final TODOs
+    
+    Change-Id: Id71c1ccb584fb308f1615c0ed1255cc8b44bf675
+    Reviewed-on: https://go-review.googlesource.com/88256
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.10.html | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

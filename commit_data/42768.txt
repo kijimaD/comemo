@@ -1,0 +1,14 @@
+commit 2d34f3d023586fc001d64b372bd709efaab54a18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 19 14:42:11 2020 -0700
+
+    cmd/dist: fix tipo in comment
+    
+    Change-Id: I98fbf0dc94cf182adec5d414a56b9cc5126c38f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

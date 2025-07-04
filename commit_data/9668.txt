@@ -1,0 +1,21 @@
+commit 4e3b725cf06a3a2a5ddde8585f21c81d36c61c86
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 13 17:47:59 2011 -0700
+
+    path/filepath: new signature for Walk
+    This one uses a closure than an interface, and is much simpler to use.
+    It also enables a called function to return an error and (possibly)
+    halt processing.
+    
+    Fixes #2237.
+    
+    R=golang-dev, gri, rsc, r, cw, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5014043
+
+ src/cmd/gofix/main.go              |  30 +++-------
+ src/cmd/gofmt/gofmt.go             |  30 +++-------
+ src/cmd/govet/govet.go             |  30 +++-------
+ src/pkg/path/filepath/path.go      |  76 ++++++++++++++------------
+ src/pkg/path/filepath/path_test.go | 109 ++++++++++++++++++++-----------------
+ 5 files changed, 123 insertions(+), 152 deletions(-)

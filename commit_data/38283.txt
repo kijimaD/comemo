@@ -1,0 +1,35 @@
+commit fe954ea1e28f8ece95ce00d51312ac095071b2d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 26 00:16:07 2019 -0500
+
+    cmd/go: add notary simulation and GONOVERIFY support
+    
+    As an experiment to better understand the impact of
+    having an authoritative source of truth for module hashes
+    before the real notary is available, this CL adds the basic
+    notary authorization checks using a partial whitelist of
+    known go.sum values for popular modules.
+    
+    In addition to the temporary whitelist, this CL adds code
+    implementing $GONOVERIFY, a new 'go help modules-auth',
+    and clearer error messages for verification mismatches.
+    
+    See #25530 for notary proposal.
+    Filed #30601 to remove whitelist when notary lands.
+    
+    Change-Id: Ibcb6ac39c5e60455edf003d8c20af6932aeb7e88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165380
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                            |   98 +-
+ src/cmd/go/internal/modfetch/fetch.go            |  163 +-
+ src/cmd/go/internal/modfetch/notary.go           |  156 +
+ src/cmd/go/internal/modfetch/notary_test.go      |   47 +
+ src/cmd/go/internal/modfetch/pin.go              | 3487 ++++++++++++++++++++++
+ src/cmd/go/internal/modload/help.go              |   16 +-
+ src/cmd/go/main.go                               |    1 +
+ src/cmd/go/script_test.go                        |    1 +
+ src/cmd/go/testdata/mod/rsc.io_badsum_v1.0.0.txt |   14 +
+ src/cmd/go/testdata/mod/rsc.io_badsum_v1.0.1.txt |   14 +
+ src/cmd/go/testdata/script/mod_notary.txt        |   73 +
+ 11 files changed, 4038 insertions(+), 32 deletions(-)

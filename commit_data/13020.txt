@@ -1,0 +1,19 @@
+commit 61060acdc12ef0e0b9ff2250efdf8da10d53c5a2
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu May 3 17:33:19 2012 -0400
+
+    syscall: add Termios support on darwin
+    
+    Update #3316.
+    
+    R=dave, kevlar, devon.odell, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6063053
+
+ src/pkg/syscall/mkerrors.sh             | 15 ++++++
+ src/pkg/syscall/types_darwin.go         |  3 ++
+ src/pkg/syscall/zerrors_darwin_386.go   | 93 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go | 93 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_darwin_386.go    | 10 ++++
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 11 ++++
+ 6 files changed, 225 insertions(+)

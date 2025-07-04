@@ -1,0 +1,21 @@
+commit 6901b084824244122ea108eb7305295e44136be8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 07:11:52 2016 -0700
+
+    cmd/link: avoid name collision with DWARF .def suffix
+    
+    Adding a .def suffix for DWARF info collided with the DWARF info,
+    without the suffix, for a method named def. Change the suffix to ..def
+    instead.
+    
+    Fixes #15926.
+    
+    Change-Id: If1bf1bcb5dff1d7f7b79f78e3f7a3bbfcd2201bb
+    Reviewed-on: https://go-review.googlesource.com/23733
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go |  6 +++---
+ test/fixedbugs/issue15926.go      | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

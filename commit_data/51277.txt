@@ -1,0 +1,20 @@
+commit 9754bc7bb75fad4c645fa8057789c843ff537d81
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 09:48:07 2022 -0500
+
+    cmd/cover: use testenv.Command instead of exec.Command
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Ic19f8b020f6d410942bb2ece8a3b71607ee6488a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450695
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/covdata/tool_test.go | 15 +++++++--------
+ src/cmd/cover/cfg_test.go    |  5 ++---
+ src/cmd/cover/cover_test.go  | 22 +++++++++++-----------
+ 3 files changed, 20 insertions(+), 22 deletions(-)

@@ -1,0 +1,13 @@
+commit 6587557660ac2fece3e2af8b44ca37799cde7b6a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 1 09:16:55 2014 +0900
+
+    misc/nacl/README: fix typo
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/151870043
+
+ misc/nacl/README | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

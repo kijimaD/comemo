@@ -1,0 +1,20 @@
+commit 888bac1421d098b6cbe58d4fde5d6ba516833f23
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 20:00:23 2019 +0200
+
+    cmd/dist: detect GOHOSTARCH on iOS
+    
+    cmd/dist defaults to GOHOSTARCH=amd64 on darwin because no other
+    darwin host could build Go. With the upcoming self-hosted iOS
+    builders, GOHOSTARCH=arm64 is also possible.
+    
+    Updates #31722
+    
+    Change-Id: I9af47d9f8c57ea45475ce498acefbfe6bf4815b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174306
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/main.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 8b33c7b5be4e08c985571dce8113d0e4bafa14f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 17 15:46:10 2011 -0700
+
+    http: make tests quiet, fixing a test race
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4754044
+
+ src/pkg/http/serve_test.go | 42 +++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 37 insertions(+), 5 deletions(-)

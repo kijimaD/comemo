@@ -1,0 +1,25 @@
+commit b43ebce59b0eabe10ea2a1950c7173ed029cd093
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Dec 8 14:59:55 2017 -0600
+
+    crypto/sha512: speed-up for very small blocks
+    
+    Similar to https://golang.org/cl/54391, but for sha512
+    name          old time/op    new time/op    delta
+    Hash8Bytes-8     289ns ± 1%     253ns ± 2%  -12.59%  (p=0.000 n=10+10)
+    Hash1K-8        1.85µs ± 1%    1.82µs ± 1%   -1.77%  (p=0.000 n=9+10)
+    Hash8K-8        12.7µs ± 2%    12.5µs ± 1%     ~     (p=0.075 n=10+10)
+    
+    name          old speed      new speed      delta
+    Hash8Bytes-8  27.6MB/s ± 1%  31.6MB/s ± 2%  +14.43%  (p=0.000 n=10+10)
+    Hash1K-8       554MB/s ± 1%   564MB/s ± 1%   +1.81%  (p=0.000 n=9+10)
+    Hash8K-8       647MB/s ± 2%   653MB/s ± 1%     ~     (p=0.075 n=10+10)
+    
+    Change-Id: I437668c96ad55f8dbb62c89c8fc3f433453b5330
+    Reviewed-on: https://go-review.googlesource.com/82996
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+
+ src/crypto/sha512/sha512.go | 52 ++++++++++++++++++++++-----------------------
+ 1 file changed, 25 insertions(+), 27 deletions(-)

@@ -1,0 +1,23 @@
+commit 37b194a422f51893a89ec2823748ccbe612a2898
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 13 12:20:43 2019 -0700
+
+    cmd/link: put shlib ".type" functions in internal ABI
+    
+    These functions are compiler generated, and as such are only available
+    in the internal ABI. Doing this avoids generating an alias symbol.
+    Doing that avoids confusion between unmangled and mangled type symbols.
+    
+    Fixes #30768
+    
+    Change-Id: I197a5ba6403aac11989ffa951dbe35bd0506de91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/testshared/shared_test.go                 |  7 +++++++
+ .../testdata/issue30768/issue30768lib/lib.go       | 11 +++++++++++
+ misc/cgo/testshared/testdata/issue30768/x_test.go  | 22 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    | 12 ++++++++++--
+ 4 files changed, 50 insertions(+), 2 deletions(-)

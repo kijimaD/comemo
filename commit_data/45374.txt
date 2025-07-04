@@ -1,0 +1,23 @@
+commit 0c3557e6adbc4892afbef65d76ec5bce3d84a964
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 11:28:40 2021 -0700
+
+    syscall: move TestForegroundSignal create call out of goroutine
+    
+    That way the skip takes effect.
+    
+    Also ignore the result of calling TIOCSPGRP when cleaing up TestForeground.
+    It has started to fail for some reason, and the result doesn't matter.
+    
+    Also call TIOCSPGRP to clean up in TestForegroundSignal.
+    
+    For #37217
+    
+    Change-Id: I2e4282d7d91ad9a198eeb12cef01c2214c2a98c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314271
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/syscall/exec_unix_test.go | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)

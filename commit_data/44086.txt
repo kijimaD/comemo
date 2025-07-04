@@ -1,0 +1,27 @@
+commit 4787e906cff56ae23028df12c68331745651ec9e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jan 5 20:52:00 2021 +0100
+
+    crypto/x509: rollback new CertificateRequest fields
+    
+    In general, we don't want to encourage reading them from CSRs, and
+    applications that really want to can parse the Extensions field.
+    
+    Note that this also fixes a bug where the error of
+    parseKeyUsageExtension was not handled in parseCertificateRequest.
+    
+    Fixes #43477
+    Updates #37172
+    
+    Change-Id: Ia5707b0e23cecc0aed57e419a1ca25e26eea6bbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281235
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/go1.16.txt               |  9 -----
+ doc/go1.16.html              |  8 -----
+ src/crypto/x509/x509.go      | 84 --------------------------------------------
+ src/crypto/x509/x509_test.go | 56 +++++++++++++----------------
+ 4 files changed, 25 insertions(+), 132 deletions(-)

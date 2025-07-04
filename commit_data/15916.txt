@@ -1,0 +1,13 @@
+commit 0a517e458ce6c109e9516e9bfedaad9ee1667f2c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Mar 24 16:31:28 2013 +0800
+
+    build: increase timeout for ARM
+    in an effort to make builder freebsd-arm-pi and netbsd-arm-qemu pass again.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7621050
+
+ src/run.bash | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

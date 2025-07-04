@@ -1,0 +1,28 @@
+commit 76689845e331d32c94d77280c34fb92e7dde79ba
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 15 02:24:14 2012 +1100
+
+    debug/elf: do not skip first symbol in the symbol table
+    
+    Do not skip the first symbol in the symbol table. Any other indexes
+    into the symbol table (for example, indexes in relocation entries)
+    will now refer to the symbol following the one that was intended.
+    
+    Add an object that contains debug relocations, which debug/dwarf
+    failed to decode correctly. Extend the relocation tests to cover
+    this case.
+    
+    Note that the existing tests passed since the symbol following the
+    symbol that required relocation is also of type STT_SECTION.
+    
+    Fixes #4107.
+    
+    R=golang-dev, mikioh.mikioh, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/6848044
+
+ doc/go1.1.html                                     |  10 ++++
+ src/pkg/debug/elf/file.go                          |   8 ---
+ src/pkg/debug/elf/file_test.go                     |  60 ++++++++++++++-------
+ .../testdata/gcc-amd64-openbsd-debug-with-rela.obj | Bin 0 -> 6544 bytes
+ 4 files changed, 51 insertions(+), 27 deletions(-)

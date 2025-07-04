@@ -1,0 +1,12 @@
+commit 65cb1904c1f74acf3161a3271d1f248e5aaf7dfa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 8 15:03:30 2013 -0800
+
+    go/types: "inherit" type in constant declarations w/o initialization expressions (bug fix)
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7060054
+
+ src/pkg/go/types/check.go | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

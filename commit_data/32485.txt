@@ -1,0 +1,14 @@
+commit 6eef2bb5eeb4831a4d61dc2ffb14772e1270e634
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 22 19:50:43 2017 +0900
+
+    cmd/link: avoid leaking file in ldshlibsyms
+    
+    Change-Id: If27f7fbf94ede6f9a57f2520aaf75e6506e0b3f8
+    Reviewed-on: https://go-review.googlesource.com/59374
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/link/internal/ld/lib.go | 1 +
+ 1 file changed, 1 insertion(+)

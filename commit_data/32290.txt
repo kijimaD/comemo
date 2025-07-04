@@ -1,0 +1,20 @@
+commit d647b612d6ec69269600ff59d364e778db98d99e
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Aug 15 15:22:28 2017 -0400
+
+    .gitignore: include only Go project artifiacts
+    
+    This effectively reverts
+    
+    https://golang.org/cl/53770
+    
+    and adds a guide on what not to add in this file.
+    
+    Update #21458
+    
+    Change-Id: I7c740d492b70628b5d9f9e1622014995a3f6f8ec
+    Reviewed-on: https://go-review.googlesource.com/55871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .gitignore | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

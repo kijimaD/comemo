@@ -1,0 +1,19 @@
+commit f63b268b9a1dd6457405ed24dd4831b6ebfb8df8
+Author: Wang Deyu <wangdeyu.2021@bytedance.com>
+Date:   Fri Sep 16 18:56:48 2022 +0800
+
+    runtime: avoid initializing MemProfileRate in init function
+    
+    Fixes #55100
+    
+    Change-Id: Ibbff921e74c3a416fd8bb019d20410273961c015
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431315
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mprof.go | 12 +-----------
+ src/runtime/proc.go  |  8 ++++++++
+ 2 files changed, 9 insertions(+), 11 deletions(-)

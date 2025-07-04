@@ -1,0 +1,19 @@
+commit f03855f40ef131de6c0881ec12996a747be05a83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 14 16:49:44 2016 -0700
+
+    cmd/compile: remove ginscon2 functions
+    
+    These are no longer reachable as gins dispatches to ginscon for all
+    arch-specific instructions anyway.
+    
+    Change-Id: I7f34883c16058308d8afa0f960dcf554af31bfe4
+    Reviewed-on: https://go-review.googlesource.com/29211
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm64/gsubr.go | 35 ----------------------------
+ src/cmd/compile/internal/ppc64/gsubr.go | 41 ---------------------------------
+ src/cmd/compile/internal/s390x/gsubr.go | 39 -------------------------------
+ 3 files changed, 115 deletions(-)

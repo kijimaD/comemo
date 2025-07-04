@@ -1,0 +1,14 @@
+commit 3868a371a85f2edbf2132d0bd5a6ed9193310dd7
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 14 19:41:37 2018 +1000
+
+    doc/contribute.html: English cleanups
+    
+    Fixes #24487
+    
+    Change-Id: Ic523e469f7f67f376edd2fca6e07d35bb11b2db9
+    Reviewed-on: https://go-review.googlesource.com/113016
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 437 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 233 insertions(+), 204 deletions(-)

@@ -1,0 +1,16 @@
+commit d52022676da939cb183083da4ee0b614f86ac3b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 5 13:25:19 2016 -0700
+
+    html/template: mention risks of the CSS, HTML, JS, etc. types
+    
+    Fixes #15399
+    
+    Change-Id: I5b9645cb9ddede6981ce0a005e0c6fdd8a751c6f
+    Reviewed-on: https://go-review.googlesource.com/22824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/html/template/content.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

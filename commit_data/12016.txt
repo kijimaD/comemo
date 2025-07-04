@@ -1,0 +1,12 @@
+commit 566e0fe785b38cbcef588d3439ada87235737898
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Feb 18 07:44:38 2012 +1100
+
+    os: fix existential typo
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5675081
+
+ src/pkg/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

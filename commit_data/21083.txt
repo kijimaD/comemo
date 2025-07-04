@@ -1,0 +1,25 @@
+commit 0d4ea0c70d2c8fbdf1f9263f919c79c33b4ce8e0
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Thu Dec 18 21:33:34 2014 +0100
+
+    mime/multipart: moved some code to mime/internal/quotedprintable
+    
+    The code concerning quoted-printable encoding (RFC 2045) and its
+    variant for MIME headers (RFC 2047) is currently spread in
+    mime/multipart and net/mail. It is also not exported.
+    
+    This commit is the first step to fix that issue. It moves the
+    quoted-printable decoding code from mime/multipart to
+    mime/internal/quotedprintable. The exposed API is unchanged.
+    
+    Concerns #4943.
+    
+    Change-Id: I11352afbb2edb4d6ef62870b9bc5c87c639eff12
+    Reviewed-on: https://go-review.googlesource.com/1810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                                           | 2 +-
+ src/mime/{multipart => internal/quotedprintable}/quotedprintable.go | 4 ++--
+ .../{multipart => internal/quotedprintable}/quotedprintable_test.go | 6 +++---
+ src/mime/multipart/multipart.go                                     | 3 ++-
+ 4 files changed, 8 insertions(+), 7 deletions(-)

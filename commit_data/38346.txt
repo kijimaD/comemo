@@ -1,0 +1,26 @@
+commit 486ca37b14f56b2e125fc3afbd900a5369532043
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 11 10:57:44 2019 -0700
+
+    test: fix memcombine tests
+    
+    Two tests (load_le_byte8_uint64_inv and load_be_byte8_uint64)
+    pass but the generated code isn't actually correct.
+    
+    The test regexp provides a false negative, as it matches the
+    MOVQ (SP), BP instruction in the epilogue.
+    
+    Combined loads never worked for these cases - the test was added in error
+    as part of a batch and not noticed because of the above false match.
+    
+    Normalize the amd64/386 tests to always negative match on narrower
+    loads and OR.
+    
+    Change-Id: I256861924774d39db0e65723866c81df5ab5076f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166837
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/codegen/memcombine.go | 62 +++++++++++++++++++++++-----------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)

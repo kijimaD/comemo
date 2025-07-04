@@ -1,0 +1,20 @@
+commit caa434d28063b4532bc362d50285230597d6d1f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 21:16:31 2016 +0000
+
+    net/http: update Transport doc example to not disable http2
+    
+    The old Transport example ended up disabling HTTP/2.
+    
+    Use a better example.
+    
+    Fixes #17051
+    Fixes #17296
+    
+    Change-Id: I6feca168744131916e8bf56c829b4d4b50e304ee
+    Reviewed-on: https://go-review.googlesource.com/33094
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/doc.go       |  3 ++-
+ src/net/http/transport.go | 13 +++++++++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

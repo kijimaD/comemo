@@ -1,0 +1,40 @@
+commit 48ec5122ff439ae2c8619fb29a82339555403a9f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Sep 24 11:16:52 2017 +0100
+
+    cmd/go: move GOOS/GOARCH and tags checks to Init
+    
+    They were in Do, which is the method that actually starts the build.
+    However, we can already run these checks in Init, since we already have
+    all the information necessary to do the checks.
+    
+    More importantly, some work happens between Init and Do, namely package
+    loading. That may exit with an error, meaning that in some cases the
+    user gets a confusing error instead of the correct one.
+    
+    For example, using a GOOS typo, before showed:
+    
+            $ GOOS=windwos go build
+            can't load package: package p: build constraints exclude all Go files in ...
+    
+    And now:
+    
+            $ GOOS=windwos go build
+            cmd/go: unsupported GOOS/GOARCH pair windwos/amd64
+    
+    Also had to tweak TestGoEnv to modify GOOS as well as GOARCH. Otherwise,
+    on windows this would result in the invalid GOOS/GOARCH pair
+    windows/arm, which would error given that we now check that in non-build
+    commands such as "go env".
+    
+    Fixes #21999.
+    
+    Change-Id: Iff9890dea472bff0179a9d703d6f698a0e3187c1
+    Reviewed-on: https://go-review.googlesource.com/65656
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go             | 10 ++++++++++
+ src/cmd/go/internal/work/build.go | 22 +++++++++++-----------
+ 2 files changed, 21 insertions(+), 11 deletions(-)

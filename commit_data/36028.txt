@@ -1,0 +1,16 @@
+commit 3a28a711db15efd97c7675fccf0d2d0f2245a99b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 17 19:57:24 2018 +1000
+
+    doc: improve the garbage collection discussion
+    
+    Bring it up to date with recent terminology, mention new approaches
+    such as in Rust, and link to the new blog post.
+    
+    Change-Id: I1d0b121e6f8347c3cf2c8ca0d8adc8285ce59ef1
+    Reviewed-on: https://go-review.googlesource.com/124475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 39 +++++++++++++++++++++++++++++----------
+ 1 file changed, 29 insertions(+), 10 deletions(-)

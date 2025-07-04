@@ -1,0 +1,25 @@
+commit 58c5e62f8b46b412a93308db87ad465be474c30f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 10 17:27:06 2009 -0700
+
+    better gofmt formatting:
+    - first cut a better line breaks in expr lists
+    - trailing commas and semis printed where we tend to write them
+    - fixed a couple of minor spacing issues (interface{}, chan<-, map[x]y, x: y)
+    - removed some formatting flags from gofmt: no need to change default
+    - removed option to reverse declaration order when printing
+    - excluded files from test that cause trouble with idempotency test for now
+    
+    R=rsc
+    DELTA=497  (364 added, 83 deleted, 50 changed)
+    OCL=34539
+    CL=34544
+
+ src/cmd/gofmt/gofmt.go                        |  12 --
+ src/cmd/gofmt/test.sh                         |   3 +
+ src/pkg/go/printer/printer.go                 | 209 +++++++++++++-------------
+ src/pkg/go/printer/printer_test.go            |   1 +
+ src/pkg/go/printer/testdata/golden1.go        |  20 +--
+ src/pkg/go/printer/testdata/linebreaks.go     | 144 ++++++++++++++++++
+ src/pkg/go/printer/testdata/linebreaks.golden | 148 ++++++++++++++++++
+ 7 files changed, 409 insertions(+), 128 deletions(-)

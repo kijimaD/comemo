@@ -1,0 +1,19 @@
+commit c354f93b93294406f92fecdc9913b7c050472894
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 19 15:51:29 2012 -0500
+
+    runtime: madvise and SysUnused for Darwin
+    
+    SysUnused is a direct call to madvise MADV_FREE.
+    
+    R=sebastien.paolacci, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5531073
+
+ src/pkg/runtime/defs_darwin.go      |  3 +++
+ src/pkg/runtime/defs_darwin_386.h   |  3 +++
+ src/pkg/runtime/defs_darwin_amd64.h |  3 +++
+ src/pkg/runtime/mem_darwin.c        |  5 ++---
+ src/pkg/runtime/sys_darwin_386.s    |  7 +++++++
+ src/pkg/runtime/sys_darwin_amd64.s  | 10 ++++++++++
+ 6 files changed, 28 insertions(+), 3 deletions(-)

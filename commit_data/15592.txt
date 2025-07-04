@@ -1,0 +1,32 @@
+commit e0deb2ef7fe857b2541496197b0e5ad7882990f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 5 15:36:40 2013 -0500
+
+    undo CL 7301062 / 9742f722b558
+    
+    broke arm garbage collector
+    
+    traceback_arm fails with a missing pc. It needs CL 7494043.
+    But that only makes the build break later, this time with
+    "invalid freelist". Roll back until it can be fixed correctly.
+    
+    ««« original CL description
+    runtime: restrict stack root scan to locals and arguments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7301062
+    »»»
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7493044
+
+ src/pkg/runtime/mgc0.c          | 59 ++++++++++++++++++++---------------------
+ src/pkg/runtime/mprof.goc       |  2 +-
+ src/pkg/runtime/proc.c          |  2 +-
+ src/pkg/runtime/runtime.h       |  2 +-
+ src/pkg/runtime/sigqueue.goc    |  3 +--
+ src/pkg/runtime/traceback_arm.c | 29 +++++++-------------
+ src/pkg/runtime/traceback_x86.c | 37 ++++++++++----------------
+ 7 files changed, 57 insertions(+), 77 deletions(-)

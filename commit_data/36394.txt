@@ -1,0 +1,18 @@
+commit 1ae2eed0b22023cc06ad7f1a82d2df2b6877b14b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 31 20:40:34 2018 -0800
+
+    math: test for pos/neg zero return of Ceil/Floor/Trunc
+    
+    Ceil and Trunc of -0.2 return -0, not +0, but we didn't test that.
+    
+    Updates #23647
+    
+    Change-Id: Idbd4699376abfb4ca93f16c73c114d610d86a9f2
+    Reviewed-on: https://go-review.googlesource.com/91335
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

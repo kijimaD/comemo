@@ -1,0 +1,14 @@
+commit f1fe21a08fe1e96d1fad5633b3689274c139a21f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 17:06:20 2009 -0800
+
+    bug134
+    
+    R=ken
+    OCL=23532
+    CL=23532
+
+ src/cmd/gc/dcl.c         | 19 +++++++++++++------
+ src/cmd/gc/go.h          |  2 +-
+ test/fixedbugs/bug134.go | 11 +++++++++++
+ 3 files changed, 25 insertions(+), 7 deletions(-)

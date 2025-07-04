@@ -1,0 +1,21 @@
+commit 2bd3e48055cc36306d1ce5abc96685ada4e3c836
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 28 11:30:48 2021 -0400
+
+    cmd/go/internal/modload: implement lazy loading
+    
+    For #36460
+    Updates #41297
+    
+    Change-Id: I1b82176a45df499e52f1a3a0ffe23eab2a1ca86e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265777
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go | 374 ++++++++++++++++++++++++++++---
+ src/cmd/go/internal/modload/init.go      |   2 +-
+ src/cmd/go/internal/modload/load.go      | 290 ++++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_list.txt  |   3 +-
+ 4 files changed, 590 insertions(+), 79 deletions(-)

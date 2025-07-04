@@ -1,0 +1,12 @@
+commit c69d54e7cd9d7bf52da680af0c4437645f373d16
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Mar 29 16:27:12 2008 -0700
+
+    bug28
+    fix code generation bug in
+    second index of string slice.
+    
+    SVN=114255
+
+ src/c/gen.c | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit 6959087b1cf7cdb5b5e714f321b01a47cdf2ac18
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Jun 5 13:02:32 2017 +0300
+
+    cmd/vet: unexported Stringer and error fields cannot be formatted
+    
+    According to CL 31817, fmt cannot invoke String or Error methods
+    on unexported struct fields.
+    
+    Fixes #17798.
+    
+    Change-Id: I0d516577298bc36daa9a94313c3874d64dc079e6
+    Reviewed-on: https://go-review.googlesource.com/44831
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/testdata/print.go | 53 ++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/vet/types.go          | 17 ++++++++++----
+ 2 files changed, 64 insertions(+), 6 deletions(-)

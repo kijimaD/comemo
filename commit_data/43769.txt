@@ -1,0 +1,17 @@
+commit 81322b919198ce17d990762a8823e8db46435792
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Nov 6 18:37:01 2020 +1100
+
+    runtime/race: remove race from TestNoRaceAfterFunc2
+    
+    For #14119
+    
+    Change-Id: I2a9ae43da228cf5c3e38d1f0d1b0768145b6548f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267998
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/testdata/sync_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

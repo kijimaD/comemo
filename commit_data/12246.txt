@@ -1,0 +1,14 @@
+commit d9c5626047f0b3d580be1bc786557c261c7e1559
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 28 10:58:01 2012 +0900
+
+    net: no panic on placeholders for netbsd
+    
+    Perhaps it might be better than panic.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5701064
+
+ src/pkg/net/sockoptip_netbsd.go | 30 +++++++++++++++++++++++++++---
+ 1 file changed, 27 insertions(+), 3 deletions(-)

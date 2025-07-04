@@ -1,0 +1,19 @@
+commit 1e3c57c2cc1500b12a35a859f3d6e8aa27aeebc5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 16 10:43:54 2016 -0500
+
+    cmd/internal/obj/arm64: fix branch too far for CBZ (and like)
+    
+    The assembler backend fixes too-far conditional branches, but only
+    for BEQ and like. Add a case for CBZ and like.
+    
+    Fixes #17925.
+    
+    Change-Id: Ie516e6c5ca165b582367283a0110f7081e00c214
+    Reviewed-on: https://go-review.googlesource.com/33304
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go     |  2 +-
+ src/cmd/internal/obj/arm64/asm_test.go | 62 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 696bf79350b5cb0e977def1fc98ba6d6c8bd829f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 13:51:49 2012 -0800
+
+    bytes.Buffer: turn buffer size overflows into errors
+    Fixes #2743.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5556072
+
+ src/pkg/bytes/buffer.go      | 40 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/bytes/buffer_test.go | 16 ++++++++++++++++
+ 2 files changed, 52 insertions(+), 4 deletions(-)

@@ -1,0 +1,28 @@
+commit e57f24ab39ff6e0ea50c84518e7f91b3a40cf547
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon Sep 17 14:46:50 2018 -0400
+
+    cmd/trace: don't drop sweep slice details
+    
+    For sweep events, we used to modify the ViewerEvent returned from
+    ctx.emitSlice later in order to embed more details about the sweep
+    operation. The trick no longer works after the change
+    https://golang.org/cl/92375 and caused a regression.
+    
+    ctx.emit method encodes the ViewerEvent, so any modification to the
+    ViewerEvent object after ctx.emit returns will not be reflected.
+    
+    Refactor ctx.emitSlice, so ctx.makeSlice can be used when producing
+    slices for SWEEP. ctx.emit* methods are meant to truely emit
+    ViewerEvents.
+    
+    Fixes #27711
+    
+    Change-Id: I0b733ebbbfd4facd8714db0535809ec3cab0833d
+    Reviewed-on: https://go-review.googlesource.com/135775
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/trace.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

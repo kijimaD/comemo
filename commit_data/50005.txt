@@ -1,0 +1,18 @@
+commit 011a525b21c77c8a11e54c5b15cb10761baf1925
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 13 18:31:30 2022 -0700
+
+    test: add test that caused gccgo to crash
+    
+    For #23868
+    
+    Change-Id: I07b001836e8d1411609ab84786398a5b575bf8d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417481
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ test/fixedbugs/issue23868.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

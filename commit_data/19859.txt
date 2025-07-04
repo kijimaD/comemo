@@ -1,0 +1,13 @@
+commit 5a3336096f19c7c813305f548e054b86391874ff
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jul 31 13:54:42 2014 -0700
+
+    strconv: remove needless cast
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/119340043
+
+ src/pkg/strconv/atoi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

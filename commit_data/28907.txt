@@ -1,0 +1,23 @@
+commit 8b3194ac8fd8436bf4bfd252de58ab81154f334d
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Mon Oct 17 14:17:46 2016 -0700
+
+    cmd/compile: fix code duplication in race-instrumentation
+    
+    instrumentnode() accidentally copies parent's already-instrumented nodes
+    into child's Ninit block. This generates repeated code in race-instrumentation.
+    This case surfaces only when it duplicates inline-labels, because of
+    compile time error. In other cases, it silently generates incorrect
+    instrumented code. This change prevents it from doing so.
+    
+    Fixes #17449.
+    
+    Change-Id: Icddf2198990442166307e176b7e20aa0cf6c171c
+    Reviewed-on: https://go-review.googlesource.com/31317
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go | 39 ++++++++++-----------------------
+ test/fixedbugs/issue17449.go            | 34 ++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 27 deletions(-)

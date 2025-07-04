@@ -1,0 +1,12 @@
+commit ffa2bd27a47ef16e4d6a404dd15781ed5ba21e5d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 31 09:09:01 2016 -0700
+
+    runtime: fix typo
+    
+    Change-Id: I47e3cfa8b49e3d0b55c91387df31488b37038a8f
+    Reviewed-on: https://go-review.googlesource.com/28225
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

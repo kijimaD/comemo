@@ -1,0 +1,21 @@
+commit 2200b4fda24e2556c94972d5d4ca9377e10a8d3d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 3 16:35:19 2020 -0500
+
+    cmd/go: rewrite tests using testdata/example[12]_test.go to scripts
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I81476ae6716903135781e5da135345456a36b026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213219
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 16 -------
+ src/cmd/go/testdata/example2_test.go               | 21 ---------
+ .../test_match_only_example.txt}                   |  8 ++++
+ src/cmd/go/testdata/script/test_source_order.txt   | 54 ++++++++++++++++++++++
+ 4 files changed, 62 insertions(+), 37 deletions(-)

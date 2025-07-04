@@ -1,0 +1,15 @@
+commit eaa8b30d5a73a1406b7be12346dd67f013ac8221
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 26 20:09:09 2012 +0400
+
+    net/rpc: log Call reply discard
+    It means serious user error that can lead to
+    hard to debug issues under load, log entry
+    will not harm.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5574075
+
+ src/pkg/net/rpc/client.go | 1 +
+ 1 file changed, 1 insertion(+)

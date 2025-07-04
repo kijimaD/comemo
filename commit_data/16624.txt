@@ -1,0 +1,15 @@
+commit bd105b2bcafc3b8d4e5a17608da33f31d6486946
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 24 23:51:00 2013 +0400
+
+    runtime/pprof: disable testing under race detector
+    until we decide what to do with issues 5659/5736.
+    Profiling with race detector is not very useful in general,
+    and now it makes race builders red.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10523043
+
+ src/pkg/runtime/pprof/pprof_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

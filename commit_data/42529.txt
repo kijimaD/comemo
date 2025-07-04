@@ -1,0 +1,14 @@
+commit 844bf11ecd362e50e62a81c93aa2ac602de59adc
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Tue Jun 16 21:48:43 2020 +0300
+
+    doc/go1.15: fix two typos
+    
+    Updates #37419.
+    
+    Change-Id: I9ecc706d44950b7de3e8fe4dde8cfab1904eee58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238139
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

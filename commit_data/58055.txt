@@ -1,0 +1,29 @@
+commit 7588cc9b00ec570043c1ee699eace8aa69c106c0
+Author: khr@golang.org <khr@golang.org>
+Date:   Wed Nov 29 22:03:22 2023 -0800
+
+    cmd/link: use types (and not GC programs) to build data/bss ptrmasks
+    
+    The linker knows the types of the global variables. We can use those
+    types to build the GC programs that describe the data and bss pointer masks.
+    
+    That way we don't use the GC programs of the constituent types.
+    This is part of an effort to remove GC programs from the runtime.
+    
+    There's a major complication in that when we're linking against a
+    shared library (typically, libstd.so), the relocations we need to
+    break apart arrays and structs into constituent types are difficult to
+    find. Load that additional data when linking against shared libraries.
+    
+    Change-Id: I8516b24a0604479895c7b8a8a358d3cd8d421530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546216
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go      | 54 +++++++++++++++++-------
+ src/cmd/link/internal/ld/decodesym.go | 44 +++++++++++++++++---
+ src/cmd/link/internal/ld/dwarf.go     |  6 +--
+ src/cmd/link/internal/ld/lib.go       | 77 ++++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/link.go      | 24 +++++++++++
+ 5 files changed, 181 insertions(+), 24 deletions(-)

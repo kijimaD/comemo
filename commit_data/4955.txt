@@ -1,0 +1,15 @@
+commit 8fbd5f8a8273054e4a1cdae39b26f0a34534b01c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 25 16:43:43 2010 -0800
+
+    use []byte("abc") in place of []byte{'a', 'b', 'c'}
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/223059
+
+ src/pkg/asn1/asn1_test.go     |  2 +-
+ src/pkg/fmt/print.go          | 18 +++++++++---------
+ src/pkg/go/ast/filter.go      |  2 +-
+ src/pkg/go/scanner/scanner.go |  2 +-
+ 4 files changed, 12 insertions(+), 12 deletions(-)

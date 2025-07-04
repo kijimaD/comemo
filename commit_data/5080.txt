@@ -1,0 +1,14 @@
+commit 14abacf108ddd514027256d29a9e2135de1c7f23
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 19 15:14:46 2010 -0700
+
+    Factor the Makefiles to make writing outside Makefiles easier.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/650042
+
+ src/Make.cmd    | 21 ++++++++++-----------
+ src/Make.common | 26 ++++++++++++++++++++++++++
+ src/Make.pkg    | 21 +++++++--------------
+ 3 files changed, 43 insertions(+), 25 deletions(-)

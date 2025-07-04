@@ -1,0 +1,26 @@
+commit 2073b35e07ce9cea47ee1fbe763b304d2371954f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 19 11:56:30 2023 -0700
+
+    crypto/tls: add a bogo shim
+    
+    Run the BoGo test suite.
+    
+    For now a number of tests are disabled, so that we can land the shim.
+    Once the shim is in the tree I'll work on fixing tests, and aligning
+    the TLS stack with the boringssl stack.
+    
+    Eventually we should also remove the --loose-errors flag.
+    
+    Fixes #51434
+    
+    Change-Id: Ic8339fc34552936b798acf834011a129e375750e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/tls/bogo_config.json  | 175 +++++++++++++++++++++++++
+ src/crypto/tls/bogo_shim_test.go | 277 +++++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_test.go |  22 +++-
+ 3 files changed, 471 insertions(+), 3 deletions(-)

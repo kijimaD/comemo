@@ -1,0 +1,18 @@
+commit b2fe2ebab6e66a453a0137e37d2c639a613a852b
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Wed Jul 7 22:33:09 2021 +0800
+
+    cmd/compile: resolve the TODO of processPragmas
+    
+    Change-Id: Id723ecc2480aea2d8acb4d3e05db4a6c8eef9cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333109
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/noder/noder.go | 3 +--
+ src/cmd/cover/testdata/test.go          | 1 +
+ test/linkname2.go                       | 7 ++-----
+ 3 files changed, 4 insertions(+), 7 deletions(-)

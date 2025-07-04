@@ -1,0 +1,34 @@
+commit 8b4cbcc32098733832db0ba0cd8a8569315861c2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 6 13:43:17 2020 -0400
+
+    all: remove darwin/386 build-tags and files
+    
+    This removes all files that are only used on darwin/386 and cleans up
+    build tags in files that are still used on other platforms.
+    
+    Updates #37610.
+    
+    Change-Id: If246642476c12d15f59a474e2b91a29c0c02fe75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227581
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_darwin_386.c   |   66 --
+ src/runtime/defs_darwin_386.go     |  367 -------
+ src/runtime/rt0_darwin_386.s       |   17 -
+ src/runtime/signal_386.go          |    2 +-
+ src/runtime/signal_darwin_386.go   |   64 --
+ src/runtime/sys_darwin_32.go       |   21 -
+ src/runtime/sys_darwin_386.s       |  951 ----------------
+ src/syscall/asm_darwin_386.s       |  140 ---
+ src/syscall/syscall_darwin_386.go  |   65 --
+ src/syscall/zerrors_darwin_386.go  | 1423 ------------------------
+ src/syscall/zsyscall_darwin_386.go | 2083 ------------------------------------
+ src/syscall/zsyscall_darwin_386.s  |  253 -----
+ src/syscall/zsysnum_darwin_386.go  |  362 -------
+ src/syscall/ztypes_darwin_386.go   |  452 --------
+ src/time/zoneinfo_unix.go          |    2 +-
+ 15 files changed, 2 insertions(+), 6266 deletions(-)

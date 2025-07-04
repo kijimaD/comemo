@@ -1,0 +1,22 @@
+commit 581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Oct 22 22:07:07 2022 +0800
+
+    regexp: add ErrLarge error
+    
+    For #56041
+    
+    Change-Id: I6c98458b5c0d3b3636a53ee04fc97221f3fd8bbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+
+ api/next/56041.txt         | 2 ++
+ src/regexp/all_test.go     | 1 +
+ src/regexp/syntax/parse.go | 9 +++++----
+ 3 files changed, 8 insertions(+), 4 deletions(-)

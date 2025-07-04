@@ -1,0 +1,14 @@
+commit 7e9fa3c3213fc1a4174fe5d6692c83f5610dff42
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 11:11:47 2016 -0500
+
+    runtime: check that Version does not contain \r \n
+    
+    Change-Id: I8982cfa7337ec457b5235a207ebfda00ef6a2e5a
+    Reviewed-on: https://go-review.googlesource.com/33917
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,78 @@
+commit 34fd5db14751e5287b5dd09d7b803543713b5c67
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 17:33:08 2017 -0500
+
+    archive/zip: replace RWMutex with sync.Map
+    
+    This change replaces the compressors and decompressors maps with
+    instances of sync.Map, eliminating the need for Mutex locking in
+    NewReader and NewWriter.
+    
+    The impact for encoding large payloads is miniscule, but as the
+    payload size decreases, the reduction in setup costs becomes
+    measurable.
+    
+    updates #17973
+    updates #18177
+    
+    name                        old time/op    new time/op    delta
+    CompressedZipGarbage          13.6ms ± 3%    13.8ms ± 4%    ~     (p=0.275 n=14+16)
+    CompressedZipGarbage-6        2.81ms ±10%    2.80ms ± 9%    ~     (p=0.616 n=16+16)
+    CompressedZipGarbage-48        606µs ± 4%     600µs ± 3%    ~     (p=0.110 n=16+15)
+    Zip64Test                     88.7ms ± 5%    87.5ms ± 5%    ~     (p=0.150 n=14+14)
+    Zip64Test-6                   88.6ms ± 8%    94.5ms ±13%    ~     (p=0.070 n=14+16)
+    Zip64Test-48                   102ms ±19%     101ms ±19%    ~     (p=0.599 n=16+15)
+    Zip64TestSizes/4096           21.7µs ±10%    23.0µs ± 2%    ~     (p=0.076 n=14+12)
+    Zip64TestSizes/4096-6         7.58µs ±13%    7.49µs ±18%    ~     (p=0.752 n=16+16)
+    Zip64TestSizes/4096-48        19.5µs ± 8%    18.0µs ± 4%  -7.74%  (p=0.000 n=16+15)
+    Zip64TestSizes/1048576        1.36ms ± 9%    1.40ms ± 8%  +2.79%  (p=0.029 n=24+25)
+    Zip64TestSizes/1048576-6       262µs ±11%     260µs ±10%    ~     (p=0.506 n=24+24)
+    Zip64TestSizes/1048576-48      120µs ± 7%     116µs ± 7%  -3.05%  (p=0.006 n=24+25)
+    Zip64TestSizes/67108864       86.8ms ± 6%    85.1ms ± 5%    ~     (p=0.149 n=14+17)
+    Zip64TestSizes/67108864-6     15.9ms ± 2%    16.1ms ± 6%    ~     (p=0.279 n=14+17)
+    Zip64TestSizes/67108864-48    4.51ms ± 5%    4.53ms ± 4%    ~     (p=0.766 n=15+17)
+    
+    name                        old alloc/op   new alloc/op   delta
+    CompressedZipGarbage          5.63kB ± 0%    5.63kB ± 0%    ~     (all equal)
+    CompressedZipGarbage-6        15.4kB ± 0%    15.4kB ± 0%    ~     (all equal)
+    CompressedZipGarbage-48       25.5kB ± 3%    25.6kB ± 2%    ~     (p=0.450 n=16+16)
+    Zip64Test                     20.0kB ± 0%    20.0kB ± 0%    ~     (p=0.060 n=16+13)
+    Zip64Test-6                   20.0kB ± 0%    20.0kB ± 0%    ~     (p=0.136 n=16+14)
+    Zip64Test-48                  20.0kB ± 0%    20.0kB ± 0%    ~     (p=1.000 n=16+16)
+    Zip64TestSizes/4096           20.0kB ± 0%    20.0kB ± 0%    ~     (all equal)
+    Zip64TestSizes/4096-6         20.0kB ± 0%    20.0kB ± 0%    ~     (all equal)
+    Zip64TestSizes/4096-48        20.0kB ± 0%    20.0kB ± 0%  -0.00%  (p=0.002 n=16+13)
+    Zip64TestSizes/1048576        20.0kB ± 0%    20.0kB ± 0%    ~     (all equal)
+    Zip64TestSizes/1048576-6      20.0kB ± 0%    20.0kB ± 0%    ~     (all equal)
+    Zip64TestSizes/1048576-48     20.1kB ± 0%    20.1kB ± 0%    ~     (p=0.775 n=24+25)
+    Zip64TestSizes/67108864       20.0kB ± 0%    20.0kB ± 0%    ~     (all equal)
+    Zip64TestSizes/67108864-6     20.0kB ± 0%    20.0kB ± 0%    ~     (p=0.272 n=16+17)
+    Zip64TestSizes/67108864-48    20.1kB ± 0%    20.1kB ± 0%    ~     (p=0.098 n=14+15)
+    
+    name                        old allocs/op  new allocs/op  delta
+    CompressedZipGarbage            44.0 ± 0%      44.0 ± 0%    ~     (all equal)
+    CompressedZipGarbage-6          44.0 ± 0%      44.0 ± 0%    ~     (all equal)
+    CompressedZipGarbage-48         44.0 ± 0%      44.0 ± 0%    ~     (all equal)
+    Zip64Test                       53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64Test-6                     53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64Test-48                    53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/4096             53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/4096-6           53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/4096-48          53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/1048576          53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/1048576-6        53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/1048576-48       53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/67108864         53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/67108864-6       53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    Zip64TestSizes/67108864-48      53.0 ± 0%      53.0 ± 0%    ~     (all equal)
+    
+    https://perf.golang.org/search?q=upload:20170428.4
+    
+    Change-Id: Idb7bec091a210aba833066f8d083d66e27788286
+    Reviewed-on: https://go-review.googlesource.com/42113
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/register.go | 47 ++++++++++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 26 deletions(-)

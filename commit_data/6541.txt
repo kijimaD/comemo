@@ -1,0 +1,12 @@
+commit cc9e6b5cdb4e6a5f296df86679f132b79632deb6
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Oct 17 21:13:55 2010 +0200
+
+    [68]l: fix off by one instruction in dwarf frame unwinding.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2543043
+
+ src/cmd/ld/dwarf.c | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)

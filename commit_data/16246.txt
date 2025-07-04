@@ -1,0 +1,13 @@
+commit b493f0a868982711903c01f759a56c448d908b12
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Tue Apr 30 11:52:23 2013 -0700
+
+    syscall: fix a bug in the shuffling of file descriptors in StartProcess on Linux.
+    
+    R=iant, iant, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8334044
+
+ src/pkg/os/exec/exec_test.go  | 127 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/exec_linux.go |  10 +++-
+ 2 files changed, 135 insertions(+), 2 deletions(-)

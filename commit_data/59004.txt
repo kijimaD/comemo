@@ -1,0 +1,29 @@
+commit 73fea035bf1e4e68ef14995a389d4fd8df5c6a34
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 16 15:44:55 2025 -0500
+
+    cmd/go: allow symlinks of non-directory files in embed
+    
+    We previously disallowed all non-regular files being embedded. This CL
+    relaxes the restriction a little: if the GODEBUG embedfollowsymlinks=1
+    is set, we allow the leaf files being embedded (not the directories
+    containing them) to be symlinks. The files pointed to by the symlinks
+    must still be regular files.
+    
+    This will be used when a Bazel build action executing the Go command is
+    running in a symlink-based sandbox. It's not something we want to enable
+    in general for now, so it's behind a GODEBUG.
+    
+    Fixes #59924
+    
+    Change-Id: I895be14c12de55b7d1b663d81bdda1df37d54804
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/godebug.md                       |  5 +++++
+ src/cmd/go/internal/load/pkg.go      | 21 +++++++++++++++++++
+ src/cmd/go/testdata/script/embed.txt | 40 +++++++++++++++++++++++++++++++++++-
+ src/internal/godebugs/table.go       |  1 +
+ src/runtime/metrics/doc.go           |  5 +++++
+ 5 files changed, 71 insertions(+), 1 deletion(-)

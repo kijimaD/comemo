@@ -1,0 +1,17 @@
+commit a0698a6b60952f80e2136df0699325b657ea0def
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Wed May 6 23:00:58 2020 +0900
+
+    syscall/js: prepare IDs for the preset objects
+    
+    Fixes #38899
+    
+    Change-Id: Ib8131c3078c60dc3fe2cf0eaac45b25a4f6e4649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232518
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.js    | 48 +++++++++++++++++++++--------------------------
+ src/syscall/js/js_test.go | 11 +++++++++++
+ 2 files changed, 32 insertions(+), 27 deletions(-)

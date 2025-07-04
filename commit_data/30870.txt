@@ -1,0 +1,30 @@
+commit 7e817859b349864c67cfcf4dfe3cb2f752463521
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 11:22:57 2017 -0700
+
+    cmd/internal/obj: eliminate Curp
+    
+    Remove the global obj.Link.Curp.
+    
+    In asmz.go, replace the only use by passing it as an argument.
+    In asm0.go and asm9.go, it was written but never read.
+    In asm5.go and asm7.go, thread it through as an argument.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: I1a0faa89e768820f35d73a8b37ec8088d78d15f7
+    Reviewed-on: https://go-review.googlesource.com/38715
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 105 ++++++------
+ src/cmd/internal/obj/arm64/asm7.go | 318 ++++++++++++++++++-------------------
+ src/cmd/internal/obj/link.go       |   1 -
+ src/cmd/internal/obj/mips/asm0.go  |   2 -
+ src/cmd/internal/obj/plist.go      |   1 -
+ src/cmd/internal/obj/ppc64/asm9.go |   2 -
+ src/cmd/internal/obj/s390x/asmz.go |   6 +-
+ 7 files changed, 211 insertions(+), 224 deletions(-)

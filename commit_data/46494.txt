@@ -1,0 +1,21 @@
+commit 119213566a8e0da729a8bccc7d7f7d525f0c1cf9
+Author: jochen weber <jochen.weber80@gmail.com>
+Date:   Fri May 14 12:45:13 2021 +0000
+
+    cmd/cgo: remove hardcoded '-pie' ldflag for linux/arm
+    
+    a minimally invasive fix proposal for #45940. which keeps the fix for #26197.
+    
+    an alternative for (#26197) could be to fail if we have both flags. adding/removing a flag without an message to the user is inconvenient.
+    
+    Change-Id: I6ac2524d81ff57202fbe3032a53afd5106270a9e
+    GitHub-Last-Rev: edaf02fa455329b5d794a139f99874b5e8cc12d1
+    GitHub-Pull-Request: golang/go#45989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317569
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

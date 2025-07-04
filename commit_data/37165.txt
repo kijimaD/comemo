@@ -1,0 +1,20 @@
+commit 5dd4d1f820a8e6a6407fac08cb41f1dec6a9f079
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 25 18:11:54 2018 +0000
+
+    runtime: add predecessor method to treap
+    
+    This change adds a method for computing a treap node's predecessor
+    to the treap, which will simplify the implementation of algorithms
+    used for heap growth scavenging.
+    
+    For #14045.
+    
+    Change-Id: Id203e4bd246db3504f2f0c5163ec36f4579167df
+    Reviewed-on: https://go-review.googlesource.com/c/144717
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

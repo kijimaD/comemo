@@ -1,0 +1,17 @@
+commit 8d733ecafb10c5160649db9ee9bbdda69a4a15c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 15:35:26 2015 -0800
+
+    cmd/compile: cleanup in parser.go (2)
+    
+    Inlined fntype, othertype, recvchantype, ptrtype into ntype
+    and simplified callers. Minor cleanups elsewhere (better names).
+    
+    Change-Id: I54924969996641a802de00c078b4cd0eabfda8c1
+    Reviewed-on: https://go-review.googlesource.com/16894
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 246 ++++++++++++++--------------------
+ 1 file changed, 98 insertions(+), 148 deletions(-)

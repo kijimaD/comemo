@@ -1,0 +1,17 @@
+commit 8e985dcda6c85863dda7b0e65c6f089383ec8f31
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 15:37:20 2010 -0700
+
+    test: Reduce race conditions in chan/nonblock.go.
+    
+    nonblock.go wants to test nonblocking operations on
+    synchronous channels, so it is inherently racy.  This
+    introduces loops to make the race conditions much more likely
+    to succeed when using gccgo.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2161043
+
+ test/chan/nonblock.go | 98 +++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 60 insertions(+), 38 deletions(-)

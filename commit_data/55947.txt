@@ -1,0 +1,18 @@
+commit c9ed561db438ba413ba8cfac0c292a615bda45a8
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Tue Mar 12 20:01:40 2024 -0700
+
+    debug/elf: avoid using binary.Read() in NewFile()
+    
+    With this change my test program that reads a tree of ELF files runs
+    1.71 ± 0.12 times faster without parallelism or 1.39 ± 0.06 times
+    faster using 8 goroutines.
+    
+    Change-Id: I443d1a02736f16f5532ef28e1447c97aa87c7126
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571436
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/elf/file.go | 207 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 103 insertions(+), 104 deletions(-)

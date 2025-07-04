@@ -1,0 +1,19 @@
+commit 58365b34bb4d84dda4e2fe73cd9eb7e9267ed86c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 22 15:20:50 2019 -0800
+
+    cmd/compile/internal/syntax: allow more than one rune "unread"
+    
+    Make it possible to "unread" more than one byte before the most
+    recently read rune. Use a better name than ungetr2 and make it
+    slightly more efficient.
+    
+    R=Go1.13
+    
+    Change-Id: I45d5dfa11e508259a972ca6560d1f78d7a51fe15
+    Reviewed-on: https://go-review.googlesource.com/c/158957
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/syntax/scanner.go |  4 +--
+ src/cmd/compile/internal/syntax/source.go  | 51 ++++++++++++++++++------------
+ 2 files changed, 32 insertions(+), 23 deletions(-)

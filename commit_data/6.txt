@@ -1,0 +1,12 @@
+commit 328df636c5f3e0875bc71a7eadf5a4a5084e0b13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Mar 2 23:02:36 2008 -0800
+
+    - added language for map and channel types
+    - added clarifications about function types
+    - added open issues section
+    
+    SVN=111045
+
+ doc/go_spec | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 81 insertions(+), 9 deletions(-)

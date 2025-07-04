@@ -1,0 +1,20 @@
+commit e7f5f3eca42a98340e4eb4fc5d490a9aa4bd5054
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 10 02:22:48 2018 +0000
+
+    cmd/internal/obj/arm64: add error report for invalid base register
+    
+    The current assembler accepts the non-integer register as the base register,
+    which should be an illegal combination.
+    
+    Add the test cases.
+    
+    Change-Id: Ia21596bbb5b1e212e34bd3a170748ae788860422
+    Reviewed-on: https://go-review.googlesource.com/134575
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

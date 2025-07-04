@@ -1,0 +1,25 @@
+commit e806cd9f95ccf14163623792425db2b066d4198e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 22:05:49 2016 -0800
+
+    cmd/compile: cleanup compile function
+    
+    Make more idiomatic with a defer cleanup, which allows declaring
+    variables closer to their first use, rather than up front before the
+    first goto statement.
+    
+    Also, split the legacy code generation code path into a separate
+    genlegacy function, analogous to the new genssa.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I86c22838704f6861b75716ae64ba103b0e73b12f
+    Reviewed-on: https://go-review.googlesource.com/20353
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 65 +++++++++++++++++--------------------
+ 1 file changed, 29 insertions(+), 36 deletions(-)

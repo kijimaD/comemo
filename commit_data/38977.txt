@@ -1,0 +1,26 @@
+commit 88548d0211ba64896fa76a5d1818e4422847a879
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Mar 11 15:52:20 2019 -0700
+
+    net/http: make Server return 501 for unsupported transfer-encodings
+    
+    Ensures that our HTTP/1.X Server properly responds
+    with a 501 Unimplemented as mandated by the spec at
+    RFC 7230 Section 3.3.1, which says:
+        A server that receives a request message with a
+        transfer coding it does not understand SHOULD
+        respond with 501 (Unimplemented).
+    
+    Fixes #30710
+    
+    Change-Id: I096904e6df053cd1e4b551774cc27523ff3d09f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go    | 56 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go        | 34 ++++++++++++++++++--------
+ src/net/http/transfer.go      | 18 +++++++++++++-
+ src/net/http/transfer_test.go | 32 +++++++++++++++++++++++++
+ 4 files changed, 129 insertions(+), 11 deletions(-)

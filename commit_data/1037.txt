@@ -1,0 +1,30 @@
+commit c249a8de32cf5d2ceb0e896868699195b0820109
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 15:36:08 2008 -0800
+
+    rename various magic names.
+            sigi and sigt:
+            sys·sigi_inter -> sigi·inter
+            sys·sigt_int -> sigt·int
+            Package·sigt_Type -> sigt·Package.Type
+    
+            local type T in file x.go T_x -> T·x
+            second one T_x_1 -> T·x·1
+    
+            method names M on T  T_M -> T·M
+    
+    correctly handle local embedded types
+    
+    init functions are the only place left that use underscores
+    
+    R=ken
+    OCL=18377
+    CL=18377
+
+ src/cmd/6g/obj.c    | 13 ++++---------
+ src/cmd/gc/dcl.c    | 41 ++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/go.h     |  3 +--
+ src/cmd/gc/subr.c   | 36 +++++++++++++++++++-----------------
+ src/runtime/iface.c | 36 ++++++++++++++++++------------------
+ test/golden.out     |  4 ++--
+ 6 files changed, 74 insertions(+), 59 deletions(-)

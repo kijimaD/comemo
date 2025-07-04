@@ -1,0 +1,12 @@
+commit 98e723ed098abf6a4b9dae27108cc9ee6f07919b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 19 10:54:04 2011 +1100
+
+    html: fix escape_test.go for CSS escaper change 5306042.
+    
+    R=mikesamuel
+    CC=golang-dev
+    https://golang.org/cl/5313044
+
+ src/pkg/exp/template/html/escape_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

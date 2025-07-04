@@ -1,0 +1,15 @@
+commit bbafa21b37f6e857bfde9e4221a1e2d0fa71e74d
+Author: Jason Wangsadinata <jwangsadinata@gmail.com>
+Date:   Wed Oct 25 02:26:46 2017 +0700
+
+    container/ring: add examples for various Ring functions
+    
+    Change-Id: I6b16cfcbe824f999c9b64df539deea567e327db7
+    Reviewed-on: https://go-review.googlesource.com/73090
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Jason Wangsadinata <jwangsadinata@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+
+ src/container/ring/example_test.go | 174 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 174 insertions(+)

@@ -1,0 +1,12 @@
+commit e47090ab40967c2e5e6058838319259b4cc0d508
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Tue Apr 16 11:20:51 2019 +0200
+
+    doc: fix typo in go1.12 release notes
+    
+    Change-Id: I3cb4fb7cacba51bfd611ade918f16c618e2569fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172159
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

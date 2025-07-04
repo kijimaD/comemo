@@ -1,0 +1,12 @@
+commit ba46bd1e5a629cd9da42ab90ae36ad4331dbac81
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 16:13:17 2008 -0700
+
+    export prereq for interface types
+    
+    R=ken
+    OCL=17377
+    CL=17377
+
+ src/cmd/gc/export.c | 1 +
+ 1 file changed, 1 insertion(+)

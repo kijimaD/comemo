@@ -1,0 +1,13 @@
+commit 96ee38bfc2a9b6bfb30a7b53b13fa31a9b489aa1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 17 12:12:47 2009 +1100
+
+    make it more explicit that design discussions should happen before code reviews
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180075
+
+ doc/code.html       |  5 +++--
+ doc/contribute.html | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

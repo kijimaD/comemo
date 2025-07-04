@@ -1,0 +1,16 @@
+commit 6afe7eba32c06022ef11ab0307d6b3361b59a8f0
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Sun Mar 6 15:02:06 2011 -0500
+
+    http: add cookie support
+    
+    R=rsc1, mattn, bradfitzwork, pascal, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4214042
+
+ src/pkg/http/Makefile       |   1 +
+ src/pkg/http/cookie.go      | 336 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cookie_test.go |  96 +++++++++++++
+ src/pkg/http/request.go     |   9 ++
+ src/pkg/http/response.go    |   9 ++
+ 5 files changed, 451 insertions(+)

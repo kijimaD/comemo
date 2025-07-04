@@ -1,0 +1,13 @@
+commit 2fdd60b9b66f26720ea571345785285d4037dce5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 13 01:06:52 2013 +0800
+
+    go/build, runtime/cgo: cgo support for NetBSD/ARM
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/7229082
+
+ src/pkg/go/build/build.go            |   1 +
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c | 117 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+)

@@ -1,0 +1,32 @@
+commit 29e93590b00648423886f0663b0841f547099abf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 16:48:09 2009 -0700
+
+    fix undefined function error.
+    before:
+            mainstart: undefined: main·init in mainstart
+            mainstart: branch out of range in mainstart
+            (95)    CALL    ,0(PC) [main·init]
+            mainstart: undefined: main·main in mainstart
+            mainstart: branch out of range in mainstart
+            (97)    CALL    ,0(PC) [main·main]
+            mainstart: doasm: notfound from=6f to=6f (95)    CALL    ,
+            mainstart: doasm: notfound from=6f to=6f (97)    CALL    ,
+            mainstart: doasm: notfound from=6f to=6f (95)    CALL    ,
+            mainstart: doasm: notfound from=6f to=6f (97)    CALL    ,
+            mainstart: doasm: notfound from=6f to=6f (95)    CALL    ,
+            mainstart: doasm: notfound from=6f to=6f (97)    CALL    ,
+    
+    after:
+            mainstart: undefined: main·init in mainstart
+            mainstart: undefined: main·main in mainstart
+    
+    R=r
+    DELTA=7  (1 added, 0 deleted, 6 changed)
+    OCL=31555
+    CL=31555
+
+ src/cmd/5l/pass.c | 16 ++++++++--------
+ src/cmd/6l/pass.c |  5 +++--
+ src/cmd/8l/pass.c |  4 ++--
+ 3 files changed, 13 insertions(+), 12 deletions(-)

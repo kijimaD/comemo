@@ -1,0 +1,14 @@
+commit 37c29c5f6cc0938209789dc1292692fa266c4a97
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 11 10:59:36 2016 -0800
+
+    go/types: slightly better doc strings
+    
+    Per suggestion from adonovan.
+    
+    Change-Id: Icbb4d2f201590bc94672b8d8141b6e7901e11dc5
+    Reviewed-on: https://go-review.googlesource.com/18510
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

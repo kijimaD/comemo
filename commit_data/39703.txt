@@ -1,0 +1,12 @@
+commit 0b9b152ee3c9a2ff079569d8d5a3a6982b1ae91d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 25 12:46:57 2019 -0700
+
+    cmd/compile: remove unused code from esc.go
+    
+    Change-Id: Idb7b97ced559c40d4e3beae5c661c71825200af7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187598
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 1843 +-----------------------------------
+ 1 file changed, 29 insertions(+), 1814 deletions(-)

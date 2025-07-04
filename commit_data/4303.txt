@@ -1,0 +1,18 @@
+commit bc3e34759c7d3f6625df9dd5ded40f6404c91324
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 12:56:16 2009 -0800
+
+    Add ReadFrom and WriteTo methods to bytes.Buffer, to enable i/o without buffer allocation.
+    Use them in Copy and Copyn.
+    Speed up ReadFile by using ReadFrom and avoiding Copy altogether (a minor win).
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/166041
+
+ src/pkg/bytes/buffer.go      | 55 ++++++++++++++++++++++++++++++
+ src/pkg/bytes/buffer_test.go | 22 ++++++++++++
+ src/pkg/io/io.go             | 32 ++++++++++++++++++
+ src/pkg/io/io_test.go        | 80 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/io/ioutil/ioutil.go  | 10 +++---
+ 5 files changed, 194 insertions(+), 5 deletions(-)

@@ -1,0 +1,22 @@
+commit 1012892f1e6329d5581ad82a20ababa5548d8dc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 10:01:01 2016 -0500
+
+    cmd/link: C is gone, remove check for Go calling C
+    
+    It looks like the compiler still uses the Cfunc flag for functions
+    marked as //go:systemstack, but if I'm reading this right, that
+    doesn't apply here and the linker no longer needs Cfunc.
+    
+    Change-Id: I63b9192c2f52f41401263c29dc8dfd8be8a901a1
+    Reviewed-on: https://go-review.googlesource.com/20105
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/lib.go     | 57 -------------------------------------
+ src/cmd/link/internal/ld/link.go    |  1 -
+ src/cmd/link/internal/ld/objfile.go |  4 ---
+ src/cmd/link/internal/ld/pobj.go    |  1 -
+ 4 files changed, 63 deletions(-)

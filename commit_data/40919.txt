@@ -1,0 +1,17 @@
+commit 386b1a4280d4a32cd8b69a92ba91b6d98832b721
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 18 11:13:20 2019 -0800
+
+    runtime: treat call from runtime as transient in TestDebugCall
+    
+    Fixes #32985
+    
+    Change-Id: I5d504715dcc92d4f4f560ea2e843d9275f938685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207620
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_debug_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

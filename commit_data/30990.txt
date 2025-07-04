@@ -1,0 +1,18 @@
+commit 42426ed41167d6a99cfc9e5a91a4aff1b95093ca
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 3 16:14:26 2017 -0700
+
+    cmd/compile: Fatal instead of panic in large bvbulkalloc
+    
+    This provides better diagnostics when it occurs.
+    
+    Updates #19751
+    
+    Change-Id: I87db54c22e1345891b418c1741dc76ac5fb8ed00
+    Reviewed-on: https://go-review.googlesource.com/39358
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

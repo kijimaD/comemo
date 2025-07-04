@@ -1,0 +1,26 @@
+commit 9a199d42dab00636f503c47ac4e02595765373f2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 13 22:20:06 2022 -0700
+
+    compress/zlib: use binary.BigEndian consistently
+    
+    One major reason to avoid binary.BigEndian is because
+    the binary package includes a transitive dependency on reflect.
+    See #54097.
+    
+    Given that writer.go already depends on the binary package,
+    embrace use of it consistently where sensible.
+    We should either embrace use of binary or fully avoid it.
+    
+    Change-Id: I5f2d27d0ed8cab5ac54be02362c7d33276dd4b9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452176
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/compress/zlib/reader.go | 7 ++++---
+ src/compress/zlib/writer.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

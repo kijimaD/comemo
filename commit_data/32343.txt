@@ -1,0 +1,20 @@
+commit 3d124b1a817146ab7800982622b0de5b828f3392
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 09:11:36 2017 +0900
+
+    debug/macho: support LC_RPATH
+    
+    Updates #21487
+    
+    Change-Id: Ia549a87a8a305cc80da11ea9bd904402f1a14689
+    Reviewed-on: https://go-review.googlesource.com/56321
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/file.go                            |  19 +++++
+ src/debug/macho/file_test.go                       |  79 +++++++++++++++++----
+ src/debug/macho/macho.go                           |   9 +++
+ .../testdata/clang-386-darwin-exec-with-rpath      | Bin 0 -> 8416 bytes
+ .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 0 -> 8432 bytes
+ 5 files changed, 94 insertions(+), 13 deletions(-)

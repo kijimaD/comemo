@@ -1,0 +1,16 @@
+commit 8f8b735295702ee1dd8632c44aed96c087b5b085
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 16:00:28 2009 -0700
+
+    Native Client SRPC (simple RPC), both server and client.
+    
+    R=r
+    DELTA=958  (958 added, 0 deleted, 0 changed)
+    OCL=35096
+    CL=35106
+
+ usr/rsc/nacl/srpc/Makefile  |  13 ++
+ usr/rsc/nacl/srpc/client.go | 210 +++++++++++++++++
+ usr/rsc/nacl/srpc/msg.go    | 532 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/nacl/srpc/server.go | 204 +++++++++++++++++
+ 4 files changed, 959 insertions(+)

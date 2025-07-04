@@ -1,0 +1,20 @@
+commit 7e92b80c21ea22b9dcfb27cc68c61b805485f379
+Author: Chaoshuai Lü <lcs@meta.com>
+Date:   Wed Nov 30 12:29:46 2022 +0000
+
+    crypto/des: fix a typo in the comment for permuteFinalBlock
+    
+    The comment copy pasted from the permuteInitialBlock and should be fixed.
+    
+    Change-Id: I101f1deceadf9b0480e5b679e4e237bda601950b
+    GitHub-Last-Rev: 7662df772e4ac171c79467678861ac4d7547da78
+    GitHub-Pull-Request: golang/go#56982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/des/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 9a36b8087c539df975a69c0d1addf19c71e7c4d6
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Aug 24 13:48:16 2009 -0700
+
+    Make it only necessary to exit blocks, not scopes.  Allow
+    variables to be given initial values in some cases, to make
+    building global scopes more convenient.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=29  (17 added, 0 deleted, 12 changed)
+    OCL=33760
+    CL=33766
+
+ usr/austin/eval/decls.go |  8 +++++++-
+ usr/austin/eval/expr.go  |  2 ++
+ usr/austin/eval/scope.go | 29 +++++++++++++++++++----------
+ usr/austin/eval/value.go |  2 +-
+ 4 files changed, 29 insertions(+), 12 deletions(-)

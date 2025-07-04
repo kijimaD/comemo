@@ -1,0 +1,15 @@
+commit f62585118cade28409bf7c217260844cc054954f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 28 16:38:41 2009 -0700
+
+    Fix segfault on unnamed function arguments.  Make continue
+    jump to the post statement instead of the condition check.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=10  (6 added, 1 deleted, 3 changed)
+    OCL=32359
+    CL=32379
+
+ usr/austin/eval/stmt.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

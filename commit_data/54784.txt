@@ -1,0 +1,20 @@
+commit 067f28ad73e096a7ca1e892ba89280dfa4fa419d
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed Oct 25 15:04:45 2023 +0000
+
+    Revert "crypto/internal/boring: use noescape and nocallback cgo directives"
+    
+    This reverts CL 525035.
+    
+    Reason for revert: breaks many Google-internal tests (#63739), suspected miscompilation
+    
+    Change-Id: I8cbebca0a187d12e16c405b2373c754e4a397ef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537598
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/crypto/cipher/gcm_test.go     | 36 -------------------------
+ src/crypto/internal/boring/aes.go | 55 +++++++++++++++++++++++++++++----------
+ 2 files changed, 41 insertions(+), 50 deletions(-)

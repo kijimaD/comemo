@@ -1,0 +1,14 @@
+commit 7c77e450ccbf1459b4628f3564aeb0a0482b08f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 28 19:36:04 2010 -0700
+
+    net: do not require newline at end of resolv.conf
+    
+    Fixes #686.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/961046
+
+ src/pkg/net/parse.go | 5 +++++
+ 1 file changed, 5 insertions(+)

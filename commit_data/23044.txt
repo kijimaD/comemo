@@ -1,0 +1,16 @@
+commit d4ed30612c9eead7b1d59179cae5d468fb900f35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 15 08:45:16 2015 -0700
+
+    syscall: don't run fcntl child process test on iOS
+    
+    Fixes darwin-arm{,64} builds.
+    Child processes aren't allowed on iOS.
+    
+    Change-Id: I9258ed4df757ec394ef6327dbda96f5b9705bcdd
+    Reviewed-on: https://go-review.googlesource.com/10142
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

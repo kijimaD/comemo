@@ -1,0 +1,22 @@
+commit ad618689ef06e9dca86c0e2b9b38a2c1b9266f4a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Sep 26 16:30:02 2020 +0200
+
+    cmd/dist: detect gohostarch on netbsd/arm64 hosts
+    
+    On netbsd/arm64 `uname -m` reports `evbarm` which is mapped to
+    gohostarch=arm. Fix this by checking for "aarch64" in `uname -p` output
+    to fix self-hosted build on netbsd/arm64.
+    
+    Updates #30824
+    
+    Change-Id: I0f0450ff35af0bec51aeec3b210143ba892216c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257643
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/cmd/dist/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

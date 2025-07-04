@@ -1,0 +1,24 @@
+commit fb72965df06e193bce0b999a0b5cb2a7b817fc7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 5 21:38:02 2018 -0400
+
+    go/doc: update header rules
+    
+    Go documentation can have header lines, which are single-line paragraphs
+    with leading and trailing letters and almost no punctuation.
+    Before this CL, the only allowed punctuation was ' followed by s.
+    
+    After this CL, parentheses and commas are also allowed,
+    to pick up a pair of previously unrecognized headings in the
+    go command documentation:
+    
+            Gofmt (reformat) package sources
+            Modules, module versions, and more
+    
+    Change-Id: I6d59c40a1269f01cef62a3fb17b909571c2f2adb
+    Reviewed-on: https://go-review.googlesource.com/122407
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/go/doc/comment.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

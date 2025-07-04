@@ -1,0 +1,17 @@
+commit 09daf313b255b84e1a8e5323a4b40c1099b7ceb0
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:28:18 2022 +0800
+
+    cmd/asm: use strings.TrimSuffix
+    
+    Change-Id: If08ce3f8534f5fb7ce97ec124bfeff937e65f63b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435943
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/flags/flags.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

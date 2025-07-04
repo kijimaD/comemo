@@ -1,0 +1,25 @@
+commit 991b0fd46c3e8160c9b5c622478caf7b5ebe139c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 25 12:40:02 2019 -0700
+
+    cmd/compile: remove -newescape flag
+    
+    Drops support for old escape analysis pass. Subsequent, separate CL
+    will remove dead code.
+    
+    While here, fix a minor error in fmt.go: it was still looking for
+    esc.go's NodeEscState in n.Opt() rather than escape.go's EscLocation.
+    But this only affected debug diagnostics printed during escape
+    analysis itself.
+    
+    Change-Id: I62512e1b31c75ba0577550a5fd7824abc3159ed5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187597
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go  | 13 +------------
+ src/cmd/compile/internal/gc/fmt.go  |  4 ++--
+ src/cmd/compile/internal/gc/main.go |  3 +--
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ 4 files changed, 5 insertions(+), 17 deletions(-)

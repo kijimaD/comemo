@@ -1,0 +1,27 @@
+commit 73a4684caa1567c06e239dc657b82ede77777e3b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 28 17:46:00 2023 -0700
+
+    go/types, types2: isParameterized must be able to handle tuples
+    
+    CL 484615 rewrote isParameterized by handling tuple types only where
+    they occur (function signatures). However, isParameterized is also
+    called from Checker.callExpr, with a result parameter list which
+    is a tuple. This CL handles tuples again.
+    
+    Fixes #59890.
+    
+    Change-Id: I35159ff65f23322432557e6abcab939933933d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490695
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go             |  4 ++--
+ src/cmd/compile/internal/types2/infer.go            | 10 +++++++---
+ src/go/types/call.go                                |  4 ++--
+ src/go/types/infer.go                               | 10 +++++++---
+ src/internal/types/testdata/fixedbugs/issue59890.go | 17 +++++++++++++++++
+ 5 files changed, 35 insertions(+), 10 deletions(-)

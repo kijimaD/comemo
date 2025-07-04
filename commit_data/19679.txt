@@ -1,0 +1,13 @@
+commit b157077e34e61125a41f143304e9453c6142b09c
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 13:44:41 2014 -0400
+
+    cmd/nm: skip test on android (no Go tool)
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/107590043
+
+ src/cmd/nm/nm_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

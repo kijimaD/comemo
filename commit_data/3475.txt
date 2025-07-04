@@ -1,0 +1,29 @@
+commit d5150635885bb08c701176b996d0e2462e6fcb8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 7 14:55:12 2009 -0700
+
+    better handling of mistaken top-level variable
+    references during the parsing of :=.  the base
+    problem is that when reading
+    
+            a,b,c,d
+    
+    the parser makes those refer to existing variables,
+    which might create a few stub top-level ones
+    for undefined names, but then if a := is the next
+    token, we need to undo those stubs.
+    
+    this was causing problems in multifile packages
+    in which one file used a := variable named rpc
+    and the other imported a package named rpc.
+    
+    R=ken
+    OCL=35446
+    CL=35446
+
+ src/cmd/gc/dcl.c  | 16 ++++++++++++++--
+ src/cmd/gc/go.h   |  4 +---
+ src/cmd/gc/go.y   | 16 ++++------------
+ src/cmd/gc/lex.c  | 24 +++++++-----------------
+ src/cmd/gc/subr.c |  2 +-
+ 5 files changed, 27 insertions(+), 35 deletions(-)

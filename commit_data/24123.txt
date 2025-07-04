@@ -1,0 +1,16 @@
+commit 0cced63cc01a329d0a103a8ac8c10e374e64646e
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Aug 2 08:55:17 2015 -0700
+
+    crypto/x509: emit PKIX names in a more standard order.
+    
+    (See referenced bug for details.)
+    
+    Fixes #11966.
+    
+    Change-Id: I91f9c95594cf4fd6d25d9a81f155a643c7a1f8e0
+    Reviewed-on: https://go-review.googlesource.com/13038
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/pkix/pkix.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

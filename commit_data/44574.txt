@@ -1,0 +1,20 @@
+commit 18510ae88ffcb9c4a914805fde3e613539f9b6dc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 7 20:52:48 2021 -0800
+
+    runtime, cmd/link/internal/ld: disable memory profiling when data unreachable
+    
+    If runtime.MemProfile is unreachable, default to not collecting any
+    memory profiling samples, to save memory on the hash table.
+    
+    Fixes #42347
+    
+    Change-Id: I9a4894a5fc77035fe59b1842e1ec77a1182e70c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299671
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/ld_test.go | 100 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go     |  12 +++++
+ src/runtime/mprof.go                |  17 +++++-
+ 3 files changed, 128 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit d2dec04056cfa33c70b7fc4a72fd3d98b78bf385
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 5 13:44:01 2019 -0800
+
+    runtime: add Gosched to TestSelectStackAdjust loop
+    
+    Give the runtime more of a chance to do other work in a tight loop.
+    
+    Fixes #34693
+    
+    Change-Id: I8df6173d2c93ecaccecf4520a6913b495787df78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210217
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,67 @@
+commit e8d95619978c4602d4446f113b3b69b7a22308fa
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sat Nov 16 11:17:54 2024 -0800
+
+    crypto/x509: implement policy validation
+    
+    Implement support for parsing the various policy related extensions,
+    and for validating the policy graph for chains.
+    
+    Policy validation is only run if VerifyOptions.CertificatePolicies is
+    set. Policy validation is run after chains are built. If the computed
+    policy graph for a chain is invalid, the chain is removed from the set
+    of returned chains.
+    
+    This implements the RFC 5280 algorithm as updated by
+    RFC 9618 [0].
+    
+    Fixes #68484
+    
+    [0] https://www.rfc-editor.org/rfc/rfc9618.html
+    
+    Change-Id: I576432a47ddc404cba966c2b1995365944b8bd26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628616
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/68484.txt                                 |  13 +
+ doc/next/6-stdlib/99-minor/crypto/x509/68484.md    |   5 +
+ src/crypto/x509/oid_test.go                        |  63 ++-
+ src/crypto/x509/parser.go                          |  58 ++-
+ src/crypto/x509/parser_test.go                     |  83 ++++
+ src/crypto/x509/root_unix_test.go                  |  20 +-
+ src/crypto/x509/testdata/policy_intermediate.pem   |  11 +
+ .../x509/testdata/policy_intermediate_any.pem      |  11 +
+ .../testdata/policy_intermediate_duplicate.pem     |  12 +
+ .../x509/testdata/policy_intermediate_invalid.pem  |  11 +
+ .../x509/testdata/policy_intermediate_mapped.pem   |  17 +
+ .../testdata/policy_intermediate_mapped_any.pem    |  15 +
+ .../testdata/policy_intermediate_mapped_oid3.pem   |  15 +
+ .../x509/testdata/policy_intermediate_require.pem  |  12 +
+ .../x509/testdata/policy_intermediate_require1.pem |  12 +
+ .../x509/testdata/policy_intermediate_require2.pem |  12 +
+ .../policy_intermediate_require_duplicate.pem      |  12 +
+ .../policy_intermediate_require_no_policies.pem    |  11 +
+ src/crypto/x509/testdata/policy_leaf.pem           |  11 +
+ src/crypto/x509/testdata/policy_leaf_any.pem       |  11 +
+ src/crypto/x509/testdata/policy_leaf_duplicate.pem |  12 +
+ src/crypto/x509/testdata/policy_leaf_invalid.pem   |  11 +
+ src/crypto/x509/testdata/policy_leaf_none.pem      |  10 +
+ src/crypto/x509/testdata/policy_leaf_oid1.pem      |  11 +
+ src/crypto/x509/testdata/policy_leaf_oid2.pem      |  11 +
+ src/crypto/x509/testdata/policy_leaf_oid3.pem      |  11 +
+ src/crypto/x509/testdata/policy_leaf_oid4.pem      |  11 +
+ src/crypto/x509/testdata/policy_leaf_oid5.pem      |  11 +
+ src/crypto/x509/testdata/policy_leaf_require.pem   |  12 +
+ src/crypto/x509/testdata/policy_leaf_require1.pem  |  12 +
+ src/crypto/x509/testdata/policy_root.pem           |  10 +
+ src/crypto/x509/testdata/policy_root2.pem          |  10 +
+ .../testdata/policy_root_cross_inhibit_mapping.pem |  11 +
+ src/crypto/x509/verify.go                          | 422 ++++++++++++++++++++-
+ src/crypto/x509/verify_test.go                     | 375 +++++++++++++++++-
+ src/crypto/x509/x509.go                            |  74 ++++
+ src/crypto/x509/x509_test.go                       |  10 +-
+ 37 files changed, 1386 insertions(+), 53 deletions(-)

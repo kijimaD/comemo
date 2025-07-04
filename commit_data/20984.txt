@@ -1,0 +1,12 @@
+commit e5ee9a824db5dcf1c7220ca87d9bb1652f00ec5b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 15 10:17:00 2014 +1100
+
+    misc/makerelease: remove mercurial-specific special case
+    
+    Change-Id: I2ae40e63bc78f3b6e4eb68ccbc928368db1e606f
+    Reviewed-on: https://go-review.googlesource.com/1535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 23 +++++------------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)

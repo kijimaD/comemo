@@ -1,0 +1,23 @@
+commit de95dca32fb196d5f09bf5db4a6ba592907559c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 6 16:08:41 2022 -0700
+
+    cmd/compile/internal/noder: explicit receiver expression handling
+    
+    This CL adds a helper expression code for receiver addressing; i.e.,
+    the implicit addressing, dereferencing, and field selections involved
+    in changing the `x` in `x.M()` into an appropriate expression to pass
+    as an argument to the method.
+    
+    Change-Id: I9be933e2a38c8f94f6a85d95b54f34164e5efb0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421820
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/noder/codes.go  |  1 +
+ src/cmd/compile/internal/noder/reader.go | 13 +++++++++++
+ src/cmd/compile/internal/noder/writer.go | 38 ++++++++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 2 deletions(-)

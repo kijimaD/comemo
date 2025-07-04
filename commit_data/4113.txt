@@ -1,0 +1,12 @@
+commit 41554e252802e3e742084a99fbbe94b0f0d92eab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 22:00:30 2009 -0800
+
+    runtime: two trivial but important bug fixes
+    
+    R=r
+    https://golang.org/cl/156059
+
+ src/pkg/runtime/darwin/386/sys.s | 2 +-
+ src/pkg/runtime/proc.c           | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

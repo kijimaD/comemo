@@ -1,0 +1,18 @@
+commit 01cad815a1c3c48d54b3cbbfc9f599f5f91918fe
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 26 22:34:05 2023 -0400
+
+    runtime: remove runtime.Add testing function
+    
+    Replace with unsafe.Add.
+    
+    Change-Id: Ic5c155349dadc51457119b3c05ab717cdfd26c95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521176
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_linux_test.go  | 1 -
+ src/runtime/runtime_linux_test.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

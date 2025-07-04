@@ -1,0 +1,22 @@
+commit 01389b966ed81fad6e5fac3e98fe46e162645659
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 25 14:37:30 2010 +1100
+
+    container/list: fix Remove bug and use pointer to self as identifier
+    
+    Remove wasn't nil'ing the *Element.id. This property was exploited
+    by MoveToFront and MoveToBack internally, so I renamed the existing
+    Remove to "remove", and created an exported wrapper "Remove" that does
+    the right thing for the user's sake.
+    
+    Also, saved an allocation by using *List as the id rather than *byte.
+    
+    Fixes #1224.
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/2685042
+
+ src/pkg/container/list/list.go      | 40 +++++++++++++++++++++----------------
+ src/pkg/container/list/list_test.go | 17 ++++++++++++++--
+ 2 files changed, 38 insertions(+), 19 deletions(-)

@@ -1,0 +1,15 @@
+commit 941db1ed39cfb5a80ceb94dc24766165a1d1bd68
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 4 06:20:57 2013 -0700
+
+    encoding/gob: consistently use unsafe.Pointer for pointer values
+    
+    Fixes #5621.
+    
+    R=golang-dev, cshapiro, r, fullung
+    CC=golang-dev
+    https://golang.org/cl/9988043
+
+ src/pkg/encoding/gob/decode.go | 49 +++++++++++++++++++++---------------------
+ src/pkg/encoding/gob/encode.go | 28 ++++++++++++------------
+ 2 files changed, 38 insertions(+), 39 deletions(-)

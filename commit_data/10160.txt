@@ -1,0 +1,17 @@
+commit cae23f036ac639141153a73551bcabbb7169e9e0
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Oct 31 16:07:17 2011 -0700
+
+    template: fix error checking on execute without parse
+    
+    Fixed error checking in exec.go to give a sensible error message when
+    execution is attempted before a successful parse (rather than an
+    outright panic).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5306065
+
+ src/pkg/exp/template/html/escape_test.go | 12 ++++++------
+ src/pkg/template/exec.go                 |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

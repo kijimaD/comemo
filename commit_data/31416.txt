@@ -1,0 +1,14 @@
+commit 85d6a29ae60fa914a5fb12d061422a63694aa9be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 28 07:23:26 2017 -0700
+
+    cmd/compile: prevent infinite recursion printing types in Fatalf
+    
+    Updates #20162
+    
+    Change-Id: Ie289bae0d0be8430e492ac73fd6e6bf36991d4a1
+    Reviewed-on: https://go-review.googlesource.com/42130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 5 +++++
+ 1 file changed, 5 insertions(+)

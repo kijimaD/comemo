@@ -1,0 +1,22 @@
+commit 44a0681ae4e5d92fe86087a3d70aab2ad8df0f10
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 12:10:38 2017 -0700
+
+    cmd/compile: add a dowidth call to convas
+    
+    This dowidth currently happens during AST to SSA conversion.
+    As such, it is a concurrency pinch point.
+    It's a bit silly, but do it here in walk instead.
+    This appears (fingers crossed) to be the last
+    unresolved dowidth concurrency problem.
+    
+    Updates #15756
+    
+    Change-Id: I87cbf718a14ad21aca74586003d79320cca75953
+    Reviewed-on: https://go-review.googlesource.com/39994
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,15 @@
+commit 0e497971bb8a34f00d94ff3e5f0571855d7073dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:36:34 2017 -0700
+
+    cmd/compile: update dalgsym to use obj.LSym
+    
+    Passes toolstash-check.
+    
+    Change-Id: I00a8200370d56772f604a099654f9d838c4f62e2
+    Reviewed-on: https://go-review.googlesource.com/41405
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

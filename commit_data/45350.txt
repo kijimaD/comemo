@@ -1,0 +1,19 @@
+commit 434e12f77223e0915e29bcdaf2b214e52213f2ab
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 27 08:30:41 2021 +0700
+
+    cmd/compile: add more doc for Name.Defn
+    
+    As discussion in CL 313289, Name.Defn is also be set for variables
+    declared in type switch, or name function.
+    
+    Change-Id: I3deb3d79fca269356e4432b77df7c7720a523674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313889
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/ir/name.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

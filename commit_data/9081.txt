@@ -1,0 +1,15 @@
+commit 48f598a393ddb1c48cd10015f1c024ca79a67d6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 14 16:09:15 2011 -0700
+
+    go/printer: simplify internal state
+    
+    No formatting changes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4735042
+
+ src/pkg/go/printer/nodes.go   | 10 ----------
+ src/pkg/go/printer/printer.go | 20 +++++---------------
+ 2 files changed, 5 insertions(+), 25 deletions(-)

@@ -1,0 +1,15 @@
+commit 3ac17f86be1bb9b6a7cfde2b1dcef88bc5c2c1a6
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Mar 28 15:22:26 2018 -0400
+
+    cmd/trace: make span tables pretty
+    
+    Mostly same as golang.org/cl/102156, except the parts that
+    deal with different data types.
+    
+    Change-Id: I061b858b73898725e3bf175ed022c2e3e55fc485
+    Reviewed-on: https://go-review.googlesource.com/103158
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/trace/annotations.go | 160 +++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 131 insertions(+), 29 deletions(-)

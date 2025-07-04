@@ -1,0 +1,13 @@
+commit db492b8df41cd90ebecaf69a73bf4cc5e0db5f20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 23 14:55:19 2014 -0700
+
+    os: add a comment inside RemoveAll
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/149950043
+
+ src/os/path.go | 2 ++
+ 1 file changed, 2 insertions(+)

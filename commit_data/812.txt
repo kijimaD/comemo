@@ -1,0 +1,14 @@
+commit be0c25ee934dfdfaca13b390fd557d777c080548
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 6 13:12:03 2008 -0700
+
+    Change old-style export declaration to new style export of
+    type definition.
+    
+    R=r
+    DELTA=3  (0 added, 2 deleted, 1 changed)
+    OCL=16537
+    CL=16545
+
+ test/fixedbugs/bug026.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

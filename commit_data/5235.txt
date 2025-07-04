@@ -1,0 +1,19 @@
+commit 88ce9ce40ca66f4886f3febbcbaaa77a6bf19977
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 6 13:48:31 2010 -0700
+
+    runtime: two proc bug fixes
+    
+    1. Fix bug in GOMAXPROCS when trying to cut number of procs
+    Race could happen on any system but was
+    manifesting only on Xen hosted Linux.
+    
+    2. Fix recover on ARM, where FP != caller SP.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/880043
+
+ src/pkg/runtime/proc.c | 19 +++++++++++++------
+ test/recover2.go       |  5 +++++
+ 2 files changed, 18 insertions(+), 6 deletions(-)

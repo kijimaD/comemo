@@ -1,0 +1,20 @@
+commit bb7fb8a5fac1ad9570c554c366826d649350acbe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 19:44:34 2022 -0800
+
+    runtime: print error if mmap fails
+    
+    Fixes #49687
+    
+    Change-Id: Ife7f64f4c98449eaff7327e09bc1fb67acee72c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379354
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mem_aix.go    | 1 +
+ src/runtime/mem_bsd.go    | 1 +
+ src/runtime/mem_darwin.go | 1 +
+ src/runtime/mem_linux.go  | 1 +
+ 4 files changed, 4 insertions(+)

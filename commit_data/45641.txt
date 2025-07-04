@@ -1,0 +1,19 @@
+commit 3d324f127dbb916f38d7476e9c4ff106e5d54f99
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu May 13 09:41:45 2021 -0600
+
+    net/http: prevent infinite wait during TestMissingStatusNoPanic
+    
+    If the client request never makes it to the server, the outstanding
+    accept is never broken. Change the test to always close the listening
+    socket when the client request completes.
+    
+    Updates #45358
+    
+    Change-Id: I744a91dfa11704e7e528163d7669c394e90456dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319275
+    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/transport_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

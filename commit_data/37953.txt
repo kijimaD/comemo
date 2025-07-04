@@ -1,0 +1,26 @@
+commit e1b49ad608c0b51acf75f8248e1167acbbcb5d30
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Feb 8 11:22:48 2019 +0000
+
+    doc: remove last pieces of advice to set GOROOT
+    
+    install.html still insisted that GOROOT must be set if a binary install
+    of Go is set up in a custom directory. However, since 1.10, this has
+    been unnecessary as the GOROOT will be found based on the location of
+    the 'go' binary being run.
+    
+    Likewise, install-source.html includes an 'export GOROOT' line in a
+    section that only talks about explicitly setting GOARCH and GOOS, which
+    is optional. We don't want to have users think it is recommended to set
+    GOROOT here either, so remove the unnecessary line.
+    
+    Change-Id: I7dfef09f9a1d003e0253b793d63ea40d5cf1837f
+    Reviewed-on: https://go-review.googlesource.com/c/161758
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/install-source.html | 1 -
+ doc/install.html        | 5 -----
+ 2 files changed, 6 deletions(-)

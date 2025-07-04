@@ -1,0 +1,16 @@
+commit 107d4043789c7655e393ba853bfa3aead17cc4eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 15:23:21 2009 -0700
+
+    stop using filename for disambiguation within a package.
+    
+    R=ken
+    OCL=34339
+    CL=34341
+
+ src/cmd/gc/closure.c |  2 +-
+ src/cmd/gc/go.h      |  2 --
+ src/cmd/gc/init.c    |  2 +-
+ src/cmd/gc/lex.c     | 25 -------------------------
+ src/cmd/gc/subr.c    |  9 +++------
+ 5 files changed, 5 insertions(+), 35 deletions(-)

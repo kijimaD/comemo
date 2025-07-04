@@ -1,0 +1,14 @@
+commit e47c11d8b1bc26ce3283df6bc04f8ca4cf1b074b
+Author: Ivan Sharavuev <shpiwan@gmail.com>
+Date:   Sat Oct 13 13:25:20 2018 +0300
+
+    pprof: replace bits = bits + "..." to bits += "..." where bits is a string.
+    
+    Change-Id: Ic77ebbdf2670b7fdf2c381cd1ba768624b07e57c
+    Reviewed-on: https://go-review.googlesource.com/c/141998
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/internal/profile/profile.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

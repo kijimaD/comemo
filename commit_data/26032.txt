@@ -1,0 +1,15 @@
+commit 1661493c7394c694406c7c91fc2655b0599ad987
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 22:28:05 2016 -0500
+
+    cmd/link: replace LSym.Queue with a slice
+    
+    Change-Id: Idc95452088d23be8e18522209d98f789dfca070b
+    Reviewed-on: https://go-review.googlesource.com/20161
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/go.go   | 27 +++++++++------------------
+ src/cmd/link/internal/ld/link.go |  1 -
+ 2 files changed, 9 insertions(+), 19 deletions(-)

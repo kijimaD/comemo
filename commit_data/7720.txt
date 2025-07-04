@@ -1,0 +1,12 @@
+commit a16af59fd1d6daa02bd8b79c7daeb703843264cf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 9 16:53:32 2011 -0800
+
+    fmt: heaven forfend we export EOF = -1
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4248076
+
+ src/pkg/fmt/scan.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

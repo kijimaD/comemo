@@ -1,0 +1,15 @@
+commit 8ce74b7d119a74c5882ae88556991f59267cb947
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 19:16:34 2018 +0100
+
+    test: port a nil-check interface test from asm_test
+    
+    Change-Id: I69c1688506d1aeca655047acf35d1bff966fc01e
+    Reviewed-on: https://go-review.googlesource.com/98442
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 531 -------------------------------
+ test/codegen/issue22703.go              | 535 ++++++++++++++++++++++++++++++++
+ 2 files changed, 535 insertions(+), 531 deletions(-)

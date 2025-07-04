@@ -1,0 +1,15 @@
+commit 9b1d6332e877e633c1870b01af11eaa909399ba0
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Apr 9 14:37:26 2010 -0700
+
+    cmath: use ** for exponentiation in comments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/831045
+
+ src/pkg/cmath/exp.go   | 2 +-
+ src/pkg/cmath/polar.go | 2 +-
+ src/pkg/cmath/pow.go   | 2 +-
+ src/pkg/cmath/sqrt.go  | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)

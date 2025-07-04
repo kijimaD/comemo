@@ -1,0 +1,20 @@
+commit 77680a064491dd54bd61ef0663276d6f64f66153
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 15:46:32 2022 -0400
+
+    cmd/link: simplify content hashed symbol handling
+    
+    Symbol's content hash used to depend on package path expansion in
+    symbol names, so we have special logic handling hashed symbols
+    when path expansion is needed. As we required -p in the compiler
+    the symbol names are now fully expanded. Remove that logic.
+    
+    Change-Id: I888574f63ea3789455d96468a6abd500e0958230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394218
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

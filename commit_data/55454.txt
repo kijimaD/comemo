@@ -1,0 +1,18 @@
+commit b1a12dd2ed4f6d7cdde913cddf77871f1c701bdc
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Dec 17 09:47:10 2023 +0000
+
+    cmd/link: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
+    
+    For #59670
+    
+    Change-Id: I248bad2d2f9d05903b80022e52a795ff7a4fae93
+    GitHub-Last-Rev: df6a7bf29a2012eb681ce391dc9cf295370b5b2e
+    GitHub-Pull-Request: golang/go#64775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550596
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)

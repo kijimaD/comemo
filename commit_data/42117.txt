@@ -1,0 +1,17 @@
+commit 1c5453510c9aee1b0d6a51f7e5411a9718fc9deb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:31:32 2020 -0700
+
+    cmd/compile: convert pointer and address comparisons to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id4c4d341e5733673eb8a899e881d70b193f76580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229687
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  78 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 252 ++++++++++++-------------
+ 2 files changed, 165 insertions(+), 165 deletions(-)

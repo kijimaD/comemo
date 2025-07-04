@@ -1,0 +1,12 @@
+commit da1cbe5d11b60ea6e640f7ff3c5e3fff1a642b61
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 14 12:01:35 2010 -0800
+
+    regexp: simplify code for brackets, per rsc suggestion
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3545044
+
+ src/pkg/regexp/regexp.go | 26 +++++++++-----------------
+ 1 file changed, 9 insertions(+), 17 deletions(-)

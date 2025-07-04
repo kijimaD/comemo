@@ -1,0 +1,15 @@
+commit c0f6144f1b20d3805ee47781dc9683f6d302192c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 15 11:23:35 2009 -0800
+
+    Test that a const with an explicit type is not treated as
+    having an abstract type.
+    
+    R=gri
+    DELTA=11  (11 added, 0 deleted, 0 changed)
+    OCL=22829
+    CL=22832
+
+ test/bugs/bug131.go | 12 ++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 15 insertions(+)

@@ -1,0 +1,12 @@
+commit 14a4ece97937687a27161d6c63ffd7847310e3b7
+Author: Abhinav Gupta <abhinav.g90@gmail.com>
+Date:   Sat Nov 14 11:45:32 2009 -0800
+
+    Added self to AUTHORS and CONTRIBUTORS.
+    
+    R=rsc
+    https://golang.org/cl/154128
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

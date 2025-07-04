@@ -1,0 +1,29 @@
+commit c91dffbc9aeaacd087eb0c0c3f718739bc5f8c4a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 7 22:53:52 2020 -0400
+
+    runtime: tidy cgocallback
+    
+    On amd64 and 386, we have a very roundabout way of remembering that we
+    need to dropm on return that currently involves saving a zero to
+    needm's argument slot and later bringing it back. Just store the zero.
+    
+    This also makes amd64 and 386 more consistent with cgocallback on all
+    other platforms: rather than saving the old M to the G stack, they now
+    save it to a named slot on the G0 stack.
+    
+    The needm function no longer needs a dummy argument to get the SP, so
+    we drop that.
+    
+    Change-Id: I7e84bb4a5ff9552de70dcf41d8accf02310535e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263268
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_386.s      | 18 +++++++-----------
+ src/runtime/asm_amd64.s    | 16 ++++++----------
+ src/runtime/proc.go        |  6 +++---
+ src/runtime/signal_unix.go |  6 +++---
+ 4 files changed, 19 insertions(+), 27 deletions(-)

@@ -1,0 +1,23 @@
+commit 198b2e1b5a7f46a5c3a804c89bf5676878ea7561
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Fri Aug 9 18:17:57 2024 +0000
+
+    Revert "os/user: speed up Current on Windows"
+    
+    This reverts CL 597255.
+    
+    Reason for revert: Broke windows/arm64
+    
+    Fixes #68822.
+    Updates #68312.
+    
+    Change-Id: I43efabad43c74045888bb62bd27522aeaba0a64c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/security_windows.go | 19 -------------------
+ src/os/user/lookup_windows.go                    | 16 +++-------------
+ src/os/user/user_test.go                         |  3 +--
+ 3 files changed, 4 insertions(+), 34 deletions(-)

@@ -1,0 +1,14 @@
+commit f7e92c596c17a2ba3e473a63c479b8f9338046dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 27 18:36:45 2009 -0700
+
+    os.File.ReadAt/WriteAt
+    
+    R=r
+    DELTA=84  (81 added, 0 deleted, 3 changed)
+    OCL=34006
+    CL=34006
+
+ src/pkg/os/file.go    | 47 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/os/os_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 3 deletions(-)

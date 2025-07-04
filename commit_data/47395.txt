@@ -1,0 +1,33 @@
+commit 229b90931312aa1686f4bace25d1f40f896884ad
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 10 11:39:18 2021 -0800
+
+    cmd/compile: don't do Resolve on OKEY identifiers during import
+    
+    For generic functions, we can export untransformed OKEY nodes, and the
+    key identifier is written as an ONONAME. But in this case, we do not
+    want to call Resolve() on the identifier, since we may resolve to a
+    global type (as happens in this issue) or other global symbol with the
+    same name, if it exists. We just want to keep the key identifier as an
+    Ident node.
+    
+    To solve this, I added an extra bool when exporting an ONONAME entry,
+    which indicates if this entry is for a key or for a global (external)
+    symbol. When the bool is true (this is for a key), we avoid calling
+    Resolve().
+    
+    Fixes #49497
+    
+    Change-Id: Ic8fa93d37bcad2110e0e0d060080b733e07e35d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363074
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  6 +++++-
+ src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++-
+ test/typeparam/issue49497.dir/a.go            | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue49497.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue49497.go                  |  7 +++++++
+ 5 files changed, 56 insertions(+), 2 deletions(-)

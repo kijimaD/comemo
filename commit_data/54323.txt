@@ -1,0 +1,30 @@
+commit a0c3a1b6769c9849577eb6426fdac39d40372307
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 17 17:12:44 2023 -0400
+
+    cmd/go: reject toolchain directives containing path separators
+    
+    If GOTOOLCHAIN="path" or "auto", the go command uses exec.LookPath to
+    search for it in order to allow toolchains to refer to local-only
+    toolchain variants (such as toolchains built from enterprise- or
+    distro-patched source). However, those toolchains should only be
+    resolved from $PATH, not relative to the working directory of the
+    command.
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #62198.
+    Fixes CVE-2023-39320.
+    
+    Change-Id: I247c7acea95d737362dd0475e9fc8515430d0fcc
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1996318
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526158
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/gover/toolchain.go             |  7 +++++
+ src/cmd/go/testdata/script/mod_toolchain_slash.txt | 32 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

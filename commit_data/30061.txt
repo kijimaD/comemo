@@ -1,0 +1,23 @@
+commit 12c58bbf81c0feca25292a2291a59e16b5ed00f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 2 22:38:04 2017 -0800
+
+    cmd/compile: optimize (ZeroExt (Const [c]))
+    
+    These rules trigger 116 times while running make.bash.
+    And at least for the sample code at
+    https://github.com/golang/go/issues/18906#issuecomment-277174241
+    they are providing optimizations not already present
+    in amd64.
+    
+    Updates #18906
+    
+    Change-Id: I410a480f566f5ab176fc573fb5ac74f9cffec225
+    Reviewed-on: https://go-review.googlesource.com/36217
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  13 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 156 +++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+)

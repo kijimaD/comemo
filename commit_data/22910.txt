@@ -1,0 +1,24 @@
+commit 3be3cbd5480187d279118b71633ee99a1996c5a2
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 4 16:10:49 2015 -0400
+
+    runtime: track "scannable" bytes of heap
+    
+    This tracks the number of scannable bytes in the allocated heap. That
+    is, bytes that the garbage collector must scan before reaching the
+    last pointer field in each object.
+    
+    This will be used to compute a more robust estimate of the GC scan
+    work.
+    
+    Change-Id: I1eecd45ef9cdd65b69d2afb5db5da885c80086bb
+    Reviewed-on: https://go-review.googlesource.com/9695
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go  | 10 ++++++++++
+ src/runtime/mcache.go  |  1 +
+ src/runtime/mgc.go     |  1 +
+ src/runtime/mgcmark.go |  6 ++++--
+ src/runtime/mheap.go   |  4 ++++
+ src/runtime/mstats.go  |  7 +++++++
+ 6 files changed, 27 insertions(+), 2 deletions(-)

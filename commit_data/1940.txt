@@ -1,0 +1,16 @@
+commit c4ad4f9fcfd69556f09928aa24fc110d5b3aa2d9
+Author: Daniel Nadasi <dnadasi@google.com>
+Date:   Wed Apr 1 22:20:18 2009 -0700
+
+    Add a DeepEqual function to the reflect package
+    
+    R=r,rsc
+    APPROVED=rsc
+    DELTA=167  (166 added, 0 deleted, 1 changed)
+    OCL=26982
+    CL=27017
+
+ src/lib/reflect/Makefile     |  3 +-
+ src/lib/reflect/all_test.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/reflect/deepequal.go | 78 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 168 insertions(+), 1 deletion(-)

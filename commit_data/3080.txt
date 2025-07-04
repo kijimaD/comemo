@@ -1,0 +1,18 @@
+commit 67815ef65b462b60006ee361538e04fe6913a2bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 25 15:37:22 2009 -0700
+
+    checkpoint & test (pidigits) before trying to automate.
+    
+    R=r
+    DELTA=616  (598 added, 11 deleted, 7 changed)
+    OCL=33846
+    CL=33848
+
+ src/pkg/runtime/cgocall.c |  11 ++
+ src/pkg/runtime/extern.go |   3 +
+ usr/rsc/gmp/6c.c          |  81 +++++++++++--
+ usr/rsc/gmp/gcc.c         | 295 ++++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/gmp/go.go         | 110 ++++++++++++++++-
+ usr/rsc/gmp/pidigits.go   | 144 ++++++++++++++++++++++
+ 6 files changed, 630 insertions(+), 14 deletions(-)

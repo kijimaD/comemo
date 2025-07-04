@@ -1,0 +1,13 @@
+commit 7bce6f9386153d77ad1293ae1e39cfa214d9d02c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Nov 21 02:18:34 2012 +0800
+
+    net/http, net/http/httputil: fix TestChunkReaderAllocs failure when GOMAXPROCS > 1
+    
+    R=fullung, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/6846081
+
+ src/pkg/net/http/chunked_test.go          | 2 ++
+ src/pkg/net/http/httputil/chunked_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

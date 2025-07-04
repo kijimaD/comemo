@@ -1,0 +1,17 @@
+commit 363fb4bcc814069e3d80e22bd022599179ec1c62
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 1 22:38:45 2020 -0400
+
+    cmd/go/internal/modload: consolidate buildList and associated functions into one file
+    
+    Change-Id: I310c37c7f0ce5581f07cf6e27d1f6361d03b92ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244077
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go        |   4 ++
+ src/cmd/go/internal/modload/buildlist.go | 117 +++++++++++++++++++++++++++++++
+ src/cmd/go/internal/modload/load.go      | 103 ---------------------------
+ 3 files changed, 121 insertions(+), 103 deletions(-)

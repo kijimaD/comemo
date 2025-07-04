@@ -1,0 +1,31 @@
+commit 24925c7ed9da15fe780d0d2fce21bbaa707e8751
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Mar 23 09:21:44 2020 +0100
+
+    cmd/compile: fold LEAQ with constant scale into LEA
+    
+    Discovered this after rebasing CL196679 (use poset bounds in prove).
+    Some tests fail with that CL applied:
+    
+    codegen/smallintiface.go:11: linux/amd64/: opcode not found: "^LEAQ\\truntime.staticuint64s\\+8\\(SB\\)"
+    codegen/smallintiface.go:16: linux/amd64/: opcode not found: "^LEAQ\\truntime.staticuint64s\\+2024\\(SB\\)"
+    codegen/smallintiface.go:21: linux/amd64/: opcode not found: "^LEAQ\\truntime.staticuint64s\\+24\\(SB\\)"
+    
+    The only difference in prove SSA dumps is that a single Lsh64x64
+    op with constant shift (<< 3) is marked as bounded. This triggers
+    a different rule matching sequence in lower, which manages to generate
+    worse code for the above testcases.
+    
+    This CL fixes the above test after CL196679 is applied. Right now,
+    these rules never trigger (this CL passes toolstash -cmp), so I can't
+    write a test.
+    
+    Change-Id: I353f1c79c1875cac1da82cd8afa1e05e42684f1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224877
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   8 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 120 +++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+)

@@ -1,0 +1,30 @@
+commit 54c7bc9cff748e6554e53fbbbf823fdd214d0482
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Mon Aug 8 04:17:19 2022 +0000
+
+    cmd/compile: optimize shift ops on arm64 when the shift value is v&63
+    
+    For the following code case:
+    
+      var x uint64
+      x >> (shift & 63)
+    
+    We can directly genereta `x >> shift` on arm64, since the hardware will
+    only use the bottom 6 bits of the shift amount.
+    
+    Benchmark               old time/op  new time/op    delta
+    ShiftArithmeticRight-8  0.40ns       0.31ns        -21.7%
+    
+    Change-Id: Id58c8a5b2f6dd5c30c3876f4a36e11b4d81e2dc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425294
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
+ test/codegen/shift.go                        |  9 +++++++
+ 3 files changed, 49 insertions(+), 1 deletion(-)

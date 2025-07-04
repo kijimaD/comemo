@@ -1,0 +1,18 @@
+commit c830e05a20cbc193a3b0cb4d4bc9b3acab3643b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 14 17:23:46 2018 -0700
+
+    runtime: fix another typo in runtime-gdb.py
+    
+    tuple, touple,
+    gdb, gdv,
+    let's call the whole thing off.
+    
+    Change-Id: I72d12f6c75061777474e7dec2c90d2a8a3715da6
+    Reviewed-on: https://go-review.googlesource.com/100836
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

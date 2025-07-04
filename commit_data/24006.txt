@@ -1,0 +1,15 @@
+commit 1d75b40de8ecfaa947e1d61311d3a725fe4ec575
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 11 15:05:12 2015 +1000
+
+    net/mail: avoid panic in (*Address).String for malformed addresses.
+    
+    Fixes #12098.
+    
+    Change-Id: I190586484cd34856dccfafaba60eff0197c7dc20
+    Reviewed-on: https://go-review.googlesource.com/13500
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/mail/message.go      | 9 ++++++++-
+ src/net/mail/message_test.go | 8 ++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

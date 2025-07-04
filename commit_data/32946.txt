@@ -1,0 +1,20 @@
+commit ec71ee078fd3243b78c0d404c8634bd97e38d7eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 22 12:17:21 2017 -0400
+
+    cmd/go: reject update of VCS inside VCS
+    
+    This can only lead to confusion.
+    
+    Change-Id: Iae84c6404ab5eeb6950faa2364f97a017c67c506
+    Reviewed-on: https://go-review.googlesource.com/68110
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Simon Rawet <Simon@rawet.se>
+
+ src/cmd/go/go_test.go          | 19 ++++++++++++++
+ src/cmd/go/internal/get/get.go |  5 ++++
+ src/cmd/go/internal/get/vcs.go | 58 +++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 81 insertions(+), 1 deletion(-)

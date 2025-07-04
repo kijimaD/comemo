@@ -1,0 +1,16 @@
+commit 18ca86ebb3935f6cd3063c189fed0175a868ddba
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 7 23:27:26 2013 -0700
+
+    cmd/go: fix a misleading sentence
+    Apologies for not reviewing the previous CL; I was on the road.
+    The text was misleading; execution is no more separate than with
+    any other test. Rewritten. Dropped the odd adverb.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8439045
+
+ src/cmd/go/doc.go  | 4 ++--
+ src/cmd/go/test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

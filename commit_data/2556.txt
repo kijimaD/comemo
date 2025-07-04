@@ -1,0 +1,15 @@
+commit b968943332a6ba432d2eed6b3a6bc311cdbad0e3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 30 17:59:41 2009 -0700
+
+    scalar decoders
+    
+    R=rsc
+    DELTA=897  (728 added, 14 deleted, 155 changed)
+    OCL=30955
+    CL=30955
+
+ src/pkg/gob/codec_test.go | 523 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/gob/decode.go     | 281 +++++++++++++++++++++++++
+ src/pkg/gob/encode.go     |  80 ++++---
+ 3 files changed, 799 insertions(+), 85 deletions(-)

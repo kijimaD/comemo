@@ -1,0 +1,16 @@
+commit 1fadc392ccaefd76ef7be5b685fb3889dbee27c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 14:32:56 2022 -0800
+
+    doc/go1.18: in workspace mode doc, link to "go work" docs
+    
+    For #45713
+    For #47694
+    
+    Change-Id: I6f615c07749fca49c19f2ae22f79971c29aa8183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381779
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

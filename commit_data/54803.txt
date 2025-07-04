@@ -1,0 +1,37 @@
+commit 59f0ab40369e4f05276aa2afe20a74beb78aa0b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 08:46:45 2023 -0400
+
+    math/rand/v2: start of new API
+    
+    This is the beginning of the math/rand/v2 package from proposal #61716.
+    Start by copying old API. This CL copies math/rand/* to math/rand/v2
+    and updates references to math/rand to add v2 throughout.
+    Later CLs will make the v2 changes.
+    
+    For #61716.
+    
+    Change-Id: I1624ccffae3dfa442d4ba2461942decbd076e11b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ api/next/61716.txt               |  47 +++
+ src/go/build/deps_test.go        |   2 +-
+ src/math/rand/v2/auto_test.go    |  40 +++
+ src/math/rand/v2/default_test.go | 148 +++++++++
+ src/math/rand/v2/example_test.go | 133 ++++++++
+ src/math/rand/v2/exp.go          | 221 ++++++++++++
+ src/math/rand/v2/export_test.go  |  17 +
+ src/math/rand/v2/gen_cooked.go   |  89 +++++
+ src/math/rand/v2/normal.go       | 156 +++++++++
+ src/math/rand/v2/race_test.go    |  49 +++
+ src/math/rand/v2/rand.go         | 547 ++++++++++++++++++++++++++++++
+ src/math/rand/v2/rand_test.go    | 701 +++++++++++++++++++++++++++++++++++++++
+ src/math/rand/v2/regress_test.go | 404 ++++++++++++++++++++++
+ src/math/rand/v2/rng.go          | 252 ++++++++++++++
+ src/math/rand/v2/zipf.go         |  77 +++++
+ src/runtime/stubs.go             |   3 +
+ 16 files changed, 2885 insertions(+), 1 deletion(-)

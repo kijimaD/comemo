@@ -1,0 +1,17 @@
+commit 48dfa2b2dca43c6dc80d7e1d1c605e2918fad3af
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 03:09:42 2020 +0100
+
+    cmd/link: deal with ADDR32NB relocations the same way as ADDR32 on arm
+    
+    As far as I can tell, the addend is the same for both of these, and in
+    this context we don't really care about setting or unsetting the thumb
+    selection bit, so just treat these the same way.
+    
+    Change-Id: I3756c027239f77778c32b317733df9ac92272580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

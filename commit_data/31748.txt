@@ -1,0 +1,15 @@
+commit 32d42fb6ec5421f0c64fe7f7ffec0b9e7956e1ea
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 8 10:58:20 2017 +1000
+
+    compress/lzw: don't follow code == hi if last is invalid.
+    
+    Fixes #20597.
+    
+    Change-Id: Iaa059277c02e80a2fbef59cf8bb3c58d2b90fda0
+    Reviewed-on: https://go-review.googlesource.com/45111
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/compress/lzw/reader.go      |  2 +-
+ src/compress/lzw/reader_test.go | 71 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

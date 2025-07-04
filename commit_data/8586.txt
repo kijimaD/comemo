@@ -1,0 +1,13 @@
+commit 422abf3b8e9fd94c31bb064af4aab8d27d4dbf10
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 2 18:51:41 2011 +1000
+
+    image: add a SubImage method.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4515179
+
+ src/pkg/image/image.go       | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/ycbcr/ycbcr.go |  9 +++++
+ 2 files changed, 100 insertions(+)

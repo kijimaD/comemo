@@ -1,0 +1,17 @@
+commit 9a4fe7e14a4f71267f929c5545916f9830a89187
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Aug 9 15:22:28 2024 +0200
+
+    cmd/compile: remove outdated comment in prove.go
+    
+    See the cases above all of theses are implemented (except XOR which has a blank case with comments).
+    
+    Change-Id: I9e2994490dac89e86ba70c1abeb1af1cbcf032e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604416
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 1 -
+ 1 file changed, 1 deletion(-)

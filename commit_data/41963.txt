@@ -1,0 +1,28 @@
+commit c79c5e1aa427eceb585f839a81d02c5390457a9c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 14 15:32:29 2020 -0400
+
+    cmd/internal/obj/ppc64: add support for PCALIGN 32
+    
+    This adds support support for the PCALIGN value 32. When this
+    directive occurs code will be aligned to 32 bytes unless
+    too many NOPs are needed, and then will fall back to 16
+    byte alignment.
+    
+    On Linux the function's alignment is promoted from 16 to 32
+    in functions where PCALIGN 32 appears. On AIX the function's
+    alignment is left at 16 due to complexity with modifying its
+    alignment, which means code will be aligned to at least 16,
+    possibly 32 at times, which is still good.
+    
+    Test was updated to accept new value.
+    
+    Change-Id: I28e72d5f30ca472ed9ba736ddeabfea192d11797
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228258
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go     | 31 +++++++++++++++++++++----
+ src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++++++++++++++++++++++++------
+ 2 files changed, 62 insertions(+), 11 deletions(-)

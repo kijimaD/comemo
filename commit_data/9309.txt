@@ -1,0 +1,13 @@
+commit f6fab255824cc199c551cbce92ef63fabb4fd617
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 8 09:56:42 2011 -0400
+
+    net: add support for openbsd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4816060
+
+ src/pkg/net/Makefile      |  12 +++++
+ src/pkg/net/fd_openbsd.go | 116 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+)

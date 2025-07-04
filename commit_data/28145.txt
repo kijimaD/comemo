@@ -1,0 +1,12 @@
+commit 6ebacf18a5769d071f467fae455a142a964a43da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 17:09:30 2016 -0700
+
+    doc: more tweaks to the FAQ
+    
+    Change-Id: I0a3726f841122643bd1680ef6bd450c2039f362b
+    Reviewed-on: https://go-review.googlesource.com/28213
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

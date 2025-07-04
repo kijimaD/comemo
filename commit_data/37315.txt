@@ -1,0 +1,34 @@
+commit edb2d1cbf23c1a638837f21bc7dd51a0807ab236
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 6 15:14:56 2018 +0000
+
+    cmd/vet: fix some pointer false positives in printf
+    
+    fmt's godoc reads:
+    
+            For compound objects, the elements are printed using these
+            rules, recursively, laid out like this:
+    
+                    struct:             {field0 field1 ...}
+                    array, slice:       [elem0 elem1 ...]
+                    maps:               map[key1:value1 key2:value2 ...]
+                    pointer to above:   &{}, &[], &map[]
+    
+    That is, a pointer to a struct, array, slice, or map, can be correctly
+    printed by fmt if the type pointed to can be printed without issues.
+    
+    vet was only following this rule for pointers to structs, omitting
+    arrays, slices, and maps. Fix that, and add tests for all the
+    combinations.
+    
+    Updates #27672.
+    
+    Change-Id: Ie61ebe1fffc594184f7b24d7dbf72d7d5de78309
+    Reviewed-on: https://go-review.googlesource.com/c/147758
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/testdata/print.go | 26 ++++++++++++++++++++++++++
+ src/cmd/vet/types.go          | 18 +++++++++++++-----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit 12ec54724bcb016a70bcafa1bfc1d8f411fbfe74
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 15 12:23:09 2017 -0400
+
+    runtime: make m.nextwaitm an muintptr
+    
+    This field is really a *m (modulo its bottom bit). Change it from
+    uintptr to muintptr to document this fact.
+    
+    Change-Id: I2d181a955ef1d2c1a268edf20091b440d85726c9
+    Reviewed-on: https://go-review.googlesource.com/46034
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/lock_sema.go | 6 +++---
+ src/runtime/runtime2.go  | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

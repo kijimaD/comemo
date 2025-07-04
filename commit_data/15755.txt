@@ -1,0 +1,15 @@
+commit f74eb6dbf73ff7c3caebcd339d250d6e4630a848
+Author: Olivier Saingre <osaingre@gmail.com>
+Date:   Wed Mar 13 23:26:03 2013 -0400
+
+    encoding/xml: rewrite invalid code points to U+FFFD in Marshal, Escape
+    
+    Fixes #4235.
+    
+    R=rsc, dave, r, dr.volker.dobler
+    CC=golang-dev
+    https://golang.org/cl/7438051
+
+ src/pkg/encoding/xml/xml.go      | 15 +++++++++++----
+ src/pkg/encoding/xml/xml_test.go | 18 +++++++++++++++++-
+ 2 files changed, 28 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit d54c35675c1f4d4ca9b5a6de568e977c513f364a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 11 23:13:14 2015 -0800
+
+    cmd/go: subdirs of runtime other than runtime/internal do depend on runtime
+    
+    Correct an error in the last change: it caused runtime/cgo and
+    runtime/race to not depend on runtime.
+    
+    Fixes #13214.
+    
+    Change-Id: Ib48b3b5e9a74567ddfaccb7ab4a897ee2aedc2b8
+    Reviewed-on: https://go-review.googlesource.com/16837
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/pkg.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

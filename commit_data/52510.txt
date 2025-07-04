@@ -1,0 +1,44 @@
+commit 66ae75ff86950ae55ca1add47fa95b5576717be0
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 10 14:21:05 2023 -0800
+
+    net/textproto: avoid overpredicting the number of MIME header keys
+    
+    A parsed MIME header is a map[string][]string. In the common case,
+    a header contains many one-element []string slices. To avoid
+    allocating a separate slice for each key, ReadMIMEHeader looks
+    ahead in the input to predict the number of keys that will be
+    parsed, and allocates a single []string of that length.
+    The individual slices are then allocated out of the larger one.
+    
+    The prediction of the number of header keys was done by counting
+    newlines in the input buffer, which does not take into account
+    header continuation lines (where a header key/value spans multiple
+    lines) or the end of the header block and the start of the body.
+    This could lead to a substantial amount of overallocation, for
+    example when the body consists of nothing but a large block of
+    newlines.
+    
+    Fix header key count prediction to take into account the end of
+    the headers (indicated by a blank line) and continuation lines
+    (starting with whitespace).
+    
+    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
+    
+    For #58975
+    Fixes CVE-2023-24534
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802452
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Change-Id: Iacc1c2b5ea6509529845a972414199f988ede1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481994
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/net/textproto/reader.go      | 24 +++++++++++++---
+ src/net/textproto/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 4 deletions(-)

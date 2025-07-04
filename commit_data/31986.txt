@@ -1,0 +1,19 @@
+commit 23ae7a70f9f28fe34547d2857e5efa789625052a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 17:56:21 2017 +0000
+
+    os/exec: clarify Cmd.Wait documentation a bit more explicitly
+    
+    It already implied that Cmd.Wait is more than os.Process.Wait, but say
+    so explicitly.
+    
+    See https://github.com/golang/go/issues/18874#issuecomment-309921486
+    
+    Updates #18874
+    
+    Change-Id: Iaa46defd776ae0be817d9f4466a99ac78cfd672b
+    Reviewed-on: https://go-review.googlesource.com/47650
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/exec/exec.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit ee908748265debed97592f63a40f41a17e9c9d2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 07:57:20 2013 -0800
+
+    encoding/xml: add (*Encoder).Indent
+    
+    Exposing this on the Encoder allows streaming generation of indented XML.
+    
+    R=golang-dev, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/7221075
+
+ src/pkg/encoding/xml/example_test.go | 40 ++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/marshal.go      | 11 ++++++++--
+ 2 files changed, 49 insertions(+), 2 deletions(-)

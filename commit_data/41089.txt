@@ -1,0 +1,34 @@
+commit 6dbcc8b8651909442ff823231daba096f447a163
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 7 15:33:08 2020 -0500
+
+    cmd/go: make "finding" logging deterministic
+    
+    In CL 204777, I made the "finding" messages in cachingRepo only print
+    after a “longish” delay, on the theory that they would help diagnose
+    slow or stuck fetches.
+    
+    However, as I've been testing Go 1.14 beta 1, I've found that these
+    messages are mostly just noise, and the fact that they are so
+    nondeterministic causes both confusion and test flakes (#35539).
+    
+    Moreover, it currently triggers once for each candidate module, when
+    what we're usually after is actually a specific package within the
+    module.
+    
+    So let's log the package operation unconditionally instead of the
+    module fetches nondeterministically.
+    
+    Fixes #35539
+    Updates #26152
+    
+    Change-Id: I41a1c772465b2f0b357d3402bc372b6907773741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213679
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go            | 18 ------------------
+ src/cmd/go/internal/modload/import.go            |  2 ++
+ src/cmd/go/testdata/script/mod_load_badchain.txt |  2 ++
+ 3 files changed, 4 insertions(+), 18 deletions(-)

@@ -1,0 +1,14 @@
+commit 53056c37c2e3720666742f516ef148432313e28a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:49:36 2014 +0400
+
+    cmd/gc: fix heap buffer overflow
+    Fixes #8528.
+    
+    LGTM=rsc
+    R=rsc, r, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/128230045
+
+ src/cmd/gc/bv.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

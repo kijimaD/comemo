@@ -1,0 +1,17 @@
+commit 0ddfe70c27304f280779ba6cead1d1c41f506a0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 5 15:10:00 2009 -0700
+
+    XML parser
+    
+    R=r
+    DELTA=546  (545 added, 0 deleted, 1 changed)
+    OCL=35318
+    CL=35341
+
+ src/pkg/Make.deps        |   3 +-
+ src/pkg/Makefile         |   1 +
+ src/pkg/xml/Makefile     |  13 ++
+ src/pkg/xml/read.go      | 320 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/xml/read_test.go | 210 +++++++++++++++++++++++++++++++
+ 5 files changed, 546 insertions(+), 1 deletion(-)

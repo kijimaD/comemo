@@ -1,0 +1,17 @@
+commit 53e0616c13ca6b4da472eb4e9b2cba397b51b253
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 19 16:01:02 2023 -0400
+
+    cmd/go: add a test that reproduces an unstable 'go mod tidy'
+    
+    For #60313.
+    
+    Change-Id: I76e48f52341e9962de9b809741a677d61baae6a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496518
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_tidy_issue60313.txt | 76 ++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)

@@ -1,0 +1,23 @@
+commit aab849e4297d60918602355a0335cc7b3ca4c5f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 3 22:33:49 2016 -0400
+
+    math: use portable Exp instead of 387 instructions on 386
+    
+    The 387 implementation is less accurate and slower.
+    
+    name     old time/op  new time/op  delta
+    Exp-8    29.7ns ± 2%  24.0ns ± 2%  -19.08%  (p=0.000 n=10+10)
+    
+    This makes Gamma more accurate too.
+    
+    Change-Id: Iad33b9cce0b087ccbce3e08ba7a6d285c4999d02
+    Reviewed-on: https://go-review.googlesource.com/30230
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/all_test.go |  2 +-
+ src/math/exp_386.s   | 36 +++---------------------------------
+ 2 files changed, 4 insertions(+), 34 deletions(-)

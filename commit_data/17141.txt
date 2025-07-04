@@ -1,0 +1,30 @@
+commit abc516e4202e0206a6d8725efd8308d1982c1189
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Aug 9 16:48:12 2013 -0700
+
+    cmd/cc, cmd/gc, runtime: Uniquely encode iface and eface pointers in the pointer map.
+    
+    Prior to this change, pointer maps encoded the disposition of
+    a word using a single bit.  A zero signaled a non-pointer
+    value and a one signaled a pointer value.  Interface values,
+    which are a effectively a union type, were conservatively
+    labeled as a pointer.
+    
+    This change widens the logical element size of the pointer map
+    to two bits per word.  As before, zero signals a non-pointer
+    value and one signals a pointer value.  Additionally, a two
+    signals an iface pointer and a three signals an eface pointer.
+    
+    Following other changes to the runtime, values two and three
+    will allow a type information to drive interpretation of the
+    subsequent word so only those interface values containing a
+    pointer value will be scanned.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12689046
+
+ src/cmd/cc/pgen.c      |  8 ++++++--
+ src/cmd/gc/pgen.c      | 18 +++++++++++-------
+ src/pkg/runtime/mgc0.c | 10 +++++++---
+ 3 files changed, 24 insertions(+), 12 deletions(-)

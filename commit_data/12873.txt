@@ -1,0 +1,21 @@
+commit 2031252fb8182f8d1c5569034f20a952ec9e2de1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 11 04:09:04 2012 +0800
+
+    5a, 5l: add PLD (preload data) instruction
+            Supported in ARMv5TE and above, excluding ARMv5TExP.
+            For CL 5990066.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5999044
+
+ src/cmd/5a/a.y     |    9 +-
+ src/cmd/5a/lex.c   |    2 +
+ src/cmd/5a/y.tab.c | 1048 ++++++++++++++++++++++++++--------------------------
+ src/cmd/5a/y.tab.h |   92 ++---
+ src/cmd/5l/5.out.h |    2 +
+ src/cmd/5l/asm.c   |    3 +
+ src/cmd/5l/optab.c |    2 +
+ src/cmd/5l/span.c  |    1 +
+ 8 files changed, 593 insertions(+), 566 deletions(-)

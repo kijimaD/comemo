@@ -1,0 +1,19 @@
+commit aec6b49aaebd7adc9ec8d11f3ffacdf041b0da2d
+Author: David Bürgin <676c7473@gmail.com>
+Date:   Mon Jul 1 16:20:50 2013 +1000
+
+    misc/vim: Add compiler plugin for Go
+    
+    This change adds a basic compiler plugin for Go. The plugin
+    integrates "go build" with Vim's ":make" command and the
+    quickfix list.
+    
+    Fixes #5751.
+    
+    R=golang-dev, dsymonds, niklas.schnelle, 0xjnml
+    CC=golang-dev
+    https://golang.org/cl/10466043
+
+ misc/vim/compiler/go.vim | 30 ++++++++++++++++++++++++++++++
+ misc/vim/readme.txt      | 16 ++++++++++++++++
+ 2 files changed, 46 insertions(+)

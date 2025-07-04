@@ -1,0 +1,18 @@
+commit 2b0ddb6c23be1566ae11f71f2269813bd46c52fa
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Jul 24 14:26:29 2015 +1200
+
+    runtime: pass a smaller buffer to sched_getaffinity on ARM
+    
+    The system stack is only around 8kb on ARM so one can't put an 8kb buffer on
+    the stack. More than 1024 ARM cores seems sufficiently unlikely for the
+    foreseeable future.
+    
+    Fixes #11853
+    
+    Change-Id: I7cb27c1250a6153f86e269c172054e9dfc218c72
+    Reviewed-on: https://go-review.googlesource.com/12622
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os1_linux.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

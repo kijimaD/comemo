@@ -1,0 +1,20 @@
+commit cb6e4f08c2e760c4eb90f3ed50eca3177b7ff6ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 08:50:51 2022 -0500
+
+    cmd/api: point to API docs in all.bash failure
+    
+    When people add new API and get an all.bash failure,
+    they often don't know about the API checker at all.
+    Point to the README in the failure message, to try to
+    help them find what they need to know.
+    
+    Change-Id: I6b148ec414d212033b371357a5e8c6ab79bb50a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

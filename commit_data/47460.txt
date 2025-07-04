@@ -1,0 +1,26 @@
+commit c78a267bd4ccdd8699a9dbe9bad3597bf3de47e9
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Nov 12 11:46:23 2021 -0500
+
+    go/types: return an error from Instantiate on incorrect len(targs)
+    
+    Instantiate already returns an error when validation fails. Panicking on
+    an incorrect number of type arguments means that callers must both
+    pre-validate the number of type arguments and handle resulting errors.
+    Returning an error rather than panicking allows eliminating
+    pre-validation at the call-site.
+    
+    Also update the Instantiate docstring to correct some stale/inaccurate
+    information, and to clarify its behavior more precisely.
+    
+    Updates #47916
+    
+    Change-Id: I997ef30b3486760a90b0db4c3ea7111280d74a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363635
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go | 50 +++++++++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 20 deletions(-)

@@ -1,0 +1,16 @@
+commit 4047f01d314d72a72beebd26974f3971f5c015e5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 25 17:51:47 2019 -0400
+
+    cmd/go: move mod_get_svn test to vcs-test.golang.org
+    
+    The test currently usses llvm.org, which seems to be very flaky today.
+    
+    Change-Id: I3d01476d53f94d9170dbb087e3f3cf99581cdb4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183847
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_get_svn.txt | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

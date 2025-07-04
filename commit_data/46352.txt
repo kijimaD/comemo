@@ -1,0 +1,22 @@
+commit 8214257347b16a03464ace16bbcf6346fc784a3e
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Wed Sep 8 14:14:53 2021 +0000
+
+    test/codegen: fix package name for test case
+    
+    The codegen tests are currently skipped (see #48247). The test
+    added in CL 346050 did not compile because it was in the main
+    package but did not contain a main function. Changing the package
+    to 'codegen' fixes the issue.
+    
+    Updates #48247.
+    
+    Change-Id: I0a0eaca8e6a7d7b335606d2c76a204ac0c12e6d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348392
+    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/codegen/issue48054.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

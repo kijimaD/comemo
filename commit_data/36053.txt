@@ -1,0 +1,12 @@
+commit ee198df4cdc2e49c7376f99d9d3081da6ebae836
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 18 13:19:04 2018 -0700
+
+    doc: update go1.11 release notes
+    
+    Change-Id: I806d411c075cdc66322112b6ee5e50f58462bc6b
+    Reviewed-on: https://go-review.googlesource.com/124776
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)

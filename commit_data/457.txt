@@ -1,0 +1,21 @@
+commit 0c374e9f89b8a42253f67c531edb19c28f16b25c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 31 10:47:10 2008 -0700
+
+    - fixed a bug w/ exports (wrong package info)
+    - keep track of type alias (type T1 T0) so we can print the proper type name
+    
+    R=r
+    OCL=13688
+    CL=13688
+
+ usr/gri/gosrc/base.go     |  9 +++++++--
+ usr/gri/gosrc/decls.go    |  2 +-
+ usr/gri/gosrc/export.go   | 17 ++++++++++++-----
+ usr/gri/gosrc/import.go   |  4 +++-
+ usr/gri/gosrc/parser.go   | 14 +++++++++++++-
+ usr/gri/gosrc/printer.go  |  3 +++
+ usr/gri/gosrc/type.go     |  5 +++--
+ usr/gri/gosrc/universe.go | 14 ++++++++------
+ usr/gri/gosrc/verifier.go |  2 ++
+ 9 files changed, 52 insertions(+), 18 deletions(-)

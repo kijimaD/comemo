@@ -1,0 +1,16 @@
+commit af95199421acb319b0b1e549cf7f4345f474f75e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 16 18:32:35 2018 -0700
+
+    cmd/cgo: split name rewriting out of rewriteRef
+    
+    This is in preparation for later changes.
+    
+    Change-Id: I2b9b77a782cf65a2fcec5e700ec6bb8b1476f6b5
+    Reviewed-on: https://go-review.googlesource.com/c/142882
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/gcc.go | 201 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 107 insertions(+), 94 deletions(-)

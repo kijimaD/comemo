@@ -1,0 +1,12 @@
+commit cec007d3d25df721e86ab08925133db637dad609
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 13 17:27:26 2010 -0700
+
+    runtime: better error for send/recv on nil channel
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1835041
+
+ src/pkg/runtime/chan.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

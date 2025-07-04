@@ -1,0 +1,18 @@
+commit 071fcd1ae919775149d43a01379dc8874cbe3d73
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 20 19:00:32 2016 +0000
+
+    net/http/httputil: clarify docs on the Dump functions
+    
+    Also don't nil out the Request or Response Body on error. Just leave
+    it in its previous broken state. The docs now say it's undefined, but
+    it always was.
+    
+    Fixes #14036
+    
+    Change-Id: I7fe175a36cbc01b4158f4dffacd8733b2ffa9999
+    Reviewed-on: https://go-review.googlesource.com/18726
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/http/httputil/dump.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

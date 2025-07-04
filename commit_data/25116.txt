@@ -1,0 +1,19 @@
+commit 8a34cf7ee09596235efa6d01e8f6114c585a3c97
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Nov 15 23:32:30 2015 +0100
+
+    cmd/compile: don't allow blank method declarations on builtins
+    
+    Move test for isblank into addmethod so that most of the type checking
+    for methods is also performed for blank methods.
+    
+    Fixes #11366.
+    
+    Change-Id: I13d554723bf96d906d0b3ff390d7b7c87c1a5020
+    Reviewed-on: https://go-review.googlesource.com/16866
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       | 16 +++++++++-------
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/blank1.go                           |  4 ++++
+ 3 files changed, 14 insertions(+), 8 deletions(-)

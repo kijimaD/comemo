@@ -1,0 +1,29 @@
+commit a76efea1fe18045ecb8d1cf2c1104208e636fbae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 28 10:18:24 2021 -0500
+
+    cmd/go/internal/mvs: don't emit duplicates from Req
+    
+    Req is supposed to return “a minimal requirement list”
+    that includes each of the module paths listed in base.
+    Currently, if base contains duplicates Req emits duplicates,
+    and a list containing duplicates is certainly not minimal.
+    
+    That, in turn, requires callers to be careful to deduplicate the base
+    slice, and there are multiple callers that are already quite
+    complicated to reason about even without the added complication of
+    deduplicating slices.
+    
+    For #36460
+    
+    Change-Id: I391a1dc0641fe1dd424c16b7a1082da0d00c7292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287632
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go      |  5 +++++
+ src/cmd/go/internal/mvs/mvs_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+)

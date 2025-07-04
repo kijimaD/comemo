@@ -1,0 +1,16 @@
+commit eed0cda44c1d7750d2abc7a8ee2bc4a0bcce46e2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 8 17:11:37 2023 +0100
+
+    go/doc/comment: remove unused fields
+    
+    Change-Id: Ia5b73e6950d0c53144a97e1ad3f231d69dd74fe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483295
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+
+ src/go/doc/comment/print.go | 2 --
+ 1 file changed, 2 deletions(-)

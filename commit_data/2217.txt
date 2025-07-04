@@ -1,0 +1,13 @@
+commit 55b70d6c98d0a12345e0e055c7cc0fd3297255f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 10:46:14 2009 -0700
+
+    Return error from WriteByte, to match bufio.Writer.
+    
+    R=gri
+    DELTA=4  (1 added, 0 deleted, 3 changed)
+    OCL=28868
+    CL=28899
+
+ src/lib/io/bytebuffer.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

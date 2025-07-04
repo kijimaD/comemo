@@ -1,0 +1,23 @@
+commit 60be2b465603a56807a8a1a8016c4c8f947579b5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 21 11:54:54 2022 -0500
+
+    go/types, cmd/compile: skip crypto/internal/bigmod/_asm in TestStdlib
+    
+    Similar to CL 317869, apply to a newly added directory.
+    
+    Maybe we should skip all directories starting with "_"?
+    
+    Updates #46027.
+    
+    Change-Id: Idcb011fda877c9f2cb3032524bebfcc0c1da70b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452437
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 1 +
+ src/go/types/stdlib_test.go                    | 1 +
+ 2 files changed, 2 insertions(+)

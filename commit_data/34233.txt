@@ -1,0 +1,16 @@
+commit f2354d0aacdd5ce1952c5441c6a489378ccb7656
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 14 18:04:54 2018 -0800
+
+    doc: add note about invalid flag errors to 1.10 release notes
+    
+    Updates #23672
+    Updates #23749
+    
+    Change-Id: I85b6493bd1e4095398508b7ef395c35463dfbde1
+    Reviewed-on: https://go-review.googlesource.com/94158
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.10.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

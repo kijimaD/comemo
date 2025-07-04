@@ -1,0 +1,19 @@
+commit 689544c0b9287852c3ace3c7bd106a8996bbf28f
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 18 12:49:49 2019 -0700
+
+    runtime: fix registers for bounds check calling convention on arm
+    
+    Some of the registers in which indexes + length were supposed to
+    be passed were wrong.
+    
+    Update #30116
+    
+    Change-Id: I1089366b7429c1e0ecad9219b847db069ce6b5d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168041
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_arm.s | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

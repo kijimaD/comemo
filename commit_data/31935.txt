@@ -1,0 +1,19 @@
+commit 5e585830d3bed2b81b825e1c3e8c244726d091d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 28 10:33:15 2017 -0400
+
+    time: fix example in monotonic time comment
+    
+    t.Sub(u) would be -20 milliseconds.
+    The right computation is u.Sub(t), but rewrite to be even clearer.
+    
+    Thanks to Karsten Weiss for catching this.
+    
+    Change-Id: I6e274d69b0301840d57c5c65bf4114da0d33bf10
+    Reviewed-on: https://go-review.googlesource.com/46971
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

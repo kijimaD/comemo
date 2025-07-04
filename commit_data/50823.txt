@@ -1,0 +1,24 @@
+commit cecaa25bd31622f5ae0df7fd5c8c7f02afde8715
+Author: Eddie Lopez <ejlopez00@gmail.com>
+Date:   Fri Sep 30 16:51:33 2022 -0400
+
+    testing: add an example showcasing B.RunParallel with B.ReportMetric
+    
+    This commit was dedicated to adding an example of using B.ReportMetrics
+    with B.RunParallel called ExampleB_ReportMetric_parallel. In this
+    example, the same algorithm for ExampleB_ReportMetric was used, instead
+    with a concurrent for loop using PB.Next instead of a standard one.
+    There is also notes noting when to use the B.ReportMetric methods when
+    running concurrent testing.
+    
+    Fixes #50756
+    Change-Id: I2a621b4e367af5f4ec47d38a0da1035a8d52f628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437815
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/testing/benchmark_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

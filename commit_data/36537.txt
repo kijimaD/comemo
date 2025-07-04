@@ -1,0 +1,14 @@
+commit 0dac1e2e8743476d266a00a81f8bd64400bd8065
+Author: David Timm <dtimm@pivotal.io>
+Date:   Thu Aug 30 12:25:53 2018 -0600
+
+    net/http: add example for http.HandleFunc
+    
+    Change-Id: Id0e2fb2abad5b776ac0ed76e55e36c6b774b5b7a
+    Reviewed-on: https://go-review.googlesource.com/132278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/example_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

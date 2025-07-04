@@ -1,0 +1,14 @@
+commit 35030a996672b3678397f69c1168c4c125393ab2
+Author: Amir Mohammad Saied <amir@gluegadget.com>
+Date:   Sat Jun 30 12:27:57 2012 -0700
+
+    cmd/go: httpGet function does not use global variable httpClient
+    
+    No change, just for consistency.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6346048
+
+ src/cmd/go/http.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

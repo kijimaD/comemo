@@ -1,0 +1,25 @@
+commit f4ab8203bab58b3c4ae53a99535719a747d05332
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 10:27:59 2015 -0700
+
+    cmd/internal/gc: separate Node param fields
+    
+    Param will be converted from an anonymous to a
+    named field in a subsequent, automated CL.
+    
+    Reduces Node size from 368 to 328.
+    Reduces inuse_space on the rotate tests by about 3%.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Updates #9933.
+    
+    Change-Id: I5867b00328abf17ee24aea6ca58876bae9d8bfed
+    Reviewed-on: https://go-review.googlesource.com/10210
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/export.go    |  2 +-
+ src/cmd/internal/gc/subr.go      |  4 ++++
+ src/cmd/internal/gc/syntax.go    | 26 +++++++++++++++-----------
+ src/cmd/internal/gc/typecheck.go |  8 ++++----
+ 4 files changed, 24 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit 0bd4710ca61463716d1f88d33cc4f6e92b9b8255
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 9 15:28:44 2022 -0800
+
+    sync/atomic: hint users of old API to use new type-based API instead
+    
+    Fixes #56495
+    
+    Change-Id: Ib2f39273da68e3056688306aa0d5e274b5507bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449237
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/sync/atomic/doc.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

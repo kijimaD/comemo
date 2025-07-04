@@ -1,0 +1,23 @@
+commit 0a71a5b029f0f8576d7dc948f72e16deb00a035e
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Mar 6 15:52:32 2013 -0800
+
+    all: Skip AllocsPerRun tests if GOMAXPROCS>1.
+    
+    Fixes #4974.
+    
+    R=rsc, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/7545043
+
+ src/pkg/encoding/gob/timing_test.go | 9 +++++++++
+ src/pkg/fmt/fmt_test.go             | 4 ++++
+ src/pkg/net/http/header_test.go     | 4 ++++
+ src/pkg/net/rpc/server_test.go      | 6 ++++++
+ src/pkg/path/filepath/path_test.go  | 5 +++++
+ src/pkg/path/path_test.go           | 6 ++++++
+ src/pkg/reflect/all_test.go         | 4 ++++
+ src/pkg/sort/search_test.go         | 4 ++++
+ src/pkg/strconv/strconv_test.go     | 4 ++++
+ src/pkg/time/time_test.go           | 4 ++++
+ 10 files changed, 50 insertions(+)

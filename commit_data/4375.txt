@@ -1,0 +1,42 @@
+commit 581530e441e9720468e1f7bb702606f83a8df3e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 12:53:23 2009 -0800
+
+    make test/ken safe for optional semis
+    
+    R=rsc, ken2, ken3
+    https://golang.org/cl/174042
+
+ test/ken/array.go      | 36 ++++++++---------------
+ test/ken/chan.go       | 70 ++++++++++++++++----------------------------
+ test/ken/chan1.go      | 11 +++----
+ test/ken/complit.go    |  9 ++----
+ test/ken/divconst.go   | 78 +++++++++++++++++---------------------------------
+ test/ken/divmod.go     |  3 +-
+ test/ken/embed.go      | 60 +++++++++++---------------------------
+ test/ken/for.go        |  3 +-
+ test/ken/interbasic.go |  6 ++--
+ test/ken/interfun.go   | 20 ++++---------
+ test/ken/intervar.go   | 27 ++++++-----------
+ test/ken/label.go      |  3 +-
+ test/ken/litfun.go     |  3 +-
+ test/ken/mfunc.go      |  6 ++--
+ test/ken/modconst.go   | 78 +++++++++++++++++---------------------------------
+ test/ken/ptrfun.go     | 14 +++------
+ test/ken/ptrvar.go     |  3 +-
+ test/ken/range.go      |  9 ++----
+ test/ken/rob1.go       | 35 +++++++---------------
+ test/ken/rob2.go       | 36 ++++++++---------------
+ test/ken/shift.go      | 15 ++++------
+ test/ken/simparray.go  |  3 +-
+ test/ken/simpbool.go   |  6 ++--
+ test/ken/simpconv.go   |  3 +-
+ test/ken/simpfun.go    |  6 ++--
+ test/ken/simpprint.go  |  3 +-
+ test/ken/simpswitch.go |  3 +-
+ test/ken/simpvar.go    |  3 +-
+ test/ken/slicearray.go | 12 +++-----
+ test/ken/sliceslice.go | 12 +++-----
+ test/ken/string.go     |  3 +-
+ test/ken/strvar.go     |  3 +-
+ 32 files changed, 188 insertions(+), 394 deletions(-)

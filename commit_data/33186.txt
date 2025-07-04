@@ -1,0 +1,30 @@
+commit d05f82a11af68a65b118de14bb230d640722d55c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 7 13:43:38 2017 -0400
+
+    cmd/link: move Iself global to ctxt
+    
+    For #22095
+    
+    Change-Id: Iba3dffc782cecc15ea0e90a971a2734729984945
+    Reviewed-on: https://go-review.googlesource.com/70834
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go  | 12 ++++++------
+ src/cmd/link/internal/arm/asm.go    | 14 +++++++-------
+ src/cmd/link/internal/arm64/asm.go  |  6 +++---
+ src/cmd/link/internal/ld/data.go    | 32 ++++++++++++++++----------------
+ src/cmd/link/internal/ld/dwarf.go   |  2 +-
+ src/cmd/link/internal/ld/elf.go     |  8 +++-----
+ src/cmd/link/internal/ld/go.go      |  4 ++--
+ src/cmd/link/internal/ld/lib.go     | 14 +++++++-------
+ src/cmd/link/internal/ld/link.go    |  2 ++
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ src/cmd/link/internal/mips/asm.go   |  4 ++--
+ src/cmd/link/internal/mips64/asm.go |  6 +++---
+ src/cmd/link/internal/ppc64/asm.go  |  8 ++++----
+ src/cmd/link/internal/s390x/asm.go  |  8 ++++----
+ src/cmd/link/internal/x86/asm.go    | 14 +++++++-------
+ 15 files changed, 68 insertions(+), 68 deletions(-)

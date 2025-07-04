@@ -1,0 +1,20 @@
+commit 91bb19a59ac41bfa52245cd390ead6ee0058417f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 20 00:01:26 2023 +0800
+
+    cmd/internal/obj/arm64: replace the migrated url address
+    
+    Change-Id: I36a0f0989d37bef45ea8778da799b56a7e9a0c30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529515
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/obj/arm64/a.out.go | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go  | 2 +-
+ src/cmd/internal/obj/arm64/list7.go | 2 +-
+ src/cmd/internal/obj/arm64/obj7.go  | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit b0c6bba8e84b19cee129caf3e879e7ad376207c7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 19 15:17:18 2010 -0700
+
+    syscall: mksyscall_mingw.sh emitting shorter calls (to Syscall or Syscall6) when there are fewer arguments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/622041
+
+ src/pkg/runtime/mingw/syscall.cgo     | 27 ++++++++++++---------------
+ src/pkg/syscall/mksyscall_mingw.sh    | 16 +++++++++++++---
+ src/pkg/syscall/zsyscall_mingw_386.go | 10 +++++-----
+ 3 files changed, 30 insertions(+), 23 deletions(-)

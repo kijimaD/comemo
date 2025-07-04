@@ -1,0 +1,12 @@
+commit dd97923d82488b21187608f831c46ec5e2fd9e8d
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue Jan 26 16:18:29 2010 -0800
+
+    net: fix segfault if /etc/hosts fails to open or doesn't exist
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/194043
+
+ src/pkg/net/hosts.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

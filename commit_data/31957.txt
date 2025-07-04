@@ -1,0 +1,15 @@
+commit 7e4d1a05e577d630f9b7f51ce31d2a5d7f52568e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 29 08:06:22 2017 -0700
+
+    reflect: document that value.NumMethod counts exported methods
+    
+    Updates #17686
+    Fixes #20848
+    
+    Change-Id: I35d58c7d1aa74d3e7867124070e27c787d444b04
+    Reviewed-on: https://go-review.googlesource.com/47210
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

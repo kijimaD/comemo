@@ -1,0 +1,21 @@
+commit 2eba2ff8a1572d7fcba65a5f9d54f73e307a0054
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 14:50:27 2022 -0700
+
+    go/types: provide a better error message for [...] array types
+    
+    This matches types2 behavior.
+    
+    For #54511.
+    
+    Change-Id: Iea906e9fec7e334b7aa7f481de87373fa93d1c7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425715
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/testdata/check/decls0.go |  2 +-
+ src/go/types/typexpr.go               | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit ded9a1b3723e2c16f2ac0373ef4593f09e65f54d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 15 10:06:37 2018 +0100
+
+    test/codegen: port len/cap pow2 div tests to codegen
+    
+    And delete them from asm_test.
+    
+    Change-Id: I29c8d098a8893e6b669b6272a2f508985ac9d618
+    Reviewed-on: https://go-review.googlesource.com/100876
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 104 --------------------------------
+ test/codegen/arithmetic.go              |  39 ++++++++++++
+ 2 files changed, 39 insertions(+), 104 deletions(-)

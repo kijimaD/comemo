@@ -1,0 +1,13 @@
+commit 793bb6cce763c8181a25190e41206b1786e849bd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 24 17:48:31 2013 -0700
+
+    crypto/sha1: mark block as non-escaping
+    The compiler still gets the escape analysis wrong, but the annotation here is correct.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10514046
+
+ src/pkg/crypto/sha1/sha1block_decl.go | 2 ++
+ 1 file changed, 2 insertions(+)

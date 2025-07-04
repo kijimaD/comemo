@@ -1,0 +1,19 @@
+commit fb061b5e116d1e176039f0948221e8a107a401cd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 14 15:11:51 2018 -0700
+
+    time: return ENOENT from androidLoadTzinfoFromTzdata if zone not found
+    
+    This makes Android consistent with the change in CL 121877.
+    
+    Updates #20969
+    
+    Change-Id: I1f114556fd1d4654c8e4e6a59513bddd5dc3d1a0
+    Reviewed-on: https://go-review.googlesource.com/135416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ src/time/zoneinfo_android.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

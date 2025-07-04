@@ -1,0 +1,19 @@
+commit ed68bc5918ad99c79332970938d421f05c2417fc
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Apr 17 11:25:26 2018 +0000
+
+    Revert "cmd/doc: skip directories like other go tools"
+    
+    This reverts commit 49e3e436e71a54f16eb15960bd77ecf554ccc905.
+    
+    Reason for revert: breaks iOS builders and Daniel can't fix for a week.
+    
+    Change-Id: Ib6ff08de9540d46345dc31e1f820c8555e3de3ca
+    Reviewed-on: https://go-review.googlesource.com/107218
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/dirs.go     |  5 ++---
+ src/cmd/doc/doc_test.go | 14 ++------------
+ 2 files changed, 4 insertions(+), 15 deletions(-)

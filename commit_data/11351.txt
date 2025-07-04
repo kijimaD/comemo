@@ -1,0 +1,16 @@
+commit 6d7e9382b49cbb0969f352af10def6c84740a0d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 23 16:53:19 2012 -0800
+
+    go/doc: removed unused field "Type.Type"
+    
+    CL 5572043 removed the last uses of this field.
+    The information is readily available from Type.Decl.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5570049
+
+ src/pkg/go/doc/doc.go    | 19 +++++++++++--------
+ src/pkg/go/doc/reader.go |  1 -
+ 2 files changed, 11 insertions(+), 9 deletions(-)

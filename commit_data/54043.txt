@@ -1,0 +1,23 @@
+commit 91bea5a21dc1a951a7fbe491a6da07b664c5a167
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 14 13:20:45 2023 -0400
+
+    runtime: guard against runtime/sema* ops on Darwin signal stack.
+    
+    These operations misbehave and cause hangs and flakes.
+    Fail hard if they are attempted.
+    
+    Tested by backing out the Darwin-profiling-hang fix
+    CL 518836 and running run.bash, the guard panicked in
+    runtime/pprof tests, as expected/hoped.
+    
+    Updates #61768
+    
+    Change-Id: I89b6f85745fbaa2245141ea98f584afc5d6b133e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519275
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/os_darwin.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

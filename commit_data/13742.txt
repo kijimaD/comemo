@@ -1,0 +1,14 @@
+commit 997a11ae6accb410f6fbbb295143d28cb9aaa152
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 4 15:26:51 2012 +1000
+
+          doc: link to references from docs page
+    
+    Fixes #3667.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6492078
+
+ doc/docs.html | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,12 @@
+commit c423e95da64208d8336d33483f212e18bb695e35
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 2 10:16:31 2010 -0700
+
+    go spec clarification: arrays must be addressable to be sliceable
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/2141041
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

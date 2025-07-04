@@ -1,0 +1,20 @@
+commit 88849736b22968d74a5fa9f0654cf29044869739
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 14:52:01 2016 -0800
+
+    crypto/tls: better error for oversized handshake messages.
+    
+    This change improves the error message when encountering a TLS handshake
+    message that is larger than our limit (64KB). Previously the error was
+    just “local error: internal error”.
+    
+    Updates #13401.
+    
+    Change-Id: I86127112045ae33e51079e3bc047dd7386ddc71a
+    Reviewed-on: https://go-review.googlesource.com/20547
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/conn.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,49 @@
+commit fd985d23dcc792354c4d60108dc01f992f4bdbc2
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Aug 21 09:30:14 2024 +0000
+
+    crypto/x509,math/rand/v2: implement the encoding.(Binary|Text)Appender
+    
+    Implement the encoding.(Binary|Text)Appender interfaces for "x509.OID".
+    
+    Implement the encoding.BinaryAppender interface for "rand/v2.PCG" and "rand/v2.ChaCha8".
+    
+    "rand/v2.ChaCha8.MarshalBinary" alse gains some performance benefits:
+    
+                               │     old      │                 new                 │
+                               │    sec/op    │   sec/op     vs base                │
+    ChaCha8MarshalBinary-8       33.730n ± 2%   9.786n ± 1%  -70.99% (p=0.000 n=10)
+    ChaCha8MarshalBinaryRead-8    99.86n ± 1%   17.79n ± 0%  -82.18% (p=0.000 n=10)
+    geomean                       58.04n        13.19n       -77.27%
+    
+                               │    old     │                  new                   │
+                               │    B/op    │   B/op     vs base                     │
+    ChaCha8MarshalBinary-8       48.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=10)
+    ChaCha8MarshalBinaryRead-8   83.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=10)
+    
+                               │    old     │                   new                   │
+                               │ allocs/op  │ allocs/op   vs base                     │
+    ChaCha8MarshalBinary-8       1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+    ChaCha8MarshalBinaryRead-8   2.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+    
+    For #62384
+    
+    Change-Id: I604bde6dad90a916012909c7260f4bb06dcf5c0a
+    GitHub-Last-Rev: 78abf9c5dfb74838985637798bcd5cb957541d20
+    GitHub-Pull-Request: golang/go#68987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607079
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/62384.txt                               |  4 +++
+ doc/next/6-stdlib/99-minor/crypto/x509/62384.md  |  2 ++
+ doc/next/6-stdlib/99-minor/math/rand/v2/62384.md |  1 +
+ src/crypto/x509/oid.go                           | 14 +++++++--
+ src/crypto/x509/oid_test.go                      | 25 ++++++++++++++++
+ src/math/rand/v2/chacha8.go                      | 21 ++++++++-----
+ src/math/rand/v2/chacha8_test.go                 | 38 ++++++++++++++++++++++++
+ src/math/rand/v2/pcg.go                          | 18 ++++++-----
+ src/math/rand/v2/pcg_test.go                     | 13 ++++++--
+ 9 files changed, 116 insertions(+), 20 deletions(-)

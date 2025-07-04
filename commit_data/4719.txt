@@ -1,0 +1,13 @@
+commit d53b426fa0561a00ed969f47bf74183101d734d6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 29 08:34:40 2010 +1100
+
+    An experimental implemenation of Ticker using two goroutines for all tickers.
+    Feel free to suggest other approaches.
+    
+    R=rsc
+    CC=cw, golang-dev
+    https://golang.org/cl/193070
+
+ src/pkg/time/tick.go | 185 +++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 122 insertions(+), 63 deletions(-)

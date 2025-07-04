@@ -1,0 +1,18 @@
+commit 78e918ccba5102e8911002751840f611fa0d490e
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Feb 22 17:12:48 2010 -0800
+
+    math: add lgamma; in-line special cases of acosh, nextafter
+    
+    Added lgamma.go, tests and special cases.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217060
+
+ src/pkg/math/Makefile     |   1 +
+ src/pkg/math/acosh.go     |   5 +-
+ src/pkg/math/all_test.go  |  47 ++++++-
+ src/pkg/math/lgamma.go    | 350 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/nextafter.go |   4 +-
+ 5 files changed, 404 insertions(+), 3 deletions(-)

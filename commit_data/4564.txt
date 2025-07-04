@@ -1,0 +1,12 @@
+commit 7ec0856f0112900c5968f58a908f902a9f6c038e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 9 07:32:26 2010 +1100
+
+    fix typo
+    
+    R=gri, iant
+    CC=golang-dev
+    https://golang.org/cl/183160
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit dc32b7f0fda20e6f3a4f893ca886681cb765739e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 9 10:30:08 2015 -0700
+
+    cmd/go: rewrite testsuite from bash to Go
+    
+    Change-Id: I8473e3f7653d5389d5fcd94862f0831049b8266e
+    Reviewed-on: https://go-review.googlesource.com/10809
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 1728 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/test.bash  | 1330 -------------------------------------
+ 2 files changed, 1668 insertions(+), 1390 deletions(-)

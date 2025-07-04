@@ -1,0 +1,28 @@
+commit bbcd85528cbad2dca72378181cb230e59a43ef80
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 27 08:58:16 2023 -0400
+
+    cmd/compile/internal/inline: rework use of ir.StaticValue
+    
+    When running the code to compute function properties that feed
+    inlining heuristics, the existing heuristics implementation makes
+    fairly extensive use of ir.StaticValue and ir.Reassigned to sharpen
+    the analysis. These calls turn out to cause a significant compile time
+    increase, due to the fact that each call can potentially walk every
+    node in the IR for the function. To help with this problem, switch the
+    heuristics code over to using the new "batch mode" reassignment helper
+    added in the previous CL.
+    
+    Change-Id: Ib15a62416134386e34b7cfa1130a4b413a37b225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537977
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  15 ++-
+ .../inline/inlheur/analyze_func_callsites.go       | 144 ++++++++++++---------
+ .../internal/inline/inlheur/analyze_func_params.go |  16 ++-
+ .../inline/inlheur/analyze_func_returns.go         | 122 +++++------------
+ src/cmd/compile/internal/inline/inlheur/names.go   | 129 ++++++++++++++++++
+ .../inline/inlheur/score_callresult_uses.go        |   6 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go |  40 +++---
+ 7 files changed, 287 insertions(+), 185 deletions(-)

@@ -1,0 +1,19 @@
+commit c6da3e5a69471bc9f4d9044251f850860bb602cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 11 16:52:59 2009 -0700
+
+    A couple of godoc improvements:
+    - sort directories before printing
+    - apply filtering to factory functions and methods
+    - remove a couple of unused files
+    
+    R=r
+    DELTA=84  (34 added, 40 deleted, 10 changed)
+    OCL=28657
+    CL=28657
+
+ src/lib/go/doc/doc.go           | 25 +++++++++++++++++--------
+ usr/gri/pretty/godoc.go         | 30 ++++++++++++++++++++----------
+ usr/gri/pretty/packagelist.html | 15 ---------------
+ usr/gri/pretty/packagelist.txt  | 10 ----------
+ 4 files changed, 37 insertions(+), 43 deletions(-)

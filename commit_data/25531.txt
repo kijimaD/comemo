@@ -1,0 +1,45 @@
+commit 9ee72f424c83c07e53fde15e5eba9e4b6b02dee4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 9 15:34:56 2016 -0800
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net git rev 0e6d34ef942 for https://golang.org/cl/18472
+    which means we'll get to delete a ton of grpc-go code and just use the
+    standard library's HTTP client instead.
+    
+    Also, the comments in this CL aren't entirely accurate it turns out.
+    RFC 2616 says:
+    
+    "The Trailer header field can be used to indicate which header fields
+    are included in a trailer (see section 14.40)."
+    
+    And 14.40:
+    
+    "  An HTTP/1.1 message SHOULD include a Trailer header field in a
+       message using chunked transfer-coding with a non-empty trailer. Doing
+       so allows the recipient to know which header fields to expect in the
+       trailer.
+    
+       If no Trailer header field is present, the trailer SHOULD NOT include
+       any header fields. See section 3.6.1 for restrictions on the use of
+       trailer fields in a "chunked" transfer-coding."
+    
+    So it's really a SHOULD more than a MUST.
+    
+    And gRPC (at least Google's server) doesn't predeclare "grpc-status"
+    ahead of time in a Trailer Header, so we'll be lenient. We were too
+    strict anyway. It's also not a concern for the Go client we have a
+    different place to populate the Trailers, and it won't confuse clients
+    which aren't looking for them. The ResponseWriter server side is more
+    complicated (and strict), though, since we don't want to widen the
+    ResponseWriter interface. So the Go server still requires that you
+    predeclare Trailers.
+    
+    Change-Id: Ia2defc11a2469fb8570ecfabb8453537121084eb
+    Reviewed-on: https://go-review.googlesource.com/18473
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

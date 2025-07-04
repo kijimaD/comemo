@@ -1,0 +1,19 @@
+commit 17f90c68c6059a10228d76fee36049d69b165f69
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 14:25:50 2010 -0700
+
+    gc: fix handling of types inside function bodies
+    
+    Fixes #849.
+    Fixes #920.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1841042
+
+ src/cmd/gc/align.c                 |  4 ++--
+ src/cmd/gc/walk.c                  |  4 ++++
+ test/{bugs => fixedbugs}/bug286.go |  0
+ test/fixedbugs/bug290.go           | 15 +++++++++++++++
+ test/golden.out                    |  7 -------
+ 5 files changed, 21 insertions(+), 9 deletions(-)

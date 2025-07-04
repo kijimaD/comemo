@@ -1,0 +1,54 @@
+commit b597e1ed543a309926a3c3a94518a135844470ce
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Oct 30 17:54:39 2015 +0300
+
+    runtime: speed up memclr with avx2 on amd64
+    
+    Results are a bit noisy, but show good improvement (haswell)
+    
+    name            old time/op    new time/op     delta
+    Memclr5-48        6.06ns ± 8%     5.65ns ± 8%    -6.81%  (p=0.000 n=20+20)
+    Memclr16-48       5.75ns ± 6%     5.71ns ± 6%      ~     (p=0.545 n=20+19)
+    Memclr64-48       6.54ns ± 5%     6.14ns ± 9%    -6.12%  (p=0.000 n=18+20)
+    Memclr256-48      10.1ns ±12%      9.9ns ±14%      ~     (p=0.285 n=20+19)
+    Memclr4096-48      104ns ± 8%       57ns ±15%   -44.98%  (p=0.000 n=20+20)
+    Memclr65536-48    2.45µs ± 5%     2.43µs ± 8%      ~     (p=0.665 n=16+20)
+    Memclr1M-48       58.7µs ±13%     56.4µs ±11%    -3.92%  (p=0.033 n=20+19)
+    Memclr4M-48        233µs ± 9%      234µs ± 9%      ~     (p=0.728 n=20+19)
+    Memclr8M-48        469µs ±11%      472µs ±16%      ~     (p=0.947 n=20+20)
+    Memclr16M-48       947µs ±10%      916µs ±10%      ~     (p=0.050 n=20+19)
+    Memclr64M-48      10.9ms ±10%      4.5ms ± 9%   -58.43%  (p=0.000 n=20+20)
+    GoMemclr5-48      3.80ns ±13%     3.38ns ± 6%   -11.02%  (p=0.000 n=20+20)
+    GoMemclr16-48     3.34ns ±15%     3.40ns ± 9%      ~     (p=0.351 n=20+20)
+    GoMemclr64-48     4.10ns ±15%     4.04ns ±10%      ~     (p=1.000 n=20+19)
+    GoMemclr256-48    7.75ns ±20%     7.88ns ± 9%      ~     (p=0.227 n=20+19)
+    
+    name            old speed      new speed       delta
+    Memclr5-48       826MB/s ± 7%    886MB/s ± 8%    +7.32%  (p=0.000 n=20+20)
+    Memclr16-48     2.78GB/s ± 5%   2.81GB/s ± 6%      ~     (p=0.550 n=20+19)
+    Memclr64-48     9.79GB/s ± 5%  10.44GB/s ±10%    +6.64%  (p=0.000 n=18+20)
+    Memclr256-48    25.4GB/s ±14%   25.6GB/s ±12%      ~     (p=0.647 n=20+19)
+    Memclr4096-48   39.4GB/s ± 8%   72.0GB/s ±13%   +82.81%  (p=0.000 n=20+20)
+    Memclr65536-48  26.6GB/s ± 6%   27.0GB/s ± 9%      ~     (p=0.517 n=17+20)
+    Memclr1M-48     17.9GB/s ±12%   18.5GB/s ±11%      ~     (p=0.068 n=20+20)
+    Memclr4M-48     18.0GB/s ± 9%   17.8GB/s ±14%      ~     (p=0.547 n=20+20)
+    Memclr8M-48     17.9GB/s ±10%   17.8GB/s ±14%      ~     (p=0.947 n=20+20)
+    Memclr16M-48    17.8GB/s ± 9%   18.4GB/s ± 9%      ~     (p=0.050 n=20+19)
+    Memclr64M-48    6.19GB/s ±10%  14.87GB/s ± 9%  +140.11%  (p=0.000 n=20+20)
+    GoMemclr5-48    1.31GB/s ±10%   1.48GB/s ± 6%   +13.06%  (p=0.000 n=19+20)
+    GoMemclr16-48   4.81GB/s ±14%   4.71GB/s ± 8%      ~     (p=0.341 n=20+20)
+    GoMemclr64-48   15.7GB/s ±13%   15.8GB/s ±11%      ~     (p=0.967 n=20+19)
+    
+    Change-Id: I393f3f20e2f31538d1b1dd70d6e5c201c106a095
+    Reviewed-on: https://go-review.googlesource.com/16773
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go  |  1 +
+ src/cmd/internal/obj/x86/anames.go |  1 +
+ src/cmd/internal/obj/x86/asm6.go   |  1 +
+ src/runtime/memclr_amd64.s         | 55 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/memmove_test.go        |  5 ++++
+ 5 files changed, 62 insertions(+), 1 deletion(-)

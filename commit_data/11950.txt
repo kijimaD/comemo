@@ -1,0 +1,14 @@
+commit 7c9662f4612979298642a17cb4e8a52559e204ba
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 16 12:43:22 2012 +1100
+
+    godoc: show example function doc comments in UI
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5677061
+
+ lib/godoc/example.html    | 5 +++--
+ src/cmd/godoc/godoc.go    | 4 ++--
+ src/pkg/go/ast/example.go | 6 ++++++
+ 3 files changed, 11 insertions(+), 4 deletions(-)

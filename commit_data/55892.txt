@@ -1,0 +1,32 @@
+commit 1e433915ce684049a6a44fd506f691f448b56c76
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 21 23:29:12 2024 +1100
+
+    cmd/link,debug/elf: mark Go binaries with no branch target CFI on openbsd
+    
+    OpenBSD enables Indirect Branch Tracking (IBT) on amd64 and Branch Target
+    Identification (BTI) on arm64, where hardware permits. Since Go generated
+    binaries do not currently support IBT or BTI, temporarily mark them with
+    PT_OPENBSD_NOBTCFI which prevents branch target CFI from being enforced
+    on execution. This should be removed as soon asn IBT and BTI support are
+    available.
+    
+    Fixes #66040
+    Updates #66054
+    
+    Change-Id: I91ac05736e6942c54502bef4b8815eb8740d2d5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ api/next/66054.txt                            | 2 ++
+ doc/next/6-stdlib/99-minor/debug/elf/66054.md | 3 +++
+ src/cmd/link/internal/ld/elf.go               | 4 ++++
+ src/cmd/link/internal/ld/lib.go               | 5 +++++
+ src/debug/elf/elf.go                          | 1 +
+ 5 files changed, 15 insertions(+)

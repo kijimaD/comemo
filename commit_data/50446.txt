@@ -1,0 +1,16 @@
+commit 600db8a514600df0d3a11edc220ed7e2f51ca158
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 7 13:35:24 2022 +0200
+
+    runtime/race: also unmap memory if TestNonGoMemory fails
+    
+    Change-Id: I7ea150e4896fc9b2e3a6dbdd9a1c2b651e74b844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428778
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/race/race_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

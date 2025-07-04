@@ -1,0 +1,22 @@
+commit 26e0660811d477dcb30f1abcf71ed9db7a9c4472
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 7 18:11:39 2023 -0400
+
+    Revert "runtime: move pcvalue cache to M"
+    
+    This reverts CL 515276.
+    
+    This broke the longtest builders. For example:
+    https://build.golang.org/log/351a1a198a6b843b1881c1fb6cdef51f3e413e8b
+    
+    Change-Id: Ie79067464fe8e226da31721cf127f3efb6011452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516856
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/runtime2.go |  3 ---
+ src/runtime/symtab.go   | 46 ++++++++++++++++++++++------------------------
+ 2 files changed, 22 insertions(+), 27 deletions(-)

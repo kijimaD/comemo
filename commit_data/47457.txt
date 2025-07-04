@@ -1,0 +1,20 @@
+commit c893a85f21d0e5448c687254e50cc6936b36548e
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 16:58:45 2021 -0500
+
+    go/types: rename types.context to types.environment
+    
+    Now that we have a Context type the context (unexported) type is
+    particularly confusing. Rename it to environment.
+    
+    Change-Id: I7d280439b8263d9ebfd561fc4d59c6d43c8d3e3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363176
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go | 17 +++++++++--------
+ src/go/types/decl.go  | 16 ++++++++--------
+ src/go/types/stmt.go  | 10 +++++-----
+ 3 files changed, 22 insertions(+), 21 deletions(-)

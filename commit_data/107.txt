@@ -1,0 +1,12 @@
+commit 6b8bd3556ad77141729d836999d93fdd1923e3b2
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 16:49:35 2008 -0700
+
+    nonaddressable = functioncall
+    code gen error
+    
+    SVN=121541
+
+ src/cmd/6g/cgen.c | 15 +++++++++++++++
+ src/cmd/6g/gen.c  | 13 +++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 78f6622b818cb0198a9c7c45eca58ba6f9f235c5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 29 14:21:50 2017 +1100
+
+    cmd/internal/obj/*: rename Rconv to rconv
+    
+    Each architecture's Rconv function is only used inside its
+    respective package, so it does not need to be exported.
+    
+    Change-Id: Ifbd629964d7a9edd66501d7cdf4750621d66d646
+    Reviewed-on: https://go-review.googlesource.com/39110
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm/list5.go   | 4 ++--
+ src/cmd/internal/obj/arm64/list7.go | 4 ++--
+ src/cmd/internal/obj/mips/list0.go  | 4 ++--
+ src/cmd/internal/obj/ppc64/list9.go | 4 ++--
+ src/cmd/internal/obj/s390x/listz.go | 4 ++--
+ src/cmd/internal/obj/x86/asm6.go    | 4 ++--
+ src/cmd/internal/obj/x86/list6.go   | 4 ++--
+ src/cmd/internal/obj/x86/obj6.go    | 2 +-
+ 8 files changed, 15 insertions(+), 15 deletions(-)

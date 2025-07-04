@@ -1,0 +1,19 @@
+commit 4083a6f3776487e707d4c56c63b1d7dbabb01fb0
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 16 11:24:22 2021 -0500
+
+    go/types: better error for type assertion/switch on type parameter value
+    
+    This is a port of CL 363439 from types2 to go/types.
+    
+    Change-Id: Ic71871874345e1d0a4a42703e3673aadd11f2bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364378
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go                       | 5 +++++
+ src/go/types/stmt.go                       | 5 +++++
+ src/go/types/testdata/check/typeparams.go2 | 8 ++++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)

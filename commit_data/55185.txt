@@ -1,0 +1,19 @@
+commit cf3d253c1b6d61cff9e1ba2425c0a8bddbd8af0e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 1 21:05:34 2023 +0000
+
+    runtime: check if mp.curg is nil before readgstatus in writeProcStatusForP
+    
+    CL 546025 failed to check if mp.curg is nil, causing all sorts of
+    failures. It can very well be nil in this context.
+    
+    For #64318.
+    Fixes #64507.
+    
+    Change-Id: I4a95c3fa16d5e1dee8041394c4bdb9c6ba04f032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546636
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/trace2status.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

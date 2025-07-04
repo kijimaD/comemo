@@ -1,0 +1,21 @@
+commit 3042ba34db86853c7035046716c4a00b2dbef2ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 7 17:32:55 2021 -0500
+
+    net/smtp: skip TestTLSSClient on all freebsd platforms
+    
+    This test seems like it needs attention from a TLS and/or FreeBSD
+    expert. In the meantime, it needs to stop causing noise on the build
+    dashboard.
+    
+    For #19229
+    
+    Change-Id: If7e9e3533ae7cb29006a670c3e9df90512dcf9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370137
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/smtp/smtp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

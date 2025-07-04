@@ -1,0 +1,32 @@
+commit 6b772462e420d15f5e1669a5f03e4f1cb7d8f2af
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 10:36:25 2011 -0800
+
+    panics: use the new facilities of testing.B instead
+    
+    Lots of panics go away.
+    Also fix a name error in html/template.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5498045
+
+ src/pkg/bytes/bytes_test.go            | 17 ++++++-----------
+ src/pkg/crypto/aes/aes_test.go         |  2 +-
+ src/pkg/encoding/binary/binary_test.go |  4 ++--
+ src/pkg/encoding/gob/timing_test.go    |  2 +-
+ src/pkg/encoding/json/bench_test.go    | 10 +++++-----
+ src/pkg/html/template/error.go         |  6 +++---
+ src/pkg/html/template/escape_test.go   | 10 +++++-----
+ src/pkg/image/draw/bench_test.go       |  6 +++---
+ src/pkg/image/jpeg/writer_test.go      |  2 +-
+ src/pkg/image/png/writer_test.go       |  4 ++--
+ src/pkg/image/tiff/reader_test.go      |  2 +-
+ src/pkg/math/big/nat_test.go           |  3 +--
+ src/pkg/net/http/serve_test.go         |  6 +++---
+ src/pkg/net/rpc/server_test.go         | 20 ++++++++------------
+ src/pkg/old/regexp/all_test.go         | 12 ++++--------
+ src/pkg/regexp/all_test.go             | 12 ++++--------
+ src/pkg/regexp/exec_test.go            |  2 +-
+ src/pkg/strings/strings_test.go        |  7 +++----
+ 18 files changed, 54 insertions(+), 73 deletions(-)

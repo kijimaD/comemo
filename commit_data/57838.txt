@@ -1,0 +1,21 @@
+commit 5dbb0a5c6b58f565feb5ac85e42f139343a9eafa
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Oct 31 10:48:14 2024 +0000
+
+    internal/runtime/atomic: fix uintptr usage in arm And8/Or8
+    
+    In CL 622075, I introduced code that violated unsafe.Pointer rules
+    by casting to uintptr and back across statements. This change corrects it.
+    
+    Change-Id: Ib6f6c08d9ce33aaeaf41f390c7e9f13a7b8cb974
+    GitHub-Last-Rev: 01cc68a87c8c0ad068c71a911013421f28a8b4ef
+    GitHub-Pull-Request: golang/go#70129
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623755
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/atomic/atomic_arm.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

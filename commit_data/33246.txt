@@ -1,0 +1,14 @@
+commit c74712b3b2a38393157bad0550657fd06a5c5a8a
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 25 16:11:51 2017 -0700
+
+    test: add test cases for method expressions with literal receiver types
+    
+    For #9060.
+    
+    Change-Id: Ibd0f047083f3c98cec96c655a3e2024df8e1d2a0
+    Reviewed-on: https://go-review.googlesource.com/73554
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/method7.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

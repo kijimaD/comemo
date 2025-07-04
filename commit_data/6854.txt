@@ -1,0 +1,14 @@
+commit ae2495c5b03718a413a457410d48f72e25b915f3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Dec 7 15:54:04 2010 -0500
+
+    http: Add EncodeQuery, a handy helper function for constructing URL query strings.
+    
+    R=stephenm, rsc
+    CC=golang-dev
+    https://golang.org/cl/2985042
+
+ src/pkg/http/client.go   | 15 ++++-----------
+ src/pkg/http/url.go      | 12 ++++++++++++
+ src/pkg/http/url_test.go | 21 +++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 11 deletions(-)

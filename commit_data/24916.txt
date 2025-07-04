@@ -1,0 +1,21 @@
+commit 9aed0b7e3d3c9cbd5877fcbcecfcdec9111f5a81
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 14 15:42:49 2015 -0800
+
+    cmd/compile: add special case for testing first field of struct variable
+    
+    The change to the write barrier in https://golang.org/cl/16899 means
+    that the compiler now emits tests of the first field of a struct.  That
+    was using a register that was not used before.  This change fixes that
+    for amd64 by adding a special case for the first field of a struct.
+    
+    Update #12416.
+    
+    Change-Id: Ia57baa62cd741592fbeb9be82f1e846be73d6edd
+    Reviewed-on: https://go-review.googlesource.com/16933
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/amd64/gsubr.go | 10 +++++++++-
+ src/cmd/compile/internal/gc/gsubr.go    | 11 +++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

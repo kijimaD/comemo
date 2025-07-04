@@ -1,0 +1,26 @@
+commit ff0748670c42c025c5eb8a0f8bc8b6266e90a38f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 14 19:57:11 2017 -0700
+
+    cmd/compile: fix exporting of function bodies
+    
+    Before CL 36170, we identified all function bodies that needed to be
+    exported before writing any export data.
+    
+    With CL 36170, we started identifying additional functions while
+    exporting function bodies. As a consequence, we cannot use a
+    range-based for loop for iterating over function bodies anymore.
+    
+    Fixes #18895.
+    
+    Change-Id: I9cbefa8d311ca8c9898c8272b2ac365976b02396
+    Reviewed-on: https://go-review.googlesource.com/45817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  5 +++--
+ test/fixedbugs/issue18895.dir/p.go     | 14 ++++++++++++++
+ test/fixedbugs/issue18895.dir/q.go     | 11 +++++++++++
+ test/fixedbugs/issue18895.go           |  7 +++++++
+ 4 files changed, 35 insertions(+), 2 deletions(-)

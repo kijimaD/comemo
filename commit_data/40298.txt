@@ -1,0 +1,18 @@
+commit bc529506d21f4393af20becb7f50b6628b27c291
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 17 14:10:50 2019 -0700
+
+    runtime/race: add test for midstack inlining
+    
+    Add test to make sure we get the right traceback when mid-stack inlining.
+    
+    Update #33309
+    
+    Change-Id: I23979cbe6b12fad105dbd26698243648aa86a354
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195984
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/output_test.go | 52 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 49 insertions(+), 3 deletions(-)

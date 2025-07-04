@@ -1,0 +1,16 @@
+commit afc2c45f05ad1091f1176f37ba90fb813b2776be
+Author: Burcu Dogan <jbd@google.com>
+Date:   Sat Nov 28 11:47:07 2015 -0600
+
+    net/http: define File as an io.Seeker
+    
+    Fixes #13421.
+    
+    Change-Id: Ic0fc0d0a8e86d2be23db12ddd1a8a8105e26ee56
+    Reviewed-on: https://go-review.googlesource.com/17250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Burcu Dogan <jbd@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

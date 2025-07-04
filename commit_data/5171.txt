@@ -1,0 +1,12 @@
+commit bc32dd9ec4b81aa6b53da2a0b9b6cc6f8d3a8e92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 18:41:55 2010 -0700
+
+    go/printer: fix a comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/826042
+
+ src/pkg/go/printer/printer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

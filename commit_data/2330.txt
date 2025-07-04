@@ -1,0 +1,14 @@
+commit b3f303ec9a577149727511d80d9c82ac119bf29d
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed May 27 18:37:02 2009 -0700
+
+    bug 153
+    
+    R=r
+    OCL=29479
+    CL=29479
+
+ src/cmd/gc/walk.c                  | 7 ++++++-
+ test/{bugs => fixedbugs}/bug153.go | 0
+ test/golden.out                    | 4 ----
+ 3 files changed, 6 insertions(+), 5 deletions(-)

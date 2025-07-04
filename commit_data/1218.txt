@@ -1,0 +1,20 @@
+commit 5169bb44e6bafe990112fa39890fef7168ae679f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 21 16:13:31 2008 -0800
+
+    utf8 routines in go; a start.
+    also:
+            * parse flags in testing.Main.
+            * add make test in src/lib.
+    
+    R=r
+    DELTA=323  (323 added, 0 deleted, 0 changed)
+    OCL=19831
+    CL=19850
+
+ src/lib/Makefile     |  10 ++++
+ src/lib/testing.go   |   1 +
+ src/lib/utf8.go      | 162 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/utf8_test.go | 150 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash         |   2 +
+ 5 files changed, 325 insertions(+)

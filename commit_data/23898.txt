@@ -1,0 +1,58 @@
+commit 80c98fa901b2f393ef013ec9074630c948e3f8d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 14:01:03 2015 -0400
+
+    runtime/trace: record event sequence numbers explicitly
+    
+    Nearly all the flaky failures we've seen in trace tests have been
+    due to the use of time stamps to determine relative event ordering.
+    This is tricky for many reasons, including:
+     - different cores might not have exactly synchronized clocks
+     - VMs are worse than real hardware
+     - non-x86 chips have different timer resolution than x86 chips
+     - on fast systems two events can end up with the same time stamp
+    
+    Stop trying to make time reliable. It's clearly not going to be for Go 1.5.
+    Instead, record an explicit event sequence number for ordering.
+    Using our own counter solves all of the above problems.
+    
+    The trace still contains time stamps, of course. The sequence number
+    is just used for ordering.
+    
+    Should alleviate #10554 somewhat. Then tickDiv can be chosen to
+    be a useful time unit instead of having to be exact for ordering.
+    
+    Separating ordering and time stamps lets the trace parser diagnose
+    systems where the time stamp order and actual order do not match
+    for one reason or another. This CL adds that check to the end of
+    trace.Parse, after all other sequence order-based checking.
+    If that error is found, we skip the test instead of failing it.
+    Putting the check in trace.Parse means that cmd/trace will pick
+    up the same check, refusing to display a trace where the time stamps
+    do not match actual ordering.
+    
+    Using net/http's BenchmarkClientServerParallel4 on various CPU counts,
+    not tracing vs tracing:
+    
+    name                      old time/op    new time/op    delta
+    ClientServerParallel4       50.4µs ± 4%    80.2µs ± 4%  +59.06%        (p=0.000 n=10+10)
+    ClientServerParallel4-2     33.1µs ± 7%    57.8µs ± 5%  +74.53%        (p=0.000 n=10+10)
+    ClientServerParallel4-4     18.5µs ± 4%    32.6µs ± 3%  +75.77%        (p=0.000 n=10+10)
+    ClientServerParallel4-6     12.9µs ± 5%    24.4µs ± 2%  +89.33%        (p=0.000 n=10+10)
+    ClientServerParallel4-8     11.4µs ± 6%    21.0µs ± 3%  +83.40%        (p=0.000 n=10+10)
+    ClientServerParallel4-12    14.4µs ± 4%    23.8µs ± 4%  +65.67%        (p=0.000 n=10+10)
+    
+    Fixes #10512.
+    
+    Change-Id: I173eecf8191e86feefd728a5aad25bf1bc094b12
+    Reviewed-on: https://go-review.googlesource.com/12579
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/trace/parser.go          | 74 ++++++++++++++++++++++-------------
+ src/internal/trace/parser_test.go     |  4 ++
+ src/runtime/proc1.go                  |  9 +++--
+ src/runtime/runtime2.go               | 21 +++++-----
+ src/runtime/trace.go                  | 45 +++++++++++++++++----
+ src/runtime/trace/trace_stack_test.go |  2 +-
+ src/runtime/trace/trace_test.go       | 14 +++++--
+ 7 files changed, 116 insertions(+), 53 deletions(-)

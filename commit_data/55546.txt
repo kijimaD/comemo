@@ -1,0 +1,21 @@
+commit 210f051d6b585e9a5f0cb4b983038d83c44e992b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 7 13:58:38 2024 -0800
+
+    go/types, types2: document deterministic method index order and add test
+    
+    Fixes #61298.
+    
+    Change-Id: Ie2f930752867710884ace3990447866e785ebf1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562347
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/named.go      |  6 ++++
+ src/cmd/compile/internal/types2/named_test.go | 48 +++++++++++++++++++++++++++
+ src/go/types/named.go                         |  6 ++++
+ src/go/types/named_test.go                    | 48 +++++++++++++++++++++++++++
+ 4 files changed, 108 insertions(+)

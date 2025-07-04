@@ -1,0 +1,23 @@
+commit 0c7fd56951cff83bb7b23f64a712327bab154514
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 21 11:00:31 2017 -0700
+
+    runtime: only clear pointer-containing memory during map delete
+    
+    When deleting entries from a map, only clear the key and value
+    if they contain pointers. And use memclrHasPointers to do so.
+    
+    While we're here, specialize key clearing in mapdelete_faststr,
+    and fix another missed usage of add in mapdelete.
+    
+    Benchmarking impeded by #21546.
+    
+    Change-Id: I3f6f924f738d6b899b722d6438e9e63f52359b84
+    Reviewed-on: https://go-review.googlesource.com/57630
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go      | 18 +++++++++++-------
+ src/runtime/hashmap_fast.go | 33 ++++++++++++++++++++++++---------
+ 2 files changed, 35 insertions(+), 16 deletions(-)

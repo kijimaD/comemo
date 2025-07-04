@@ -1,0 +1,15 @@
+commit d2f322e9be85d4888a166a271f5a7fb2b2d8333c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 18 12:41:20 2014 -0700
+
+    runtime: use uint32 arrays in BenchmarkClearFat*
+    
+    The CopyFat benchmarks were changed in CL 92760044. See CL 111350043 for discussion.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/116000043
+
+ src/pkg/runtime/memmove_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

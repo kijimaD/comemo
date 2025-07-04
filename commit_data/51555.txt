@@ -1,0 +1,30 @@
+commit ffefcd360b64e197131d6dc37a7ed015a2643c1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 12 16:30:42 2022 -0800
+
+    spec: introduce notion of strict comparability
+    
+    - Rephrase the notion of "comparability" from a property
+      of values (operands) to a property of types and adjust
+      dependent prose.
+    - Introduce the notion of "strict comparability".
+    - Fix the definitions of comparability for type interfaces
+      and type parameters.
+    - Define the predeclared identifier "comparable" as stricly
+      comparable.
+    
+    These changes address existing problems in the spec as outlined
+    in the section on "Related spec issues" in issue #56548.
+    
+    For #56548.
+    
+    Change-Id: Ibc8c2f36d92857a5134eadc18358624803d3dd21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 84 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 57 insertions(+), 27 deletions(-)

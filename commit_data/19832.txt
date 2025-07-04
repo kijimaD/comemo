@@ -1,0 +1,13 @@
+commit 5dab2da9544422d8953b2d3e4a41acaf84a2d2c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 29 14:45:07 2014 +0400
+
+    runtime: mark global var as NOPTR
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/119300043
+
+ src/pkg/runtime/sigqueue.goc | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

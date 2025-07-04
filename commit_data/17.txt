@@ -1,0 +1,10 @@
+commit 1cf631b4c75ef65f03380ef83163b5c4de677cc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 22:40:49 2008 -0800
+
+    - added missing ''''s
+    
+    SVN=111693
+
+ doc/go_lang.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

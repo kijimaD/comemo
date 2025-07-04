@@ -1,0 +1,15 @@
+commit bf103723f829b206bd24e4cf3c4306c4232b6fc7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:46:47 2019 +0100
+
+    runtime: fix sigfwd for aix/ppc64
+    
+    This commit fixes runtime.sigfwd for aix/ppc64. fn is a function
+    descriptor and not a function. R2 must be saved and restored.
+    
+    Change-Id: Ie506b0bdde562ca37202d19973ba1d537c3d64e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_aix_ppc64.s | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

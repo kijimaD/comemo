@@ -1,0 +1,27 @@
+commit 70de482d17863e501be44450f8e60500a6f1b459
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:03:27 2022 -0700
+
+    bytes: rely on utf8.AppendRune
+    
+    This is both simpler and more performant.
+    
+    WriteRune                                 23.9µs ± 1%   22.8µs ± 8%   -4.43%  (p=0.006 n=8+10)
+    ToUpper/longɐstringɐwithɐnonasciiⱯchars    573ns ± 4%    474ns ± 6%  -17.27%  (p=0.000 n=10+10)
+    ToUpper/ɐɐɐɐɐ                              236ns ± 6%    202ns ± 5%  -14.12%  (p=0.000 n=10+10)
+    ToUpper/a\u0080\U0010ffff                 98.8ns ± 6%   91.2ns ± 3%   -7.67%  (p=0.000 n=10+10)
+    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS    511ns ± 3%    409ns ± 4%  -20.02%  (p=0.000 n=10+10)
+    ToLower/ⱭⱭⱭⱭⱭ                              178ns ± 4%    173ns ± 2%   -2.76%  (p=0.005 n=10+10)
+    ToLower/A\u0080\U0010ffff                  100ns ± 3%     91ns ± 2%   -8.55%  (p=0.000 n=10+10)
+    
+    Change-Id: I968ef194da2c115cbdcac2d3575c34c65e6a8a56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412337
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+
+ src/bytes/buffer.go |  5 ++---
+ src/bytes/bytes.go  | 19 +++----------------
+ 2 files changed, 5 insertions(+), 19 deletions(-)

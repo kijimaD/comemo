@@ -1,0 +1,16 @@
+commit f93e21ac24935304bf0e05ea6c7e36c56077011e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 5 14:38:29 2014 -0400
+
+    runtime: clean up sigqueue.go
+    
+    Minor changes to make logic clearer.
+    Observed while working on the conversion.
+    
+    LGTM=iant, dvyukov
+    R=dvyukov, iant
+    CC=golang-codereviews
+    https://golang.org/cl/140250043
+
+ src/pkg/runtime/sigqueue.go | 112 +++++++++++++++++++++-----------------------
+ 1 file changed, 53 insertions(+), 59 deletions(-)

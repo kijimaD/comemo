@@ -1,0 +1,28 @@
+commit e71fc0c1fe3787e6398c50377097ee34b2e63981
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 7 10:40:45 2011 +1000
+
+    syscall: rearrange windows code so 386 and amd64 can share files
+    
+    R=golang-dev, r
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4641093
+
+ src/pkg/os/Makefile                       |    2 +-
+ src/pkg/syscall/Makefile                  |    2 +
+ src/pkg/syscall/asm_windows_386.s         |    2 +-
+ src/pkg/syscall/asm_windows_amd64.s       |    7 +
+ src/pkg/syscall/mkall.sh                  |   11 +-
+ src/pkg/syscall/syscall_windows.go        |    2 +
+ src/pkg/syscall/syscall_windows_386.go    |    2 -
+ src/pkg/syscall/syscall_windows_amd64.go  |    5 +
+ src/pkg/syscall/zerrors_windows.go        |  283 ++++++
+ src/pkg/syscall/zerrors_windows_386.go    |  284 +------
+ src/pkg/syscall/zerrors_windows_amd64.go  |    5 +
+ src/pkg/syscall/zsyscall_windows_386.go   |    2 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go | 1323 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_windows_amd64.go  |    3 +
+ src/pkg/syscall/ztypes_windows.go         |  656 ++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go     |  659 +-------------
+ src/pkg/syscall/ztypes_windows_amd64.go   |    5 +
+ 17 files changed, 2311 insertions(+), 942 deletions(-)

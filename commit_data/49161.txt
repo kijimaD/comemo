@@ -1,0 +1,18 @@
+commit c01feba15de402dce666e4f9bf14a06fc64aa97d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 15:41:21 2022 -0700
+
+    spec: clarify "continue" statement
+    
+    Taking into account the discussion and relevant feedback on a
+    change proposed in 2013 (see e-mail thread mentioned in issue).
+    
+    Fixes #48864.
+    
+    Change-Id: I811d518b7cbdf6b815695174f1da3d4251f491c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405756
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

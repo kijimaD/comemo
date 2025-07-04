@@ -1,0 +1,20 @@
+commit ce1c9247b06800d6698d03dcd68498729f7bfddd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 07:45:06 2015 -0500
+
+    time: zoneinfo support for darwin
+    
+    Roll forward of 54efdc596f7b. Better testing of the build on
+    darwin/amd64. There is still some variance between cmd/dist
+    and the Go tool for build tag handling.
+    
+    Change-Id: I105669ae7f90c8c89b3839c04b182cff46be8dde
+    Reviewed-on: https://go-review.googlesource.com/6516
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/time/sleep_test.go    |  4 ++++
+ src/time/zoneinfo_ios.go  | 51 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_unix.go |  2 +-
+ 3 files changed, 56 insertions(+), 1 deletion(-)

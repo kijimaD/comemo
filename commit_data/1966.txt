@@ -1,0 +1,14 @@
+commit ee19695cfc62f965a0586dc84719121feee8859e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 6 21:42:14 2009 -0700
+
+    make NewBufRead etc. idempotent
+    
+    R=rsc
+    DELTA=63  (59 added, 0 deleted, 4 changed)
+    OCL=27143
+    CL=27143
+
+ src/lib/bufio.go      | 20 ++++++++++++++++----
+ src/lib/bufio_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 4 deletions(-)

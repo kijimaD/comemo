@@ -1,0 +1,15 @@
+commit 6a982c390138fb2af49f85c4aeea2bce3222eb20
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 11:33:18 2016 -0700
+
+    cmd/compile: remove unused Type.Printed field
+    
+    Change-Id: Iff2b1507dce08ef7c27085c8e0f45d0e3e88c476
+    Reviewed-on: https://go-review.googlesource.com/28152
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/type.go      | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ 2 files changed, 2 deletions(-)

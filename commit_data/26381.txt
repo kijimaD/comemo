@@ -1,0 +1,12 @@
+commit d3ce412fa5da20ad6fc9017460257ce57179bbb7
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:41:21 2016 +0100
+
+    net/rpc: don't assume b.N > 0
+    
+    Change-Id: I58c4a75168fd1f797a25735c4151f501f0475332
+    Reviewed-on: https://go-review.googlesource.com/20854
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/rpc/server_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

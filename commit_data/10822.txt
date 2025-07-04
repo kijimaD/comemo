@@ -1,0 +1,18 @@
+commit 04faa08c070191a7c187e4ff3a9eb7ed9b6b38a6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 15 12:52:29 2011 -0800
+
+    fmt: speed up floating point print, clean up some code
+    %g down to two mallocs from four. Also a mild speedup.
+    
+    fmt_test.BenchmarkSprintfFloat         3016         2703  -10.38%
+    
+    Fixes #2557.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5491054
+
+ src/pkg/fmt/format.go | 93 +++++++++++++++++++++++++++------------------------
+ src/pkg/fmt/print.go  |  8 ++---
+ 2 files changed, 53 insertions(+), 48 deletions(-)

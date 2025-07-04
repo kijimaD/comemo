@@ -1,0 +1,15 @@
+commit 1a9805adcb082cb0ab1d60192d1468f2f11e4507
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 7 23:59:24 2009 -0800
+
+    - avoid division-by-zero crash in tabwriter
+    - correct tabwidth argument for some tabwriter test cases
+    - catch negative tabwidth flag in gofmt w/o crashing
+    
+    R=rsc
+    http://go/go-review/1026022
+
+ src/cmd/gofmt/gofmt.go              |  4 ++++
+ src/pkg/tabwriter/tabwriter.go      |  4 ++++
+ src/pkg/tabwriter/tabwriter_test.go | 12 ++++++------
+ 3 files changed, 14 insertions(+), 6 deletions(-)

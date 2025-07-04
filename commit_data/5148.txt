@@ -1,0 +1,20 @@
+commit c72fb37425f6ee6297371e0053d6d1f958d49a41
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 14:20:50 2010 -0700
+
+    prof: install gopprof too
+    
+    This is a modified version of the open source pprof
+    from code.google.com/p/google-perftools.
+    That version is likely to catch up to this one,
+    but it's still useful to ship our own copy since
+    we only need the one script from that project,
+    not all the C++ libraries.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/783041
+
+ src/cmd/prof/Makefile |    5 +-
+ src/cmd/prof/gopprof  | 4721 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 4725 insertions(+), 1 deletion(-)

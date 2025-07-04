@@ -1,0 +1,21 @@
+commit c0799f7015e6cae37c21294bb94f56050fda5f4e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jan 17 11:30:48 2023 -0500
+
+    os: document that Rename is not atomic on non-Unix platforms
+    
+    Windows provides no reliable way to rename files atomically.
+    
+    The Plan 9 implementation of os.Rename performs a deletion
+    if the target exists.
+    
+    Change-Id: Ife5f9c97b21f48c11e300cd76d8c7f715db09fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462395
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

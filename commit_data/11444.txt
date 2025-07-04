@@ -1,0 +1,12 @@
+commit a417e6f470f4cf19292a2bb5638b773bd1883e13
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Sat Jan 28 12:02:22 2012 +0000
+
+    cmd/go: make vcs command actually gather output
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5577062
+
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

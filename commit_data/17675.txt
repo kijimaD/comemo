@@ -1,0 +1,14 @@
+commit 3861cb438857d3cb55c1465d2d8d37621db01e93
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Mon Sep 23 18:11:25 2013 +1000
+
+    go/build: add go1.2 build tag
+    
+    Fixes #6449.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13829044
+
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

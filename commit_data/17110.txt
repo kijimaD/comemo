@@ -1,0 +1,19 @@
+commit 237e7c134c948c3a4c6c9aa84b5b8dd7192af919
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 8 21:06:06 2013 -0400
+
+    cmd/cc: restore correct meaning of %Q
+    
+    g% 6c ~/x.c
+    /Users/rsc/x.c:1 duplicate types given: STRUCT s and VOID
+    /Users/rsc/x.c:1 no return at end of function: f
+    g%
+    
+    Fixes #6083.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/12691043
+
+ src/cmd/cc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

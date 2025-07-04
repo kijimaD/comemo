@@ -1,0 +1,47 @@
+commit 8ecb9a765e02a8b19d8fad2afa65aee2a068b01a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 23:32:49 2014 -0400
+
+    runtime: rename Lock to Mutex
+    
+    Mutex is consistent with package sync, and when in the
+    unexported Go form it avoids having a conflcit between
+    the type (now mutex) and the function (lock).
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, r
+    https://golang.org/cl/133140043
+
+ src/pkg/runtime/atomic_arm.c       |  4 ++--
+ src/pkg/runtime/cgocall.c          |  2 +-
+ src/pkg/runtime/chan.go            | 18 +++++++++---------
+ src/pkg/runtime/chan.h             |  2 +-
+ src/pkg/runtime/cpuprof.goc        |  2 +-
+ src/pkg/runtime/export_test.go     |  4 ++--
+ src/pkg/runtime/iface.go           | 10 +++++-----
+ src/pkg/runtime/iface.goc          |  2 +-
+ src/pkg/runtime/lock_futex.c       |  4 ++--
+ src/pkg/runtime/lock_sema.c        |  4 ++--
+ src/pkg/runtime/malloc.c           |  2 +-
+ src/pkg/runtime/malloc.go          |  4 ++--
+ src/pkg/runtime/malloc.h           | 12 ++++++------
+ src/pkg/runtime/mem_plan9.c        |  2 +-
+ src/pkg/runtime/mgc0.c             |  6 +++---
+ src/pkg/runtime/mprof.go           | 10 +++++-----
+ src/pkg/runtime/mprof.goc          |  4 ++--
+ src/pkg/runtime/netpoll.goc        |  6 +++---
+ src/pkg/runtime/os_windows.c       |  2 +-
+ src/pkg/runtime/panic.c            |  4 ++--
+ src/pkg/runtime/print.c            |  2 +-
+ src/pkg/runtime/proc.c             | 12 ++++++------
+ src/pkg/runtime/proc.go            |  2 +-
+ src/pkg/runtime/runtime.c          |  2 +-
+ src/pkg/runtime/runtime.h          | 16 ++++++++--------
+ src/pkg/runtime/sema.go            | 22 +++++++++++-----------
+ src/pkg/runtime/stack.c            |  2 +-
+ src/pkg/runtime/stubs.go           |  5 ++---
+ src/pkg/runtime/stubs.goc          |  9 ---------
+ src/pkg/runtime/syscall_windows.go |  4 ++--
+ src/pkg/runtime/time.go            | 22 +++++++++++-----------
+ 31 files changed, 96 insertions(+), 106 deletions(-)

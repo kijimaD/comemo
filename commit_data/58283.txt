@@ -1,0 +1,14 @@
+commit 733df2bc0af0f73d7bc9ee49a0d805b010293212
+Author: Meng Zhuo <mengzhuo@iscas.ac.cn>
+Date:   Thu Oct 17 14:25:20 2024 +0800
+
+    runtime: using ABIInternal on syscall for riscv64
+    
+    Change-Id: I550e6b9682df3a3ef75fba6da95c92a30da7bb22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/sys_linux_riscv64.s | 89 +++++++++--------------------------------
+ 1 file changed, 18 insertions(+), 71 deletions(-)

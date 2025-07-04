@@ -1,0 +1,13 @@
+commit f2a8cd5ad98fb5e010102727a41ddaa269923918
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 16:17:06 2009 -0700
+
+    corrected bug187; dropped on the floor somehow
+    
+    R=austin
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=34340
+    CL=34346
+
+ test/fixedbugs/bug187.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

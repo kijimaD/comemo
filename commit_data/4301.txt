@@ -1,0 +1,13 @@
+commit 6db683fe4d1e6f797b3cc6c1f7d1955c1c107826
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 3 11:25:20 2009 -0800
+
+    - include type-associated consts and vars when filtering a PackageDoc
+    - fixes a godoc issue (for instance, "godoc os EOF" now shows an entry)
+    
+    R=r
+    CC=rsc
+    https://golang.org/cl/165042
+
+ src/pkg/go/doc/doc.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

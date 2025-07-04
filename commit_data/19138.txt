@@ -1,0 +1,26 @@
+commit 85ddc68921052dbe214ed78b679e896d69f13db0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 15 10:20:04 2014 +1000
+
+    undo CL 87300043 / 1dc800571456
+    
+    This breaks "go get -d repo/path/...".
+    
+    ««« original CL description
+    cmd/go: do not miss an error if import path contains "cmd/something"
+    
+    Fixes #7638
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87300043
+    »»»
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87890043
+
+ src/cmd/go/get.go | 4 ----
+ 1 file changed, 4 deletions(-)

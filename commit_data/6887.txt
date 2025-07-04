@@ -1,0 +1,28 @@
+commit b07b04d35f5f8d5c6a0e774ae6c98bd747931ef3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 14:10:00 2010 -0500
+
+    runtime/cgo: take 2
+    
+    This is a second attempt at submitting
+    https://golang.org/cl/3420043
+    
+    A Mercurial problem lost the new files
+    in that submit.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/3511043
+
+ src/pkg/runtime/cgo/386.S          |  67 +++++++++++++++++
+ src/pkg/runtime/cgo/Makefile       |  35 +++++++++
+ src/pkg/runtime/cgo/amd64.S        |  73 +++++++++++++++++++
+ src/pkg/runtime/cgo/cgo.go         |  10 +++
+ src/pkg/runtime/cgo/darwin_386.c   | 144 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/darwin_amd64.c | 125 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/iscgo.c        |  14 ++++
+ src/pkg/runtime/cgo/libcgo.h       |  60 ++++++++++++++++
+ src/pkg/runtime/cgo/linux_386.c    |  68 ++++++++++++++++++
+ src/pkg/runtime/cgo/linux_amd64.c  |  58 +++++++++++++++
+ src/pkg/runtime/cgo/util.c         |  51 +++++++++++++
+ 11 files changed, 705 insertions(+)

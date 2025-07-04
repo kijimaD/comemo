@@ -1,0 +1,12 @@
+commit 35c85321cc20690862700a5d84f1588e18008fdf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 15:17:44 2013 -0700
+
+    doc: add summary of net/http additions to Go 1.1
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7812050
+
+ doc/go1.1.html | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

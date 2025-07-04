@@ -1,0 +1,26 @@
+commit dc4993e7c633be8c1d77c7242607cc1e23668d9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 18 16:58:05 2023 -0700
+
+    cmp: new package
+    
+    The new cmp package provides types and functions related to
+    comparing ordered values.
+    
+    For #59488
+    
+    Change-Id: I43f4b2e6036f63b87c2152672d2b6fa18235cbeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496356
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/59488.txt        |  3 ++
+ src/cmp/cmp.go            | 54 +++++++++++++++++++++++++++
+ src/cmp/cmp_test.go       | 95 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go |  2 +-
+ src/go/doc/comment/std.go |  1 +
+ 5 files changed, 154 insertions(+), 1 deletion(-)

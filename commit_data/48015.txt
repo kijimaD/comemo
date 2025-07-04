@@ -1,0 +1,25 @@
+commit 946a8669d92f18a0029abaed9cea36194562a957
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 26 12:45:12 2022 -0500
+
+    cmd/api: reduce parallel 'go list' invocations to a constant
+    
+    'go list' has its own internal parallelism, so invoking in in parallel
+    can produce up to quadratic peak memory usage.
+    
+    Running 'go list' is also very I/O-intensive, so the higher
+    parallelism does substantially improve latency; unfortunately, we lack
+    a good way to balance latency against memory footprint, so we need to
+    sacrifice some latency for reliability.
+    
+    Fixes #49957.
+    
+    Change-Id: Ib53990b46acf4cc67a9141644d97282964d6442d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380994
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/api/goapi.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

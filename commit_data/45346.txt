@@ -1,0 +1,18 @@
+commit be28caf0aa1649c4422f64e687a388a027686e6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 26 12:50:44 2021 -0700
+
+    cmd/compile/internal/types2: respect IgnoreFuncBodies for function literals
+    
+    Updates #45783.
+    
+    Change-Id: Id552a60f262e2da62125acd6aec0901a82f5a29a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313650
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/expr.go | 26 ++++++++++++++------------
+ src/cmd/compile/internal/types2/stmt.go |  4 ++++
+ 2 files changed, 18 insertions(+), 12 deletions(-)

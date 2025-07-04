@@ -1,0 +1,20 @@
+commit 7be8358f70ff858f28b9aefe11986da25f1762bc
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Oct 29 00:07:04 2020 +0100
+
+    misc/wasm: check type of argument to Go.run
+    
+    This results in a nicer error message if the argument to Go.run is
+    omitted or of the wrong type.
+    
+    Fixes #37000
+    
+    Change-Id: I7f36d007f41a79b2cea1cebf5cce127786341202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266117
+    Trust: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js | 3 +++
+ 1 file changed, 3 insertions(+)

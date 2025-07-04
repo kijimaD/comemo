@@ -1,0 +1,12 @@
+commit 17f35c6993cdaf197db79cc6e62108f05f60bd0b
+Author: Ian Kent <iankent85@gmail.com>
+Date:   Sat Sep 23 21:45:35 2017 +0100
+
+    net/http: fix copy-paste error in the ServeTLS docs
+    
+    Change-Id: Id7f0d978ce5b0471a404d6e6673b789e7db04650
+    Reviewed-on: https://go-review.googlesource.com/65653
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 0b8f1ac802a57ff26927edfefc97bf2348f7b9b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 25 12:21:10 2011 -0700
+
+    net: If we stop polling, remove any pending events for the socket
+    
+    Fixes #1872.
+    
+    R=rsc
+    CC=golang-dev, lars.pensjo
+    https://golang.org/cl/4559046
+
+ src/pkg/net/fd_linux.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

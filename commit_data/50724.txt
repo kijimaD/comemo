@@ -1,0 +1,18 @@
+commit 0582b7958e2acd9e47495f0f2ad9bef02afe50fe
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:29:41 2022 +0800
+
+    cmd/cover: remove unnecessary fmt.Sprintf
+    
+    Change-Id: I892f17a8a6464d53dbf330a41439a81cb8873262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436654
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/cover/cover.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

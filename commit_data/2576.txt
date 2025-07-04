@@ -1,0 +1,13 @@
+commit 29e6eb21ec48a06a8671328055acb0f5627d5049
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 16:28:04 2009 -0700
+
+    make a description of the slice header public
+    
+    R=rsc
+    DELTA=18  (3 added, 0 deleted, 15 changed)
+    OCL=31086
+    CL=31094
+
+ src/pkg/reflect/value.go | 33 ++++++++++++++++++---------------
+ 1 file changed, 18 insertions(+), 15 deletions(-)

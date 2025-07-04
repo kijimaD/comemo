@@ -1,0 +1,19 @@
+commit 93553dd216e59cb382d61e2352a2afb4b28135a6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 12:21:15 2015 +0900
+
+    net: fix data race in benchmarks
+    
+    Fixes #10307.
+    
+    Change-Id: If70f36a6f1c4e465a47a0bc4d38b318424111106
+    Reviewed-on: https://go-review.googlesource.com/8330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient_unix_test.go |  9 +++------
+ src/net/dnsname_test.go        |  3 +--
+ src/net/interface_test.go      | 18 ++++++------------
+ src/net/ip_test.go             |  9 +++------
+ src/net/main_test.go           | 10 ++++++++--
+ src/net/tcp_test.go            |  7 +++----
+ 6 files changed, 24 insertions(+), 32 deletions(-)

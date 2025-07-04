@@ -1,0 +1,21 @@
+commit 30919fe978fccae450ea5c4ff8c4019f240d2d1e
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Sat Jan 9 22:22:58 2016 -0500
+
+    cmd/dist: restrict parallel tests to NumCPU on mips64x
+    
+    mips64 builder and one machine of the mips64le builder has small amount
+    of memory. Since CL 18199, they have been running slowly, as more
+    processes were launched in running 'test' directory, and a lot of swap
+    were used. This CL brings all.bash from 5h back to 3h on Loongson 2E
+    with 512 MB memory.
+    
+    Change-Id: I4a22e239a542a99ba5986753205d8cd1f4b3d3c6
+    Reviewed-on: https://go-review.googlesource.com/18483
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

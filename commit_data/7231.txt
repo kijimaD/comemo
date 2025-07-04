@@ -1,0 +1,17 @@
+commit 90294a08c830b22acb8ab58113d02ae816b82274
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Jan 25 17:56:33 2011 +1100
+
+    runtime: make Walk webbrowser example work
+    
+    R=rsc, brainman, lxn
+    CC=golang-dev
+    https://golang.org/cl/4005045
+
+ src/pkg/exp/wingui/gui.go          |  2 +-
+ src/pkg/exp/wingui/winapi.go       |  2 +-
+ src/pkg/runtime/386/asm.s          |  2 +-
+ src/pkg/runtime/windows/386/sys.s  | 32 +++++++++++++++++---------------
+ src/pkg/runtime/windows/thread.c   | 12 ++++++------
+ src/pkg/syscall/syscall_windows.go |  5 +++--
+ 6 files changed, 29 insertions(+), 26 deletions(-)

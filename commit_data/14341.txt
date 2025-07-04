@@ -1,0 +1,12 @@
+commit ccef88c56f8b80e2e2c3aea9dd19be6527fb93f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 7 15:26:41 2012 -0500
+
+    api: refresh next.txt
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6811092
+
+ api/next.txt | 239 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 236 insertions(+), 3 deletions(-)

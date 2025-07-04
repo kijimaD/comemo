@@ -1,0 +1,12 @@
+commit fa0e9cd2792dd81acc7ddec5bba271d778231ad4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 21 20:59:02 2012 +1000
+
+    exp/html: refactor the parser.read method.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/6463070
+
+ src/pkg/exp/html/parse.go | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

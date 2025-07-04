@@ -1,0 +1,29 @@
+commit 3aa063d79c5ae4057e312d534abf65ac37801258
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 23 17:08:55 2008 -0800
+
+    delete stack mark strings
+    in favor of using in-memory copy of symbol table.
+    
+    $ ls -l pretty pretty.big
+    -rwxr-xr-x  1 rsc  eng  439516 Nov 21 16:43 pretty
+    -rwxr-xr-x  1 rsc  eng  580984 Nov 21 16:20 pretty.big
+    $
+    
+    R=r
+    DELTA=446  (238 added, 178 deleted, 30 changed)
+    OCL=19851
+    CL=19884
+
+ src/cmd/6l/6.out.h      |   1 -
+ src/cmd/6l/obj.c        |   1 -
+ src/cmd/6l/pass.c       |  94 ------------------------
+ src/runtime/Makefile    |   2 +
+ src/runtime/iface.c     |  11 +--
+ src/runtime/print.c     |   2 +-
+ src/runtime/rt2_amd64.c |  31 +++-----
+ src/runtime/runtime.c   |  75 ++++---------------
+ src/runtime/runtime.h   |  50 +++++++++----
+ src/runtime/string.c    |  15 +++-
+ src/runtime/symtab.c    | 190 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 268 insertions(+), 204 deletions(-)

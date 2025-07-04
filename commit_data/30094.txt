@@ -1,0 +1,18 @@
+commit b53f0f8c96a46b3cce0f1073787b74dd23f57a80
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 3 20:54:52 2017 -0500
+
+    cmd/compile: do not fold large offset on ARM64
+    
+    Fixes #18933.
+    
+    Change-Id: I8bb98e95bb4486a086d93bcf99e3a37488e77b03
+    Reviewed-on: https://go-review.googlesource.com/36318
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  84 +++++++++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 156 ++++++++++++++-------------
+ test/fixedbugs/issue6036.go                  |   2 +-
+ 3 files changed, 146 insertions(+), 96 deletions(-)

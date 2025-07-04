@@ -1,0 +1,45 @@
+commit 842b05832fb5088a212e30962f58c95a38296d32
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 11:08:47 2016 -0700
+
+    all: use testing.GoToolPath instead of "go"
+    
+    This change makes sure that tests are run with the correct
+    version of the go tool.  The correct version is the one that
+    we invoked with "go test", not the one that is first in our path.
+    
+    Fixes #16577
+    
+    Change-Id: If22c8f8c3ec9e7c35d094362873819f2fbb8559b
+    Reviewed-on: https://go-review.googlesource.com/28089
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go           |  4 ++--
+ src/cmd/compile/internal/gc/asm_test.go       |  8 ++++----
+ src/cmd/compile/internal/gc/builtin_test.go   |  2 +-
+ src/cmd/compile/internal/gc/global_test.go    |  6 +++---
+ src/cmd/compile/internal/gc/ssa_test.go       |  2 +-
+ src/cmd/cover/cover_test.go                   |  4 ++--
+ src/cmd/go/go_windows_test.go                 |  3 ++-
+ src/cmd/internal/obj/x86/obj6_test.go         |  8 +-------
+ src/cmd/nm/nm_test.go                         |  2 +-
+ src/cmd/objdump/objdump_test.go               |  4 ++--
+ src/cmd/pack/pack_test.go                     | 16 +++++++++-------
+ src/cmd/vet/vet_test.go                       |  2 +-
+ src/crypto/x509/x509_test.go                  |  2 +-
+ src/debug/gosym/pclntab_test.go               |  4 ++--
+ src/debug/pe/file_test.go                     |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  3 +--
+ src/net/http/http_test.go                     |  2 +-
+ src/os/signal/signal_windows_test.go          |  3 ++-
+ src/runtime/crash_cgo_test.go                 |  2 +-
+ src/runtime/crash_test.go                     |  6 +++---
+ src/runtime/crash_unix_test.go                |  2 +-
+ src/runtime/race/output_test.go               |  3 ++-
+ src/runtime/race/race_test.go                 |  7 ++++---
+ src/runtime/race/testdata/cgo_test.go         |  3 ++-
+ src/runtime/runtime-gdb_test.go               |  6 +++---
+ src/runtime/runtime-lldb_test.go              |  4 ++--
+ 26 files changed, 55 insertions(+), 55 deletions(-)

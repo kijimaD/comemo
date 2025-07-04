@@ -1,0 +1,21 @@
+commit 6aa28d3e06d0757995c54a22d2f2a1f1b396774f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 13 17:07:09 2021 -0500
+
+    go/build: report positions for go:embed directives
+    
+    For #43469
+    For #43632
+    
+    Change-Id: I9ac2da690344935da0e1dbe00b134dfcee65ec8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283636
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ api/go1.16.txt            |  3 ++
+ src/go/build/build.go     | 68 +++++++++++++++++++++++++------------------
+ src/go/build/read.go      | 74 +++++++++++++++++++++++++++++++++++------------
+ src/go/build/read_test.go | 57 ++++++++++++++++++++++++------------
+ 4 files changed, 136 insertions(+), 66 deletions(-)

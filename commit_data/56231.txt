@@ -1,0 +1,27 @@
+commit 081dc9fd8c9cf824f5caac3a03a1c8dfd86894c0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 29 15:15:44 2024 -0500
+
+    cmd/go: preprocess PGO profiles
+    
+    Following the previous CL, now actually run the preprofile tool to create the
+    preprocessed output.
+    
+    There is still no build cache integration, so the tool will run on every
+    build even if nothing has changed.
+    
+    For #58102.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I0414377a956889f457e50898737fcaa8a698658d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569424
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go                               | 2 +-
+ src/cmd/go/internal/work/action.go                  | 7 +------
+ src/cmd/go/testdata/script/build_pgo.txt            | 9 +++++++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt       | 2 +-
+ src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 4 ++--
+ 5 files changed, 12 insertions(+), 12 deletions(-)

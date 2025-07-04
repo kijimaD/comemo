@@ -1,0 +1,14 @@
+commit b78f5f0e3a88340bc3a047ffc5e2d222074e78b6
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Jan 12 11:18:15 2013 +1100
+
+          testing: document whitespace trimming of example expected/actual output.
+    
+    Fixes #4642.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7090044
+
+ src/pkg/testing/testing.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

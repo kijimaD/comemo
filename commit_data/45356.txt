@@ -1,0 +1,23 @@
+commit e0815d041c55dad8ae5642466b08fc2f520a59d4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 25 18:26:30 2021 +1000
+
+    runtime: replace --buildmode with -buildmode in tests
+    
+    While debugging issue #45638, I discovered that some tests were using
+    --buildmode command line parameter instead of -buildmode.
+    
+    The --buildmode parameter is handled properly by the flag package - it
+    is read as -buildmode. But we should correct code anyway.
+    
+    Updates #45638
+    
+    Change-Id: I75cf95c7d11dcdf4aeccf568b2dea77bd8942352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313351
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/signal_windows_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

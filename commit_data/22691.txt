@@ -1,0 +1,14 @@
+commit 711a1642679ee0beac7501902c6f400946361171
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 23 18:55:23 2015 -0400
+
+    runtime: fix some out-of-date comments
+    
+    bgMarkCount no longer exists.
+    
+    Change-Id: I3aa406fdccfca659814da311229afbae55af8304
+    Reviewed-on: https://go-review.googlesource.com/9297
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

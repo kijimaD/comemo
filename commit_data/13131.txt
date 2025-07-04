@@ -1,0 +1,17 @@
+commit 1c4b77a7c8adc6eed393a83991a3a67b88739050
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 23 02:27:44 2012 +0800
+
+    cmd/ld: take section symbols' value into account for PE
+        ld -r could generate multiple section symbols for the same section,
+    but with different values, we have to take that into account.
+        Fixes #3322.
+        Part of issue 3261.
+        For CL 5822049.
+    
+    R=golang-dev, iant, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5823059
+
+ src/cmd/ld/ldpe.c | 5 +++++
+ 1 file changed, 5 insertions(+)

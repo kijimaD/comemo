@@ -1,0 +1,40 @@
+commit 7ccd3583eddcd79679fb29cfc83a6e6fb6973f1e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Feb 5 15:27:56 2019 -0500
+
+    crypto/tls: disable RSA-PSS in TLS 1.2
+    
+    Most of the issues that led to the decision on #30055 were related to
+    incompatibility with or faulty support for RSA-PSS (#29831, #29779,
+    v1.5 signatures). RSA-PSS is required by TLS 1.3, but is also available
+    to be negotiated in TLS 1.2.
+    
+    Altering TLS 1.2 behavior based on GODEBUG=tls13=1 feels surprising, so
+    just disable RSA-PSS entirely in TLS 1.2 until TLS 1.3 is on by default,
+    so breakage happens all at once.
+    
+    Updates #30055
+    
+    Change-Id: Iee90454a20ded8895e5302e8bcbcd32e4e3031c2
+    Reviewed-on: https://go-review.googlesource.com/c/160998
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ doc/go1.12.html                                    |  10 +-
+ src/crypto/tls/common.go                           |   5 +-
+ src/crypto/tls/conn_test.go                        |   1 +
+ src/crypto/tls/handshake_client_test.go            |  24 +++
+ src/crypto/tls/handshake_server.go                 |   4 +-
+ src/crypto/tls/handshake_server_test.go            | 146 ++++++++++++-----
+ src/crypto/tls/key_agreement.go                    |   2 +-
+ .../Client-TLSv12-ClientCert-RSA-PSS-Disabled      | 137 ++++++++++++++++
+ .../Client-TLSv13-ClientCert-RSA-PSS-Disabled      | 138 ++++++++++++++++
+ ...TLSv12-ClientAuthRequestedAndGiven-PSS-Disabled | 126 ++++++++++++++
+ ...ientAuthRequestedAndGiven-PSS-Disabled-Required |  74 +++++++++
+ .../tls/testdata/Server-TLSv12-RSA-PSS-Disabled    |  84 ++++++++++
+ .../Server-TLSv12-RSA-PSS-Disabled-Required        |  54 ++++++
+ ...TLSv13-ClientAuthRequestedAndGiven-PSS-Disabled | 182 +++++++++++++++++++++
+ .../tls/testdata/Server-TLSv13-RSA-PSS-Disabled    | 103 ++++++++++++
+ src/crypto/tls/tls_test.go                         |   8 +-
+ 16 files changed, 1047 insertions(+), 51 deletions(-)

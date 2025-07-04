@@ -1,0 +1,22 @@
+commit 389093feec0f71d3cd0cfe44e31600187ad24191
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 3 08:26:08 2013 +1100
+
+    cmd/gc: preserve safe annotation of package def.
+    
+    A package file may begin as either "package foo" or
+    "package foo safe". The latter is relevant when using -u.
+    https://golang.org/cl/6903059 resulted in the distinction
+    being dropped when a package was read for the second or later time.
+    This CL records whether that "safe" tag was present,
+    and includes it in the dummy statement generated for the lexer.
+    
+    R=golang-dev, r, minux.ma, daniel.morsing, iant
+    CC=golang-dev
+    https://golang.org/cl/8255044
+
+ src/cmd/gc/go.h    |   1 +
+ src/cmd/gc/go.y    |   3 +-
+ src/cmd/gc/lex.c   |  10 +-
+ src/cmd/gc/y.tab.c | 589 +++++++++++++++++++++++++++--------------------------
+ 4 files changed, 304 insertions(+), 299 deletions(-)

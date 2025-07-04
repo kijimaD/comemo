@@ -1,0 +1,27 @@
+commit bd4f94057fa31fccc4fcc45a64b330e85e20b911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 10:55:57 2009 -0800
+
+    gofmt-ify syscall
+    (replacement for CL 1018053)
+    
+    R=r
+    http://go/go-review/1017047
+
+ src/pkg/syscall/errstr.go               | 13 +++--
+ src/pkg/syscall/exec.go                 | 27 ++++-------
+ src/pkg/syscall/syscall_darwin.go       | 49 ++++++++++---------
+ src/pkg/syscall/syscall_darwin_386.go   |  8 ++--
+ src/pkg/syscall/syscall_darwin_amd64.go |  8 ++--
+ src/pkg/syscall/syscall_linux.go        | 65 +++++++++++++------------
+ src/pkg/syscall/syscall_linux_386.go    | 44 ++++++++---------
+ src/pkg/syscall/syscall_linux_amd64.go  |  8 ++--
+ src/pkg/syscall/syscall_linux_arm.go    | 11 ++---
+ src/pkg/syscall/syscall_nacl.go         | 84 ++++++++++++++++-----------------
+ src/pkg/syscall/syscall_nacl_386.go     |  4 +-
+ src/pkg/syscall/zerrors_linux_arm.go    |  2 +-
+ src/pkg/syscall/zsysnum_linux_386.go    |  3 +-
+ src/pkg/syscall/zsysnum_linux_amd64.go  |  3 +-
+ src/pkg/syscall/zsysnum_linux_arm.go    |  5 +-
+ src/pkg/syscall/ztypes_linux_arm.go     | 12 ++---
+ 16 files changed, 168 insertions(+), 178 deletions(-)

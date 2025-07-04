@@ -1,0 +1,23 @@
+commit 325540922a228dd8ab80abb200b834d043d5b925
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu May 21 23:58:39 2020 -0400
+
+    doc: update contribution guide to make it friendlier for x/ repos
+    
+    The current contributor documentation is tailored towards contributors
+    to golang/go, but we have a number of increasingly popular x/ repos.
+    In this CL, I tried to generalize the language to make it apply to any
+    repository.
+    
+    Also, I fixed an old link I noticed in editors.html.
+    
+    Change-Id: Id9d8e448262ed8c3a67f49be5d554ca29df9d3c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234899
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ doc/contribute.html | 140 +++++++++++++++++++++++++++++++++++++++-------------
+ doc/editors.html    |   2 +-
+ 2 files changed, 108 insertions(+), 34 deletions(-)

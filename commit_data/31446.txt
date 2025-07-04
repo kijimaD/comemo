@@ -1,0 +1,19 @@
+commit cf1b323fc891664b2c72726db51933b6f75f5dac
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Apr 29 01:42:19 2017 -0600
+
+    net/http: enable TestRequestDoesntBodyCloseDoesntBlock
+    
+    Fixes #7121.
+    
+    CL 31173 inadvertently fixed this issue in the Go1.8 cycle.
+    This CL enables the test for that issue.
+    
+    Change-Id: I8e73b41f646fa89c75bff833c1b07e1cdb2b1e62
+    Reviewed-on: https://go-review.googlesource.com/42149
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

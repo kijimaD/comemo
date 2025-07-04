@@ -1,0 +1,21 @@
+commit bfe72ec56a64bf3d26c48ca364c76494874ba1a0
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu May 14 07:43:01 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (5)
+    
+    From "absorb InvertFlags" until "constant folding in *shift ops"
+    L666-L1011
+    Toolstash-check is successful.
+    
+    Change-Id: Ieed7d4643dc3dc2b3649477e87aebd22c81d1322
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234197
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 532 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM.go | 922 ++++++++++++++---------------
+ 2 files changed, 727 insertions(+), 727 deletions(-)

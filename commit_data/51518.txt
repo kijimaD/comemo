@@ -1,0 +1,23 @@
+commit 5167e5cd64b2d4710dd8a20d2a599674d5d94861
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 6 11:58:10 2022 -0800
+
+    archive/zip: only consider UncompressedSize when checking dirs
+    
+    CL 454475 switched from checking CompressedSize to UncompressedSize
+    when determining if we should consider an archive malformed because
+    it contains data and added a test for an example of this (a JAR). We
+    should also remove the hasDataDescriptor check, since that is basically
+    an alias for CompressedSize > 0. The test didn't catch this because we
+    didn't actually attempt to read from the returned reader.
+    
+    Change-Id: Ibc4c1aa9c3a733f3ebf4a956d1e2f8f4900a29cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455523
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/archive/zip/reader.go      | 2 +-
+ src/archive/zip/reader_test.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

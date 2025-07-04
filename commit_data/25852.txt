@@ -1,0 +1,21 @@
+commit c4cb365ea23f4e3bd571f63a16d59ad6c01df145
+Author: Prashant Varanasi <prashant@prashantv.com>
+Date:   Sat Feb 20 09:43:15 2016 -0800
+
+    net: fix for DialTimeout errors with large timeout
+    
+    The existing implementation converts the deadline time to an int64,
+    but does not handle overflow. If the calculated deadline is negative
+    but the user specified deadline is in the future, then we can assume
+    the calculation overflowed, and set the deadline to math.MaxInt64.
+    
+    Fixes #14431
+    
+    Change-Id: I54dbb4f02bc7ffb9cae8cf62e4e967e9c6541ec6
+    Reviewed-on: https://go-review.googlesource.com/19758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/fd_poll_runtime.go |  8 +++++++-
+ src/net/timeout_test.go    | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

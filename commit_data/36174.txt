@@ -1,0 +1,27 @@
+commit cdac6c22c30cbe75031563ff2859d0314aa8477b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 12:59:42 2018 -0400
+
+    cmd/go: allow list of absolute directory path
+    
+    Relative directory paths have always worked.
+    This CL makes absolute directory paths be handled the same way.
+    (It was an oversight that they were excluded.)
+    
+    It also fixes the case of naming the directory holding source code
+    for a package in a module dependency.
+    
+    Fixes #14177.
+    Fixes #26550.
+    
+    Change-Id: I29a0ca2795d35eca773121ee91a97628b56947ce
+    Reviewed-on: https://go-review.googlesource.com/126715
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go             |  8 ++++--
+ src/cmd/go/internal/modload/load.go         | 40 ++++++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_list_dir.txt | 27 +++++++++++++++++++
+ 3 files changed, 69 insertions(+), 6 deletions(-)

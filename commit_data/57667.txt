@@ -1,0 +1,20 @@
+commit 5c1a68aedd09ba9992ca0b1c6d0a00d8e1ce8f8f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Oct 14 21:32:40 2024 +0200
+
+    internal/syscall/windows: fix handle leak in Mkdirat
+    
+    Mkdirat does not close the handle returned by CreateFile, but it should.
+    
+    Mkdirat has been introduced in this developer cycle, so it is not
+    necessary to backport this fix to any release branch.
+    
+    Change-Id: Icddac5ccdc6a142a5be5392a39aba2ae7cc9c69a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+
+ src/internal/syscall/windows/at_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

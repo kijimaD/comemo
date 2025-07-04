@@ -1,0 +1,20 @@
+commit 076166ab4e13506c90448b5d6e0f34c3939ee76f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 12 01:52:37 2024 +0800
+
+    net/http: add ParseCookie, ParseSetCookie
+    
+    Fixes #66008
+    
+    Change-Id: I64acb7da47a03bdef955f394682004906245a18b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578275
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/66008.txt                           |   2 +
+ doc/next/6-stdlib/99-minor/net/http/66008.md |   7 +
+ src/net/http/cookie.go                       | 218 ++++++++++++++++-----------
+ src/net/http/cookie_test.go                  | 203 +++++++++++++++++++++++++
+ 4 files changed, 342 insertions(+), 88 deletions(-)

@@ -1,0 +1,15 @@
+commit 51266761fdbe1b22fc354d7536123492a51769cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 14:22:37 2013 -0400
+
+    cmd/gc: fix divide by zero error in compiler
+    
+    Fixes #6399.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13253055
+
+ src/cmd/gc/walk.c           |  2 +-
+ test/fixedbugs/issue6399.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

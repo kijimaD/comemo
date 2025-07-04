@@ -1,0 +1,22 @@
+commit c10db03cbe152c0851a0794fe230c4b40bbdbd82
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 31 17:11:50 2019 -0400
+
+    cmd/compile: make sure build works when intrinsics are disabled
+    
+    Some runtime functions, like getcallerpc/sp, don't have Go or
+    assembly implementations and have to be intrinsified. Make sure
+    they are, even if intrinsics are disabled.
+    
+    This makes "go build -gcflags=all=-d=ssa/intrinsics/off hello.go"
+    work.
+    
+    Change-Id: I77caaed7715d3ca7ffef68a3cdc9357f095c6b9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179897
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

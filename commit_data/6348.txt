@@ -1,0 +1,12 @@
+commit 43527e9dbb14e8a4f66690c918ec2933d8997a50
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 23 11:32:11 2010 +1000
+
+    netchan: fix comment typo.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2204047
+
+ src/pkg/netchan/import.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

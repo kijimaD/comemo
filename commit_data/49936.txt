@@ -1,0 +1,21 @@
+commit 5b0ce94c07524f910278de1d90e31c5bc0805bbd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 14:13:06 2022 +0700
+
+    runtime: convert g.parkingOnChan to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I54de39b984984fb3c160aba5afacb90131fd47c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424394
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/chan.go     | 6 +++---
+ src/runtime/runtime2.go | 4 ++--
+ src/runtime/select.go   | 5 ++---
+ src/runtime/stack.go    | 4 ++--
+ 4 files changed, 9 insertions(+), 10 deletions(-)

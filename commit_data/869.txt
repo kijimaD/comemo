@@ -1,0 +1,13 @@
+commit 7cd173a4f893c3e86d34c95f78aa5d3758b14c89
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 17:09:42 2008 -0700
+
+    error about & at top level until it is safe
+    
+    R=ken
+    OCL=17241
+    CL=17241
+
+ src/cmd/gc/go.h | 2 ++
+ src/cmd/gc/go.y | 4 ++++
+ 2 files changed, 6 insertions(+)

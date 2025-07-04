@@ -1,0 +1,13 @@
+commit 7ff2536633fd7ccbaec4cbf071ddc308ce7937e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 18 16:26:34 2009 -0700
+
+    - make godoc restart feature work properly
+    
+    R=rsc
+    DELTA=11  (10 added, 0 deleted, 1 changed)
+    OCL=29007
+    CL=29009
+
+ usr/gri/pretty/godoc.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit e940358fc938bb6f3882358347409c5882968777
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 24 17:17:38 2018 -0500
+
+    cmd/internal/obj/mips: support NOFRAME
+    
+    This passes toolstash -cmp with one exception: assembly functions that
+    were declared with a frame size of -4 (or -8) used to record
+    locals=0xfffffffffffffffc in the object file and now record
+    locals=0x0. This doesn't affect anything.
+    
+    Change-Id: I0d15e81770e54222ae329ce4496da06016736771
+    Reviewed-on: https://go-review.googlesource.com/92041
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/mips/obj0.go | 71 ++++++++++++++++++++++++++-------------
+ 1 file changed, 48 insertions(+), 23 deletions(-)

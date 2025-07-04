@@ -1,0 +1,17 @@
+commit 6e54fe47cecc93426f26b9c6c9807733dc62911a
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Apr 27 11:37:24 2017 +0200
+
+    misc/ios: increase iOS test harness timeout
+    
+    The "lldb start" phase often times out on the iOS builder. Increase
+    the timeout and see if that helps.
+    
+    Change-Id: I92fd67cbfa90659600e713198d6b2c5c78dde20f
+    Reviewed-on: https://go-review.googlesource.com/41863
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

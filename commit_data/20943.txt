@@ -1,0 +1,12 @@
+commit ea51f2d304f4df094791edd704c96e0585f6b837
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 8 15:11:11 2014 -0800
+
+    cmd/objdump: Fix error logging
+    
+    Change-Id: I6b1b4d3e8c039ba3198cb4b9765de75859ea8c32
+    Reviewed-on: https://go-review.googlesource.com/1214
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

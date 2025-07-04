@@ -1,0 +1,29 @@
+commit 73981695a2518b6eae7f8ffe74d224691c60d433
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 15 22:15:37 2024 +0000
+
+    runtime: push down systemstack requirement for tracer where possible
+    
+    Currently lots of functions require systemstack because the trace buffer
+    might get flushed, but that will already switch to the systemstack for
+    the most critical bits (grabbing trace.lock). That means a lot of this
+    code is non-preemptible when it doesn't need to be. We've seen this
+    cause problems at scale, when dumping very large numbers of stacks at
+    once, for example.
+    
+    This is a re-land of CL 572095 which was reverted in CL 577376. This
+    re-land includes a fix of the test that broke on the longtest builders.
+    
+    Change-Id: Ia8d7cbe3aaa8398cf4a1818bac66c3415a399348
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577377
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/crash_test.go   | 11 +++++++++--
+ src/runtime/trace2.go       | 20 ++++++++++----------
+ src/runtime/trace2cpu.go    | 15 ++++++---------
+ src/runtime/trace2stack.go  | 13 +++++--------
+ src/runtime/trace2string.go | 25 ++++++++++++-------------
+ 5 files changed, 42 insertions(+), 42 deletions(-)

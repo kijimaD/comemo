@@ -1,0 +1,13 @@
+commit 00eb56c15bfbe9fec5e19fd71038bc20ec342d4b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 7 20:30:55 2010 -0700
+
+    gotest: update URL printed by failure message.
+    Fixes #677.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/834046
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

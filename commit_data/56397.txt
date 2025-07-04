@@ -1,0 +1,26 @@
+commit 2141315251da47745c8f649c01e598a19bd68897
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Mar 29 19:59:47 2024 +0100
+
+    runtime: move profiling pc buffers to m
+    
+    Move profiling pc buffers from being stack allocated to an m field.
+    
+    This is motivated by the next patch, which will increase the default
+    stack depth to 128, which might lead to undesirable stack growth for
+    goroutines that produce profiling events.
+    
+    Additionally, this change paves the way to make the stack depth
+    configurable via GODEBUG.
+    
+    Change-Id: Ifa407f899188e2c7c0a81de92194fdb627cb4b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574699
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go   |  2 +-
+ src/runtime/mprof.go    | 37 ++++++++++++++++++-------------------
+ src/runtime/proc.go     | 10 ++++++++++
+ src/runtime/runtime2.go |  1 +
+ 4 files changed, 30 insertions(+), 20 deletions(-)

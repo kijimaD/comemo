@@ -1,0 +1,15 @@
+commit 516bf6535cc0037aad0112920e5388c3862f06bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 23 21:54:07 2009 -0700
+
+    - cannot declare local variable named like a constant in outer scope
+    - submitted per discussion w/ ken
+    
+    TBR=ken
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=27824
+    CL=27826
+
+ test/bugs/bug144.go | 21 +++++++++++++++++++++
+ test/golden.out     |  8 ++++++++
+ 2 files changed, 29 insertions(+)

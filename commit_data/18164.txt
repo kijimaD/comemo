@@ -1,0 +1,30 @@
+commit 29fe067ba7257bcfa7b1a15304592997b0d3c294
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 6 01:34:56 2014 +1100
+
+    crypto/sha1, crypto/sha256, crypto/sha512: use copy for partial block
+    
+    Use copy rather than a hand rolled loop when moving a partial input
+    block to the scratch area. This results in a reasonable performance
+    gain when partial blocks are written.
+    
+    Benchmarks on Intel(R) Xeon(R) CPU X5650  @ 2.67GHz with Go amd64:
+    
+           benchmark               old MB/s     new MB/s  speedup
+    SHA1   BenchmarkHash8Bytes        18.37        22.80    1.24x
+    SHA256 BenchmarkHash8Bytes        11.86        13.78    1.16x
+    SHA512 BenchmarkHash8Bytes         4.51         5.24    1.16x
+    
+           benchmark              old ns/op    new ns/op    delta
+    SHA1   BenchmarkHash8Bytes          435          350  -19.54%
+    SHA256 BenchmarkHash8Bytes          674          580  -13.95%
+    SHA512 BenchmarkHash8Bytes         1772         1526  -13.88%
+    
+    R=agl, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/35840044
+
+ src/pkg/crypto/sha1/sha1.go     | 10 ++--------
+ src/pkg/crypto/sha256/sha256.go | 10 ++--------
+ src/pkg/crypto/sha512/sha512.go | 10 ++--------
+ 3 files changed, 6 insertions(+), 24 deletions(-)

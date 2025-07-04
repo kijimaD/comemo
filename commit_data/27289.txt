@@ -1,0 +1,12 @@
+commit 0960c7c7eb30b3d651037c799aaa0d80722f063f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 5 14:22:34 2016 -0400
+
+    context: use https in docs
+    
+    Change-Id: I9354712768702e3b083c77f30165a34cb414d686
+    Reviewed-on: https://go-review.googlesource.com/22810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

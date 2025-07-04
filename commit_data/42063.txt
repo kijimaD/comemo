@@ -1,0 +1,16 @@
+commit 141b11d5a12f8bdf4825227db70e2a4309906ae9
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 17 10:23:07 2020 -0400
+
+    crypto/x509: disallow setting MaxPathLen without IsCA
+    
+    Fixes #38216
+    
+    Change-Id: I3222abe2153abb4cbfa65a4825c153ce128f56a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228777
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go      |  4 ++++
+ src/crypto/x509/x509_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

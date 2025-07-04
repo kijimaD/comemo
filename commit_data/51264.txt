@@ -1,0 +1,18 @@
+commit 6df542159b195f4564ea1f380dd95eddba5fb2b9
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 14 12:35:19 2022 -0800
+
+    doc/go1.20: add release notes for archive/zip, encoding/binary, mime
+    
+    For #48866
+    For #54139
+    For #54801
+    
+    Change-Id: Iafe72ccc7e756ec1edb5bb7e8e90d385458cff29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450280
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

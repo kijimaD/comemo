@@ -1,0 +1,24 @@
+commit 94eda9ae37d9f8a34c44c1ad1a030b4475f79faf
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Fri Oct 23 16:33:38 2020 -0700
+
+    syscall: disable TestAllThreadsSyscall on linux-ppc64
+    
+    For some reason, currently unknown, this test case fails exclusively
+    on the linux-ppc64 platform. Until such time as it can be made to
+    work, we'll disable this test case on that platform.
+    
+    The same issue causes TestSetuidEtc to fail too, so disable that
+    on this platform.
+    
+    Updates #42178
+    
+    Change-Id: Idd3f6c2ee9f2fba2eb8ce4de69de7f316858bb15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264719
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

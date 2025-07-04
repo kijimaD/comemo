@@ -1,0 +1,26 @@
+commit c8dea8198e256b75bf3b21980873caaace9d353e
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Mon Apr 20 21:35:57 2020 +0300
+
+    cmd/go: allow generate to process invalid packages
+    
+    Allow go generate to process packages that contain invalid code. Ignore
+    errors when loading the package, but process only files which have a
+    valid package clause. Set $GOPACKAGE individually for each file, based
+    on the package clause.
+    
+    Add test script for go generate and invalid packages.
+    
+    Fixes #36422
+    
+    Change-Id: I91ea088346a1548ccd6678b4595a527b948331ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229097
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                           |   3 +
+ src/cmd/go/internal/generate/generate.go        |  33 ++--
+ src/cmd/go/testdata/script/generate_invalid.txt | 199 ++++++++++++++++++++++++
+ 3 files changed, 223 insertions(+), 12 deletions(-)

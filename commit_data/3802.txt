@@ -1,0 +1,18 @@
+commit 30c7088c959edb8fb0d2f8eb1405fb4e446694b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 09:40:28 2009 -0800
+
+    gofmt-ify template, time, unsafe, flag, fmt
+    (replacement for CLs 1017039, 1017041, 1017040, 1018054)
+    
+    R=r
+    http://go/go-review/1018060
+
+ src/pkg/flag/flag.go       |  2 +-
+ src/pkg/flag/flag_test.go  |  4 ++--
+ src/pkg/fmt/fmt_test.go    | 10 +++++-----
+ src/pkg/fmt/print.go       |  4 ++--
+ src/pkg/template/format.go | 10 +++++-----
+ src/pkg/time/tick_test.go  |  4 ++--
+ src/pkg/unsafe/unsafe.go   |  2 +-
+ 7 files changed, 18 insertions(+), 18 deletions(-)

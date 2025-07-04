@@ -1,0 +1,12 @@
+commit e8d30eb4045f35b9bf0947a1cb7fd91a65aad9ea
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 14 12:37:57 2012 +1100
+
+    cmd/api: fix typo.
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/5659048
+
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

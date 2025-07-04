@@ -1,0 +1,19 @@
+commit 21315c34281998be4f66fd6fae1d29c418f9b522
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 1 15:19:45 2013 +0400
+
+    runtime: fix netbsd/arm build
+    Currently fails with:
+    fatal error: runtime: stack split during syscall
+    goroutine 2 [stack split]:
+    _vasop(0x3ac4a0, 0x505f8f00, 0x7a5a8, 0x7, 0x1ed3797f, ...)
+            src/pkg/runtime/vlrt_arm.c:513 fp=0x505f8ecc
+    runtime.semasleep(0xf8475800, 0xd)
+            src/pkg/runtime/os_netbsd.c:97 +0x178 fp=0x505f8efc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12246043
+
+ src/pkg/runtime/os_netbsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

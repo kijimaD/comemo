@@ -1,0 +1,20 @@
+commit 3959d54c0bd5c92fe0a5e33fedb0595723efc23b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 20 00:55:15 2024 +0700
+
+    runtime: mark lockWithRankMayAcquire as nosplit
+    
+    The function is called in nosplit context already.
+    
+    Fixes #68525
+    
+    Change-Id: I8b9e324335b7c605d5a20cacdd58df09b7a7cf52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599675
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/lockrank_off.go  |  3 +++
+ test/fixedbugs/issue68525.go | 13 +++++++++++++
+ 2 files changed, 16 insertions(+)

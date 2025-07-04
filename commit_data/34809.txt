@@ -1,0 +1,27 @@
+commit 26e0e8a840249d13f94596ebb519154505bd15f4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 2 17:33:38 2018 -0700
+
+    cmd/compile: improve declaration position precision
+    
+    Previously, n.Pos was reassigned to lineno when declare was called,
+    which might not match where the identifier actually appeared in the
+    source. This caused a loss of position precision for function
+    parameters (which were all declared at the last parameter's position),
+    and required some clumsy workarounds in bimport.go.
+    
+    This CL changes declare to leave n.Pos alone and also fixes a few
+    places where n.Pos was not being set correctly.
+    
+    Change-Id: Ibe5b5fd30609c684367207df701f9a1bfa82867f
+    Reviewed-on: https://go-review.googlesource.com/104275
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  2 +-
+ src/cmd/compile/internal/gc/bimport.go | 13 +++---------
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     | 38 +++++++++++++++-------------------
+ src/cmd/compile/internal/gc/export.go  | 21 +++++--------------
+ src/cmd/compile/internal/gc/noder.go   |  8 +++----
+ src/cmd/compile/internal/gc/subr.go    |  2 +-
+ 7 files changed, 31 insertions(+), 55 deletions(-)

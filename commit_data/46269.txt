@@ -1,0 +1,31 @@
+commit df4c625d88859003df65bc5d528942ee6ba793a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 1 17:01:26 2021 -0700
+
+    cmd/compile: disable type list syntax for the compiler
+    
+    Add (temporary) syntax.AllowTypeLists mode to control the
+    acceptance of type lists; the compiler doesn't set it,
+    but existing syntax and types2 tests do so that the code
+    remains exercised while it exists.
+    
+    Adjust various tests to use the type set notation.
+    
+    Change-Id: I798e607912552db6bfe38a7cd4324b74c6bf4d95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347249
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/error_test.go   |  2 +-
+ src/cmd/compile/internal/syntax/parser.go       | 11 ++++++---
+ src/cmd/compile/internal/syntax/parser_test.go  |  2 +-
+ src/cmd/compile/internal/syntax/printer_test.go |  4 ++--
+ src/cmd/compile/internal/syntax/syntax.go       |  1 +
+ src/cmd/compile/internal/types2/check_test.go   |  2 +-
+ test/typeparam/append.go                        |  2 +-
+ test/typeparam/double.go                        |  2 +-
+ test/typeparam/settable.go                      |  2 +-
+ test/typeparam/typelist.go                      | 31 ++++++++++++++-----------
+ 10 files changed, 34 insertions(+), 25 deletions(-)

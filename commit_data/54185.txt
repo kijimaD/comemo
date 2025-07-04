@@ -1,0 +1,38 @@
+commit 2763146099384e320e2d1c0fc41b3b3906050652
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 21 13:06:23 2023 -0700
+
+    encoding/json: encode \b and \f as '\b' and '\f' in JSON strings
+    
+    According to RFC 8259, there are exactly 5 control characters
+    that have a shorter escape sequence than the generic \uXXXX format.
+    
+    Over the years, we added ad-hoc support for the short sequences:
+    * https://go.dev/cl/4678046 supports \r and \n
+    * https://go.dev/cl/162340043 supports \t
+    
+    This CL completes the set by supporting \b and \f.
+    
+    This may change the encoding of strings in relatively rare cases,
+    but is a permissible change since the Go 1 compatibility document does
+    not guarantee that "json" produces byte-for-byte identical outputs.
+    
+    In fact, we have made even more observable output changes in the past
+    such as with https://go.dev/cl/30371 which changes the representation
+    of many JSON numbers.
+    
+    This change is to prepare the path forward for a potential
+    v2 "json" package, which has more consistent encoding of JSON strings.
+    
+    Change-Id: I11102a0602dfb1a0c14eaad82ed23e8df7553c6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521675
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/encoding/json/encode.go      | 4 ++++
+ src/encoding/json/encode_test.go | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

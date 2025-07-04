@@ -1,0 +1,16 @@
+commit c2013e8a35107f13dcab14671be199f5a3375508
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 28 15:18:35 2014 +1100
+
+    image/jpeg: return a FormatError when hitting an unexpected io.EOF
+    inside Huffman-encoded data.
+    
+    Fixes #6450.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/69830043
+
+ src/pkg/image/jpeg/huffman.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

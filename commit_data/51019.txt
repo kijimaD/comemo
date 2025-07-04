@@ -1,0 +1,27 @@
+commit 99862cd57dd9406180f238e8fa2fcc1d435fb163
+Author: Raj Barik <rajbarik@uber.com>
+Date:   Fri Sep 9 11:29:32 2022 -0700
+
+    cmd/compile: Enables PGO in Go and performs profile-guided inlining
+    For #55022
+    
+    Change-Id: I51f1ba166d5a66dcaf4b280756be4a6bf9545c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429863
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/debug.go             |   62 +-
+ src/cmd/compile/internal/base/flag.go              |    1 +
+ src/cmd/compile/internal/gc/main.go                |   17 +
+ src/cmd/compile/internal/inline/inl.go             |  169 +++-
+ src/cmd/compile/internal/pgo/graph.go              | 1033 ++++++++++++++++++++
+ src/cmd/compile/internal/pgo/irgraph.go            |  480 +++++++++
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  148 +++
+ .../test/testdata/pgo/inline/inline_hot.go         |   86 ++
+ .../test/testdata/pgo/inline/inline_hot.pprof      |  Bin 0 -> 1423 bytes
+ .../test/testdata/pgo/inline/inline_hot_test.go    |   47 +
+ src/cmd/dist/buildtool.go                          |    1 +
+ src/internal/profile/legacy_profile.go             |   16 +-
+ 12 files changed, 2015 insertions(+), 45 deletions(-)

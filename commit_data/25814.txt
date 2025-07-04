@@ -1,0 +1,42 @@
+commit e43c74a0d8848d58814e1a8302d8f115d7f0b874
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 27 12:49:13 2016 -0800
+
+    all: use cannot instead of can not
+    
+    You can not use cannot, but you cannot spell cannot can not.
+    
+    Change-Id: I2f0971481a460804de96fd8c9e46a9cc62a3fc5b
+    Reviewed-on: https://go-review.googlesource.com/19772
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/archive/zip/writer.go          | 2 +-
+ src/cmd/cgo/doc.go                 | 2 +-
+ src/cmd/cgo/gcc.go                 | 4 ++--
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ src/cmd/go/go_test.go              | 2 +-
+ src/database/sql/sql.go            | 2 +-
+ src/log/syslog/syslog.go           | 2 +-
+ src/net/http/server.go             | 2 +-
+ src/net/http/transport.go          | 2 +-
+ src/os/signal/doc.go               | 2 +-
+ src/runtime/cgocall.go             | 2 +-
+ src/runtime/mbarrier.go            | 2 +-
+ src/runtime/mfixalloc.go           | 4 ++--
+ src/runtime/mstats.go              | 4 ++--
+ src/runtime/norace_linux_test.go   | 2 +-
+ src/runtime/norace_test.go         | 2 +-
+ src/runtime/os1_darwin.go          | 2 +-
+ src/runtime/os1_dragonfly.go       | 2 +-
+ src/runtime/os1_freebsd.go         | 2 +-
+ src/runtime/os1_linux.go           | 2 +-
+ src/runtime/os1_nacl.go            | 2 +-
+ src/runtime/os1_netbsd.go          | 2 +-
+ src/runtime/os1_plan9.go           | 2 +-
+ src/runtime/os1_windows.go         | 2 +-
+ src/runtime/os3_solaris.go         | 2 +-
+ src/runtime/sys_darwin_arm.s       | 2 +-
+ src/runtime/sys_darwin_arm64.s     | 2 +-
+ src/runtime/vdso_linux_amd64.go    | 2 +-
+ src/sync/pool.go                   | 2 +-
+ 29 files changed, 32 insertions(+), 32 deletions(-)

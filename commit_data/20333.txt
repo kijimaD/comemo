@@ -1,0 +1,14 @@
+commit 2c14dbe458f77792e12b432423b4462da4f37d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 09:07:19 2014 -0400
+
+    crypto/tls: print unexpected error in test
+    
+    Maybe will help us understand Solaris build failure.
+    
+    TBR=aram
+    CC=golang-codereviews
+    https://golang.org/cl/139290043
+
+ src/pkg/crypto/tls/handshake_client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

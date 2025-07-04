@@ -1,0 +1,14 @@
+commit 61e02ee901e361586291087a986680ee98da6da0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:39:28 2013 -0500
+
+    spec: clarify when range x does not evaluate x
+    
+    Fixes #4644.
+    
+    R=r, adonovan
+    CC=golang-dev
+    https://golang.org/cl/7307083
+
+ doc/go_spec.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit f04eebfdf50a3afc4b30e7f5fd3a7935b02a949d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 15:22:44 2018 -0800
+
+    cmd/compile/internal/syntax: follow Go naming conventions for error methods
+    
+    Also, remove parser.error method (in favor of parser.errorAt) as it's only
+    used twice.
+    
+    This is a purely cosmetic change.
+    
+    Change-Id: Idb3b8b50f1c2e4d10de2ffb1c1184ceba8f7de8a
+    Reviewed-on: https://go-review.googlesource.com/94030
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 125 +++++++++++++++---------------
+ 1 file changed, 62 insertions(+), 63 deletions(-)

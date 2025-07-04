@@ -1,0 +1,17 @@
+commit f2b59a3483e3d7638b55f4e01a20edac75890759
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 8 14:09:35 2014 -0700
+
+    test: add test for gccgo comment lexing failure
+    
+    http://gcc.gnu.org/PR61746
+    
+    http://code.google.com/p/gofrontend/issues/detail?id=35
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/111980043
+
+ test/fixedbugs/bug486.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

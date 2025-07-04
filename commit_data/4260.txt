@@ -1,0 +1,11 @@
+commit 749da968e4f8b06c8f3a4323add4fe3e23869a23
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 13:08:36 2009 -0800
+
+    make test.sh work again
+    
+    R=rsc
+    https://golang.org/cl/164059
+
+ src/cmd/gofmt/test.sh | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

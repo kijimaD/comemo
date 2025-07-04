@@ -1,0 +1,18 @@
+commit 56c3856d529d72e280ad6b185f7927657de86c37
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 22:59:26 2021 -0700
+
+    cmd/compile/internal/types: unexport Type.widthCalculated
+    
+    It's not needed outside of package types anymore.
+    
+    Change-Id: Idadf915fc254920ca778b5f5f8de8a1300da1953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345794
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/size.go | 6 +++++-
+ src/cmd/compile/internal/types/type.go | 6 +-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

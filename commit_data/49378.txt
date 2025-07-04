@@ -1,0 +1,28 @@
+commit f8a53df314e4af8cd350eedb0dae77d4c4fc30d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 3 16:00:16 2022 -0400
+
+    io: revert: add an Err field to LimitedReader
+    
+    We are having a hard time deciding the exact semantics
+    of the Err field, and we need to ship the beta.
+    So revert the Err field change; it can wait for Go 1.20.
+    
+    For #51115.
+    
+    This reverts CL 396215.
+    
+    Change-Id: I7719386567d3da10a614058a11f19dbccf304b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410133
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ api/next/51115.txt     |  1 -
+ src/io/example_test.go | 14 --------------
+ src/io/io.go           | 16 +++++-----------
+ 3 files changed, 5 insertions(+), 26 deletions(-)

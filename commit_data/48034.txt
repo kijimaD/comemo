@@ -1,0 +1,21 @@
+commit b37c6e15477a934f894488751bed8abcf16b4f5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 21:26:27 2022 -0800
+
+    go/types, types2: delete TypeList.String
+    
+    This method is unused and was not discussed in the API
+    proposals. Note that all error output goes through the
+    local sprintf which handles arguments specially.
+    
+    Fixes #50760.
+    
+    Change-Id: Iae66b0253cc0ece037d3d280951dc2d223c119fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381634
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ api/go1.18.txt                               |  1 -
+ src/cmd/compile/internal/types2/typelists.go | 11 -----------
+ src/go/types/typelists.go                    | 11 -----------
+ 3 files changed, 23 deletions(-)

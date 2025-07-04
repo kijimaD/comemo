@@ -1,0 +1,12 @@
+commit 27e07a2666ab8a699de280ac7dd94d24a2fb5e44
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Fri Feb 24 22:42:16 2012 +1100
+
+    os: fix minor typo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5697051
+
+ src/pkg/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

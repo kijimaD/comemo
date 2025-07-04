@@ -1,0 +1,12 @@
+commit 7539c8501d23612cf10347b7fcefb11794d391da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 31 18:05:07 2009 -0700
+
+    language re: conversion of left operand in shift operations
+    
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=32484
+    CL=32617
+
+ doc/go_spec.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit acd82d5017a6d30781d7b8caa6033694353fa7a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 27 12:08:38 2015 -0700
+
+    strconv: minor internal comment fix
+    
+    Change-Id: I590ac9e976d4044d1f4f280137ea9b38851a9fc2
+    Reviewed-on: https://go-review.googlesource.com/10424
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/strconv/ftoa.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

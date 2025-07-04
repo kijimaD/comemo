@@ -1,0 +1,12 @@
+commit 9f17353250c30896d31cfa70aa530289a2c849ec
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Nov 24 11:45:30 2009 -0800
+
+    chameneosredux test modified, bug fixed, faster
+    based on suggestion from arvindht@gmail.com
+    
+    R=r, rsc, r1
+    https://golang.org/cl/157091
+
+ test/bench/chameneosredux.go | 239 +++++++++++++++++++------------------------
+ 1 file changed, 106 insertions(+), 133 deletions(-)

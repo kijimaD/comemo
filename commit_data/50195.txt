@@ -1,0 +1,19 @@
+commit 2f103873c5081c7013cadfecb9b1c051d7c5520a
+Author: shaoliming <shaojacobi@gmail.com>
+Date:   Sun Aug 28 12:36:50 2022 +0000
+
+    cmd/compile/internal/noder: reuse package scope's names
+    
+    Change-Id: I2cc62efb7bb3b47f1ee3ed0bb77e35c47e2df9a1
+    GitHub-Last-Rev: 106cb494de6fb08302018bff55944ee120ef4545
+    GitHub-Pull-Request: golang/go#54718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426297
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/unified.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

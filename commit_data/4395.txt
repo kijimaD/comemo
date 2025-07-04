@@ -1,0 +1,15 @@
+commit cd00bc78da52c60663e4536c62b9f3cf3d0262f7
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Dec 11 15:55:09 2009 -0800
+
+    bug in 6g optimizer
+    8g still needs fixing
+    
+    R=rsc
+    https://golang.org/cl/176057
+
+ src/cmd/6g/gsubr.c |   2 +
+ src/cmd/6g/reg.c   | 109 +++++++++++++++++++++++++----------------------------
+ src/cmd/8g/gsubr.c |   2 +
+ src/cmd/gc/go.h    |   1 +
+ 4 files changed, 57 insertions(+), 57 deletions(-)

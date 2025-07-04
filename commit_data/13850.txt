@@ -1,0 +1,14 @@
+commit 804a43ca76a00c207a39d2846e3fe754d761ca2e
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Sep 18 17:40:53 2012 +0200
+
+    cmd/gc: fix double evaluation in interface comparison
+    
+    During interface compare, the operands will be evaluated twice. The operands might include function calls for conversion, so make them cheap before comparing them.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6498133
+
+ src/cmd/gc/walk.c | 3 +++
+ 1 file changed, 3 insertions(+)

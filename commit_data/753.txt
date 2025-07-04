@@ -1,0 +1,12 @@
+commit fb86c393625821903346a9e938aae245a72a84eb
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Sep 26 17:41:43 2008 -0700
+
+    bug with array bounds
+    
+    R=r
+    OCL=16021
+    CL=16023
+
+ src/cmd/gc/dcl.c | 1 +
+ 1 file changed, 1 insertion(+)

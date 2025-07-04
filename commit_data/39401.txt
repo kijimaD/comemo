@@ -1,0 +1,16 @@
+commit b373d31c25e58d0b69cff3521b915f0c06fa6ac8
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 18 01:14:22 2019 +0700
+
+    cmd/compile: correct comments of gc.Val fields
+    
+    Refer to Val.Ctype method instead of non-existed n.ValCtype one.
+    
+    Change-Id: Ie0fbcae87d9f4f97632865676309d98e0b5138c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182561
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

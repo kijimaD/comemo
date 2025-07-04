@@ -1,0 +1,21 @@
+commit 9d99d52fcb898433d58c861bd942b2caec22c16f
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 18 12:59:32 2011 -0400
+
+    http, crypto/tls: fix read timeouts and closing.
+    
+    tls.Conn.Close() didn't close the underlying connection and tried to
+    do a handshake in order to send the close notify alert.
+    
+    http didn't look for errors from the TLS handshake.
+    
+    Fixes #2281.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5283045
+
+ src/pkg/crypto/tls/conn.go | 20 ++++++++++++++++----
+ src/pkg/http/serve_test.go |  4 ----
+ src/pkg/http/server.go     |  5 ++++-
+ 3 files changed, 20 insertions(+), 9 deletions(-)

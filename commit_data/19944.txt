@@ -1,0 +1,15 @@
+commit 3d7e3691207fd9dabfe12a560ecac473e7e59737
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 7 12:33:20 2014 -0700
+
+    runtime: test distribution of interface hashes.
+    
+    LGTM=dvyukov
+    R=dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/121030043
+
+ src/pkg/runtime/alg.go         | 10 +++++++
+ src/pkg/runtime/export_test.go |  2 ++
+ src/pkg/runtime/hash_test.go   | 60 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+)

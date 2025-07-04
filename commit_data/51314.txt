@@ -1,0 +1,23 @@
+commit 334d8e453b5d45ede5265debc51b4775195d9ce9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 10 16:02:48 2022 -0500
+
+    internal/testpty: move from os/signal/internal/pty
+    
+    We're going to use this for another test, so make it more accessible.
+    
+    Preparation for #37486.
+    
+    Change-Id: If194cc4244c4b9e1b1f253759b813555b39ad67e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go                                      | 2 +-
+ src/{os/signal/internal/pty => internal/testpty}/pty.go        | 5 ++---
+ src/{os/signal/internal/pty => internal/testpty}/pty_cgo.go    | 2 +-
+ src/{os/signal/internal/pty => internal/testpty}/pty_darwin.go | 2 +-
+ src/os/signal/signal_cgo_test.go                               | 6 +++---
+ 5 files changed, 8 insertions(+), 9 deletions(-)

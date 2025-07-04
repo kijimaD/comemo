@@ -1,0 +1,18 @@
+commit 5fd708c000e50bac6091662c53c79a469a43071a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 10 13:05:34 2013 -0700
+
+    encoding/json: different decision on tags and shadowing
+    If there are no tags, the rules are the same as before.
+    If there is a tagged field, choose it if there is exactly one
+    at the top level of all fields.
+    More tests. The old tests were clearly inadequate, since
+    they all pass as is. The new tests only work with the new code.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8617044
+
+ src/pkg/encoding/json/encode.go      | 42 +++++++++++++++-----------
+ src/pkg/encoding/json/encode_test.go | 58 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 81 insertions(+), 19 deletions(-)

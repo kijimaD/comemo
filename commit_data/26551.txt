@@ -1,0 +1,17 @@
+commit 1b2fbb49c82eb4d6c418cf26edbfb3dab7c3cd07
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 10:35:13 2016 -0700
+
+    cmd/compile: cleanup alg.go for Field slices
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie41d7e74847c44a8fd174731374339c6c32b1460
+    Reviewed-on: https://go-review.googlesource.com/21231
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go   | 30 +++++++++++++-----------------
+ src/cmd/compile/internal/gc/align.go |  2 +-
+ src/cmd/compile/internal/gc/type.go  |  5 +++++
+ 3 files changed, 19 insertions(+), 18 deletions(-)

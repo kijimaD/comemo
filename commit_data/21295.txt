@@ -1,0 +1,25 @@
+commit fd4dc91a96518fdbb47781f97ba43ae36df215a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 18 12:50:22 2015 -0500
+
+    strings: remove overengineered Compare implementation
+    
+    The function is here ONLY for symmetry with package bytes.
+    This function should be used ONLY if it makes code clearer.
+    It is not here for performance. Remove any performance benefit.
+    
+    If performance becomes an issue, the compiler should be fixed to
+    recognize the three-way compare (for all comparable types)
+    rather than encourage people to micro-optimize by using this function.
+    
+    Change-Id: I71f4130bce853f7aef724c6044d15def7987b457
+    Reviewed-on: https://go-review.googlesource.com/3012
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/asm_386.s       |  3 ---
+ src/runtime/asm_amd64.s     |  3 ---
+ src/runtime/asm_amd64p32.s  |  3 ---
+ src/runtime/noasm.go        |  5 -----
+ src/strings/compare.go      | 28 ++++++++++++++++++++++++++++
+ src/strings/strings_decl.go |  7 -------
+ 6 files changed, 28 insertions(+), 21 deletions(-)

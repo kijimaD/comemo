@@ -1,0 +1,15 @@
+commit 19fe9a2c722ee7612e86b46b7bf8e6b409295ecc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 3 18:11:17 2014 +1000
+
+    crypto/tls: fix typo referencing the required Config field
+    
+    Thanks to Frithjof Schulze for noticing.
+    
+    LGTM=adg
+    R=adg
+    CC=agl, golang-codereviews, r
+    https://golang.org/cl/107740043
+
+ src/pkg/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

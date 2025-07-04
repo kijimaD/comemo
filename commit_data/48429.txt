@@ -1,0 +1,16 @@
+commit 12eca21f1c1c0f048b985a2a8545fb304b4383f6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 18 11:49:40 2022 +0100
+
+    syscall: use bytealg.IndexByte in clen
+    
+    Change-Id: Ib3f92ea8371a13471acf9304dc9db66c0aae9bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393756
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_unix.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

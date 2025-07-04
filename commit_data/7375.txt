@@ -1,0 +1,12 @@
+commit eeafc06538bd137bab71c745e94c1219d99134ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 4 15:36:32 2011 -0800
+
+    gofmt: no need for lexical compare of src and res (optimization)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4130046
+
+ src/cmd/gofmt/gofmt.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

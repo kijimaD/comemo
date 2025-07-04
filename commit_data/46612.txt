@@ -1,0 +1,37 @@
+commit 3d795ea798edf0f9da4d2e33e15a58e59aa42e83
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Aug 13 08:34:25 2021 -0700
+
+    runtime: add timer_create syscalls for Linux
+    
+    Updates #35057
+    
+    Change-Id: Id702b502fa4e4005ba1e450a945bc4420a8a8b8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342052
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/runtime/defs_linux.go         |  9 +++++++++
+ src/runtime/defs_linux_386.go     | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_amd64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_arm.go     | 19 +++++++++++++++++++
+ src/runtime/defs_linux_arm64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_mips64x.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_mipsx.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_ppc64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_ppc64le.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_riscv64.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_s390x.go   | 20 ++++++++++++++++++++
+ src/runtime/os_linux.go           |  9 +++++++++
+ src/runtime/sys_linux_386.s       | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_amd64.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s       | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm64.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_mips64x.s   | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_mipsx.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_ppc64x.s    | 26 ++++++++++++++++++++++++++
+ src/runtime/sys_linux_riscv64.s   | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_s390x.s     | 29 +++++++++++++++++++++++++++++
+ 21 files changed, 478 insertions(+)

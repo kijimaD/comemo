@@ -1,0 +1,16 @@
+commit fa81d6134db1f93611263dea08c3e146ce5f5afe
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 30 15:14:51 2017 -0500
+
+    runtime: more specific reason for skipping GDB tests on NetBSD
+    
+    Updates #22893.
+    
+    Change-Id: I2cf5efb4fa6b77aaf82de5d8877c99f9aa5d519a
+    Reviewed-on: https://go-review.googlesource.com/81195
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

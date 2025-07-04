@@ -1,0 +1,35 @@
+commit bc6459ac6ce1133cd0c59864d220d60f8fca40ef
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 20 14:07:57 2017 -0500
+
+    math: remove asm version of sincos everywhere, except 386
+    
+    We have dedicated asm implementation of sincos only on 386 and amd64,
+    on everything else we are just jumping to generic version.
+    However amd64 version is actually slower than generic one:
+    
+    Sincos-6               34.4ns ± 0%   24.8ns ± 0%  -27.79%  (p=0.000 n=8+10)
+    
+    So remove all sincos*.s and keep only generic and 386.
+    
+    Updates #19819
+    
+    Change-Id: I7eefab35743729578264f52f6d23ee2c227c92a5
+    Reviewed-on: https://go-review.googlesource.com/41200
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/sincos.go         |   6 +-
+ src/math/sincos_386.go     |  13 +++++
+ src/math/sincos_amd64.s    | 142 ---------------------------------------------
+ src/math/sincos_amd64p32.s |   5 --
+ src/math/sincos_arm.s      |   8 ---
+ src/math/stubs_arm64.s     |   3 -
+ src/math/stubs_mips64x.s   |   3 -
+ src/math/stubs_mipsx.s     |   3 -
+ src/math/stubs_ppc64x.s    |   3 -
+ src/math/stubs_s390x.s     |   3 -
+ 10 files changed, 16 insertions(+), 173 deletions(-)

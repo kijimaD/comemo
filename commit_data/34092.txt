@@ -1,0 +1,19 @@
+commit 816154b06553a4cf8ee7ad089f5e444b37bed43d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Nov 20 13:36:22 2017 -0500
+
+    os: add UserCacheDir
+    
+    Adds a function that returns an OS-dependent location
+    for user-specific cache data.
+    
+    Fixes golang/go#22536
+    
+    Change-Id: Ifff015452494571ad357fa2d945d66a5992c751d
+    Reviewed-on: https://go-review.googlesource.com/78835
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

@@ -1,0 +1,29 @@
+commit d01cd8fa1dc6110cbb301fd711fe43ea744cb5c9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 10:33:02 2021 -0500
+
+    misc/cgo/testcarchive: log command output more consistently
+    
+    Also check that executables exist immediately after building them
+    in parallel tests.
+    
+    The parallel tests in this package occasionally fail with
+    "no such file or directory", implying that either the build
+    command failed to actually write out the binary or something
+    concurrently deleted it.
+    
+    This is purely a shot in the dark, but I'm hoping that perhaps
+    the stderr output from one of these commands will shed some
+    light on the underlying failure mode.
+    
+    For #49693
+    
+    Change-Id: I2e768190c56053550879b89a3ac88c027d4741dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369034
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 118 +++++++++++++++++++++------------
+ 1 file changed, 76 insertions(+), 42 deletions(-)

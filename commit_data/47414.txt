@@ -1,0 +1,15 @@
+commit 8ce1a953fb125ab390e816540d7f6c304ee7e52b
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Oct 2 22:50:31 2021 +0800
+
+    io: add error check to TeeReader Example
+    
+    Change-Id: I0b94bdced47483c6412e9979ce2d103fbfc52afb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353729
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/io/example_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

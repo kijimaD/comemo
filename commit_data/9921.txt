@@ -1,0 +1,12 @@
+commit 3b654b1cc47ed757c43e954c3cf9730972f93b81
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 11 13:07:01 2011 -0400
+
+    CONTRIBUTORS: add Louis Kruger (Google CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5229052
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

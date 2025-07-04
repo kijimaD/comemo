@@ -1,0 +1,25 @@
+commit ed0b232cdc48398c2074369852e5db8bdcb866aa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Dec 3 19:17:16 2016 -0500
+
+    cmd/compile: find last StoreWB explicitly
+    
+    In writebarrier phase, a chain of StoreWBs is rewritten to branchy
+    code to invoke write barriers, and the last store in the chain is
+    spliced into a Phi op to join the memory of the two branches. We
+    must find the last store explicitly, since the values are not
+    scheduled and they may not come in dependency order.
+    
+    Fixes #18169.
+    
+    Change-Id: If547e3c562ef0669bc5622c1bb711904dc36314d
+    Reviewed-on: https://go-review.googlesource.com/33915
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/export_test.go       |  9 +++-
+ src/cmd/compile/internal/ssa/type_test.go         |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      | 58 ++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/writebarrier_test.go | 29 ++++++++++++
+ 4 files changed, 82 insertions(+), 16 deletions(-)

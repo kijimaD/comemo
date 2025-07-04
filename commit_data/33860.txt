@@ -1,0 +1,12 @@
+commit dbe559e24133e0f931ce7e2fe32b65f7207fca15
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Dec 11 17:05:14 2017 -0500
+
+    doc: change “substantial” to “significant”
+    
+    Change-Id: Ie7f2890eab9ad82da93babc92380b13c611af3d0
+    Reviewed-on: https://go-review.googlesource.com/83375
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.10.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

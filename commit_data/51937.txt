@@ -1,0 +1,23 @@
+commit d939b3717f8eb68adb949132a6f334d6cc31045b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 7 14:53:48 2023 +0100
+
+    runtime: use explicit NOFRAME on darwin/amd64
+    
+    This CL marks some darwin assembly functions as NOFRAME to avoid relying
+    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    This is a second attempt after CL 460235 was reverted.
+    
+    Change-Id: I790f2108fc01ec193aa32b0bc82362c2344a9f3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466055
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go |   4 +-
+ src/runtime/sys_darwin_amd64.s   | 179 +++------------------------------------
+ 2 files changed, 16 insertions(+), 167 deletions(-)

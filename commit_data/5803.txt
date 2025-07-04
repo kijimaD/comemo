@@ -1,0 +1,12 @@
+commit d00b479888247e240c59d444c8aec1fad4b26f1c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 14 09:55:08 2010 -0700
+
+    select statement: initial set of test cases for corner cases
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1772043
+
+ test/chan/select3.go | 176 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 176 insertions(+)

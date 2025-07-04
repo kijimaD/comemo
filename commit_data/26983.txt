@@ -1,0 +1,15 @@
+commit 135572eb326dfc445e1faf74fdffaf82d041c22d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 18 13:31:50 2016 +1000
+
+    cmd/go: mention that _test.go files are ignored when building
+    
+    Fixes #15315
+    
+    Change-Id: I8fea31507a5f83df8a86fb067f1b11d90133dc09
+    Reviewed-on: https://go-review.googlesource.com/22180
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/cmd/go/alldocs.go | 2 ++
+ src/cmd/go/build.go   | 2 ++
+ 2 files changed, 4 insertions(+)

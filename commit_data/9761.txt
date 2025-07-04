@@ -1,0 +1,15 @@
+commit 86d97aa981d3455704d1c5d31fbee5bc27eb5344
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 20 14:47:48 2011 -0700
+
+    test: match gccgo error messages for bug349.go
+    
+    bug349.go:12:14: error: expected ‘;’ or ‘}’ or newline
+    bug349.go:12:2: error: not enough arguments to return
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5081047
+
+ test/fixedbugs/bug349.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

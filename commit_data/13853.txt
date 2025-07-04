@@ -1,0 +1,22 @@
+commit f20fd87384d152ed91439e824333fbb78688e741
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 18 21:15:46 2012 +0400
+
+    runtime: refactor goroutine blocking
+    The change is a preparation for the new scheduler.
+    It introduces runtime.park() function,
+    that will atomically unlock the mutex and park the goroutine.
+    It will allow to remove the racy readyonstop flag
+    that is difficult to implement w/o the global scheduler mutex.
+    
+    R=rsc, remyoudompheng, dave
+    CC=golang-dev
+    https://golang.org/cl/6501077
+
+ src/pkg/runtime/chan.c    | 37 ++++++++-----------------------------
+ src/pkg/runtime/mgc0.c    |  4 +---
+ src/pkg/runtime/proc.c    | 12 ++++++++++++
+ src/pkg/runtime/runtime.h |  3 ++-
+ src/pkg/runtime/sema.goc  |  5 +----
+ src/pkg/runtime/time.goc  | 24 ++++++++----------------
+ 6 files changed, 32 insertions(+), 53 deletions(-)

@@ -1,0 +1,19 @@
+commit a0d2e9699f1cc83a854c52843ff15d07f83bce47
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 14:15:59 2016 -0800
+
+    go/printer: don't drop required semi/linebreak after /*-comment
+    
+    For details, see the issues.
+    
+    Fixes #11274.
+    Fixes #15137.
+    
+    Change-Id: Ia11e71a054b3195e3007f490418a9c53a7e9cdf1
+    Reviewed-on: https://go-review.googlesource.com/33016
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/printer/printer.go               | 36 ++++++++++++++++++++++++---------
+ src/go/printer/testdata/comments.golden | 26 ++++++++++++++++++++++++
+ src/go/printer/testdata/comments.input  | 18 +++++++++++++++++
+ 3 files changed, 71 insertions(+), 9 deletions(-)

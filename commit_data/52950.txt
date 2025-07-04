@@ -1,0 +1,22 @@
+commit 93d9035c9e8b129578d3a177fd90eb308e44a597
+Author: Shogo Hida <shogo.hida@gmail.com>
+Date:   Wed May 10 14:41:06 2023 +0000
+
+    cmd/go/internal: update documentation of go test and go generate
+    
+    Fixes #57050
+    
+    Change-Id: I46cac667ff78ac171c878f4366f8f01f58f1d27d
+    GitHub-Last-Rev: 697c255ece18cd4772b76d62991474a7da2536d8
+    GitHub-Pull-Request: golang/go#57814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461683
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                    | 9 +++++++++
+ src/cmd/go/internal/generate/generate.go | 5 +++++
+ src/cmd/go/internal/test/test.go         | 4 ++++
+ 3 files changed, 18 insertions(+)

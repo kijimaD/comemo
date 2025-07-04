@@ -1,0 +1,24 @@
+commit cad3ed207fc428bdca60ce16793ee154893e79df
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 29 20:00:18 2024 +0000
+
+    cmd/cgo/internal/swig,cmd/go: reenable swig tests on 386
+    
+    CL 588938 skipped the tests because they were broken to unblock the
+    builders, but we're fairly certain the reason they were failing is
+    because we're missing g++-multilib. This change is intended to land once
+    CL 589175 is deployed.
+    
+    Fixes #67698.
+    
+    Change-Id: I5bb679290ae9ba9ab3bda9499cdf1eec649bc066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589195
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/cgo/internal/swig/swig_test.go      | 8 --------
+ src/cmd/go/testdata/script/list_swigcxx.txt | 3 ---
+ 2 files changed, 11 deletions(-)

@@ -1,0 +1,30 @@
+commit caa1b4afbd145358450587053f290e6870c04b1c
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 16:30:07 2018 -0500
+
+    cmd/compile/internal/ssa: note zero-width Ops
+    
+    Add a bool to opInfo to indicate if an Op never results in any
+    instructions. This is a conservative approximation: some operations,
+    like Copy, may or may not generate code depending on their arguments.
+    
+    I built the list by reading each arch's ssaGenValue function. Hopefully
+    I got them all.
+    
+    Change-Id: I130b251b65f18208294e129bb7ddc3f91d57d31d
+    Reviewed-on: https://go-review.googlesource.com/97957
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  34 ++++----
+ src/cmd/compile/internal/ssa/gen/main.go       |   4 +
+ src/cmd/compile/internal/ssa/op.go             |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 108 ++++++++++++++++---------
+ 12 files changed, 107 insertions(+), 74 deletions(-)

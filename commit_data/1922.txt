@@ -1,0 +1,16 @@
+commit aacdc25399ed44ef3a2398e8ce2bfc26e1b46c4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 22:26:00 2009 -0700
+
+    fix http://b/1748082
+    
+    package main
+    var f = func(a, b int) int { return a + b }
+    
+    R=ken
+    OCL=26935
+    CL=26935
+
+ src/cmd/gc/dcl.c | 6 ++++++
+ src/cmd/gc/go.h  | 3 ++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

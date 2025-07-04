@@ -1,0 +1,13 @@
+commit 5042a4e9f9c8fcc263d45778e0790674e5acd5c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 29 15:23:55 2009 +1100
+
+    PNG decoder now handles transparent paletted images.
+    Fixes #439.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181087
+
+ src/pkg/image/png/reader.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

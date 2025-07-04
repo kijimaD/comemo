@@ -1,0 +1,21 @@
+commit 5a7cfbc0117bce314c3f079ece459173b9efc854
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Oct 20 18:54:07 2018 +0300
+
+    syscall: swap src, dest arguments in convertFromDirents11 for FreeBSD
+    
+    make fixedSize, oldFixedSize constants.
+    use st instead of stat for function arg so that we do not shadow the stat() function.
+    
+    dstPos+reclen == len(buf) is a valid write location, update the break condition.
+    
+    Change-Id: I55f9210f54d24a3f9cda1ebab52437436254f8f4
+    Reviewed-on: https://go-review.googlesource.com/c/143637
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/export_freebsd_test.go  | 12 +++++++++
+ src/syscall/syscall_freebsd.go      | 29 +++++++++++---------
+ src/syscall/syscall_freebsd_test.go | 54 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 13 deletions(-)

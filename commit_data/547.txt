@@ -1,0 +1,38 @@
+commit df49fb3dc33c226b7092ec9f51fdcbf69b55aea4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 28 17:47:53 2008 -0700
+
+    - Preliminary draft of what might become a real spec
+    - All text taken from go_lang.txt (which is unchanged),
+    but added a contents section, and sorted the contents
+    section in a hopefully sensible manner to give it more
+    structure
+    - Reordered text to match order of contents section,
+    did not adjust the language (needs to be done),
+    but removed sections that were dulicates or invalid
+    
+    High-level organization of the doc:
+    - Introduction
+    - Notation
+    - Source code representation
+    - Vocabulary
+    - Declarations and scope rules
+    - Types
+    - Expressions
+    - Statements
+    - Function declarations
+    - Packages
+    - Program initialization and execution
+    
+    I hope this new structure will make it much clearer which
+    pieces are missing and where they need to go. go_lang.txt
+    has grown somewhat unstructured and new text was added as
+    we saw fit.
+    
+    R=r
+    DELTA=2577  (2577 added, 0 deleted, 0 changed)
+    OCL=14639
+    CL=14639
+
+ doc/go_spec.txt | 2577 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 2577 insertions(+)

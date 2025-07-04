@@ -1,0 +1,14 @@
+commit 0822a62cb76e347a4ac2a8731e7d24b4c894f79f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 14 15:25:42 2013 -0800
+
+    go/types: set type of lhs ident in type switch guards
+    
+    (bug fix)
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7098059
+
+ src/pkg/go/types/stmt.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

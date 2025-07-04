@@ -1,0 +1,22 @@
+commit 32b85baae34ccf6908a981e48220d82119406e41
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 8 10:41:45 2012 +1000
+
+    compress/testdata: remove Byte Order Mark from the Tom Sawyer data.
+    
+    I'm not sure where the BOM came from, originally.
+    http://www.gutenberg.org/files/74/74.txt doesn't have it, although
+    a fresh download of that URL gives me "\r\n"s instead of plain "\n"s,
+    and the extra line "Character set encoding: ASCII". Maybe Project
+    Gutenberg has changed their server configuration since we added that
+    file to the Go repo.
+    
+    Anyway, this change is just manually excising the BOM from the start
+    of the file, leaving pure ASCII.
+    
+    R=r, bradfitz
+    CC=golang-dev, krasin, rsc
+    https://golang.org/cl/6197061
+
+ src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

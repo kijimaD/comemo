@@ -1,0 +1,12 @@
+commit 9eb806f80b91bafc3ef22872ba1754f7a926251e
+Author: Paolo Giarrusso <p.giarrusso@gmail.com>
+Date:   Wed Jun 9 21:39:40 2010 -0700
+
+    .hgignore: ignore doc/htmlgen
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1555042
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

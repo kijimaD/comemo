@@ -1,0 +1,20 @@
+commit 03272d14edc48783581058f06b6c17855cb5bd90
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 15:31:42 2022 -0400
+
+    runtime: run TestCgoSigfwd on all Unix platforms
+    
+    This test was originally Linux-only, but there doesn't seem to be
+    anything Linux-specific in it.
+    
+    Change-Id: I0f8519eff5dbed97f5e21e1c8e5ab0d747d51df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443073
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/goos/nonunix.go               | 5 +++++
+ src/internal/goos/unix.go                  | 5 +++++
+ src/runtime/crash_cgo_test.go              | 4 ++--
+ src/runtime/testdata/testprogcgo/sigfwd.go | 2 +-
+ 4 files changed, 13 insertions(+), 3 deletions(-)

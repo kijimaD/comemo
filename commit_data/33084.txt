@@ -1,0 +1,30 @@
+commit 77c27c31026f758768c981c45704c7931e7046d1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 11:05:58 2017 -0400
+
+    cmd/link: eliminate .debug_aranges
+    
+    The .debug_aranges section is an odd vestige of DWARF, since its
+    contents are easy and efficient for a debugger to reconstruct from the
+    attributes of the top-level compilation unit DIEs. Neither GCC nor
+    clang emit it by default these days. GDB and Delve ignore it entirely.
+    LLDB will use it if present, but is happy to construct the index from
+    the compilation unit attributes (and, indeed, a remarkable variety of
+    other ways if those aren't available either).
+    
+    We're about to split up the compilation units by package, which means
+    they'll have discontiguous PC ranges, which is going to make
+    .debug_aranges harder to construct (and larger).
+    
+    Rather than try to maintain this essentially unused code, let's
+    simplify things and remove it.
+    
+    Change-Id: I8e0ccc033b583b5b8908cbb2c879b2f2d5f9a50b
+    Reviewed-on: https://go-review.googlesource.com/69972
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 52 -------------------------
+ src/runtime/runtime-lldb_test.go  | 82 ---------------------------------------
+ 2 files changed, 134 deletions(-)

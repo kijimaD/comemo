@@ -1,0 +1,15 @@
+commit becb9a278fdeccfb562dd1232f052050f00a4aaa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 28 11:24:24 2021 -0400
+
+    test: do not run fuse test in noopt mode
+    
+    Change-Id: Iad8ac2253ce28fd0a331bde36836d1b7f25797bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314632
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fuse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

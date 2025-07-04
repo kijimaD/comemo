@@ -1,0 +1,37 @@
+commit 519f6a00e4dabb871eadaefc8ac295c09fd9b56f
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Apr 10 16:48:09 2024 +0800
+
+    runtime: utilize EVFILT_USER to wake up kevent for kqueue
+    
+    Fixes #66760
+    
+    Change-Id: I6ba5bc5b00506b66cb8dc3984a61f32a6358d9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/defs1_netbsd_386.go     |  5 +++
+ src/runtime/defs1_netbsd_amd64.go   |  5 +++
+ src/runtime/defs1_netbsd_arm.go     |  5 +++
+ src/runtime/defs1_netbsd_arm64.go   |  5 +++
+ src/runtime/defs_darwin.go          |  5 +++
+ src/runtime/defs_darwin_amd64.go    |  5 +++
+ src/runtime/defs_darwin_arm64.go    |  5 +++
+ src/runtime/defs_dragonfly.go       |  5 +++
+ src/runtime/defs_dragonfly_amd64.go |  5 +++
+ src/runtime/defs_freebsd.go         |  5 +++
+ src/runtime/defs_freebsd_386.go     |  5 +++
+ src/runtime/defs_freebsd_amd64.go   |  5 +++
+ src/runtime/defs_freebsd_arm.go     |  5 +++
+ src/runtime/defs_freebsd_arm64.go   |  5 +++
+ src/runtime/defs_freebsd_riscv64.go |  5 +++
+ src/runtime/defs_netbsd.go          |  5 +++
+ src/runtime/netpoll_kqueue.go       | 54 ++++---------------------
+ src/runtime/netpoll_kqueue_event.go | 80 +++++++++++++++++++++++++++++++++++++
+ src/runtime/netpoll_kqueue_pipe.go  | 73 +++++++++++++++++++++++++++++++++
+ 19 files changed, 240 insertions(+), 47 deletions(-)

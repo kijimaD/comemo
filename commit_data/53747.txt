@@ -1,0 +1,24 @@
+commit c6b5dce0d1ef35c1c35ab14f3e32ad55d7f83818
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 20 10:23:47 2023 -0400
+
+    cmd/dist: apply timeout scale even if timeout isn't overridden
+    
+    The timeout field is documented as being available so that it's possible
+    to override timeout by setting a non-zero value. If it's left at zero,
+    we don't need to override the default go test timeout, but we still need
+    to apply the timeout scale whenever it's something other than 1.
+    
+    Fixes (via backport) #61468.
+    
+    Change-Id: I63634e9b3ef8c4ec7f334b5a6b4bf3cad121355c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511567
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go                 | 3 +++
+ src/cmd/go/internal/test/testflag.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

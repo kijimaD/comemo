@@ -1,0 +1,18 @@
+commit 096229b2ec60c51b65746dfd1a5bf443ac8e5a0f
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 8 02:04:49 2018 +0000
+
+    cmd/compile: add missing type information for some arm/arm64 rules
+    
+    Some indexed load/store rules lack of type information, and this
+    CL adds that for them.
+    
+    Change-Id: Icac315ccb83a2f5bf30b056d4667d5b59eb4e5e2
+    Reviewed-on: https://go-review.googlesource.com/128455
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 24 +++++++++++-----------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   | 30 ++++++++++++++--------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

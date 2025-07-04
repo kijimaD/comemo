@@ -1,0 +1,19 @@
+commit 802129617965377be271d08e18fea03e5f10d8cf
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Mar 20 18:50:01 2010 -0700
+
+    issue 682
+    complex DATA statement fo
+    initialization of complex variables.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/634045
+
+ src/cmd/5g/gobj.c  | 21 +++++++++++++++++++++
+ src/cmd/6g/gobj.c  | 22 +++++++++++++++++++++-
+ src/cmd/8g/gobj.c  | 21 +++++++++++++++++++++
+ src/cmd/gc/cplx.c  | 21 ---------------------
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/sinit.c |  7 +++++++
+ 6 files changed, 71 insertions(+), 22 deletions(-)

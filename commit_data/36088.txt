@@ -1,0 +1,26 @@
+commit fec97c0aa76eb19bd58ca33001063b726ab9ce27
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Jul 14 12:19:36 2018 +0200
+
+    syscall/js: show goroutine stack traces on deadlock
+    
+    When using callbacks, it is not necessarily a deadlock if there is no
+    runnable goroutine, since a callback might still be pending. If there
+    is no callback pending, Node.js simply exits with exit code zero,
+    which is not desired if the Go program is still considered running.
+    This is why an explicit check on exit is used to trigger the "deadlock"
+    error. This CL makes it so this is Go's normal "deadlock" error, which
+    includes the stack traces of all goroutines.
+    
+    Updates #26382
+    
+    Change-Id: If88486684d0517a64f570009a5ea0ad082679a54
+    Reviewed-on: https://go-review.googlesource.com/123936
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js     | 28 ++++++++++++++--------------
+ src/syscall/js/callback.go |  8 ++++----
+ src/syscall/js/js.go       | 16 ++++++++--------
+ 3 files changed, 26 insertions(+), 26 deletions(-)

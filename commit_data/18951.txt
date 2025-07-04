@@ -1,0 +1,16 @@
+commit 09e1da3c2ce366eb52e3c038b4f5a8686e0011b6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 26 13:56:16 2014 +1100
+
+    doc/go1.3.html: new release document outline
+    Almost all TODOS, but the structure is there and it has the details
+    from go1.3.txt, which is hereby deleted.
+    
+    LGTM=dominik.honnef, adg
+    R=golang-codereviews, dominik.honnef, adg
+    CC=golang-codereviews
+    https://golang.org/cl/80240044
+
+ doc/go1.3.html | 183 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.3.txt  |  38 ------------
+ 2 files changed, 183 insertions(+), 38 deletions(-)

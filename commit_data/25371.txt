@@ -1,0 +1,17 @@
+commit 2cf5f04ffd4b00821fd0aed40ae8836f6ce8f161
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 19 17:42:16 2015 +1100
+
+    net: adjust TestInterfaceHardwareAddrWithGetmac
+    
+    CL skips interfaces that are not listed on getmac output.
+    
+    Fixes #13606
+    
+    Change-Id: Ic25c9dc95e8eeff4d84b78e99131a4f97020164c
+    Reviewed-on: https://go-review.googlesource.com/17994
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/net_windows_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

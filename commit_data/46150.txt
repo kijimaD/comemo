@@ -1,0 +1,29 @@
+commit 54cdef1f101a7a15fa6412fbedf8b009a1f725a1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 17 12:31:11 2021 -0700
+
+    reflect: add MapIter.SetKey and MapIter.SetValue
+    
+    These augment the existing MapIter.Key and MapIter.Value methods.
+    The existing methods return new Values.
+    Constructing these new Values often requires allocating.
+    These methods allow the caller to bring their own storage.
+    
+    The naming is somewhat unfortunate, in that the spec
+    uses the word "element" instead of "value",
+    as do the reflect.Type methods.
+    In a vacuum, MapIter.SetElem would be preferable.
+    However, matching the existing methods is more important.
+    
+    Fixes #32424
+    Fixes #46131
+    
+    Change-Id: I19c4d95c432f63dfe52cde96d2125abd021f24fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320929
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 41 ++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 62 +++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 99 insertions(+), 4 deletions(-)

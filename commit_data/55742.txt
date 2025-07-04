@@ -1,0 +1,21 @@
+commit 1571c0b338971be0068861d6dd63a0da6511bc0c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Feb 14 01:51:47 2024 +0000
+
+    cmd/dist: let the three runtime -quick tests run simultaneously
+    
+    For #65164
+    
+    Change-Id: Ied19cebd113ef91c34f613cafbeb92a335d6420d
+    GitHub-Last-Rev: 8118be6e30ffc4edcd88b8a1d5ee3105e2c760de
+    GitHub-Pull-Request: golang/go#65444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560597
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

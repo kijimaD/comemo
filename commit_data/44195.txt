@@ -1,0 +1,18 @@
+commit 0f797f168d1aec8481ee43ace57d3209aee93dba
+Author: Paul Davis <43160081+Pawls@users.noreply.github.com>
+Date:   Tue Jan 26 23:29:47 2021 +0000
+
+    math: fix typo in sqrt.go code comment
+    
+    "it does not necessary" -> "it is not necessary"
+    
+    Change-Id: I66f9cf2670d76b3686badb4a537b3ec084447d62
+    GitHub-Last-Rev: 52a0f9993abf25369cdb6b31eaf476df1626cf87
+    GitHub-Pull-Request: golang/go#43935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287052
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/math/sqrt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

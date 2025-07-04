@@ -1,0 +1,17 @@
+commit 9b57b33556e5d58807061b5b20757e88631d924b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed May 17 16:12:42 2023 -0400
+
+    log/slog: add link to handler-writing guide
+    
+    Add a shortlink in the doc to a guide to writing handlers, which is a work
+    in progress.
+    
+    Change-Id: I1b01c90468382ffe53d9ad6f38253906e3f44857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495920
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

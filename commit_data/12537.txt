@@ -1,0 +1,12 @@
+commit 26fa1c8248472e89cf61f7cb24ac0e7f4c876d72
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 9 11:50:38 2012 +0900
+
+    net: fix typo
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5782063
+
+ src/pkg/net/interface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 8b85a3d480d63c2700ac556f183fc05280380fab
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat May 18 15:47:49 2013 -0700
+
+    runtime: mark usleep as NOSPLIT on Plan 9
+    
+    Usleep is called from lockextra, also marked NOSPLIT.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9258043
+
+ src/pkg/runtime/os_plan9.c | 1 +
+ 1 file changed, 1 insertion(+)

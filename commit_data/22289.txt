@@ -1,0 +1,16 @@
+commit 13f749486db9835cad42aeec0d58adc4b73fad24
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Apr 2 20:13:17 2015 -0400
+
+    cmd/7g: FCMPS/FCMPD also should be RegRead instead of RightRead
+    
+    No test cases yet, but I found this while double checking the
+    proginfo table.
+    
+    Change-Id: Ib59675c117c676c1298bcab8765ca6a8fd234de8
+    Reviewed-on: https://go-review.googlesource.com/8431
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/cmd/7g/prog.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

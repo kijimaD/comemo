@@ -1,0 +1,16 @@
+commit 879241d819fd69cb6a75f3b615a6787c8006cd20
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue May 18 22:16:01 2010 -0700
+
+    math: signed zero Sqrt special case
+    
+    IEEE 754 says: sqrt(-0) = -0
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1098041
+
+ src/pkg/math/all_test.go  | 11 +++++++++--
+ src/pkg/math/sqrt.go      |  1 +
+ src/pkg/math/sqrt_port.go |  6 ++----
+ 3 files changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 88b1f8594a6053428cb28342ab8a3c86dd5c7164
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 25 16:31:42 2009 -0800
+
+    bug130 is fixed
+    
+    R=ken
+    OCL=25448
+    CL=25448
+
+ test/{bugs => fixedbugs}/bug130.go | 0
+ test/golden.out                    | 4 ----
+ 2 files changed, 4 deletions(-)

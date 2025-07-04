@@ -1,0 +1,13 @@
+commit 09a930c0918ba72d66bd83c7fc090c3c92e6384a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 29 14:43:25 2009 -0800
+
+    added author/contributor
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/181099
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,29 @@
+commit 7365fac2dbd01960268ee051ed03d961258d4ef4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 13 17:54:05 2018 -0800
+
+    runtime: use bytes.IndexByte in findnull
+    
+    bytes.IndexByte is heavily optimized.
+    Use it in findnull.
+    
+    name        old time/op  new time/op  delta
+    GoString-8  65.5ns ± 1%  40.2ns ± 1%  -38.62%  (p=0.000 n=19+19)
+    
+    findnull is also used in gostringnocopy,
+    which is used in many hot spots in the runtime.
+    
+    Fixes #23830
+    
+    Change-Id: I2e6cb279c7d8078f8844065de684cc3567fe89d7
+    Reviewed-on: https://go-review.googlesource.com/97523
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/basic.go    | 14 ++++++++++++++
+ misc/cgo/test/cgo_test.go |  3 ++-
+ src/runtime/error.go      |  1 +
+ src/runtime/string.go     |  9 +++------
+ 4 files changed, 20 insertions(+), 7 deletions(-)

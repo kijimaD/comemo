@@ -1,0 +1,12 @@
+commit 72a3f5329d51188d5918f155a65491e181190690
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 15 20:38:24 2010 -0700
+
+    Add new complex types, functions and literals to Vim syntax file.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224042
+
+ misc/vim/go.vim | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

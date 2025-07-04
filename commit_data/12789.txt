@@ -1,0 +1,12 @@
+commit 70a8948a39eb2bcca635e2a3beb39812bb7122db
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 28 12:24:43 2012 +1100
+
+    misc/dist: support upload only (no build)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5940050
+
+ misc/dist/bindist.go | 49 +++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 39 insertions(+), 10 deletions(-)

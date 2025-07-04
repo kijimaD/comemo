@@ -1,0 +1,14 @@
+commit 502589e0304d2a196bbb2ff373ca2d82cd614df5
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 6 16:22:21 2011 -0400
+
+    crypto/tls: fix generate_cert.go
+    
+    Fixes #2030.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4635092
+
+ src/pkg/crypto/tls/generate_cert.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

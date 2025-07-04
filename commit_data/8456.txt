@@ -1,0 +1,12 @@
+commit 6dced6d992b30e50f562a8efec1b99986834b140
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun May 22 09:23:22 2011 +1000
+
+    crypto/x509: fix incorrect prints found by govet
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4526073
+
+ src/pkg/crypto/x509/x509_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

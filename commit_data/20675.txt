@@ -1,0 +1,18 @@
+commit 14cd40d91267820c2db888a6d11e79a413f766b5
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Wed Oct 8 15:58:56 2014 -0700
+
+    reflect: add direct call tests to TestMakeFuncVariadic
+    
+    TestMakeFuncVariadic only called the variadic function via Call and
+    CallSlice, not via a direct function call.
+    
+    I thought these tests would fail under gccgo tip, but they don't.  Still seems worth having though.
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/152060043
+
+ src/reflect/all_test.go | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

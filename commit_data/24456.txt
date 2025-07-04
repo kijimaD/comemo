@@ -1,0 +1,21 @@
+commit e4add8d569d3152a461dbdf6e086dd60c8ca6c27
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 01:04:24 2015 -0700
+
+    archive/tar: fix numeric overflow issues in readGNUSparseMap0x1
+    
+    Motivation:
+    * The logic to verify the numEntries can overflow and incorrectly
+    pass, allowing a malicious file to allocate arbitrary memory.
+    * The use of strconv.ParseInt does not set the integer precision
+    to 64bit, causing this code to work incorrectly on 32bit machines.
+    
+    Change-Id: I1b1571a750a84f2dde97cc329ed04fe2342aaa60
+    Reviewed-on: https://go-review.googlesource.com/15173
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go      | 31 +++++++--------
+ src/archive/tar/reader_test.go | 87 ++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 85 insertions(+), 33 deletions(-)

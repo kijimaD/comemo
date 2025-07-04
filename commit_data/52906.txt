@@ -1,0 +1,20 @@
+commit 75136fc14c0d3ec64a2f6728e96fc86066d853c9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 4 17:11:46 2023 -0400
+
+    cmd/link: remove zdebug from ELF section header table
+    
+    We now use SHF_COMPRESSED sections for DWARF compression, and no
+    longer generate zdebug sections on ELF platforms. No need to
+    generate them in the section header string table.
+    
+    Updates #50796.
+    
+    Change-Id: I5c79ccd43f803c75dbd86e28195d0db1c0beb087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492719
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 2 --
+ 1 file changed, 2 deletions(-)

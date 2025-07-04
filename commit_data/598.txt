@@ -1,0 +1,18 @@
+commit 0416f994b76c90d916d1e7d8409166139a38eefa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 9 18:13:08 2008 -0700
+
+    - added convenience wrappers for sort
+      (work now with Ken's latest compiler fix)
+    - exoanded test cases accordingly
+    - fixed a type in the spec (thx r)
+    
+    R=r
+    DELTA=65  (62 added, 2 deleted, 1 changed)
+    OCL=15050
+    CL=15050
+
+ doc/go_spec.txt |  2 +-
+ src/lib/sort.go | 14 ++++++++++++--
+ test/sorting.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 3 deletions(-)

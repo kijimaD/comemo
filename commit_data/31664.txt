@@ -1,0 +1,28 @@
+commit 67a782b8cc5b073041a7b5ab14144c922737d44f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 24 11:16:42 2017 -0700
+
+    cmd/compile: test for moving spills
+    
+    Test that we really do move spills down to the dominator of
+    all the uses.
+    
+    Also add a test where go1.8 would have moved the spill out of
+    the loop into two exit points, but go1.9 doesn't move the spill.
+    This is a case where the 1.9 spill moving code does not subsume
+    the 1.8 spill moving code.
+    
+    Maybe we resurrect moving-spills-out-of-loops CL to fix this one.
+    (I suspect it wouldn't be worth the effort, but would be happy
+    to hear evidence otherwise.)
+    
+    Update #20472
+    
+    Change-Id: I7dbf8d65e7f4d675d14e5ecf502887cebda35d2a
+    Reviewed-on: https://go-review.googlesource.com/44038
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc_test.go | 109 ++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

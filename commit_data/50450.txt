@@ -1,0 +1,19 @@
+commit b244b89d560051f8d4c4c2b90680477ec05f76c3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 8 09:26:37 2022 +0000
+
+    net/http: convert allowQuerySemicolonsInUse to atomic type
+    
+    For #53821
+    
+    Change-Id: I135783bd5472011f6a74d2f5ee34ce96ff49ad2b
+    GitHub-Last-Rev: 4da2d67ff3d19424c306e1de6a4152fc93785a97
+    GitHub-Pull-Request: golang/go#54863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428336
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

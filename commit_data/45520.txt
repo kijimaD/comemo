@@ -1,0 +1,20 @@
+commit 830e63a7a330577bfb51404f38beb1b47ceae6b6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 1 15:36:34 2021 +0200
+
+    syscall: add //go:build lines to assembly files
+    
+    Change-Id: Ie296af523d70def269f9fb2ae35dfd2893abb2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315275
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm9_unix1_amd64.s  | 5 +++--
+ src/syscall/asm9_unix2_amd64.s  | 5 +++--
+ src/syscall/asm_linux_mips64x.s | 1 +
+ src/syscall/asm_linux_mipsx.s   | 1 +
+ src/syscall/asm_linux_ppc64x.s  | 1 +
+ src/syscall/asm_unix_386.s      | 5 +++--
+ src/syscall/asm_unix_amd64.s    | 5 +++--
+ 7 files changed, 15 insertions(+), 8 deletions(-)

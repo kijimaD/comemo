@@ -1,0 +1,12 @@
+commit 747dda9767d3da479900ad180b11a73f78f0412e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 25 10:02:57 2012 +1100
+
+    net: do not start io if deadline has passed
+    
+    R=golang-dev, mikioh.mikioh, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6851098
+
+ src/pkg/net/fd_windows.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

@@ -1,0 +1,38 @@
+commit f6b4c88941f88380caf59a050c1e9805664aa2fa
+Author: Joe Tsai <joetsai@google.com>
+Date:   Wed Oct 5 21:23:56 2016 +0000
+
+    Revert "net/http: improve performance for parsePostForm"
+    
+    This reverts commit 59320c396e6448132a52cb5a5d96491eee1e0ad8.
+    
+    Reasons:
+    This CL was causing failures on a large regression test that we run
+    within Google. The issues arises from two bugs in the CL:
+    * The CL dropped support for ';' as a delimiter (see https://golang.org/issue/2210)
+    * The handling of an empty string caused an empty record to be added when
+    no record was added (see https://golang.org/cl/30454 for my attempted fix)
+    
+    The logic being added is essentially a variation of url.ParseQuery,
+    but altered to accept an io.Reader instead of a string.
+    Since it is duplicated (but modified) logic, there needs to be good
+    tests to ensure that it's implementation doesn't drift in functionality
+    from url.ParseQuery. Fixing the above issues and adding the associated
+    regression tests leads to >100 lines of codes.
+    For a 4% reduction in CPU time, I think this complexity and duplicated
+    logic is not worth the effort.
+    
+    As such, I am abandoning my efforts to fix the existing issues and
+    believe that reverting CL/20301 is the better course of action.
+    
+    Updates #14655
+    
+    Change-Id: Ibb5be0a5b48a16c46337e213b79467fcafee69df
+    Reviewed-on: https://go-review.googlesource.com/30470
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go      | 60 +++++++++-----------------------------------
+ src/net/http/request_test.go | 26 +++----------------
+ 2 files changed, 16 insertions(+), 70 deletions(-)

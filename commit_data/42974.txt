@@ -1,0 +1,26 @@
+commit 57646534297a9bd193e6aaa4239c98984f371b97
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 14 10:19:47 2020 -0400
+
+    cmd/api: omit outside dependencies when listing the packages in "std"
+    
+    As of CL 251159, when 'go list -deps std' is run within GOROOT/src, it
+    treats the vendored external dependencies as real module dependencies,
+    not standard-library "vendor/" packages (which still exist in that
+    case, but are treated as distinct packages outside the "std" module).
+    
+    Fixes #41358
+    Updates #30241
+    
+    Change-Id: Ic23eae9829d90e74a340d49ca9052e9191597410
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254738
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/api/goapi.go                | 17 +++++++++++++----
+ src/cmd/api/goapi_test.go           | 13 +++++++++++++
+ src/cmd/go/internal/modload/load.go |  8 ++++++--
+ 3 files changed, 32 insertions(+), 6 deletions(-)

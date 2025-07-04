@@ -1,0 +1,22 @@
+commit dc4434a0c0aff7cb709b519dafdb8176a862e3ea
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 09:19:56 2017 -0700
+
+    cmd/compile: make stkptrsize local
+    
+    While we're here, also eliminate a few more Curfn uses.
+    
+    Passes toolstash -cmp. No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: Ib8db9e23467bbaf16cc44bf62d604910f733d6b8
+    Reviewed-on: https://go-review.googlesource.com/38331
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/go.go    |  2 --
+ src/cmd/compile/internal/gc/pgen.go  |  6 +++---
+ src/cmd/compile/internal/gc/plive.go | 42 +++++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/ssa.go   |  9 ++++----
+ 4 files changed, 30 insertions(+), 29 deletions(-)

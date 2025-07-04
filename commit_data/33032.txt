@@ -1,0 +1,25 @@
+commit 68e390304e94ef6c86f875c6a5e4514f7d5ba50f
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 10 16:56:56 2017 -0700
+
+    cmd/compile/internal/syntax: consider function nesting for error recovery
+    
+    This re-enables functionality that inadvertently was disabled in the
+    (long) past.
+    
+    Also, don't perform branch checks if we had errors in a function
+    to avoid spurious errors or (worst-case) crashes.
+    
+    Slightly modified test/fixedbugs/issue14006.go to make sure the
+    test still reports invalid label errors (the surrounding function
+    must be syntactically correct).
+    
+    Change-Id: Id5642930877d7cf3400649094ec75c753b5084b7
+    Reviewed-on: https://go-review.googlesource.com/69770
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go | 21 ++++++++++++---------
+ test/fixedbugs/issue14006.go              |  3 +++
+ 2 files changed, 15 insertions(+), 9 deletions(-)

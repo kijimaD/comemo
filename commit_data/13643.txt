@@ -1,0 +1,12 @@
+commit 95a00cae2eabf726634695ee1e079e28b9bde743
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 17 11:36:21 2012 -0700
+
+    go_spec: unary + and - are also defined for complex types
+    
+    R=r, rsc, iant, ken, iant
+    CC=golang-dev
+    https://golang.org/cl/6450150
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

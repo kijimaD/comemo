@@ -1,0 +1,21 @@
+commit 28e388589b48063047dbe7738bc1dfd4ed8e36bd
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 26 10:26:05 2022 +0800
+
+    runtime: convert workType.cycles to internal atomic types
+    
+    Note that this changes a non-atomic operation to atomic operation in gcStart().
+    
+    For #53821
+    
+    Change-Id: I754d254f6f190855144ff62151b6bae673b47867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425776
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go      | 16 ++++++++--------
+ src/runtime/mgcpacer.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

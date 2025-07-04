@@ -1,0 +1,18 @@
+commit 7d2c6eb3f53d4fa54587ff52ecb739bd4b13f9ab
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Oct 20 14:52:08 2015 +0300
+
+    cmd/internal/obj/x86: align functions with trap instruction
+    
+    Align functions with 0xCC (INT $3) - breakpoint instruction,
+    instead of 0x00, which can disassemble into valid instruction.
+    
+    Change-Id: Ieda191886efc4aacb86f58bea1169fd1b3b57636
+    Reviewed-on: https://go-review.googlesource.com/16102
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Gregory Shimansky <gregory.shimansky@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

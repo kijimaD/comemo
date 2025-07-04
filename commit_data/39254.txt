@@ -1,0 +1,16 @@
+commit d97bd5d07ac4e7b342053b335428ff9c97212f9f
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat May 25 20:02:28 2019 +0200
+
+    cmd/doc: display a proper error when no packages are found
+    
+    Fixes #32044
+    
+    Change-Id: Ia220dbbe4d6851befe28dd2d4b8a1a7bc2757460
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178878
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/pkg.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit ddb423a7da378902d1b71eb2c0027cc98a94b075
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 14:08:20 2023 +0100
+
+    runtime: use explicit NOFRAME on freebsd/amd64
+    
+    This CL marks some freebsd assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    Updates #58378
+    
+    Change-Id: Ibd00748946f1137e165293df7da73278cb673bbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466395
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/internal/obj/x86/obj6.go |  3 ++-
+ src/runtime/sys_freebsd_amd64.s  | 12 +++++-------
+ 2 files changed, 7 insertions(+), 8 deletions(-)

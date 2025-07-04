@@ -1,0 +1,23 @@
+commit fbfe62bc802d27539a858afd66ae335ff94b1d25
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Dec 1 00:16:24 2023 +0700
+
+    cmd/compile: fix typecheck range over rune literal
+    
+    With range over int, the rune literal in range expression will be left
+    as untyped rune, but idealType is not handling this case, causing ICE.
+    
+    Fixing this by setting the concrete type for untyped rune expresison.
+    
+    Fixes #64471
+    
+    Change-Id: I07a151c54ea1d9e1b92e4d96cdfb6e73dca13862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546296
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/helpers.go | 2 ++
+ test/range3.go                            | 8 ++++++++
+ 2 files changed, 10 insertions(+)

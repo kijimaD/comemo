@@ -1,0 +1,20 @@
+commit d738c6b0cad4782f50712b8a2dac95e0c1cb2366
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 00:48:33 2014 -0500
+
+    liblink, cmd/ld, runtime: set the type of runtime.tlsg in runtime
+    
+    In the old code, liblink, cmd/ld and runtime all have code determine
+    whether runtime.tlsg is an actual variable or a placeholder for TLS
+    relocation. This change consolidate them into one: the runtime/tls_arm.s
+    will ultimately determine the type of that variable.
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237e43
+    Reviewed-on: https://go-review.googlesource.com/2118
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/ld/lib.c      |  8 +++++++-
+ src/liblink/asm5.c    |  5 +++--
+ src/runtime/tls_arm.s | 11 +++++++++--
+ 3 files changed, 19 insertions(+), 5 deletions(-)

@@ -1,0 +1,70 @@
+commit 5c40210987844c7a64eb0bfcb781ed865d9c4b7f
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 23:53:08 2018 +0200
+
+    cmd/compile: in prove, add transitive closure of relations
+    
+    Implement it through a partial order datastructure, which
+    keeps the relations between SSA values in a forest of DAGs
+    and is able to discover contradictions.
+    
+    In make.bash, this patch is able to prove hundreds of conditions
+    which were not proved before.
+    
+    Compilebench:
+    
+    name       old time/op       new time/op       delta
+    Template         371ms ± 2%        368ms ± 1%    ~     (p=0.222 n=5+5)
+    Unicode          203ms ± 6%        199ms ± 3%    ~     (p=0.421 n=5+5)
+    GoTypes          1.17s ± 4%        1.18s ± 1%    ~     (p=0.151 n=5+5)
+    Compiler         5.54s ± 2%        5.59s ± 1%    ~     (p=0.548 n=5+5)
+    SSA              12.9s ± 2%        13.2s ± 1%  +2.96%  (p=0.032 n=5+5)
+    Flate            245ms ± 2%        247ms ± 3%    ~     (p=0.690 n=5+5)
+    GoParser         302ms ± 6%        302ms ± 4%    ~     (p=0.548 n=5+5)
+    Reflect          764ms ± 4%        773ms ± 3%    ~     (p=0.095 n=5+5)
+    Tar              354ms ± 6%        361ms ± 3%    ~     (p=0.222 n=5+5)
+    XML              434ms ± 3%        429ms ± 1%    ~     (p=0.421 n=5+5)
+    StdCmd           22.6s ± 1%        22.9s ± 1%  +1.40%  (p=0.032 n=5+5)
+    
+    name       old user-time/op  new user-time/op  delta
+    Template         436ms ± 8%        426ms ± 5%    ~     (p=0.579 n=5+5)
+    Unicode          219ms ±15%        219ms ±12%    ~     (p=1.000 n=5+5)
+    GoTypes          1.47s ± 6%        1.53s ± 6%    ~     (p=0.222 n=5+5)
+    Compiler         7.26s ± 4%        7.40s ± 2%    ~     (p=0.389 n=5+5)
+    SSA              17.7s ± 4%        18.5s ± 4%  +4.13%  (p=0.032 n=5+5)
+    Flate            257ms ± 5%        268ms ± 9%    ~     (p=0.333 n=5+5)
+    GoParser         354ms ± 6%        348ms ± 6%    ~     (p=0.913 n=5+5)
+    Reflect          904ms ± 2%        944ms ± 4%    ~     (p=0.056 n=5+5)
+    Tar              398ms ±11%        430ms ± 7%    ~     (p=0.079 n=5+5)
+    XML              501ms ± 7%        489ms ± 5%    ~     (p=0.444 n=5+5)
+    
+    name       old text-bytes    new text-bytes    delta
+    HelloSize        670kB ± 0%        670kB ± 0%  +0.00%  (p=0.008 n=5+5)
+    CmdGoSize       7.22MB ± 0%       7.21MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    
+    name       old data-bytes    new data-bytes    delta
+    HelloSize       9.88kB ± 0%       9.88kB ± 0%    ~     (all equal)
+    CmdGoSize        248kB ± 0%        248kB ± 0%  -0.06%  (p=0.008 n=5+5)
+    
+    name       old bss-bytes     new bss-bytes     delta
+    HelloSize        125kB ± 0%        125kB ± 0%    ~     (all equal)
+    CmdGoSize        145kB ± 0%        144kB ± 0%  -0.20%  (p=0.008 n=5+5)
+    
+    name       old exe-bytes     new exe-bytes     delta
+    HelloSize       1.43MB ± 0%       1.43MB ± 0%    ~     (all equal)
+    CmdGoSize       14.5MB ± 0%       14.5MB ± 0%  -0.06%  (p=0.008 n=5+5)
+    
+    Fixes #19714
+    Updates #20393
+    
+    Change-Id: Ia090f5b5dc1bcd274ba8a39b233c1e1ace1b330e
+    Reviewed-on: https://go-review.googlesource.com/100277
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/fmt_test.go                |   58 +-
+ src/cmd/compile/internal/ssa/poset.go      | 1181 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/poset_test.go |  682 ++++++++++++++++
+ src/cmd/compile/internal/ssa/prove.go      |   83 +-
+ test/prove.go                              |   34 +-
+ 5 files changed, 1987 insertions(+), 51 deletions(-)

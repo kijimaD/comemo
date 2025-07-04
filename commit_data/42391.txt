@@ -1,0 +1,26 @@
+commit b68fa57c599720d33a2d735782969ce95eabf794
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Tue May 12 11:06:42 2020 -0700
+
+    encoding/asn1: document what Unmarshal returns in rest
+    
+    Specifically, this change documents the behavior of Unmarshal when a
+    SEQUENCE contains trailing elements.
+    
+    For context Unmarshal treats trailing elements of a SEQUENCE that do not
+    have matching struct fields as valid, as this is how ASN.1 structures
+    are typically extended. This can be somewhat confusing as you might
+    expect those elements to be appended to rest, but rest is really only
+    for trailing data unrelated to the structure being parsed (i.e. if you
+    append a second sequence to b, it would be returned in rest).
+    
+    Fixes #35680
+    
+    Change-Id: Ia2c68b2f7d8674d09e859b4b7f9aff327da26fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233537
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/encoding/asn1/asn1.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

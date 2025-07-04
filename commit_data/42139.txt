@@ -1,0 +1,14 @@
+commit 9b9556f6604c1426bc28a77ca9be6ce316ca1e6e
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sun Apr 26 15:47:18 2020 +0800
+
+    cmd/link: use definition from debug/elf for ldelf
+    
+    Change-Id: I92d0fb3a244d0151fcc4b25a20913ad69a89f198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224977
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 454 +++++++++------------------------
+ 1 file changed, 120 insertions(+), 334 deletions(-)

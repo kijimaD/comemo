@@ -1,0 +1,15 @@
+commit b233ac8f18a668a2d91299ebc2996e7e2b623b29
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Sep 28 10:15:21 2010 -0400
+
+    math: Fix off-by-one error in Ilogb and Logb.
+    
+    Fixes #1141.
+    
+    R=rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/2194047
+
+ src/pkg/math/all_test.go | 17 +++++++++--------
+ src/pkg/math/logb.go     |  8 ++++----
+ 2 files changed, 13 insertions(+), 12 deletions(-)

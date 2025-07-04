@@ -1,0 +1,29 @@
+commit 8a7def2b3b8fc801eb4f02e58328e84ee311910e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 3 13:32:22 2013 +0900
+
+    net: reduce unnecessary syscall.Sockaddr conversions
+    
+    This CL makes IPAddr, UDPAddr and TCPAddr implement sockaddr
+    interface, UnixAddr is already sockaddr interface compliant, and
+    reduces unnecessary conversions between net.Addr, net.sockaddr and
+    syscall.Sockaddr.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12010043
+
+ src/pkg/net/iprawsock_posix.go | 11 +++++---
+ src/pkg/net/ipsock_posix.go    | 13 +---------
+ src/pkg/net/sock_posix.go      | 58 +++++++++++++++++++++++++++++-------------
+ src/pkg/net/sock_unix.go       | 22 ++++++++--------
+ src/pkg/net/sock_windows.go    | 22 ++++++++--------
+ src/pkg/net/tcpsock_posix.go   | 13 ++++++----
+ src/pkg/net/udpsock_posix.go   | 13 ++++++----
+ src/pkg/net/unixsock_posix.go  | 17 ++++++-------
+ 8 files changed, 95 insertions(+), 74 deletions(-)

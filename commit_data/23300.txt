@@ -1,0 +1,19 @@
+commit 10425507fd6f36bfe0fefa759d12322eba72b9b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 8 17:56:27 2015 -0700
+
+    cmd/dist: move guts of race.bash into dist
+    
+    After a little build coordinator change, this will get us sharding of
+    the race builder.
+    
+    Update #11074
+    
+    Change-Id: I4c55267563b6f5e213def7dd6707c837ae2106bf
+    Reviewed-on: https://go-review.googlesource.com/10845
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/dist/test.go | 69 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/race.bash        |  9 +------
+ src/race.bat         | 10 +-------
+ 3 files changed, 67 insertions(+), 21 deletions(-)

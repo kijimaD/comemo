@@ -1,0 +1,45 @@
+commit 98b3be702b05e8fc071fececf7bf44f078bf032f
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Oct 25 11:47:53 2024 -0700
+
+    os, net, internal/poll: combine unix sendfile implementations
+    
+    The internal/poll/sendfile_{bsd,linux,solaris}.go implementations
+    have more in common than not. Combine into a single sendfile_unix.go.
+    
+    The net and os packages have redundant code dealing with sendfile
+    quirks on non-Linux Unix systems, such as the need to determine the
+    size of the source file before sending. Move the common code into
+    internal/poll.
+    
+    Remove some obsolete or incorrect behaviors:
+    
+    Drop the maximum sendfile chunk size. If we ask the kernel
+    to copy more data than it is willing to send, it'll copy up to
+    its limit.
+    
+    There was a comment in net/sendfile_unix_alt.go indicating that
+    copying more bytes than a file contains results in the kernel
+    looping back to the start of the file. I am unable to replicate
+    this behavior anywhere. Dropped the comment, the workarounds,
+    and added a test covering this case.
+    
+    Darwin, Dragonfly, and FreeBSD all support copying the entire
+    contents of a file by passing 0 for the copy limit.
+    Take advantage of this.
+    
+    Change-Id: I9f707ac7a27c165020ae02a6b5bb8f6f16f3c530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_posix.go         |  10 ++
+ src/internal/poll/sendfile_bsd.go     |  80 --------------
+ src/internal/poll/sendfile_linux.go   |  61 -----------
+ src/internal/poll/sendfile_solaris.go |  67 ------------
+ src/internal/poll/sendfile_unix.go    | 189 ++++++++++++++++++++++++++++++++++
+ src/net/sendfile_test.go              |  14 ++-
+ src/net/sendfile_unix_alt.go          |  41 +-------
+ src/os/copy_test.go                   | 124 +++++++++++++++++++---
+ src/os/zero_copy_solaris.go           |  40 +------
+ 9 files changed, 327 insertions(+), 299 deletions(-)

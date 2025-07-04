@@ -1,0 +1,21 @@
+commit 55ef67f2f85c51d415a030ae144a0b3301a097bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 13:11:02 2016 -0400
+
+    unicode: change SimpleFold to handle invalid runes
+    
+    Functions like ToLower and ToUpper return the invalid rune back,
+    so we might as well do the same here.
+    
+    I changed my mind about panicking when I tried to document the behavior.
+    
+    Fixes #16690 (again).
+    
+    Change-Id: If1c68bfcd66daea160fd19948e7672b0e1add106
+    Reviewed-on: https://go-review.googlesource.com/30935
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/unicode/letter.go      |  7 +++++--
+ src/unicode/letter_test.go | 14 ++------------
+ 2 files changed, 7 insertions(+), 14 deletions(-)

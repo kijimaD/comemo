@@ -1,0 +1,12 @@
+commit 1d55685e261a6c53403996aa31b1d147ee0090fb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 16 19:51:18 2013 +0400
+
+    runtime: minor cleanup of hashmap code
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11357043
+
+ src/pkg/runtime/hashmap.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 9d1cd0b8816654ac36f2122b52dd8335aae86b26
+Author: Mikhail Mazurskiy <mmazurskiy@gitlab.com>
+Date:   Fri Jun 27 10:52:57 2025 +0000
+
+    iter: add missing type parameter in doc
+    
+    Change-Id: I3816b41227a0c8f8ece77b1e29002df433ccebdb
+    GitHub-Last-Rev: e9e63b4c1b93cde499b15db49c53ff1536fc765c
+    GitHub-Pull-Request: golang/go#74406
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684555
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+
+ src/iter/iter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

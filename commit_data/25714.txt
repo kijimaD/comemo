@@ -1,0 +1,18 @@
+commit 224888655fbbdf4a6d7a792d17dd95851e9b86aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:07:06 2016 -0500
+
+    cmd/go: document that -msan requires clang
+    
+    Fixes #14171.
+    
+    Change-Id: Ie75c1cfd88801618308d472bc04e7fc648c95e0c
+    Reviewed-on: https://go-review.googlesource.com/19150
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/build.go   | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

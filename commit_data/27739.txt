@@ -1,0 +1,23 @@
+commit 73516c5f481250db4ccbfdddb8f68ef261897fcb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Jun 27 11:07:08 2016 -0400
+
+    encoding/gob: avoid allocating string for map key
+    
+    On linux/386 compared to tip:
+    
+            name                     old time/op  new time/op  delta
+            DecodeInterfaceSlice-40  1.23ms ± 1%  1.17ms ± 1%  -4.93%  (p=0.000 n=9+10)
+    
+    Recovers about half the performance regression from Go 1.6 on 386.
+    
+    For #16117.
+    
+    Change-Id: Ie8676d92a4da3e27ff21b91a98b3e13d16730ba1
+    Reviewed-on: https://go-review.googlesource.com/24468
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/gob/decode.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

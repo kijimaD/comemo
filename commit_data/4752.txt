@@ -1,0 +1,14 @@
+commit f7e2266ce697344879c2cb51eec2f8ae5e4b3860
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 1 16:14:22 2010 -0800
+
+    Corrected broken assertion.
+    Fixes #571.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198045
+
+ src/pkg/bignum/bignum.go      | 6 ++++--
+ src/pkg/bignum/bignum_test.go | 6 ++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

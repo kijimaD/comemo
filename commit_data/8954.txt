@@ -1,0 +1,14 @@
+commit a33cc423b4c0eb5ef74bda96d7335521a9c7978c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 16:40:46 2011 +1000
+
+    exp/template: allow an empty interface value to be the target of range, etc.
+    We extract the concrete value inside.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4677041
+
+ src/pkg/exp/template/exec.go      |  4 ++++
+ src/pkg/exp/template/exec_test.go | 20 ++++++++++++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

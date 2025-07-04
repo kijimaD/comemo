@@ -1,0 +1,16 @@
+commit d7f7ea6ea894f197928cc728aef257c045e4e916
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 30 16:19:10 2016 +0200
+
+    cmd/compile: ignore dead phis in fuse
+    
+    Happens occasionally for boolean phis was used as a control.
+    
+    Change-Id: Ie0f2483e9004c1706751d8dfb25ee2e5106d917e
+    Reviewed-on: https://go-review.googlesource.com/21310
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/fuse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

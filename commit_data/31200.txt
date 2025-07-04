@@ -1,0 +1,28 @@
+commit bb70f517e9ee0406408ffd82a2ce60cdef95ec3b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 17:16:54 2017 -0700
+
+    cmd/compile: report block start for gotos jumping into blocks
+    
+    Follow-up on https://go-review.googlesource.com/#/c/39998/
+    which dropped this information.
+    
+    The reported blocks are the innermost blocks containing a
+    label jumped to from outside, not the outermost block as
+    reported originally by cmd/compile.
+    
+    We could report the outermost block with a slighly more
+    involved algorithm (need to track containing blocks for
+    all unresolved forward gotos), but since gccgo also reports
+    the innermost blocks, the current approach seems good enough.
+    
+    Change-Id: Ic0235b8fafe8d5f99dc9872b58e90e8d9e72c5db
+    Reviewed-on: https://go-review.googlesource.com/40980
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/branches.go | 42 +++++++++----------
+ test/goto.go                                | 64 ++++++++++++++---------------
+ 2 files changed, 53 insertions(+), 53 deletions(-)

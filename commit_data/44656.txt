@@ -1,0 +1,15 @@
+commit 6ccb5c49cca52766f6d288d128db67be6392c579
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Sun Mar 14 00:09:05 2021 +0000
+
+    cmd/link/internal/ld: fix typo in a comment
+    
+    Change-Id: I9ae39aa2da2bfa6bb5d3f279bca764128d9cc401
+    GitHub-Last-Rev: 7a5945ae120b911793a1510f371945ac17611440
+    GitHub-Pull-Request: golang/go#44990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301529
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

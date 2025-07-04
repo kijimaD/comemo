@@ -1,0 +1,23 @@
+commit 12e343f372c03b6fec9d5da6cd83833c79812bc9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 10:21:17 2012 +1100
+
+    image/jpeg: add DCT tests, do a small optimization (common sub-expression
+    elimination) in idct.go.
+    
+    benchmark                   old ns/op    new ns/op    delta
+    BenchmarkIDCT                    5649         5610   -0.69%
+    BenchmarkDecodeRGBOpaque      2948607      2941051   -0.26%
+    
+    The "type block" declaration moved so that idct.go is compilable
+    as a stand-alone file: "go tool 6g -S idct.go" works.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6619056
+
+ src/pkg/image/jpeg/dct_test.go    | 297 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/jpeg/idct.go        |  65 +++++----
+ src/pkg/image/jpeg/reader.go      |   4 -
+ src/pkg/image/jpeg/writer_test.go |  17 +++
+ 4 files changed, 350 insertions(+), 33 deletions(-)

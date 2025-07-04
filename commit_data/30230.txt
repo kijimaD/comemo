@@ -1,0 +1,34 @@
+commit 5a75d6a08ebb727c0e2bf5c8fbcbc104d260d302
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 3 16:15:38 2017 -0800
+
+    cmd/compile: optimize non-empty-interface type conversions
+    
+    When doing i.(T) for non-empty-interface i and concrete type T,
+    there's no need to read the type out of the itab. Just compare the
+    itab to the itab we expect for that interface/type pair.
+    
+    Also optimize type switches by putting the type hash of the
+    concrete type in the itab. That way we don't need to load the
+    type pointer out of the itab.
+    
+    Update #18492
+    
+    Change-Id: I49e280a21e5687e771db5b8a56b685291ac168ce
+    Reviewed-on: https://go-review.googlesource.com/34810
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |  3 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
+ src/cmd/compile/internal/gc/go.go              |  3 +-
+ src/cmd/compile/internal/gc/pgen.go            |  3 +-
+ src/cmd/compile/internal/gc/reflect.go         | 10 ++--
+ src/cmd/compile/internal/gc/ssa.go             | 63 ++++++--------------------
+ src/cmd/compile/internal/gc/swt.go             | 22 +++++----
+ src/runtime/iface.go                           | 24 +++++++---
+ src/runtime/plugin.go                          |  2 +-
+ src/runtime/runtime2.go                        |  6 ++-
+ 10 files changed, 64 insertions(+), 75 deletions(-)

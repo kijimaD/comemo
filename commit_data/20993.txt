@@ -1,0 +1,16 @@
+commit 207950ad5160f5219134fd2e52c5be7e5e3979a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 13:01:48 2014 +1100
+
+    net/http: make Transport send 'Connection: close' when DisableKeepAlives
+    
+    No bug was open, but I found an old email to myself to investigate
+    when I suspected this was happening.
+    
+    Change-Id: Icedefec6f15a000eaabb2693b0640b3b6c8bf82c
+    Reviewed-on: https://go-review.googlesource.com/1578
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/transport.go      |  4 ++++
+ src/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

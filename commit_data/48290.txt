@@ -1,0 +1,22 @@
+commit bf97c99b62fe7d6652cc8c807dbc91998d488a01
+Author: uji <ujiprog@gmail.com>
+Date:   Sat Feb 26 13:58:54 2022 +0000
+
+    cmd/go: clarify error from 'go install' when arguments have mismatched versions and paths
+    
+    Fixes #51196.
+    
+    Change-Id: I0ee4d8234f11e4f3b71b81546518647e07fafd7d
+    GitHub-Last-Rev: 8fd1a77adff982dd00385c5b25a4e0cdf3e2e220
+    GitHub-Pull-Request: golang/go#51373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388154
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/load/pkg.go                        | 2 +-
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

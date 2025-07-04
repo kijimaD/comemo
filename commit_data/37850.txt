@@ -1,0 +1,19 @@
+commit a1d5e8adfa4d2f1043f4617fe20994ddbb7cc25c
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Tue Jan 8 01:13:01 2019 +0000
+
+    cmd/go: fix typo in output of go help importpath
+    
+    The output refers to 'go help modules-get' but the actual command is 'go
+    help module-get', singular.
+    
+    Change-Id: Ie001f4181d80d3bf1995af2f257bf789dad5b33f
+    GitHub-Last-Rev: ce9b90e9a656fbab097d440458e93ab29ba014af
+    GitHub-Pull-Request: golang/go#29605
+    Reviewed-on: https://go-review.googlesource.com/c/156737
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

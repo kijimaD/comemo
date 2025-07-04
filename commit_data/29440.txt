@@ -1,0 +1,36 @@
+commit f72a629dbd6d4ed65cb295b896de214b0f7790d5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 4 11:27:54 2016 -0400
+
+    runtime/pprof/internal: add package protopprof
+    
+    This change adds code, originally written by Russ Cox <rsc@golang.org>
+    and open-sourced by Google, that converts from the "legacy"
+    binary pprof profile format to a struct representation of the
+    new protocol buffer pprof profile format.
+    
+    This code reads the entire binary format for conversion to the
+    protobuf format. In a future change, we will update the code
+    to incrementally read and convert segments of the binary format,
+    so that the entire profile does not need to be stored in memory.
+    
+    This change also contains contributions by Daria Kolistratova
+    <daria.kolistratova@intel.com> from the rolled-back change
+    golang.org/cl/30556 adapting the code to be used by the package
+    runtime/pprof.
+    
+    This code also appeared in the change golang.org/cl/32257, which was based
+    on Daria Kolistratova's change, but was also rolled back.
+    
+    Updates #16093
+    
+    Change-Id: I5c768b1134bc15408d80a3ccc7ed867db9a1c63d
+    Reviewed-on: https://go-review.googlesource.com/32811
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go                          |  17 +-
+ .../pprof/internal/protopprof/protopprof.go        | 106 +++++++++++
+ .../pprof/internal/protopprof/protopprof_test.go   | 207 +++++++++++++++++++++
+ 3 files changed, 322 insertions(+), 8 deletions(-)

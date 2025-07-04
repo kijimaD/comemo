@@ -1,0 +1,19 @@
+commit 0d32d9e8a8784cf3ef39c471b73e502c51085b6d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 16:55:04 2021 -0700
+
+    os: document that Windows Symlink to missing target creates file symlink
+    
+    Fixes #39183
+    
+    Change-Id: Iec4a5a561182ade57dc7dc24247710005d6b9f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/file_plan9.go   | 2 ++
+ src/os/file_unix.go    | 2 ++
+ src/os/file_windows.go | 2 ++
+ 3 files changed, 6 insertions(+)

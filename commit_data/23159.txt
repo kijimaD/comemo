@@ -1,0 +1,20 @@
+commit 4a1957d0aaad9c6700b4bdab19af611e68468bf3
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 26 15:21:18 2015 -0400
+
+    runtime: use stripped test environment for TestGdbPython
+    
+    Most runtime tests that invoke the compiler to build a sub-test binary
+    do so with a special environment constructed by testEnv that strips
+    out environment variables that should apply to the test but not to the
+    build.
+    
+    Fix TestGdbPython to use this test environment when invoking go build,
+    like other tests do.
+    
+    Change-Id: Iafdf89d4765c587cbebc427a5d61cb8a7e71b326
+    Reviewed-on: https://go-review.googlesource.com/10455
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

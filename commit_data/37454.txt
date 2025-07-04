@@ -1,0 +1,20 @@
+commit 50c3465fad946caa545c4835ffccc6f89c762905
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 20 10:15:14 2018 -0800
+
+    os: permit RemoveAll with paths that end in ".."
+    
+    Prohibiting RemoveAll with paths that end in ".." was added with
+    CL 137442 in this release cycle, but it worked before and it should
+    continue to work.
+    
+    Also run TestRemoveAllDot on all systems; the test is not specific to
+    the use of unlinkat and friends.
+    
+    Change-Id: I277784c8915cd748fec318d2936062440d5d1fde
+    Reviewed-on: https://go-review.googlesource.com/c/150497
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/removeall_at.go   | 12 +++++-------
+ src/os/removeall_test.go | 36 ++++++++++++++++++++++++------------
+ 2 files changed, 29 insertions(+), 19 deletions(-)

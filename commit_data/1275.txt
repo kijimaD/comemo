@@ -1,0 +1,19 @@
+commit 79e1db2da13b0d9aafe39831bdb0c1b7940aab0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 08:30:54 2008 -0800
+
+    add stub routines stackalloc() and stackfree().
+    run oldstack on g0's stack, just like newstack does,
+    so that oldstack can free the old stack.
+    
+    R=r
+    DELTA=53  (44 added, 0 deleted, 9 changed)
+    OCL=20404
+    CL=20433
+
+ src/runtime/Makefile    |  1 +
+ src/runtime/proc.c      | 37 ++++++++++++++++++++++++++++++-------
+ src/runtime/rt0_amd64.s |  6 +++---
+ src/runtime/runtime.h   |  2 ++
+ src/runtime/stack.c     | 19 +++++++++++++++++++
+ 5 files changed, 55 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit 0b12e3d81cdba8a5676d6d61970d3dc5cb1462ac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 1 04:47:22 2024 +0000
+
+    runtime: model wakeableSleep.lock in the race detector
+    
+    Currently the flight recorder tests are failing in race mode because the
+    race detector doesn't see s.lock, leading to false positives. This has
+    also appeared in the trace tests. Model the lock in the race detector.
+    
+    Fixes #65207.
+    Fixes #65283.
+    
+    Change-Id: I1e9a5c9606536f55fdfc46b5f8443e9c7213c23d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace2.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

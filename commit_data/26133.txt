@@ -1,0 +1,12 @@
+commit 1264f6e2d4c32c60604ff6b9753f1560c9344e92
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 19:16:04 2016 +0000
+
+    cmd/compile: gofmt
+    
+    Change-Id: I754861147838d0f6c184d8deb8a028062a1d3214
+    Reviewed-on: https://go-review.googlesource.com/20400
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

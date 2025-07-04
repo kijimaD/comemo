@@ -1,0 +1,20 @@
+commit 496a935376b081d5254a2ce7b5d0b39faa2b3eaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 15 16:08:53 2010 -0700
+
+    bignum: delete package - functionality subsumed by package big
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1742045
+
+ src/pkg/Makefile                  |    1 -
+ src/pkg/exp/bignum/Makefile       |   14 -
+ src/pkg/exp/bignum/arith.go       |  121 -----
+ src/pkg/exp/bignum/arith_amd64.s  |   41 --
+ src/pkg/exp/bignum/bignum.go      | 1024 -------------------------------------
+ src/pkg/exp/bignum/bignum_test.go |  681 ------------------------
+ src/pkg/exp/bignum/integer.go     |  520 -------------------
+ src/pkg/exp/bignum/nrdiv_test.go  |  188 -------
+ src/pkg/exp/bignum/rational.go    |  205 --------
+ 9 files changed, 2795 deletions(-)

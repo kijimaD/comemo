@@ -1,0 +1,26 @@
+commit ccf140f3d79248f5dc5e326b0d2942aa4ba70b98
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Sep 14 12:40:10 2021 -0700
+
+    internal/fuzz: allocate memory for mutated strings
+    
+    Rather than directly pointing at the underlying scratch slice, allocate
+    memory for strings. This prevents mutation of previous values we've
+    passed to the fuzz function, which may be retained by something that
+    expects them to be immutable.
+    
+    Fixes golang/go#48308
+    
+    Change-Id: Iee9bed1a536fdc4188180e8e7c1c722f641271d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351312
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/internal/fuzz/mutator.go      |  7 +------
+ src/internal/fuzz/mutator_test.go | 16 ++++++++++++++++
+ src/testing/fuzz.go               |  5 ++++-
+ 3 files changed, 21 insertions(+), 7 deletions(-)

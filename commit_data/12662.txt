@@ -1,0 +1,13 @@
+commit e57a6167b6c4ac4e3d3d34ab8f9f6471be6f2703
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 23:15:38 2012 -0400
+
+    A+C: Christopher Redden (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5845043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

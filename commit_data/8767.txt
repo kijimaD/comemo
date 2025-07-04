@@ -1,0 +1,12 @@
+commit f4c7db0ed96b985942a21e94496717ece0fc940e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 17 12:49:04 2011 -0400
+
+    spec: disallow goto into blocks
+    
+    R=gri, r, r
+    CC=golang-dev
+    https://golang.org/cl/4631045
+
+ doc/go_spec.html | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

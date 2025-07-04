@@ -1,0 +1,23 @@
+commit d0fb649713e6435cb854fcb202c6979c8a137c0b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Mar 29 14:09:22 2016 +0200
+
+    all: use &^ operator if possible
+    
+    This is a change improving consistency in the source tree.
+    The pattern foo &= ^bar, was only used six times in src/ directory.
+    The usage of the supported &^ (bit clear / AND NOT) operator is way more
+    common, about factor 10x.
+    
+    Change-Id: If26a2994fd81d23d42189bee00245eb84e672cf3
+    Reviewed-on: https://go-review.googlesource.com/21224
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go | 2 +-
+ src/cmd/link/internal/ld/link.go     | 2 +-
+ src/crypto/elliptic/p256.go          | 4 ++--
+ src/syscall/exec_unix.go             | 2 +-
+ src/syscall/lsf_linux.go             | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

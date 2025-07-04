@@ -1,0 +1,13 @@
+commit 29199aa4e49a49c19b1169f60c62a7944baa8706
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 10 05:11:51 2012 +0800
+
+    cmd/gc: import path cannot start with slash on Windows
+            For CL 5756065.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5784065
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

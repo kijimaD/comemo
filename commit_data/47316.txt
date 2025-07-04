@@ -1,0 +1,15 @@
+commit 3b7e376df87fa5255c7aa58d5719593b314338fd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 5 15:34:20 2021 -0700
+
+    net/netip: add tests for Addr.AsSlice
+    
+    Change-Id: Ib88dd101b3bbdf4d2bfd79838994cfadef1b604d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361915
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/netip/netip_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

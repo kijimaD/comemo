@@ -1,0 +1,33 @@
+commit cf225a1748a9efe401edd3cf8879692391a31d8b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 16:38:19 2015 -0400
+
+    runtime: fix mark 2 completion in fractional/idle workers
+    
+    Currently fractional and idle mark workers dispose of their gcWork
+    cache during mark 2 after incrementing work.nwait and after checking
+    whether there are any workers or any work available. This creates a
+    window for two races:
+    
+    1) If the only remaining work is in this worker's gcWork cache, it
+       will see that there are no more workers and no more work on the
+       global lists (since it has not yet flushed its own cache) and
+       prematurely signal mark 2 completion.
+    
+    2) After this worker has incremented work.nwait but before it has
+       flushed its cache, another worker may observe that there are no
+       more workers and no more work and prematurely signal mark 2
+       completion.
+    
+    We can fix both of these by simply moving the cache flush above the
+    increment of nwait and the test of the completion condition.
+    
+    This is probably contributing to #11694, though this alone is not
+    enough to fix it.
+    
+    Change-Id: Idcf9656e5c460c5ea0d23c19c6c51e951f7716c3
+    Reviewed-on: https://go-review.googlesource.com/12646
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

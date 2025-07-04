@@ -1,0 +1,18 @@
+commit ab096d587f9bb5dcdf895511ee6d213aade7e30f
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed Dec 30 11:15:38 2015 -0500
+
+    cmd/dist: improve isGitRepo to handle git "worktree"s
+    
+    Simply checking the exit code of `git rev-parse --git-dir` should
+    suffice here, but that requires deviating from the infrastructure
+    provided by `run`, so I've left that for a future change.
+    
+    Fixes #11211.
+    
+    Change-Id: I7cbad86a8a06578f52f66f734f5447b597ddc962
+    Reviewed-on: https://go-review.googlesource.com/18213
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

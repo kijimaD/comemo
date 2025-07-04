@@ -1,0 +1,24 @@
+commit 63e3763af88e758815187bd58c342b7ccfcd3aa2
+Author: William Orr <will@worrbase.com>
+Date:   Tue Jun 24 13:30:30 2014 -0700
+
+    syscall: implement setresuid(2) and setresgid(2) on OpenBSD/FreeBSD/DragonflyBSD
+    
+    Fixes #8218.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/107150043
+
+ src/pkg/syscall/syscall_dragonfly.go        |  2 ++
+ src/pkg/syscall/syscall_freebsd.go          |  2 ++
+ src/pkg/syscall/syscall_openbsd.go          |  4 ++--
+ src/pkg/syscall/zsyscall_dragonfly_386.go   | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go     | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go   | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_arm.go     | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_openbsd_386.go     | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_openbsd_amd64.go   | 20 ++++++++++++++++++++
+ 10 files changed, 146 insertions(+), 2 deletions(-)

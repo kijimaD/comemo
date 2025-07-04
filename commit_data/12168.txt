@@ -1,0 +1,15 @@
+commit 28e0e1886393cac863074631cc336de6b73a45bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 10:17:24 2012 -0800
+
+    math: slightly more readable comments
+    
+    Replaced /*-style comments with line comments;
+    there are two many *'s already in those lines.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5699051
+
+ src/pkg/math/const.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

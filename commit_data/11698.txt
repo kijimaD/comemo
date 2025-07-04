@@ -1,0 +1,12 @@
+commit 3f6a517db6f5e63844c4bd7b8e1871314df8b10d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 00:22:38 2012 -0500
+
+    cmd/dist: respect $CC, as quietgcc.bash used to
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5641051
+
+ src/cmd/dist/build.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

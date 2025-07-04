@@ -1,0 +1,17 @@
+commit 22d4c8bf13d5edf4670dbdaf0854d653d9c2b81a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Oct 21 20:35:22 2015 -0700
+
+    math: fix normalization bug in pure-Go sqrt
+    
+    Fixes #13013
+    
+    Change-Id: I6cf500eacdce76e303fc1cd92dd1c80eef0986bc
+    Reviewed-on: https://go-review.googlesource.com/16158
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 4 +++-
+ src/math/sqrt.go     | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

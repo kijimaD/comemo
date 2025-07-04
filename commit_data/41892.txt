@@ -1,0 +1,24 @@
+commit 0a18cbc2e61a124b8fa142c4be288ec0c45ccb5d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 13:51:25 2020 -0700
+
+    cmd/compile: remove gdata layer in slicesym
+    
+    The previous change moved code around to create slicesym.
+    This change simplifies slicesym and its callsites
+    by accepting an int64 for lencap instead of a node,
+    and by removing all the calls to gdata.
+    It also stops modifying n,
+    which avoids the need to make a copy of it.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I4d25454d11b4bb8941000244443e3c99eef4bdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227550
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go   | 15 +++++++++------
+ src/cmd/compile/internal/gc/sinit.go | 14 +++-----------
+ 2 files changed, 12 insertions(+), 17 deletions(-)

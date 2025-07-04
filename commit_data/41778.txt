@@ -1,0 +1,18 @@
+commit ef220dc53ed204386b30879ff1882b70a7fd602b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 28 00:21:57 2020 +0000
+
+    Revert "runtime: lock mtxpoll in AIX netpollBreak"
+    
+    This reverts CL 225618.
+    
+    This is causing TestNetpollBreak to fail on AIX more often than not.
+    
+    Change-Id: Ia3c24041ead4b320202f7f5b17a6b286f639a689
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226198
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/netpoll_aix.go | 2 --
+ 1 file changed, 2 deletions(-)

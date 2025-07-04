@@ -1,0 +1,28 @@
+commit 555d1e36f97cdb3fa8fc3a354370d27dfe885545
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 2 15:51:18 2017 -0700
+
+    cmd/internal/obj/ppc64: fix MOVFL REG, CONST
+    
+    The MOVFL instruction (which external PPC64 docs call mtcrf) can take
+    either a CR register or a constant. It doesn't make sense to specify
+    both, as the CR register implies the constant value. Specifying either
+    a register or a constant is enforced by the implementation in the
+    asmout method (case 69).
+    
+    However, the optab was providing a form that specified both a constant
+    and a CR register, and was not providing a form that specified only a
+    constant. This CL fixes the optab table to provide a form that takes
+    only a constant.
+    
+    No test because I don't know where to write it. The next CL in this
+    series will use the new instruction format.
+    
+    Change-Id: I8bb5d3ed60f483b54c341ce613931e126f7d7be6
+    Reviewed-on: https://go-review.googlesource.com/44732
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

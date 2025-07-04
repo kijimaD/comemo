@@ -1,0 +1,14 @@
+commit 78c8dec9446e0d3140a2c14f222cab1227a435af
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 24 10:30:33 2008 -0700
+
+    bug miscalculating ullman
+    in CALLMETH/DOTMETH
+    
+    SVN=124321
+
+ src/cmd/6g/cgen.c | 16 ++++++++++------
+ src/cmd/6g/gen.c  |  8 +++-----
+ src/cmd/gc/subr.c |  2 ++
+ src/cmd/gc/walk.c | 11 ++---------
+ 4 files changed, 17 insertions(+), 20 deletions(-)

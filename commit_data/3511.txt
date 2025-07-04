@@ -1,0 +1,25 @@
+commit 101f7cbd61c61222460e4b028ad6256aeae84147
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 12 13:35:28 2009 -0700
+
+    changed 5c 64 bit word ordering to little endian so it matches
+    5g. fixes to 64 bit code gen. added (finally) function to do
+    shifts properly.
+    
+    go/test: passes 83% (287/342)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=156  (50 added, 53 deleted, 53 changed)
+    OCL=35589
+    CL=35616
+
+ src/cmd/5c/cgen.c          |   4 +-
+ src/cmd/5c/gc.h            |   1 +
+ src/cmd/5c/swt.c           |   4 +-
+ src/cmd/5g/cgen64.c        | 124 ++++++++++++++++-----------------------------
+ src/cmd/5g/gg.h            |   2 +
+ src/cmd/5g/gsubr.c         |  28 ++++++++++
+ src/pkg/runtime/arm/vlrt.c |  26 +++++-----
+ test/arm-pass.txt          |   2 +
+ 8 files changed, 94 insertions(+), 97 deletions(-)

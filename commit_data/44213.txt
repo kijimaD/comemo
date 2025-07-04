@@ -1,0 +1,23 @@
+commit 26e29aa15a189b26d3b2400a594d329368e78e79
+Author: Nehal J Wani <nehaljw.kkd1@gmail.com>
+Date:   Tue Jan 26 16:29:05 2021 +0000
+
+    cmd/link: disable TestPIESize if CGO isn't enabled
+    
+    With CGO disabled, the test throws the following error:
+    
+    elf_test.go:291: # command-line-arguments
+        loadinternal: cannot find runtime/cgo
+    
+    Change-Id: Iaeb183562ab637c714240b49e73078bdb791b35b
+    GitHub-Last-Rev: f8fe9afad5611411966413d17cb5874f7b0018a0
+    GitHub-Pull-Request: golang/go#43911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286632
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/elf_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

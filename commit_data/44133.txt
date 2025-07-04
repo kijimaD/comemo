@@ -1,0 +1,28 @@
+commit 54198b04dbdf424d8aec922c1f8870ce0e9b7332
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 15:35:19 2021 -0500
+
+    cmd/compile: disallow embed of var inside func
+    
+    Allowing embedding into []byte inside a func creates an
+    unfortunate problem: either all calls start with the same
+    underlying data and can see each other's changes to the
+    underlying data (surprising and racy!) or all calls start
+    by making their own copy of the underlying data
+    (surprising and expensive!).
+    
+    After discussion on #43216, the consensus was to remove
+    support for all vars embedded inside functions.
+    
+    Fixes #43216.
+    
+    
+    Change-Id: I01e62b5f0dcd9e8566c6d2286218e97803f54704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282714
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/compile/internal/gc/embed.go        |  9 ++------
+ src/embed/internal/embedtest/embed_test.go  | 32 ++++++++++-------------------
+ src/embed/internal/embedtest/embedx_test.go | 14 -------------
+ 3 files changed, 13 insertions(+), 42 deletions(-)

@@ -1,0 +1,21 @@
+commit a16b4bf30c476aec397a9d63ca60c7f5a5776de1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 4 12:38:43 2024 -0500
+
+    cmd/preprofile: clean up error handling
+    
+    This CL adjusts error handling to be a bit more idiomatic. The
+    processing function returns errors, leaving main to log and exit on
+    error.
+    
+    This CL contains no functional changes.
+    
+    For #58102.
+    
+    Change-Id: I9074127cc675e177d046474b7f01fbc37d0bd4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/preprofile/main.go | 54 ++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 28 deletions(-)

@@ -1,0 +1,13 @@
+commit 295ec4f6f8f1eb39ddb97933298351cd57b2b088
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 26 16:35:52 2016 +0900
+
+    cmd/go/testdata: fix nits in test
+    
+    Change-Id: I85fa5e672a476098f8711dcbb5b20ea1a3fa630d
+    Reviewed-on: https://go-review.googlesource.com/18953
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/src/vend/hello/hello_test.go  | 2 +-
+ src/cmd/go/testdata/src/vend/hello/hellox_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

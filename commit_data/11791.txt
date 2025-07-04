@@ -1,0 +1,12 @@
+commit 76a1cb5a009d919f4f57e5cdf4ff46d9633fe118
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 11 11:51:12 2012 +0900
+
+    net: fix comment, make use of listenerBacklog
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5653056
+
+ src/pkg/net/dial_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

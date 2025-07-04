@@ -1,0 +1,28 @@
+commit 567b177949d0819169c10ba6a07ff60554eb5285
+Author: ichxxx <chen@ichxxx.cn>
+Date:   Wed Dec 15 18:52:21 2021 +0000
+
+    all: fix typo in comment
+    
+    Remove duplicate 'the'
+    
+    Change-Id: I3ed81c8d9c488662387e45580a3bcd462448ba44
+    GitHub-Last-Rev: 86443993b9b58c6fce4e09e283604c32ccc44cec
+    GitHub-Pull-Request: golang/go#50017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372394
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio_test.go                                    | 2 +-
+ src/cmd/compile/internal/noder/reader.go                   | 2 +-
+ src/cmd/compile/internal/types/universe.go                 | 2 +-
+ src/cmd/compile/internal/types2/assignments.go             | 2 +-
+ src/cmd/compile/internal/types2/typeset.go                 | 2 +-
+ src/cmd/go/internal/modfetch/cache.go                      | 2 +-
+ src/cmd/go/internal/modload/buildlist.go                   | 2 +-
+ src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt | 2 +-
+ src/go/types/assignments.go                                | 2 +-
+ src/go/types/typeset.go                                    | 2 +-
+ src/testing/fuzz.go                                        | 2 +-
+ 11 files changed, 11 insertions(+), 11 deletions(-)

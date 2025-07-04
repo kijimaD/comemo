@@ -1,0 +1,20 @@
+commit c6a41a35590121a7bbcaa26c44d69dcc7991089b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Apr 4 08:42:35 2014 +0200
+
+    cmd/6g, cmd/8g: disable Duff's device on NaCl.
+    
+    Native Client forbids jumps/calls to arbitrary locations and
+    enforces a particular alignement, which makes the Duff's device
+    ineffective.
+    
+    LGTM=khr
+    R=rsc, dave, khr
+    CC=golang-codereviews
+    https://golang.org/cl/84400043
+
+ src/cmd/6g/cgen.c | 2 +-
+ src/cmd/6g/ggen.c | 4 ++--
+ src/cmd/8g/cgen.c | 2 +-
+ src/cmd/8g/ggen.c | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

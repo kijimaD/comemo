@@ -1,0 +1,17 @@
+commit f2b5f750df8cf84b4f6653a7b4c9dab0e177584c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 4 16:04:22 2018 -0700
+
+    text/tabwriter: remove internal use of bytes.Buffer (cleanup)
+    
+    Noticed that we can simply use a []byte slice while investigating
+    a separate issue. Did the obvious simplification.
+    
+    Change-Id: I921ebbb42135b5f1a10109236ceb9ae6e94ae7e2
+    Reviewed-on: https://go-review.googlesource.com/104757
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/tabwriter/tabwriter.go | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

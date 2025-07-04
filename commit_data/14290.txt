@@ -1,0 +1,12 @@
+commit 8fadb70cf8d8a2a10673cdcb1441104ce2e437cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 1 15:13:00 2012 -0400
+
+    build: do not run race tests with cgo disabled
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6810067
+
+ src/run.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

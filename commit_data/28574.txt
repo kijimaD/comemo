@@ -1,0 +1,17 @@
+commit 03a1dc3522f99bf5045fc41730e6682c1cc7402a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 28 15:04:00 2016 -0700
+
+    cmd/compile: don't crash on (unsafe.Sizeof)(0)
+    
+    Fixes #17270.
+    
+    Change-Id: I4affa57e10baf1a758bc0977265d160f220b2945
+    Reviewed-on: https://go-review.googlesource.com/29960
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 34 +++++++++++++++-----------------
+ test/fixedbugs/issue17270.go             | 11 +++++++++++
+ 2 files changed, 27 insertions(+), 18 deletions(-)

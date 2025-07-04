@@ -1,0 +1,13 @@
+commit 0acda4e87d85d389dde1ba97cd050e8b6b3cbfb7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Mar 3 03:17:14 2013 +0800
+
+    misc/dashboard/app: make the builders test go.talks and go.exp
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7419048
+
+ misc/dashboard/app/build/build.go | 2 +-
+ misc/dashboard/app/build/init.go  | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

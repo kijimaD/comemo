@@ -1,0 +1,15 @@
+commit 45a5f79c24677517270083eb56a931192c7e1e7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 14:26:42 2017 -0800
+
+    internal/poll: define PollDescriptor on plan9
+    
+    Fixes #19114.
+    
+    Change-Id: I352add53d6ee8bf78792564225099f8537ac6b46
+    Reviewed-on: https://go-review.googlesource.com/37106
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/internal/poll/fd_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

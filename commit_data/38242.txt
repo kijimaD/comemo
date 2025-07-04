@@ -1,0 +1,26 @@
+commit 340129e4c8c56a371859b7434de89478610cab81
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 5 20:21:17 2019 +0000
+
+    all: join a few chained ifs
+    
+    I had been finding these over a year or so, but none were big enough
+    changes to warrant CLs. They're a handful now, so clean them all up in a
+    single commit.
+    
+    The smaller bodies get a bit simpler, but most importantly, the larger
+    bodies get unindented.
+    
+    Change-Id: I5707a6fee27d4c9ff9efd3d363af575d7a4bf2aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165340
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go  | 12 ++++--------
+ src/net/http/server.go       |  6 ++----
+ src/runtime/chan.go          |  6 ++----
+ src/runtime/signal_amd64x.go | 28 +++++++++++++---------------
+ src/runtime/signal_unix.go   | 18 ++++++++----------
+ src/testing/testing.go       | 26 ++++++++++++--------------
+ 6 files changed, 41 insertions(+), 55 deletions(-)

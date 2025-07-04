@@ -1,0 +1,12 @@
+commit 94a9bc960cb29867e9ba0d60a82dcc4872702c2d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 22 06:05:31 2017 -0700
+
+    regexp: document that Longest method is not concurrent-safe
+    
+    Change-Id: I9ec137502353e65325087dfb60ee9bd68ffd286d
+    Reviewed-on: https://go-review.googlesource.com/38447
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/regexp/regexp.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

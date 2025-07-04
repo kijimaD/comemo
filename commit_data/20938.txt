@@ -1,0 +1,21 @@
+commit 8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 8 10:11:08 2014 -0800
+
+    runtime: use doubly-linked lists for channel send/recv queues.
+    
+    Avoids a potential O(n^2) performance problem when dequeueing
+    from very popular channels.
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkChanPopular     2563782       627201        -75.54%
+    
+    Change-Id: I231aaeafea0ecd93d27b268a0b2128530df3ddd6
+    Reviewed-on: https://go-review.googlesource.com/1200
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/select.c      |  2 +-
+ src/runtime/chan.go      | 17 ++++++++++++-----
+ src/runtime/chan_test.go | 23 +++++++++++++++++++++++
+ src/runtime/select.go    | 46 ++++++++++++++++++++++++++++++----------------
+ 4 files changed, 66 insertions(+), 22 deletions(-)

@@ -1,0 +1,21 @@
+commit a9722bf9184d087c538855fb15f5a5d9a48a5819
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Nov 17 13:52:01 2023 +0000
+
+    net: document IsNotFound field
+    
+    After CL 534937, the IsNotFound field is set to true on
+    nodata and NXDOMAIN conditions consistently across systems
+    and all lookup methods.
+    
+    Change-Id: I419d1c818f17e915cee4959c3a9ac92c2e4bb92c
+    GitHub-Last-Rev: 59c537fc0626bfa959f43f9e9958f7af0e54ca55
+    GitHub-Pull-Request: golang/go#63654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536775
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/net.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

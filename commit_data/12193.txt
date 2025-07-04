@@ -1,0 +1,16 @@
+commit 075eef4018b1c2ab37c9236e3265f0d2d816a04f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 23:09:53 2012 -0500
+
+    gc: fix escape analysis + inlining + closure bug
+    
+    R=ken2
+    CC=golang-dev, lvd
+    https://golang.org/cl/5693056
+
+ src/cmd/gc/esc.c |  9 +++++----
+ src/cmd/gc/go.h  |  2 +-
+ src/cmd/gc/lex.c | 15 +++++++++------
+ test/escape2.go  |  2 +-
+ test/escape4.go  | 33 +++++++++++++++++++++++++++++++++
+ 5 files changed, 49 insertions(+), 12 deletions(-)

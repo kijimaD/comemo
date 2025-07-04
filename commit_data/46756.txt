@@ -1,0 +1,19 @@
+commit 96fface83ad69b6d6ad8059d61d232737572e85d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 5 21:58:30 2021 +0000
+
+    Revert "cmd/dist: omit cmd/cgo from toolchain1"
+    
+    This reverts commit 81b7ec1ad5b50b8e73a63b44d8c2538154def535.
+    
+    Reason for revert: broke ios builder
+    
+    Change-Id: I7f469161c3c632ae48b7d938d355c9929eaaad92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354135
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go     | 2 +-
+ src/cmd/dist/buildtool.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

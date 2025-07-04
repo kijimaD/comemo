@@ -1,0 +1,23 @@
+commit 24bfaaf07a45609dbf5438a1c79663897aa5da54
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Sep 28 15:40:13 2009 -0700
+
+    - added gcmp for proper ACMP generation, changed all call
+      sites plus optimized constant code a bit (one less register
+      used).
+    - changed conditional branches, might need a re-tweak later
+    - gave up on agen OINDEX and copied/fixed the version in 8g
+    
+    go/test: passes 66% (225/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=148  (67 added, 32 deleted, 49 changed)
+    OCL=35040
+    CL=35055
+
+ src/cmd/5g/cgen.c  | 137 +++++++++++++++++++++++++++++++----------------------
+ src/cmd/5g/gg.h    |   2 +
+ src/cmd/5g/gsubr.c |  43 +++++++++--------
+ test/arm-pass.txt  |  14 +++++-
+ 4 files changed, 117 insertions(+), 79 deletions(-)

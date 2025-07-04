@@ -1,0 +1,21 @@
+commit 80bfb75c429c4930b8ed603592b4c9df82a79240
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 19:44:47 2018 +0100
+
+    test: in asmcheck, dump only the functions which fail
+    
+    Before this change, in case of any failure, asmcheck was
+    dumping to stderr the whole output of compile -S, which
+    can be very long if it contains multiple functions.
+    
+    Make it so it filters the output to only display the
+    assembly output of functions for which at least one opcode
+    check failed. This greatly simplifies debugging.
+    
+    Change-Id: I1bbf54473b8252a3384e2c1dade82d926afc119d
+    Reviewed-on: https://go-review.googlesource.com/98444
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/run.go | 62 +++++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 46 insertions(+), 16 deletions(-)

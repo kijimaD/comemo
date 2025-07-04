@@ -1,0 +1,11 @@
+commit c4e2e0de1adbdae6f397d1fe1f96f0eb774360bc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 20:30:06 2014 -0700
+
+    doc/go1.4.txt: fmt: document printing of &map rather than just pointer
+    
+    CC=golang-codereviews
+    https://golang.org/cl/152160043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

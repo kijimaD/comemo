@@ -1,0 +1,28 @@
+commit 53c9c068115168ebcc1e649fa7a15a804a99d92f
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 26 15:00:00 2019 +0100
+
+    misc/cgo: enable testso and testsovar on aix/ppc64
+    
+    On AIX, shared objects must be wrapped under an archive file.
+    
+    For testso, creating libcgosotest with an extern symbol isn't
+    AIX-friendly. By default, ld will block such behavior. Rather than
+    forcing ld to work as on Linux and using the run-time linking,
+    goCallback became a function pointer which is set by setCallback().
+    
+    Updates #30565
+    
+    Change-Id: I455ab32faddd41f1b0c84cc9e503788044ad49b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testso/so_test.go             | 15 ++++++++++++---
+ misc/cgo/testso/testdata/cgoso.c       |  2 +-
+ misc/cgo/testso/testdata/cgoso.go      |  1 +
+ misc/cgo/testso/testdata/cgoso_c.c     |  9 +++++++++
+ misc/cgo/testso/testdata/cgoso_unix.go |  2 +-
+ misc/cgo/testsovar/so_test.go          | 15 ++++++++++++---
+ misc/cgo/testsovar/testdata/cgoso.go   |  1 +
+ 7 files changed, 37 insertions(+), 8 deletions(-)

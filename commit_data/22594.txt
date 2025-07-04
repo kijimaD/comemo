@@ -1,0 +1,29 @@
+commit b92a0a8969218c29a3300cc5ec1ba142343375c3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 5 14:48:42 2015 +1200
+
+    cmd/internal/gc, cmd/go: fix value of importpath symbol
+    
+    In https://golang.org/cl/7797 I attempted to use myimportpath to set the value
+    of the go.importpath.$foo. symbol for the module being compiled, but I messed
+    it up and only set the name (which the linker rewrites anyway). This lead to
+    the importpath for the module being compiled being "". This was hard to notice,
+    because all modules that import another define the importpath for their
+    imported modules correctly -- but main is not imported, and this meant that the
+    reflect module saw all fields of all types defined in the main module as
+    exported.
+    
+    The fix is to do what I meant to do the first time, add a test and change the
+    go tool to compile main packages with -p main and not -p
+    command-line-arguments.
+    
+    Fixes #10332
+    
+    Change-Id: I5fc6e9b1dc2b26f058641e382f9a56a526eca291
+    Reviewed-on: https://go-review.googlesource.com/8481
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go            |  3 +++
+ src/cmd/internal/gc/reflect.go | 15 +++++++--------
+ test/fixedbugs/issue10332.go   | 25 +++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 8 deletions(-)

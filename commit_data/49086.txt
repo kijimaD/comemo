@@ -1,0 +1,20 @@
+commit b8d55a7604aaffb9645ba1fcff9ea2c84697f7d6
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Wed Jul 22 08:59:30 2020 +0800
+
+    compress/flate: cancel redundant operations
+    
+    The assignment operation in the program seems to be redundant, the first judgment will continue to overwrite the previous value.
+    The subsequent slicing operation will cut all the values without frequency.
+    
+    Change-Id: Id59fc36dd5bacfde881edaf0d9c1af5348286611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/compress/flate/huffman_code.go | 2 --
+ 1 file changed, 2 deletions(-)

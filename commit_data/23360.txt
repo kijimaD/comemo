@@ -1,0 +1,15 @@
+commit 43aac4f9e729eec7914ce6869b1a86f52584e2fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 00:14:08 2015 -0400
+
+    runtime: raise maxmem to 512 GB
+    
+    A workaround for #10460.
+    
+    Change-Id: I607a556561d509db6de047892f886fb565513895
+    Reviewed-on: https://go-review.googlesource.com/10819
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 5b1b80beb1a2a9a353738e80777d1e25cfdfa095
+Author: Ethan Anderson <eanderson@atlassian.com>
+Date:   Tue Dec 14 10:59:06 2021 -0600
+
+    cmd/go: remove mercurial from bitbucket vcs options
+    
+    Mercurial was deprecated as of July 1, 2020 as per https://bitbucket.org/blog/sunsetting-mercurial-support-in-bitbucket
+    
+    Fixes #50810.
+    
+    Change-Id: I0d40f84aaa393905cae7c4bed8919b15de9a5f6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371720
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go      | 54 ++-----------------------------------
+ src/cmd/go/internal/vcs/vcs_test.go |  7 +++++
+ 2 files changed, 9 insertions(+), 52 deletions(-)

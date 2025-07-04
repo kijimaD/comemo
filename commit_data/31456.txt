@@ -1,0 +1,22 @@
+commit 3bcb481aa30caaf01bfcb2cf4696dad899084725
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 12:22:50 2017 +1200
+
+    cmd/link: rename AttrHidden to AttrNotInSymbolTable
+    
+    I want to move the SHIDDEN type bit into Attribute, but AttrHidden is already
+    there and means something completely different, so rename it. (I'll give the
+    SHIDDEN bit a better name when it moves too).
+    
+    Change-Id: I075403d9542b7626d4c1f6db9094329c4181aad3
+    Reviewed-on: https://go-review.googlesource.com/42024
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go  |  6 +++---
+ src/cmd/link/internal/ld/go.go     |  2 +-
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/cmd/link/internal/ld/link.go   |  6 +++---
+ src/cmd/link/internal/ld/symtab.go | 12 ++++++------
+ 5 files changed, 14 insertions(+), 14 deletions(-)

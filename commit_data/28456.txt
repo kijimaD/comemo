@@ -1,0 +1,32 @@
+commit f1973fca717f2c3f3f10bcc2bc3512a4c549710b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue Apr 12 18:38:00 2016 -0300
+
+    cmd/asm, cmd/internal/obj/ppc64: add ppc64 vector registers and instructions
+    
+    The current implementation for Power architecture does not include the vector
+    (Altivec) registers.  This adds the 32 VMX registers and the most commonly used
+    instructions: X-form loads/stores; VX-form logical operations, add/sub,
+    rotate/shift, count, splat, SHA Sigma and AES cipher; VC-form compare; and
+    VA-form permute, shift, add/sub and select.
+    
+    Fixes #15619
+    
+    Change-Id: I544b990631726e8fdfcce8ecca0aeeb72faae9aa
+    Reviewed-on: https://go-review.googlesource.com/25600
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/arch/arch.go         |   3 +
+ src/cmd/asm/internal/arch/ppc64.go        |   4 +
+ src/cmd/asm/internal/asm/asm.go           |  24 +-
+ src/cmd/asm/internal/asm/operand_test.go  |  32 ++
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 207 ++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go       | 181 +++++++++
+ src/cmd/internal/obj/ppc64/anames.go      | 145 +++++++
+ src/cmd/internal/obj/ppc64/anames9.go     |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go        | 641 +++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/ppc64/list9.go       |   3 +
+ 10 files changed, 1231 insertions(+), 10 deletions(-)

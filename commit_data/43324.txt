@@ -1,0 +1,22 @@
+commit 96fc07af1c551dd9746221149201e8ab57b90995
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 09:42:52 2020 -0400
+
+    go/build: allow io/fs to depend on time
+    
+    In preparation for moving os.FileInfo into io/fs.
+    Also keep syscall from depending on io again.
+    We want to keep them separated, in case io ever
+    needs to start depending on time.
+    
+    For #41190.
+    
+    Change-Id: I98350fa03accf4a20c75ddebb0e961aa1ccccd2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243905
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

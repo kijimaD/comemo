@@ -1,0 +1,18 @@
+commit 3b0b3a02231083d8946b5afa5be6dd16dae5c6bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 15 19:13:51 2018 +0000
+
+    cmd/link: add buildid to wasm modules
+    
+    Add Go buildids into a custom wasm section ("go.buildid", arbitrarily)
+    early in the wasm module, right after the magic & version.
+    
+    Fixes #25910
+    
+    Change-Id: If3f7cb267bf8c7beb6fa8d8b7a4829419720bbd8
+    Reviewed-on: https://go-review.googlesource.com/119175
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/wasm/asm.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

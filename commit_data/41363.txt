@@ -1,0 +1,21 @@
+commit 240498d63551d0a58a71d5ada457c73a71983a7c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Feb 8 19:43:58 2020 -0500
+
+    test: close file in goFiles
+    
+    Brad's battery died on a plane and the file stayed open for 8 years
+    without anyone noticing. 😄
+    
+    Someone noticed in https://github.com/gopherjs/gopherjs/pull/950.
+    
+    Updates #2833
+    
+    Change-Id: I46b28ac014a8c355be94e026615f119f96e5d51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218700
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ test/run.go | 1 +
+ 1 file changed, 1 insertion(+)

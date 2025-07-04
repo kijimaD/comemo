@@ -1,0 +1,15 @@
+commit c52e26e323def3b48f7cb1ef4d3012f207def9f4
+Author: Ryuji Iwata <qt.luigi@gmail.com>
+Date:   Sat Nov 25 18:09:54 2017 +0900
+
+    doc: fix a sentence position.
+    
+    Only a last sentence of A Tour of Go is shifting to the left.
+    I fixed a HTML tag order according to other sentences it.
+    
+    Change-Id: I6a301178d15db893f596b8da80a4d98721160386
+    Reviewed-on: https://go-review.googlesource.com/79856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/docs.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

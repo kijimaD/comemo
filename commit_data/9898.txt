@@ -1,0 +1,19 @@
+commit 5782ea9646bf14b619a0c29140df3a4aa9e89e3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 17:37:59 2011 -0700
+
+    go/token: document deserialization property
+    
+    FileSet deserialization (Read) uses its own instance of a gob decoder.
+    If the FileSet data may be followed by other data on the reader, Read
+    may consume too much data that is lost unless the reader implements
+    ReadByte.
+    
+    Also: Minor internal refactoring for symmetry.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5233041
+
+ src/pkg/go/token/serialize.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 903c2fda18825f1f8b276c92325f84f52bc71071
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 12:49:39 2013 -0400
+
+    cmd/gc: diagnose '_ = nil' better
+    
+    Fixes #6004.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13616044
+
+ src/cmd/gc/subr.c           |  3 +++
+ test/fixedbugs/issue6004.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

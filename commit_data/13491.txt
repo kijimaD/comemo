@@ -1,0 +1,15 @@
+commit 7b73251d3d1153485b7f78d53ce7cb86b1b4d762
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 23 13:34:46 2012 -0700
+
+    encoding/gob: revert 6348067, which broke compatibility
+    Add commentary to explain better what's going on, but the
+    code change is a simple one-line reversal to the previous
+    form.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6428072
+
+ src/pkg/encoding/gob/type.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

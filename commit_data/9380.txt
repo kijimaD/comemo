@@ -1,0 +1,14 @@
+commit c20ced956ece23a5e8f1d5b6e48ad9ba8e8c5d05
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 16 16:53:09 2011 -0400
+
+    net: return correct local address for an accepted TCP connection
+    
+    Fixes #2127.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4873043
+
+ src/pkg/net/fd.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 22e918f5d6023da619ed8c0790c8a0d6830e95ab
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Aug 9 10:19:25 2012 +1000
+
+    exp/html: ignore </html> in afterBodyIM when parsing a fragment
+    
+    Pass 1 additional test.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6454124
+
+ src/pkg/exp/html/parse.go                           | 7 ++++++-
+ src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

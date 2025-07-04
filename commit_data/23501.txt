@@ -1,0 +1,23 @@
+commit f271f928d9f1beb892dc576d397f37a3fddd6c0b
+Author: Vincent Batts <vbatts@hashbangbash.com>
+Date:   Wed Mar 4 12:29:16 2015 -0500
+
+    archive/tar: fix round-trip attributes
+    
+    The issue was identified while
+    working with round trip FileInfo of the headers of hardlinks. Also,
+    additional test cases for hard link handling.
+    (review carried over from http://golang.org/cl/165860043)
+    
+    Fixes #9027
+    
+    Change-Id: I9e3a724c8de72eb1b0fbe0751a7b488894911b76
+    Reviewed-on: https://go-review.googlesource.com/6790
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/tar/common.go             |   4 +--
+ src/archive/tar/stat_unix.go          |  46 +++++++++++++++++++------
+ src/archive/tar/tar_test.go           |  63 ++++++++++++++++++++++++++++------
+ src/archive/tar/testdata/hardlink.tar | Bin 0 -> 2560 bytes
+ src/archive/tar/writer_test.go        |  38 ++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 24 deletions(-)

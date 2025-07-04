@@ -1,0 +1,12 @@
+commit f375791a91fbe7513f02fda7c97f2bcbb18cb99d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 15:01:29 2010 -0700
+
+    fix build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/785041
+
+ src/cmd/prof/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

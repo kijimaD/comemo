@@ -1,0 +1,20 @@
+commit 93d92d51ddccbbc689f4b9adeded4f310ba0c363
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 22 14:29:38 2013 -0800
+
+    cmd/api: fix type scrubbing
+    
+    It wasn't removing names from func parameters for func types,
+    and it was handling "a, b string" as "string", not "string, string".
+    
+    Fixes #4688
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7181051
+
+ api/go1.txt                                | 20 ++++++++++----------
+ src/cmd/api/goapi.go                       | 10 ++++++++--
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |  8 +++++---
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |  4 ++++
+ 4 files changed, 27 insertions(+), 15 deletions(-)

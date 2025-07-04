@@ -1,0 +1,19 @@
+commit 499a12009938fe2ffff90775832b9d67ca3e46b2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 8 03:00:21 2023 +1100
+
+    cmd/internal/obj/arm64: move register encoding into opxrrr
+    
+    Rather than having register encoding knowledge in each caller of opxrrr,
+    pass the registers into opxrrr and let it handle the encoding. This reduces
+    duplication and improves readability.
+    
+    Change-Id: I202c503465a0169277a0f64340598203c9dcf20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461140
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 109 +++++++++++++++++--------------------
+ 1 file changed, 50 insertions(+), 59 deletions(-)

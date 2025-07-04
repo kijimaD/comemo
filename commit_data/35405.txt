@@ -1,0 +1,19 @@
+commit 750a42f42ce6b69632998a9026e076dc3f851cce
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue May 15 13:32:02 2018 -0400
+
+    cmd/vendor/.../pprof: delete pprof.go file
+    
+    The file is not used ('go tool' uses cmd/pprof/pprof.go instead)
+    and the external package import in this file causes test failure.
+    
+    Fixes #25367
+    
+    Change-Id: I71fbf8a3631efb1bd9e459b8247e5f7a6683894c
+    Reviewed-on: https://go-review.googlesource.com/113295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vendor/github.com/google/pprof/pprof.go | 106 ------------------------
+ 1 file changed, 106 deletions(-)

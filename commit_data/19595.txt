@@ -1,0 +1,29 @@
+commit 343b4ba8c1ad8a29b6dd19cb101273b57a26c9b0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 24 09:16:24 2014 +1000
+
+    syscall: disable Setuid/Setgid on linux
+    
+    Update #1435
+    
+    This proposal disables Setuid and Setgid on all linux platforms.
+    
+    Issue 1435 has been open for a long time, and it is unlikely to be addressed soon so an argument was made by a commenter
+    
+    https://code.google.com/p/go/issues/detail?id=1435#c45
+    
+    That these functions should made to fail rather than succeed in their broken state.
+    
+    LGTM=ruiu, iant
+    R=iant, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/106170043
+
+ src/pkg/syscall/syscall_linux.go        | 15 ++++++++++++++-
+ src/pkg/syscall/syscall_linux_386.go    |  1 -
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 -
+ src/pkg/syscall/syscall_linux_arm.go    |  1 -
+ src/pkg/syscall/zsyscall_linux_386.go   | 20 --------------------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 20 --------------------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 20 --------------------
+ 7 files changed, 14 insertions(+), 64 deletions(-)

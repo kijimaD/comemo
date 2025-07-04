@@ -1,0 +1,18 @@
+commit 5f1bcd1bc29615b4366f6da8df958bd048ef89a8
+Author: Ruslan Andreev <kels9009@gmail.com>
+Date:   Mon Nov 1 18:17:49 2021 +0000
+
+    sync: add PoolStarvation benchmark
+    
+    This benchmark simulates object starvation in order to force Ps to steal
+    objects from other Ps. Extracted from CL 314229.
+    
+    Change-Id: Iee31df355ba04d80fbd91c4414e397a375e6d6d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360256
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/sync/pool_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

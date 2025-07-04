@@ -1,0 +1,56 @@
+commit c12b185a6ed143e7b397bd58489866505756be0e
+Author: Vladimir Kuzmin <vkuzmin@uber.com>
+Date:   Wed Mar 14 01:16:43 2018 -0700
+
+    cmd/compile: avoid mapaccess at m[k]=append(m[k]..
+    
+    Currently rvalue m[k] is transformed during walk into:
+    
+            tmp1 := *mapaccess(m, k)
+            tmp2 := append(tmp1, ...)
+            *mapassign(m, k) = tmp2
+    
+    However, this is suboptimal, as we could instead produce just:
+            tmp := mapassign(m, k)
+            *tmp := append(*tmp, ...)
+    
+    Optimization is possible only if during Order it may tell that m[k] is
+    exactly the same at left and right part of assignment. It doesn't work:
+    1) m[f(k)] = append(m[f(k)], ...)
+    2) sink, m[k] = sink, append(m[k]...)
+    3) m[k] = append(..., m[k],...)
+    
+    Benchmark:
+    name                           old time/op    new time/op    delta
+    MapAppendAssign/Int32/256-8      33.5ns ± 3%    22.4ns ±10%  -33.24%  (p=0.000 n=16+18)
+    MapAppendAssign/Int32/65536-8    68.2ns ± 6%    48.5ns ±29%  -28.90%  (p=0.000 n=20+20)
+    MapAppendAssign/Int64/256-8      34.3ns ± 4%    23.3ns ± 5%  -32.23%  (p=0.000 n=17+18)
+    MapAppendAssign/Int64/65536-8    65.9ns ± 7%    61.2ns ±19%   -7.06%  (p=0.002 n=18+20)
+    MapAppendAssign/Str/256-8         116ns ±12%      79ns ±16%  -31.70%  (p=0.000 n=20+19)
+    MapAppendAssign/Str/65536-8       134ns ±15%     111ns ±45%  -16.95%  (p=0.000 n=19+20)
+    
+    name                           old alloc/op   new alloc/op   delta
+    MapAppendAssign/Int32/256-8       47.0B ± 0%     46.0B ± 0%   -2.13%  (p=0.000 n=19+18)
+    MapAppendAssign/Int32/65536-8     27.0B ± 0%     20.7B ±30%  -23.33%  (p=0.000 n=20+20)
+    MapAppendAssign/Int64/256-8       47.0B ± 0%     46.0B ± 0%   -2.13%  (p=0.000 n=20+17)
+    MapAppendAssign/Int64/65536-8     27.0B ± 0%     27.0B ± 0%     ~     (all equal)
+    MapAppendAssign/Str/256-8         94.0B ± 0%     78.0B ± 0%  -17.02%  (p=0.000 n=20+16)
+    MapAppendAssign/Str/65536-8       54.0B ± 0%     54.0B ± 0%     ~     (all equal)
+    
+    Fixes #24364
+    Updates #5147
+    
+    Change-Id: Id257d052b75b9a445b4885dc571bf06ce6f6b409
+    Reviewed-on: https://go-review.googlesource.com/100838
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go     |   9 +-
+ src/cmd/compile/internal/gc/typecheck.go |  19 +-
+ src/cmd/compile/internal/gc/walk.go      |  11 +
+ src/runtime/map_test.go                  |  58 ++++
+ test/codegen/mapaccess.go                | 462 +++++++++++++++++++++++++++++++
+ test/fixedbugs/issue19359.go             |  26 ++
+ test/fixedbugs/issue22881.go             |  40 +++
+ 7 files changed, 621 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 7cf31d8f4116420e396c5e8690c043b2ce83f90a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 19:07:40 2019 +0000
+
+    doc/go1.12: note that Go 1.12 is the last release to include godoc
+    
+    Updates #30029
+    
+    Change-Id: I88e09035d675e7a6855ada0262eb42636c9822cc
+    Reviewed-on: https://go-review.googlesource.com/c/162417
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.12.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

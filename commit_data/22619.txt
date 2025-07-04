@@ -1,0 +1,26 @@
+commit 918fdae3482b203565aef4d37cee05bf1b46431d
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Jan 27 10:04:11 2015 +0100
+
+    reflect: implement ArrayOf
+    
+    This change exposes reflect.ArrayOf to create new reflect.Type array
+    types at runtime, when given a reflect.Type element.
+    
+    - reflect: implement ArrayOf
+    - reflect: tests for ArrayOf
+    - runtime: document that typeAlg is used by reflect and must be kept in
+      synchronized
+    
+    Fixes #5996.
+    
+    Change-Id: I5d07213364ca915c25612deea390507c19461758
+    Reviewed-on: https://go-review.googlesource.com/4111
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go    | 243 ++++++++++++++++++++++++++++++++++++++++++---
+ src/reflect/export_test.go |   1 -
+ src/reflect/type.go        |  88 ++++++++++++----
+ src/reflect/value.go       |   6 ++
+ src/runtime/alg.go         |   2 +
+ 5 files changed, 307 insertions(+), 33 deletions(-)

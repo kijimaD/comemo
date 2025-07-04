@@ -1,0 +1,13 @@
+commit 1d1142f17834f75812448d54ce7a7abeebdf86c3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 11 13:40:14 2013 -0700
+
+    misc/dist/darwin: add execute bit to preinstall
+    Fixes #5258.
+    
+    R=golang-dev, iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8682043
+
+ misc/dist/darwin/scripts/preinstall | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

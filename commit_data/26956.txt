@@ -1,0 +1,20 @@
+commit 89a1f02834f1472cf307b222e14884ebd41086d3
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Apr 12 18:14:45 2016 +0300
+
+    hash/adler32: Unroll loop for extra performance.
+    
+    name         old time/op    new time/op    delta
+    Adler32KB-4     592ns ± 0%     447ns ± 0%  -24.49%  (p=0.000 n=19+20)
+    
+    name         old speed      new speed      delta
+    Adler32KB-4  1.73GB/s ± 0%  2.29GB/s ± 0%  +32.41%  (p=0.000 n=20+20)
+    
+    Change-Id: I38990aa66ca4452a886200018a57c0bc3af30717
+    Reviewed-on: https://go-review.googlesource.com/21880
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/hash/adler32/adler32.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

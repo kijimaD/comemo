@@ -1,0 +1,18 @@
+commit 41b9617be46ba0faab73a368fdc8939a615f7214
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 8 17:26:10 2008 -0700
+
+    fix ldexp, frexp, and make math package compile and test correctly
+    
+    SVN=126423
+
+ src/cmd/gc/sys.go      |   4 +-
+ src/cmd/gc/sysimport.c | 392 ++++++++++++++++++++++++-------------------------
+ src/lib/fmt.go         |   2 +-
+ src/lib/math/exp.go    |   2 +-
+ src/lib/math/fmod.go   |   6 +-
+ src/lib/math/log.go    |   2 +-
+ src/lib/math/main.go   |   5 +-
+ src/lib/math/sqrt.go   |   2 +-
+ src/runtime/runtime.c  |  12 +-
+ 9 files changed, 213 insertions(+), 214 deletions(-)

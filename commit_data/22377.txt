@@ -1,0 +1,12 @@
+commit 47746f10fe26503984a99be0b081c642e1557d4e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 15:11:04 2015 -0400
+
+    cmd/internal/ld: emit macho .init_array section
+    
+    Change-Id: Ie75a01e899e68f4f9643410f5e161152a81b8ba0
+    Reviewed-on: https://go-review.googlesource.com/8655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/macho.go | 5 +++++
+ 1 file changed, 5 insertions(+)

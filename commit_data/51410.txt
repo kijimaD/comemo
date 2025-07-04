@@ -1,0 +1,56 @@
+commit 995c0f310c087c9cbc49112ecc48459a96310451
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Sep 30 15:29:52 2022 +0300
+
+    crypto/{sha512,sha256,sha1}: reduce Write calls in Sum
+    
+    crypto/sha512:
+    
+        name                  old time/op    new time/op    delta
+        Hash8Bytes/New-32        297ns ± 1%     288ns ± 1%  -3.09%  (p=0.000 n=10+10)
+        Hash8Bytes/Sum384-32     288ns ± 1%     282ns ± 1%  -2.16%  (p=0.000 n=10+9)
+        Hash8Bytes/Sum512-32     287ns ± 1%     278ns ± 1%  -3.18%  (p=0.000 n=9+10)
+        Hash1K/New-32           2.12µs ± 0%    2.11µs ± 1%    ~     (p=0.189 n=9+10)
+        Hash1K/Sum384-32        2.13µs ± 1%    2.11µs ± 1%  -1.07%  (p=0.006 n=10+10)
+        Hash1K/Sum512-32        2.12µs ± 1%    2.11µs ± 1%    ~     (p=0.209 n=10+10)
+        Hash8K/New-32           14.9µs ± 1%    14.9µs ± 1%    ~     (p=0.469 n=10+10)
+        Hash8K/Sum384-32        15.0µs ± 1%    14.9µs ± 1%    ~     (p=0.725 n=10+10)
+        Hash8K/Sum512-32        14.9µs ± 1%    15.0µs ± 1%    ~     (p=0.684 n=10+10)
+    
+    crypto/sha256:
+    
+        name                  old time/op    new time/op    delta
+        Hash8Bytes/New-32        190ns ± 1%     188ns ± 2%  -1.23%  (p=0.002 n=10+10)
+        Hash8Bytes/Sum224-32     198ns ± 1%     190ns ± 1%  -4.07%  (p=0.000 n=10+10)
+        Hash8Bytes/Sum256-32     196ns ± 1%     183ns ± 1%  -6.33%  (p=0.000 n=10+10)
+        Hash1K/New-32           2.35µs ± 1%    2.35µs ± 2%    ~     (p=0.897 n=10+10)
+        Hash1K/Sum224-32        2.38µs ± 1%    2.38µs ± 2%    ~     (p=0.363 n=10+10)
+        Hash1K/Sum256-32        2.38µs ± 1%    2.37µs ± 1%    ~     (p=0.203 n=10+9)
+        Hash8K/New-32           17.3µs ± 1%    17.3µs ± 1%    ~     (p=0.971 n=10+10)
+        Hash8K/Sum224-32        17.6µs ± 1%    17.6µs ± 1%    ~     (p=0.726 n=10+10)
+        Hash8K/Sum256-32        17.6µs ± 2%    17.6µs ± 1%    ~     (p=0.541 n=10+10)
+    
+    crypto/sha1:
+    
+        name                 old time/op    new time/op    delta
+        Hash8Bytes/New-32       140ns ± 2%     134ns ± 1%  -4.26%  (p=0.000 n=10+10)
+        Hash8Bytes/Sum-32       136ns ± 1%     132ns ± 1%  -2.41%  (p=0.000 n=10+10)
+        Hash320Bytes/New-32     552ns ± 1%     550ns ± 1%    ~     (p=0.211 n=10+9)
+        Hash320Bytes/Sum-32     559ns ± 1%     560ns ± 2%    ~     (p=0.477 n=9+9)
+        Hash1K/New-32          1.15µs ± 1%    1.15µs ± 1%    ~     (p=0.588 n=9+10)
+        Hash1K/Sum-32          1.16µs ± 2%    1.15µs ± 1%    ~     (p=0.078 n=10+10)
+        Hash8K/New-32          7.53µs ± 1%    7.58µs ± 3%    ~     (p=0.382 n=10+10)
+        Hash8K/Sum-32          7.54µs ± 1%    7.55µs ± 1%    ~     (p=0.404 n=10+10)
+    
+    Change-Id: I3fc06c9009f2eabc739102c14648ef93ea6783b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436917
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/sha1/sha1.go     | 12 +++++++-----
+ src/crypto/sha256/sha256.go | 12 +++++++-----
+ src/crypto/sha512/sha512.go | 16 ++++++++++------
+ 3 files changed, 24 insertions(+), 16 deletions(-)

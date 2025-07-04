@@ -1,0 +1,22 @@
+commit c99dce2b058b2260f05d694c1eaf0bbf16e79d27
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 15:40:45 2014 -0400
+
+    cmd/gc: fix ... escape analysis bug
+    
+    If the ... element type contained no pointers,
+    then the escape analysis did not track the ... itself.
+    This manifested in an escaping ...byte being treated
+    as non-escaping.
+    
+    Fixes #7934.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/100310043
+
+ src/cmd/gc/esc.c   |  2 ++
+ src/cmd/gc/order.c |  2 +-
+ test/escape2.go    | 28 ++++++++++++++++++++--------
+ 3 files changed, 23 insertions(+), 9 deletions(-)

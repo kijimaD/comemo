@@ -1,0 +1,22 @@
+commit 9e7c5030d064395e24a25dd1a81722f5583defcf
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Wed Oct 19 17:26:33 2022 +0100
+
+    math/bits: note that functions here may be compiler intrinsics
+    
+    It was noted in the go1.9 release notes that functions in math/bits
+    may be implemented by compiler intrinsics, but this never made it to
+    the documentation.
+    
+    This change adapts the wording of the release notes and puts it in the
+    documentation for math/bits.
+    
+    Change-Id: Ibeea88eaf7df10952cbe670885e910ac30b49d55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444035
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/bits/bits.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,19 @@
+commit b1a1d7f425f5e7120b3c9d4e2965cc4614ee9d5b
+Author: fangguizhen <1297394526@qq.com>
+Date:   Mon Jan 16 16:51:02 2023 +0000
+
+    cmd/go: fix comment typo
+    
+    Change-Id: I2a5cfdac31c7ffad36348f76f0e583fbf1b11d95
+    GitHub-Last-Rev: 8373113fe9c5f0ecadcc7c5004b0450ba7983977
+    GitHub-Pull-Request: golang/go#57821
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462048
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/modindex/read.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,37 @@
+commit 6e0a81ac6149e28f75f4e61bd375c4fc426280df
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 19 16:05:48 2025 +0100
+
+    path/filepath: use RtlIsDosDeviceName_U to detect Windows devices
+    
+    RtlIsDosDeviceName_U is specifically designed to detect Windows devices.
+    We were using GetFullPathName to do this, but it's not the right API
+    for the job, as it is slower and allocates more memory.
+    
+    goos: windows
+    goarch: amd64
+    pkg: path/filepath
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+               │   old.txt    │               new.txt                │
+               │    sec/op    │    sec/op     vs base                │
+    IsLocal-12   5.685µ ± 59%   1.853µ ± 12%  -67.41% (p=0.000 n=10)
+    
+               │   old.txt   │              new.txt               │
+               │    B/op     │    B/op     vs base                │
+    IsLocal-12   496.00 ± 0%   48.00 ± 0%  -90.32% (p=0.000 n=10)
+    
+               │   old.txt   │              new.txt               │
+               │  allocs/op  │ allocs/op   vs base                │
+    IsLocal-12   10.000 ± 0%   6.000 ± 0%  -40.00% (p=0.000 n=10)
+    
+    Change-Id: Ib40ad7a90ab93cf7051c8d6becbce4d287f10f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650578
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/filepathlite/path_windows.go        | 19 ++++++++-----------
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go |  7 +++++++
+ src/path/filepath/path_test.go                   | 15 +++++++++++++++
+ 4 files changed, 31 insertions(+), 11 deletions(-)

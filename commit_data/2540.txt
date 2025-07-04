@@ -1,0 +1,21 @@
+commit d330c712c12397f50261ca30666b5cb35383a33d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 20:28:41 2009 -0700
+
+    Getenv: almost no one wants the error, so make it return a string that may be empty.
+    Getenverror is the new name for the old routine that returns an error too.
+    
+    R=rsc
+    DELTA=35  (7 added, 7 deleted, 21 changed)
+    OCL=30818
+    CL=30821
+
+ src/cmd/gobuild/gobuild.go |  8 ++++----
+ src/cmd/gobuild/util.go    |  7 +++----
+ src/cmd/godoc/godoc.go     |  5 ++---
+ src/pkg/exec/exec.go       |  7 +------
+ src/pkg/os/env.go          | 11 +++++++++--
+ src/pkg/os/getwd.go        |  2 +-
+ src/pkg/time/zoneinfo.go   |  2 +-
+ test/env.go                |  4 ++--
+ 8 files changed, 23 insertions(+), 23 deletions(-)

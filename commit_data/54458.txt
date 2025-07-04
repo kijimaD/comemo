@@ -1,0 +1,14 @@
+commit 399b2a4b1b7857444c38305025cc793c9377e415
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Sep 13 16:00:45 2023 -0400
+
+    net/http: give ServeMux.handler a better name
+    
+    Change-Id: I27bb7d9d5f172a84aa31304194b8a13036b9c5d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528275
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/server.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

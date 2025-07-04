@@ -1,0 +1,22 @@
+commit e7c56fe9948449a3710b36c22c02d57c215d1c10
+Author: Illirgway <Illirgway@users.noreply.github.com>
+Date:   Mon Jun 21 20:52:31 2021 +0000
+
+    strings: adding micro-optimization for TrimSpace
+    
+    replace for string's end trimming TrimFunc -> TrimRightFunc
+    
+    strings.TrimSpace string's end trimming should use more specific TrimRightFunc instead of common TrimFunc (because start has already trimmed before)
+    
+    Change-Id: I827f1a25c141e61edfe1f8b11f6e8cd685f8b384
+    GitHub-Last-Rev: 040607a8314222f5958b96eb1bc20d840d1bcaac
+    GitHub-Pull-Request: golang/go#46862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329731
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/strings/strings.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

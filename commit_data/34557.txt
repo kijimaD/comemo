@@ -1,0 +1,27 @@
+commit 0def0f2e993111308a114bb83604618f218b7c3d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 9 16:12:40 2018 -0500
+
+    runtime: fix abort handling on arm64
+    
+    The implementation of runtime.abort on arm64 currently branches to
+    address 0, which results in a signal from PC 0, rather than from
+    runtime.abort, so the runtime fails to recognize it as an abort.
+    
+    Fix runtime.abort on arm64 to read from address 0 like what other
+    architectures do and recognize this in the signal handler.
+    
+    Should fix the linux/arm64 build.
+    
+    Change-Id: I960ab630daaeadc9190287604d4d8337b1ea3853
+    Reviewed-on: https://go-review.googlesource.com/99895
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm64.s          | 3 ++-
+ src/runtime/os3_plan9.go         | 2 +-
+ src/runtime/panic.go             | 6 ++++++
+ src/runtime/signal_sighandler.go | 2 +-
+ src/runtime/signal_windows.go    | 2 +-
+ 5 files changed, 11 insertions(+), 4 deletions(-)

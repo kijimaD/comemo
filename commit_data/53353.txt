@@ -1,0 +1,23 @@
+commit 188066cfbc2589e82de9325f9d7a21a9a1043bbd
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri May 26 09:58:43 2023 -0700
+
+    misc/wasm: set PATH variable in exec
+    
+    The PATH variable is required to run the testenv tests.
+    Set it for all the runtime invocations where we don't
+    already set it by inheriting from the environment.
+    
+    For #59583
+    For #59907
+    For #60097
+    
+    Change-Id: If582dd8f086e3f40bc58d555f6034dcffe6f8e5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

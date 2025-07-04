@@ -1,0 +1,22 @@
+commit 372b0eed175b88ba2654607b05a36416f08c4cea
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 28 12:42:37 2019 +0000
+
+    Revert "cmd/compile: optimize 386's math.bits.TrailingZeros16"
+    
+    This reverts CL 189277.
+    
+    Reason for revert: broke 32-bit builders.
+    
+    Updates #33902
+    
+    Change-Id: Ie5f180d0371a90e5057ed578c334372e5fc3a286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  2 --
+ src/cmd/compile/internal/ssa/rewrite386.go | 18 ------------------
+ test/codegen/mathbits.go                   |  1 -
+ 4 files changed, 1 insertion(+), 22 deletions(-)

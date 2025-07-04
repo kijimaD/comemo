@@ -1,0 +1,26 @@
+commit 6a9b22ce9d04993d3297ace5ec531292edb120f2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Jun 11 15:21:51 2019 -0400
+
+    vendor: go get -u golang.org/x/crypto && go mod vendor
+    
+    Pick up asm ppc64le implementations for internal/chacha20 and
+    poly1305.
+    
+    Change-Id: Ide6fc91da3b10d1c3d9e8e00957c52be06a3cf93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181877
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   8 +-
+ .../x/crypto/internal/chacha20/asm_ppc64le.s       | 668 +++++++++++++++++++++
+ .../x/crypto/internal/chacha20/chacha_noasm.go     |   2 +-
+ .../x/crypto/internal/chacha20/chacha_ppc64le.go   |  52 ++
+ .../golang.org/x/crypto/poly1305/mac_noasm.go      |   2 +-
+ .../golang.org/x/crypto/poly1305/sum_noasm.go      |   2 +-
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |  68 +++
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.s     | 247 ++++++++
+ src/vendor/modules.txt                             |   2 +-
+ 10 files changed, 1042 insertions(+), 11 deletions(-)

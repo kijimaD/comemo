@@ -1,0 +1,14 @@
+commit c2cb0d70d5995fb10f2939c926a5100618af7c45
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 3 20:46:37 2010 -0800
+
+    arm: toss make-arm.bash
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/199094
+
+ src/all-arm.bash  |  6 +++-
+ src/make-arm.bash | 96 -------------------------------------------------------
+ src/make.bash     |  4 +--
+ 3 files changed, 7 insertions(+), 99 deletions(-)

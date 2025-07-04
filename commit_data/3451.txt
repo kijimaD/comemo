@@ -1,0 +1,19 @@
+commit 5afce0ca85428c447527af60743f7574954d8e71
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Oct 6 09:47:46 2009 -0700
+
+    64 bit cmp and some sgen tweaks
+    
+    go/test: passes 75% (256/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=142  (53 added, 4 deleted, 85 changed)
+    OCL=35367
+    CL=35375
+
+ src/cmd/5g/cgen.c   |  30 ++++++++--
+ src/cmd/5g/cgen64.c | 162 ++++++++++++++++++++++++++--------------------------
+ src/cmd/5g/gsubr.c  |  30 +++++++++-
+ test/arm-pass.txt   |   5 ++
+ 4 files changed, 138 insertions(+), 89 deletions(-)

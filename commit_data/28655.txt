@@ -1,0 +1,16 @@
+commit 776a90100f1f65fcf54dfd3d082d657341bdc323
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:24:56 2016 -0700
+
+    go/scanner, go/token: recognize => (ALIAS) token
+    
+    For #16339.
+    
+    Change-Id: I0f83e46f13b5c8801aacf48fc8b690049edbbbff
+    Reviewed-on: https://go-review.googlesource.com/30210
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/scanner/scanner.go      | 2 +-
+ src/go/scanner/scanner_test.go | 1 +
+ src/go/token/token.go          | 8 +++++++-
+ 3 files changed, 9 insertions(+), 2 deletions(-)

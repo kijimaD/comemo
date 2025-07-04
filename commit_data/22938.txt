@@ -1,0 +1,25 @@
+commit 91d989eb6df17b0696cfd53e84b10ccb3f09c1dd
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed May 6 22:14:32 2015 +0000
+
+    html/template: fix pipeline sanitization
+    
+    Pipelines are altered by inserting sanitizers if they are not
+    already present. The code makes the assumption that the first
+    operands of each commands are function identifiers.
+    
+    This is wrong, since they can also be methods. It results in
+    a panic with templates such as {{1|print 2|.f 3}}
+    
+    Adds an extra type assertion to make sure only identifiers
+    are compared with sanitizers.
+    
+    Fixes #10673
+    
+    Change-Id: I3eb820982675231dbfa970f197abc5ef335ce86b
+    Reviewed-on: https://go-review.googlesource.com/9801
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/escape.go      |  6 +++---
+ src/html/template/escape_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

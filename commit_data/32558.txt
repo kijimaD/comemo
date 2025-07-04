@@ -1,0 +1,13 @@
+commit 3bd79713b7381f6984c596a84f38e2a485fa0efd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 29 13:09:59 2017 +1000
+
+    cmd/link: introduce and use peFile.addDWARF
+    
+    Change-Id: I2c217e03779772605aa0b5a33ef80459333eeebc
+    Reviewed-on: https://go-review.googlesource.com/59790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 16 ----------------
+ src/cmd/link/internal/ld/pe.go    | 21 ++++++++++++++++++---
+ 2 files changed, 18 insertions(+), 19 deletions(-)

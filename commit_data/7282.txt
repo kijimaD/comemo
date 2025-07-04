@@ -1,0 +1,12 @@
+commit 3bfd35b72e24ec5c918a9e0f233634db45950c68
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 31 15:58:44 2011 +1100
+
+    run.bash: disable doc/codelab/wiki test on windows
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4119047
+
+ src/run.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

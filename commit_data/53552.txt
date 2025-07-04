@@ -1,0 +1,24 @@
+commit 54c75b40a2a98a2942b86584b2bff5255d584b1d
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Sat Jun 10 13:13:05 2023 -0700
+
+    net: ensure net.Addr values match the connection type on wasip1
+    
+    net.FileListener returns values of type *net.TCPListener, which can be
+    asserted by the application. The (*net.TCPListener).Addr method
+    documents that the underlying type of its return value is *net.TCPAddr,
+    which is fixed by this change.
+    
+    Change-Id: Ife9906716d1b512092024ba50797bf7831536b75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502335
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/net/fd_wasip1.go        | 24 ++++++++++++++++++++++--
+ src/net/file_wasip1_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 2 deletions(-)

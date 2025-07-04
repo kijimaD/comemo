@@ -1,0 +1,14 @@
+commit 71859efceb21a3f8098716ad8cf0964571be7bc5
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 21 18:02:44 2015 -0700
+
+    cmd/asm: remove needless check for negative right shift
+    
+    In the parser, the shift value is always a uint64.
+    
+    Change-Id: I9b50295a9f7d174ed1f6f9baf78ec0ed43db417f
+    Reviewed-on: https://go-review.googlesource.com/11322
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

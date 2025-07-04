@@ -1,0 +1,33 @@
+commit d3e5e9fdf64f7a4198a73244ab3900ca8ffbacbe
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 25 11:14:27 2024 -0500
+
+    crypto/aes: fix regression for ppc64x
+    
+    CL 561080 introduced some failures for CBC and GCM crypto tests that are run during a build resulting in dashboard failures.
+    
+    Tests that are failing:
+    - TestCBCEncrypterAES
+    - TestCBCDecrypterAES
+    - TestAESGCM
+    - TestGCMCounterWrap
+    - TestGCMAsm
+    
+    This fixes those failures.
+    
+    Change-Id: I90d6f8d279a3051cf951a1a9628afb8d0b5c2f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574076
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/aes/cbc_ppc64x.go | 4 ++--
+ src/crypto/aes/gcm_ppc64x.go | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit ae1ea2aa94b366107f4f92a591d102fd32ad86ae
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jul 22 13:09:26 2015 +0200
+
+    runtime/trace: add new package
+    
+    Move tracing functions from runtime/pprof to the new runtime/trace package.
+    
+    Fixes #9710
+    
+    Change-Id: I718bcb2ae3e5959d9f72cab5e6708289e5c8ebd5
+    Reviewed-on: https://go-review.googlesource.com/12511
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.5.txt                                    |  4 +-
+ src/cmd/trace/main.go                            |  2 +-
+ src/go/build/deps_test.go                        |  5 ++-
+ src/net/http/pprof/pprof.go                      |  9 +++--
+ src/runtime/pprof/pprof.go                       | 27 -------------
+ src/runtime/trace/trace.go                       | 42 ++++++++++++++++++++
+ src/runtime/{pprof => trace}/trace_stack_test.go | 50 ++++++++++++------------
+ src/runtime/{pprof => trace}/trace_test.go       | 34 ++++++++--------
+ src/testing/testing.go                           | 13 +++---
+ 9 files changed, 102 insertions(+), 84 deletions(-)

@@ -1,0 +1,13 @@
+commit ba620d502751c6559dddd1ec125efac10c565a67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 25 12:45:06 2009 -0700
+
+    adjustments matching updated ast
+    
+    R=r
+    OCL=26746
+    CL=26746
+
+ usr/gri/pretty/parser.go  | 384 ++++++++++++++++++++++++----------------------
+ usr/gri/pretty/printer.go | 241 +++++++++++++++++------------
+ 2 files changed, 338 insertions(+), 287 deletions(-)

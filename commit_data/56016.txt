@@ -1,0 +1,27 @@
+commit 0ae8468b204e454314c0f35411b15dc03c89ad30
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Wed Mar 6 17:44:03 2024 +0300
+
+    cmd/compile,cmd/go,cmd/internal,runtime: remove dynamic checks for atomics for ARM64 targets that support LSE
+    
+    Remove dynamic checks for atomic instructions for ARM64 targets that support LSE extension.
+    
+    For #66131
+    
+    Change-Id: I0ec1b183a3f4ea4c8a537430646e6bc4b4f64271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569536
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Shu-Chun Weng <scw@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go     | 54 +++++++++++++++-------------
+ src/cmd/go/internal/cfg/cfg.go             |  3 ++
+ src/cmd/go/internal/work/gc.go             |  8 +++++
+ src/cmd/internal/testdir/testdir_test.go   | 16 +++++++--
+ src/internal/buildcfg/cfg.go               | 15 ++++----
+ src/internal/buildcfg/cfg_test.go          |  2 +-
+ src/runtime/internal/atomic/atomic_arm64.s | 56 ++++++++++++++++++++++++++++++
+ test/codegen/atomics.go                    | 27 ++++++++++++++
+ 8 files changed, 146 insertions(+), 35 deletions(-)

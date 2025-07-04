@@ -1,0 +1,33 @@
+commit 795e8c2317a6a4d728a59caa7550312cdceab367
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 19 15:14:54 2019 -0400
+
+    cmd/go: address DWARF linker issues with -buildmode=plugin on Darwin
+    
+    Assorted fixups in the linker needed to enable turning back on
+    DWARF generation when building plugins for Darwin. Includes:
+    
+     - don't suppress import of runtime/cgo in the linker for
+       Darwin if we are linking in plugin mode
+    
+     - in calcCompUnitRanges handle the case where we encounter
+       linker-generated functions that have no associated Unit (and
+       also have no DWARF)
+    
+     - generalize a guard in relocsym() include so as to avoid
+       triggering a spurious error on go.info symbols in plugin mode
+    
+    Updates #21647.
+    Updates #27502.
+    
+    Change-Id: I317fea97bef2f3461e31498e63f9fd6d8b8f4b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182959
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/link/internal/ld/data.go  | 4 ++--
+ src/cmd/link/internal/ld/dwarf.go | 5 +++++
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

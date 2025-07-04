@@ -1,0 +1,15 @@
+commit 609d996fac7f68b34032572b7bde627f658b95f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 14:17:48 2014 -0400
+
+    cmd/8l: accept R_386_GOT32 in push instruction
+    
+    Fixes #8382.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/149540045
+
+ src/cmd/8l/asm.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

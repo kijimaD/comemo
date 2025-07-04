@@ -1,0 +1,45 @@
+commit 8f26b57f9afc238bdecb9b7030bc2f4364093885
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Sat Oct 3 01:23:47 2020 +0700
+
+    cmd/compile: split exported/non-exported methods for interface type
+    
+    Currently, mhdr/methods is emitted with the same len/cap. There's no way
+    to distinguish between exported and non-exported methods statically.
+    
+    This CL splits mhdr/methods into two parts, use "len" for number of
+    exported methods, and "cap" for all methods. This fixes the bug in
+    issue #22075, which intends to return the number of exported methods but
+    currently return all methods.
+    
+    Note that with this encoding, we still can access either
+    all/exported-only/non-exported-only methods:
+    
+            mhdr[:cap(mhdr)]          // all methods
+            mhdr                      // exported methods
+            mhdr[len(mhdr):cap(mhdr)] // non-exported methods
+    
+    Thank to Matthew Dempsky (@mdempsky) for suggesting this encoding.
+    
+    Fixes #22075
+    
+    Change-Id: If662adb03ccff27407d55a5578a0ed05a15e7cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259237
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.16.html                        |  8 +++++
+ src/cmd/compile/internal/gc/reflect.go |  3 +-
+ src/internal/reflectlite/type.go       | 35 +++++++++++++++-------
+ src/internal/reflectlite/value.go      |  4 +--
+ src/reflect/all_test.go                | 18 +++++++----
+ src/reflect/type.go                    | 55 ++++++++++++++++++++--------------
+ src/reflect/value.go                   | 21 +++++++------
+ src/runtime/alg.go                     |  2 +-
+ src/runtime/iface.go                   | 12 ++++----
+ src/runtime/mfinal.go                  |  4 +--
+ src/runtime/type.go                    | 26 ++++++++++++----
+ 11 files changed, 124 insertions(+), 64 deletions(-)

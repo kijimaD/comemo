@@ -1,0 +1,16 @@
+commit 1425412f38e8a0e7ea9f6d67a8cf2d97e567f6b4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 8 10:33:54 2018 +1000
+
+    cmd/cover: fix test on Solaris
+    
+    Solaris diff doesn't know about -d (a.k.a. --minimal).
+    
+    Change-Id: I86146b4b93e3d0bdea52a0fde59afca20b5bab51
+    Reviewed-on: https://go-review.googlesource.com/117335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

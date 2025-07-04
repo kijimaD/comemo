@@ -1,0 +1,12 @@
+commit b5c739bd1b926045a0d8e11798e8645f346586ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 01:02:33 2008 -0700
+
+    Uncomment the name/type error checking.
+    
+    R=ken
+    OCL=17928
+    CL=17928
+
+ src/cmd/gc/go.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,42 @@
+commit 0bf507efe9f995076e3a65bcf61baf3e905b58c7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 19 15:06:02 2020 +0100
+
+    cmd/go: add BuildID to list -json -export
+    
+    That is, the following two pieces of shell code are now equivalent:
+    
+            $ go tool buildid $(go list -export -f {{.Export}} strings)
+            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    
+            $ go list -export -f {{.BuildID}} strings
+            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    
+    This does not expose any information that wasn't available before, but
+    makes this workflow simpler and faster. In the first example, we have to
+    execute two programs, and 'go tool buildid' has to re-open the export
+    data file to read the build ID.
+    
+    With the new mechanism, 'go list -export' already has the build ID
+    ready, so we can simply print it out. Moreover, when listing lots of
+    related packages like './...', we can now obtain all their build IDs at
+    once.
+    
+    Fixes #37281.
+    
+    Change-Id: I8e2f65a08391b3df1a628c6e06e708b8c8cb7865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263542
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go               |  1 +
+ src/cmd/go/go_test.go               | 12 ++++++++++++
+ src/cmd/go/internal/list/list.go    |  1 +
+ src/cmd/go/internal/load/pkg.go     |  1 +
+ src/cmd/go/internal/work/buildid.go |  1 +
+ src/cmd/go/internal/work/exec.go    |  1 +
+ 6 files changed, 17 insertions(+)

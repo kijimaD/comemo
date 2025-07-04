@@ -1,0 +1,19 @@
+commit 0168c2676f73071331cd385cb3d174313c857738
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 18:45:18 2015 -0500
+
+    runtime: use only per-P gcWork
+    
+    Currently most uses of gcWork use the per-P gcWork, but there are two
+    places that still use a stack-based gcWork. Simplify things by making
+    these instead use the per-P gcWork.
+    
+    Change-Id: I712d012cce9dd5757c8541824e9641ac1c2a329c
+    Reviewed-on: https://go-review.googlesource.com/19636
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go     | 8 ++++----
+ src/runtime/mgcwork.go | 8 --------
+ 2 files changed, 4 insertions(+), 12 deletions(-)

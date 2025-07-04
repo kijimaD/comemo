@@ -1,0 +1,14 @@
+commit ecde0bfa1fb11328133bb335af80fc2a48a8f82a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 10 17:40:22 2019 +0000
+
+    net/http: fix timeout race in Transport proxy CONNECT
+    
+    Fixes #36070
+    
+    Change-Id: I99742aa153202436d802634c9e019a14b9ef9185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210738
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/transport.go | 50 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 29 insertions(+), 21 deletions(-)

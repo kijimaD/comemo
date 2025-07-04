@@ -1,0 +1,10 @@
+commit dfdc7c1a8a4143415975fa5bbf4e11021e3d2e77
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 13:59:17 2008 -0700
+
+    turing now works
+    
+    SVN=121477
+
+ test/golden.out | 2 --
+ 1 file changed, 2 deletions(-)

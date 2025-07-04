@@ -1,0 +1,11 @@
+commit aebf31ff5d2933f4b6689974cf597ba2f43f0255
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 13:32:59 2008 -0700
+
+    remove 6.out in test/run.  update golden file
+    
+    SVN=121465
+
+ test/golden.out | 18 ++++++++++--------
+ test/run        |  2 +-
+ 2 files changed, 11 insertions(+), 9 deletions(-)

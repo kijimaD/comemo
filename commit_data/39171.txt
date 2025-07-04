@@ -1,0 +1,22 @@
+commit 018d9b42a789809198bb0bcc338d9948a479b108
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 14:31:10 2019 -0400
+
+    runtime: disable some tests in -quick mode
+    
+    Speeds up the "go test runtime -cpu=1,2,4 -short -quick" phase of all.bash.
+    
+    For #26473.
+    
+    Change-Id: I090f5a5aa754462b3253a2156dc31fa67ce7af2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177399
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_unix_test.go | 4 ++++
+ src/runtime/memmove_test.go    | 6 ++++++
+ src/runtime/semasleep_test.go  | 3 +++
+ src/runtime/stack_test.go      | 4 ++++
+ 4 files changed, 17 insertions(+)

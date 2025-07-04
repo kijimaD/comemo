@@ -1,0 +1,22 @@
+commit 1bbc044df972c46f807f2889f5486e9aedc17b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 16 10:43:27 2009 -0700
+
+    parse and present DWARF type information
+    
+    R=r
+    DELTA=940  (929 added, 1 deleted, 10 changed)
+    OCL=34679
+    CL=34686
+
+ src/pkg/Makefile                         |   1 -
+ src/pkg/debug/dwarf/Makefile             |   1 +
+ src/pkg/debug/dwarf/buf.go               |   2 +-
+ src/pkg/debug/dwarf/const.go             |  81 +++++
+ src/pkg/debug/dwarf/entry.go             |  79 +++-
+ src/pkg/debug/dwarf/open.go              |   2 +
+ src/pkg/debug/dwarf/testdata/typedef.c   |  68 ++++
+ src/pkg/debug/dwarf/testdata/typedef.elf | Bin 0 -> 11546 bytes
+ src/pkg/debug/dwarf/type.go              | 607 +++++++++++++++++++++++++++++++
+ src/pkg/debug/dwarf/type_test.go         | 102 ++++++
+ 10 files changed, 933 insertions(+), 10 deletions(-)

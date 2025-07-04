@@ -1,0 +1,26 @@
+commit 6e096e2fd5d00164acce57cca80ba188096216fd
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Sat Mar 25 23:21:01 2023 +0000
+
+    cmd/go: change +build doc references to //go:build
+    
+    This changes a few references to `+build` into the modern `//go:build`.
+    It was compiled by editing `cmd/go/internal/list/context.go`, running
+    `go test cmd/go -v -run=TestDocsUpToDate -fixdocs`, and then editing
+    list.go and build.go by hand.
+    
+    Change-Id: I00fec55e098bf5100f5a186dd975a6628e15beb8
+    GitHub-Last-Rev: e0eb9be77e9e409479ef48a65f750546d2a9ddcc
+    GitHub-Pull-Request: golang/go#59245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479417
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/alldocs.go                 | 4 ++--
+ src/cmd/go/internal/list/context.go   | 2 +-
+ src/cmd/go/internal/list/list.go      | 4 ++--
+ src/cmd/go/internal/modindex/build.go | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

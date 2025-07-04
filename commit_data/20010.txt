@@ -1,0 +1,18 @@
+commit c5e648d684312b979e243077f909a798adbf6e5b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 15 22:36:12 2014 +0400
+
+    runtime: fix getgcmask
+    bv.data is an array of uint32s but the code was using
+    offsets computed for an array of bytes.
+    Add a test for stack GC info.
+    Fixes #8531.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/124450043
+
+ src/pkg/runtime/gcinfo_test.go | 58 ++++++++++++++++++++++++++++--------------
+ src/pkg/runtime/mgc0.c         |  2 +-
+ 2 files changed, 40 insertions(+), 20 deletions(-)

@@ -1,0 +1,31 @@
+commit f95ae3d68989505fcac9ec23cacc03d602ec6739
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Apr 3 15:13:04 2024 +0800
+
+    cmd/asm: change register type for loong64 floating-point
+    
+    On Loong64, the two input operands and one output operand of the ADDF
+    instruction are both floating-point registers; and the floating-point
+    comparison instruction CMPEQ{F,D}, CMPGE{F,D}, CMPGT{F,D} both input
+    operands are floating-point registers, and the output operation is a
+    floating-point condition register, currently, only FCC0 is used as the
+    floating-point condition register.
+    
+    Example:
+            ADDF    F0, F1, F0
+            CMPEQF  F0, F1, FCC0
+    
+    Change-Id: I4c1c453e522d43f294a8dcab7b6b5247f41c9c68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580281
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/arch/loong64.go            | 11 -----------
+ src/cmd/asm/internal/asm/asm.go                 |  6 ------
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++-------
+ src/cmd/compile/internal/loong64/ssa.go         |  2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 25 ++++++++++++++++++++++---
+ 5 files changed, 31 insertions(+), 27 deletions(-)

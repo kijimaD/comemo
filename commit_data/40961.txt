@@ -1,0 +1,15 @@
+commit daaab44f3124aff61937fa7e118f02d4ff82166c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 8 20:54:10 2019 +0000
+
+    go/ast: fix a few incorrect "an" articles
+    
+    slice, type, and select should all go with "a", not "an", since they all
+    start with consonant sounds.
+    
+    Change-Id: I57e96dcbdc571dc21e24096779f2f756ec81103e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210124
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

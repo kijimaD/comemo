@@ -1,0 +1,12 @@
+commit b8f76764cbed4d383d667d53ddd20b5c08fc606d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 11:15:36 2012 -0800
+
+    go test: align "no test files" message
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5533070
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

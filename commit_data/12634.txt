@@ -1,0 +1,14 @@
+commit 70e58a2f9b2531c8e18a2e80051ffe6f1f08a33d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 14 14:47:13 2012 -0400
+
+    io/ioutil: fix crash when Stat fails
+    
+    Fixes #3320.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5824051
+
+ src/pkg/io/ioutil/ioutil.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

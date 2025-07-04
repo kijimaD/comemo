@@ -1,0 +1,18 @@
+commit 4739dcf7fbe5f5bbe885c4349d36c3e23658c0c6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 25 14:08:13 2016 -0700
+
+    cmd/compile: fix printing of OCASE nodes
+    
+    Switch lowering splits each case expression out
+    into its own OCASE node.
+    
+    Change-Id: Ifcb72b99975ed36da8540f6e43343e9aa2058572
+    Reviewed-on: https://go-review.googlesource.com/26769
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go    | 9 ++++++++-
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

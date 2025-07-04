@@ -1,0 +1,19 @@
+commit ed7e43085ef2e2c6a1d62785b2d2b343a80039bc
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Oct 1 13:53:42 2019 -0300
+
+    cmd/go: respect -mod flag in fmt
+    
+    Fixes #27841
+    
+    Change-Id: Ifcfd938aff8680cf7b44dfc09fde01d6105345a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198257
+    Run-TryBot: Dan Peterson <dpiddy@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                     | 3 +++
+ src/cmd/go/internal/base/flag.go          | 5 +++++
+ src/cmd/go/internal/fmtcmd/fmt.go         | 4 ++++
+ src/cmd/go/testdata/script/mod_vendor.txt | 1 +
+ 4 files changed, 13 insertions(+)

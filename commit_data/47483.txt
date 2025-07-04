@@ -1,0 +1,17 @@
+commit 865689571d52fee0b4c910d54bd4ba1484ff2344
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Fri Nov 12 10:15:21 2021 +0800
+
+    doc/go1.18: add AppendRune doc
+    
+    For #47694
+    
+    Change-Id: I39594c273aeb038702457587ee1c46e4b3920bb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363359
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

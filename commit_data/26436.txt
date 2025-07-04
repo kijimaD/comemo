@@ -1,0 +1,15 @@
+commit 075d66646c8f8fec90a7c3b9de7bacb2a0eadacf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 21 10:43:32 2016 -0700
+
+    cmd/compile: remove formatting dreg
+    
+    Left over from CL 20931.
+    
+    Change-Id: I3b8dd9ef748bcbf70b5118da28135aaa1e5ba3a8
+    Reviewed-on: https://go-review.googlesource.com/20955
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

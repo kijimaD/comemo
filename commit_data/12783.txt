@@ -1,0 +1,27 @@
+commit 6b0929505ba7d4ede45d587239459d3f2eb8c3d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 27 10:41:44 2012 -0400
+
+    cmd/go: fix two bugs
+    
+    Issue 3207 was caused by setting GOPATH=GOROOT.
+    This is a common mistake, so diagnose it at command start
+    and also correct the bug that it caused in get (downloading
+    to GOROOT/src/foo instead of GOROOT/src/pkg/foo).
+    
+    Issue 3268 was caused by recognizing 'packages' that
+    had installed binaries but no source.  This behavior is not
+    documented and causes trouble, so remove it.  We can
+    revisit the concept of binary-only packages after Go 1.
+    
+    Fixes #3207.
+    Fixes #3268.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5930044
+
+ src/cmd/go/get.go  | 4 +++-
+ src/cmd/go/main.go | 8 ++++++++
+ src/cmd/go/pkg.go  | 5 ++++-
+ 3 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 7f583a4d721c94967fe3ce098b3eff902cba043b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 13 19:19:36 2016 -0400
+
+    cmd/dist: re-enable internal PIE test
+    
+    For #17068
+    
+    Change-Id: I4e3ab166f08100292b779b651a9acfbfb44a55cd
+    Reviewed-on: https://go-review.googlesource.com/29119
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit d27fa9446d9c69f95ab7b7e2b60b5556aa17cd3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 09:57:37 2009 -0800
+
+    add a README file, so that if someone finds a
+    go tar ball or finds themselves staring at
+    http://code.google.com/p/go/source/browse/,
+    there is an obvious path back to golang.org
+    
+    R=r
+    http://go/go-review/1026024
+
+ README | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

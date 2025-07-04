@@ -1,0 +1,15 @@
+commit 91fbf6f159a099a273e6880a5fe40351d61270b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 22 16:34:02 2014 -0500
+
+    testing: fix SkipNow and FailNow to avoid panic(nil) check
+    
+    Sorry, too many windows in which to run all.bash.
+    Fixes build.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/55790043
+
+ src/pkg/testing/testing.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

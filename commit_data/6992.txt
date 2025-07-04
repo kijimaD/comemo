@@ -1,0 +1,17 @@
+commit 5bd4094d2ec9cecf06e135604c6c21365fb9ea95
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 16 16:55:26 2010 -0800
+
+    regexp: add HasMeta and regexp.Expr().
+    The former is a boolean function to test whether a string
+    contains a regular expression metacharacter; the second
+    returns the string used to compile the regexp.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/3728041
+
+ src/pkg/regexp/all_test.go  | 12 ++++++++++++
+ src/pkg/regexp/find_test.go |  6 +++++-
+ src/pkg/regexp/regexp.go    | 17 +++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)

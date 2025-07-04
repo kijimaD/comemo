@@ -1,0 +1,37 @@
+commit 6e876f19857a8fbd259571080f7f91bc03276559
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Jun 4 10:55:01 2020 -0700
+
+    cmd/compile: clean up and optimize s390x multiplication rules
+    
+    Some of the existing optimizations aren't triggered because they
+    are handled by the generic rules so this CL removes them. Also
+    some constraints were copied without much thought from the amd64
+    rules and they don't make sense on s390x, so we remove those
+    constraints.
+    
+    Finally, add a 'multiply by the sum of two powers of two'
+    optimization. This makes sense on s390x as shifts are low latency
+    and can also sometimes be optimized further (especially if we add
+    support for RISBG instructions).
+    
+    name                   old time/op  new time/op  delta
+    IntMulByConst/3-8      1.70ns ±11%  1.10ns ± 5%  -35.26%  (p=0.000 n=10+10)
+    IntMulByConst/5-8      1.64ns ± 7%  1.10ns ± 4%  -32.94%  (p=0.000 n=10+9)
+    IntMulByConst/12-8     1.65ns ± 6%  1.20ns ± 4%  -27.16%  (p=0.000 n=10+9)
+    IntMulByConst/120-8    1.66ns ± 4%  1.22ns ±13%  -26.43%  (p=0.000 n=10+10)
+    IntMulByConst/-120-8   1.65ns ± 7%  1.19ns ± 4%  -28.06%  (p=0.000 n=9+10)
+    IntMulByConst/65537-8  0.86ns ± 9%  1.12ns ±12%  +30.41%  (p=0.000 n=10+10)
+    IntMulByConst/65538-8  1.65ns ± 5%  1.23ns ± 5%  -25.11%  (p=0.000 n=10+10)
+    
+    Change-Id: Ib196e6bff1e97febfd266134d0a2b2a62897989f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248937
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  51 +++--
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 268 ++++++++++++++-----------
+ src/cmd/compile/internal/test/mulconst_test.go | 242 ++++++++++++++++++++++
+ test/codegen/arithmetic.go                     |   6 +
+ 4 files changed, 441 insertions(+), 126 deletions(-)

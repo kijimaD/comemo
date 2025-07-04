@@ -1,0 +1,16 @@
+commit 7ff8e90eb7ceb2016aa9fc736febd8a5902ec65e
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Apr 21 17:00:27 2014 -0700
+
+    strings: fix off-by-one error in test
+    
+    Previously it would panic because of out-of-bound access
+    if s1 is longer than s2.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/90110043
+
+ src/pkg/strings/strings_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

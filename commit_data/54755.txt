@@ -1,0 +1,22 @@
+commit 5bddb52a0b6bc82ee6852eb0da18094396722460
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 15:05:32 2023 -0400
+
+    cmd/go: add Shell.RemoveAll
+    
+    There are quite a few places that perform their own command logging
+    and then use os.RemoveAll. Unify (nearly) all of these into
+    (*Shell).RemoveAll, like many of the other internal implementations of
+    basic shell operations.
+    
+    Change-Id: I94a2cbd9dc150a4c94a4051c42ce8e86dcc736fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536099
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/clean/clean.go | 43 ++++++++------------------------------
+ src/cmd/go/internal/test/test.go   |  5 +----
+ src/cmd/go/internal/work/exec.go   | 38 +++++++++++++++++++++++++++------
+ src/cmd/go/internal/work/shell.go  |  2 --
+ 4 files changed, 42 insertions(+), 46 deletions(-)

@@ -1,0 +1,22 @@
+commit 2ea859a7797472d6c7e401057d313c1d468a7a09
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 12 22:24:29 2014 +0400
+
+    runtime: refactor level-triggered IO support
+    Remove GOOS_solaris ifdef from netpoll code,
+    instead introduce runtime edge/level triggered IO flag.
+    Replace armread/armwrite with a single arm(mode) function,
+    that's how all other interfaces look like and these functions
+    will need to do roughly the same thing anyway.
+    
+    LGTM=rsc
+    R=golang-codereviews, dave, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/55500044
+
+ src/pkg/runtime/netpoll.goc       | 18 +++++-------------
+ src/pkg/runtime/netpoll_epoll.c   |  7 +++++++
+ src/pkg/runtime/netpoll_kqueue.c  |  7 +++++++
+ src/pkg/runtime/netpoll_windows.c |  7 +++++++
+ src/pkg/runtime/runtime.h         |  3 +--
+ 5 files changed, 27 insertions(+), 15 deletions(-)

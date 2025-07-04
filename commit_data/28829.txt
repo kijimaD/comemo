@@ -1,0 +1,17 @@
+commit 9897e4081192abd81fd404774dd492975d7ccedd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 10 17:14:14 2016 -0400
+
+    runtime: use more go:nowritebarrierrec in proc.go
+    
+    Currently we use go:nowritebarrier in many places in proc.go.
+    go:notinheap and go:yeswritebarrierrec now let us use
+    go:nowritebarrierrec (the recursive form of the go:nowritebarrier
+    pragma) more liberally. Do so in proc.go
+    
+    Change-Id: Ia7fcbc12ce6c51cb24730bf835fb7634ad53462f
+    Reviewed-on: https://go-review.googlesource.com/30942
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go | 42 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

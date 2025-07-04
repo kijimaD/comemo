@@ -1,0 +1,20 @@
+commit 4d923e3f077727718b708132ad67fad35dc064f9
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Feb 29 07:48:17 2024 +0000
+
+    cmd/compile: remove unnecessary fmt.Sprintf call
+    
+    Change-Id: I38ba7cb0179ec9226a68629c53ea2d81fa19c059
+    GitHub-Last-Rev: a3d4fe2ac2d2f40033ae0244a264074d45b3ad52
+    GitHub-Pull-Request: golang/go#66024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568115
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/hashdebug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

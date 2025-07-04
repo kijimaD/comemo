@@ -1,0 +1,12 @@
+commit b0d0de59a12e48b1875d7b0fcaa9e4bc3fc04d35
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 10 10:11:28 2010 -0700
+
+    fix build: update exp/draw/draw_test.go
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/1962041
+
+ src/pkg/exp/draw/draw_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

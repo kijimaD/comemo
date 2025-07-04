@@ -1,0 +1,15 @@
+commit 95ee7d6414c4a9a5da95ecb4fbefc3ac3e570d06
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 9 10:38:12 2014 -0400
+
+    runtime: use 3x fewer nanotime calls in garbage collection
+    
+    Cuts the number of calls from 6 to 2 in the non-debug case.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=0intro, aram, golang-codereviews, khr
+    https://golang.org/cl/86040043
+
+ src/pkg/runtime/mgc0.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

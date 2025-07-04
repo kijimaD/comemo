@@ -1,0 +1,19 @@
+commit 15cb7ed34f5d755bf17734a6187958983471480c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 3 11:35:34 2011 -0800
+
+    regexp: fix prefix bug.
+    After a prefix match, the old code advanced the length of the
+    prefix.  This is incorrect since the full match might begin
+    in the middle of the prefix. (Consider "aaaab+" matching
+    "aaaaaab").
+    
+    Fixes #1373
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3795044
+
+ src/pkg/regexp/find_test.go |  1 +
+ src/pkg/regexp/regexp.go    | 11 ++---------
+ 2 files changed, 3 insertions(+), 9 deletions(-)

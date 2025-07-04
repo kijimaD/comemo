@@ -1,0 +1,17 @@
+commit 0d17ebde1cf53c37b6bfbcf33d068d98b52d138a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 17:25:24 2009 -0700
+
+    cleanup in personal dir:
+    - delete some unused files (copies archived elsewhere)
+    
+    TBR=r
+    OCL=34994
+    CL=34994
+
+ usr/gri/pretty/Makefile.iant |  35 -------
+ usr/gri/pretty/ast.txt       | 217 ++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/selftest0.go  |  11 ---
+ usr/gri/pretty/selftest1.go  |  40 --------
+ usr/gri/pretty/selftest2.go  | 158 -------------------------------
+ 5 files changed, 133 insertions(+), 328 deletions(-)

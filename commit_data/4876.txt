@@ -1,0 +1,12 @@
+commit cd72f77f23e986133f4480d0a82e1bf2350cb6de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 17 15:46:46 2010 -0800
+
+    apply gofmt to src and misc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/213041
+
+ src/pkg/bytes/bytes_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

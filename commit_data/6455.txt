@@ -1,0 +1,12 @@
+commit 4e3c58cd62597001691118ba40ec6f0d678c361e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 6 21:47:25 2010 +1100
+
+    net: fix comment
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2358041
+
+ src/pkg/net/ip_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 2e5a588718ed741112a5a8c04bbf1d53e417fbda
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 12:56:18 2009 -0700
+
+    fix build again; this time for sure.  sigh
+    
+    TBR=r
+    OCL=34803
+    CL=34803
+
+ src/pkg/debug/dwarf/type_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

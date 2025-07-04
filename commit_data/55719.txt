@@ -1,0 +1,17 @@
+commit f7777688ca19584ed7c278431560f6a545822370
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Feb 18 20:18:08 2024 +0100
+
+    doc: document os.ModeSocket support on Windows
+    
+    Updates #33357.
+    
+    Change-Id: I66866475447e03f604202f34ddfbafdc0512cb72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565135
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/next/6-stdlib/99-minor/os/33357.md | 3 +++
+ 1 file changed, 3 insertions(+)

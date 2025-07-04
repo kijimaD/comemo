@@ -1,0 +1,30 @@
+commit 9e2a4f4dff9a790a47729b79e857130f83e0ff6d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Jul 28 13:45:02 2018 +0200
+
+    syscall: remove support for O_NONBLOCK and O_SYNC on js/wasm
+    
+    This commit removes O_NONBLOCK on js/wasm. O_SYNC can't be
+    removed, because it is referenced by the os package, so instead
+    its use returns an error.
+    
+    On Windows, the options O_NONBLOCK and O_SYNC are not available
+    when opening a file with Node.js. This caused the initialization
+    of the syscall package to panic.
+    
+    The simplest solution is to not support these two options on js/wasm
+    at all. Code written for js/wasm is supposed to be portable,
+    so platform-specific options should not be used.
+    
+    Fixes #26524.
+    
+    Change-Id: I366aa3cdcfa59dfa9dc513368259f363ca090f00
+    Reviewed-on: https://go-review.googlesource.com/126600
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js    |  2 +-
+ src/syscall/fs_js.go      | 20 ++++++++------------
+ src/syscall/syscall_js.go | 13 ++++++-------
+ 3 files changed, 15 insertions(+), 20 deletions(-)

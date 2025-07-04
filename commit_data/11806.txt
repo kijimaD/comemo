@@ -1,0 +1,12 @@
+commit 2aafad25b4fe6c8e0d7f75b71b4b6d6e238483d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 01:04:33 2012 -0500
+
+    gc: print detail for typechecking loop error
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5654060
+
+ src/cmd/gc/typecheck.c | 59 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 48 insertions(+), 11 deletions(-)

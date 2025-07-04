@@ -1,0 +1,12 @@
+commit 3f00205a0a65b619f2f64818f986e83184083609
+Author: Aron Nopanen <aron.nopanen@gmail.com>
+Date:   Tue Nov 17 11:28:54 2009 -0800
+
+    Add myself to 'AUTHORS' and 'CONTRIBUTORS'
+    
+    R=rsc, r
+    https://golang.org/cl/154175
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

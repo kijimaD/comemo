@@ -1,0 +1,24 @@
+commit 1a9893a969e0a73dc4f1e48ed40ccaf29ec238a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 16 20:19:33 2022 -0800
+
+    runtime: expose auxv for use by x/sys/cpu
+    
+    Updates #57336
+    
+    Change-Id: I181885f59bac59360b855d3990326ea2b268bd28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458256
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os3_solaris.go  | 11 +++++++----
+ src/runtime/os_dragonfly.go | 11 +++++++----
+ src/runtime/os_freebsd.go   | 11 +++++++----
+ src/runtime/os_linux.go     | 19 ++++++++++++-------
+ src/runtime/os_netbsd.go    | 11 +++++++----
+ src/runtime/runtime.go      |  9 +++++++++
+ 6 files changed, 49 insertions(+), 23 deletions(-)

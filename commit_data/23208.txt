@@ -1,0 +1,30 @@
+commit 4fdd53680c0c63d10a8c9c155f6df6e3b1e08367
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 22:19:27 2015 -0400
+
+    cmd/compile: move Node.Defn to Node.Name.Defn
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 256
+    $
+    
+    Change-Id: I89ac8bbe077664aa076092bfd096947e84c0624c
+    Reviewed-on: https://go-review.googlesource.com/10523
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go   |  4 +--
+ src/cmd/compile/internal/gc/dcl.go       | 10 +++----
+ src/cmd/compile/internal/gc/esc.go       |  8 +++---
+ src/cmd/compile/internal/gc/gen.go       | 10 +++----
+ src/cmd/compile/internal/gc/go.y         | 10 +++----
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 ++--
+ src/cmd/compile/internal/gc/range.go     |  6 ++--
+ src/cmd/compile/internal/gc/sinit.go     | 48 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/subr.go      |  9 ++++--
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 40 +++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      | 16 +++++------
+ src/cmd/compile/internal/gc/y.go         | 10 +++----
+ 14 files changed, 92 insertions(+), 89 deletions(-)

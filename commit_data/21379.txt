@@ -1,0 +1,12 @@
+commit 8332f807853d9aa47c7aa04bf3501eae88180170
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 28 11:40:32 2015 -0800
+
+    unsafe: minor doc string improvements
+    
+    Change-Id: I369723c7a65f9a72c60b55704cebf40d78cf4f75
+    Reviewed-on: https://go-review.googlesource.com/3444
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/unsafe/unsafe.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

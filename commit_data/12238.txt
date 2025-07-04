@@ -1,0 +1,17 @@
+commit eafe86c2df73c9d80d2eab17b0c50ed8514cba81
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Feb 27 13:56:43 2012 -0800
+
+    go/printer: fix printing of variadic function calls
+    
+    Fixes #3130.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5697062
+
+ src/pkg/go/printer/nodes.go                    |  7 ++++++-
+ src/pkg/go/printer/testdata/expressions.golden | 22 ++++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 22 ++++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 22 ++++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit d91ade02e7c0272fe144bedb92601ed00271d372
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Sun Jan 29 14:16:11 2012 -0500
+
+    net/http: set cookies in client jar on POST requests.
+    
+    Cookies recieved in a response to a POST request are stored
+    in the client's jar like they are for GET requests.
+    
+    R=golang-dev, rsc
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5576065
+
+ src/pkg/net/http/client.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

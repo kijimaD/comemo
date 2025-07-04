@@ -1,0 +1,21 @@
+commit 49084db386604586817d396a2b54aa1f7cffa27c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 21 11:39:47 2010 -0400
+
+    ld: abandon symbol-driven archive loading
+    
+    Load the entire archive file instead.
+    Reduces I/O by avoiding additional passes
+    through libraries to resolve symbols.
+    Go packages always need all the files anyway
+    (most often, all 1 of them).
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2613042
+
+ src/cmd/5l/l.h   |   1 -
+ src/cmd/6l/l.h   |   1 -
+ src/cmd/8l/l.h   |   1 -
+ src/cmd/ld/lib.c | 197 +++++++++++++++++++++++++------------------------------
+ 4 files changed, 90 insertions(+), 110 deletions(-)

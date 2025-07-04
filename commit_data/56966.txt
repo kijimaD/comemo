@@ -1,0 +1,26 @@
+commit bd6f911f852f4a608e2cf11c1ce5b55ff0347866
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:24:16 2024 +0000
+
+    archive: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Clean up some unnecessary helper functions.
+    
+    Change-Id: I9b94bd43886302b9b327539ab065a435ce0d75d9
+    GitHub-Last-Rev: b9ca21f165bcc5e45733e6a511a2344b1aa4a281
+    GitHub-Pull-Request: golang/go#67607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587936
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/archive/tar/reader_test.go |  8 +++++---
+ src/archive/tar/tar_test.go    | 12 +++++-------
+ src/archive/tar/writer_test.go |  4 ++--
+ src/archive/zip/reader_test.go | 10 +++++-----
+ 4 files changed, 17 insertions(+), 17 deletions(-)

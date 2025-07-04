@@ -1,0 +1,19 @@
+commit 3e5a817d07e43d186b4abf64e75ca11a96972e2e
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 2 09:06:51 2009 -0700
+
+    a few more code generation bugs and an interface alignment issue.
+    
+    go/test: passes 74% (251/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=40  (34 added, 0 deleted, 6 changed)
+    OCL=35254
+    CL=35275
+
+ src/cmd/5g/cgen.c  | 27 ++++++++++++++++++++++++---
+ src/cmd/5g/ggen.c  |  5 +++--
+ src/cmd/5g/gsubr.c |  5 ++++-
+ test/arm-pass.txt  |  9 +++++++++
+ 4 files changed, 40 insertions(+), 6 deletions(-)

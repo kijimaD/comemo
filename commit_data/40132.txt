@@ -1,0 +1,33 @@
+commit c8e7c53b40023c92c9d7fa6beb1ca4223bd461ae
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 15:16:54 2019 -0400
+
+    cmd/compile: preserve statement mark in rematerialized values
+    
+    Statement markers on rematerializable values were getting lost in
+    register allocation.  This checks for that case (rematerializable
+    input and using value share line number, but mark is on the input)
+    and preserves the mark.
+    
+    When combined with other CLs in this series, this CL reduces the
+    "nostmt" count (a line appears in the assembly, but no statement
+    marker) for cmd/go from 413 to 277.  The rematerialized input is
+    usually a LEAQ (on AMD64).
+    
+    The cause is "complicated"; for example, a NilCheck originally has the
+    statement mark (a good thing, if the NilCheck  remains) but the
+    NilCheck is removed and the mark floats to a Block end, then to a
+    SliceMake.  The SliceMake decomposes and goes dead without preserving
+    its marker (its component values are elided in other rewrites and may
+    target inputs with different line numbers), but before deadcode
+    removes it from the graph it moves the mark to an input, which at that
+    time happens to be a LocalAddr. This eventually transforms to a LEAQ.
+    
+    Change-Id: Iff91fc2a934357fb59ec46ac87b4a9b1057d9160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198480
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/value.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

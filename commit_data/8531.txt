@@ -1,0 +1,14 @@
+commit 62943df82948677cf5893acd05212eb7f9afe098
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 29 16:13:41 2011 +1000
+
+    template: cosmetic cleanups.
+    Remove the idea of space being white.  Sometimes space is green.
+    Simplify a comment and remove the Latin.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4532096
+
+ src/pkg/template/template.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

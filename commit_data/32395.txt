@@ -1,0 +1,13 @@
+commit b1dc2c28a59d7fd6c3cd6d8b1b2e5e562de5f414
+Author: Ryuji IWATA <qt.luigi@gmail.com>
+Date:   Sun Aug 20 11:03:57 2017 +0900
+
+    doc/go1.9: fix typo in Moved GOROOT
+    
+    Change-Id: I71bfff6a3462e6dfd7a65ef76ec56644bae37c34
+    Reviewed-on: https://go-review.googlesource.com/57272
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

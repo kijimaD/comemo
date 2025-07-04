@@ -1,0 +1,19 @@
+commit acbe6c94d710932706fb67d6caaa6dbe6cbd4dad
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Sep 7 06:54:42 2012 +0200
+
+    cmd/6g: avoid taking the address of slices unnecessarily.
+    
+    The main case where it happens is when evaluating &s[i] without
+    bounds checking, which usually happens during range loops (i=0).
+    
+    This allows registerization of the corresponding variables,
+    saving 16 bytes of stack frame for each such range loop and a
+    LEAQ instruction.
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev, remy
+    https://golang.org/cl/6497073
+
+ src/cmd/6g/cgen.c | 73 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 39 insertions(+), 34 deletions(-)

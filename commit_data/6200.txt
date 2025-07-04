@@ -1,0 +1,14 @@
+commit e1b79b712c02b9ad746e64be97b4652d4cbbeb38
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 9 09:24:53 2010 +1000
+
+    cgo: add typedef for uintptr in generated headers
+    
+    Fixes #1046.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/2102043
+
+ src/cmd/cgo/out.go | 1 +
+ 1 file changed, 1 insertion(+)

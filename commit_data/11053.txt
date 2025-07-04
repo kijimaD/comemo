@@ -1,0 +1,27 @@
+commit 8a4bd094a033ceb00f7f5a504e4bc652ea5a164d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 09:45:08 2012 -0800
+
+    undo CL 5504108 / 0edee03791f4
+    
+    breaks 386 build
+    
+    ««« original CL description
+    gc: put limit on size of exported recursive interface
+    
+    Prevents edge-case recursive types from consuming excessive memory.
+    
+    Fixes #1909.
+    
+    R=golang-dev, lvd, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504108
+    
+    »»»
+    
+    R=lvd, lvd
+    CC=golang-dev
+    https://golang.org/cl/5534049
+
+ src/cmd/gc/fmt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit fcd76f7dc9482d7c1e89731e07712f05b2dc4cfa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 11:49:22 2009 -0700
+
+    move amd64-specific (but os-independent) pieces of runtime
+    into amd64/ directory.
+    
+    split rt2_amd64.c into closure.c and traceback.c.
+    
+    TBR=r
+    OCL=26678
+    CL=26678
+
+ src/runtime/Makefile                           |  20 ++--
+ src/runtime/{rt0_amd64.s => amd64/asm.s}       |   0
+ src/runtime/amd64/closure.c                    | 121 +++++++++++++++++++++++++
+ src/runtime/{rt2_amd64.c => amd64/traceback.c} | 118 ------------------------
+ 4 files changed, 133 insertions(+), 126 deletions(-)

@@ -1,0 +1,25 @@
+commit df2b63f09be280544e58c8d17fe34c863521ed10
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 20:07:13 2016 -0700
+
+    cmd/compile: unwrap fewer CONVNOPs in staticassign
+    
+    staticassign unwraps all CONVNOPs.
+    However, in the included test, we need the
+    CONVNOP for everything to typecheck.
+    Stop unwrapping unnecessarily.
+    
+    The code we generate for this example is
+    suboptimal, but that's not new; see #17113.
+    
+    Fixes #17111.
+    
+    Change-Id: I29532787a074a6fe19a5cc53271eb9c84bf1b576
+    Reviewed-on: https://go-review.googlesource.com/29213
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/fixedbugs/issue17111.go         | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

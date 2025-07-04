@@ -1,0 +1,23 @@
+commit 20d7c57422143d07f5ef85d674687dbc0a4871ce
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Nov 17 12:07:34 2024 -0800
+
+    cmd/compile: pair loads and stores on arm64
+    
+    Look for possible paired load/store operations on arm64.
+    I don't expect this would be a lot faster, but it will save
+    binary space, and indirectly through the icache at least a bit
+    of time.
+    
+    Change-Id: I4dd73b0e6329c4659b7453998f9b75320fcf380b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go |   1 +
+ src/cmd/compile/internal/ssa/pair.go    | 357 ++++++++++++++++++++++++++++++++
+ test/codegen/memcombine.go              |  94 +++++++++
+ test/tighten.go                         |  16 +-
+ 4 files changed, 463 insertions(+), 5 deletions(-)

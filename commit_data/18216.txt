@@ -1,0 +1,24 @@
+commit 258ed3f2265a41a46e936e884d8afd6e6f646973
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 10 12:19:36 2014 -0800
+
+    database/sql: avoiding fmt.Sprintf while scanning, avoid allocs with RawBytes
+    
+    A user reported heavy contention on fmt's printer cache. Avoid
+    fmt.Sprint. We have to do reflection anyway, and there was
+    already an asString function to use strconv, so use it.
+    
+    This CL also eliminates a redundant allocation + copy when
+    scanning into *[]byte (avoiding the intermediate string)
+    and avoids an extra alloc when assigning to a caller's RawBytes
+    (trying to reuse the caller's memory).
+    
+    Fixes #7086
+    
+    R=golang-codereviews, nightlyone
+    CC=golang-codereviews
+    https://golang.org/cl/50240044
+
+ src/pkg/database/sql/convert.go      | 50 ++++++++++++++++++++++++++----------
+ src/pkg/database/sql/convert_test.go | 48 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 13 deletions(-)

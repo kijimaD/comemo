@@ -1,0 +1,14 @@
+commit 187c3a65a6293e6b9821bf3da49430e5d7bf77f8
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Sun Jun 17 19:42:03 2018 +0200
+
+    doc: update more stale pprof links
+    
+    Related to #25477.
+    
+    Change-Id: I11261c6055b446ceca1b3acc538ab00fec4b47ca
+    Reviewed-on: https://go-review.googlesource.com/119321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

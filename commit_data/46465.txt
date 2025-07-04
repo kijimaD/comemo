@@ -1,0 +1,21 @@
+commit e09dcc211a338450d3f680fe39abc13b79ddbb29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 15:09:31 2021 -0700
+
+    go/types, types2: add an additional shift test case
+    
+    The extra test just confirms that the type-checker internally
+    agrees with the spec with the (otherwise invisible) type given
+    to an untyped constant in a specific shift expression.
+    
+    For #48422.
+    
+    Change-Id: I6d98045f90bd20b0cc0a96a147bec9701039cb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350410
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 1 +
+ src/go/types/api_test.go                    | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit b280edb89eae1974e3f218726814b03b3558e005
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jun 1 19:43:58 2018 +0200
+
+    cmd/compile: fix comment to reference runtime.countrunes
+    
+    Updates #24923
+    
+    Change-Id: Ie5a1b54b023381b58df618080f3d742a50d46d8b
+    Reviewed-on: https://go-review.googlesource.com/115836
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

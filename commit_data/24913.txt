@@ -1,0 +1,18 @@
+commit f7c7ed7c41b28ba999f81ab1a3f66c2e35468fd0
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Sun Nov 8 23:30:43 2015 -0800
+
+    cmd/go: set buildmode=pie default for android/arm64.
+    
+    Just like android/arm, android/arm64 refuses to execute non-PIE
+    binaries. In addition, starting from the M release (Marshmallow),
+    Android refuses to execute binaries with any text relocations
+    (this was just a warning in the L release). This makes "-shared"
+    necessary as well when building executables for Android.
+    
+    Change-Id: Id8802de5be98ff472fc370f8d22ffbde316aaf1e
+    Reviewed-on: https://go-review.googlesource.com/16744
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

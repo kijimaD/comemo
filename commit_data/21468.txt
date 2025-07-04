@@ -1,0 +1,14 @@
+commit d2abbf3ccfeeaffddd421f82d37fb414c6821235
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 11:20:58 2015 +0300
+
+    runtime: cleanup some left-overs of the C past
+    
+    Change-Id: I3e280ca7d922f6ab14b2477361327ed076a95779
+    Reviewed-on: https://go-review.googlesource.com/3743
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc2.go |   5 ---
+ src/runtime/proc.go    |  12 ------
+ src/runtime/proc1.go   | 112 ++++++++++---------------------------------------
+ 3 files changed, 21 insertions(+), 108 deletions(-)

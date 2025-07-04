@@ -1,0 +1,29 @@
+commit e27c6c390c48a9b6740446aa2bf261166591088c
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:21:51 2017 +0200
+
+    cmd/dist: apply minor fixes
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (1).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I49e5f2a9b6146e2b60a067da5bac31434ffc9aaf
+    Reviewed-on: https://go-review.googlesource.com/60650
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/buildgo.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

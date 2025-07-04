@@ -1,0 +1,14 @@
+commit 2ac1528e55bc5dc04bce02049ab9530f50422a38
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 11:50:32 2009 -0700
+
+    Finish shift implementation for ideals.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=65  (29 added, 17 deleted, 19 changed)
+    OCL=31775
+    CL=31777
+
+ usr/austin/eval/expr.go | 80 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 46 insertions(+), 34 deletions(-)

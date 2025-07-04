@@ -1,0 +1,24 @@
+commit f593b37f237f624724c6bbe32124819395fa9d1d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 22 15:16:34 2010 -0700
+
+    gobs: error cleanup part 1.
+    Remove err from the encoderState and decoderState types, so we're
+    not always copying to and from various copies of the error, and then
+    use panic/recover to eliminate lots of error checking.
+    
+    another pass might take a crack at the same thing for the compilation phase.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2660042
+
+ src/pkg/gob/Makefile        |   1 +
+ src/pkg/gob/codec_test.go   |  30 +++-----
+ src/pkg/gob/decode.go       | 174 ++++++++++++++++++++------------------------
+ src/pkg/gob/decoder.go      |  40 +++++-----
+ src/pkg/gob/encode.go       |  76 +++++++++----------
+ src/pkg/gob/encoder.go      |  21 +++---
+ src/pkg/gob/encoder_test.go |  60 +++++++--------
+ src/pkg/gob/error.go        |  41 +++++++++++
+ 8 files changed, 229 insertions(+), 214 deletions(-)

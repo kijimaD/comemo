@@ -1,0 +1,20 @@
+commit 554082d6b188cec371f12bebee6f92da0ce7e396
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 31 15:27:51 2011 -0700
+
+    testing: add -test.timeout option.
+    
+    Since Go code can deadlock, this lets a testsuite driver set a
+    time limit for the test to run.  This is simple but imperfect,
+    in that it only catches deadlocks in Go code, not in the
+    runtime scheduler.
+    
+    R=r, rsc, iant2
+    CC=golang-dev
+    https://golang.org/cl/4326048
+
+ src/Make.pkg               |  2 +-
+ src/cmd/gotest/doc.go      |  6 +++++-
+ src/cmd/gotest/flag.go     |  2 ++
+ src/pkg/testing/testing.go | 24 ++++++++++++++++++++++++
+ 4 files changed, 32 insertions(+), 2 deletions(-)

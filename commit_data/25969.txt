@@ -1,0 +1,21 @@
+commit e0b04fa508d6117f217a25e1868740a6a39d5605
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Feb 29 12:19:26 2016 +0200
+
+    cmd/link: Preallocate Lsym map
+    
+    Preallocate ~2MB for Lsym map (size calculation from http://play.golang.org/p/9L7F5naXRr).
+    Reduces best of 10 link time of cmd/go by ~4%.
+    On cmd/go max resident size unaffected, on println hello world max resident size grows by 4mb from 18mb->22mb. Performance improves in both cases.
+    
+    tip:  real  0m1.283s user  0m1.502s sys 0m0.144s
+    this: real  0m1.341s user  0m1.598s sys 0m0.136s
+    
+    Change-Id: I4a95e45fe552f1f64f53e868421b9f45a34f8b96
+    Reviewed-on: https://go-review.googlesource.com/19979
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/sym.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

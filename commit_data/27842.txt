@@ -1,0 +1,17 @@
+commit 297d1d736e3e6db6fa390dd54b1e3de9ea8f1fba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 17:09:35 2016 -0700
+
+    net/http: use keyed composite literal
+    
+    Makes vet happy.
+    
+    Updates #11041
+    
+    Change-Id: I23ca413c03ff387359440af8114786cd7880a048
+    Reviewed-on: https://go-review.googlesource.com/27124
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transfer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

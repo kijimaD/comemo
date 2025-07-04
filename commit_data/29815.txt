@@ -1,0 +1,20 @@
+commit b909d011520700149b72d556837f68069d2d372a
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 21:56:58 2016 +0100
+
+    runtime: add cgo support for GOARCH=mips{,le}
+    
+    Change-Id: Ib425ead7b340672837d3cb983bd785488706bd6d
+    Reviewed-on: https://go-review.googlesource.com/34314
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_mipsx.s           | 206 ++++++++++++++++++++++++++++++++++----
+ src/runtime/cgo/asm_mipsx.s       |  67 +++++++++++++
+ src/runtime/cgo/gcc_linux_mipsx.c |  80 +++++++++++++++
+ src/runtime/cgo/gcc_mipsx.S       |  68 +++++++++++++
+ src/runtime/cgocall.go            |   6 +-
+ src/runtime/rt0_linux_mipsx.s     |   9 +-
+ src/runtime/tls_mipsx.s           |  10 +-
+ 7 files changed, 422 insertions(+), 24 deletions(-)

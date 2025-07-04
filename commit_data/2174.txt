@@ -1,0 +1,20 @@
+commit d4fa253837d9755f40f7f07d0bac0c8b1ca24ac2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 14:40:38 2009 -0700
+
+    eqtype(t1, t2, 0) => eqtype(t1, t2)
+    
+    R=ken
+    OCL=28559
+    CL=28562
+
+ src/cmd/6g/cgen.c   |  4 ++--
+ src/cmd/gc/const.c  |  2 +-
+ src/cmd/gc/dcl.c    |  6 +++---
+ src/cmd/gc/export.c |  4 ++--
+ src/cmd/gc/go.h     |  2 +-
+ src/cmd/gc/go.y     |  7 +++++++
+ src/cmd/gc/obj.c    |  2 +-
+ src/cmd/gc/subr.c   | 22 ++++++++++++++--------
+ src/cmd/gc/walk.c   | 32 ++++++++++++++++----------------
+ 9 files changed, 47 insertions(+), 34 deletions(-)

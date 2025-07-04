@@ -1,0 +1,16 @@
+commit 804784c8ba34d3951ae9993ba569aaa518902f60
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:20:04 2017 -0700
+
+    cmd/compile: delete bitset16
+    
+    It is no longer used.
+    
+    Change-Id: Id64f387867a0503d13eaecda12e6606682c24595
+    Reviewed-on: https://go-review.googlesource.com/41790
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bitset.go | 10 ----------
+ 1 file changed, 10 deletions(-)

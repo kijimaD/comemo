@@ -1,0 +1,16 @@
+commit 2f679d74e638ac7514a6b6b32f5d28a9980c22c3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Aug 27 19:08:14 2016 -0400
+
+    cmd/compile: fix load int32 to FP register on big-endian MIPS64
+    
+    Fixes #16903.
+    
+    Change-Id: I1f6fcd57e14b2b62e208b7bb3adccd5fd7f8bdbc
+    Reviewed-on: https://go-review.googlesource.com/27933
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/mips64/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

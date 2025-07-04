@@ -1,0 +1,16 @@
+commit 4ed2e193bd1609a0f59ea2ec5343b4f106f92f95
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 12:33:30 2019 -0400
+
+    net: fix conf.teardown call in TestGoLookupIPOrderFallbackToFile
+    
+    If the test fails, conf.teardown wouldn't be.
+    It doesn't look like it matters much, but clean up anyway.
+    
+    Change-Id: I45c18095abfd49422975d061be20cbd971a98f8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180780
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

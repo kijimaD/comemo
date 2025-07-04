@@ -1,0 +1,14 @@
+commit 65ed3f10738ba30202442eb1854de2dff93d7afd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 10:20:33 2013 -0400
+
+    math/big: fix comment
+    
+    The variable is named b not bit.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/7699043
+
+ src/pkg/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit c79b2009ef0b82e9c50ced139b2fd752018da0dd
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 15 14:50:19 2022 -0500
+
+    cmd/link: define ELF .note section on FreeBSD
+    
+    Write .note signature section when targeting FreeBSD, similar to NetBSD
+    and OpenBSD. This allows binaries to declare the ABI version they were
+    compiled for and opt out of ASLR when compiled with -race.
+    
+    Fixes #48164
+    
+    Change-Id: Ie54dd5c70697a3f42a75fd640540350fd8a4dc71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412494
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+
+ src/cmd/link/elf_test.go           |  4 +-
+ src/cmd/link/internal/ld/elf.go    | 84 ++++++++++++++++++++++++++++++++++++--
+ src/cmd/link/internal/ld/target.go |  5 +++
+ 3 files changed, 87 insertions(+), 6 deletions(-)

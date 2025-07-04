@@ -1,0 +1,14 @@
+commit 5a72bad87ac1152aecd39f7fe1eece88a23b595b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Dec 17 22:53:38 2016 -0500
+
+    doc/go1.8: document that CGO_ENABLED is sticky
+    
+    Fixes #18363.
+    
+    Change-Id: Ifc98506d33a6753cd7db8e505cf86d5626fbbad0
+    Reviewed-on: https://go-review.googlesource.com/34596
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

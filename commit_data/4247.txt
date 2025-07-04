@@ -1,0 +1,21 @@
+commit 9d50b468a1f18ff049879a03bd4d8165e19b4f0d
+Author: Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+Date:   Mon Nov 30 13:55:09 2009 -0800
+
+    json: Decode into native Go data structures
+    
+    This patch adds an ability to convert JSON-encoded data into
+    a hierarchy of Go's native data types.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/161060
+
+ src/pkg/expvar/expvar_test.go |  18 ++-
+ src/pkg/json/Makefile         |   3 +-
+ src/pkg/json/decode.go        | 107 +++++++++++++
+ src/pkg/json/decode_test.go   | 133 +++++++++++++++++
+ src/pkg/json/error.go         |  19 +++
+ src/pkg/json/generic.go       | 338 ------------------------------------------
+ src/pkg/json/generic_test.go  |  80 ----------
+ 7 files changed, 271 insertions(+), 427 deletions(-)

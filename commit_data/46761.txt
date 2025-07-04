@@ -1,0 +1,24 @@
+commit e82ed0cd83cec1e6d15ba5a037f77c0b9f1ec8c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 14:10:39 2021 -0700
+
+    runtime: start moduledata memory load early
+    
+    The slowest thing that can happen in funcdata is a cache miss
+    on moduledata.gofunc. Move that memory load earlier.
+    
+    Also, for better ergonomics when working on this code,
+    do more calculations as uintptrs.
+    
+    name                   old time/op  new time/op  delta
+    StackCopyWithStkobj-8  10.5ms ± 5%   9.9ms ± 4%  -6.03%  (p=0.000 n=15+15)
+    
+    Change-Id: I590f4449725983c7f8d274c4ac7ed384d9018d85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354134
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

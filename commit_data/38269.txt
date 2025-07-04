@@ -1,0 +1,21 @@
+commit 7778b5ab5a2215668ad1ad4d174d58b3363c9de8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 17:01:19 2019 -0500
+
+    cmd/go: clear GOPROXY in TestGoGetInsecure
+    
+    TestGoGetInsecure verifies that 'go get -insecure' can fetch a
+    particular package. However, the GOPROXY protocol does not provide a
+    means for proxies to indicate packages as insecure; thus, proxies
+    cannot safely serve those packages.
+    
+    Updates #30571
+    
+    Change-Id: I447776dff98bd8ee6eb5055b897b9c7d293e3423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165745
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

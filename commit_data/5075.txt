@@ -1,0 +1,26 @@
+commit 17e03514043c2a23cc6b51e838eda02d0adc8e15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 19 12:46:43 2010 -0700
+
+    godoc: implemented command-line search
+    
+    The command-line search is using a running webserver
+    as index server; i.e., the search result is reflecting
+    the index at the server. See the documentation for
+    details.
+    
+    Usage: godoc -q query1 query2 ...
+    
+    Known issue: Results don't show the all-important
+    line numbers yet due to the way the index is organized.
+    Next CL.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/648041
+
+ lib/godoc/search.txt   | 52 ++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/doc.go   | 22 +++++++++++++--
+ src/cmd/godoc/godoc.go | 38 ++++++++++++++++++++++---
+ src/cmd/godoc/main.go  | 76 ++++++++++++++++++++++++++++++++++++++++++++------
+ 4 files changed, 173 insertions(+), 15 deletions(-)

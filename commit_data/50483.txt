@@ -1,0 +1,16 @@
+commit 7722b3c86d4e254ecee4fe290f81a44ba7cc1a42
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 15 20:26:46 2022 +0200
+
+    internal/syscall/unix: remove superfluous var declarations in {Unlink,Open}at
+    
+    Change-Id: Id58e3aebf325433768675523bf34c0b7e0e34aea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431235
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/syscall/unix/at.go | 2 --
+ 1 file changed, 2 deletions(-)

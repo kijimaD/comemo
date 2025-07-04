@@ -1,0 +1,18 @@
+commit 063ff7f7a0fb41442916d0eda3fc128ca779d424
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 18:23:18 2021 +1100
+
+    cmd/go: stamp Bazaar VCS status into binaries
+    
+    For #37475
+    
+    Change-Id: I728b7aeee5c38ec337e9a5b073050c3b0afc720d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357956
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go                     |  58 ++++++++++++
+ .../go/testdata/script/version_buildvcs_bzr.txt    | 104 +++++++++++++++++++++
+ 2 files changed, 162 insertions(+)

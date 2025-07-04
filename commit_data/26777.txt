@@ -1,0 +1,16 @@
+commit 7da42d75975044df37aa3aa2499623e2084a12df
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:34:48 2016 -0400
+
+    sync/atomic: add s390x implementations of atomic functions
+    
+    Load and store instructions are atomic on s390x.
+    
+    Change-Id: I33c641a75954f4fbd301b11a467cb57872038880
+    Reviewed-on: https://go-review.googlesource.com/20947
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/asm_s390x.s | 143 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 143 insertions(+)

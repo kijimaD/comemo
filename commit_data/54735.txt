@@ -1,0 +1,21 @@
+commit d580460f07b4e543f5b8f89dd44367e511546787
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Sep 27 10:31:52 2023 -0500
+
+    cmd/internal/obj/ppc64: refactor maskgen64 usage
+    
+    Converting and verifying a bitmask can be done much quicker
+    and simpler. Since this touches the MD-form opcodes, cleanup
+    their encoding too.
+    
+    Change-Id: I9b1c1fdc4c9622e489ff6cf8181c5b647afae7c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534017
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 179 +++++++++++++------------------------
+ 1 file changed, 61 insertions(+), 118 deletions(-)

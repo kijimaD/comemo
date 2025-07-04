@@ -1,0 +1,16 @@
+commit a621a7ef74ec25c1ffc8d5185690741b51c22d5e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 13 12:53:27 2010 +1000
+
+    delete pkg/once
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1995041
+
+ src/pkg/Makefile          |  1 -
+ src/pkg/once/Makefile     | 11 ---------
+ src/pkg/once/once.go      | 59 -----------------------------------------------
+ src/pkg/once/once_test.go | 30 ------------------------
+ test/garbage/parser.go    |  1 -
+ 5 files changed, 102 deletions(-)

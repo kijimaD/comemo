@@ -1,0 +1,13 @@
+commit ca01716934ef58ad175c07c481011c21e2697511
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 11:23:49 2009 -0700
+
+    fix build - broke with uint32 -> int change in reflect SliceHeader
+    
+    TBR=r
+    OCL=32225
+    CL=32225
+
+ src/pkg/gob/decode.go    |  4 ++--
+ src/pkg/reflect/value.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

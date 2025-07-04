@@ -1,0 +1,15 @@
+commit f5c211172bdd95c15bcaab2f2818097de0fbd505
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Dec 12 15:51:11 2011 -0500
+
+    math: fix special cases in Nextafter
+    
+    Nextafter(0, -1) != -0.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5467060
+
+ src/pkg/math/all_test.go  | 16 +++++++++++++++-
+ src/pkg/math/nextafter.go |  7 +++----
+ 2 files changed, 18 insertions(+), 5 deletions(-)

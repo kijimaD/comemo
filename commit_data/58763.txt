@@ -1,0 +1,20 @@
+commit 63ae4167208259fea30769e7baf8ef5b4c73ef4e
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Feb 14 13:50:24 2025 +0000
+
+    os: explicitly return nil for rootChown in root_openat.go
+    
+    It is consistent with the same function in root_noopenat.go.
+    
+    Change-Id: I6ddbf4dfcc725cb2023bc6bed961cc525b9c43d2
+    GitHub-Last-Rev: 0802150a6a8e5d4bd395b702ecc518df1e8dd4c0
+    GitHub-Pull-Request: golang/go#71743
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649417
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/root_openat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit c00804c55c9ecc65728387a1902e414cac03de10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 9 14:19:21 2014 -0700
+
+    encoding/binary: document that Read requires exported struct fields
+    
+    Add a test for the current behaviour.
+    
+    Fixes #7482.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/95160043
+
+ src/pkg/encoding/binary/binary.go      |  1 +
+ src/pkg/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

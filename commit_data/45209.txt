@@ -1,0 +1,15 @@
+commit 067bad2eef1bacb811bf69b38cf0aec67b60482a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 16 17:48:51 2021 -0400
+
+    runtime: update stale comment
+    
+    Missed in CL 310731.
+    
+    Change-Id: Ia26cd2cedec1508ecfd7f0beb63cd6a6ab546f1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310909
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

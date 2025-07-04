@@ -1,0 +1,36 @@
+commit cd1a2f7e74b9a697cacfeee971cdba506b032eb2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 11:25:43 2012 +1100
+
+    doc: move wiki tutorial into articles directory, rmdir doc/codelab
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5701050
+
+ doc/{codelab => articles}/wiki/Makefile               | 0
+ doc/{codelab => articles}/wiki/edit.html              | 0
+ doc/{codelab => articles}/wiki/final-noclosure.go     | 0
+ doc/{codelab => articles}/wiki/final-noerror.go       | 0
+ doc/{codelab => articles}/wiki/final-parsetemplate.go | 0
+ doc/{codelab => articles}/wiki/final-template.go      | 0
+ doc/{codelab => articles}/wiki/final.go               | 0
+ doc/{codelab => articles}/wiki/get.go                 | 0
+ doc/{codelab => articles}/wiki/htmlify.go             | 0
+ doc/{codelab => articles}/wiki/http-sample.go         | 0
+ doc/{codelab => articles}/wiki/index.html             | 9 ++++++---
+ doc/{codelab => articles}/wiki/notemplate.go          | 0
+ doc/{codelab => articles}/wiki/part1-noerror.go       | 0
+ doc/{codelab => articles}/wiki/part1.go               | 0
+ doc/{codelab => articles}/wiki/part2.go               | 0
+ doc/{codelab => articles}/wiki/srcextract.go          | 0
+ doc/{codelab => articles}/wiki/test.sh                | 0
+ doc/{codelab => articles}/wiki/test_Test.txt.good     | 0
+ doc/{codelab => articles}/wiki/test_edit.good         | 0
+ doc/{codelab => articles}/wiki/test_view.good         | 0
+ doc/{codelab => articles}/wiki/view.html              | 0
+ doc/{codelab => articles}/wiki/wiki.html              | 9 ++++++---
+ doc/docs.html                                         | 2 +-
+ doc/install-source.html                               | 4 ++--
+ doc/install.html                                      | 4 ++--
+ 25 files changed, 17 insertions(+), 11 deletions(-)

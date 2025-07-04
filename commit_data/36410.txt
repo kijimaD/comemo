@@ -1,0 +1,16 @@
+commit 02fecd33f608e3a2f11fcee424d55232f08c28cd
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jun 2 15:53:58 2018 +0300
+
+    test: remove errchk, the perl script
+    
+    gc tests do not depend on errchk.
+    
+    Fixes #25669
+    
+    Change-Id: I99eb87bb9677897b9167d4fc9a6321fa66cd9116
+    Reviewed-on: https://go-review.googlesource.com/115955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/errchk | 161 ------------------------------------------------------------
+ 1 file changed, 161 deletions(-)

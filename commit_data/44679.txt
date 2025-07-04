@@ -1,0 +1,15 @@
+commit 15f16706fb93a0720decd175ad2147be96a8e1e4
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 14 13:19:12 2021 +0800
+
+    internal/poll: eliminate the redundant type conversions of FD.Sysfd
+    
+    Change-Id: Ib75662f717320510319c696520e645f54eec97f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301569
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/sendfile_bsd.go     | 2 +-
+ src/internal/poll/sendfile_linux.go   | 2 +-
+ src/internal/poll/sendfile_solaris.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit c1359db9cc3e3f84e45c5a899e2dac128ea74d50
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 27 15:39:42 2018 -0800
+
+    go/types: fix empty interface optimization (minor performance bug)
+    
+    The tests checking for empty interfaces so that they can be fast-
+    tracked in the code actually didn't test the right field and the
+    fast track code never executed. Doing it now.
+    
+    Change-Id: I58b2951efb3fb40b3366874c79fd653591ae0e99
+    Reviewed-on: https://go-review.googlesource.com/97519
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/interfaces.go | 2 +-
+ src/go/types/typexpr.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

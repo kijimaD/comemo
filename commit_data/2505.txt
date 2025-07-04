@@ -1,0 +1,15 @@
+commit a45c54d1a5370f8138e7988f2a64562196566eaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 23 16:21:05 2009 -0700
+
+    fix gobuild.
+    errors introduced in CL 30601
+    
+    R=austin
+    DELTA=6  (3 added, 0 deleted, 3 changed)
+    OCL=30663
+    CL=30665
+
+ src/cmd/gobuild/gobuild.go | 6 ++++--
+ src/cmd/gobuild/util.go    | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

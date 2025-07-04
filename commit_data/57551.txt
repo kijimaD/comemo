@@ -1,0 +1,25 @@
+commit 5fe3b31cf898de6fbc4f8ac524e16238a9a85e66
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 26 16:56:45 2024 -0700
+
+    go/types, types2: remove dependency on Scope.Contains in resolver
+    
+    In extremely rare cases of receiver base types of the form
+    C.foo where C refers to an `import "C"`, we needed Scope.Contains
+    to lookup the file scope containing the "C" import.
+    Replace the position-dependent Scope.Contains with an explicit
+    scope search that doesn't require a position.
+    
+    Also, make the surrounding code match more closely between
+    go/types and types2.
+    
+    Change-Id: Ic007108928dd8b382a06e2bbf09ef8bd6bd0ff36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/resolver.go | 66 +++++++++++++++++++++--------
+ src/go/types/resolver.go                    | 51 +++++++++++++++++-----
+ 2 files changed, 88 insertions(+), 29 deletions(-)

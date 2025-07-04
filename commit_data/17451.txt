@@ -1,0 +1,14 @@
+commit d0206101c87301fa4ac45d7f0bc7c2dc39a7bc47
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 22:02:21 2013 +1000
+
+    cmd/5l,cmd/6l,cmd/8l: fix dragonflydynld path
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/13225043
+
+ src/cmd/5l/asm.c | 2 +-
+ src/cmd/6l/asm.c | 2 +-
+ src/cmd/8l/asm.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

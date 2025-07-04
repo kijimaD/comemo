@@ -1,0 +1,115 @@
+commit 966609ad9e82ba173bcc8f57f4bfc35a86a62c8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 22:39:49 2024 -0500
+
+    time: avoid stale receives after Timer/Ticker Stop/Reset return
+    
+    A proposal discussion in mid-2020 on #37196 decided to change
+    time.Timer and time.Ticker so that their Stop and Reset methods
+    guarantee that no old value (corresponding to the previous configuration
+    of the Timer or Ticker) will be received after the method returns.
+    
+    The trivial way to do this is to make the Timer/Ticker channels
+    unbuffered, create a goroutine per Timer/Ticker feeding the channel,
+    and then coordinate with that goroutine during Stop/Reset.
+    Since Stop/Reset coordinate with the goroutine and the channel
+    is unbuffered, there is no possibility of a stale value being sent
+    after Stop/Reset returns.
+    
+    Of course, we do not want an extra goroutine per Timer/Ticker,
+    but that's still a good semantic model: behave like the channels
+    are unbuffered and fed by a coordinating goroutine.
+    
+    The actual implementation is more effort but behaves like the model.
+    Specifically, the timer channel has a 1-element buffer like it always has,
+    but len(t.C) and cap(t.C) are special-cased to return 0 anyway, so user
+    code cannot see what's in the buffer except with a receive.
+    Stop/Reset lock out any stale sends and then clear any pending send
+    from the buffer.
+    
+    Some programs will change behavior. For example:
+    
+            package main
+    
+            import "time"
+    
+            func main() {
+                    t := time.NewTimer(2 * time.Second)
+                    time.Sleep(3 * time.Second)
+                    if t.Reset(2*time.Second) != false {
+                            panic("expected timer to have fired")
+                    }
+                    <-t.C
+                    <-t.C
+            }
+    
+    This program (from #11513) sleeps 3s after setting a 2s timer,
+    resets the timer, and expects Reset to return false: the Reset is too
+    late and the send has already occurred. It then expects to receive
+    two values: the one from before the Reset, and the one from after
+    the Reset.
+    
+    With an unbuffered timer channel, it should be clear that no value
+    can be sent during the time.Sleep, so the time.Reset returns true,
+    indicating that the Reset stopped the timer from going off.
+    Then there is only one value to receive from t.C: the one from after the Reset.
+    
+    In 2015, I used the above example as an argument against this change.
+    
+    Note that a correct version of the program would be:
+    
+            func main() {
+                    t := time.NewTimer(2 * time.Second)
+                    time.Sleep(3 * time.Second)
+                    if !t.Reset(2*time.Second) {
+                            <-t.C
+                    }
+                    <-t.C
+            }
+    
+    This works with either semantics, by heeding t.Reset's result.
+    The change should not affect correct programs.
+    
+    However, one way that the change would be visible is when programs
+    use len(t.C) (instead of a non-blocking receive) to poll whether the timer
+    has triggered already. We might legitimately worry about breaking such
+    programs.
+    
+    In 2020, discussing #37196, Bryan Mills and I surveyed programs using
+    len on timer channels. These are exceedingly rare to start with; nearly all
+    the uses are buggy; and all the buggy programs would be fixed by the new
+    semantics. The details are at [1].
+    
+    To further reduce the impact of this change, this CL adds a temporary
+    GODEBUG setting, which we didn't know about yet in 2015 and 2020.
+    Specifically, asynctimerchan=1 disables the change and is the default
+    for main programs in modules that use a Go version before 1.23.
+    We hope to be able to retire this setting after the minimum 2-year window.
+    Setting asynctimerchan=1 also disables the garbage collection change
+    from CL 568341, although users shouldn't need to know that since
+    it is not a semantically visible change (unless we have bugs!).
+    
+    As an undocumented bonus that we do not officially support,
+    asynctimerchan=2 disables the channel buffer change but keeps
+    the garbage collection change. This may help while we are
+    shaking out bugs in either of them.
+    
+    Fixes #37196.
+    
+    [1] https://github.com/golang/go/issues/37196#issuecomment-641698749
+    
+    Change-Id: I8925d3fb2b86b2ae87fd2acd055011cbf7bd5916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568341
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/godebug.md                 |   7 +-
+ src/internal/godebugs/table.go |   2 +-
+ src/runtime/chan.go            |  48 ++++++++++-
+ src/runtime/lockrank.go        |  63 +++++++-------
+ src/runtime/mklockrank.go      |   6 +-
+ src/runtime/time.go            | 141 +++++++++++++++++++++++++------
+ src/time/sleep.go              |  90 +++++++++++---------
+ src/time/tick_test.go          | 185 +++++++++++++++++++++++++++--------------
+ 8 files changed, 382 insertions(+), 160 deletions(-)

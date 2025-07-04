@@ -1,0 +1,43 @@
+commit 1f8a40d85c3bb7a1cf3113e7ab1afdb44f6c0e4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 16:23:44 2009 -0800
+
+    move math routines from package sys to package math,
+    though they still build in src/runtime.
+    
+    use cgo instead of hand-written wrappers.
+    
+    R=r
+    DELTA=740  (289 added, 300 deleted, 151 changed)
+    OCL=23326
+    CL=23331
+
+ src/cmd/gc/sys.go              |  18 ---
+ src/cmd/gc/sysimport.c         |  17 +--
+ src/cmd/gc/unsafe.go           |   2 +-
+ src/lib/Makefile               |   2 +-
+ src/lib/fmt/fmt_test.go        |   7 +-
+ src/lib/math/Makefile          |  26 +++--
+ src/lib/math/asin.go           |   4 +-
+ src/lib/math/exp.go            |  10 +-
+ src/lib/math/floor.go          |   6 +-
+ src/lib/math/fmod.go           |   8 +-
+ src/lib/math/log.go            |  10 +-
+ src/lib/math/pow.go            |  10 +-
+ src/lib/math/sin.go            |   4 +-
+ src/lib/math/sqrt.go           |   8 +-
+ src/lib/math/tan.go            |   4 +-
+ src/lib/strconv/atof.go        |   5 +-
+ src/lib/strconv/ftoa.go        |   9 +-
+ src/lib/strconv/ftoa_test.go   |  11 +-
+ src/runtime/Makefile           |  15 ++-
+ src/runtime/amd64_darwin.h     |  10 +-
+ src/runtime/cgo2c.c            | 101 +++++++++-------
+ src/runtime/float.c            | 173 ++++++++++++++++++++++++++++
+ src/runtime/float_go.cgo       |  52 +++++++++
+ src/runtime/rt1_amd64_darwin.c |  54 ++++-----
+ src/runtime/runtime.c          | 255 -----------------------------------------
+ src/runtime/runtime.h          |  25 ++--
+ src/runtime/sema.c             |   6 +-
+ src/runtime/sema_go.cgo        |  15 +++
+ 28 files changed, 433 insertions(+), 434 deletions(-)

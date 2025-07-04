@@ -1,0 +1,16 @@
+commit aa1264472ec88c0be64e76126dfac73e20641f05
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 14:19:35 2009 -0800
+
+    - added mechanism to detect capitalization issues
+    Use: pretty -naming files
+    
+    R=r
+    OCL=22859
+    CL=22859
+
+ usr/gri/pretty/ast.go         | 13 ++++++++++++-
+ usr/gri/pretty/compilation.go |  6 ++++--
+ usr/gri/pretty/parser.go      | 40 ++++++++++++++++++++++++++++++++++++++--
+ usr/gri/pretty/pretty.go      |  3 ++-
+ 4 files changed, 56 insertions(+), 6 deletions(-)

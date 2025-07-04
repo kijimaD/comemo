@@ -1,0 +1,22 @@
+commit f33f20ef1f50e769e71ba6252e6f9fcafabee449
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 5 16:14:14 2017 -0400
+
+    test: fix and re-enable nosplit.go
+    
+    The test was skipped because it did not work on AMD64 with
+    frame pointer enabled, and accidentally skipped on other
+    architectures. Now frame pointer is the default on AMD64.
+    Update the test to work with frame pointer. Now the test
+    is skipped only when frame pointer is NOT enabled on AMD64.
+    
+    Fixes #18317.
+    
+    Change-Id: I724cb6874e562f16e67ce5f389a1d032a2003115
+    Reviewed-on: https://go-review.googlesource.com/68610
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/nosplit.go | 43 ++++++++++++++++++++-----------------------
+ 1 file changed, 20 insertions(+), 23 deletions(-)

@@ -1,0 +1,26 @@
+commit 0ad74fd1dcb278b7d9348e9c8a46152bdab4c376
+Author: Patrick Pokatilo <mail@shyxormz.net>
+Date:   Mon Nov 29 07:22:15 2021 +0000
+
+    cmd/cgo: add line info for return statements
+    
+    When calling a C function, line information will be
+    incorrect if the function call's closing parenthesis
+    is not on the same line as the last argument. We add
+    a comment with the line info for the return statement
+    to guide debuggers to the correct line.
+    
+    Fixes #49839.
+    
+    Change-Id: I8bc2ce35fec9cbcafbbe8536d5a79dc487eb24bb
+    GitHub-Last-Rev: 8b28646d2e25b19272ded7a3d54b9374108a54e2
+    GitHub-Pull-Request: golang/go#49840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367454
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/gcc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

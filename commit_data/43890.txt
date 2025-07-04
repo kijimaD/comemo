@@ -1,0 +1,18 @@
+commit a45e12fd4bd2cc4d5970f374499b603bfb793891
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 28 18:14:38 2020 -0800
+
+    test: recognize gofrontend error messages
+    
+    shift1.go:76:16: error: shift of non-integer operand
+    shift1.go:77:16: error: shift of non-integer operand
+    
+    Change-Id: I48584c0b01f9f6912a93b5f9bba55b5803fbeced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273888
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/shift1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 8dfd5184abb7d363741cb1a71045a5bea3cd4271
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 10 13:35:40 2014 -0400
+
+    cmd/addr2line: accept optional "0x" prefix for addresses.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/91250043
+
+ src/cmd/addr2line/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 08165932f77aacf82a1e41138e7650e5992b98f7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Sep 25 03:42:45 2019 +1000
+
+    cmd/internal/obj/riscv: require memory targets for load and store instructions
+    
+    This allows for `LD 4(X5), X6' rather than `LD $4, X5, X6'. Similar for other
+    load and store instructions. It is worth noting that none of these are likely
+    to be used directly once the MOV pseudo-instructions are implemented.
+    
+    Updates #27532
+    
+    Change-Id: Ie043c2dedd2cdaceb258b27976cfb3f74aa1cc1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196842
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 62 ++++++++++++++--------------
+ src/cmd/internal/obj/riscv/obj.go            | 26 ++++++++++--
+ 2 files changed, 53 insertions(+), 35 deletions(-)

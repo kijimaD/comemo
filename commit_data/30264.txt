@@ -1,0 +1,86 @@
+commit bd91e3569a55e6ceed502422fca9db15f7198c35
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Thu Dec 1 22:13:16 2016 +0300
+
+    cmd/compile/internal/ssa: generate bswap/store for indexed bigendian byte stores too on AMD64
+    
+    Commit 10f75748 (CL 32222) added rewrite rules to combine byte loads/stores +
+    shifts into larger loads/stores + bswap. For loads both MOVBload and
+    MOVBloadidx1 were handled but for store only MOVBstore was there without
+    MOVBstoreidx added to rewrite pattern. Fix it.
+    
+    Here is how generated code changes for the following 2 functions
+    (ommitting staying the same prologue/epilogue):
+    
+        func put32(b []byte, i int, v uint32) {
+                binary.BigEndian.PutUint32(b[i:], v)
+        }
+    
+        func put64(b []byte, i int, v uint64) {
+                binary.BigEndian.PutUint64(b[i:], v)
+        }
+    
+    "".put32 t=1 size=100 args=0x28 locals=0x0
+    
+            // before
+            0x0032 00050 (x.go:5)   MOVL    CX, DX
+            0x0034 00052 (x.go:5)   SHRL    $24, CX
+            0x0037 00055 (x.go:5)   MOVQ    "".b+8(FP), BX
+            0x003c 00060 (x.go:5)   MOVB    CL, (BX)(AX*1)
+            0x003f 00063 (x.go:5)   MOVL    DX, CX
+            0x0041 00065 (x.go:5)   SHRL    $16, DX
+            0x0044 00068 (x.go:5)   MOVB    DL, 1(BX)(AX*1)
+            0x0048 00072 (x.go:5)   MOVL    CX, DX
+            0x004a 00074 (x.go:5)   SHRL    $8, CX
+            0x004d 00077 (x.go:5)   MOVB    CL, 2(BX)(AX*1)
+            0x0051 00081 (x.go:5)   MOVB    DL, 3(BX)(AX*1)
+    
+            // after
+            0x0032 00050 (x.go:5)   BSWAPL  CX
+            0x0034 00052 (x.go:5)   MOVQ    "".b+8(FP), DX
+            0x0039 00057 (x.go:5)   MOVL    CX, (DX)(AX*1)
+    
+    "".put64 t=1 size=155 args=0x28 locals=0x0
+    
+            // before
+            0x0037 00055 (x.go:9)   MOVQ    CX, DX
+            0x003a 00058 (x.go:9)   SHRQ    $56, CX
+            0x003e 00062 (x.go:9)   MOVQ    "".b+8(FP), BX
+            0x0043 00067 (x.go:9)   MOVB    CL, (BX)(AX*1)
+            0x0046 00070 (x.go:9)   MOVQ    DX, CX
+            0x0049 00073 (x.go:9)   SHRQ    $48, DX
+            0x004d 00077 (x.go:9)   MOVB    DL, 1(BX)(AX*1)
+            0x0051 00081 (x.go:9)   MOVQ    CX, DX
+            0x0054 00084 (x.go:9)   SHRQ    $40, CX
+            0x0058 00088 (x.go:9)   MOVB    CL, 2(BX)(AX*1)
+            0x005c 00092 (x.go:9)   MOVQ    DX, CX
+            0x005f 00095 (x.go:9)   SHRQ    $32, DX
+            0x0063 00099 (x.go:9)   MOVB    DL, 3(BX)(AX*1)
+            0x0067 00103 (x.go:9)   MOVQ    CX, DX
+            0x006a 00106 (x.go:9)   SHRQ    $24, CX
+            0x006e 00110 (x.go:9)   MOVB    CL, 4(BX)(AX*1)
+            0x0072 00114 (x.go:9)   MOVQ    DX, CX
+            0x0075 00117 (x.go:9)   SHRQ    $16, DX
+            0x0079 00121 (x.go:9)   MOVB    DL, 5(BX)(AX*1)
+            0x007d 00125 (x.go:9)   MOVQ    CX, DX
+            0x0080 00128 (x.go:9)   SHRQ    $8, CX
+            0x0084 00132 (x.go:9)   MOVB    CL, 6(BX)(AX*1)
+            0x0088 00136 (x.go:9)   MOVB    DL, 7(BX)(AX*1)
+    
+            // after
+            0x0033 00051 (x.go:9)   BSWAPQ  CX
+            0x0036 00054 (x.go:9)   MOVQ    "".b+8(FP), DX
+            0x003b 00059 (x.go:9)   MOVQ    CX, (DX)(AX*1)
+    
+    Updates #17151
+    
+    Change-Id: I3f4a7f28f210e62e153e60da5abd1d39508cc6c4
+    Reviewed-on: https://go-review.googlesource.com/34635
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  16 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  36 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 308 +++++++++++++++++++++++++++
+ 3 files changed, 360 insertions(+)

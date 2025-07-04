@@ -1,0 +1,26 @@
+commit 0a2083edd7a31f2248da1cdaca6e39466a9fb05b
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:33:13 2014 +0200
+
+    debug/plan9obj, cmd/addr2line: on Plan 9 use a.out header
+    size instead of abusing text symbol
+    
+    cmd/addr2line needs to know the virtual address of the start
+    of the text segment (load address plus header size). For
+    this, it used the text symbol added by the linker. This is
+    wrong on amd64. Header size is 40 bytes, not 32 like on 386
+    and arm. Function alignment is 16 bytes causing text to be
+    at 0x200030.
+    
+    debug/plan9obj now exports both the load address and the
+    header size; cmd/addr2line uses this new information and
+    doesn't rely on text anymore.
+    
+    LGTM=0intro
+    R=0intro, gobot, ality
+    CC=ality, golang-codereviews, jas, mischief
+    https://golang.org/cl/106460044
+
+ src/cmd/addr2line/main.go      |  6 +-----
+ src/pkg/debug/plan9obj/file.go | 27 +++++++++++++++------------
+ 2 files changed, 16 insertions(+), 17 deletions(-)

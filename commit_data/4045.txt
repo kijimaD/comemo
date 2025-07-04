@@ -1,0 +1,14 @@
+commit a54684f8daaf56b466429518b721d24d75b6632c
+Author: Môshe van der Sterre <moshevds@gmail.com>
+Date:   Sat Nov 14 14:42:22 2009 -0800
+
+    encoding/binary: implemented the Write function
+    The ByteOrder.Put* methods are already available, this change uses
+    them to implement the Write function.
+    
+    R=golang-dev, agl1, rsc, r
+    https://golang.org/cl/152141
+
+ src/pkg/encoding/binary/binary.go      | 94 +++++++++++++++++++++++++++++++++-
+ src/pkg/encoding/binary/binary_test.go | 45 ++++++++++------
+ 2 files changed, 121 insertions(+), 18 deletions(-)

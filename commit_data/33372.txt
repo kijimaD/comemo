@@ -1,0 +1,14 @@
+commit b31162d87877828e5cdb1eed9c88bbee8e6e9744
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:24:07 2017 -0400
+
+    cmd/go/internal/cache: add GetBytes, PutBytes
+    
+    These are convenience function for small cached items.
+    
+    Change-Id: Iba92b7826a9fd6979e627687f2ce72d4b4799385
+    Reviewed-on: https://go-review.googlesource.com/75292
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cache/cache.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

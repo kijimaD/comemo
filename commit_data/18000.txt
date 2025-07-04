@@ -1,0 +1,12 @@
+commit ab9b2ae38cced9938bb5d8dfdc671fcd2be9b204
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Dec 16 10:44:23 2013 -0800
+
+    strings: Add IndexFunc example
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/42370043
+
+ src/pkg/strings/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,14 @@
+commit 89fb80f7fae1359a57968fbe600fc69b7296dd2d
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Fri Aug 23 11:56:32 2019 +0000
+
+    doc/go1.13: add missing slashes
+    
+    This saves a redirect and makes the document more consistent.
+    
+    Change-Id: Ib7f68b1967275c0c676a044314919449680297f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191537
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.13.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

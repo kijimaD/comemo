@@ -1,0 +1,13 @@
+commit d1107adb522c387dbcad07493f9d80b72c3642d0
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 18 15:39:51 2009 -0800
+
+    First piece of Go reference manual.
+    
+    R=ken,gri,rsc
+    DELTA=185  (185 added, 0 deleted, 0 changed)
+    OCL=25133
+    CL=25169
+
+ doc/go_ref.html | 93 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)

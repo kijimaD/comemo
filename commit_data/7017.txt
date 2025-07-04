@@ -1,0 +1,13 @@
+commit 84fc1e20f17097c1b6710f79cdd03dafeb908eaf
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Fri Dec 31 10:37:55 2010 +1100
+
+    Fix documentation typo.
+            This is really insignificant, but it might as well be fixed.
+    
+    R=golang-dev, brainman
+    CC=golang-dev
+    https://golang.org/cl/3832045
+
+ src/pkg/io/io.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

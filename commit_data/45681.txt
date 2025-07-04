@@ -1,0 +1,18 @@
+commit 52d7033ff6d56094b7fa852bbdf51b4525bd6bb2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 14 16:51:57 2021 -0400
+
+    cmd/go/internal/modload: set the default GoVersion in a single location
+    
+    For #46141
+    Updates #36460
+    
+    Change-Id: Ie4c13c73a451650d1e8abb8e5cebfc30d0a71a70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321070
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go | 41 +++++++++++++++----------------------
+ 1 file changed, 17 insertions(+), 24 deletions(-)

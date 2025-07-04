@@ -1,0 +1,17 @@
+commit e9ac56fb996e11d09121072d2e45dee10a2bb12e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:52:08 2009 -0800
+
+    getc/ungetc in assemblers; BUFSIZ everywhere.
+    
+    Fixes #67.
+    
+    R=r
+    https://golang.org/cl/154068
+
+ src/cmd/5a/a.h  | 4 ++++
+ src/cmd/6a/a.h  | 4 ++++
+ src/cmd/8a/a.h  | 4 ++++
+ src/cmd/cc/cc.h | 1 +
+ src/cmd/gc/go.h | 1 +
+ 5 files changed, 14 insertions(+)

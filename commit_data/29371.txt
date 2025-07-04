@@ -1,0 +1,14 @@
+commit ad366fdbe40eea7f4fbdc75e8a27304c696793f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 22:45:06 2016 +0000
+
+    cmd/dist: add mips and mipsle as GOARCH values
+    
+    Change-Id: I7a51d5d96a7cb87c40ade5be276136c465010bb9
+    Reviewed-on: https://go-review.googlesource.com/32596
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

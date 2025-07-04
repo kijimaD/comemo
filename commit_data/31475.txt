@@ -1,0 +1,18 @@
+commit 9f6fde3a23c7d40eb625ad3a58a6b1ad4e33265a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue May 2 12:38:59 2017 +0200
+
+    doc/contribute: directly link to the Agreements page
+    
+    There's no Settings->Agreement path for PolyGerrit users, but if we
+    link directly to the page in the instructions, Gerrit will inform them
+    that they can access the page by switching to the old UI.
+    
+    Fixes #20207
+    
+    Change-Id: I0887ee854e4ac5975b5f305adb6259b81b41618f
+    Reviewed-on: https://go-review.googlesource.com/42412
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

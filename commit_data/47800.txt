@@ -1,0 +1,13 @@
+commit dc5a8f9647257584a17efef219edc7d494b9a5bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 14 15:39:14 2021 -0800
+
+    doc/go1.18: fix an unclosed anchor
+    
+    Change-Id: I432bcc6ff917d008598b2f37c6e826f588a3d6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372074
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.18.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

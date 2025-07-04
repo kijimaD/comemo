@@ -1,0 +1,39 @@
+commit 6d856a804c5d9cfc72104b0e7578da5b38509909
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 14:56:43 2024 +0700
+
+    cmd/compile: generalize struct load/store
+    
+    The SSA backend currently only handle struct with up to 4 fields. Thus,
+    there are different operations corresponding to number fields of the
+    struct.
+    
+    This CL generalizes these with just one OpStructMake, allow struct types
+    with arbitrary number of fields.
+    
+    However, the ssa.MaxStruct is still kept as-is, and future CL will
+    increase this value to optimize large structs.
+    
+    Updates #24416
+    
+    Change-Id: I192ffbea881186693584476b5639394e79be45c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611075
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/dec.rules     |  51 +---
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  70 +----
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   6 +-
+ src/cmd/compile/internal/ssa/copyelim.go        |   2 +-
+ src/cmd/compile/internal/ssa/decompose.go       |  23 +-
+ src/cmd/compile/internal/ssa/expand_calls.go    |   6 +-
+ src/cmd/compile/internal/ssa/numberlines.go     |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  30 +--
+ src/cmd/compile/internal/ssa/rewrite.go         |  38 +++
+ src/cmd/compile/internal/ssa/rewritedec.go      | 232 ++--------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 342 ++----------------------
+ src/cmd/compile/internal/ssagen/ssa.go          |   4 +-
+ 12 files changed, 97 insertions(+), 709 deletions(-)

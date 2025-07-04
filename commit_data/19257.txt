@@ -1,0 +1,16 @@
+commit bdff7f91d8e6b9a9cd4647f473be4a4b8808b5db
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Apr 29 21:41:54 2014 -0400
+
+    lib/time: update time zone info to v.2014b
+    
+    Fixes #7412.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/92850043
+
+ lib/time/update.bash  |   6 ++----
+ lib/time/zoneinfo.zip | Bin 374754 -> 352541 bytes
+ 2 files changed, 2 insertions(+), 4 deletions(-)

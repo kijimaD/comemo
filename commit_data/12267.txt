@@ -1,0 +1,14 @@
+commit ee149d9a6bf1d25ca0697427a5a1cbf014807a6a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 29 13:30:08 2012 +1100
+
+    io: document that i/o is not necessarily safe for parallel access.
+    
+    Updates #1599.
+    
+    R=golang-dev, adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5704052
+
+ src/pkg/io/io.go | 4 ++++
+ 1 file changed, 4 insertions(+)

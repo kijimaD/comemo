@@ -1,0 +1,18 @@
+commit ba50de84299667dcaa2f4e6663078340bbae8c67
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 20 09:30:19 2025 -0700
+
+    os: skip atime checks in TestRootChtimes on plan9
+    
+    Plan 9 doesn't permit setting arbitrary atimes.
+    
+    Fixes #72957
+    
+    Change-Id: Ia4e14c75ed7dcdefd4669c0c21884d5ead9ab2fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/root_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

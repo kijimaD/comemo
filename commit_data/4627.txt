@@ -1,0 +1,14 @@
+commit da225c231f77e2cbc1b5eb5e9173aa3a852d35d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 15:59:50 2010 -0800
+
+    reflect: fix garbage collection bug in Call.
+    
+    Fixes #476.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/190041
+
+ src/pkg/reflect/value.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

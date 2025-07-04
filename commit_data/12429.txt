@@ -1,0 +1,28 @@
+commit efbd79ce5a1f200c02bd18e59b4e2c11808e6ab4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 08:05:10 2012 +1100
+
+    doc: remove unsued progs and makehtml script, update progs/run
+            Due to removal of go_tutorial, unused programs are removed.
+            makehtml is unnecessary (it also gives wrong messages when
+            the destination file doesn't exist)
+            progs/run now compiles all remaining programs under doc/progs.
+            Fixes #3076 (again)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5755053
+
+ doc/Makefile              |  5 +++-
+ doc/makehtml              | 17 --------------
+ doc/progs/helloworld.go   | 11 ---------
+ doc/progs/helloworld3.go  | 21 -----------------
+ doc/progs/print.go        | 23 ------------------
+ doc/progs/print_string.go | 21 -----------------
+ doc/progs/run             | 11 +++++++--
+ doc/progs/server.go       | 51 ----------------------------------------
+ doc/progs/server1.go      | 56 --------------------------------------------
+ doc/progs/sort.go         | 59 -----------------------------------------------
+ doc/progs/strings.go      | 17 --------------
+ doc/progs/sum.go          | 21 -----------------
+ 12 files changed, 13 insertions(+), 300 deletions(-)

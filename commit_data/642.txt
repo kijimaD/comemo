@@ -1,0 +1,12 @@
+commit b9cee1b6c143fa80b93a9a734ccf7b35dcee1f89
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 13 14:51:39 2008 -0700
+
+    package name on signatures thru rename
+    
+    R=r
+    OCL=15314
+    CL=15314
+
+ src/cmd/6g/gsubr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

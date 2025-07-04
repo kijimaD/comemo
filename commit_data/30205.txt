@@ -1,0 +1,18 @@
+commit 249aca5deebcc22cc5169814207416a40f14cd86
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sat Feb 11 02:09:57 2017 +0900
+
+    cmd/compile/internal/gc: unexport or remove global functions
+    
+    Change-Id: Ib2109ab773fbf2a35188300cf91a54735f75fc7c
+    Reviewed-on: https://go-review.googlesource.com/36736
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/lex.go       |  2 +-
+ src/cmd/compile/internal/gc/noder.go     |  8 ++++----
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 27 ++-------------------------
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
+ 7 files changed, 29 insertions(+), 52 deletions(-)

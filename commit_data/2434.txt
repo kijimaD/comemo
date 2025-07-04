@@ -1,0 +1,21 @@
+commit b05c6fe23a84e8e5962bd36fed9ccb145b281166
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jun 8 23:22:56 2009 -0700
+
+    A basic tar package.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=371  (370 added, 0 deleted, 1 changed)
+    OCL=30029
+    CL=30084
+
+ src/lib/Make.deps                       |   3 +-
+ src/lib/Makefile                        |   4 +
+ src/lib/archive/tar/Makefile            |  60 ++++++++
+ src/lib/archive/tar/testdata/small.txt  |   1 +
+ src/lib/archive/tar/testdata/small2.txt |   1 +
+ src/lib/archive/tar/testdata/test.tar   | Bin 0 -> 3072 bytes
+ src/lib/archive/tar/untar.go            | 242 ++++++++++++++++++++++++++++++++
+ src/lib/archive/tar/untar_test.go       |  69 +++++++++
+ 8 files changed, 379 insertions(+), 1 deletion(-)

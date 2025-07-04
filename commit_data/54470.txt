@@ -1,0 +1,15 @@
+commit ed26e2fe3485346d682668191a726f096037b452
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Sep 14 20:11:07 2023 +0800
+
+    cmd/link/internal/loadelf: correct the relocation size of R_LARCH_64
+    
+    Change-Id: If3eaca8b92e8f5265c7763d13021a6353b9df9b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

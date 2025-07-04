@@ -1,0 +1,18 @@
+commit ecc174324cd47cac7b1e68ed3e33f1ed674f5da3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 17 19:50:01 2013 +0900
+
+    net: revert Zone in IPNet temporally
+    
+    Update #4501.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7853047
+
+ src/pkg/net/interface_bsd.go     | 1 -
+ src/pkg/net/interface_darwin.go  | 1 -
+ src/pkg/net/interface_freebsd.go | 1 -
+ src/pkg/net/interface_linux.go   | 6 ------
+ src/pkg/net/ip.go                | 1 -
+ 5 files changed, 10 deletions(-)

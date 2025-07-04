@@ -1,0 +1,15 @@
+commit 61fe7d83089015eca494b789dff8c325bfbfb720
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:22:34 2014 +0900
+
+    runtime/cgo: fix build on freebsd/arm
+    
+    This CL is in preparation to make cgo work on freebsd/arm.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/60500044
+
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
+ 1 file changed, 1 insertion(+)

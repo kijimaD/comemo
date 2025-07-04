@@ -1,0 +1,16 @@
+commit eff7aef4eb290d8a35f1c3fa16471d8830b1a88b
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jul 3 23:13:44 2023 +0200
+
+    regexp: add godoc links
+    
+    Change-Id: I087162f866e781258f9fbb96215c1ff6a5c315a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/regexp/regexp.go | 94 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 46 insertions(+), 48 deletions(-)

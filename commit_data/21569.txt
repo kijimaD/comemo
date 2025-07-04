@@ -1,0 +1,16 @@
+commit f58a5cb9e2d03ff1baa37cce63766cdb8cba7221
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 7 06:51:44 2015 -0500
+
+    cmd/gc: avoid %#016x, which really means Go's %#014x
+    
+    (In non-Go print formats, the 016 includes the leading 0x prefix.
+    No one noticed, but we were printing hex numbers with a minimum
+    of 30 digits, not 32.)
+    
+    Change-Id: I10ff7a51a567ad7c8440418ac034be9e4b2d6bc1
+    Reviewed-on: https://go-review.googlesource.com/4592
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/reflect.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

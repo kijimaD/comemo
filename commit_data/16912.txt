@@ -1,0 +1,13 @@
+commit 340918a8a3c89d4f6a39bc1b0e07b648893ac66d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 29 13:52:15 2013 -0700
+
+    go/parser: selectors may be method expressions
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/12062043
+
+ src/pkg/go/parser/parser.go     | 2 +-
+ src/pkg/go/parser/short_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

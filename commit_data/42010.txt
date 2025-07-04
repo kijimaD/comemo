@@ -1,0 +1,26 @@
+commit 5abf5f831e4a76fb8875c4fa5b6b7436f51ecdf8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 16 21:25:15 2020 -0700
+
+    cmd/compile: clarify Node.NonNil and Node.Bounded
+    
+    Node.NonNil and Node.Bounded were a bit muddled. This led to #38496.
+    This change clarifies and documents them.
+    
+    It also corrects one misuse.
+    However, since ssa conversion doesn't make full use of the bounded hint,
+    this correction doesn't change any generated code.
+    The next change will fix that.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I2bcd487a0a4aef5d7f6090e653974fce0dce3b8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228787
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go   |  2 +-
+ src/cmd/compile/internal/gc/syntax.go | 28 ++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
+ 3 files changed, 32 insertions(+), 8 deletions(-)

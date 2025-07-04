@@ -1,0 +1,22 @@
+commit b17a55d0953429c9b23ef89407734ac9bba159f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 24 14:08:28 2024 -0700
+
+    go/types, types2: move Checker.indexedElts into literals.go where it belongs
+    
+    The function is only used by Checker.compositeLit.
+    Also, now its go/types source can be gerated from the types2 source.
+    No other code changes.
+    
+    Change-Id: I88b7ad371d809a5d9bf8e635d9e003ba0a71ab78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/index.go    | 47 -----------------------------
+ src/cmd/compile/internal/types2/literals.go | 47 +++++++++++++++++++++++++++++
+ src/go/types/index.go                       | 47 -----------------------------
+ src/go/types/literals.go                    | 47 +++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 94 deletions(-)

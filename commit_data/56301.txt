@@ -1,0 +1,27 @@
+commit 57026007c828ac06fe4f8656c1aa497dd3ba40c3
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Tue Apr 23 22:15:03 2024 +0000
+
+    cmd/compile: teach dse about equivalent LocalAddrs
+    
+    This patch teaches DSE that two LocalAddrs of the same variable
+    are equal, even if they are from different memory states. This avoids
+    dependance on a store into the same LocalAddr being added to
+    loadUse even though the store is unnecessary and is in fact
+    shadowed.
+    
+    Fixes #59021
+    
+    Change-Id: I0ef128b783c4ad6fd2236fa5ff20345b4d31eddb
+    GitHub-Last-Rev: b80a6b28fb7c86c66ea65282702b3aa032d6f5a5
+    GitHub-Pull-Request: golang/go#66793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578376
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go      | 19 +++++++++++
+ src/cmd/compile/internal/ssa/deadstore_test.go | 45 ++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

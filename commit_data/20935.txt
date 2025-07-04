@@ -1,0 +1,14 @@
+commit 439b32936367c3efd0dadab48dd51202e1a510f1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 18:47:42 2014 +1100
+
+    remove the obsolete lib/codereview.
+    
+    Change-Id: Idd2e74053ce4a2be3d757aef1bb83313973de6f0
+    Reviewed-on: https://go-review.googlesource.com/1175
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ lib/codereview/codereview.cfg |    2 -
+ lib/codereview/codereview.py  | 3694 -----------------------------------------
+ lib/codereview/test.sh        |  199 ---
+ 3 files changed, 3895 deletions(-)

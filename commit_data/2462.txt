@@ -1,0 +1,12 @@
+commit 6202b0e287f20e2bcff8f2098789f145c9814c14
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 16 13:57:08 2009 -0700
+
+    add godoc to clean.bash
+    
+    R=rsc
+    OCL=30361
+    CL=30361
+
+ src/cmd/clean.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

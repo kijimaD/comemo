@@ -1,0 +1,15 @@
+commit b99161e41f6a89911a6c438da738aa2154622c07
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 7 11:58:59 2012 -0500
+
+    math/rand: add example / regression test
+    
+    This makes sure the outputs do not change for a fixed seed.
+    See also https://golang.org/cl/6905049.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6907048
+
+ src/pkg/math/rand/example_test.go | 69 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

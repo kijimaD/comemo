@@ -1,0 +1,24 @@
+commit 3ba818c894a1aa1e616a8531a1262d4f9d54f02a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Oct 18 13:45:03 2017 -0400
+
+    cmd/compile: distinguish args and return values in DWARF
+    
+    Set DW_AT_variable_parameter on DW_TAG_formal_parameters that are
+    actually return values. variable_parameter is supposed to indicate inout
+    parameters, but Go doesn't really have those, and DWARF doesn't have
+    explicit support for multiple return values. This seems to be the best
+    compromise, especially since the implementation of the two is very
+    similar -- both are stack slots.
+    
+    Fixes #21100
+    
+    Change-Id: Icebabc92b7b397e0aa00a7237478cce84ad1a670
+    Reviewed-on: https://go-review.googlesource.com/71670
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 11 ++++++-----
+ src/cmd/internal/dwarf/dwarf.go     | 28 ++++++++++++++++++----------
+ 2 files changed, 24 insertions(+), 15 deletions(-)

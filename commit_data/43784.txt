@@ -1,0 +1,44 @@
+commit f2e58c6d4239f27db284dfe442fa62bb3c0c5b23
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Mon Nov 9 19:28:04 2020 -0800
+
+    syscall: improve TestSetuidEtc() /proc/ parsing against races
+    
+    TestSetuidEtc() was failing sporadically on linux-ppc64. From the
+    three https://build.golang.org/ logs, it looked like the logged
+    errors could be associated with threads dying, but proc reads
+    were, in some way, racing with their demise.
+    
+    Exploring ways to increase thread demise, revealed that races
+    of this type can happen on non-ppc64 systems, and that
+    os.IsNotExist(err) was not a sufficient error condition test
+    for a thread's status file disappearing. This change includes a
+    fix for that to.
+    
+    The actual issue on linux-ppc64 appears to be tied to PID reaping
+    and reuse latency on whatever the build test environment is for
+    linux-ppc64-buildlet. I suspect this can happen on any linux
+    system, however, especially where the container has a limited PID
+    range.
+    
+    The fix for this, limited to the test (the runtime syscall support
+    is unchanged), is to confirm that the Pid for the interrogated
+    thread's /proc/<TID>/status file confirms that it is still
+    associated with the test-process' PID.
+    
+    linux-ppc64-buildlet:
+      go/bin/go test syscall -run=TestSetuidEtc -count=10000
+      ok      syscall 104.285s
+    
+    Fixes #42462
+    
+    Change-Id: I55c84ab8361003570a405fa52ffec4949bf91113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ misc/cgo/test/issue1435.go        | 80 +++++++++++++++++++++++++++------------
+ src/syscall/syscall_linux_test.go | 40 ++++++++++++++++----
+ 2 files changed, 88 insertions(+), 32 deletions(-)

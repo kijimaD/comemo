@@ -1,0 +1,29 @@
+commit a32232cb18ed07496ec77c1cf2dcefa1cb0ac057
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Tue Apr 11 16:27:43 2023 +0100
+
+    html/template: handle all JS whitespace characters
+    
+    Rather than just a small set. Character class as defined by \s [0].
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this.
+    
+    Fixes #59721
+    Fixes CVE-2023-24540
+    
+    [0] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Character_Classes
+    
+    Change-Id: I56d4fa1ef08125b417106ee7dbfb5b0923b901ba
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1821459
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491616
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/html/template/js.go      |  8 +++++++-
+ src/html/template/js_test.go | 11 +++++++----
+ 2 files changed, 14 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit e881604d1c48725230c4062227e8502041dc6dfe
+Author: artemkaxboy <artemkaxboy@gmail.com>
+Date:   Fri Nov 23 12:52:53 2018 +0700
+
+    cmd/internal/obj/x86: unexport movtab
+    
+    Change-Id: Ia071f6914b3c155a88103f930af00028986ec8c7
+    Reviewed-on: https://go-review.googlesource.com/c/151019
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

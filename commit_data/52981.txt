@@ -1,0 +1,18 @@
+commit 446ad131f633296f1c2589fcfa33ce6d6c58a3bc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 10 17:40:01 2023 -0400
+
+    cmd/compile: remove "WORK IN PROGRESS" from package pgo
+    
+    Work continues on PGO, but the existing support is certainly working.
+    
+    Change-Id: Ic6724b9b3f174f24662468000d771f7651bb18b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494435
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 920ab67b4c7f33ecb4fa10f34babe4c181742151
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 13:42:43 2009 -0800
+
+    label declarations not handled properly
+    
+    R=rsc
+    DELTA=27  (27 added, 0 deleted, 0 changed)
+    OCL=25015
+    CL=25015
+
+ test/bugs/bug137.go | 26 ++++++++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 31 insertions(+)

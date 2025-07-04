@@ -1,0 +1,12 @@
+commit e17afa4d0cc19f4bbac5310fe7b97f3d051c1479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jan 21 21:31:21 2012 -0800
+
+    bytes.Buffer: remove dead code, complete documentation
+    
+    R=r, dave, r
+    CC=golang-dev
+    https://golang.org/cl/5533086
+
+ src/pkg/bytes/buffer.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

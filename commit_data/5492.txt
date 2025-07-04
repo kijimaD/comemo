@@ -1,0 +1,12 @@
+commit d6b199ac99170ef8ea49c347af20f86a2e80aa38
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 19 17:53:41 2010 -0700
+
+    dashboard: reintroduce Benchmark model
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1217046
+
+ misc/dashboard/godashboard/gobuild.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

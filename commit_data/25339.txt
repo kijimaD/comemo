@@ -1,0 +1,19 @@
+commit 66fcf5672902678ca28e54a1a49c8b44d3a0395e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 17:56:46 2015 +0000
+
+    net/http: update bundled http2, add tests reading response Body after Close
+    
+    Updates to golang.org/x/net/http2 git rev 28273ec9 for
+    https://golang.org/cl/17937
+    
+    Fixes #13648
+    
+    Change-Id: I27c77524b2e4a172c5f8be08f6fbb0f2e2e4b200
+    Reviewed-on: https://go-review.googlesource.com/17938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 22 ++++++++++++++
+ src/net/http/h2_bundle.go         | 64 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 68 insertions(+), 18 deletions(-)

@@ -1,0 +1,18 @@
+commit 362713183a8947394d2900563e711d05c9bbd67b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 14 16:34:16 2022 -0500
+
+    cmd/pprof: debug TestDisasm
+    
+    If pprof -disasm fails, print the profile content for debugging.
+    
+    For #56574.
+    
+    Change-Id: I5d9377b7fb80f6b85317bc53f3ebb18f70c2f06d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450281
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/pprof/pprof_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

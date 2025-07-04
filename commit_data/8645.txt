@@ -1,0 +1,18 @@
+commit 8cd7aac2234f648818fc6c01bb52386a537e7029
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Jun 7 14:28:10 2011 -0400
+
+    godefs: do not assume forward type references are enums
+    
+    Fixes #1466.
+    
+    R=mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/4564043
+
+ src/cmd/godefs/a.h                     |  1 +
+ src/cmd/godefs/main.c                  | 14 +++++++++++---
+ src/cmd/godefs/stabs.c                 | 10 +---------
+ src/pkg/syscall/ztypes_darwin_386.go   |  4 ----
+ src/pkg/syscall/ztypes_darwin_amd64.go |  4 ----
+ 5 files changed, 13 insertions(+), 20 deletions(-)

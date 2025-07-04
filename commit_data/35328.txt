@@ -1,0 +1,26 @@
+commit dffc915b2daec7ad81524e97f7f5cf72733d3586
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 8 08:10:17 2018 -0700
+
+    cmd/compile: mark modify ops as both read and write
+    
+    If the modify ops operate on a variable, we should tell the liveness
+    pass that the variable is still live before the instruction.
+    
+    This looks like a bug, but I don't think there's any way to trigger
+    it at the moment. It only matters for pointer-containing values, and
+    the modify ops don't normally work on pointers. Even when I reach for
+    unsafe.Pointer tricks, I can't get ADDLmodify to work on pointers, as
+    there's always a Convert or VarDef preventing the coalescing.
+    
+    TL;DR I can't figure out a test for this. But we should probably
+    fix it anyway.
+    
+    Change-Id: I971c62616dec51a33788b7634e6478e1bfcd6260
+    Reviewed-on: https://go-review.googlesource.com/112157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go | 10 +++++-----
+ src/cmd/compile/internal/ssa/gen/main.go   |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go      | 10 +++++-----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

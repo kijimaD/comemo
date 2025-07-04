@@ -1,0 +1,15 @@
+commit a36b5b99cca834aa4968d7aaa81f5e5565f7c461
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 27 08:57:30 2014 -0800
+
+    spec: slightly rephrased wording on parsing ambiguity for composite literals
+    
+    Fixes #4482.
+    
+    LGTM=r
+    R=r, iant, rsc, ken
+    CC=golang-codereviews
+    https://golang.org/cl/69020045
+
+ doc/go_spec.html | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

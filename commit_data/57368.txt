@@ -1,0 +1,23 @@
+commit 73fa90e2908d525efb9f7ad0dbcfceb5f25c7251
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 01:18:10 2024 +0700
+
+    types2, go/types: use slices.SortFunc
+    
+    Now that we're bootstrapping from a toolchain that has the slices
+    package.
+    
+    Updates #64751
+    
+    Change-Id: I3227e55f87e033dae63a2d1712b7f9373fe49731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610603
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/initorder.go | 7 ++++---
+ src/cmd/compile/internal/types2/stmt.go      | 6 +++---
+ src/go/types/initorder.go                    | 7 ++++---
+ src/go/types/stmt.go                         | 6 +++---
+ 4 files changed, 14 insertions(+), 12 deletions(-)

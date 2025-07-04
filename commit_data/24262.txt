@@ -1,0 +1,30 @@
+commit 572f08a06449093693fb6d09fc3c2525e5d6afbd
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 4 10:45:29 2015 -0400
+
+    runtime: split marking of span roots into 128 subtasks
+    
+    Marking of span roots can represent a significant fraction of the time
+    spent in mark termination. Simply traversing the span list takes about
+    1ms per GB of heap and if there are a large number of finalizers (for
+    example, for network connections), it may take much longer.
+    
+    Improve the situation by splitting the span scan into 128 subtasks
+    that can be executed in parallel and load balanced by the markroots
+    parallel for. This lets the GC balance this job across the Ps.
+    
+    A better solution is to do this during concurrent mark, or to improve
+    it algorithmically, but this is a simple change with a lot of bang for
+    the buck.
+    
+    This was suggested by Rhys Hiltner.
+    
+    Updates #11485.
+    
+    Change-Id: I8b281adf0ba827064e154a1b6cc32d4d8031c03c
+    Reviewed-on: https://go-review.googlesource.com/13112
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mgc.go     |  7 ++---
+ src/runtime/mgcmark.go | 70 +++++++++++++++++++++++++++++---------------------
+ 2 files changed, 45 insertions(+), 32 deletions(-)

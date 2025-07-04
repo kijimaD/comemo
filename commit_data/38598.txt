@@ -1,0 +1,24 @@
+commit 154e5abfcdb8ffe193d2af4c8ef590f4d9a27008
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Thu Mar 28 17:49:43 2019 -0400
+
+    bytes, strings: add tests for TrimLeftFunc and TrimRightFunc
+    
+    When I was working on the fix for #31038 (make TrimSpace return nil on
+    all-space input) I noticed that there were no tests for TrimLeftFunc
+    and TrimRightFunc, including the funky nil behavior. So add some!
+    
+    I've just reused the existing TrimFunc test cases for TrimLeftFunc and
+    TrimRightFunc, as well as adding new tests for the empty string and
+    all-trimmed cases (which test the nil-returning behavior of TrimFunc and
+    TrimLeftFunc).
+    
+    Change-Id: Ib580d4364e9b3c91350305f9d9873080d7862904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170061
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes_test.go     | 75 +++++++++++++++++++++++++++++++++++++--------
+ src/strings/strings_test.go | 67 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 118 insertions(+), 24 deletions(-)

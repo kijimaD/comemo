@@ -1,0 +1,13 @@
+commit 37b04c9062107e66a0729a95b6ddb6a014731910
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Jul 22 09:11:35 2017 +0900
+
+    cmd/link: fix debug message
+    
+    Change-Id: I6cb0ed9b726da34106ba239b57e2da732a8e1b71
+    Reviewed-on: https://go-review.googlesource.com/50730
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit e98dde27ef774cac5a92db754cd97ff33dfef07f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 7 10:39:45 2009 -0700
+
+    timing updates after 6g change for efficient division by powers of two
+    
+    R=rsc
+    DELTA=25  (23 added, 0 deleted, 2 changed)
+    OCL=32873
+    CL=32875
+
+ test/bench/spectral-norm-parallel.go |  2 +-
+ test/bench/timing.log                | 23 +++++++++++++++++++++++
+ test/bench/timing.sh                 |  2 +-
+ 3 files changed, 25 insertions(+), 2 deletions(-)

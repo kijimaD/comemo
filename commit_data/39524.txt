@@ -1,0 +1,24 @@
+commit f93234ad620cc34573bca56be9fcf55c975e0821
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jul 16 17:40:20 2019 -0700
+
+    net/http/httputil: fix regression in ReverseProxy.ServeHTTP
+    
+    In Go1.12 and below, the logic in ReverseProxy.ServeHTTP would always
+    allocate request.Header even if it were not present in the incoming request.
+    CL 174324 added http.Request.Clone and re-factors ReverseProxy.ServeHTTP
+    to use the new Clone method. However, the new Clone logic is not equivalent
+    to the former logic. We preserve former semantics by explicitly allocating
+    the Header map if nil.
+    
+    Fixes #33142
+    
+    Change-Id: I356f94a915dd9779584ce3fe31e56e5474b9ad37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186437
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      |  3 +++
+ src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

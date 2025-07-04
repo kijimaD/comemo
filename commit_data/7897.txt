@@ -1,0 +1,12 @@
+commit d38d66e64694de69991310565e14bf460ff7af65
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 14:48:35 2011 -0700
+
+    doc: gccgo now supports method expressions and multiple init functions.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4314047
+
+ doc/go_spec.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

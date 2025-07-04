@@ -1,0 +1,28 @@
+commit 1cf08182f92698aeba8be040dafb5296707cdbf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 15:05:39 2017 -0800
+
+    go/printer: fix format with leading comments in composite literal
+    
+    This fix is less pervasive than it seems. The only change affecting
+    formatting is on printer.go:760. The remaining changes have no effect
+    on formatting since the value of p.level is ignored except on this
+    specific line.
+    
+    The remaining changes are:
+    - renamed adjBlock to funcBody since that's how it is used
+    - introduced new printer field 'level' tracking the composite
+      literal nesting level
+    - update/restore the composite literal nesting level as needed
+    
+    Fixes #18782.
+    
+    Change-Id: Ie833a9b5a559c4ec0f2eef2c5dc97aa263dca53a
+    Reviewed-on: https://go-review.googlesource.com/35811
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/printer/nodes.go                  | 17 ++++++---
+ src/go/printer/printer.go                | 11 ++++--
+ src/go/printer/testdata/comments2.golden | 59 ++++++++++++++++++++++++++++++
+ src/go/printer/testdata/comments2.input  | 63 ++++++++++++++++++++++++++++++++
+ 4 files changed, 142 insertions(+), 8 deletions(-)

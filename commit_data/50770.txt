@@ -1,0 +1,23 @@
+commit 82e357d6d5944fc5b0293085a0305fe328c505ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 26 19:22:50 2022 -0700
+
+    os: use backslashes for DirFS on Windows
+    
+    Otherwise DirFS of a UNC path does not work.
+    
+    Fixes #54694
+    
+    Change-Id: I82c1c436f7c26b3935c2cc4fd238daf094fc4d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426094
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

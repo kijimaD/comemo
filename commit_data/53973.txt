@@ -1,0 +1,21 @@
+commit 1d3a77e5e6548a4720e74c55bed0145b570f6287
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Aug 10 02:01:04 2023 +0000
+
+    math/big: using the min built-in function
+    
+    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
+    
+    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
+    GitHub-Last-Rev: 5b4ce994c162775e91aa00c942571bc0ac8b1eca
+    GitHub-Pull-Request: golang/go#61829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516895
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/math/big/ftoa.go | 7 -------
+ 1 file changed, 7 deletions(-)

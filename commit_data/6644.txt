@@ -1,0 +1,15 @@
+commit 250ac87368f25bf1c35ffd6f522639fea119dc2d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 28 11:05:56 2010 +1100
+
+    rpc: expose Server type to allow multiple RPC Server instances
+    
+    R=r, rsc, msolo, sougou
+    CC=golang-dev
+    https://golang.org/cl/2696041
+
+ src/pkg/rpc/client.go      |  11 +++-
+ src/pkg/rpc/debug.go       |   6 ++-
+ src/pkg/rpc/server.go      | 127 +++++++++++++++++++++++++++++----------------
+ src/pkg/rpc/server_test.go |  71 +++++++++++++++++++------
+ 4 files changed, 152 insertions(+), 63 deletions(-)

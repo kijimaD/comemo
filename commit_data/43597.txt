@@ -1,0 +1,22 @@
+commit d8044a6744f9570e964c6e35e12827473ff12cde
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Thu Oct 29 06:03:08 2020 +0800
+
+    database/sql: fix TestTxStmtDeadlock test
+    
+    Drop error check because errors can be
+    not only ErrTxDone for tx stmt executions,
+    and the purpose of the test is just reproducing
+    deadlock.
+    
+    Fixes #42259
+    
+    Change-Id: I9e7105ada1403ec7064dcc1c3385b36893a1c195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266097
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/database/sql/sql_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,29 @@
+commit b7736cbceb46d00fb1c8435e5c512635896985b6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 10 02:13:05 2023 +0700
+
+    cmd/compile: disable inline static init optimization
+    
+    There are a plenty of regression in 1.20 with this optimization. This CL
+    disable inline static init, so it's safer to backport to 1.20 branch.
+    
+    The optimization will be enabled again during 1.21 cycle.
+    
+    Updates #58293
+    Updates #58339
+    For #58293
+    
+    Change-Id: If5916008597b46146b4dc7108c6b389d53f35e95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467015
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ test/fixedbugs/issue56778.go          | 2 +-
+ test/inline.go                        | 2 +-
+ test/noinit.go                        | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

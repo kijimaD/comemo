@@ -1,0 +1,26 @@
+commit 97c7e0e0ad1be5c4d211e0182ff970a2086e7679
+Author: Philip Børgesen <PhilipBorgesen@users.noreply.github.com>
+Date:   Tue Aug 21 00:52:46 2018 +0000
+
+    encoding/json: eliminate superfluous space in Decoder.Token error messages
+    
+    The existing Decoder.tokenError implementation creates its error messages by
+    concatenating "invalid character " + quoteChar(c) + " " + context. All context
+    values however already start with a space leading to error messages containing
+    two spaces.
+    
+    This change removes " " from the concatenation expression.
+    
+    Fixes #26587
+    
+    Change-Id: I93d14319396636b2a40d55053bda88c98e94a81a
+    GitHub-Last-Rev: 6db7e1991b15beee601f558be72a2737070d8f68
+    GitHub-Pull-Request: golang/go#26588
+    Reviewed-on: https://go-review.googlesource.com/125775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/stream.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

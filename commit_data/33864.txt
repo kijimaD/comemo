@@ -1,0 +1,15 @@
+commit 1055dfce40da4852add029c8a0e7312dff079507
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 12:11:19 2017 -0800
+
+    cmd/go: remove script.sh in TestTestCacheInputs
+    
+    Updates #22593
+    
+    Change-Id: I76e52dc8b874da13ae9e2d80e5c0d6d8424b67db
+    Reviewed-on: https://go-review.googlesource.com/83257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

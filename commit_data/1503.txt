@@ -1,0 +1,15 @@
+commit 5d41f55accddb6a8f0cd672dc27dae9e0779fdfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 11:06:42 2009 -0800
+
+    casify http
+    
+    R=r
+    DELTA=33  (0 added, 0 deleted, 33 changed)
+    OCL=22947
+    CL=22949
+
+ src/lib/http/request.go | 36 ++++++++++++++++++------------------
+ src/lib/http/server.go  |  4 ++--
+ src/lib/http/url.go     | 26 +++++++++++++-------------
+ 3 files changed, 33 insertions(+), 33 deletions(-)

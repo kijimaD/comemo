@@ -1,0 +1,25 @@
+commit 3b84a3c9acaaba04a232f7e73a40c36bccd5e988
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 7 10:49:45 2016 +1100
+
+    os: make Stdin.Stat() return ModeCharDevice if Stdin is console
+    
+    CL 20845 changed Stdin.Stat() so it returns ModeNamedPipe.
+    But introduced TestStatStdin does not test what Stdin.Stat()
+    returns when Stdin is console.
+    
+    This CL adjusts both TestStatStdin and Stdin.Stat
+    implementations to handle console. Return ModeCharDevice
+    from Stdin.Stat() when Stdin is console on windows,
+    just like it does on unix.
+    
+    Fixes #14853.
+    
+    Change-Id: I54d73caee2aea45a99618d11600d8e82fe20d0c0
+    Reviewed-on: https://go-review.googlesource.com/34090
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go       | 11 +++++++++++
+ src/os/stat_windows.go  | 13 +++++++------
+ src/os/types_windows.go | 11 +++++++----
+ 3 files changed, 25 insertions(+), 10 deletions(-)

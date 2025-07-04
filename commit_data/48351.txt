@@ -1,0 +1,23 @@
+commit 91daaabd56964d0cffae99825e4696f3f70a3857
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 24 22:55:58 2021 -0700
+
+    flag: add TextVar function
+    
+    The TextVar function makes it easier to integrate the flag package
+    with any Go type that implements encoding.Text{Marshaler,Unmarshaler}.
+    
+    Fixes #45754
+    
+    Change-Id: Id23c37d59cf8c9699a7943a22ce27a45eb685c0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313329
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next.txt                     |  2 ++
+ src/flag/example_textvar_test.go | 35 +++++++++++++++++++++++++
+ src/flag/flag.go                 | 56 ++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go        |  5 ++--
+ 4 files changed, 96 insertions(+), 2 deletions(-)

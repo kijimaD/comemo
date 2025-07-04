@@ -1,0 +1,14 @@
+commit d968bda66fcbf0accc0d1c86a09b1b8bbc4fc1f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:16:24 2015 -0500
+
+    cmd/dist: update for portable Prog, Addr
+    
+    There are no D_ names anymore.
+    
+    Change-Id: Id3f1ce5efafb93818e5fd16c47ff48bbf61b5339
+    Reviewed-on: https://go-review.googlesource.com/3520
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/cmd/dist/buildgc.go | 65 +------------------------------------------------
+ 1 file changed, 1 insertion(+), 64 deletions(-)

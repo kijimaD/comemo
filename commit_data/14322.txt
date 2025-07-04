@@ -1,0 +1,19 @@
+commit 91651c1844a5c8ef02bd907aa830eb8703c098b3
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Wed Nov 7 04:59:21 2012 +0800
+
+    cmd/godoc: initialize filesystem and metadata for -url
+    
+    Unlike when using -http, godoc -url didn't initialize the "filesystem"
+    and metadata that are used when generating responses. This CL adds this
+    initialization, so that -url provides the same results as an HTTP
+    request when using -http.
+    
+    Fixes #4335.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6817075
+
+ src/cmd/godoc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

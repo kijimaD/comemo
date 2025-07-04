@@ -1,0 +1,14 @@
+commit fd296282e0a5058351954f1a7ea2dac5ef87f052
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:14:58 2016 -0400
+
+    cmd/dist: enable plugin test on darwin/amd64
+    
+    Change-Id: I6071881a5f7b9638bca0bfef76d6f4f45c9202a6
+    Reviewed-on: https://go-review.googlesource.com/29396
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

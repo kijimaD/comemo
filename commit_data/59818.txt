@@ -1,0 +1,32 @@
+commit 6e618cd42a1adb58fa04f7a9f6e89a563ccb07f1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 4 12:14:13 2023 -0700
+
+    encoding/json: use zstd compressed testdata
+    
+    There is a non-public zstd decoder in the stdlib (CL 473356) and
+    also zstd compressed testdata already present.
+    
+    Delete testdata/code.json.gz and
+    instead use internal/jsontest/testdata/golang_source.json.zst,
+    which has exactly the same content:
+            $ cat internal/jsontest/testdata/golang_source.json.zst | zstd -d | sha1sum
+            3f70b6fd429f4aba3e8e1c3e5a294c8f2e219a6e  -
+            $ cat testdata/code.json.gz | zstd -d | sha1sum
+            3f70b6fd429f4aba3e8e1c3e5a294c8f2e219a6e  -
+    
+    This will reduce the size of the final Go release by 118KB.
+    
+    Updates #71845
+    
+    Change-Id: I6da2df27bd260befc0a44c6bc0255365be0a5b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525516
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Damien Neil <dneil@google.com>
+
+ src/encoding/json/bench_test.go         |   9 +++------
+ src/encoding/json/testdata/code.json.gz | Bin 120432 -> 0 bytes
+ 2 files changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit 557211c150150647301f92caf8965c4c6dc60a5f
+Author: Sebastian Nickolls <sebastian.nickolls@arm.com>
+Date:   Wed Jun 26 17:10:20 2024 +0100
+
+    cmd/internal/obj/arm64: Add helpers for span7 passes
+    
+    Adds helper functions for the literal pooling, large branch handling
+    and code emission stages of the span7 assembler pass. This hides the
+    implementation of the current assembler from the general workflow in
+    span7 to make the implementation easier to change in future.
+    
+    Updates #44734
+    
+    Change-Id: I8859956b23ad4faebeeff6df28051b098ef90fed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595755
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 215 ++++++++++++++++++++-----------------
+ 1 file changed, 115 insertions(+), 100 deletions(-)

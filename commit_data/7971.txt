@@ -1,0 +1,12 @@
+commit d3ca620bafa28393acb726455a1d875df87ed653
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 4 16:35:40 2011 -0400
+
+    gotest: fix build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4351047
+
+ src/cmd/gotest/gotest.go | 1 +
+ 1 file changed, 1 insertion(+)

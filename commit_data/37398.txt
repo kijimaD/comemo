@@ -1,0 +1,24 @@
+commit 0c7762cd184649552309c82671bf81f89d215ff7
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 30 13:30:09 2018 -0700
+
+    cmd/compile: assume unsafe pointer arithmetic generates non-nil results
+    
+    I've never seen a case where unsafe arithmetic is used to generate a nil.
+    (Something like var x uintptr; unsafe.Pointer(x - x).)
+    We can assume that if someone is doing arithmetic with pointers, the
+    result will be non-nil. Our unsafe rules already forbid this, although
+    we should be more explicit.
+    
+    RELNOTE=It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.
+    (This was already invalid, but this statement has been added for clarification.)
+    
+    Fixes #27180
+    
+    Change-Id: I1880b7725a9fd99e4613799930fdad9aaa99e8f0
+    Reviewed-on: https://go-review.googlesource.com/c/146058
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 3 ++-
+ src/unsafe/unsafe.go                     | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

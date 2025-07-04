@@ -1,0 +1,14 @@
+commit 1870c81205534cd2bce729f3100f62da349d82e2
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:24 2015 -0700
+
+    go/internal/gcimporter: remove unused assignment
+    
+    Change-Id: I0b19731a46e4e67a7dd503dd133cafc7678760a7
+    Reviewed-on: https://go-review.googlesource.com/13890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/gcimporter/exportdata.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

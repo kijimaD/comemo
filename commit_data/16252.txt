@@ -1,0 +1,12 @@
+commit 3bd076991bcb619f076dab99a17cdd620dada037
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 1 10:00:05 2013 -0400
+
+    doc: link to Go 1.1 release notes
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9047045
+
+ doc/docs.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

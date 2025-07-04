@@ -1,0 +1,32 @@
+commit 1257d05088c3842efa2aa23f8d6abe000e494f1a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 22 14:18:22 2019 -0400
+
+    testing: fix fractional ns/op printing
+    
+    CL 166717 changed the way ns/op benchmark results were printed and
+    inadvertently rounded all ns/op results down to an integer, even if
+    they were small enough to print with digits after the decimal place.
+    For example, prior to this change, we got output like
+    
+        BenchmarkFast-8       380491575      3.12 ns/op
+    
+    CL 166717 changed this to
+    
+        BenchmarkFast-8       380491575      3.00 ns/op
+    
+    This had the further side-effect that ns/op values between 0 and 1
+    would not be printed at all because they would be rounded down to 0.
+    
+    This CL fixes this by always recomputing the float64 value of ns/op
+    instead of using the int64 truncation from BenchmarkResult.NsPerOp.
+    
+    Fixes #30997. Fixes #31005.
+    
+    Change-Id: I21f73b9d5cc5ad41e7ff535675d07ca00051ecd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168937
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/testing/benchmark.go      |  9 +++++++--
+ src/testing/benchmark_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

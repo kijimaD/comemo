@@ -1,0 +1,14 @@
+commit be6afde348db68dfc9f59f57cbb15ed637158ac0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 31 02:24:08 2012 +1100
+
+    misc/dashboard/builder: check http status before processing response
+    
+    Occasionally GAE will return a 500 error response, don't treat this as a valid JSON body.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6775066
+
+ misc/dashboard/builder/http.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

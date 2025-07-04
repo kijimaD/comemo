@@ -1,0 +1,25 @@
+commit 018c60bd8f2447ee1426568707d7179623dac552
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri May 4 19:05:26 2012 +0200
+
+    math/big: fix superpolynomial complexity in Karatsuba algorithm.
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkExp3Power0x10              732          734   +0.27%
+    BenchmarkExp3Power0x40              834          836   +0.24%
+    BenchmarkExp3Power0x100            1600         1579   -1.31%
+    BenchmarkExp3Power0x400            3478         3417   -1.75%
+    BenchmarkExp3Power0x1000          19388        19229   -0.82%
+    BenchmarkExp3Power0x4000         160274       156881   -2.12%
+    BenchmarkExp3Power0x10000       1552050      1372058  -11.60%
+    BenchmarkExp3Power0x40000      27328710     15216920  -44.32%
+    BenchmarkExp3Power0x100000    612349000    131407100  -78.54%
+    BenchmarkExp3Power0x400000  44073524000   1122195000  -97.45%
+    
+    R=golang-dev, mtj, gri, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6176043
+
+ src/pkg/math/big/nat.go      | 10 +++++-----
+ src/pkg/math/big/nat_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 5 deletions(-)

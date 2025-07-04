@@ -1,0 +1,17 @@
+commit beb833f12456f8ae49e003df79f1e0813b610032
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 11:13:01 2017 -0700
+
+    cmd/compile: initialize SSA runtime functions in initssaconfig
+    
+    This is a better home for it.
+    
+    Change-Id: I7ce96c16378d841613edaa53c07347b0ac99ea6e
+    Reviewed-on: https://go-review.googlesource.com/38970
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 19 -------------------
+ src/cmd/compile/internal/gc/ssa.go  | 18 ++++++++++++++++++
+ 2 files changed, 18 insertions(+), 19 deletions(-)

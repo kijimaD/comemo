@@ -1,0 +1,12 @@
+commit 63e383cff81a590c36be0791ebdbc5fc50b98faf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 6 09:13:26 2012 +1100
+
+    expvar: add locking to String, and use RWMutex properly throughout.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5754043
+
+ src/pkg/expvar/expvar.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

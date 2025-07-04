@@ -1,0 +1,18 @@
+commit a92e11a256d8a527d547a2772992d9d9870fa817
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 20 12:13:04 2013 +0400
+
+    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
+    The removed code leads to the situation when M executes the same locked G again
+    and again.
+    This is https://golang.org/cl/7310096 but with return instead of break
+    in the nested switch.
+    Fixes #4820.
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/7304102
+
+ src/pkg/runtime/proc.c       |  8 --------
+ src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 8 deletions(-)

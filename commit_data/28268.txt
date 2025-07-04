@@ -1,0 +1,27 @@
+commit f27c1bda5165f94115458908b5222d992010cbee
+Author: Dave Day <djd@golang.org>
+Date:   Thu Sep 1 13:13:37 2016 +1000
+
+    net/url: handle escaped paths in ResolveReference
+    
+    Currently, path resolution is done using the un-escaped version of
+    paths. This means that path elements like one%2ftwo%2fthree are
+    handled incorrectly, and optional encodings (%2d vs. -) are dropped.
+    
+    This function makes escaped handling consistent with Parse: provided
+    escapings are honoured, and RawPath is only set if necessary.
+    
+    A helper method setPath is introduced to handle the correct setting of
+    Path and RawPath given the encoded path.
+    
+    Fixes #16947
+    
+    Change-Id: I40b1215e9066e88ec868b41635066eee220fde37
+    Reviewed-on: https://go-review.googlesource.com/28343
+    Run-TryBot: Dave Day <djd@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      | 42 ++++++++++++++++++++++++++++++++----------
+ src/net/url/url_test.go | 17 +++++++++++++----
+ 2 files changed, 45 insertions(+), 14 deletions(-)

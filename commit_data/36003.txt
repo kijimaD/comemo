@@ -1,0 +1,12 @@
+commit 6c44036c1feb2f5bb97c9a2a4b42c1dfd19d520d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 18:22:26 2018 +0000
+
+    doc: add more to go1.11, sort, remove dups
+    
+    Change-Id: I20a82f6b47cd3ab4ca22d222e6d8a2c59d57e2a4
+    Reviewed-on: https://go-review.googlesource.com/124095
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 166 ++++++++++++++------------------------------------------
+ 1 file changed, 40 insertions(+), 126 deletions(-)

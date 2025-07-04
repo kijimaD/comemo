@@ -1,0 +1,15 @@
+commit b71a805cd5131ff6407a25af540e3dd80fa883c2
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Sat Sep 17 11:43:06 2011 -0700
+
+    archive/tar: document Header fields and Type flags
+    
+    Documentation more along the lines of os.FileInfo
+    Fixes #2180.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, mike.rosset
+    https://golang.org/cl/4958055
+
+ src/pkg/archive/tar/common.go | 51 ++++++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 25 deletions(-)

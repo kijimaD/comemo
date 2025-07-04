@@ -1,0 +1,11 @@
+commit b534eb462b955d96deff94b891b5bd2582d07eb3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 30 16:10:42 2009 -0700
+
+    Don't use fallthrough in a type switch.
+    
+    R=rsc
+    http://go/go-review/1018005
+
+ src/pkg/exp/eval/world.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

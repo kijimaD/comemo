@@ -1,0 +1,37 @@
+commit 141a4a17598ccefe7f0c909a38a7c78b17fdf7a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 14 14:05:20 2011 -0500
+
+    runtime: fix arm reflect.call boundary case
+    
+    The fault was lucky: when it wasn't faulting it was silently
+    copying a word from some other block and later putting
+    that same word back.  If some other goroutine had changed
+    that word of memory in the interim, too bad.
+    
+    The ARM code was inconsistent about whether the
+    "argument frame" included the saved LR.  Including it made
+    some things more regular but mostly just caused confusion
+    in the places where the regularity broke.  Now the rule
+    reflects reality: argp is always a pointer to arguments,
+    never a saved link register.
+    
+    Renamed struct fields to make meaning clearer.
+    
+    Running ARM in QEMU, package time's gotest:
+      * before: 27/58 failed
+      * after: 0/50
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3993041
+
+ src/cmd/5g/ggen.c               |   2 +-
+ src/cmd/5l/noop.c               |   9 ++--
+ src/pkg/runtime/386/asm.s       |  12 ++---
+ src/pkg/runtime/amd64/asm.s     |  18 +++----
+ src/pkg/runtime/arm/asm.s       |  21 ++++----
+ src/pkg/runtime/proc.c          | 115 +++++++++++++++++++++++-----------------
+ src/pkg/runtime/runtime.h       |  15 +++---
+ src/pkg/runtime/runtime_defs.go |  52 +++++++++---------
+ 8 files changed, 129 insertions(+), 115 deletions(-)

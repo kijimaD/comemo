@@ -1,0 +1,17 @@
+commit d7ad3c4e868f992cc64c2201d631a5bdd0f1b731
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 11:42:09 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug205.go:14:12: error: index must be integer
+    bug205.go:15:12: error: index must be integer
+    bug205.go:16:12: error: incompatible type for map index
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35957
+    CL=35960
+
+ test/fixedbugs/bug205.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

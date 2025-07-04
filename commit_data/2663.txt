@@ -1,0 +1,13 @@
+commit a47404bc1c8a23ea4c6bf8a66c8e333eac1c7bf1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 10 10:00:25 2009 -0700
+
+    fix error messages
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=31449
+    CL=31451
+
+ src/pkg/go/parser/parser_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

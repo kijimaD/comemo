@@ -1,0 +1,19 @@
+commit 541ef422e24c8010f95151f241224fa16cdce210
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Aug 26 14:19:06 2022 +0800
+
+    runtime: add comment for sys_linux_loong64
+    
+    Change-Id: I617d6d788cb213c1405f81d9f689fd6846ee105a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425300
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/runtime/sys_linux_loong64.s | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

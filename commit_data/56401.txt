@@ -1,0 +1,33 @@
+commit 4513f1a1c1037574bfd94b8637329246f475a534
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 8 16:27:03 2024 +0000
+
+    internal/trace/v2: correctly handle a broken spilled batch
+    
+    Currently if the first batch of the next generation in the trace is
+    broken, then the previous generation will fail to parse. The parser
+    currently relies on one complete batch of the next generation to
+    continue.
+    
+    However, this means that recovering a complete generation from a trace
+    with a broken tail doesn't always work. Luckily, this is fixable. When
+    the parser encounters an error reading a batch in a generation, it
+    simply writes down that error and processes it later, once the
+    generation has been handled. If it turns out the error was for the same
+    generation and something bigger is broken, then the parser will catch
+    that sooner when validating the generation's events and the error will
+    never show up. Otherwise, the generation will parse through successfully
+    and we'll emit the error once that's done.
+    
+    Fixes #55160.
+    
+    Change-Id: I9c9c19d5bb163c5225e18d11594ca2a8793c6950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584275
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/v2/generation.go                | 13 ++++++-
+ src/internal/trace/v2/reader.go                    |  8 +++-
+ .../generators/go122-fail-first-gen-first.go       | 44 ++++++++++++++++++++++
+ .../testdata/tests/go122-fail-first-gen-first.test |  9 +++++
+ 4 files changed, 72 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 7e7008fa5e96cf0418b71b5b408ea2a69b522221
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Dec 3 12:46:34 2009 -0800
+
+    gc: Allow allow data types up to 1GB
+    
+    R=rsc
+    https://golang.org/cl/164095
+
+ src/cmd/gc/gen.c  | 2 +-
+ src/cmd/gc/go.h   | 3 ++-
+ src/cmd/gc/subr.c | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

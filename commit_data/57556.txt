@@ -1,0 +1,38 @@
+commit 62452bed480108623910feace4a5cea5448e6822
+Author: Matt Harbison <mharbison72@gmail.com>
+Date:   Sat Aug 3 00:06:30 2024 +0000
+
+    cmd/go: fix the accuracy of Mercurial vcs.* stamped data
+    
+    There were a few Mercurial command line uses that could cause the wrong
+    data to be used:
+    
+    * The log command needs '-r.' to specify the currently checked out commit
+    * HGPLAIN is needed to disable optional output on commands
+    * '-S' is needed to for the 'status' command to recurse into any subrepos
+    
+    The most likely issue to be seen here was the use of '-l1' instead of
+    '-r.', which prints the most recent commit instead of the current checkout.
+    Since tagging in Mercurial creates a new commit, this basically means the
+    data was wrong for every tagged build.
+    
+    This also adds an hgrc config file to the test, with config options to
+    keep the time and author values fixed.  It's what's used in the Mercurial
+    test harness to keep the commit hashes stable, and allows the tests here to
+    also match the time and the revision ID, to prevent regressing.
+    
+    Fixes #63532
+    
+    Change-Id: I5b9971ce87c83431ec77e4a002bdc33fcf393856
+    GitHub-Last-Rev: 62c9db0a28fee5881d0fe49f7bbb6e1653c7ff60
+    GitHub-Pull-Request: golang/go#63557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535377
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go                     | 13 ++++++--
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 39 ++++++++++++++++++----
+ 2 files changed, 43 insertions(+), 9 deletions(-)

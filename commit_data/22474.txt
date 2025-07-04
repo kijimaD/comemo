@@ -1,0 +1,13 @@
+commit 8543cc56354c6b523ad7f43a06b8ffad0a539ebd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 13 14:54:36 2015 -0400
+
+    misc/cgo/testcarchive: avoid bad pointer passing
+    
+    Change-Id: Ifbcc0eb24834f2f7d3b160d1dc911209723d9797
+    Reviewed-on: https://go-review.googlesource.com/8863
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/main.c     | 10 ++++------
+ misc/cgo/testcarchive/src/p/p.go |  2 +-
+ 2 files changed, 5 insertions(+), 7 deletions(-)

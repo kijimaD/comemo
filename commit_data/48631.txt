@@ -1,0 +1,15 @@
+commit a4ffeb9edd23e1edbea87eb9ebd8cbb84fad6efa
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon Dec 6 11:46:57 2021 +0300
+
+    cmd/compile: use opregreg for x86.AXOR* ops
+    
+    Change-Id: Id087d86261744559685c687aa7bad6c55466f1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369020
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Alex Rakoczy <alex@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 24 ++++--------------------
+ 1 file changed, 4 insertions(+), 20 deletions(-)

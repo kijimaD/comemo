@@ -1,0 +1,19 @@
+commit 97ce98ac203e76fc1a1e902226277dc00456b41b
+Author: Mostafa Solati <mostafa.solati@gmail.com>
+Date:   Tue Aug 3 01:55:49 2021 +0430
+
+    cmd/go: do not ignore flags option with bad quoting
+    
+    Fixes #43177
+    
+    Change-Id: I7d8ef8dee0dcade3cc88fc6423e23f41d1f8ffb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339289
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/flag.go                | 3 +++
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 4 ++++
+ 2 files changed, 7 insertions(+)

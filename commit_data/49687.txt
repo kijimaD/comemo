@@ -1,0 +1,20 @@
+commit 27038b70f860e29fdf472ac5fb208b6ad9598c10
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Jul 31 17:20:26 2022 +0800
+
+    cmd/compile: fix wrong dict pass condition for type assertions
+    
+    Fixes #54135
+    
+    Change-Id: I2b27af8124014b2699ea44bdc765e1fb8f6c8028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420394
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/typeparam/issue54135.go              | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

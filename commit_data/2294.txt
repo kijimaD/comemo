@@ -1,0 +1,30 @@
+commit ca2fe5d8bd77b1a159baddde66f8f6ca5e731be2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 22:43:57 2009 -0700
+
+    Automated g4 rollback of changelist 29302.
+    
+    *** Reason for rollback ***
+    
+    too many files included
+    
+    *** Original change description ***
+    
+    simplifying grammar: delete LBASETYPE and LACONST
+    
+    R=ken
+    OCL=29303
+    CL=29303
+
+ src/cmd/gc/align.c       |   2 +-
+ src/cmd/gc/dcl.c         |  16 ++-----
+ src/cmd/gc/export.c      |  11 +++--
+ src/cmd/gc/go.y          |  35 ++++++++++++--
+ src/cmd/gc/lex.c         |  41 +++++++++-------
+ src/lib/Make.deps        |   4 +-
+ src/lib/bufio/bufio.go   |   8 ++--
+ src/lib/io/io.go         |  14 +-----
+ src/lib/io/pipe.go       |  86 ++++++++++-----------------------
+ src/lib/runtime/types.go | 121 -----------------------------------------------
+ src/lib/sync/mutex.go    |  22 ++++-----
+ 11 files changed, 109 insertions(+), 251 deletions(-)

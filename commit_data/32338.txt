@@ -1,0 +1,29 @@
+commit 541f8fef30adf62a2032b6e275e95507b00feb52
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Wed Aug 16 16:51:22 2017 -0600
+
+    cmd/go: add fossil to general server regexp in get
+    
+    Fix a missed change from:
+    
+    https://golang.org/cl/56190
+    
+    pointed out on the fossil mailing list shortly after submission
+    of the change mentioned above.  See:
+    
+    http://www.mail-archive.com/fossil-users@lists.fossil-scm.org/msg25736.html
+    
+    This change adds fossil to the general regular expression that is checked last
+    in the import path check.
+    
+    For #10010
+    
+    Change-Id: I6b711cdb1a8d4d767f61e1e28dc29dce529e0fad
+    Reviewed-on: https://go-review.googlesource.com/56491
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

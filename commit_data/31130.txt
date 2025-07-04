@@ -1,0 +1,20 @@
+commit ab9db51e1cf651c0d6d5b56dfd0d9d452f176726
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 15:02:02 2017 -0400
+
+    runtime: rename mspan.stackfreelist -> manualFreeList
+    
+    We're going to use this free list for other types of manually-managed
+    memory in the heap.
+    
+    For #19325.
+    
+    Change-Id: Ib7e682295133eabfddf3a84f44db43d937bfdd9c
+    Reviewed-on: https://go-review.googlesource.com/38575
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go |  9 +++++----
+ src/runtime/stack.go | 24 ++++++++++++------------
+ 2 files changed, 17 insertions(+), 16 deletions(-)

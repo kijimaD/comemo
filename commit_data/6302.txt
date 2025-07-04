@@ -1,0 +1,12 @@
+commit 7757fcc17afa1bc512784ab4dc4622d0057be7e6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 17 12:39:01 2010 +1000
+
+    doc: fix typo in go_for_cpp_programmers.html
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/2191043
+
+ doc/go_for_cpp_programmers.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

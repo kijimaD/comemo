@@ -1,0 +1,12 @@
+commit d55370760f3d77a4d8717ffec17da5314034ad67
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 22 00:04:04 2009 -0700
+
+    allow "comma ok" in initializers
+    
+    DELTA=11  (4 added, 0 deleted, 7 changed)
+    OCL=33698
+    CL=33712
+
+ doc/go_spec.html | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

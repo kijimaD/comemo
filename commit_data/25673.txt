@@ -1,0 +1,20 @@
+commit 09940b92a08203aa3d2baa90fc29b80ccfcb32c5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 26 14:44:58 2016 -0500
+
+    runtime: make p.gcBgMarkWorker a guintptr
+    
+    Currently p.gcBgMarkWorker is a *g. Change it to a guintptr. This
+    eliminates a write barrier during the subtle mark worker parking dance
+    (which isn't known to be causing problems, but may).
+    
+    Change-Id: Ibf12c05ac910820448059e69a68e5b882c993ed8
+    Reviewed-on: https://go-review.googlesource.com/18970
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go      | 17 ++++++-----------
+ src/runtime/proc.go     | 14 +++++++-------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 14 insertions(+), 19 deletions(-)

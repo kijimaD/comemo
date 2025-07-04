@@ -1,0 +1,26 @@
+commit be26ca972d2149df09e70789fdf284da01c5e9d8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 7 09:54:44 2022 -0500
+
+    syscall: in TestDirent, make as many ReadDirent calls as are needed
+    
+    ReadDirent returns only as many directory entries as will fit in the
+    buffer, and each entry is variable-length — so we have no guarantee in
+    general that a buffer of a given arbitrary size can hold even one
+    entry, let alone all ten entries expected by the test.
+    
+    Instead, iterate calls to ReadDirent until one of the calls returns
+    zero entries and no error, indicating that the directory has been read
+    to completion.
+    
+    Fixes #37323
+    
+    Change-Id: I7f1cedde7666107256604e4ea1ac13c71f22151a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376334
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/dirent_test.go | 39 +++++++++++++++++++++++++++------------
+ 1 file changed, 27 insertions(+), 12 deletions(-)

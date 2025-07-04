@@ -1,0 +1,33 @@
+commit 5916bc5b5796e8fd15f3b4e95c945f5f4933e1d5
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 12 16:00:26 2025 -0700
+
+    runtime, time: don't use monotonic clock inside synctest bubbles
+    
+    Don't include a monotonic time in time.Times created inside
+    a bubble, to avoid the confusion of different Times using
+    different monotonic clock epochs.
+    
+    For #67434
+    
+    goos: darwin
+    goarch: arm64
+    pkg: time
+    cpu: Apple M1 Pro
+             │ /tmp/bench.0 │            /tmp/bench.1            │
+             │    sec/op    │   sec/op     vs base               │
+    Since-10    18.42n ± 2%   18.68n ± 1%       ~ (p=0.101 n=10)
+    Until-10    18.28n ± 2%   18.46n ± 2%  +0.98% (p=0.009 n=10)
+    geomean     18.35n        18.57n       +1.20%
+    
+    Change-Id: Iaf1b80d0a4df52139c5b80d4bde4410ef8a49f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/synctest/synctest_test.go | 21 +++++++++++++++++++++
+ src/runtime/time.go                    | 13 ++++++++++++-
+ src/time/time.go                       |  7 +++++--
+ src/time/time_test.go                  | 14 ++++++++++++++
+ 4 files changed, 52 insertions(+), 3 deletions(-)

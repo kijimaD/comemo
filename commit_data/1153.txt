@@ -1,0 +1,15 @@
+commit 4656686cf510469d6c6d6be77a123e5dbf7ec9ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 09:32:05 2008 -0800
+
+    use correct lineno in nod even if yacc has looked ahead.
+    makes lineno correct for statements without semicolons.
+    
+    R=ken
+    OCL=19454
+    CL=19454
+
+ src/cmd/gc/go.h   | 1 +
+ src/cmd/gc/lex.c  | 2 ++
+ src/cmd/gc/subr.c | 6 +++++-
+ 3 files changed, 8 insertions(+), 1 deletion(-)

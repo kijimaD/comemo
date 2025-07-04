@@ -1,0 +1,19 @@
+commit 0b81c023a722304304539cdbb0c6229bca481b09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 18:29:49 2017 +0000
+
+    os: clarify behavior of TempDir
+    
+    Fixes #19695
+    
+    Change-Id: Ie5103f7905969e25dba6e5fb37344b70e807fc69
+    Reviewed-on: https://go-review.googlesource.com/45702
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go         | 13 +++++++++++++
+ src/os/file_plan9.go   |  3 +--
+ src/os/file_unix.go    |  3 +--
+ src/os/file_windows.go |  3 +--
+ 4 files changed, 16 insertions(+), 6 deletions(-)

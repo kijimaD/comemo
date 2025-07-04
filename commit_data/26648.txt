@@ -1,0 +1,14 @@
+commit f76b793784cc8c89ca1b28002846a8cd76a90fb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 00:41:54 2016 -0700
+
+    net/http/httputil: deprecate Client+ServerConn harder, use Deprecated syntax
+    
+    Also cleans up return parameter stutter and missing periods.
+    
+    Change-Id: I47f5c230227ddfd1b105d5e06842f89ffea50760
+    Reviewed-on: https://go-review.googlesource.com/21362
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/httputil/persist.go | 71 +++++++++++++++++++---------------------
+ 1 file changed, 34 insertions(+), 37 deletions(-)

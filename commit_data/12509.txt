@@ -1,0 +1,12 @@
+commit 2b8a7adde89066f8e52228ee3a0242c5b7c33af8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 8 17:06:53 2012 +1100
+
+    go/build: do not parse .syso files
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5786049
+
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

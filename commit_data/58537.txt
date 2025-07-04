@@ -1,0 +1,22 @@
+commit 475e08349d48b172285fc8629ef1622136ee8173
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jan 27 09:11:36 2025 -0800
+
+    Revert "runtime: Check LSE support on ARM64 at runtime init"
+    
+    This reverts CL 610195.
+    
+    Reason for revert: SIGILL on macOS. See issue #71411.
+    
+    Updates #69124, #60905.
+    Fixes #71411.
+    
+    Change-Id: Ie0624e516dfb32fb13563327bcd7f557e5cba940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/runtime/asm_arm64.s | 37 -------------------------------------
+ 1 file changed, 37 deletions(-)

@@ -1,0 +1,15 @@
+commit e7488b2189c6a0628f7df45bc84c565f185af04d
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Tue Sep 30 13:38:48 2014 -0700
+
+    x509: Fixed ASN.1 encoding in CRL Distribution Points extension
+    
+    The ASN.1 encoding of the CRL Distribution Points extension showed an invalid false 'IsCompound' which caused a display problem in the Windows certificate viewer.
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/143320043
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

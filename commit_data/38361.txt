@@ -1,0 +1,22 @@
+commit a85afef27726b5870e02e50f8e210e0f16f89981
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Mar 11 03:51:06 2019 +0000
+
+    cmd/compile: add handling for new floating-point comparisons flags
+    
+    The CL 164718 adds new condition flags for floating-point comparisons
+    in arm64 backend, but dose not add the handling in rewrite.go for
+    corresponding Ops, which causes issue 30679. And this CL fixes this
+    issue.
+    
+    Fixes #30679
+    
+    Change-Id: I8acc749f78227c3e9e74fa7938f05fb442fb62c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166579
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
+ test/fixedbugs/issue30679.go            | 18 ++++++++++++++++++
+ 2 files changed, 34 insertions(+)

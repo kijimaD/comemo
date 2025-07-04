@@ -1,0 +1,22 @@
+commit 190357d560b2bf4421c1819ebb9afe7aa175785c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 10:30:47 2015 -0500
+
+    cmd/dist, cmd/go: move textdata.h, funcdata.h from pkg/GOOS_GOARCH to pkg/include
+    
+    There's no point to having them in every GOOS_GOARCH directory,
+    since they are neither GOOS- nor GOARCH-specific.
+    (There used to be other headers that were.)
+    
+    This makes building for additional toolchains easier:
+    no need to run make.bash at all.
+    
+    Fixes #10049.
+    
+    Change-Id: I710ecaafd7a5c8cad85ccd595ea9cb6058f553b3
+    Reviewed-on: https://go-review.googlesource.com/6471
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/build.go | 7 ++++---
+ src/cmd/go/build.go   | 4 ++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

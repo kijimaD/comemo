@@ -1,0 +1,18 @@
+commit f041c7e3028545ba39c60d6e20ab9b74c01bbf33
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 23:29:25 2021 -0500
+
+    go/types: remove structuralString in favor of inlined code
+    
+    This is a clean port of CL 363154 from types2 to go/types.
+    
+    Change-Id: I26c18767041db096390e84ba9200ec69b66778d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364234
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go | 21 ++++++++++++++++++++-
+ src/go/types/type.go     | 24 ------------------------
+ 2 files changed, 20 insertions(+), 25 deletions(-)

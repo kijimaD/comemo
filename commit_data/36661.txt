@@ -1,0 +1,23 @@
+commit 9f59918cae5eb23fdf0135b77280907365b52069
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 13 12:18:09 2018 -0700
+
+    path/filepath: correct symlink eval for symlink at root
+    
+    For a relative symlink in the root directory, such as /tmp ->
+    private/tmp, we were dropping the leading slash.
+    
+    No test because we can't create a symlink in the root directory.
+    The test TestGZIPFilesHaveZeroMTimes was failing on the Darwin builders.
+    
+    Updates #19922
+    Updates #20506
+    
+    Change-Id: Ic83cb6d97ad0cb628fc551ac772a44fb3e20f038
+    Reviewed-on: https://go-review.googlesource.com/135295
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/path/filepath/symlink.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

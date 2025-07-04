@@ -1,0 +1,19 @@
+commit 07d344e44260855eb8ee18f4265813a510c11f14
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 16:16:52 2009 -0800
+
+    remove export name-list statement.
+    make package local the default.
+    warn about name case not matching export keyword.
+    
+    R=ken
+    OCL=22881
+    CL=22886
+
+ src/cmd/6g/gsubr.c  |  4 ----
+ src/cmd/gc/dcl.c    |  9 +++------
+ src/cmd/gc/export.c | 33 ++++++++++++++++++++++++++++++++-
+ src/cmd/gc/go.h     |  4 ++--
+ src/cmd/gc/go.y     | 13 ++++---------
+ src/run.bash        | 10 +++++-----
+ 6 files changed, 46 insertions(+), 27 deletions(-)

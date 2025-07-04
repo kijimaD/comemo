@@ -1,0 +1,19 @@
+commit 4bce6d455f230db670bee0c5126d71dffe119d0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 16:25:06 2009 -0700
+
+    package main
+    func foo(y) { }
+    
+    was:
+    x.go:2: NONAME-y G0 u(1) a(1) l(77) x(-1000000000) is not a type
+    
+    now:
+    x.go:2: y is not a type
+    
+    R=ken
+    OCL=30764
+    CL=30764
+
+ src/cmd/gc/dcl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

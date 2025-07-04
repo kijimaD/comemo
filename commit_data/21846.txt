@@ -1,0 +1,13 @@
+commit c3dc78f30156f30f7ca590c79a3de59baa16726a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 15:38:15 2015 -0800
+
+    math/big: replace Float.NewInf with Float.SetInf for more consistent API
+    
+    Change-Id: I2a60ea4a196eef1af5d2aae6cc239c64bddb6fb2
+    Reviewed-on: https://go-review.googlesource.com/6301
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 17 +++++++++++------
+ src/math/big/float_test.go | 27 ++++++++++++++++++++++++---
+ 2 files changed, 35 insertions(+), 9 deletions(-)

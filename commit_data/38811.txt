@@ -1,0 +1,19 @@
+commit 24a6478be345bce2c551c7f5f287ee1ad6edcbd6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 18 10:05:33 2019 -0700
+
+    cmd/compile: use named fields in newnamel
+    
+    CL 172579 added field names in nodl. See that CL for an explanation.
+    Cuong Manh Le pointed out that we should do the same in newnamel.
+    
+    This cuts 40k off the cmd/compile binary.
+    
+    Change-Id: I427b117531c59630dee36f1257aad8975626b2c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172604
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

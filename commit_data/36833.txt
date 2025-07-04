@@ -1,0 +1,48 @@
+commit cbafcc55e80d5b444e659a892b739c04a27980d3
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Sep 1 20:16:39 2018 -0700
+
+    cmd/compile,runtime: implement stack objects
+    
+    Rework how the compiler+runtime handles stack-allocated variables
+    whose address is taken.
+    
+    Direct references to such variables work as before. References through
+    pointers, however, use a new mechanism. The new mechanism is more
+    precise than the old "ambiguously live" mechanism. It computes liveness
+    at runtime based on the actual references among objects on the stack.
+    
+    Each function records all of its address-taken objects in a FUNCDATA.
+    These are called "stack objects". The runtime then uses that
+    information while scanning a stack to find all of the stack objects on
+    a stack. It then does a mark phase on the stack objects, using all the
+    pointers found on the stack (and ancillary structures, like defer
+    records) as the root set. Only stack objects which are found to be
+    live during this mark phase will be scanned and thus retain any heap
+    objects they point to.
+    
+    A subsequent CL will remove all the "ambiguously live" logic from
+    the compiler, so that the stack object tracing will be required.
+    For this CL, the stack tracing is all redundant with the current
+    ambiguously live logic.
+    
+    Update #22350
+    
+    Change-Id: Ide19f1f71a5b6ec8c4d54f8f66f0e9a98344772f
+    Reviewed-on: https://go-review.googlesource.com/c/134155
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/obj.go  |   5 +-
+ src/cmd/compile/internal/gc/pgen.go |  20 +++
+ src/cmd/compile/internal/gc/ssa.go  |  48 +++++-
+ src/cmd/internal/obj/link.go        |   7 +-
+ src/cmd/internal/objabi/funcdata.go |   1 +
+ src/reflect/all_test.go             |   3 +-
+ src/runtime/funcdata.h              |   1 +
+ src/runtime/mbitmap.go              |  21 ++-
+ src/runtime/mgcmark.go              | 127 ++++++++++++--
+ src/runtime/mgcstack.go             | 330 ++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go                |   2 +-
+ src/runtime/stack.go                |  68 +++++++-
+ src/runtime/symtab.go               |   1 +
+ 13 files changed, 607 insertions(+), 27 deletions(-)

@@ -1,0 +1,21 @@
+commit 0f83fa3a0c306d6eb56535540a4103104bb963ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 15:17:47 2008 -0800
+
+    convert tests.
+    refine gotest's test selection criteria.
+    
+    R=r
+    DELTA=1590  (745 added, 844 deleted, 1 changed)
+    OCL=19903
+    CL=19936
+
+ src/cmd/gotest/gotest                     |   5 +-
+ test/bufiolib.go => src/lib/bufio_test.go | 183 ++++++++------------
+ src/lib/sort_test.go                      | 238 +++++++++++++++++++++++++
+ src/lib/strings_test.go                   |  99 +++++++++++
+ src/lib/time/time_test.go                 |  79 +++++++++
+ test/sorting.go                           | 277 ------------------------------
+ test/stringslib.go                        | 120 -------------
+ test/timelib.go                           |  86 ----------
+ 8 files changed, 494 insertions(+), 593 deletions(-)

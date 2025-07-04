@@ -1,0 +1,39 @@
+commit f428c7b729d3d9b37ed4dacddcd7ff88f4213f70
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu May 23 13:43:20 2024 +0800
+
+    cmd/internal/obj/loong64: add FLDX,FSTX,LDX.STX instructions support
+    
+    The LDX.{B,BU,H,HU,W,WU,D},STX.{B,H,W,D}, FLDX.{S,D}, FSTX.{S,D} instruction
+    on Loong64 implements memory access operations using register offset
+    
+    Go asm syntax:
+            MOV{B,BU,H,HU,W,WU,V}   (RJ)(RK), RD
+            MOV{B,H,W,V}            RD, (RJ)(RK)
+            MOV{F,D}                (RJ)(RK), FD
+            MOV{F,D}                FD, (RJ)(RK)
+    
+    Equivalent platform assembler syntax:
+            ldx.{b,bu,h,hu,w,wu,d}  rd, rj, rk
+            stx.{b,h,w,d}           rd, rj, rk
+            fldx.{s,d}              fd, rj, rk
+            fstx.{s,d}              fd, rj, rk
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ic7d13bf45dab8342f034b6469465e6337a087144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588215
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 23 +++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  1 +
+ src/cmd/internal/obj/loong64/asm.go             | 60 +++++++++++++++++
+ src/cmd/internal/obj/loong64/cnames.go          |  1 +
+ src/cmd/internal/obj/loong64/doc.go             | 86 +++++++++++++++++++++++++
+ 5 files changed, 171 insertions(+)

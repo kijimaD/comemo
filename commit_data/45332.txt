@@ -1,0 +1,23 @@
+commit a6d3dc40c40c8a93e6b8bd641104d7655eb5093b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 16:22:01 2021 -0400
+
+    misc/cgo/testso, misc/cgo/testsovar: fix for Windows
+    
+    At least in mingw-clang it is not permitted to just name a .dll
+    on the command line. You must name the corresponding import
+    library instead, even though the dll is used when the executable
+    is run.
+    
+    This fixes misc/cgo/testso and misc/cgo/testsovar on windows/arm64.
+    
+    Change-Id: I516b6ccba2fe3a9ee2c01e710a71850c4df8522f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312046
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testso/so_test.go           | 4 ++++
+ misc/cgo/testso/testdata/cgoso.go    | 2 +-
+ misc/cgo/testsovar/so_test.go        | 4 ++++
+ misc/cgo/testsovar/testdata/cgoso.go | 2 +-
+ 4 files changed, 10 insertions(+), 2 deletions(-)

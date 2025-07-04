@@ -1,0 +1,19 @@
+commit 21cfadf0dc1e93c339e319c502f14ee42973c44d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 3 16:53:30 2020 -0500
+
+    runtime: avoid receiving preemotion signal while exec'ing
+    
+    The iOS kernel has the same problem as the macOS kernel. Extend
+    the workaround of #41702 (CL 262438 and CL 262817) to iOS.
+    
+    Updates #35851.
+    
+    Change-Id: I7ccec00dc96643c08c5be8b385394856d0fa0f64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275293
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go        |  4 ++--
+ src/runtime/signal_unix.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 9a13f8e11ce487fccef071303164b3d963e6ede6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 28 05:03:09 2017 +0000
+
+    cmd/go/internal/get: consistently have trailing slashes in prefixes
+    
+    Fixes #18122
+    
+    Change-Id: Ib4067422c0c447ddb2c3068dc6217393abc4eed0
+    Reviewed-on: https://go-review.googlesource.com/80175
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/get/vcs.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

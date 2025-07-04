@@ -1,0 +1,18 @@
+commit a48ed66447d13d0a411114eaa987278ce90ab23b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 15:24:29 2013 -0500
+
+    runtime: delete old closure code
+    
+    Step 4 of http://golang.org/s/go11func.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7393049
+
+ src/pkg/runtime/sys_freebsd_arm.s |  13 -----
+ src/pkg/runtime/sys_linux_arm.s   |  10 ----
+ src/pkg/runtime/sys_netbsd_arm.s  |  13 -----
+ src/pkg/runtime/traceback_arm.c   |  39 +--------------
+ src/pkg/runtime/traceback_x86.c   | 103 +-------------------------------------
+ 5 files changed, 3 insertions(+), 175 deletions(-)

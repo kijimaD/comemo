@@ -1,0 +1,13 @@
+commit 8ba4df2e9a742f89640b03b484e3d0251ba7fbd8
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Feb 18 10:58:47 2011 +1100
+
+    6l: pe fixes
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4182061
+
+ src/cmd/6l/pass.c | 2 +-
+ src/cmd/ld/pe.c   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

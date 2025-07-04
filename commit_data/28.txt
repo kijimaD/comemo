@@ -1,0 +1,10 @@
+commit fcf5b15cfe2694fe97bef09d8af6b2408000720f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 12 14:57:03 2008 -0700
+
+    - added more test cases
+    
+    SVN=112271
+
+ tests/test0.go | 36 +++++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)

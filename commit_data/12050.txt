@@ -1,0 +1,33 @@
+commit 13514d4e0b56a2643525582e1f29ca2f62ad4c28
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 17:33:41 2012 +1100
+
+    test/interface: document tests
+    Most already had comments (yay); adjusted for consistency.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5676102
+
+ test/interface/bigdata.go    | 3 +--
+ test/interface/convert.go    | 3 +--
+ test/interface/convert1.go   | 3 +--
+ test/interface/convert2.go   | 3 +--
+ test/interface/embed.go      | 2 +-
+ test/interface/embed0.go     | 2 +-
+ test/interface/embed1.go     | 2 +-
+ test/interface/embed2.go     | 2 +-
+ test/interface/explicit.go   | 3 ++-
+ test/interface/fail.go       | 2 +-
+ test/interface/fake.go       | 2 +-
+ test/interface/noeq.go       | 3 ++-
+ test/interface/pointer.go    | 3 ++-
+ test/interface/private.go    | 3 +++
+ test/interface/private1.go   | 2 ++
+ test/interface/receiver.go   | 4 ++--
+ test/interface/receiver1.go  | 3 ++-
+ test/interface/recursive1.go | 2 ++
+ test/interface/recursive2.go | 2 +-
+ test/interface/returntype.go | 2 +-
+ test/interface/struct.go     | 2 +-
+ 21 files changed, 30 insertions(+), 23 deletions(-)

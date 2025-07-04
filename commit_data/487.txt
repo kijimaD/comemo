@@ -1,0 +1,34 @@
+commit 96824000ed89d13665f6f24ddc10b3bf812e7f47
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 5 14:18:47 2008 -0700
+
+    * comment, clean up scheduler
+    * rewrite lock implementation to be correct
+      (tip: never assume that an algorithm you found
+      in a linux man page is correct.)
+    * delete unneeded void* arg from clone fn
+    * replace Rendez with Note
+    * comment mal better
+    * use 6c -w, fix warnings
+    * mark all assembly functions 7
+    
+    R=r
+    DELTA=828  (338 added, 221 deleted, 269 changed)
+    OCL=13884
+    CL=13886
+
+ src/runtime/Makefile           |   4 +-
+ src/runtime/amd64_linux.h      |   2 +-
+ src/runtime/chan.c             |   4 +-
+ src/runtime/map.c              |   1 -
+ src/runtime/print.c            |   1 -
+ src/runtime/proc.c             | 460 +++++++++++++++++++++++++----------------
+ src/runtime/rt0_amd64.s        |   2 +-
+ src/runtime/rt1_amd64_darwin.c |  32 +--
+ src/runtime/rt1_amd64_linux.c  | 253 ++++++++++++-----------
+ src/runtime/runtime.c          |  70 ++++---
+ src/runtime/runtime.h          |  45 ++--
+ src/runtime/string.c           |   5 -
+ src/runtime/sys_amd64_darwin.s |  29 +--
+ src/runtime/sys_amd64_linux.s  |  58 +++---
+ 14 files changed, 541 insertions(+), 425 deletions(-)

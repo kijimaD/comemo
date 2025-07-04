@@ -1,0 +1,21 @@
+commit d62d8318826e17fff09fb2188dcb22fbb121fb19
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 11:34:16 2015 -0500
+
+    runtime: clean up adjustpointer and eliminate write barrier
+    
+    Commit a5c3bbe modified adjustpointers to use *uintptrs instead of
+    *unsafe.Pointers for manipulating stack pointers for clarity and to
+    eliminate the unnecessary write barrier when writing the updated stack
+    pointer.
+    
+    This commit makes the equivalent change to adjustpointer.
+    
+    Change-Id: I6dc309590b298bdd86ecdc9737db848d6786c3f7
+    Reviewed-on: https://go-review.googlesource.com/17148
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/stack.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

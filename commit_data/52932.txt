@@ -1,0 +1,31 @@
+commit 81a31f5dd542f9a4d656067c9ed3298fcfb6cfea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 3 09:54:46 2023 -0400
+
+    internal/godebug: add bisect support
+    
+    CL 491875 introduces a new bisect command, which we plan to
+    document for use by end users to debug semantic changes in
+    the compiler and in GODEBUGs.
+    
+    This CL adds bisect support to GODEBUGs, at least the ones
+    used via internal/godebug. Support for runtime-internal
+    GODEBUGs like panicnil will take a bit more work in followup CLs.
+    
+    The new API in internal/bisect to support stack-based bisecting
+    should be easily reusable in non-GODEBUG settings as well,
+    once we finalize and export the API.
+    
+    Change-Id: I6cf779c775329aceb3f3b2b2b2f221ce8a67deee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491975
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/base/hashdebug.go |   6 +-
+ src/go/build/deps_test.go                  |   1 +
+ src/internal/bisect/bisect.go              | 326 +++++++++++++++++++++++++----
+ src/internal/bisect/bisect_test.go         |  35 ----
+ src/internal/godebug/godebug.go            |  52 ++++-
+ src/internal/godebug/godebug_test.go       |  59 ++++++
+ 6 files changed, 399 insertions(+), 80 deletions(-)

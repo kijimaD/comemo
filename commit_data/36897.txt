@@ -1,0 +1,23 @@
+commit e99082fc409234ebfe4683f488c9b1f41278cf0a
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon Oct 8 17:52:52 2018 +0200
+
+    misc/wasm: fix fs operations in browser
+    
+    The commit 0e4c013 changed the syscall package so it uses the
+    asynchronous functions of Node.js's fs module.
+    
+    This commit adapts the stubs of the fs module which are used when using
+    a browser instead of Node.js.
+    
+    Fixes #28068.
+    
+    Change-Id: Ic3a6a8aebb0db06402383bc2fea7642a4501e02c
+    Reviewed-on: https://go-review.googlesource.com/c/140537
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

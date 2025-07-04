@@ -1,0 +1,14 @@
+commit dcf5ca706b6faef942d49e7637aa926ba76139a3
+Author: Daniel Krech <eikeon@eikeon.com>
+Date:   Mon Feb 13 23:46:31 2012 -0500
+
+    cmd/go: go get scheme detection
+    
+    Fixes #2895.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5651055
+
+ src/cmd/go/vcs.go | 50 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 44 insertions(+), 6 deletions(-)

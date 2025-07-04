@@ -1,0 +1,17 @@
+commit e149624ebb00a2fcc59bc02b9f122e3c4bae6e9c
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 27 14:24:26 2016 -0400
+
+    cmd/compile/internal/gc: gofmt
+    
+    Commit 36a80c5 introduced formatting errors.
+    
+    Change-Id: I6d5b231200cd7abcd5b94c1a3f4e99f10ee11c4f
+    Reviewed-on: https://go-review.googlesource.com/23513
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     |  7 +++----
+ src/cmd/compile/internal/gc/syntax.go  | 20 ++++++++++----------
+ 3 files changed, 14 insertions(+), 15 deletions(-)

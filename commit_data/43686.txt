@@ -1,0 +1,17 @@
+commit ebc1b8ef2854e7006349275bc3b2306022200bbc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 22 21:52:50 2020 +0700
+
+    reflect: update NumMethod doc for interface type
+    
+    Updates #42123
+    
+    Change-Id: Ieb43b65c88d15b2475b6f3dd9672c44e7831cc34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264357
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/type.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

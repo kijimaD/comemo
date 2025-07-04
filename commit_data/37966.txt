@@ -1,0 +1,26 @@
+commit 6fa1336531b0d1dac2b18123d74bcec4e0defdd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 18:10:54 2019 -0800
+
+    go/types: permit signed integer shift count
+    
+    Permit shifts by non-constant signed integer shift counts.
+    Share logic for constant shift counts in non-constant
+    shifts and improve error messages a little bit.
+    
+    R=Go1.13
+    
+    Updates #19113.
+    
+    Change-Id: Ia01d83ca8aa60a6a3f4c49f026e0c46396f852be
+    Reviewed-on: https://go-review.googlesource.com/c/159317
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go             | 37 +++++++++++++++++++------------------
+ src/go/types/stdlib_test.go      |  1 +
+ src/go/types/testdata/decls1.src |  4 ++--
+ src/go/types/testdata/expr1.src  |  8 ++++----
+ src/go/types/testdata/shifts.src | 26 ++++++++++++++++++++------
+ 5 files changed, 46 insertions(+), 30 deletions(-)

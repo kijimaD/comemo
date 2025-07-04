@@ -1,0 +1,23 @@
+commit 57e2eb64ebdd441356eb3fb57bc06636cbfa58c0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 12 16:54:32 2023 -0400
+
+    cmd/link: pass flags to external linker in deterministic order
+    
+    Currently we may pass C linker flags in nondeterministic order,
+    as on ELf systems we pass --export-dynamic-symbol for symbols from
+    a map. This is usally not a big problem because even if the flags
+    are passed in nondeterministic order the resulting binary is
+    probably still deterministic. This CL makes it pass them in a
+    deterministic order to be extra sure. This also helps build
+    systems where e.g. there is a build cache for the C linking action.
+    
+    Change-Id: I930524dd2c3387f49d62be7ad2cef937cb2c2238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509215
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go |  6 +++-
+ src/cmd/link/link_test.go       | 80 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 1 deletion(-)

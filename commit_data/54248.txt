@@ -1,0 +1,18 @@
+commit 92f7209ebd11566c846032d021c1b2d18bd57843
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 26 13:32:09 2023 +0100
+
+    log/slog: fix documented value type for SourceKey
+    
+    Fixes #62294
+    
+    Change-Id: I5df0d8bdf5ae8bc11ffa0e66e3e8776fd3e565a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523195
+    Run-TryBot: Sean Liao <sean@liao.dev>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/log/slog/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 033299fab66b08d434be30e05d11f7db63efa71c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 4 11:40:03 2019 +0200
+
+    all: add a space before +build in build tag comments
+    
+    Add a space before build tag comments so it corresponds to the format
+    documented at https://golang.org/pkg/go/build/.
+    
+    Change-Id: I8349d0343597e304b97fb5479847231ed8945b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193237
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/testgo.go              | 2 +-
+ src/cmd/go/internal/renameio/renameio_test.go      | 2 +-
+ src/cmd/go/internal/renameio/umask_test.go         | 2 +-
+ src/cmd/go/internal/robustio/robustio_other.go     | 2 +-
+ src/cmd/go/internal/web/url_other.go               | 2 +-
+ src/cmd/go/internal/web/url_other_test.go          | 2 +-
+ src/cmd/go/testdata/script/test_compile_binary.txt | 2 +-
+ src/runtime/semasleep_test.go                      | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)

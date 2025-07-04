@@ -1,0 +1,17 @@
+commit cab83650d17c004e041ba8f3f6ace1f2a125f9d8
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Tue Dec 7 16:16:01 2010 -0500
+
+    gc: skip undefined symbols in import .
+    
+    Fixes #1284.
+    
+    R=ken3, rsc
+    CC=golang-dev
+    https://golang.org/cl/3210041
+
+ src/cmd/gc/subr.c              |  2 ++
+ test/fixedbugs/bug313.dir/a.go | 11 +++++++++++
+ test/fixedbugs/bug313.dir/b.go | 11 +++++++++++
+ test/fixedbugs/bug313.go       | 19 +++++++++++++++++++
+ 4 files changed, 43 insertions(+)

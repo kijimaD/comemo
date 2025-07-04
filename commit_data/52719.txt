@@ -1,0 +1,28 @@
+commit 54d429999c00f277c80b5698fb78c7b71f91aad9
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 5 16:06:36 2023 -0700
+
+    context: add AfterFunc
+    
+    Add an AfterFunc function, which registers a function to run after
+    a context has been canceled.
+    
+    Add support for contexts that implement an AfterFunc method, which
+    can be used to avoid the need to start a new goroutine watching
+    the Done channel when propagating cancellation signals.
+    
+    Fixes #57928
+    
+    Change-Id: If0b2cdcc4332961276a1ff57311338e74916259c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+
+ api/next/57928.txt            |   1 +
+ src/context/afterfunc_test.go | 141 +++++++++++++++++++++++++++++++++++
+ src/context/context.go        | 167 +++++++++++++++++++++++++++++++-----------
+ src/context/context_test.go   |  26 ++++++-
+ src/context/example_test.go   | 104 ++++++++++++++++++++++++++
+ src/context/x_test.go         | 138 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 533 insertions(+), 44 deletions(-)

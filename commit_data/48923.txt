@@ -1,0 +1,20 @@
+commit f0ee7fda636408b4f04ca3f3b11788f662c90610
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Apr 19 06:26:53 2022 -0400
+
+    crypto/tls: remove tls10default GODEBUG flag
+    
+    Updates #45428
+    
+    Change-Id: Ic2ff459e6a3f1e8ded2a770c11d34067c0b39a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400974
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Auto-Submit: Filippo Valsorda <valsorda@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.19.html                         | 10 ++++++++++
+ src/crypto/tls/common.go                |  6 +-----
+ src/crypto/tls/handshake_server_test.go | 10 ----------
+ 3 files changed, 11 insertions(+), 15 deletions(-)

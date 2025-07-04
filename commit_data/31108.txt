@@ -1,0 +1,18 @@
+commit 2e60882fc780378af58c12d82ff7f62ed88f4ee0
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 12 20:57:13 2017 +0200
+
+    cmd/compile: do not print duplicate error on ideal->float{32,64} overflow
+    
+    Also adjust truncfltlit to make it more similar to trunccmplxlit, and
+    make it report an error for bad Etypes.
+    
+    Fixes #19947
+    
+    Change-Id: I6684523e989c2293b8a8e85bd2bfb9c399c5ea36
+    Reviewed-on: https://go-review.googlesource.com/40453
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 31 ++++++++++++++++---------------
+ test/fixedbugs/issue19947.go         | 15 +++++++++++++++
+ 2 files changed, 31 insertions(+), 15 deletions(-)

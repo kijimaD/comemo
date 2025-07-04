@@ -1,0 +1,13 @@
+commit 6f91ba1b0fcbcdd551722ae2c292e979896325f3
+Author: Kai Backman <kaib@golang.org>
+Date:   Sun Oct 25 11:51:16 2009 -0700
+
+    proper syscall convention for arm
+    
+    R=rsc
+    http://go/go-review/1015009
+
+ src/pkg/runtime/linux/arm/sys.s      | 4 ++--
+ src/pkg/syscall/asm_linux_arm.s      | 9 +++------
+ src/pkg/syscall/zsysnum_linux_arm.go | 4 +---
+ 3 files changed, 6 insertions(+), 11 deletions(-)

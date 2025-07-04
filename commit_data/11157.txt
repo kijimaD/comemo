@@ -1,0 +1,15 @@
+commit a5950df89e129e93f76aa8391f84beb460ef82be
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 13 14:09:13 2012 -0800
+
+    template: for range on a map, sort the keys if feasible.
+    Fixes #2696.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5543055
+
+ src/pkg/text/template/doc.go       |  4 +++-
+ src/pkg/text/template/exec.go      | 44 +++++++++++++++++++++++++++++++++++++-
+ src/pkg/text/template/exec_test.go | 17 ++-------------
+ 3 files changed, 48 insertions(+), 17 deletions(-)

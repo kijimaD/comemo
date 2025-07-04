@@ -1,0 +1,22 @@
+commit cf4691650c3c556f19844a881a32792a919ee8d1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 13 15:07:56 2019 -0500
+
+    cmd/go: change the default value of GO111MODULE to 'on'
+    
+    Fixes #30228
+    
+    Change-Id: Ie45ba6483849b843eb6605272f686b9deffe5e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162698
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
+ src/cmd/go/help_test.go                           |   5 +
+ src/cmd/go/internal/help/help.go                  |   7 +-
+ src/cmd/go/internal/modload/help.go               |  39 +--
+ src/cmd/go/internal/modload/init.go               |  35 +--
+ src/cmd/go/main.go                                |  15 +-
+ src/cmd/go/mkalldocs.sh                           |   2 +-
+ src/cmd/go/testdata/script/mod_find.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 +
+ 9 files changed, 210 insertions(+), 232 deletions(-)

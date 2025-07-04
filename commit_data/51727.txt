@@ -1,0 +1,17 @@
+commit 9411075748e305d0b31372cab48bc4ca2dd745fb
+Author: j2gg0s <j2gg0s@gmail.com>
+Date:   Wed Jan 18 15:08:29 2023 +0000
+
+    runtime: remove duplicate check of work.full in gcMark.
+    
+    Change-Id: I659669d7259e7cf73f730232cda11d8525a4aabc
+    GitHub-Last-Rev: 5d183e81285aba64f1f76e5bddbe2f0ae012b138
+    GitHub-Pull-Request: golang/go#57901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462281
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go | 3 ---
+ 1 file changed, 3 deletions(-)

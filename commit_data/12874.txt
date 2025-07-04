@@ -1,0 +1,19 @@
+commit 1a59e6239ccf6b354bdf2a3763ad9c8e4aded7f9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 11 04:11:27 2012 +0800
+
+    5l, runtime: remove softfloat emulation code when not used
+    This leads to ~30kB improvement on code size for ARM machines with VFP/NEON.
+    Example: go test -c math
+           GOARM=5  GOARM=6
+      Old: 1884200  1839144
+      New: 1884165  1805245
+      -:        35    33899
+    
+    R=rsc, bradfitz, dave, kai.backman
+    CC=golang-dev
+    https://golang.org/cl/5975060
+
+ src/cmd/5l/obj.c          | 14 +++-----------
+ src/pkg/runtime/asm_arm.s | 11 -----------
+ 2 files changed, 3 insertions(+), 22 deletions(-)

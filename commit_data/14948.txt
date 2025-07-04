@@ -1,0 +1,14 @@
+commit f8284b64cecf38338cf62ddc6398c0a9fe655326
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 22 14:00:10 2013 -0500
+
+    doc/effective_go.html: add a section about the blank identifier
+    
+    R=golang-dev, minux.ma, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/7134056
+
+ doc/effective_go.html | 150 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/progs/unused1.go  |  12 ++++
+ doc/progs/unused2.go  |  16 ++++++
+ 3 files changed, 178 insertions(+)

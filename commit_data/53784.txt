@@ -1,0 +1,44 @@
+commit 3afa5daabd6245be0c03b6e666f93835e32d7f7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 21 13:31:10 2023 -0400
+
+    cmd/distpack: sort files in standard walk order
+    
+    The code was sorting files in the archives entirely by path string,
+    but that's not what fs.WalkDir would do. In a directory with
+    subdirectory foo/bar and file foo/bar.go, foo/bar gets visited
+    first, so foo/bar/baz appears before foo/bar.go, even though
+    "foo/bar/baz" > "foo/bar.go".
+    
+    This CL replaces the string comparison with a path-aware
+    comparison that places foo/bar/baz before foo/bar.go,
+    so that if the tar file is extracted and then repacked using
+    fs.WalkDir, the files will remain in the same order.
+    
+    This will make it easier to compare the pristine distpack-produced
+    tgz for darwin against the rebuilt tgz with signed binaries.
+    
+    Before:
+    % tar tzvf /tmp/cmddist.tgz | grep -C1 runtime/cgo.go
+    -rw-r--r--  0 0      0       11122 Jul 13 15:00 go/src/runtime/callers_test.go
+    -rw-r--r--  0 0      0        2416 Jul 13 15:00 go/src/runtime/cgo.go
+    -rw-r--r--  0 0      0        2795 Jul 13 15:00 go/src/runtime/cgo/abi_amd64.h
+    
+    After:
+    % tar tzvf pkg/distpack/go1.21rsc.src.tar.gz | grep -C1 runtime/cgo.go
+    -rw-r--r--  0 0      0        1848 Dec 31  1969 go/src/runtime/cgo/signal_ios_arm64.s
+    -rw-r--r--  0 0      0        2416 Dec 31  1969 go/src/runtime/cgo.go
+    -rw-r--r--  0 0      0        2479 Dec 31  1969 go/src/runtime/cgo_mmap.go
+    
+    For #24904.
+    For #61513.
+    
+    Change-Id: Ib7374bc0d6324377f81c561bef57fd87b2111b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511977
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/distpack/archive.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

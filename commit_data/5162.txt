@@ -1,0 +1,14 @@
+commit 71f5fa31114721f9788d9f618071be8a333e7213
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 10:34:16 2010 -0700
+
+    bug265: test case for issue 700
+    ( http://code.google.com/p/go/issues/detail?id=700 )
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/827042
+
+ test/bugs/bug265.go | 22 ++++++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 25 insertions(+)

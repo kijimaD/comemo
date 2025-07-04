@@ -1,0 +1,13 @@
+commit 13f3149a01b04e4c21196f49cac1e42e6a832408
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 13:32:14 2008 -0700
+
+    more helpful messages for name-related syntax errors.
+    
+    R=ken
+    OCL=15477
+    CL=15479
+
+ src/cmd/gc/go.y   | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c |  2 +-
+ 2 files changed, 56 insertions(+), 1 deletion(-)

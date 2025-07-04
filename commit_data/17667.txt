@@ -1,0 +1,16 @@
+commit 3ec600d0ca0b7a8ee6af0620fc48b7185595492d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Sep 22 10:56:06 2013 -0700
+
+    runtime/race: update runtime to r191161.
+    Fixes #6305.
+    
+    R=golang-dev, dave, alex.brainman, r
+    CC=golang-dev
+    https://golang.org/cl/13359046
+
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 186024 -> 192988 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 187616 -> 195144 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 160595 -> 161295 bytes
+ 4 files changed, 1 insertion(+), 1 deletion(-)

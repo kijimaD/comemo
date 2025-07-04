@@ -1,0 +1,12 @@
+commit cf1f044251ea6e6c999566871a9f4b2a3d627d20
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Apr 6 04:19:35 2012 +0800
+
+    crypto/aes: add benchmarks for decryption and key expansion
+    
+    R=agl, rsc, fullung
+    CC=golang-dev
+    https://golang.org/cl/5972056
+
+ src/pkg/crypto/aes/aes_test.go | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

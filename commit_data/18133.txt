@@ -1,0 +1,21 @@
+commit 0ea20bc981b2135cd67e7ff4ec71c05214bccc52
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 30 12:14:27 2013 -0800
+
+    cmd/6g: inline copies of up to 4 words in length.
+    
+    This change fixes a serious performance regression
+    with reflect.Value growing to 4 words instead of 3.
+    The json benchmark was ~50% slower, with this change
+    it is ~5% slower (and the binary is 0.5% larger).
+    
+    Longer term, we probably need to rethink our copy
+    generation.  Using REP is really expensive time-wise.
+    But inlining the copy grows the binary.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/44990043
+
+ src/cmd/6g/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

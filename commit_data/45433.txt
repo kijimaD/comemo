@@ -1,0 +1,30 @@
+commit 5a8435d701c1c8c39f403942d4f6a0ac065635db
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Apr 29 11:42:35 2021 -0400
+
+    go/types: add additional test data from types2
+    
+    Add some test data files that were not included in go/types.
+    
+    - Issue 43125 only pertained to types2 because go/ast differentiates
+      StarExpr, UnaryExpr, and BinaryExpr, so typexpr.go was already
+      catching the invalid type expressions.
+    - Issues 42987 and 43190 are handled differently by go/parser.
+    - main.go2 was not added when ported to go/types, because this work
+      happened on the dev.regabi branch, which didn't support generics.
+    
+    Test files are modified to adjust errors messages and positions, and to
+    update the copyright year.
+    
+    Change-Id: Ia737eaab9afb2b59600b661ccf3eec3cbbb2d66c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315070
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/testdata/check/main.go2           |  7 +++++++
+ src/go/types/testdata/fixedbugs/issue42987.src | 10 ++++++++++
+ src/go/types/testdata/fixedbugs/issue43125.src |  8 ++++++++
+ src/go/types/testdata/fixedbugs/issue43190.src | 22 ++++++++++++++++++++++
+ 4 files changed, 47 insertions(+)

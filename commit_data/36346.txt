@@ -1,0 +1,12 @@
+commit 77c575d2e2cc320b62cbbdefbc6840a8cff2163c
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Jul 30 18:59:08 2018 -0300
+
+    net/http: remove unnecessary return
+    
+    Change-Id: I93bc5de6bcb23c2639d7c2f3f5252fb6f09ca6e4
+    Reviewed-on: https://go-review.googlesource.com/126797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6ccebe082fa311e06216707717fbd3887052eea6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 12:54:38 2009 -0700
+
+    use full path on command line when compiling,
+    so that gdb shows full path in stack traces.
+    
+    R=r
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=32522
+    CL=32528
+
+ src/Make.conf | 4 ++++
+ 1 file changed, 4 insertions(+)

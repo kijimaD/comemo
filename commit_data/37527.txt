@@ -1,0 +1,37 @@
+commit 04e12a5bfa51777c4ba46ed2e026f53578206754
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 15 15:52:01 2018 -0400
+
+    cmd/go/internal/modfetch: lock files and directories
+    
+    We employ the following new locking mechanisms:
+    
+    • Zip files and list files within the module cache are written using
+      atomic renames of temporary files, so that GOPROXY servers reading
+      from the cache will never serve incomplete content.
+    
+    • A lock file for each module version guards downloading and extraction of
+      (immutable) module contents.
+    
+    • A lock file alongside each version list (named 'list.lock')
+      guards updates to the list.
+    
+    • A single lock file in the module cache guards updates to all go.sum
+      files. The go.sum files themselves are written using an atomic
+      rename to ensure that we never accidentally discard existing sums.
+    
+    Updates #26794
+    
+    RELNOTE=yes
+    
+    Change-Id: I16ef8b06ee4bd7b94d0c0a6f5d17e1cecc379076
+    Reviewed-on: https://go-review.googlesource.com/c/146382
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/clean/clean.go            |  16 +-
+ src/cmd/go/internal/modfetch/cache.go         |  75 +++++--
+ src/cmd/go/internal/modfetch/fetch.go         | 305 ++++++++++++++++++++------
+ src/cmd/go/internal/modfetch/unzip.go         |  22 +-
+ src/cmd/go/testdata/script/mod_concurrent.txt |  31 +++
+ 5 files changed, 337 insertions(+), 112 deletions(-)

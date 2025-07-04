@@ -1,0 +1,14 @@
+commit b0f627a6e1b1df1b47309f7fd59281a3809fb4d0
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 6 17:31:24 2009 -0800
+
+    closed arrays including [...]
+    
+    R=r
+    OCL=22182
+    CL=22182
+
+ src/cmd/gc/go.y   |  6 ++++++
+ src/cmd/gc/walk.c | 29 ++++++++++++++++++++---------
+ src/run.bash      |  2 +-
+ 3 files changed, 27 insertions(+), 10 deletions(-)

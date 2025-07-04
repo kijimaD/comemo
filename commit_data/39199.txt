@@ -1,0 +1,12 @@
+commit be9f10b2b8a25095014b864512d1b6a70df2b61c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 19 17:02:01 2019 +0000
+
+    cmd/go/internal/work: fix a couple typos
+    
+    Change-Id: I357669d8c9bc004031b17f057803c9b152edefee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/buildid.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit a0127c1921fdba2b4384d599407a3eedfe547803
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 9 17:25:13 2018 +0100
+
+    runtime: fix TestGdbPythonCgo failure with ld.gold
+    
+    See the added comment for the reasoning behind the workaround.
+    
+    Fixes #26868.
+    
+    Change-Id: Idede020ec88a49595dc233d9a1346b12691186f4
+    Reviewed-on: https://go-review.googlesource.com/128815
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

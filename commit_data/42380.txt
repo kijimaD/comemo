@@ -1,0 +1,22 @@
+commit 567556d78657326c99b8fa84ec2a5ee511a0941b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 19 20:23:58 2020 -0700
+
+    syscall: preserve Windows file permissions for O_CREAT|O_TRUNC
+    
+    On Windows, calling syscall.Open(file, O_CREAT|O_TRUNC, 0) for a file
+    that already exists would change the file to be read-only.
+    That is not how the Unix syscall.Open behaves, so avoid it on
+    Windows by calling CreateFile twice if necessary.
+    
+    Fixes #38225
+    
+    Change-Id: I70097fca8863df427cc8a97b9376a9ffc69c6318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234534
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/os_test.go              | 31 +++++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go | 20 ++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

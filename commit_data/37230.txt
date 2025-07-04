@@ -1,0 +1,17 @@
+commit 4d567310d24032e887576c798b65ffcb4d6d8498
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 06:55:48 2018 -0700
+
+    cmd/cgo: accept expressions as untyped constants
+    
+    Fixes #28545
+    
+    Change-Id: I31c57ce11aca651cacc72235c7753e0c0fd170ef
+    Reviewed-on: https://go-review.googlesource.com/c/146900
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/test/issue28545.go | 20 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 19 ++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit cab120218382c78fb4263566a38df78aa3653f72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 17:32:06 2021 -0800
+
+    cmd/link: accept extra blocks in TestFallocate
+    
+    For #41127
+    
+    Change-Id: I794a082299c6dce4202223197ece1864bed36810
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282555
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/fallocate_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

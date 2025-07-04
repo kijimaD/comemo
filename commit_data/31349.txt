@@ -1,0 +1,22 @@
+commit e10af2e8625666a70292cdf1801f4f1ebddb3ca6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 25 18:12:18 2017 +0900
+
+    vendor: update vendored route
+    
+    Updates golang_org/x/net/route to rev da118f7 for:
+    - route: don't fail test when at least one version of INET protocols is available
+    
+    Updates #19298.
+    Updates #19967.
+    
+    Change-Id: I46948f1bd4ac6e6afd424623233f90e2b6b954c6
+    Reviewed-on: https://go-review.googlesource.com/41652
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../golang_org/x/net/route/message_darwin_test.go  | 31 ++++---
+ .../golang_org/x/net/route/message_freebsd_test.go | 94 +++++++++-------------
+ src/vendor/golang_org/x/net/route/message_test.go  | 36 +++++----
+ 3 files changed, 80 insertions(+), 81 deletions(-)

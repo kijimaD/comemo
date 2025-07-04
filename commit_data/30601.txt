@@ -1,0 +1,21 @@
+commit 67d69f899ce0fcd3d7aee0a07554fb84770020c0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 8 16:31:02 2017 -0800
+
+    cmd/compile: set base register of spill/restore to SP
+    
+    Previously the base register was unset, which lead to the disassembler
+    using "FP" instead of "SP" as the base register.  That lead to some
+    confusion as to what the difference betweeen the two was.
+    Be consistent and always use SP.
+    
+    Fixes #19458
+    
+    Change-Id: Ie8f8ee54653bd202c0cf6fbf1d350e3c8c8b67a0
+    Reviewed-on: https://go-review.googlesource.com/37971
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

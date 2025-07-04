@@ -1,0 +1,19 @@
+commit 515bb0129df2d8462d561301cf9982f2b01de7f8
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon May 27 15:58:24 2019 +0700
+
+    cmd/compile: remove isfat from order expr
+    
+    isfat was removed in walkexpr in CL 32313. For consistency,
+    remove it from order expr, too.
+    
+    Change-Id: I0a47e0da13ba0168d6a055d990b8efad26ad790d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179057
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gsubr.go | 12 ------------
+ src/cmd/compile/internal/gc/order.go |  7 ++-----
+ src/cmd/compile/internal/gc/plive.go | 12 ++++++++++++
+ 3 files changed, 14 insertions(+), 17 deletions(-)

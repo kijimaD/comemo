@@ -1,0 +1,16 @@
+commit 45ed7297e85bc9bd50c0a1dfae3c6ea3fe997070
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 00:36:15 2009 -0700
+
+    Step 2 of the Big Error Shift.
+    Change the representation of errors in "os" to be cleaner.
+    (But they are not really representative of the power of the new scheme.)
+    Step 3 will be to remove all references to os.NewError.
+    Step 4 will be to delete the second half of lib/os/error.go.
+    
+    R=rsc
+    OCL=27587
+    CL=27587
+
+ src/lib/os/error.go | 126 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 61 insertions(+), 65 deletions(-)

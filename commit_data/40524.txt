@@ -1,0 +1,16 @@
+commit 24e9c53396bccbe2c525bd9421e426c47fe858ce
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 31 15:52:41 2019 -0400
+
+    cmd/go/internal/modfetch: add zip sums and hashes to TestCodeRepo
+    
+    Updates #35290
+    
+    Change-Id: I09cad17f09e78c2bf6a9de98b01f13ed383ca006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204643
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 388 +++++++++++++++-----------
+ 1 file changed, 231 insertions(+), 157 deletions(-)

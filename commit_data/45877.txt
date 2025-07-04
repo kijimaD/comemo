@@ -1,0 +1,21 @@
+commit 5385e2386b64b10960c1b40113ee7dae271c8369
+Author: Mia Zhu <CrystalZhu1025getu@gmail.com>
+Date:   Mon Jun 28 17:10:56 2021 +0000
+
+    runtime/internal/atomic: drop Cas64 pointer indirection in comments
+    
+    Change-Id: Ieff0065cbd81e045594ce12e10338b0666816d70
+    GitHub-Last-Rev: d842f5cb3e5d75f87957c068f6accc9d4a4ac224
+    GitHub-Pull-Request: golang/go#46949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331309
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/atomic/atomic_amd64.s   | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.s   | 2 +-
+ src/runtime/internal/atomic/atomic_mips64x.s | 2 +-
+ src/runtime/internal/atomic/atomic_ppc64x.s  | 2 +-
+ src/runtime/internal/atomic/atomic_riscv64.s | 3 ++-
+ 5 files changed, 6 insertions(+), 5 deletions(-)

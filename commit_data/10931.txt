@@ -1,0 +1,13 @@
+commit 351f7efec489d89dab70d876ef35e1aa75e42b78
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 21:12:03 2011 +1100
+
+    dashboard: use 'ok' instead of 'hit' or 'miss' for bool return vals
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5505054
+
+ misc/dashboard/app/build/cache.go   | 27 ++++++++++++---------------
+ misc/dashboard/app/build/handler.go |  2 +-
+ 2 files changed, 13 insertions(+), 16 deletions(-)

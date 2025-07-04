@@ -1,0 +1,15 @@
+commit a5e10edc34ecfc8173509fabda0998b0cd518da7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 26 13:05:18 2012 -0800
+
+    doc/play: don't use println in examples
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6849105
+
+ doc/play/fib.go       |  4 +++-
+ doc/play/sieve.go     |  4 +++-
+ doc/play/solitaire.go | 14 +++++++-------
+ doc/play/tree.go      |  4 ++--
+ 4 files changed, 15 insertions(+), 11 deletions(-)

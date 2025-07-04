@@ -1,0 +1,22 @@
+commit 08feadbd6e724fd0377f37fbe88a3114dd7b45bb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 14:08:10 2016 -0700
+
+    cmd/compile: remove Arch.REGCTXT
+    
+    Update #16357.
+    
+    Change-Id: I507676212d7137a62c76de7bfa0ba8dbd68e840f
+    Reviewed-on: https://go-review.googlesource.com/29358
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/amd64/galign.go  | 1 -
+ src/cmd/compile/internal/arm/galign.go    | 1 -
+ src/cmd/compile/internal/arm64/galign.go  | 1 -
+ src/cmd/compile/internal/gc/go.go         | 1 -
+ src/cmd/compile/internal/mips64/galign.go | 1 -
+ src/cmd/compile/internal/ppc64/galign.go  | 1 -
+ src/cmd/compile/internal/s390x/galign.go  | 1 -
+ src/cmd/compile/internal/x86/galign.go    | 1 -
+ 8 files changed, 8 deletions(-)

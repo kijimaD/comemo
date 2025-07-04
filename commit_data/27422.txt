@@ -1,0 +1,28 @@
+commit 733162fd6c0df8bd700859974957b25045fe9ee4
+Author: James Chacon <jchacon@google.com>
+Date:   Fri May 6 11:51:56 2016 -0700
+
+    runtime: prevent racefini from being invoked more than once
+    
+    racefini calls __tsan_fini which is C code and at the end of it
+    invoked the standard C library exit(3) call. This has undefined
+    behavior if invoked more than once. Specifically in C++ programs
+    it caused static destructors to run twice. At least on glibc
+    impls it also means the at_exit handlers list (where those are
+    stored) also free's a list entry when it completes these. So invoking
+    twice results in a double free at exit which trips debug memory
+    allocation tracking.
+    
+    Fix all of this by using an atomic as a boolean barrier around
+    calls to racefini being invoked > 1 time.
+    
+    Fixes #15578
+    
+    Change-Id: I49222aa9b8ded77160931f46434c61a8379570fc
+    Reviewed-on: https://go-review.googlesource.com/22882
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

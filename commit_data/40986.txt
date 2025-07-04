@@ -1,0 +1,12 @@
+commit 100bf440b9a69c6dce8daeebed038d607c963b8f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 12 17:31:11 2019 +0000
+
+    net/http: fix some awkward wording in Request.WithContext docs
+    
+    Change-Id: Ib37db42c7f1fd6aa55f70fd2d65d56bb2ae6d26a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211098
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 0a006b4923c129a4b699f5ba17114fc98e20ce4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 14:58:45 2012 -0400
+
+    misc/cgo: prepare for 64-bit ints
+    
+    In a few places, the existing cgo tests assume that a
+    Go int is the same as a C int. Making int 64 bits wide
+    on 64-bit platforms violates this assumption.
+    Change that code to assume that Go int32 and C int
+    are the same instead. That's still not great, but it's better,
+    and I am unaware of any systems we run on where it is not true.
+    
+    Update #2188.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/6552064
+
+ misc/cgo/life/life.go      | 4 ++--
+ misc/cgo/life/main.go      | 2 +-
+ misc/cgo/test/issue1560.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

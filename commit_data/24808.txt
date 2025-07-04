@@ -1,0 +1,36 @@
+commit c17c42e8a5232d7e56225caf9048cfa89f6923d0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 16:13:51 2015 -0800
+
+    runtime: rewrite lots of foo_Bar(f, ...) into f.bar(...)
+    
+    Applies to types fixAlloc, mCache, mCentral, mHeap, mSpan, and
+    mSpanList.
+    
+    Two special cases:
+    
+    1. mHeap_Scavenge() previously didn't take an *mheap parameter, so it
+    was specially handled in this CL.
+    
+    2. mHeap_Free() would have collided with mheap's "free" field, so it's
+    been renamed to (*mheap).freeSpan to parallel its underlying
+    (*mheap).freeSpanLocked method.
+    
+    Change-Id: I325938554cca432c166fe9d9d689af2bbd68de4b
+    Reviewed-on: https://go-review.googlesource.com/16221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/heapdump.go  |   2 +-
+ src/runtime/malloc.go    |  25 ++++---
+ src/runtime/mbitmap.go   |   2 +-
+ src/runtime/mcache.go    |  14 ++--
+ src/runtime/mcentral.go  |  50 +++++++-------
+ src/runtime/mfixalloc.go |   6 +-
+ src/runtime/mgcsweep.go  |  14 ++--
+ src/runtime/mheap.go     | 167 +++++++++++++++++++++++------------------------
+ src/runtime/mstats.go    |   2 +-
+ src/runtime/proc.go      |   2 +-
+ src/runtime/stack.go     |  36 +++++-----
+ 11 files changed, 158 insertions(+), 162 deletions(-)

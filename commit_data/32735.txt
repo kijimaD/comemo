@@ -1,0 +1,23 @@
+commit f84a1db19f43df68494f30a67d69e5d4d807b970
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 15 11:38:24 2017 -0700
+
+    cmd/link: replace unrolled Cput loops with Cwrite/Cwritestring
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I1c85a2c0390517f4e9cdbddddbf3c353edca65b3
+    Reviewed-on: https://go-review.googlesource.com/64051
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go  | 5 +----
+ src/cmd/link/internal/arm/asm.go    | 5 +----
+ src/cmd/link/internal/arm64/asm.go  | 5 +----
+ src/cmd/link/internal/ld/elf.go     | 8 ++------
+ src/cmd/link/internal/ld/symtab.go  | 7 ++-----
+ src/cmd/link/internal/mips64/asm.go | 5 +----
+ src/cmd/link/internal/ppc64/asm.go  | 5 +----
+ src/cmd/link/internal/x86/asm.go    | 5 +----
+ 8 files changed, 10 insertions(+), 35 deletions(-)

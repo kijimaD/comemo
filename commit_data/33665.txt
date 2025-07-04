@@ -1,0 +1,27 @@
+commit 1490cf67edc42ffd2abd6230f0caebebaf832a96
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Jun 27 00:47:17 2017 -0600
+
+    net/http: implement sniffing for some fonts
+    
+    Implement sniffing for fonts:
+    * MS Font object  --> "application/vnd.ms-fontobject"
+    * ttf             --> "application/font-ttf"
+    
+    * off             --> "application/font-off"
+    * otf             --> "application/font-off"
+    
+    * cff             --> "application/font-cff"
+    * woff            --> "application/font-woff"
+    
+    Fixes #20808
+    
+    Change-Id: Ibe02a87d3c9d610c6a30e1b6c03f4e520404e70f
+    Reviewed-on: https://go-review.googlesource.com/47553
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/sniff.go      | 15 +++++++++++++++
+ src/net/http/sniff_test.go | 11 +++++++++++
+ 2 files changed, 26 insertions(+)

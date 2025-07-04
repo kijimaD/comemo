@@ -1,0 +1,15 @@
+commit cdeda796c7be35f84e8fafd55aa5960901d56a6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 24 15:55:41 2017 -0700
+
+    cmd/compile: move typepkg back to gc package (cleanup)
+    
+    Change-Id: I4d5c54d2dceabf4630e5e642835b20c8c6890524
+    Reviewed-on: https://go-review.googlesource.com/41616
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 20 +++++++++++++++-----
+ src/cmd/compile/internal/types/pkg.go  |  7 -------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

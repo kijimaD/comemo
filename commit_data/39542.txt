@@ -1,0 +1,14 @@
+commit a25c2878c75902585023618f1c60b447afcdd063
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jul 27 14:53:54 2019 -0700
+
+    doc: use <code> for a few file paths that didn't
+    
+    Spotted while seeing CL 187818 in master.
+    
+    Change-Id: Ic3f42558f6833fc35580b2b2a15f2c5aba5713c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187822
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

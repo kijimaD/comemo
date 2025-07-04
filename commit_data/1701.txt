@@ -1,0 +1,15 @@
+commit c2d5586c761b64314f3035b8e52e9f937413be53
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 19 16:49:10 2009 -0800
+
+    go_spec.txt formatted in html.
+    No textual changes except for html formatting.
+    Seems like a fine intermediate step.
+    
+    R=r
+    DELTA=7638  (4079 added, 3559 deleted, 0 changed)
+    OCL=25211
+    CL=25224
+
+ doc/{go_spec.txt => go_spec.html} | 3260 +++++++++++++++++++++----------------
+ 1 file changed, 1844 insertions(+), 1416 deletions(-)

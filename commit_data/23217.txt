@@ -1,0 +1,22 @@
+commit 11322d45a12584dffad471fe65c3f1b7d8ddb667
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 23:56:14 2015 -0400
+
+    cmd/compile: move Node.Vargen, Node.Iota into Node.Name
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 192
+    $
+    
+    Change-Id: I8f0c1a3cc2bf9c8eff02bbd8d061ff98affc9eb0
+    Reviewed-on: https://go-review.googlesource.com/10529
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/dcl.go       | 11 +++++------
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/subr.go      |  7 ++++---
+ src/cmd/compile/internal/gc/syntax.go    |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  8 +++++---
+ 6 files changed, 22 insertions(+), 20 deletions(-)

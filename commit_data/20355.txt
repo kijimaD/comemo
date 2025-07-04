@@ -1,0 +1,15 @@
+commit dc089574c49f3e426da4387a9448ca1a631c0b42
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 9 07:35:44 2014 +1000
+
+    doc: amend installation instructions
+    
+    Fixes #8674.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/139320044
+
+ doc/install.html | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

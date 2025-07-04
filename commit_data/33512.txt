@@ -1,0 +1,18 @@
+commit 3af20c06fe206ff92a8111fe230deb0170dac33d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 13:37:28 2017 -0500
+
+    cmd/go: document test -json
+    
+    Added in CL 76873 but forgot to add the flag docs.
+    
+    Change-Id: I448f85cc8cf51399c0d799691226b94f88f327da
+    Reviewed-on: https://go-review.googlesource.com/77030
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go            | 4 ++++
+ src/cmd/go/internal/test/test.go | 4 ++++
+ 2 files changed, 8 insertions(+)

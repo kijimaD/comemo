@@ -1,0 +1,18 @@
+commit 4056934e483c51fa046f9c2d1ee35f0385b84d91
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Oct 25 23:57:46 2021 -0500
+
+    test/codegen: updated arithmetic tests to verify on ppc64,ppc64le
+    
+    Updated multiple tests in test/codegen/arithmetic.go to verify
+    on ppc64/ppc64le as well
+    
+    Change-Id: I79ca9f87017ea31147a4ba16f5d42ba0fcae64e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358546
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ test/codegen/arithmetic.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

@@ -1,0 +1,26 @@
+commit 38ad33088c3bee63e8d53e7aff4d6610d82ca84c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 6 21:59:00 2017 +0200
+
+    cmd/vet: remove two unused parameters and simplify
+    
+    The isStar and directory function parameters have been unused ever since
+    they were introduced. Remove them.
+    
+    While at it, apply some other minor simplifications, such as simplifying
+    a HasPrefix if and using an early continue to unindent many lines of
+    code.
+    
+    Change-Id: I8d57353e9ec10cdb59c5388cf6152ce0ec17bdba
+    Reviewed-on: https://go-review.googlesource.com/62030
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+
+ src/cmd/vet/buildtag.go |  4 +---
+ src/cmd/vet/main.go     |  8 ++++----
+ src/cmd/vet/method.go   |  2 +-
+ src/cmd/vet/print.go    | 41 +++++++++++++++++++++--------------------
+ src/cmd/vet/unused.go   |  2 +-
+ 5 files changed, 28 insertions(+), 29 deletions(-)

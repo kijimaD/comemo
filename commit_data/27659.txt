@@ -1,0 +1,14 @@
+commit 6662897b2a3260393fff9dcf64faf3abfc773181
+Author: Jason Barnett <jason.w.barnett@gmail.com>
+Date:   Tue May 24 15:50:02 2016 -0400
+
+    crypto/subtle: expand abbreviation to eliminate confusion
+    
+    Change-Id: I68d66fccf9cc8f7137c92b94820ce7d6f478a185
+    Reviewed-on: https://go-review.googlesource.com/23310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/subtle/constant_time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

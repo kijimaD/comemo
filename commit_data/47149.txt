@@ -1,0 +1,26 @@
+commit 2bcf1c0373195724161a9dc287e1dbc26404e4fa
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 29 11:21:45 2021 -0700
+
+    internal/fuzz: don't add duplicate corpus entries
+    
+    If a identical input is already present in the corpus, don't re-add it.
+    This may happen when the same input produces a different coverage map,
+    causing the coordinator to think it has found a new input.
+    
+    This fixes a race between reading/writing cached inputs.
+    
+    Fixes #48721
+    
+    Change-Id: I4807602f433c2b99396d25ceaa58b827796b3555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359755
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/internal/fuzz/fuzz.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

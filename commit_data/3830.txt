@@ -1,0 +1,12 @@
+commit e4a6e422b2ffcc2c9ae6f855ab6976fcd36b6a90
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 5 16:44:55 2009 -0800
+
+    fix broken link
+    
+    R=rsc, iant
+    CC=go-dev
+    http://go/go-review/1019003
+
+ doc/go_gccgo_setup.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

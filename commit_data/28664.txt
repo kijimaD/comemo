@@ -1,0 +1,19 @@
+commit efaa36017e34b87a5731793594b42d483209d808
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 23:34:01 2016 +0000
+
+    encoding/csv: update and add CSV reading benchmarks
+    
+    Benchmarks broken off from https://golang.org/cl/24723 and modified to
+    allocate less in the places we're not trying to measure.
+    
+    Updates #16791
+    
+    Change-Id: I508e4cfeac60322d56f1d71ff1912f6a6f183a63
+    Reviewed-on: https://go-review.googlesource.com/30357
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader_test.go | 72 ++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 64 insertions(+), 8 deletions(-)

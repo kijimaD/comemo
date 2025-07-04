@@ -1,0 +1,14 @@
+commit 90d59c586197a2300188206e4bbe99bb714e1833
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 29 11:01:50 2012 -0700
+
+    test/bench/shootout/timing.log: update after recent compiler changes
+    Moving panic out of line speeds up fannkuch almost a factor of two.
+    Changes to bitwhacking code affect mandelbrot badly.
+    
+    R=golang-dev, bradfitz, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6258056
+
+ test/bench/shootout/timing.log | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

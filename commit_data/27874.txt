@@ -1,0 +1,28 @@
+commit 507144c011c64fd6f18cee6592e79461817e3791
+Author: Florian Uekermann <florian@uekermann.me>
+Date:   Tue Apr 19 16:06:37 2016 +0200
+
+    math/rand: Document origin of cooked pseudo-random numbers
+    
+    The Source provided by math/rand relies on an array of cooked
+    pseudo-random 63bit integers for seeding. The origin of these
+    numbers is undocumented.
+    
+    Add a standalone program in math/rand folder that generates
+    the 63bit integer array as well as a 64bit version supporting
+    extension of the Source to 64bit pseudo-random number
+    generation while maintaining the current sequence in the
+    lower 63bit.
+    
+    The code is largely based on the initial implementation of the
+    random number generator in the go repository by Ken Thompson
+    (revision 399).
+    
+    Change-Id: Ib4192aea8127595027116a0f5a7be53f11dc110b
+    Reviewed-on: https://go-review.googlesource.com/22230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/gen_cooked.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)

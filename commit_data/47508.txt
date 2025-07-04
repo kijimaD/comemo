@@ -1,0 +1,19 @@
+commit f384c707ac3dd946e3c895d0f4e154744048ef36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 17:02:11 2021 -0800
+
+    cmd/compile/internal/types2: tweaks to ArgumentError to be more idiomatic
+    
+    This CL is a clean port of CL 351335 from go/types to types2.
+    
+    Updates #47916
+    
+    Change-Id: Idc377fb71d480a51d5e93a348f3a880346011974
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364535
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go         | 13 +++++--------
+ src/cmd/compile/internal/types2/api_test.go    | 11 ++++++++---
+ src/cmd/compile/internal/types2/instantiate.go |  6 +++---
+ 3 files changed, 16 insertions(+), 14 deletions(-)

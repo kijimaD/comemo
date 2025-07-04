@@ -1,0 +1,16 @@
+commit a871464e5aca9b81a6dc54cde8c31629387cb785
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jun 5 09:24:09 2016 -0700
+
+    runtime: fix typo
+    
+    Fixes #15962
+    
+    Change-Id: I1949e0787f6c2b1e19b9f9d3af2f712606a6d4cf
+    Reviewed-on: https://go-review.googlesource.com/23786
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

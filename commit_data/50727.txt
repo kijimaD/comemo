@@ -1,0 +1,16 @@
+commit 1896eac57f432478eb894ac5e10f91c4d08e4a3a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:38:13 2022 +0800
+
+    cmd/go/internal/list: should omit comparison to bool constant
+    
+    Change-Id: Ieef05be39bad1263eacedb33c2043ee83080f629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436697
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/list/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

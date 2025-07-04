@@ -1,0 +1,15 @@
+commit 87bc9b53fd966659e8c3837a3a5839f924268487
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 13 11:29:13 2009 -0800
+
+    json: fix addressing of slice indexes that are multiples of 8.
+    
+    Fixes #147.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152123
+
+ src/pkg/json/struct.go      |  2 +-
+ src/pkg/json/struct_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

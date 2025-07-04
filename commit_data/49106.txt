@@ -1,0 +1,28 @@
+commit 0d410d676dde6cf5f2fc6f78ed7f2c39181d6720
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun May 8 23:04:28 2022 -0400
+
+    os, syscall: don't consider stderr output as part of hostname
+    
+    A successful invocation of the hostname command prints the hostname
+    to stdout and exits with code 0. No part of the hostname is printed
+    to stderr, so don't consider it.
+    
+    This avoids false positive failures in environments where hostname
+    prints some extraneous information (such as performance warnings)
+    to stderr, and makes the test a bit more robust.
+    
+    Fixes #52781.
+    
+    Change-Id: I46aa6fbf95b6616bacf9c2b5e412b0851b230744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405014
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/os_test.go                   | 2 +-
+ src/syscall/syscall_windows_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

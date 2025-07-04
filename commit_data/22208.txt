@@ -1,0 +1,16 @@
+commit 71756355dc18a3905bbaafeaed4b357558535454
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Tue Mar 17 11:57:11 2015 -0700
+
+    cmd/go: add -asmflags build flag
+    
+    We need this in order to pass the "-shared" flag to the assembler.
+    
+    Change-Id: I9c15cfe4d32c1e5e8cae1b9b2c924cfd77923b55
+    Reviewed-on: https://go-review.googlesource.com/7694
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 10 ++++++++--
+ src/cmd/go/doc.go   |  8 +++++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

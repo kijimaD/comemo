@@ -1,0 +1,19 @@
+commit 1f8b2a69ec871c1e4c33b6df4b2127bbafd67495
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 28 09:40:12 2014 -0500
+
+    crypto/tls: add DialWithDialer.
+    
+    While reviewing uses of the lower-level Client API in code, I found
+    that in many cases, code was using Client only because it needed a
+    timeout on the connection. DialWithDialer allows a timeout (and
+     other values) to be specified without resorting to the low-level API.
+    
+    LGTM=r
+    R=golang-codereviews, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68920045
+
+ src/pkg/crypto/tls/tls.go      | 81 ++++++++++++++++++++++++++++++++++--------
+ src/pkg/crypto/tls/tls_test.go | 45 +++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 15 deletions(-)

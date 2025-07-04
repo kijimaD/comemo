@@ -1,0 +1,12 @@
+commit 3f135be3891ea3e9899b8342c23bd25e0da2f047
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jan 7 15:26:11 2009 -0800
+
+    conversion from closed array to slice
+    
+    R=r
+    OCL=22236
+    CL=22236
+
+ src/cmd/gc/walk.c | 81 +++++++++++++++++++++----------------------------------
+ 1 file changed, 30 insertions(+), 51 deletions(-)

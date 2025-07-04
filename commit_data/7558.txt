@@ -1,0 +1,17 @@
+commit 87fe958a493bd016519e88c8512f09d4cdd4da78
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 24 10:14:19 2011 -0800
+
+    fmt: stop giving characters to the Scan method of Scanner
+    when we hit a newline during *scanln routines.
+    
+    Fixes #1490.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4209042
+
+ src/pkg/fmt/doc.go       |  2 +-
+ src/pkg/fmt/scan.go      | 23 +++++++++++++++----
+ src/pkg/fmt/scan_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+), 6 deletions(-)

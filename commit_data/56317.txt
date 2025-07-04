@@ -1,0 +1,44 @@
+commit 774d5b366ce43ed7e304ea3917e353112df9daf7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 26 15:58:35 2024 -0400
+
+    make.bash: avoid ksh bug in nogoenv
+    
+    ksh handles make.bash surprisingly well and is a smaller
+    supply chain attack surface, so it's reasonable to want
+    to use "ksh make.bash" to build Go.
+    
+    The only place where ksh and bash disagree in running
+    make.bash is an arguable bug in ksh that
+    
+            X=Y foo
+    
+    accidentally changes the real value of X following that
+    command when foo is a shell function. (It correctly preserves
+    the original value of X when foo is a command being invoked.)
+    
+    More specifically,
+    
+            GOROOT=$GOROOT_BOOTSTRAP nogoenv foo
+    
+    incorrectly changes $GOROOT in the rest of the script.
+    
+    CL 580020 suggested using a subshell, but subshells
+    historically have lost "set -e", so we'd have to use (...) || exit 1.
+    Instead of that, this CL refactors nogoenv into bootstrapenv,
+    putting it in charge of changing $GOROOT the same way it
+    changes all the other environment variables.
+    
+    This CL also updates make.rc for parallelism.
+    It does not bother updating make.bat: that part is already
+    a bit different, and attempting to change it is all risk, no reward.
+    
+    Change-Id: I5923a6fb5016a3862363363859365d1cd4f61a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582076
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
+
+ src/make.bash | 11 ++++++-----
+ src/make.rc   | 11 ++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

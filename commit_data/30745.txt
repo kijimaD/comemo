@@ -1,0 +1,21 @@
+commit 325904fe6a6b3fc4324c517a62fa570fd6efb163
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 18:32:17 2017 -0800
+
+    cmd/compile: port liveness analysis to SSA
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I92c3c25d6c053f971f346f4fa3bbc76419b58183
+    Reviewed-on: https://go-review.googlesource.com/38087
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/fmt_test.go          |    1 -
+ src/cmd/compile/internal/gc/gsubr.go |    2 +-
+ src/cmd/compile/internal/gc/pgen.go  |   65 +-
+ src/cmd/compile/internal/gc/plive.go | 1298 ++++++++++------------------------
+ src/cmd/compile/internal/gc/ssa.go   |   58 +-
+ src/cmd/compile/internal/ssa/func.go |    4 +
+ 6 files changed, 424 insertions(+), 1004 deletions(-)

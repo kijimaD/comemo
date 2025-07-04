@@ -1,0 +1,12 @@
+commit 2e24a737c5d9106ab3c9834530f760cd5ebd8905
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 6 22:44:04 2013 -0500
+
+    bytes: Fix missing godoc punctuation.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7067047
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

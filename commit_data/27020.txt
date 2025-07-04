@@ -1,0 +1,19 @@
+commit 5183ad696c708ab5fc65006413019b1ef96aa91b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 18 16:42:17 2016 +1000
+
+    debug/pe: add some documentation and TODO
+    
+    No code changes. Just moved ImportDirectory next to ImportedSymbols.
+    And moved useless FormatError to the bottom of file.go.
+    
+    Updates #15345
+    
+    Change-Id: I91ff243cefd18008b1c5ee9ec4326583deee431b
+    Reviewed-on: https://go-review.googlesource.com/22182
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go | 52 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 25 deletions(-)

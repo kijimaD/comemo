@@ -1,0 +1,14 @@
+commit 93158bf24388bb21cf4102c831a2e8920ffab132
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 26 09:23:34 2013 +1100
+
+    doc: document that weekly.html is only a historical reference
+    
+    Fixes #4810.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7401050
+
+ doc/devel/weekly.html | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

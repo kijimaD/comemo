@@ -1,0 +1,13 @@
+commit 297cddbb11c45ed4675ad6c3590cabb810b9394e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 26 14:54:28 2010 -0800
+
+    A+C: add Raif S. Naffah (individual CLA)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/223073
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit 7a1cfd09fa18a3061fd4313982653653c7e5eec5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 09:21:28 2009 -0700
+
+    Add AUTHORS and LICENSE files.
+    
+    R=gri,iant
+    DELTA=47  (43 added, 0 deleted, 4 changed)
+    OCL=33127
+    CL=33173
+
+ AUTHORS |  6 ++++++
+ LICENSE | 27 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

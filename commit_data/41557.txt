@@ -1,0 +1,13 @@
+commit b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 9 12:48:23 2017 -0700
+
+    all: fix two minor typos in comments
+    
+    Change-Id: Iec6cd81c9787d3419850aa97e75052956ad139bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221789
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/compile/internal/x86/387.go | 2 +-
+ test/codegen/README                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

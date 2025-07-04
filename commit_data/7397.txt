@@ -1,0 +1,12 @@
+commit 1c315893757f5803aef4278b041fa3c7e8f13992
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 9 12:34:50 2011 +1100
+
+    .hgignore: ignore src/pkg/runtime/version_*.go
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4159041
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

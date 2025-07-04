@@ -1,0 +1,19 @@
+commit c7754c8f54a1ace5fc0a8e36df809c713d2623d6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Jan 14 16:36:43 2016 -0500
+
+    net: add timeout to DNS requests sent by TestSpecialDomainName
+    
+    The timeout means that TestSpecialDomainName will not hang if
+    the DNS server does not respond to the request.
+    
+    Fixes #13939
+    
+    Change-Id: I46e30bbd3c11b6c560656134e704331cf6f8af3f
+    Reviewed-on: https://go-review.googlesource.com/18661
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

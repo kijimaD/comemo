@@ -1,0 +1,16 @@
+commit 99eca57d437d490a83a7c77a574ca54c02e4df97
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 13:00:20 2009 -0700
+
+    clean up a few error messages;
+    disable func redeclaration mismatch test;
+    fix golden.out
+    
+    R=ken
+    OCL=32883
+    CL=32883
+
+ src/cmd/gc/dcl.c       | 2 +-
+ src/cmd/gc/typecheck.c | 2 +-
+ test/golden.out        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

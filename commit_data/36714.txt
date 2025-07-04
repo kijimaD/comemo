@@ -1,0 +1,38 @@
+commit ce58a39fca067a19c505220c0c907ccf32793427
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 20 15:22:33 2018 -0700
+
+    cmd/compile/internal/gc: fix Node.copy and introduce (raw|sep)copy
+    
+    Node.copy used to make a shallow copy of a node. Often, this is not
+    correct: If a node n's Orig field pointed to itself, the copy's Orig
+    field has to be adjusted to point to the copy. Otherwise, if n is
+    modified later, the copy's Orig appears modified as well (because it
+    points to n).
+    
+    This was fixed for one specific case with
+    https://go-review.googlesource.com/c/go/+/136395 (issue #26855).
+    
+    This change instead addresses copy in general:
+    
+    In two cases we don't want the Orig adjustment as it causes escape
+    analysis output to fail (not match the existing error messages).
+    rawcopy is used in those cases.
+    
+    In several cases Orig is set to the copy immediately after making
+    a copy; a new function sepcopy is used there.
+    
+    Updates #26855.
+    Fixes #27765.
+    
+    Change-Id: Idaadeb5c4b9a027daabd46a2361348f7a93f2b00
+    Reviewed-on: https://go-review.googlesource.com/136540
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     |  7 +++----
+ src/cmd/compile/internal/gc/order.go     | 12 ++++--------
+ src/cmd/compile/internal/gc/sinit.go     | 12 ++++--------
+ src/cmd/compile/internal/gc/subr.go      | 33 ++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go |  8 --------
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ 6 files changed, 41 insertions(+), 33 deletions(-)

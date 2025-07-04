@@ -1,0 +1,13 @@
+commit 5ccb769112a951e644da7c87939b5d2ec2994ebc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 20 01:05:16 2013 +0900
+
+    cmd/fix: revert IPv6 scoped address zone support of IPNet
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7554051
+
+ src/cmd/fix/netipv6zone.go      | 20 ++++++--------------
+ src/cmd/fix/netipv6zone_test.go | 26 ++++++--------------------
+ 2 files changed, 12 insertions(+), 34 deletions(-)

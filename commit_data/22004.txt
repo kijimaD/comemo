@@ -1,0 +1,12 @@
+commit 787a8f1159a35b48b57af670bff90f34a3afbf92
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 13 08:34:00 2015 +1100
+
+    doc/go1.5.txt: mention zip.WriterAt
+    
+    Change-Id: I9f5ca101e0d2fe71cb1ca810cfeeb82c12f5f8e7
+    Reviewed-on: https://go-review.googlesource.com/7491
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,39 @@
+commit d83baa1aa22d074b44d8b705e1d8dafa30ecceb1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 3 18:11:55 2021 +0000
+
+    cmd/dist,cmd/go: set GOTRACEBACK to "system" for testing
+    
+    If we're testing through dist, we're testing the implementation of Go,
+    so we're interested in any package failing with potential runtime
+    issues. In these cases, we'd like to have as much relevant detail as
+    possible, but currently runtime stack frames and goroutines are
+    suppressed due to the default GOTRACEBACK setting.
+    
+    So, try to set GOTRACEBACK to system if it's unset. Check if it's unset
+    first so we don't override the user asking for a lower or higher level.
+    
+    This change was brought up in the context of #45916, since there's an
+    apparent deadlock (or something!) in the runtime that appears when
+    running other code, but it's difficult to see exactly where it's
+    blocked. However, this change is very generally useful.
+    
+    This change also runs scripted tests with GOTRACEBACK=system, upgrading
+    from GOTRACEBACK=all. Often, script tests can trigger failures deep in
+    the runtime in interesting ways because they start many individual Go
+    processes, so being able to identify points of interest in the runtime
+    is quite useful.
+    
+    For #45916.
+    
+    Change-Id: I3d50658d0d0090fb4c9182b87200d266c7f8f915
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316469
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go      | 28 ++++++++++++++++++++++++++++
+ src/cmd/go/script_test.go |  2 +-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

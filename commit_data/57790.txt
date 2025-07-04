@@ -1,0 +1,18 @@
+commit 9f8bf040570efecf252110e95d3d66067925b3ea
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Sun Apr 10 23:38:23 2022 -0700
+
+    crypto/aes: fix key size typo
+    
+    AES-196 does not exist, but AES-192 does.
+    
+    Change-Id: Iecdcae28fde807d148af9d09c7291fc02c9f6edd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399495
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/aes/asm_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 1e0b37890559538efbde6e1fb013b8b676db7d17
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 09:32:09 2014 -0700
+
+    runtime: use right mask to extract type kind
+    
+    Cleanup from recent malloc changes.
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/120960043
+
+ src/pkg/runtime/race.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

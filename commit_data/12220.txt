@@ -1,0 +1,12 @@
+commit e4db4e9b585423324a5bf9ef22914e9f546e707f
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Feb 27 11:49:06 2012 +1100
+
+    crypto/x509: fix typo in Verify documentation
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5695070
+
+ src/pkg/crypto/x509/verify.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 054a721dcac9b30610af0898b3ed8bf3ffa9f8b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 20 11:19:19 2016 -0700
+
+    cmd/compile: read safemode bit from package header
+    
+    Ignore respective bit in export data, but leave the info to
+    minimize format changes for 1.7. Scheduled to remove by 1.8.
+    
+    For #15772.
+    
+    Change-Id: Ifb3beea655367308a4e2d5dc8cb625915f904287
+    Reviewed-on: https://go-review.googlesource.com/23285
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go |  4 +++-
+ src/cmd/compile/internal/gc/main.go    | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/parser.go  |  6 +-----
+ 3 files changed, 19 insertions(+), 6 deletions(-)

@@ -1,0 +1,31 @@
+commit 103c9db74737afc67c394e3c68c746ba176f2b49
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 1 13:57:49 2012 -0800
+
+    spec: clarifications around exports, uniqueness of identifiers
+    
+    - Define what it means for two identifiers to be unique.
+    
+    - The current spec is incorrect about exported
+    identifiers: for instance, it excluded fields
+    of non-exported types of exported variables
+    from being exported. It is easier to leave
+    the detailed specification away and let the
+    rest of the spec govern access of exported
+    identifiers.
+    
+    - The current spec is incorrect about qualified
+    identifiers: It simply required that an identifier
+    be exported to be valid in a qualified identifier.
+    However, qualified identifiers can only access
+    exported identifiers declared in the package
+    block of the imported package.
+    
+    Fixes #1551.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/5711043
+
+ doc/go_spec.html | 72 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 44 insertions(+), 28 deletions(-)

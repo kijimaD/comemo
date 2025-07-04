@@ -1,0 +1,19 @@
+commit 6861b2eff58955c7f67a262864c09056a7bdec04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 10:26:49 2024 -0700
+
+    go/types, types2: better error message for invalid ERROR pattern in tests
+    
+    When unquoting of an ERROR or ERRORx pattern fails, say so instead of
+    simply printing "syntax error".
+    
+    Change-Id: I586dffa86ca80f5b40a5cbe16a7005cc1f7862f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586958
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 8 ++++----
+ src/go/types/check_test.go                    | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

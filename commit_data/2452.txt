@@ -1,0 +1,14 @@
+commit 36835c7a47dac796f64159e5e1b1d5abc26c4b8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 15 21:30:53 2009 -0700
+
+    fix garbage collection race: save stack trace
+    when changing process state to Gsyscall, not after.
+    
+    R=r
+    DELTA=8  (4 added, 3 deleted, 1 changed)
+    OCL=30320
+    CL=30325
+
+ src/pkg/runtime/proc.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

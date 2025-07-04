@@ -1,0 +1,18 @@
+commit d05c03536573b8c567d3eefaad2aafbf89678015
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Thu Aug 6 01:57:11 2020 +0900
+
+    net/http: fix typo in TestTransportReadToEndReusesConn
+    
+    The test sets a Content-Type where it looks like it wants a Content-Length. The test passes because the Content-Length header is automatically added anyway, but fix the typo and set Content-Length as intended.
+    
+    Change-Id: Ic2af778f82c3e9d58e164892f6ac6ef5745f884f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

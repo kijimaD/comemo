@@ -1,0 +1,21 @@
+commit 0c89487b1d9bac744091a5ff2a09541c71b66b85
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 6 18:40:51 2023 +0000
+
+    cmd/go/internal/modfetch/codehost: set core.longpaths in Git repos on Windows
+    
+    This setting appears to be needed to avoid “Filename too long” errors
+    when downloading modules from repos with long branch names,
+    particularly if the path to the module cache is already fairly long
+    (as may be the case in CI systems and in tests of cmd/go itself).
+    
+    Change-Id: I3aa89ea872b29eb0460c8a8afc94f182a68982fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482819
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

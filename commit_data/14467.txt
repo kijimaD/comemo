@@ -1,0 +1,14 @@
+commit 1fbe3090d8382176d1f5075cecd2fa578fe363a4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Nov 25 18:46:41 2012 +0900
+
+    runtime: fix madvise for freebsd/amd64
+    
+    Make use of carry clear condition instead of low or same.
+    
+    R=minux.ma, jsing, dave
+    CC=golang-dev
+    https://golang.org/cl/6844080
+
+ src/pkg/runtime/sys_freebsd_amd64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

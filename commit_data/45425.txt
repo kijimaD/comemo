@@ -1,0 +1,23 @@
+commit 4e3e6b58f7ba16caa58f4c826a63d85e26849036
+Author: kumakichi <xyesan@gmail.com>
+Date:   Thu Apr 29 05:45:35 2021 +0000
+
+    cmd/compile/internal/ir: fix doc
+    
+    Change-Id: I8fc77e29cb44fef264a62ff00452b9fcf6e30be8
+    GitHub-Last-Rev: 414cda8ce6e64fb53d3d1ec01caa7e33c0219236
+    GitHub-Pull-Request: golang/go#45842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314990
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/dump.go | 4 ++--
+ src/cmd/compile/internal/ir/expr.go | 4 ++--
+ src/cmd/compile/internal/ir/func.go | 4 ++--
+ src/cmd/compile/internal/ir/node.go | 4 ++--
+ src/cmd/compile/internal/ir/stmt.go | 2 +-
+ src/cmd/compile/internal/ir/val.go  | 6 +++---
+ 6 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,19 @@
+commit 5d16d233620b66f734c315755cb30bd3f5579ff0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 00:18:16 2009 -0700
+
+    update type switch to match spec.
+    
+    R=ken
+    OCL=34471
+    CL=34471
+
+ doc/go_spec.html           |  1 -
+ src/cmd/gc/go.h            |  5 +--
+ src/cmd/gc/go.y            | 63 ++++++++++++++--------------------
+ src/cmd/gc/lex.c           |  1 +
+ src/cmd/gc/swt.c           | 80 ++++++++++++++++++++++++++++++++-----------
+ src/pkg/datafmt/datafmt.go |  2 +-
+ src/pkg/json/struct.go     |  8 ++---
+ test/typeswitch1.go        | 84 ++++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 178 insertions(+), 66 deletions(-)

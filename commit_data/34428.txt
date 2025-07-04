@@ -1,0 +1,24 @@
+commit bff29f2d1798cb0c8b6a4a8440c076f4b9460158
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 16:32:11 2018 -0500
+
+    cmd/compile/internal/ssa: avoid accidental list ends
+    
+    Some SSA values don't translate into any instructions. If a function
+    began with two of them, and both modified the storage of the same
+    variable, we'd end up with a location list entry that started and ended
+    at 0. That looks like an end-of-list entry, which would then confuse
+    downstream tools, particularly the fixup in the linker.
+    
+    "Fix" this by changing the end of such entries to 1. Should be harmless,
+    since AFAIK we don't generate any 1-byte instructions. Later CLs will
+    reduce the frequency of these entries anyway.
+    
+    Change-Id: I9b7e5e69f914244cc826fb9f4a6acfe2dc695f81
+    Reviewed-on: https://go-review.googlesource.com/97955
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

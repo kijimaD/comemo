@@ -1,0 +1,25 @@
+commit 7a00f973a557fa8b5294652382a6280ddb196c1e
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 21 14:27:24 2022 -0800
+
+    archive/tar, archive/zip: disable ErrInsecurePath by default
+    
+    This change is being made late in the release cycle.
+    Disable it by default. Insecure path checks may be enabled by setting
+    GODEBUG=tarinsecurepath=0 or GODEBUG=zipinsecurepath=0.
+    We can enable this by default in Go 1.21 after publicizing the change
+    more broadly and giving users a chance to adapt to the change.
+    
+    For #55356.
+    
+    Change-Id: I549298b3c85d6c8c7fd607c41de1073083f79b1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ doc/go1.20.html           | 40 ++++++++++++++++------------------------
+ src/archive/tar/reader.go |  2 +-
+ src/archive/zip/reader.go |  2 +-
+ 3 files changed, 18 insertions(+), 26 deletions(-)

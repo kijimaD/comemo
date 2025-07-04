@@ -1,0 +1,18 @@
+commit cde5fd1c0f8c40804bfd942eec1e2d69bccf4e13
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 13 12:39:04 2020 -0700
+
+    cmd/compile: correct type of CvtBoolToUint8 values
+    
+    Fixes #40746
+    
+    Change-Id: I539f07d1f958dacee87d846171a8889d03182d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248397
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/phiopt.go |  2 +-
+ src/cmd/compile/internal/ssa/prove.go  |  2 +-
+ test/fixedbugs/issue40746.go           | 19 +++++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit a8ed75d27ce464041bf91db7eaa624674f6a2145
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Dec 9 14:23:43 2009 -0800
+
+    added benchmarks to rand_test.go;
+    removed superfluous field name in lockedSource.
+    
+    R=r, rsc
+    https://golang.org/cl/170043
+
+ src/pkg/rand/rand_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

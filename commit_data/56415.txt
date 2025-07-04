@@ -1,0 +1,28 @@
+commit e2375c49ff837a506855ce26ec160f21dc744b88
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 13:14:51 2024 -0400
+
+    cmd: vendor golang.org/x/mod@6686f41
+    
+    To pull in CL 583836
+    
+    Commands run
+        go get golang.org/x/mod@6686f416970d4b8e2f54f521955dee89e6763c4b
+        go mod tidy
+        go mod vendor
+    
+    For #67238
+    For #66625
+    
+    Change-Id: I77e49706481e068d27072a38d0d2464aa40d2dd0
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584335
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.mod                                   | 2 +-
+ src/cmd/go.sum                                   | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/module/module.go | 2 ++
+ src/cmd/vendor/modules.txt                       | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

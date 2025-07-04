@@ -1,0 +1,15 @@
+commit 4b8c13dc20101c29161fe2b407df762a502b2990
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 19:03:57 2009 -0700
+
+    do not create interfaces containing interfaces
+    
+    R=r
+    DELTA=16  (14 added, 0 deleted, 2 changed)
+    OCL=27464
+    CL=27466
+
+ src/lib/reflect/all_test.go | 6 ++++++
+ src/lib/reflect/value.go    | 7 +++++--
+ src/runtime/iface.c         | 5 +++++
+ 3 files changed, 16 insertions(+), 2 deletions(-)

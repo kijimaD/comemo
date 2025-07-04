@@ -1,0 +1,31 @@
+commit 5f616a6fe789622f3e0ed0e8a00db9471e2a02f4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 23 11:10:10 2020 -0400
+
+    cmd/go: in 'go mod init', suggest running 'go mod tidy'
+    
+    When 'go mod init' is run in an existing project, it may import
+    requirements from a vendor configuration file, but the requirements
+    may not be complete, and go.sum won't contain sums for module
+    zips. With -mod=readonly, the next build command is likely to fail.
+    
+    'go mod init' will now suggest running 'go mod tidy' if there are .go
+    files or subdirectories in the current directory.
+    
+    We could potentially run 'go mod tidy' automatically within
+    'go mod init', but it seems better to guide users to using 'go mod tidy'
+    as a separate command to fix missing dependencies.
+    
+    For #41712
+    Updates #40278
+    
+    Change-Id: Iaece607f291244588a732ef4c5d576108965ca91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264622
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go          | 23 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_init_tidy.txt | 30 ++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

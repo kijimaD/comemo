@@ -1,0 +1,17 @@
+commit 53bbddd52724e439c751f445675f3eff5068d523
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 12 11:45:35 2017 -0700
+
+    cmd/compile: intrinsify runtime/internal/sys.Ctz{32,64} on ppc64
+    
+    These functions are identical to math/bits.TrailingZeros{32,64}, which
+    are already intrinsified on ppc64.
+    
+    Change-Id: If7ee57e7afe53154874f4b66bacdb6237806128a
+    Reviewed-on: https://go-review.googlesource.com/70350
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

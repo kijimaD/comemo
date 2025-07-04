@@ -1,0 +1,12 @@
+commit 4a7d1f2061e9211532c443713872db0859cd70d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 10:08:39 2011 -0800
+
+    go/ast: correct Pos/End ranges for field lists
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3797045
+
+ src/pkg/go/ast/ast.go | 30 ++++++++++++++++++++++++++----
+ 1 file changed, 26 insertions(+), 4 deletions(-)

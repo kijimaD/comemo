@@ -1,0 +1,14 @@
+commit 301d8a6d4aa9837530390b87266609bf1443566f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 21 14:29:14 2011 -0400
+
+    http: fix chunking bug during content sniffing
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/4807044
+
+ src/pkg/http/httptest/server.go | 22 ++++++++++++++++-
+ src/pkg/http/server.go          | 27 ++++++++++++++++-----
+ src/pkg/http/sniff_test.go      | 54 ++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 87 insertions(+), 16 deletions(-)

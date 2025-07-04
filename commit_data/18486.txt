@@ -1,0 +1,12 @@
+commit 39067c79f3812bd51a5184f54cf2779b37c6cb36
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 01:16:20 2014 -0500
+
+    runtime/pprof: fix arm build after CL 61270043
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/62960043
+
+ src/pkg/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

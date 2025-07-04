@@ -1,0 +1,13 @@
+commit d514e2915ce0be5d19954ea9a8ce0c34b30cee19
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 29 15:18:01 2014 +0400
+
+    runtime: mark global var as NOPTR
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/120280044
+
+ src/pkg/runtime/softfloat_arm.c | 1 +
+ 1 file changed, 1 insertion(+)

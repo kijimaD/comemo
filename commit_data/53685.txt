@@ -1,0 +1,24 @@
+commit 089e37a931d30d4055c7468facb602c4cfa9b537
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jun 30 13:48:10 2023 -0700
+
+    bytes: remove builders check from compare test
+    
+    TestCompareBytes already took into account the -short
+    testing flag, however, only if not run on one of the Go builders.
+    This extra condition is no longer necessary as we have much
+    better longtest coverage than we did when the check was added.
+    
+    Fixes #61071
+    
+    Change-Id: I0fc716f4e7baa04019ee00608f223f27c931edcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507416
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/compare_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

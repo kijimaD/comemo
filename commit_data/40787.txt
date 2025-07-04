@@ -1,0 +1,15 @@
+commit bf4990522263503a1219372cd8f1ee9422b51324
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 5 23:56:35 2019 +0700
+
+    cmd/compile: update comments to refer to Order methods
+    
+    Change-Id: I09090effcc5d814d4e024da3f944e825365588f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205477
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/range.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go  | 16 ++++++++--------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

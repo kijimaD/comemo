@@ -1,0 +1,12 @@
+commit e2093cdeef8dcf0303ce3d8e79247c71ed53507d
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Jan 3 21:34:49 2016 +0100
+
+    doc: fix typo in install-source.html.
+    
+    Change-Id: I6ea7339ff9412111319e46f2962c6b3880987a1e
+    Reviewed-on: https://go-review.googlesource.com/18174
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

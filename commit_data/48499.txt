@@ -1,0 +1,27 @@
+commit dd211cf039d5a3b57d2188751eca49ad816ed395
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 23 12:02:36 2022 -0400
+
+    debug/gosym: skip non-real functions in LineToPC lookup
+    
+    The code iterates through the func table to find a function with
+    a given file and line number. The code panics if it sees a non-
+    real function (e.g. go.buildid), because its CU offset is -1,
+    which causes an index-out-of-bounds error. The debug/gosym package
+    recovers the panic and returns "not found", without looping
+    through the rest of the entries.
+    
+    Skip the non-real functions. They cannot be looked up by line
+    number anyway.
+    
+    Fixes #51890.
+    
+    Change-Id: I96f64c17b4a53ffdce047c8244b35a402a0d39ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395074
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/debug/gosym/pclntab.go | 4 ++++
+ 1 file changed, 4 insertions(+)

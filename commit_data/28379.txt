@@ -1,0 +1,20 @@
+commit fb273fc3a3438f7a24b0901e2fcfd099eac4860d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 26 10:50:12 2016 -0700
+
+    cmd/compile: fix comma-ok assignments for non-boolean ok
+    
+    Passes toolstash -cmp.
+    
+    Fixes #16870.
+    
+    Change-Id: I70dc3bbb3cd3031826e5a54b96ba1ea603c282d1
+    Reviewed-on: https://go-review.googlesource.com/27910
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/order.go |  47 ++++++++----
+ src/cmd/compile/internal/gc/walk.go  |  13 +++-
+ test/fixedbugs/issue16870.go         | 140 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 181 insertions(+), 19 deletions(-)

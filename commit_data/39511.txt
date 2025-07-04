@@ -1,0 +1,12 @@
+commit 89d300b821551c9955414caf3066ae602813f6ea
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jul 14 18:48:20 2019 +0200
+
+    doc/go1.13: fix misspelling of "interpreted"
+    
+    Change-Id: I465f10533cc76d8160e56bc49eabaf8127ac4e61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186137
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

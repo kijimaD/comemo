@@ -1,0 +1,16 @@
+commit 5ee2b0478a43ae6e89459c3c7792a757e80a7097
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 3 15:54:33 2008 -0700
+
+    update bugs
+    add test for composite literals
+    
+    R=gri
+    OCL=14766
+    CL=14766
+
+ test/complit.go                    | 44 ++++++++++++++++++++++++++++++++++++++
+ test/{bugs => fixedbugs}/bug047.go |  2 +-
+ test/{bugs => fixedbugs}/bug048.go |  3 +--
+ test/golden.out                    | 15 -------------
+ 4 files changed, 46 insertions(+), 18 deletions(-)

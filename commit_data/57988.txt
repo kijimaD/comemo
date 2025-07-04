@@ -1,0 +1,28 @@
+commit e30ce3c498b623f5a492a8e77c32077c1ecf3a1f
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Jan 18 18:03:30 2023 +0100
+
+    sync/atomic: make intrinsics noescape except 64bits op on 32bits arch and unsafe.Pointer
+    
+    Fixes #16241
+    
+    I made 64 bits op on 32 bits arches still leak since it was kinda promised.
+    
+    The promised leaks were wider than this but I don't belive it's effect can
+    be observed in an breaking maner without using unsafe the way it's currently
+    setup.
+    
+    Change-Id: I66d8df47bfe49bce3efa64ac668a2a55f70733a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462298
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/sync/atomic/doc.go          | 119 +++++++++++++++-------------------------
+ src/sync/atomic/doc_32.go       |  79 ++++++++++++++++++++++++++
+ src/sync/atomic/doc_64.go       | 107 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue16241.go    |  59 ++++++++++++++++++++
+ test/fixedbugs/issue16241_64.go |  46 ++++++++++++++++
+ 5 files changed, 336 insertions(+), 74 deletions(-)

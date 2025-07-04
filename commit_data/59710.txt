@@ -1,0 +1,22 @@
+commit c146a61d4c9f76484206a83fa0aac64547f8acdf
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri May 23 11:35:41 2025 -0400
+
+    go/token: benchmark FileSet.{Position,AddExistingFiles}
+    
+    This CL adds a benchmark of FileSet.Position, the lookup
+    operation, and the new AddExistingFiles. It is evident
+    that its behavior is quadratic in important cases:
+    
+    (Apple M1)
+    BenchmarkFileSet_AddExistingFiles/sequence-8                   3         362768139 ns/op
+    
+    Change-Id: I256fdc776135e1924666d127afb37dacbefc860f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675875
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/token/export_test.go         |   9 ++++
+ src/go/token/position_bench_test.go | 103 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 109 insertions(+), 3 deletions(-)

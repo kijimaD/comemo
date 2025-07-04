@@ -1,0 +1,62 @@
+commit 77f9b2728eb08456899e6500328e00ec4829dddf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 14 09:57:06 2018 +0200
+
+    runtime: use MADV_FREE on Linux if available
+    
+    On Linux, sysUnused currently uses madvise(MADV_DONTNEED) to signal the
+    kernel that a range of allocated memory contains unneeded data. After a
+    successful call, the range (but not the data it contained before the
+    call to madvise) is still available but the first access to that range
+    will unconditionally incur a page fault (needed to 0-fill the range).
+    
+    A faster alternative is MADV_FREE, available since Linux 4.5. The
+    mechanism is very similar, but the page fault will only be incurred if
+    the kernel, between the call to madvise and the first access, decides to
+    reuse that memory for something else.
+    
+    In sysUnused, test whether MADV_FREE is supported and fall back to
+    MADV_DONTNEED in case it isn't. This requires making the return value of
+    the madvise syscall available to the caller, so change runtime.madvise
+    to return it.
+    
+    Fixes #23687
+    
+    Change-Id: I962c3429000dd9f4a00846461ad128b71201bb04
+    Reviewed-on: https://go-review.googlesource.com/135395
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs2_linux.go        |  5 ++++-
+ src/runtime/defs_linux.go         |  5 ++++-
+ src/runtime/defs_linux_386.go     |  1 +
+ src/runtime/defs_linux_amd64.go   |  1 +
+ src/runtime/defs_linux_arm.go     |  1 +
+ src/runtime/defs_linux_arm64.go   |  1 +
+ src/runtime/defs_linux_mips64x.go |  1 +
+ src/runtime/defs_linux_mipsx.go   |  1 +
+ src/runtime/defs_linux_ppc64.go   |  1 +
+ src/runtime/defs_linux_ppc64le.go |  1 +
+ src/runtime/defs_linux_s390x.go   |  1 +
+ src/runtime/mem_linux.go          | 13 +++++++++++--
+ src/runtime/stubs2.go             |  3 ++-
+ src/runtime/sys_dragonfly_amd64.s |  6 ++++--
+ src/runtime/sys_freebsd_386.s     |  4 +++-
+ src/runtime/sys_freebsd_amd64.s   |  6 ++++--
+ src/runtime/sys_freebsd_arm.s     | 15 ++++++++-------
+ src/runtime/sys_linux_386.s       |  2 +-
+ src/runtime/sys_linux_amd64.s     |  2 +-
+ src/runtime/sys_linux_arm.s       |  2 +-
+ src/runtime/sys_linux_arm64.s     |  2 +-
+ src/runtime/sys_linux_mips64x.s   |  2 +-
+ src/runtime/sys_linux_mipsx.s     |  4 ++--
+ src/runtime/sys_linux_ppc64x.s    |  2 +-
+ src/runtime/sys_linux_s390x.s     |  2 +-
+ src/runtime/sys_netbsd_386.s      |  4 +++-
+ src/runtime/sys_netbsd_amd64.s    |  4 +++-
+ src/runtime/sys_netbsd_arm.s      | 11 ++++++-----
+ src/runtime/sys_openbsd_386.s     |  3 ++-
+ src/runtime/sys_openbsd_amd64.s   |  4 +++-
+ src/runtime/sys_openbsd_arm.s     |  4 ++--
+ 31 files changed, 77 insertions(+), 37 deletions(-)

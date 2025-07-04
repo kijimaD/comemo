@@ -1,0 +1,20 @@
+commit a63afe4720e5eb4fbb76baf38a41cbf60e739fd4
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:35:48 2023 +0200
+
+    runtime/metrics: add /gc/scan/globals:bytes
+    
+    For #56857
+    
+    Change-Id: I748fd2a33ee76d9a83ea42f2ebf6d9edda243301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497320
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

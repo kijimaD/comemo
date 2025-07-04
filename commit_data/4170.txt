@@ -1,0 +1,15 @@
+commit c62069cc1f0bfcf8571eae63d3a7fe662c1bba41
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 19 23:12:01 2009 -0800
+
+    add a match arena to regexp to avoid generating garbage.
+    simple regexps run 20x faster.
+    the regex-dna benchmark goes 3x faster.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156108
+
+ src/pkg/regexp/all_test.go |  27 ++++++++
+ src/pkg/regexp/regexp.go   | 152 +++++++++++++++++++++++++++++++--------------
+ 2 files changed, 133 insertions(+), 46 deletions(-)

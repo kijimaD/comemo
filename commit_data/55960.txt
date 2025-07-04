@@ -1,0 +1,18 @@
+commit 4605dfaf76cd5a3cc4edceeeefa7b10406192af1
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 15 08:12:33 2024 +0000
+
+    cmd/compile: fix typo in comment
+    
+    Change-Id: Iec9ed110c4d5a417bd9de0434147665fd3633899
+    GitHub-Last-Rev: d2154f9ea12bc1fbb8f7c4feae2060e2534fa5d2
+    GitHub-Pull-Request: golang/go#66332
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571876
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

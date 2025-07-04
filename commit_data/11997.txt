@@ -1,0 +1,116 @@
+commit 2b1c9b4be2f0cae22d0c26f3f010a16c4ddce0a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 23:49:30 2012 -0500
+
+    test: use testlib (second 100)
+    
+    X ,s;^// \$G (\$D/)?\$F\.go *$;// compile;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A *$;// build;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A && \./\$A\.out *$;// run;g
+    X ,s;^// errchk \$G( -e)? (\$D/)?\$F\.go *$;// errorcheck;g
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5673078
+
+ test/fixedbugs/bug055.go  | 2 +-
+ test/fixedbugs/bug056.go  | 2 +-
+ test/fixedbugs/bug057.go  | 2 +-
+ test/fixedbugs/bug058.go  | 2 +-
+ test/fixedbugs/bug059.go  | 2 +-
+ test/fixedbugs/bug060.go  | 2 +-
+ test/fixedbugs/bug061.go  | 2 +-
+ test/fixedbugs/bug062.go  | 2 +-
+ test/fixedbugs/bug063.go  | 2 +-
+ test/fixedbugs/bug065.go  | 2 +-
+ test/fixedbugs/bug066.go  | 2 +-
+ test/fixedbugs/bug067.go  | 2 +-
+ test/fixedbugs/bug068.go  | 2 +-
+ test/fixedbugs/bug069.go  | 2 +-
+ test/fixedbugs/bug070.go  | 2 +-
+ test/fixedbugs/bug072.go  | 2 +-
+ test/fixedbugs/bug073.go  | 2 +-
+ test/fixedbugs/bug074.go  | 2 +-
+ test/fixedbugs/bug075.go  | 2 +-
+ test/fixedbugs/bug076.go  | 2 +-
+ test/fixedbugs/bug078.go  | 2 +-
+ test/fixedbugs/bug081.go  | 2 +-
+ test/fixedbugs/bug082.go  | 2 +-
+ test/fixedbugs/bug084.go  | 2 +-
+ test/fixedbugs/bug085.go  | 2 +-
+ test/fixedbugs/bug086.go  | 2 +-
+ test/fixedbugs/bug089.go  | 2 +-
+ test/fixedbugs/bug090.go  | 2 +-
+ test/fixedbugs/bug091.go  | 2 +-
+ test/fixedbugs/bug092.go  | 2 +-
+ test/fixedbugs/bug101.go  | 2 +-
+ test/fixedbugs/bug103.go  | 2 +-
+ test/fixedbugs/bug104.go  | 2 +-
+ test/fixedbugs/bug107.go  | 2 +-
+ test/fixedbugs/bug108.go  | 2 +-
+ test/fixedbugs/bug113.go  | 2 +-
+ test/fixedbugs/bug117.go  | 2 +-
+ test/fixedbugs/bug121.go  | 2 +-
+ test/fixedbugs/bug122.go  | 2 +-
+ test/fixedbugs/bug123.go  | 2 +-
+ test/fixedbugs/bug126.go  | 2 +-
+ test/fixedbugs/bug127.go  | 2 +-
+ test/fixedbugs/bug131.go  | 2 +-
+ test/fixedbugs/bug132.go  | 2 +-
+ test/fixedbugs/bug136.go  | 2 +-
+ test/fixedbugs/bug146.go  | 2 +-
+ test/fixedbugs/bug148.go  | 2 +-
+ test/fixedbugs/bug1515.go | 2 +-
+ test/fixedbugs/bug152.go  | 2 +-
+ test/fixedbugs/bug163.go  | 2 +-
+ test/fixedbugs/bug164.go  | 2 +-
+ test/fixedbugs/bug165.go  | 2 +-
+ test/fixedbugs/bug169.go  | 2 +-
+ test/fixedbugs/bug170.go  | 2 +-
+ test/fixedbugs/bug171.go  | 2 +-
+ test/fixedbugs/bug172.go  | 2 +-
+ test/fixedbugs/bug175.go  | 2 +-
+ test/fixedbugs/bug176.go  | 2 +-
+ test/fixedbugs/bug177.go  | 2 +-
+ test/fixedbugs/bug178.go  | 2 +-
+ test/fixedbugs/bug179.go  | 2 +-
+ test/fixedbugs/bug180.go  | 2 +-
+ test/fixedbugs/bug181.go  | 2 +-
+ test/fixedbugs/bug182.go  | 2 +-
+ test/fixedbugs/bug184.go  | 2 +-
+ test/fixedbugs/bug185.go  | 2 +-
+ test/fixedbugs/bug186.go  | 2 +-
+ test/fixedbugs/bug187.go  | 2 +-
+ test/fixedbugs/bug188.go  | 2 +-
+ test/fixedbugs/bug189.go  | 2 +-
+ test/fixedbugs/bug192.go  | 2 +-
+ test/fixedbugs/bug193.go  | 2 +-
+ test/fixedbugs/bug195.go  | 2 +-
+ test/fixedbugs/bug197.go  | 2 +-
+ test/fixedbugs/bug198.go  | 2 +-
+ test/fixedbugs/bug199.go  | 2 +-
+ test/fixedbugs/bug200.go  | 2 +-
+ test/fixedbugs/bug201.go  | 2 +-
+ test/fixedbugs/bug203.go  | 2 +-
+ test/fixedbugs/bug204.go  | 2 +-
+ test/fixedbugs/bug205.go  | 2 +-
+ test/fixedbugs/bug207.go  | 2 +-
+ test/fixedbugs/bug208.go  | 2 +-
+ test/fixedbugs/bug209.go  | 2 +-
+ test/fixedbugs/bug211.go  | 2 +-
+ test/fixedbugs/bug212.go  | 2 +-
+ test/fixedbugs/bug213.go  | 2 +-
+ test/fixedbugs/bug215.go  | 2 +-
+ test/fixedbugs/bug217.go  | 2 +-
+ test/fixedbugs/bug221.go  | 2 +-
+ test/fixedbugs/bug224.go  | 2 +-
+ test/fixedbugs/bug225.go  | 2 +-
+ test/fixedbugs/bug227.go  | 2 +-
+ test/fixedbugs/bug228.go  | 2 +-
+ test/fixedbugs/bug229.go  | 2 +-
+ test/fixedbugs/bug230.go  | 2 +-
+ test/fixedbugs/bug231.go  | 2 +-
+ test/fixedbugs/bug232.go  | 2 +-
+ test/fixedbugs/bug233.go  | 2 +-
+ test/fixedbugs/bug234.go  | 2 +-
+ 100 files changed, 100 insertions(+), 100 deletions(-)

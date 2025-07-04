@@ -1,0 +1,20 @@
+commit 9f8f1ca5ad78efedd1fae685ff7151d866d552e7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 22 14:24:33 2023 +0000
+
+    cmd/link/internal/ld: use strings.Cut
+    
+    Change-Id: I724fe76983ea259f12f073376d591c2f4b3c3d72
+    GitHub-Last-Rev: e61e865ba97a52d24d3aee7642f5804916e94544
+    GitHub-Pull-Request: golang/go#55910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435738
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/internal/ld/go.go | 10 +++-------
+ src/cmd/link/internal/ld/ld.go | 14 ++++++--------
+ 2 files changed, 9 insertions(+), 15 deletions(-)

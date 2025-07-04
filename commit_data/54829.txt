@@ -1,0 +1,25 @@
+commit dd84bb682482390bb8465482cb7b13d2e3b17297
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Oct 31 17:26:43 2023 +0000
+
+    crypto/x509: add new OID type and use it in Certificate
+    
+    Fixes #60665
+    
+    Change-Id: I814b7d4b26b964f74443584fb2048b3e27e3b675
+    GitHub-Last-Rev: 693c741c76e6369e36aa2a599ee6242d632573c7
+    GitHub-Pull-Request: golang/go#62096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520535
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/60665.txt           |   6 +
+ src/crypto/x509/oid.go       | 273 +++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/oid_test.go  | 110 +++++++++++++++++
+ src/crypto/x509/parser.go    |  20 ++--
+ src/crypto/x509/x509.go      |  35 ++++--
+ src/crypto/x509/x509_test.go |  49 ++++++++
+ 6 files changed, 479 insertions(+), 14 deletions(-)

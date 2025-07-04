@@ -1,0 +1,15 @@
+commit fcdba72d2ad3146ca83658206fc267a763a0a419
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 11 23:46:11 2009 -0700
+
+    correct a design flaw: Atoi etc should not guess the base.
+    leave that for Btoi with base == 0.
+    
+    R=r
+    DELTA=146  (101 added, 29 deleted, 16 changed)
+    OCL=35584
+    CL=35593
+
+ src/pkg/strconv/atoi.go      | 77 +++++++++++++++++++++++++-------------------
+ src/pkg/strconv/atoi_test.go | 77 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 113 insertions(+), 41 deletions(-)

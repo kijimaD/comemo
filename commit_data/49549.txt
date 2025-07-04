@@ -1,0 +1,34 @@
+commit a6e5be0d30770e8bd1ba1e4bac2089218df121d9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 15:54:44 2022 -0400
+
+    cmd/go: omit build metadata that may contain system paths when -trimpath is set
+    
+    CGO flag variables often include system paths for header files and
+    compiled libraries. The point of -trimpath is to avoid dependending on
+    system paths, so stamping these variables is counterproductive.
+    
+    Moreover, the point of stamping build information is to improve
+    reproducibility. Since we don't also stamp the versions of C
+    compilers, headers, and libraries used in a cgo build, only the most
+    trivial cgo programs can be faithfully reproduced from the stamped
+    information.
+    
+    Likewise, the -ldflags flag may include system-specific paths,
+    particularly if external linking is in use. For now, we omit -ldflags
+    entirely; however, in the future we may instead want to parse and
+    redact the individual flags.
+    
+    Fixes #52372.
+    
+    Change-Id: I73318a01cce4371d66955b3261fc7ee58d4b33dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409174
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                     | 21 +++++++++++++++++++--
+ .../go/testdata/script/version_build_settings.txt   | 17 ++++++++++++++++-
+ 2 files changed, 35 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 19aecba1d5ae30411ddb1bc885da33d12d2eafd8
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sun Mar 20 11:45:43 2011 -0700
+
+    flag: document Nflag function
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4279065
+
+ src/pkg/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 83b5f067e88589b4eb5794df5f3ba28b72bce6f1
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Feb 23 15:29:17 2012 -0500
+
+    binary: remove unnecessary dummy type.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5698052
+
+ src/pkg/encoding/binary/binary.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

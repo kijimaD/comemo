@@ -1,0 +1,17 @@
+commit 96c8cc7fea94dca8c9e23d9653157e960f2ff472
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Nov 7 21:37:25 2021 +0800
+
+    runtime: add ABIInternal to strhash and memhash on riscv64
+    
+    This CL fixes regression of strhash and memhash on riscv64
+    
+    Change-Id: Icc10431a8199c8b1eb7b440cb42be4e53420e171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362134
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/asm_riscv64.s | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,24 @@
+commit c213c905a29b3bce31b99ae91326bbaea106cc16
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 20:12:35 2023 +0000
+
+    runtime: capture per-g trace state in a type
+    
+    More tightening up of the tracer's interface.
+    
+    This increases the size of each G very slightly, which isn't great, but
+    we stay within the same size class, so actually memory use will be
+    unchanged.
+    
+    Change-Id: I7d1f5798edcf437c212beb1e1a2619eab833aafb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494188
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go        | 14 +++++------
+ src/runtime/runtime2.go    | 49 +++++++++++++++++++--------------------
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/trace.go       | 58 ++++++++++++++++++++++++++--------------------
+ 4 files changed, 65 insertions(+), 58 deletions(-)

@@ -1,0 +1,21 @@
+commit bd5ca22232d67810d9996aa9c67059e20253e6f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 13:37:13 2015 -0400
+
+    runtime/trace: remove existing Skips
+    
+    The skips added in CL 12579, based on incorrect time stamps,
+    should be sufficient to identify and exclude all the time-related
+    flakiness on these systems.
+    
+    If there is other flakiness, we want to find out.
+    
+    For #10512.
+    
+    Change-Id: I5b588ac1585b2e9d1d18143520d2d51686b563e3
+    Reviewed-on: https://go-review.googlesource.com/12746
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/trace/trace_stack_test.go |  2 +-
+ src/runtime/trace/trace_test.go       | 33 ---------------------------------
+ 2 files changed, 1 insertion(+), 34 deletions(-)

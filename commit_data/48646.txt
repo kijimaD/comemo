@@ -1,0 +1,20 @@
+commit df89f2ba53aab53356be197c581d142cefc2c6bc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 1 11:09:30 2022 -0400
+
+    crypto/x509: skip WSATRY_AGAIN errors when dialing badssl.com subdomains
+    
+    (Temporarily, until the root cause of the test failure can be
+    diagnosed and fixed properly.)
+    
+    For #52094
+    
+    Change-Id: Iec69e162159f3f0a93135f742aac97cf82c1d96c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397478
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/root_windows_test.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

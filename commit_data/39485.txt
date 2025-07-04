@@ -1,0 +1,19 @@
+commit beeb8fea8d06cdc67ff95bf23dbbfa926b4b7123
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 3 15:14:51 2019 -0400
+
+    cmd/go: update tests for new @upgrade query
+    
+    This should have been part of CL 184440.
+    
+    Updates #32846
+    
+    Change-Id: I78a1326f4a67b3b526859bd15cb9653b4a8551a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184920
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/query.go      |  2 +-
+ src/cmd/go/internal/modload/query_test.go | 14 ++++++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

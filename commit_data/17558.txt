@@ -1,0 +1,21 @@
+commit ce9ddd0eeec50d88950f0a51c44a071b3a92d7e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 14:18:52 2013 -0400
+
+    runtime: keep args and frame in struct Func
+    
+    args is useful for printing tracebacks.
+    
+    frame is not necessary anymore, but we might some day
+    get back to functions where the frame size does not vary
+    by program counter, and if so we'll need it. Avoid needing
+    to introduce a new struct format later by keeping it now.
+    
+    Fixes #5907.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13632051
+
+ src/pkg/runtime/runtime.h | 1 -
+ 1 file changed, 1 deletion(-)

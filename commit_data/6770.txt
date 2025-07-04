@@ -1,0 +1,18 @@
+commit 19f0e4603d659412765696d4c03c395e01988285
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 18 07:16:09 2010 -0500
+
+    sort: edit doc comment for Search
+    
+    Change comment to be more generic,
+    with indexed data structure search as
+    one common use case.
+    
+    Fix typo []data.
+    
+    R=gri, rog
+    CC=golang-dev
+    https://golang.org/cl/3159041
+
+ src/pkg/sort/search.go | 85 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 46 insertions(+), 39 deletions(-)

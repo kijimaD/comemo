@@ -1,0 +1,21 @@
+commit 36c4a73fb2aa9f9665c71f563a3e8125c29223e2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Nov 15 11:40:10 2012 +1100
+
+    run.{bash,bat,rc}: unset GOMAXPROCS before ../test
+    
+    test/run.go already executes tests in parallel where
+    possible. An unknown GOMAXPROCS value during the tests
+    is known to cause failures with tests that measure
+    allocations.
+    
+    ref: https://groups.google.com/d/topic/golang-nuts/tgMhFJ3F5WY/discussion
+    
+    R=fullung, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/6847050
+
+ src/run.bash | 2 +-
+ src/run.bat  | 7 +++++++
+ src/run.rc   | 2 +-
+ 3 files changed, 9 insertions(+), 2 deletions(-)

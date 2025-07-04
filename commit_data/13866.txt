@@ -1,0 +1,12 @@
+commit 7e525928d33bdd48142a2664dc03664c0034354b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 18 14:13:34 2012 -0700
+
+    go/doc: synthesize "package main" for examples
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6525046
+
+ src/pkg/go/doc/example.go | 92 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)

@@ -1,0 +1,17 @@
+commit 590f47558d875691190b059f2696d2f9d0bf9c66
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 6 14:27:25 2017 -0400
+
+    doc/go1.9: discuss runtime.Callers
+    
+    A lot of code that uses runtime.Callers makes assumptions about the
+    result that are not true today under gccgo and will not be true in the
+    future in gc. This adds a section to the release notes discussing how
+    to correctly use runtime.Callers.
+    
+    Change-Id: I96b7c7ef183cee2061442fc3501fceceefa54c09
+    Reviewed-on: https://go-review.googlesource.com/47691
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.9.html | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

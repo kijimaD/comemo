@@ -1,0 +1,38 @@
+commit 632162ccbc61a7321f322b1b99c04aefc414802b
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Mar 6 12:53:56 2019 +0100
+
+    misc/android: enable many more tests on GOOS=android
+    
+    Android tests are built on the host and run on the device. To do
+    that, the exec wrapper copies the test binary and testdata to the device.
+    To enable many more tests, make the copied environment more like the host:
+    
+    - Copy all of pkg from GOROOT, not just the android pkg directory.
+    - Copy any parent testdata directories as well as the package's own.
+    - Copy *.go files from the package directory. This enables misc/cgo/stdio
+    and misc/cgo/life tests that were invisible before so disable them explicitly.
+    - Always copy the GOROOT, even for tests outside GOROOT. This is expensive
+     but only done once per make.bash.
+    - Build the go tool for the device and put it in PATH. Set GOCACHE
+    to a writable directory and disable cgo.
+    
+    While here, use a single directory for all the exec wrapper files and
+    delete that once per make.bash as well.
+    
+    In total, this CL enables many tests in the subrepos that would need skips
+    without it, in particular the x/tools tests.
+    
+    Fixes #11452
+    Updates #23824
+    Updates #11811
+    
+    Change-Id: I2e50d8b57db9bc4637f25272a5360c8b2cf4e627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 107 +++++++++++++++++++++++++++-------------
+ misc/cgo/life/life_test.go      |   3 ++
+ misc/cgo/stdio/stdio_test.go    |   3 ++
+ 3 files changed, 80 insertions(+), 33 deletions(-)

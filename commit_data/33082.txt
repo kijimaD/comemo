@@ -1,0 +1,20 @@
+commit 764a6ac29e4f720a0a33cb5ee02b9108821d8388
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Oct 12 18:41:06 2017 +0200
+
+    runtime: don't restore the alternate signal stack on ios
+    
+    The alternative signal stack doesn't work on ios, so the setup of
+    the alternative stack was skipped. The corresponding unminitSignals
+    was effectively a no-op on ios until CL 70130. Skip unminitSignals
+    on ios to restore the previous behaviour.
+    
+    For the ios builders.
+    
+    Change-Id: I5692ca7f5997e6b9d10cc5f2383a5a37c42b133c
+    Reviewed-on: https://go-review.googlesource.com/70270
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_darwin.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

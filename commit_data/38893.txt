@@ -1,0 +1,22 @@
+commit 70ac1c2f3f0d39be8696aeda5c926d4879cccc18
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Aug 1 01:49:55 2018 +0800
+
+    cmd/go/internal/modconv: support convert replacements in Gopkg.lock
+    
+    Fixes #24087.
+    Updates #26711.
+    
+    Change-Id: I7fe6b21fd391253a19cb1d35709a061872ea7b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/126915
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modconv/convert.go           | 32 ++++++----
+ src/cmd/go/internal/modconv/dep.go               | 66 ++++++++++++++++++--
+ src/cmd/go/internal/modconv/modconv_test.go      |  3 +
+ src/cmd/go/internal/modconv/testdata/traefik.dep | 79 ++++++++++++++++++++++++
+ src/cmd/go/internal/modconv/testdata/traefik.out | 14 +++++
+ src/cmd/go/testdata/script/mod_init_dep.txt      | 23 +++++++
+ 6 files changed, 202 insertions(+), 15 deletions(-)

@@ -1,0 +1,20 @@
+commit 035c018d40c0a7895880e235048d425ea3e3fa6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 11 09:39:54 2020 -0400
+
+    runtime: skip TestSignalIgnoreSIGTRAP on known-flaky OpenBSD builders
+    
+    This test is flaky, and the cause is suspected to be an OpenBSD kernel bug.
+    Since there is no obvious workaround on the Go side, skip the test on
+    builders whose versions are known to be affected.
+    
+    Fixes #17496
+    
+    Change-Id: Ifa70061eb429e1d949f0fa8a9e25d177afc5c488
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222856
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/runtime/crash_unix_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

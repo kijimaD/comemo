@@ -1,0 +1,26 @@
+commit 4aedbf5be4631693f774063410707ef467ca78e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 12:22:16 2016 -0500
+
+    archive/zip: fix reading, writing of zip64 archives
+    
+    Read zip files that contain only 64-bit header offset, not 64-bit sizes.
+    Fixes #13367.
+    
+    Read zip files that contain completely unexpected Extra fields,
+    provided we do not need to find 64-bit size or header offset information there.
+    Fixes #13166.
+    
+    Write zip file entries with 0xFFFFFFFF uncompressed data bytes
+    correctly (must use zip64 header, since that's the magic indicator).
+    Fixes new TestZip64EdgeCase. (Noticed while working on the CL.)
+    
+    Change-Id: I84a22b3995fafab8052b99de8094a9f35a25de5b
+    Reviewed-on: https://go-review.googlesource.com/18317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader.go   | 48 ++++++++++++++++++++++++++-----------
+ src/archive/zip/struct.go   |  2 +-
+ src/archive/zip/writer.go   |  2 +-
+ src/archive/zip/zip_test.go | 58 ++++++++++++++++++++++++++++++++++++++-------
+ 4 files changed, 85 insertions(+), 25 deletions(-)

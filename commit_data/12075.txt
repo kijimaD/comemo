@@ -1,0 +1,19 @@
+commit a53317668a9b29cf4633e67d1d83947eee92c951
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 22:13:04 2012 -0500
+
+    strconv: run garbage collection before counting allocations in test
+    
+    My theory is that the call to f() allocates, which triggers
+    a garbage collection, which itself may do some allocation,
+    which is being counted.  Running a garbage collection
+    before starting the test should avoid this problem.
+    
+    Fixes #2894 (I hope).
+    
+    R=golang-dev, bradfitz, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5685046
+
+ src/pkg/strconv/itoa_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,20 @@
+commit 47e5266a225476961dfc3e0b26a2e3e620d89114
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jan 7 11:24:01 2013 +1100
+
+    misc/dashboard/builder: set GOPATH before building subrepos
+    
+    This proposal updates the dashboard builder to avoid relying on the (soon to be removed) support for using go get to download to $GOROOT. The result is
+    
+    WORKSPACE=$(the value of the -buildRoot flag / $BUILDER_NAME + hg revision)
+    GOROOT=$WORKSPACE/go
+    GOPATH=$WORKSPACE
+    
+    Required for CL 6941058.
+    
+    R=minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7034049
+
+ misc/dashboard/builder/main.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

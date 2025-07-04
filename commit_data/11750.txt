@@ -1,0 +1,18 @@
+commit c15a42ed76370afd87aebee0be131dba713bc4f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:05:26 2012 +1100
+
+    cmd/api: follow constant references
+    
+    For gccgo. Also removes bunch of special cases.
+    
+    Fixes #2906
+    
+    R=golang-dev, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5644050
+
+ src/cmd/api/goapi.go                       | 115 +++++++++++++++++++----------
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |   2 +
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |   5 ++
+ 3 files changed, 84 insertions(+), 38 deletions(-)

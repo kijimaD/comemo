@@ -1,0 +1,16 @@
+commit a16a189fb96f824d1eaa53db9c0047c7ce334bd1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 16 13:52:51 2016 -0700
+
+    test: remove unused variable
+    
+    ssaMain is no longer needed.
+    
+    Change-Id: I0b77f0bcd482329d73018bd80a6e068e622e191b
+    Reviewed-on: https://go-review.googlesource.com/27190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/run.go | 6 ------
+ 1 file changed, 6 deletions(-)

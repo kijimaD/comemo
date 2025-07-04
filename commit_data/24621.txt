@@ -1,0 +1,21 @@
+commit 8ee0fd862357aade3f58cdb41467408105c9e865
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 9 15:24:38 2015 -0700
+
+    runtime: replace is{plan9,solaris,windows} with GOOS tests
+    
+    Change-Id: I27589395f547c5837dc7536a0ab5bc7cc23a4ff6
+    Reviewed-on: https://go-review.googlesource.com/10872
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_386.s           | 10 ++++++----
+ src/runtime/asm_amd64.s         | 15 +++++++++------
+ src/runtime/rt0_plan9_386.s     |  2 --
+ src/runtime/rt0_plan9_amd64.s   |  2 --
+ src/runtime/rt0_solaris_amd64.s |  3 ---
+ src/runtime/rt0_windows_386.s   |  4 ----
+ src/runtime/rt0_windows_amd64.s |  3 ---
+ src/runtime/runtime1.go         |  7 -------
+ 8 files changed, 15 insertions(+), 31 deletions(-)

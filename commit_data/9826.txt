@@ -1,0 +1,15 @@
+commit f30719dc89c2a41502fa584b790943170ad2d1ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 22:36:52 2011 -0700
+
+    encoding/binary: support for varint encoding
+    
+    R=rsc, r, nigeltao, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5146048
+
+ src/pkg/encoding/binary/Makefile       |   1 +
+ src/pkg/encoding/binary/binary.go      |   6 +-
+ src/pkg/encoding/binary/varint.go      | 163 ++++++++++++++++++++++++++++++
+ src/pkg/encoding/binary/varint_test.go | 175 +++++++++++++++++++++++++++++++++
+ 4 files changed, 342 insertions(+), 3 deletions(-)

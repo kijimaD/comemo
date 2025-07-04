@@ -1,0 +1,30 @@
+commit eeb64b7fef7b593c64ea127ab4c1052162638099
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 14 10:18:10 2015 +0900
+
+    net: adjust dual stack support on dragonfly
+    
+    As mentioned in
+    http://gitweb.dragonflybsd.org/dragonfly.git/commit/727ccde8cce813911d885b7f6ed749dcea68a886,
+    DragonFly BSD is dropping support for IPv6 IPv4-mapped address.
+    Unfortunately, on some released versions we see the kernels pretend to
+    support the feature but actually not (unless tweaking some kernel states
+    via sysctl.)
+    
+    To avoid unpredictable behavior, the net package assumes that all
+    DragonFly BSD kernels don't support IPv6 IPv4-mapped address.
+    
+    Fixes #10764.
+    
+    Change-Id: Ic7af3651e0372ec03774432fbb6b2eb0c455e994
+    Reviewed-on: https://go-review.googlesource.com/10071
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ipsock_posix.go  | 29 ++++++++++++++++++++---
+ src/net/listen_test.go   |  6 ++---
+ src/net/main_test.go     | 51 +++++++++++++++++++++++++++++++++++++++-
+ src/net/sockopt_bsd.go   |  2 +-
+ src/net/tcp_test.go      | 36 ++++------------------------
+ src/net/tcpsock_posix.go |  5 ----
+ src/net/udp_test.go      | 61 +++++++++++++++---------------------------------
+ 7 files changed, 102 insertions(+), 88 deletions(-)

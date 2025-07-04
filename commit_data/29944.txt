@@ -1,0 +1,36 @@
+commit 22689c445089501b2c9adc9b6556e2a5290d1584
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 12 16:54:42 2017 -0500
+
+    reflect: keep makeFuncImpl live across makeFuncStub
+    
+    When traceback sees reflect.makeFuncStub (or reflect.methodValueCall)
+    on the stack, it expects to be able to get the *reflect.makeFuncImpl
+    (or *reflect.methodValue) for that call from the first outgoing
+    argument slot of makeFuncStub/methodValueCall.
+    
+    However, currently this object isn't necessarily kept live across
+    makeFuncStub. This means it may get garbage collected while in a
+    reflect call and reused for something else. If we then try to
+    traceback, the runtime will see a corrupted makeFuncImpl object and
+    panic. This was not a problem in previous releases because we always
+    kept arguments live across the whole function. This became a problem
+    when we stopped doing this.
+    
+    Fix this by using reflect.KeepAlive to keep the
+    makeFuncImpl/methodValue live across all of callReflect/callMethod,
+    which in turn keeps it live as long as makeFuncStub/methodValueCall
+    are on the stack.
+    
+    Fixes #18635.
+    
+    Change-Id: I91853efcf17912390fddedfb0230648391c33936
+    Reviewed-on: https://go-review.googlesource.com/35151
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  8 ++++++
+ 2 files changed, 76 insertions(+)

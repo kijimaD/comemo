@@ -1,0 +1,14 @@
+commit abccf6b692cbe6585839bbbea9c040f4d191114e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 12:16:24 2013 +0900
+
+    net: update documentation for FileConn, FilePacketConn, FileListener
+    
+    Closes the API documentation gap between platforms.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8086043
+
+ src/pkg/net/file_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

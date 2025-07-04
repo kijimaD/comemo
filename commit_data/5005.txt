@@ -1,0 +1,15 @@
+commit cba81d8058ddd2b20aebecc02598fd8bd45f99bf
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 6 13:38:14 2010 -0800
+
+    fix bug in complex printing: imaginary didn't have same format as real.
+    add tests.
+    
+    R=rsc, ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/261041
+
+ src/pkg/fmt/fmt_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/fmt/format.go   | 27 ++++++++++++++++++---------
+ src/pkg/fmt/print.go    |  1 -
+ 3 files changed, 47 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit 484f46daea9a44afd9fc0ea90b2172dfa524d9bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 17:09:33 2009 -0800
+
+    net: fix dns bug reported on irc.
+    
+    if suffixes don't work, check for name directly.
+    also fixes short names like bit.ly when ndots>1.
+    
+    tested by tossing domain and search lines from /etc/resolv.conf
+    
+    Fixes #2.
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/152048
+
+ src/pkg/net/dnsclient.go | 11 +++++++++++
+ src/pkg/net/net_test.go  |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 4b1933dfb2a332a6a9744c7d5b05ea08f9909658
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 21 00:49:45 2012 +0800
+
+    runtime: remove unused goc2c.c
+            Its functionality has been moved into cmd/dist.
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5843062
+
+ src/pkg/runtime/goc2c.c | 750 ------------------------------------------------
+ 1 file changed, 750 deletions(-)

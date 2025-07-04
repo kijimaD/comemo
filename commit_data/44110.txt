@@ -1,0 +1,20 @@
+commit 6250833911fc979a4ca5ba8b7f0612d054a3aeec
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 8 17:12:50 2021 +0000
+
+    runtime/metrics: mark histogram metrics as cumulative
+    
+    All the current histogram metrics accumulate counts from program start
+    to infinity, and can be reasonably used to compute rates (also to
+    generate windowed distributions).
+    
+    Change-Id: I5196c59867de34fba41bb8552606fa315460cef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282633
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/metrics/description.go | 3 +++
+ 1 file changed, 3 insertions(+)

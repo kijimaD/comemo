@@ -1,0 +1,20 @@
+commit 54dffda2b6f967d216b59fcbda116c74b07c4990
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 19 22:17:39 2013 +0100
+
+    runtime: prevent garbage collection during hashmap insertion
+    
+    Inserting a key-value pair into a hashmap storing keys or values
+    indirectly can cause the garbage collector to find the hashmap in
+    an inconsistent state.
+    
+    Fixes #5074.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7913043
+
+ src/pkg/runtime/gc_test.go | 15 +++++++++++++++
+ src/pkg/runtime/hashmap.c  |  6 ++++--
+ src/pkg/runtime/mgc0.c     | 16 ++++++++++++++--
+ 3 files changed, 33 insertions(+), 4 deletions(-)

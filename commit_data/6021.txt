@@ -1,0 +1,50 @@
+commit 1f9dfa294fe6ea6c3db7a0676fb895667e4c231c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 13 10:42:18 2010 -0700
+
+    go AST: First step towards augmenting AST with full type information.
+    
+    - change ast.Ident back to contain the name and adjust all dependent code
+    - identifier object information will be added again through an optional
+      typechecker phase (in the works).
+    - remove tracking of scopes in parser - it's easier to do this in a separate
+      phase (in the works)
+    - in godoc, generate popup info table directly instead of through a formatter
+      for simpler data flow (at the expense of a little bit more code)
+    
+    Runs all tests.
+    
+    As a result of this change, the currently shown popup information
+    (const, var, type, func, followed by identifier name) will not be
+    shown anymore temporarily.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1994041
+
+ lib/godoc/source.html              |   9 +-
+ src/cmd/cgo/ast.go                 |  10 +-
+ src/cmd/cgo/gcc.go                 |  12 +-
+ src/cmd/cgo/out.go                 |  14 +-
+ src/cmd/godoc/godoc.go             | 117 +++++++++++------
+ src/cmd/godoc/index.go             |   8 +-
+ src/cmd/godoc/snippet.go           |   4 +-
+ src/cmd/gofmt/gofmt.go             |   7 +-
+ src/cmd/gofmt/rewrite.go           |   8 +-
+ src/cmd/goinstall/parse.go         |   4 +-
+ src/pkg/exp/eval/expr.go           |   4 +-
+ src/pkg/exp/eval/stmt.go           |  32 ++---
+ src/pkg/exp/eval/type.go           |   4 +-
+ src/pkg/exp/eval/typec.go          |  16 +--
+ src/pkg/exp/eval/world.go          |   4 +-
+ src/pkg/go/ast/ast.go              |  34 ++---
+ src/pkg/go/ast/filter.go           |   8 +-
+ src/pkg/go/ast/scope.go            |  61 ++++++---
+ src/pkg/go/doc/doc.go              |  22 ++--
+ src/pkg/go/parser/interface.go     |  38 +++---
+ src/pkg/go/parser/parser.go        | 258 +++++++------------------------------
+ src/pkg/go/parser/parser_test.go   |   7 +-
+ src/pkg/go/printer/nodes.go        |   2 +-
+ src/pkg/go/printer/printer.go      |   2 +-
+ src/pkg/go/printer/printer_test.go |   2 +-
+ 25 files changed, 282 insertions(+), 405 deletions(-)

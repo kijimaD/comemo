@@ -1,0 +1,19 @@
+commit c6cdfd88c762ee746cd9579ae57e528f56f5dd00
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 18 11:33:53 2022 -0800
+
+    net/http: direct server logs to test output in tests
+    
+    Set a logger in newClientServerTest that directs the server
+    log output to the testing.T's log, so log output gets properly
+    associated with the test that caused it.
+    
+    Change-Id: I13686ca35c3e21adae16b2fc37ce36daea3df9d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452075
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/clientserver_test.go | 13 +++++++++++++
+ src/net/http/serve_test.go        | 40 ++++++++++++++++++---------------------
+ 2 files changed, 31 insertions(+), 22 deletions(-)

@@ -1,0 +1,27 @@
+commit 2068d5658e99f6cf13dd2648f3542d2c5bcdabfc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:09:39 2023 -0400
+
+    Revert "Revert "Revert "runtime: consolidate function descriptor definitions on PPC64"""
+    
+    This reverts CL 481075 (a re-apply of previously reverted CL 478917).
+    
+    Reason for revert: CL 481061 causes C TSAN failures and must be
+    reverted. See CL 485275. This CL depends on CL 481061.
+    
+    For #59678.
+    
+    Change-Id: I4bf7f43d9df1ae28e04cd4065552bcbee82ef13f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm_ppc64x.h       | 20 ++------------------
+ src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
+ src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
+ src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
+ src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
+ src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
+ 6 files changed, 73 insertions(+), 46 deletions(-)

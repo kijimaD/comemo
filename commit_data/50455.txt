@@ -1,0 +1,42 @@
+commit dad2966a83c1597786a96a8ef407ed412575ec94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 15:04:20 2022 -0700
+
+    go/types, types2: don't print function parameter names when showing type differences
+    
+    Add a new flag 'paramNames' to typeWriter struct to control whether
+    function parameter names are written or not (set by default). Unset
+    it when we want the function signature w/o parameter names, e.g. when
+    showing two signatures that are not identical. This makes is much
+    easier to see the typw differences in the error message.
+    
+    To avoid needing to provide yet another (rarely used) boolean parameter
+    to typeString, remove that function in favor of setting the paramNames
+    flag explicitly. Adjust the code in errors.go that used typeString; the
+    resulting code is also more efficient (fewer bytes.Buffer allocations).
+    
+    While at it, rename the typeWriter 'debug' field to 'tpSubscripts'
+    because that is what it controls.
+    
+    Add test case and adjusted existing expected output for existing tests.
+    
+    Fixes #54942.
+    
+    Change-Id: I625eae30c403c39ce89951b8ea6214d783c92c75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430416
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/errors.go      | 21 ++++++++++----
+ src/cmd/compile/internal/types2/lookup.go      |  4 ++-
+ src/cmd/compile/internal/types2/typestring.go  | 29 ++++++++------------
+ src/go/types/errors.go                         | 20 ++++++++++----
+ src/go/types/lookup.go                         |  4 ++-
+ src/go/types/typestring.go                     | 29 ++++++++------------
+ src/internal/types/testdata/check/issues0.go   | 20 +++++++-------
+ src/internal/types/testdata/fixedbugs/54942.go | 38 ++++++++++++++++++++++++++
+ 8 files changed, 107 insertions(+), 58 deletions(-)

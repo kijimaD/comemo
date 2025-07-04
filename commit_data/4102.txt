@@ -1,0 +1,17 @@
+commit 4dfd7fdde5957e4f3ba1a0285333f7c807c28f03
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 14:42:08 2009 -0800
+
+    runtime: do not create new threads during malloc.
+            the signal handling stack is a different size than
+            the normal stack, so it cannot be allocated using
+            the backup stack allocator.
+    
+    Fixes #250.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/157044
+
+ src/pkg/runtime/proc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

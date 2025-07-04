@@ -1,0 +1,12 @@
+commit e2897e4ac0e0c124f3bb06885b4e2ed22e18eabf
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Dec 19 10:33:42 2018 +0530
+
+    doc/go1.12: fix minor grammatical error
+    
+    Change-Id: I767bf77aeab62f2d42239fac9d601a8e04fe860f
+    Reviewed-on: https://go-review.googlesource.com/c/154957
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

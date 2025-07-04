@@ -1,0 +1,31 @@
+commit e3798efbc21645ac1fb9db6f7a067bfd1b997894
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 22 12:56:28 2023 -0400
+
+    cmd/dist: copy trailing text more directly in testJSONFilter.process
+    
+    Use io.Copy¹ that matches the comment more closely, avoids the
+    possibility of needing a bigger array, and is slightly shorter.
+    Its downside is that it takes two w.Write calls instead of one.
+    
+    ¹ Admittedly, it was temping to use io.CopyBuffer since the 'data'
+      byte slice becomes a viable buffer after its contents are written.
+      I resisted that temptation for two reasons.
+    
+      One, it would need the io.Reader returned by dec.Buffered() (currently
+      a *bytes.Reader) to not implement the io.WriterTo interface for any
+      chance of making a positive difference. This seems not very likely.
+    
+      Two, to avoid burdening anyone with determining that io.CopyBuffer
+      won't panic without 'if len(data) == 0 && data != nil { data = nil }'
+      because json.Marshal never returns an empty but non-nil byte slice.
+    
+    Change-Id: I33c53d9d990f6ee79cd3ab90f12e3b575b9ebe72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497736
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/testjson.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

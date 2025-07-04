@@ -1,0 +1,21 @@
+commit b1f76f7a220a806d74bf55da374ea89467753e1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:27:38 2020 -0400
+
+    os: add DirFS
+    
+    It will inevitably be important to be able to pass an operating system
+    directory to code written to expect an fs.FS.
+    
+    os.DirFS provides the conversion.
+    
+    For #41190.
+    
+    Change-Id: Id1a8fcbe4c7a30de2c47dea0504e9481a88b1b39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243911
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file.go    | 19 +++++++++++++++++++
+ src/os/os_test.go |  7 +++++++
+ 2 files changed, 26 insertions(+)

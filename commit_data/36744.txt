@@ -1,0 +1,15 @@
+commit 93ad702251e3b72bb90df5d7c29204e0edef4351
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 25 13:01:27 2018 -0700
+
+    cmd/go: use internal/goroot to check for a standard library package
+    
+    Change-Id: I739728f976162a0b8425a93666e3694d967dceb7
+    Reviewed-on: https://go-review.googlesource.com/137436
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/build.go  | 11 +++++------
+ src/cmd/go/internal/modload/import.go |  5 +++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

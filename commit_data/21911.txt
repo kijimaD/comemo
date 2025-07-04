@@ -1,0 +1,15 @@
+commit 383e6b2ce2833e93fcf80de2f6d9afc450acd864
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:24:13 2015 -0500
+
+    cmd/internal/obj/x86: prep for next CL
+    
+    Add unused (but initialized) from3 field to ytab, f3t to movtab.
+    Remove level of indentation in movtab processing.
+    
+    Change-Id: I8475988f46b541ecaccf8d34608da8bef7d12e24
+    Reviewed-on: https://go-review.googlesource.com/6892
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 894 +++++++++++++++++++--------------------
+ 1 file changed, 447 insertions(+), 447 deletions(-)

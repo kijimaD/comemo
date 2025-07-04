@@ -1,0 +1,22 @@
+commit 2d86f4942868c1309051062237cf4d424d588e9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 19 07:32:34 2017 -0700
+
+    runtime: delay exiting while panic is running deferred functions
+    
+    Try to avoid a race between the main goroutine exiting and a panic
+    occurring. Don't try too hard, to avoid hanging.
+    
+    Updates #3934
+    Fixes #20018
+    
+    Change-Id: I57a02b6d795d2a61f1cadd137ce097145280ece7
+    Reviewed-on: https://go-review.googlesource.com/41052
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_test.go                  | 29 +++++++++++++++++++++++++++++
+ src/runtime/panic.go                       | 21 ++++++++++++++++++++-
+ src/runtime/proc.go                        | 13 +++++++++++--
+ src/runtime/runtime2.go                    |  1 -
+ src/runtime/testdata/testprog/panicrace.go | 27 +++++++++++++++++++++++++++
+ 5 files changed, 87 insertions(+), 4 deletions(-)

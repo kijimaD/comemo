@@ -1,0 +1,12 @@
+commit eaf4ad6f7493c222a6b27609fcb24e950eb540ab
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jun 21 11:11:50 2016 -0400
+
+    doc: describe vet -lostcancel in go1.7 release notes
+    
+    Change-Id: Ie1c95fd0869307551bfcf76bf45c13372723fbba
+    Reviewed-on: https://go-review.googlesource.com/24288
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.7.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

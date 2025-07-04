@@ -1,0 +1,18 @@
+commit 43704759b4a26c4090212e2d63d23579497d5e50
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Aug 8 15:00:56 2018 -0700
+
+    syscall: support windows/arm
+    
+    Updates #26148
+    
+    Change-Id: I008502232642237270b7c8a2efb4a378345d06fd
+    Reviewed-on: https://go-review.googlesource.com/128716
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go   | 12 ++++++++++--
+ src/syscall/types_windows_arm.go | 22 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

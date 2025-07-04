@@ -1,0 +1,18 @@
+commit 7eaabae84d8b69216356b84ebc7c86917100f99a
+Author: hitzhangjie <hit.zhangjie@gmail.com>
+Date:   Sat Aug 7 04:18:37 2021 +0000
+
+    net: update IP.String doc to reflect RFC 5952 conformance
+    
+    Fixes #44485
+    
+    Change-Id: I1b1bf14245ef738342ec881ac4c99adbfc9c5b7d
+    GitHub-Last-Rev: ae0242c6d61fc0e80c58113a70db74829f6aa12c
+    GitHub-Pull-Request: golang/go#47394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337409
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

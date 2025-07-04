@@ -1,0 +1,13 @@
+commit e8de8b58caf52115be0d5d11282c504da8642238
+Author: Anthony Eufemio <anthony.eufemio@gmail.com>
+Date:   Tue Sep 18 11:01:10 2012 -0700
+
+    builtin: Changed documentation for rune type.
+    Fixes #4093.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6536047
+
+ src/pkg/builtin/builtin.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

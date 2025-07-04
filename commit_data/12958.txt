@@ -1,0 +1,16 @@
+commit bb3f3c97759ef9819ff18f8f9d34603867658d00
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 25 13:16:24 2012 +0200
+
+    exp/locale/collate: added representation for collation elements
+    (see http://www.unicode.org/reports/tr10/).
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5981048
+
+ src/pkg/exp/locale/collate/build/colelem.go      | 179 +++++++++++++++++++++++
+ src/pkg/exp/locale/collate/build/colelem_test.go |  80 ++++++++++
+ src/pkg/exp/locale/collate/colelem.go            | 170 +++++++++++++++++++++
+ src/pkg/exp/locale/collate/colelem_test.go       | 157 ++++++++++++++++++++
+ 4 files changed, 586 insertions(+)

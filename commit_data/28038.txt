@@ -1,0 +1,21 @@
+commit 507051d6940c297bd93f5fac5cf786b0e3642d06
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 11:33:55 2016 -0700
+
+    spec: complete list of special comma-ok forms
+    
+    The enumerations didn't include the syntactic form where the lhs is
+    full variable declaration with type specification, as in:
+    
+    var x, ok T = ...
+    
+    Fixes #15782.
+    
+    Change-Id: I0f7bafc37dc9dcf62cdb0894a0d157074ccd4b3e
+    Reviewed-on: https://go-review.googlesource.com/27670
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

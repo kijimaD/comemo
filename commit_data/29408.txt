@@ -1,0 +1,16 @@
+commit f8187ceacf886195dc9f72a6578bd266efc52681
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 6 18:43:49 2016 +1100
+
+    runtime/race: allow TestFail to run longer than 0.00s
+    
+    Fixes #17811
+    
+    Change-Id: I7bf9cbc5245417047ad28a14d9b9ad6592607d3d
+    Reviewed-on: https://go-review.googlesource.com/32774
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race/output_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

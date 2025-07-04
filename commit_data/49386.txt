@@ -1,0 +1,51 @@
+commit 846f971daa03fda149a3d66a3fda6eb6a2a7484e
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun May 15 19:31:42 2022 -0400
+
+    go/types, types2: remove Named.once in favor of monotonic state
+    
+    Introduce a monotonic state variable to track the lifecycle of a named
+    type, replacing the existing sync.Once. Having a single guard for the
+    state of underlying and methods will allow for cleaning-up when the type
+    is fully expanded. In the future, this state may also be used for
+    detecting access to information such as underlying or methods before the
+    type is fully set-up, though that will require rethinking our
+    type-checking of invalid cyclic types.
+    
+    Also remove support for type-type inference. If we ever support this
+    feature in the future (inference of missing type arguments for named
+    type instances), it will likely involve additional machinery that does
+    not yet exist. Remove the current partial support to simplify our
+    internal APIs. In particular, this means that Named.resolver is only
+    used for lazy loading. As a result, we can revert the lazy loader
+    signature to its previous form.
+    
+    A lot of exposition is added for how Named types work. Along the way,
+    the terminology we use to describe them is refined.
+    
+    Some microbenchmarks are added that were useful in evaluating the
+    tradeoffs between synchronization mechanisms.
+    
+    Updates #52728
+    
+    Change-Id: I4e147360bc6e5d8cd4f37e32e86fece0530a6480
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404875
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go    |   2 +-
+ src/cmd/compile/internal/types2/decl.go        |   4 +-
+ src/cmd/compile/internal/types2/instantiate.go |   3 -
+ src/cmd/compile/internal/types2/named.go       | 289 ++++++++++++++++++-------
+ src/cmd/compile/internal/types2/named_test.go  |  75 +++++++
+ src/cmd/compile/internal/types2/object.go      |  14 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  48 +---
+ src/go/types/api_test.go                       |   2 +-
+ src/go/types/decl.go                           |   4 +-
+ src/go/types/instantiate.go                    |   3 -
+ src/go/types/named.go                          | 289 ++++++++++++++++++-------
+ src/go/types/named_test.go                     |  88 ++++++++
+ src/go/types/object.go                         |  14 +-
+ src/go/types/typexpr.go                        |  53 +----
+ 14 files changed, 609 insertions(+), 279 deletions(-)

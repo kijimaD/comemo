@@ -1,0 +1,17 @@
+commit a95bf77e1a756d3d3a03c73d2898d8553b8b6168
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Apr 21 13:48:57 2020 +0200
+
+    cmd/compile: convert last 386 rules to typed aux
+    
+    Passes
+    
+      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I4d1ca83d37ab9f628fc3f1261fe40b81e59137ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229100
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 402 +++++++-------
+ src/cmd/compile/internal/ssa/rewrite386.go | 854 ++++++++++++++---------------
+ 2 files changed, 628 insertions(+), 628 deletions(-)

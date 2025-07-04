@@ -1,0 +1,18 @@
+commit 1110222bee07ba6f8786f7a5fafb2449e441495e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 11:06:58 2022 +0800
+
+    sync: convert Once.done to atomic type
+    
+    Change-Id: I49f8c764d49cabaad4d6859c219ba7220a389c1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427140
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/sync/once.go    | 14 +++++++-------
+ test/inline_sync.go |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

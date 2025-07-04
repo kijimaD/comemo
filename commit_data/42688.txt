@@ -1,0 +1,21 @@
+commit c6a11f0dd279f374602794af60c7cde4585a1e6f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 11 13:04:48 2020 -0700
+
+    crypto,internal/bytealg: fix assembly that clobbers BP
+    
+    BP should be callee-save. It will be saved automatically if
+    there is a nonzero frame size. Otherwise, we need to avoid this register.
+    
+    Change-Id: If3f551efa42d830c8793d9f0183cb8daad7a2ab5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248260
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/elliptic/p256_asm_amd64.s |  5 ++--
+ src/crypto/md5/md5block_amd64.s      |  2 +-
+ src/internal/bytealg/index_amd64.s   | 52 ++++++++++++++++++------------------
+ src/runtime/sys_linux_amd64.s        |  8 +++---
+ 4 files changed, 33 insertions(+), 34 deletions(-)

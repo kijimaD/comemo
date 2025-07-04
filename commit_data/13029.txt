@@ -1,0 +1,20 @@
+commit ccdca2cd6b84f290b0cf8709b11353e58cafdba9
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri May 4 03:48:34 2012 -0700
+
+    pkg/runtime: Plan 9 signal handling in Go
+    
+    This adds proper note handling for Plan 9,
+    and fixes the issue of properly killing go procs.
+    Without this change, the first go proc that dies
+    (using runtime·exit()) would kill all the running
+    go procs. Proper signal handling is needed.
+    
+    R=golang-dev, ality, rminnich, rsc
+    CC=golang-dev, john, mirtchovski
+    https://golang.org/cl/5617048
+
+ src/pkg/runtime/os_plan9.h      |  10 +++
+ src/pkg/runtime/sys_plan9_386.s |  10 +++
+ src/pkg/runtime/thread_plan9.c  | 145 +++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 147 insertions(+), 18 deletions(-)

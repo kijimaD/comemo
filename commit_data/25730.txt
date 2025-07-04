@@ -1,0 +1,14 @@
+commit 77b4c8d9af0bfad762db7bb9bbc1793c5a233acd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 8 21:10:18 2016 +0000
+
+    runtime: fix comment
+    
+    Fixes #14259
+    
+    Change-Id: I23fedec0eb85ae28e56bc24539bc864674856130
+    Reviewed-on: https://go-review.googlesource.com/19318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

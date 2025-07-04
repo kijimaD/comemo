@@ -1,0 +1,14 @@
+commit bcfc6e631fbc0f06f2d975301ce71554c197970a
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Sep 15 16:15:17 2009 -0700
+
+    fixed register usage and removed some dead code.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=17  (0 added, 12 deleted, 5 changed)
+    OCL=34659
+    CL=34665
+
+ src/pkg/runtime/arm/vlop.s | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

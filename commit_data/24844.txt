@@ -1,0 +1,18 @@
+commit 9f38d66857e33996489e2b25781047b2cb75b8a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 11:50:24 2015 +0000
+
+    misc/sortac: add tool to sort the AUTHORS and CONTRIBUTORS files
+    
+    I keep losing this utility, used as part of other tools to auto-update
+    the AUTHORS and CONTRIBUTORS files.  Check it in to the repo so I
+    don't lose it, and so others can use it as well.
+    
+    Updates #12042
+    
+    Change-Id: Ib5886b85799087aaaddcec4c81169e2726322c05
+    Reviewed-on: https://go-review.googlesource.com/16824
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/sortac/sortac.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

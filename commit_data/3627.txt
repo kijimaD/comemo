@@ -1,0 +1,11 @@
+commit eea2573032b910bb1d187cc6125b7ed2d7461c3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 11:21:13 2009 -0700
+
+    fix handling of escaped characters like ' " & < >
+    
+    R=r
+    http://go/go-review/1013007
+
+ lib/codereview/codereview.py | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

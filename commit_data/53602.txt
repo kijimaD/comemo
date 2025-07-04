@@ -1,0 +1,20 @@
+commit b1f1fb2950814ae2b69e64537ecd96f13ae32627
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 21 11:14:34 2023 -0700
+
+    go/types, types2: avoid spurious "declared and not used" error
+    
+    Fixes #60906.
+    
+    Change-Id: Iba117b36041f72a54ce82cc914f8fa3b07a6fb2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504877
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/index.go            |  1 +
+ src/go/types/index.go                               |  1 +
+ src/internal/types/testdata/fixedbugs/issue60906.go | 11 +++++++++++
+ 3 files changed, 13 insertions(+)

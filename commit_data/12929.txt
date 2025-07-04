@@ -1,0 +1,22 @@
+commit cad480440d4d826de6384d136e3c2e0072cb34b8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Apr 21 13:56:51 2012 +0200
+
+    strconv: 2x-4x speed improvement for atof64.
+    
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkAtof64Decimal               344           71  -79.22%
+    BenchmarkAtof64Float                 397           90  -77.15%
+    BenchmarkAtof64FloatExp              445          241  -45.84%
+    BenchmarkAtof64Big                   731          324  -55.68%
+    BenchmarkAtof64RandomBits            761          453  -40.47%
+    BenchmarkAtof64RandomFloats          690          314  -54.49%
+    
+    R=dave, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5988053
+
+ src/pkg/strconv/atof.go         | 236 ++++++++++++++++++++++++++++------------
+ src/pkg/strconv/extfloat.go     |  19 ++--
+ src/pkg/strconv/strconv_test.go |  10 ++
+ 3 files changed, 183 insertions(+), 82 deletions(-)

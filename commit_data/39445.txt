@@ -1,0 +1,39 @@
+commit 343b7fa6261a5b0ceaafed535438249ffa5686de
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jun 13 19:11:25 2019 -0700
+
+    cmd/compile: don't mark argument array as noalg
+    
+    It ends up making two similar types, [N]uint8 of both
+    alg and noalg varieties. Comparsions between the two then
+    don't come out equal when they should.
+    In particular, the type *[N]uint8 has an Elem pointer which
+    must point to one of the above two types; it can't point to both.
+    Thus allocating a *[N]uint8 and dereferencing it might be a
+    different type than a [N]uint8.
+    
+    The fix is easy. Making a small test for this is really hard. It
+    requires that both a argless defer and the test be imported by a
+    common parent package. This is why a main binary doesn't see this
+    issue, but a test does (as Agniva noticed), because there's a wrapper
+    package that imports both the test and the defer.
+    
+    Types like [N]uint8 don't really need to be marked noalg anyway,
+    as the generated code (if any) will be shared among all
+    vanilla memory types of the same size.
+    
+    Fixes #32595
+    
+    Change-Id: If7b77fa6ed56cd4495601c3f90170682d853b82f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182357
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  1 -
+ test/fixedbugs/issue32595.dir/a.go     |  9 +++++++++
+ test/fixedbugs/issue32595.dir/b.go     | 15 +++++++++++++++
+ test/fixedbugs/issue32595.dir/main.go  | 15 +++++++++++++++
+ test/fixedbugs/issue32595.go           |  7 +++++++
+ 5 files changed, 46 insertions(+), 1 deletion(-)

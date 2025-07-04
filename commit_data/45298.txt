@@ -1,0 +1,25 @@
+commit f7afdfd48383c4f0ea8653ea9f8c7b9a3d93abee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 21 18:22:35 2021 -0700
+
+    go/types: cleanup and fix Checker.index
+    
+    A couple minor spec compliance issues: constant, typed index operands
+    must still be representable as type "int", but should also be recorded
+    as their original type.
+    
+    Fixes #45667.
+    
+    Change-Id: Iefeb29f20a8e48350af83a62c9ae0e92198c5ef7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312591
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins_test.go |  3 +++
+ src/go/types/check_test.go    | 15 +++++++++---
+ src/go/types/expr.go          | 56 +++++++++++++++++++++++++++----------------
+ 3 files changed, 51 insertions(+), 23 deletions(-)

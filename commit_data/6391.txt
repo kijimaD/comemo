@@ -1,0 +1,12 @@
+commit 6a624fa5f5516d23db7ff2017271749f10e2b567
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Sep 27 09:44:56 2010 -0400
+
+    libcgo: set g, m in thread local storage for windows 386.
+    
+    R=rsc
+    CC=golang-dev, vcc
+    https://golang.org/cl/2216051
+
+ src/libcgo/windows_386.c | 44 +++++++++++++++++++++++++++-----------------
+ 1 file changed, 27 insertions(+), 17 deletions(-)

@@ -1,0 +1,32 @@
+commit 5970480c68fc7ecb6eaf3a5f90f49ae4504fa060
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 31 15:35:28 2020 +0000
+
+    Revert "cmd/asm: align an instruction or a function's address"
+    
+    This reverts CL 212767.
+    
+    Reason for revert: new test is persistently failing on freebsd-arm64-dmgk builder.
+    
+    Change-Id: Ifd1227628e0e747688ddb4dc580170b2a103a89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226597
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/read.go           |   2 -
+ src/cmd/internal/goobj/readnew.go        |   1 -
+ src/cmd/internal/goobj2/funcinfo.go      |   3 -
+ src/cmd/internal/obj/arm64/asm7.go       |  33 ++++++----
+ src/cmd/internal/obj/arm64/asm_test.go   |  27 +--------
+ src/cmd/internal/obj/link.go             |   1 -
+ src/cmd/internal/obj/objfile.go          |   1 -
+ src/cmd/internal/obj/objfile2.go         |   1 -
+ src/cmd/internal/obj/plist.go            |   7 ---
+ src/cmd/internal/obj/textflag.go         |   5 --
+ src/cmd/link/internal/ld/data.go         |   4 --
+ src/cmd/link/internal/loader/loader.go   |   1 -
+ src/cmd/link/internal/objfile/objfile.go |   1 -
+ src/cmd/link/link_test.go                | 101 -------------------------------
+ src/runtime/textflag.h                   |   5 --
+ 15 files changed, 25 insertions(+), 168 deletions(-)

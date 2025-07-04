@@ -1,0 +1,21 @@
+commit 2b87d95f014518c7302eb6d26c89049b3077eb8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 6 17:44:56 2009 -0700
+
+    - allow more general type switch syntax
+    - support for reverse printing of AST
+      (for compiler testing)
+    - added -reverse flag to gofmt
+    
+    R=rsc
+    DELTA=163  (125 added, 11 deleted, 27 changed)
+    OCL=32808
+    CL=32853
+
+ src/cmd/gofmt/gofmt.go                 |  4 ++
+ src/pkg/go/ast/ast.go                  |  4 +-
+ src/pkg/go/parser/parser.go            | 66 +++++++++++++++++++++--------
+ src/pkg/go/printer/printer.go          | 76 +++++++++++++++++++++++++++-------
+ src/pkg/go/printer/testdata/golden1.go | 15 +++++++
+ src/pkg/go/printer/testdata/source1.go | 21 ++++++++++
+ 6 files changed, 150 insertions(+), 36 deletions(-)

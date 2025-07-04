@@ -1,0 +1,38 @@
+commit ffcb678f47bfd30de182320b6d057ca4428e976d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 27 17:27:45 2019 -0400
+
+    crypto/tls: remove SSLv3 support
+    
+    SSLv3 has been irreparably broken since the POODLE attack 5 years ago
+    and RFC 7568 (f.k.a. draft-ietf-tls-sslv3-diediedie) prohibits its use
+    in no uncertain terms.
+    
+    As announced in the Go 1.13 release notes, remove support for it
+    entirely in Go 1.14.
+    
+    Updates #32716
+    
+    Change-Id: Id653557961d8f75f484a01e6afd2e104a4ccceaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191976
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/auth_test.go                   |  8 ---
+ src/crypto/tls/cipher_suites.go               | 48 --------------
+ src/crypto/tls/common.go                      | 33 ++++------
+ src/crypto/tls/conn.go                        | 26 +-------
+ src/crypto/tls/handshake_client.go            |  4 +-
+ src/crypto/tls/handshake_server.go            |  6 +-
+ src/crypto/tls/handshake_server_test.go       | 29 ++-------
+ src/crypto/tls/handshake_server_tls13.go      |  2 +-
+ src/crypto/tls/handshake_test.go              |  3 +-
+ src/crypto/tls/key_agreement.go               | 13 ++--
+ src/crypto/tls/prf.go                         | 94 +--------------------------
+ src/crypto/tls/prf_test.go                    | 16 -----
+ src/crypto/tls/testdata/Server-SSLv3-RSA-3DES | 76 ----------------------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-AES  | 77 ----------------------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-RC4  | 72 --------------------
+ src/crypto/tls/tls_test.go                    |  1 -
+ 16 files changed, 34 insertions(+), 474 deletions(-)

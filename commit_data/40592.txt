@@ -1,0 +1,19 @@
+commit e457cc38afbbff194e0c6c484d608cf3c4498533
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Nov 4 10:10:14 2019 +0100
+
+    misc/ios: bump -mios-version-min
+    
+    Recent Xcode versions started to complain about the current min
+    version:
+    
+    ld: warning: OS version (6.0.0) too small, changing to 7.0.0
+    
+    Change-Id: Ieb525dd3e57429fe226b9d30d584b073c5e4768c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204663
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/clangwrap.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6f6b7e3a33cf0fff8495d8caa2f858e330f1963f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 12 10:45:24 2011 -0800
+
+    goinstall: Fix template to use exported fields
+    
+    It's currently broken due to f6d5bac536c5.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3967041
+
+ src/cmd/goinstall/make.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

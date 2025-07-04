@@ -1,0 +1,15 @@
+commit 84e256753744e765e4a31b48e2a641eecd4d01f1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 11:54:11 2015 +0300
+
+    reflect: mark map access functions as go:noescape
+    
+    benchmark                                  old allocs     new allocs     delta
+    BenchmarkSkipValue                         14914          14202          -4.77%
+    
+    Change-Id: I40e1fe8843cc6a099a2abfcd814ecc2a2d6a5b1f
+    Reviewed-on: https://go-review.googlesource.com/3744
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

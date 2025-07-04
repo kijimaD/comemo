@@ -1,0 +1,13 @@
+commit d50e95261db5151955ddd3cf31241f8a2434335f
+Author: Adrian Hesketh <adrianhesketh@hushmail.com>
+Date:   Fri Sep 1 12:38:52 2017 +0100
+
+    time: add example for Time.Unix
+    
+    Change-Id: Ie64eba5b57b609a343ddb381fe83c01f172c0bf4
+    Reviewed-on: https://go-review.googlesource.com/60890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

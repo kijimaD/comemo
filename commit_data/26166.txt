@@ -1,0 +1,17 @@
+commit bbd3ffbd838a2e172bff7b95a8df7f9e55b35786
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 9 11:00:58 2016 +0100
+
+    cmd/compile: constant fold more of IsInBounds and IsSliceInBounds
+    
+    Fixes #14721
+    
+    Change-Id: Id1d5a819e5c242b91a37c4e464ed3f00c691aff5
+    Reviewed-on: https://go-review.googlesource.com/20482
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  10 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 128 +++++++++++++++++++++++++
+ 2 files changed, 135 insertions(+), 3 deletions(-)

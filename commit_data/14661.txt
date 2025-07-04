@@ -1,0 +1,12 @@
+commit 6dd7da85662ba2dcd2e31f0a4fbc810e33fbe212
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Dec 17 18:13:12 2012 +1100
+
+    fmt: fix a typo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6937065
+
+ src/pkg/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

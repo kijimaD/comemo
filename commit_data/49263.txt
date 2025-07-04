@@ -1,0 +1,35 @@
+commit 1c77137d4fdfbb3e7e8d9efaab3bab5ee736a19d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 18 11:58:53 2022 -0400
+
+    cmd/compile: do not use special literal assignment if LHS is address-taken
+    
+    A composite literal assignment
+    
+    x = T{field: v}
+    
+    may be compiled to
+    
+    x = T{}
+    x.field = v
+    
+    We already do not use this form is RHS uses LHS. If LHS is
+    address-taken, RHS may uses LHS implicitly, e.g.
+    
+    v = &x.field
+    x = T{field: *v}
+    
+    The lowering above would change the value of RHS (*v).
+    
+    Fixes #52953.
+    
+    Change-Id: I3f798e00598aaa550b8c17182c7472fef440d483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407014
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/walk/complit.go |  8 +++++++-
+ test/fixedbugs/issue52953.go             | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

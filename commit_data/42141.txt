@@ -1,0 +1,19 @@
+commit 20ed14286103d444f2b539966cb8231f4751d3b4
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Mar 17 09:26:07 2020 +0800
+
+    cmd/go/internal/web: use url.Redacted
+    
+    Updates #37873
+    
+    Change-Id: I2228f31fc7bd7daef086cd05d365fa7c68e60a83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223757
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/proxy.go |  6 +++---
+ src/cmd/go/internal/modfetch/sumdb.go |  2 +-
+ src/cmd/go/internal/web/api.go        | 17 +----------------
+ src/cmd/go/internal/web/http.go       | 32 ++++++++++++++++----------------
+ 4 files changed, 21 insertions(+), 36 deletions(-)

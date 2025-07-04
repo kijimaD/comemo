@@ -1,0 +1,27 @@
+commit 436f2d8d974954ef052f1b71c751df713704ab00
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 14 03:42:36 2017 +0000
+
+    cmd/internal/obj/arm64: fix assemble hlt/hvc/smc/brk/clrex bug
+    
+    When instruction has only one argument, Go parser saves the
+    argument value into prog.From without any special handling.
+    But assembler gets the argument value from prog.To.
+    
+    The fix adds special handling for CLREX and puts other instructions
+    arguments value into prog.From.
+    
+    Uncomment hlt/hvc/smc/brk/dcps1/dcps2/dcps3/clrex test cases.
+    
+    Fixes #20765
+    
+    Change-Id: I1fc0d2faafb19b537cab5a665bd4af56c3a2c925
+    Reviewed-on: https://go-review.googlesource.com/78275
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 18 +++++++++---------
+ src/cmd/internal/obj/arm64/asm7.go           |  8 ++++----
+ src/cmd/internal/obj/arm64/obj7.go           |  2 +-
+ 3 files changed, 14 insertions(+), 14 deletions(-)

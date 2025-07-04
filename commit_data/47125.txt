@@ -1,0 +1,18 @@
+commit 02bd226b8abb713061fcef4e53ffebc57770466b
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 18:01:09 2021 -0400
+
+    go/types: range clause to accept type sets with single underlying types
+    
+    This is a port of CL 357778 to go/types, adjusted to include error codes
+    and to use the different range statement syntax in go/ast.
+    
+    Change-Id: Id537c195cd33a8b422a366269ca8730c2a5bccf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359875
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/stmt.go                       | 71 ++++++++++++------------------
+ src/go/types/testdata/check/typeparams.go2 | 12 ++---
+ 2 files changed, 35 insertions(+), 48 deletions(-)

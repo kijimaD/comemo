@@ -1,0 +1,23 @@
+commit b65e259e56a326295250f037efbd31f64bcdfbfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 09:29:05 2022 -0400
+
+    internal/fuzz: write shorter testdata corpus file names
+    
+    The only purpose of using the SHA256 in the file name is
+    collision avoidance. Using just the first 64 bits (16 hex digits)
+    will be more than enough, unless people start storing billions
+    of test cases in their corpora.
+    
+    The shorter names are nicer for just about everything:
+    command lines, repository listings, and so on.
+    
+    Change-Id: I67c760023bed85ba3ffd4f8058f86ef778322ba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/internal/fuzz/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

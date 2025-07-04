@@ -1,0 +1,20 @@
+commit 51fd0cb3c0d8a7cb3fa5b897d74c5083577c6543
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 17 00:03:13 2023 +0200
+
+    syscall: don't check non-existent return code in GetStartupInfo
+    
+    Fixes #31316
+    
+    Change-Id: I1ca5968836e7bcad91496e4ed3cf1a0caf1375f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520275
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/syscall/syscall_windows.go      | 7 ++++++-
+ src/syscall/syscall_windows_test.go | 9 +++++++++
+ src/syscall/zsyscall_windows.go     | 7 ++-----
+ 3 files changed, 17 insertions(+), 6 deletions(-)

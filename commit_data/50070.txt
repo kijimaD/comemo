@@ -1,0 +1,41 @@
+commit 6985ab27dfd10de6d9e119a51c541a2bc1cbcdf7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 20:59:26 2022 -0700
+
+    cmd/compile: fix unified IR's pointer-shaping
+    
+    In CL 424734, I implemented pointer shaping for unified IR. Evidently
+    though, we didn't have any test cases that check that uses of
+    pointer-shaped expressions were handled correctly.
+    
+    In the reported test case, the struct field "children items[*node[T]]"
+    gets shaped to "children items[go.shape.*uint8]" (underlying type
+    "[]go.shape.*uint8"); and so the expression "n.children[i]" has type
+    "go.shape.*uint8" and the ".items" field selection expression fails.
+    
+    The fix implemented in this CL is that any expression of derived type
+    now gets an explicit "reshape" operation applied to it, to ensure it
+    has the appropriate type for its context. E.g., the "n.children[i]"
+    OINDEX expression above gets "reshaped" from "go.shape.*uint8" to
+    "*node[go.shape.int]", allowing the field selection to succeed.
+    
+    This CL also adds a "-d=reshape" compiler debugging flag, because I
+    anticipate debugging reshaping operations will be something to come up
+    again in the future.
+    
+    Fixes #54535.
+    
+    Change-Id: Id847bd8f51300d2491d679505ee4d2e974ca972a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424936
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go   |  1 +
+ src/cmd/compile/internal/noder/codes.go  |  1 +
+ src/cmd/compile/internal/noder/reader.go | 37 +++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++
+ test/typeparam/issue54535.go             | 37 ++++++++++++++++++++++++++++++++
+ 5 files changed, 90 insertions(+), 1 deletion(-)

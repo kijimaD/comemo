@@ -1,0 +1,19 @@
+commit dc0388c56513c9ddfa0d84260bbed758a392fc01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 6 16:26:15 2019 -0700
+
+    cmd/compile: avoid compiler crash for recursive interface type
+    
+    This change is a simple work-around to avoid a compiler crash
+    and provide a reasonable error message. A future change should
+    fix the root cause for this problem.
+    
+    Fixes #23823.
+    
+    Change-Id: Ifc80d9f4d35e063c378e54d5cd8d1cf4c0d2ec6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175518
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 11 ++++++++++-
+ test/fixedbugs/issue23823.go         |  8 ++------
+ 2 files changed, 12 insertions(+), 7 deletions(-)

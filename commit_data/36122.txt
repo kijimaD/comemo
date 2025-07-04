@@ -1,0 +1,21 @@
+commit 7b46867d6ed3a1b0d45b9f647bd577585d451207
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 10:03:40 2018 -0700
+
+    cmd/go: for missing binary-only package, say where it should be
+    
+    Before this CL the user effectively has to guess at the expected
+    location of a binary-only package. While the location is normally
+    obvious ($GOPATH/pkg/GOOS_GOARCH/PATH/PKG.a) it is much less so when
+    building with options that implicitly add an -installsufix option.
+    
+    Fixes #26590
+    
+    Change-Id: I753ef54d6dcf733bb456dba65a4a92e4db57a1b0
+    Reviewed-on: https://go-review.googlesource.com/125818
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go           |  2 +-
+ src/cmd/go/testdata/script/binary_only.txt | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

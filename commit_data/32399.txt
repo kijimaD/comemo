@@ -1,0 +1,12 @@
+commit 3dd1b0d07cda613d421990a5ddef55c33f6afc96
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Aug 20 17:27:42 2017 -0700
+
+    time: fix grammar/spelling errors in test comment
+    
+    Change-Id: I159bd1313e617c929008f6ac54ec7d702293360b
+    Reviewed-on: https://go-review.googlesource.com/57430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

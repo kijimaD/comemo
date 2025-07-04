@@ -1,0 +1,18 @@
+commit 4a095b87d30f1f6f7ae01e966f1af5ee63b15c1c
+Author: taylorza <taylorza@gmail.com>
+Date:   Sun Sep 2 18:09:29 2018 -0400
+
+    cmd/compile: don't crash reporting misuse of shadowed built-in function
+    
+    The existing implementation causes a compiler panic if a function parameter shadows a built-in function, and then calling that shadowed name.
+    
+    Fixes #27356
+    Change-Id: I1ffb6dc01e63c7f499e5f6f75f77ce2318f35bcd
+    Reviewed-on: https://go-review.googlesource.com/132876
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue27356.go             | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

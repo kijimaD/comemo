@@ -1,0 +1,12 @@
+commit dc89350fed5f75c277ceb1367cf7e8a2a88f0c77
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 16:03:49 2015 -0400
+
+    cmd/go: fix build
+    
+    Change-Id: Ia13d1fa450e88e278b81048b99686395ca474c99
+    Reviewed-on: https://go-review.googlesource.com/11259
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/src/vend/x/vendor/p/p/p.go | 3 +++
+ 1 file changed, 3 insertions(+)

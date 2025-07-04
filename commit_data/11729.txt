@@ -1,0 +1,16 @@
+commit e7bd71c83af94143b2a218c362c081c058e84a70
+Author: Gary Burd <gary@beagledreams.com>
+Date:   Wed Feb 8 16:54:48 2012 -0800
+
+    go/doc: Handle recursive embedded types.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5645053
+
+ src/pkg/go/doc/reader.go           | 10 +++--
+ src/pkg/go/doc/testdata/e.0.golden | 67 ++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/e.1.golden | 72 ++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/e.2.golden | 85 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/e.go       | 68 ++++++++++++++++++++++++++++++
+ 5 files changed, 299 insertions(+), 3 deletions(-)

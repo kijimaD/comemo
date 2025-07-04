@@ -1,0 +1,29 @@
+commit 1d214f7062e80bebb081cdfad2ceda3e5bd0de29
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 13 06:19:53 2016 +0900
+
+    net: cache IPv6 zone information for applications using IPv6 link-local address
+    
+    This change reduces the overhead of calling routing information per IPv6
+    link-local datagram read by caching IPv6 addressing scope zone
+    information.
+    
+    Fixes #15237.
+    
+    name                    old time/op    new time/op    delta
+    UDP6LinkLocalUnicast-8    64.9µs ± 0%    18.6µs ± 0%  -71.30%
+    
+    name                    old alloc/op   new alloc/op   delta
+    UDP6LinkLocalUnicast-8    11.2kB ± 0%     0.2kB ± 0%  -98.42%
+    
+    name                    old allocs/op  new allocs/op  delta
+    UDP6LinkLocalUnicast-8       101 ± 0%         3 ± 0%  -97.03%
+    
+    Change-Id: I5ae2ef5058df1028bbb7f4ab32b13edfb330c3a7
+    Reviewed-on: https://go-review.googlesource.com/21952
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface.go    | 81 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/ipsock.go       | 21 -------------
+ src/net/udpsock_test.go | 37 ++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 24 deletions(-)

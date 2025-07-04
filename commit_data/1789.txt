@@ -1,0 +1,16 @@
+commit 3bc6fd63fecbe9185e4d1cfc907c93c18d33729a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 9 17:47:15 2009 -0700
+
+    document reflect.
+    
+    R=rsc
+    DELTA=201  (90 added, 0 deleted, 111 changed)
+    OCL=25904
+    CL=25966
+
+ src/lib/reflect/all_test.go |  22 +++----
+ src/lib/reflect/tostring.go |  54 +++++++++-------
+ src/lib/reflect/type.go     |  71 ++++++++++++++++-----
+ src/lib/reflect/value.go    | 147 ++++++++++++++++++++++++++++----------------
+ 4 files changed, 192 insertions(+), 102 deletions(-)

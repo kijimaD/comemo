@@ -1,0 +1,12 @@
+commit e486cefec270e56204ae3f3e57ca422c5a4c166e
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Sat Aug 10 09:48:43 2013 +1000
+
+    doc/go1.2.txt: Added missing changes since 1st of August
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12714043
+
+ doc/go1.2.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

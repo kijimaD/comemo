@@ -1,0 +1,21 @@
+commit 2d6a13997a9e9b154b7761d41cdbc830e02fc18e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 24 15:51:19 2013 -0700
+
+    strings: fix Replacer bug with prefix matches
+    
+    singleStringReplacer had a bug where if a string was replaced
+    at the beginning and no output had yet been produced into the
+    temp buffer before matching ended, an invalid nil check (used
+    as a proxy for having matched anything) meant it always
+    returned its input.
+    
+    Fixes #6659
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/16880043
+
+ src/pkg/strings/replace.go      |  5 +++--
+ src/pkg/strings/replace_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

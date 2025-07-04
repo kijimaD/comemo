@@ -1,0 +1,28 @@
+commit 616c39f6a636166447bdaac4f0871a5ca52bae8c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 12:37:36 2019 -0700
+
+    cmd/compile: remove DDD array types
+    
+    Currently we handle [...]T array literals by treating [...]T as
+    special "DDD array" types. However, these array literals are just
+    composite literal syntax, not a distinct Go type. Moreover,
+    representing them as Go types contributes to complexity in a number of
+    unrelated bits of code.
+    
+    This CL changes OCOMPLIT typechecking to look for the [...]T syntax
+    and handle it specially, so we can remove DDD arrays.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ibbf701eac4caa7a321e2d10e256658fdfaa8a160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197604
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  7 ----
+ src/cmd/compile/internal/gc/fmt.go       |  3 --
+ src/cmd/compile/internal/gc/typecheck.go | 68 +++++++++++++++-----------------
+ src/cmd/compile/internal/types/type.go   | 33 +---------------
+ 4 files changed, 33 insertions(+), 78 deletions(-)

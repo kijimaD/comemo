@@ -1,0 +1,19 @@
+commit 5e0bcb3893c2e54fdb96affcafd2953f20dd64eb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 26 14:05:06 2017 -0700
+
+    cmd/go: enable concurrent backend compilation by default
+    
+    It can be disabled by setting the environment variable
+    GO19CONCURRENTCOMPILATION=0, or with -gcflags=-c=1.
+    
+    Fixes #15756.
+    
+    Change-Id: I7acbf16330512b62ee14ecbab1f46b53ec5a67b6
+    Reviewed-on: https://go-review.googlesource.com/41820
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

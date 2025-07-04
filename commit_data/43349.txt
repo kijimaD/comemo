@@ -1,0 +1,25 @@
+commit 15eaa870e14195c17dbb4be0d11bc40dba94ff22
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 14 00:13:28 2020 +1000
+
+    cmd/link: add support for external linking on linux/riscv64
+    
+    Fixes #36739
+    
+    Change-Id: Id7573b343786360c72524f9f27d2a8f08d379cf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243517
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/dist/test.go                   |   2 +-
+ src/cmd/link/internal/ld/config.go     |   4 +-
+ src/cmd/link/internal/ld/elf.go        |   3 +
+ src/cmd/link/internal/ld/lib.go        |   6 +-
+ src/cmd/link/internal/ld/main.go       |   8 ++
+ src/cmd/link/internal/loader/loader.go |   5 ++
+ src/cmd/link/internal/riscv64/asm.go   | 148 +++++++++++++++++++++++++++++++--
+ src/cmd/link/internal/riscv64/obj.go   |   3 +
+ 8 files changed, 169 insertions(+), 10 deletions(-)

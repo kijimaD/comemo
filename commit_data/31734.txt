@@ -1,0 +1,34 @@
+commit 4e7067cde4a602e3a301500baac6cfbdebcffd97
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 6 18:37:59 2017 -0400
+
+    runtime: mark extra M's G as dead when not in use
+    
+    Currently the extra Ms created for cgo callbacks have a corresponding
+    G that's kept in syscall state with only a call to goexit on its
+    stack. This leads to confusing output from runtime.NumGoroutines and
+    in tracebacks:
+    
+    goroutine 17 [syscall, locked to thread]:
+    runtime.goexit()
+            .../src/runtime/asm_amd64.s:2197 +0x1
+    
+    Fix this by putting this goroutine into state _Gdead when it's not in
+    use instead of _Gsyscall. To keep the goroutine counts correct, we
+    also add one to sched.ngsys while the goroutine is in _Gdead. The
+    effect of this is as if the goroutine simply doesn't exist when it's
+    not in use.
+    
+    Fixes #16631.
+    Fixes #16714.
+    
+    Change-Id: Ieae08a2febd4b3d00bef5c23fd6ca88fb2bb0087
+    Reviewed-on: https://go-review.googlesource.com/45030
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go                    |  9 +++
+ src/runtime/proc.go                              | 22 +++++-
+ src/runtime/testdata/testprogcgo/numgoroutine.go | 97 ++++++++++++++++++++++++
+ 3 files changed, 125 insertions(+), 3 deletions(-)

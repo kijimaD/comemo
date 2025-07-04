@@ -1,0 +1,16 @@
+commit 9d0318fc9daff2e72d540dfc1d9840cce16ea2bf
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 18 15:32:58 2018 -0500
+
+    api: promote next to go1.12
+    
+    Change-Id: I9a30c76d1299a494cce69b1060156bc2932ac8d5
+    Reviewed-on: https://go-review.googlesource.com/c/154857
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ api/go1.12.txt | 251 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 251 insertions(+)

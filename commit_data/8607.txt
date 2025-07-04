@@ -1,0 +1,15 @@
+commit f531ef3279cd18315c01966d5beb318af6195e9b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 3 13:18:15 2011 +1000
+
+    image: rename Contains and ContainsRectangle to In.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4539104
+
+ src/pkg/exp/draw/clip_test.go |  6 ++---
+ src/pkg/image/geom.go         | 26 ++++++++++-----------
+ src/pkg/image/image.go        | 54 +++++++++++++++++++++----------------------
+ src/pkg/image/ycbcr/ycbcr.go  |  2 +-
+ 4 files changed, 44 insertions(+), 44 deletions(-)

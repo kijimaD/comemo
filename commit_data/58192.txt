@@ -1,0 +1,19 @@
+commit ae9938fae287606fb08395f4248393ea4acaa071
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 20 12:50:54 2024 -0800
+
+    doc: document new restriction on cgo-generated method receicer types
+    
+    Follow-up on CL 629715.
+    
+    For #60725.
+    
+    Change-Id: I1b980ad44f73550b633c74fc881c70255e7d8565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630335
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/next/5-toolchain.md | 6 ++++++
+ 1 file changed, 6 insertions(+)

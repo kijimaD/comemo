@@ -1,0 +1,15 @@
+commit 8554fd6e7dbfc76805ca48b71765879eeb6fb64d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 17:37:16 2018 -0800
+
+    cmd/compile: document reserved import paths
+    
+    Fixes #20708.
+    
+    Change-Id: I2db450947b64b8b5af3822c7fbcc3e99746ae9d7
+    Reviewed-on: https://go-review.googlesource.com/87496
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 5 +++++
+ 1 file changed, 5 insertions(+)

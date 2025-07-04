@@ -1,0 +1,19 @@
+commit f19f6c79e48b0c7aeeeb26e07b626af11653dc99
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 9 15:40:19 2022 -0700
+
+    runtime: fix gofmt error
+    
+    Introduced in https://go-review.googlesource.com/c/go/+/419755
+    
+    Change-Id: I7ca353d495dd7e833e46b3eeb972eac38b3a7a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422474
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/slice.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

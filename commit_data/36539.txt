@@ -1,0 +1,14 @@
+commit a2a8396f530a481ef2d2ad289bee1c741bc7f34e
+Author: Dmitry Neverov <dmitry.neverov@gmail.com>
+Date:   Thu Aug 30 20:58:31 2018 +0200
+
+    html/template: add an example for the Delims method
+    
+    Change-Id: I7ba55e3f6ebbaae41188316a66a40f994c037ad9
+    Reviewed-on: https://go-review.googlesource.com/132240
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/html/template/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

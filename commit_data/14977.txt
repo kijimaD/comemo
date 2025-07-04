@@ -1,0 +1,44 @@
+commit 6a9e956f194a4b22beb052fb2152f6f395d45158
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 24 17:32:10 2013 +1100
+
+    all: use t.Skip{,f}
+    
+    Replace various t.Log{,f} ; return checks with t.Skip{,f}.
+    
+    R=golang-dev, n13m3y3r, bradfitz, adg, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7193044
+
+ src/pkg/archive/zip/zip_test.go        |  6 +--
+ src/pkg/compress/flate/deflate_test.go |  3 +-
+ src/pkg/crypto/x509/verify_test.go     |  3 +-
+ src/pkg/go/types/gcimporter_test.go    |  3 +-
+ src/pkg/log/syslog/syslog_test.go      | 23 ++++--------
+ src/pkg/net/dial_test.go               |  9 ++---
+ src/pkg/net/dial_windows_test.go       |  3 +-
+ src/pkg/net/dialgoogle_test.go         | 12 ++----
+ src/pkg/net/file_test.go               |  6 +--
+ src/pkg/net/http/cgi/host_test.go      | 69 +++++++++++-----------------------
+ src/pkg/net/http/fs_test.go            | 18 +++------
+ src/pkg/net/http/transport_test.go     |  3 +-
+ src/pkg/net/ipraw_test.go              |  6 +--
+ src/pkg/net/lookup_test.go             | 18 +++------
+ src/pkg/net/multicast_posix_test.go    | 12 ++----
+ src/pkg/net/net_test.go                |  9 ++---
+ src/pkg/net/parse_test.go              |  3 +-
+ src/pkg/net/protoconn_test.go          | 12 ++----
+ src/pkg/net/server_test.go             |  3 +-
+ src/pkg/net/tcp_test.go                |  3 +-
+ src/pkg/net/timeout_test.go            | 30 +++++----------
+ src/pkg/net/udp_test.go                |  6 +--
+ src/pkg/net/unicast_posix_test.go      | 25 +++++-------
+ src/pkg/os/exec/exec_test.go           |  6 +--
+ src/pkg/os/os_test.go                  |  6 +--
+ src/pkg/os/path_test.go                |  3 +-
+ src/pkg/os/user/user_test.go           | 28 +++++---------
+ src/pkg/regexp/exec_test.go            |  3 +-
+ src/pkg/runtime/pprof/pprof_test.go    |  3 +-
+ src/pkg/runtime/proc_test.go           |  3 +-
+ src/pkg/sync/atomic/atomic_test.go     | 45 ++++++++--------------
+ 31 files changed, 126 insertions(+), 256 deletions(-)

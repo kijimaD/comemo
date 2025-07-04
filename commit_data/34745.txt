@@ -1,0 +1,26 @@
+commit ad638fbfb5acf1e9ced976067961e5e62360484a
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Mar 28 14:19:09 2018 -0400
+
+    internal/trace: fix double counting in span analysis
+    
+    When snapshotting the execution time stats of a goroutine
+    we take into account the intermediate values kepts in the GDesc's
+    gdesc field. At the end of goroutine analysis, we go through all
+    goroutines and replace the GExecutionStat with the new snapshot.
+    Here the mistake was that we replaced the GExecutionStat with
+    the value that reflects the intermediate values, but did clear
+    the intermediate values. So, when the following finalizeActiveSpans
+    runs, it trieds to add the intermediate values again (double-counting)
+    when taking a snapshot.
+    
+    Fix the issue by using the finalized GExecutionStat instead of
+    recomputing the snapshot. While we are here, refactor the finalization
+    logic so it can be used when processing GoEnd, GoStop events.
+    
+    Change-Id: Ibdb342214c29b65d4ea37e52b1f8b83f1fb20143
+    Reviewed-on: https://go-review.googlesource.com/103157
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/internal/trace/goroutines.go | 47 ++++++++++++++++++++--------------------
+ 1 file changed, 24 insertions(+), 23 deletions(-)

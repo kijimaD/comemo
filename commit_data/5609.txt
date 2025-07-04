@@ -1,0 +1,28 @@
+commit 2006667931befe0dfc2b77fc32fef83c04252c80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 3 17:19:00 2010 -0700
+
+    draw.Draw fast paths for the Over operator.
+    
+    Time (us) to draw a 200x200 src onto an image.RGBA dst with the Over
+    operator. Each case was measured three separate times, and the sorted
+    times are reported.
+    
+    Fill case (where src is an image.ColorImage):
+    Before:
+    7438, 7511, 7526
+    After:
+    3073, 3087, 3102
+    
+    Copy case (where src is an image.RGBA):
+    Before:
+    9506, 9510, 9563
+    After:
+    5262, 5300, 5344
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1532041
+
+ src/pkg/exp/draw/draw.go | 127 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 93 insertions(+), 34 deletions(-)

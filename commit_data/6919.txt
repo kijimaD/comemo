@@ -1,0 +1,13 @@
+commit 9282a768cf8f4c1540a6c538ff36a916d2629232
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 10 11:39:09 2010 -0800
+
+    math: s/MinFloat/SmallestNonzeroFloat/
+    
+    R=r, gri
+    CC=golang-dev
+    https://golang.org/cl/3547042
+
+ src/pkg/math/all_test.go |  4 ++--
+ src/pkg/math/const.go    | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

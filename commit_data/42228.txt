@@ -1,0 +1,24 @@
+commit 882ec701d2bc5df807637418d726f644ed2e0ef6
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 11 22:15:58 2020 -0700
+
+    cmd/compile: add indexed load+op operations to amd64
+    
+    name        old time/op  new time/op  delta
+    LoadAdd-16   545ns ± 0%   456ns ± 0%  -16.31%  (p=0.000 n=10+10)
+    
+    Update #36468
+    
+    Change-Id: I84f390d55490648fa1f58cdbc24fd74c4f1bc8c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227960
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |  22 +
+ src/cmd/compile/internal/gc/bench_test.go       |  21 +
+ src/cmd/compile/internal/ssa/addressingmodes.go |  37 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  35 +-
+ src/cmd/compile/internal/ssa/opGen.go           | 525 ++++++++++++++++++++++++
+ test/codegen/memops.go                          |  22 +-
+ 6 files changed, 657 insertions(+), 5 deletions(-)

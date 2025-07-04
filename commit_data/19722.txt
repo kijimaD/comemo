@@ -1,0 +1,15 @@
+commit 369a3ff3fd7cce8c11b472891fb63a1806443dbc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 12 15:18:36 2014 +1000
+
+    make.bat: return exit code to dashboard builder
+    
+    Fixes #7806.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/104690043
+
+ src/make.bat | 1 +
+ 1 file changed, 1 insertion(+)

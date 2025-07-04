@@ -1,0 +1,17 @@
+commit 685204747d39b4a5d111406389f7a63bc34c7287
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 16:27:40 2014 -0400
+
+    runtime: fix _cgo_allocate(0)
+    
+    Fixes a SWIG bug reported off-list.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/155990043
+
+ misc/cgo/test/callback_c_gc.c    | 10 ++++++++++
+ misc/cgo/test/callback_c_gccgo.c |  7 +++++++
+ src/runtime/cgocallback.go       |  3 +++
+ 3 files changed, 20 insertions(+)

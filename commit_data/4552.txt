@@ -1,0 +1,19 @@
+commit 7a5852b50ed8109d778fe3b24b310e9bbbe7a1b8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 6 19:36:28 2010 -0800
+
+    update timing logs for benchmarks.
+    some significant improvements:
+            reverse-complement
+            nbody (gccgo only)
+            regex-dna
+            pidigits
+    one mysterious drop:
+            binary-tree.go (gccgo only)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181158
+
+ test/bench/timing.log | 84 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 84 insertions(+)

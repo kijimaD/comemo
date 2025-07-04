@@ -1,0 +1,14 @@
+commit 2eb7c6ec8a34c23466e40946d0e9ea1574b0006a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:08:08 2013 +0900
+
+    net: simplify non-cgo DNS exchange
+    
+    Also does less buffer allocation in case of TCP fallback.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12925043
+
+ src/pkg/net/dnsclient_unix.go | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit efd1d050230606b4383f5ddb6ea3df7853fc4ce7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 19 13:02:06 2013 +0900
+
+    net: rename TestReadConfig to TestDNSReadConfig
+    
+    To make it possible to type "go test -run=DNS".
+    Also removes unnecessary parens.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43470051
+
+ src/pkg/net/dnsconfig_unix_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit fb3af53f4e5ff58d01c15deeef1356f42a678e40
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 19 13:38:29 2008 -0700
+
+    initialization
+    
+    SVN=128115
+
+ src/cmd/gc/dcl.c        | 102 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h         |   1 +
+ src/cmd/gc/go.y         |  10 ++++-
+ src/runtime/rt0_amd64.s |   1 +
+ 4 files changed, 112 insertions(+), 2 deletions(-)

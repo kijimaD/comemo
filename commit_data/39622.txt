@@ -1,0 +1,20 @@
+commit 78f6856ddf855a457bd33af27089cb3f6e1b2a2d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Aug 26 01:25:41 2019 +0000
+
+    Revert "errors: add example showing a custom error with Unwrap"
+    
+    This reverts commit 739123c3a36f30af06c294741f74a26e54ee21ad.
+    
+    Reason for revert: broke Windows and Plan 9 builders
+    
+    Fixes #33828
+    
+    Change-Id: I1d85c81549b1b34924fdd0ade8bf9406e5cf6555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191742
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/errors/example_unwrap_test.go | 56 ---------------------------------------
+ 1 file changed, 56 deletions(-)

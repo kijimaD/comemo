@@ -1,0 +1,14 @@
+commit 605d0746c5fdedc35b62eb2f3d470cb56e5fcecd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 16:43:51 2009 -0800
+
+    catch export on func.
+    print names in message.
+    
+    R=ken
+    OCL=22891
+    CL=22891
+
+ src/cmd/gc/export.c | 10 ++++++----
+ src/cmd/gc/go.y     |  9 +++++++--
+ 2 files changed, 13 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 0dab624b70273d4c32b70a5076c2a054c5a274dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 14:14:04 2011 -0500
+
+    gofmt: handle &T in composite literal simplify
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5448086
+
+ src/cmd/gofmt/simplify.go                | 18 +++++-
+ src/cmd/gofmt/testdata/composites.golden | 98 ++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/composites.input  | 98 ++++++++++++++++++++++++++++++++
+ 3 files changed, 213 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit e23f75b3c4b4ea21df2f4575b993877975beca1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 18:00:27 2009 -0800
+
+    net: disable more ipv6 tests
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/153050
+
+ src/pkg/net/server_test.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

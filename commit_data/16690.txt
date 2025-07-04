@@ -1,0 +1,12 @@
+commit b86f6c92247bc453fff28956d0ef0420b8b96f21
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jul 1 21:20:42 2013 -0400
+
+    net/rpc/jsonrpc: remove unused serverCodec.resp field
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/10458045
+
+ src/pkg/net/rpc/jsonrpc/server.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

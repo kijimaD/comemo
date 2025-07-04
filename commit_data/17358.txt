@@ -1,0 +1,23 @@
+commit 3b961bf88b80e350e9d97aa8fba361a10c3f8a7f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 22 10:33:06 2013 +0900
+
+    net: remove redundant argument check from Dial on udp, unix networks
+    
+    The net package consists of thin three layers like the follwoing;
+    
+    - Exposed API, that contains net.Dial, net.DialUDP, net.DialUnix
+    - Socket and network file descriptor, that contains net.netFD and
+      its methods, helper functions such as dialUDP, dialUnix
+    - Network pollster, that contains net.pollDesc and its methods
+    
+    This CL removes redundant argument check which is already done by
+    API layer.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13092043
+
+ src/pkg/net/udpsock_posix.go  | 8 ++++----
+ src/pkg/net/unixsock_posix.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

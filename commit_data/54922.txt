@@ -1,0 +1,18 @@
+commit 5cb0839ee08b765e343ce291f334e5c80b68337d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Nov 2 07:14:21 2023 +0000
+
+    cmd/go/internal/modload: omit return at the end of matchPackages
+    
+    Change-Id: Ie18a883dfd3409e29138f58dde6dbc6516d58d48
+    GitHub-Last-Rev: 482a14d2b6393f02d429601b22952e82fd7c9a13
+    GitHub-Pull-Request: golang/go#63895
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539097
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/go/internal/modload/search.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 196df6f0c9ddd7043984cdf5d7becfb647ec1a31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 26 13:22:08 2016 -0700
+
+    go/ast: better documentation for CallExpr node
+    
+    Fixes #17222.
+    
+    Change-Id: Iffffc8cbb8627d06afa9066246b68fa2da4600e3
+    Reviewed-on: https://go-review.googlesource.com/29810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

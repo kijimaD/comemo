@@ -1,0 +1,18 @@
+commit 9efc5a5237c12b382b0383bd9fa3944c700bc899
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 17:19:06 2022 -0500
+
+    cmd/go: document new architecture feature build tags
+    
+    Also mention in release notes.
+    
+    Change-Id: Ifddfc6d2fdaae07c0774ad917838b0fdf9c0b0fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452559
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ doc/go1.20.html                     |  6 +++++-
+ src/cmd/go/alldocs.go               | 40 +++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/help/helpdoc.go | 40 +++++++++++++++++++++++++++++++++++--
+ 3 files changed, 81 insertions(+), 5 deletions(-)

@@ -1,0 +1,61 @@
+commit f90b48e0d347077cee4b6ea81671bfa04ddf681b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 17 16:09:38 2015 -0800
+
+    runtime: require the stack barrier lock to traceback cgo and libcalls
+    
+    Currently, if sigprof determines that the G is in user code (not cgo
+    or libcall code), it will only traceback the G stack if it can acquire
+    the stack barrier lock. However, it has no such restriction if the G
+    is in cgo or libcall code. Because cgo calls count as syscalls, stack
+    scanning and stack barrier installation can occur during a cgo call,
+    which means sigprof could attempt to traceback a G in a cgo call while
+    scanstack is installing stack barriers in that G's stack. As a result,
+    the following sequence of events can cause the sigprof traceback to
+    panic with "missed stack barrier":
+    
+    1. M1: G1 performs a Cgo call (which, on Windows, is any system call,
+       which could explain why this is easier to reproduce on Windows).
+    
+    2. M1: The Cgo call puts G1 into _Gsyscall state.
+    
+    3. M2: GC starts a scan of G1's stack. It puts G1 in to _Gscansyscall
+       and acquires the stack barrier lock.
+    
+    4. M3: A profiling signal comes in. On Windows this is a global
+       (though I don't think this matters), so the runtime stops M1 and
+       calls sigprof for G1.
+    
+    5. M3: sigprof fails to acquire the stack barrier lock (because the
+       GC's stack scan holds it).
+    
+    6. M3: sigprof observes that G1 is in a Cgo call, so it calls
+       gentraceback on G1 with its Cgo transition point.
+    
+    7. M3: gentraceback on G1 grabs the currently empty g.stkbar slice.
+    
+    8. M2: GC finishes scanning G1's stack and installing stack barriers.
+    
+    9. M3: gentraceback encounters one of the just-installed stack
+       barriers and panics.
+    
+    This commit fixes this by only allowing cgo tracebacks if sigprof can
+    acquire the stack barrier lock, just like in the regular user
+    traceback case.
+    
+    For good measure, we put the same constraint on libcall tracebacks.
+    This case is probably already safe because, unlike cgo calls, libcalls
+    leave the G in _Grunning and prevent reaching a safe point, so
+    scanstack cannot run during a libcall. However, this also means that
+    sigprof will always acquire the stack barrier lock without contention,
+    so there's no cost to adding this constraint to libcall tracebacks.
+    
+    Fixes #12528. For 1.5.3 (will require some backporting).
+    
+    Change-Id: Ia5a4b8e3d66b23b02ffcd54c6315c81055c0cec2
+    Reviewed-on: https://go-review.googlesource.com/18023
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

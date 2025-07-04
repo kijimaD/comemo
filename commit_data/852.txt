@@ -1,0 +1,14 @@
+commit 1ea5bc753328c9d79e20ec84378c7c76a1b665ea
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Oct 13 20:14:09 2008 -0700
+
+    stack allocation for the init function
+    
+    R=r
+    OCL=17063
+    CL=17063
+
+ src/cmd/gc/dcl.c | 2 +-
+ src/cmd/gc/go.h  | 3 ++-
+ src/cmd/gc/go.y  | 9 +++++++--
+ 3 files changed, 10 insertions(+), 4 deletions(-)

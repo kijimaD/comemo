@@ -1,0 +1,24 @@
+commit ee63782fd6bde490b31db9fbb00677ac4094bdc4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 19 18:31:43 2019 -0400
+
+    crypto/tls: reject low-order Curve25519 points
+    
+    The RFC recommends checking the X25519 output to ensure it's not the
+    zero value, to guard against peers trying to remove contributory
+    behavior.
+    
+    In TLS there should be enough transcript involvement to mitigate any
+    attack, and the RSA key exchange would suffer from the same issues by
+    design, so not proposing a backport.
+    
+    See #31846
+    
+    Change-Id: I8e657f8ee8aa72c3f8ca3b124555202638c53f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183039
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/key_schedule.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

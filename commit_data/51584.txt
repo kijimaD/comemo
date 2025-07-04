@@ -1,0 +1,18 @@
+commit 9123221ccf3c80c741ead5b6f2e960573b1676b9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 27 17:29:28 2022 -0500
+
+    misc/cgo/testsanitizers: run libfuzzer tests in temp directory
+    
+    The libFuzzer generated binary by default writes failure input
+    into the current directory. Set cmd.Dir to the temporary directory
+    so it won't write to GOROOT when running the test.
+    
+    Change-Id: I3e4ce7e3f845be5c9f09511c36e7a9a396eafad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459556
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/libfuzzer_test.go | 1 +
+ 1 file changed, 1 insertion(+)

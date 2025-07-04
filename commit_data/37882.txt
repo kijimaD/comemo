@@ -1,0 +1,17 @@
+commit 76e8ca447c6d48cadf4c355112e5c6bd60b9a2e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 15 07:46:39 2019 -0800
+
+    cmd/cgo: don't replace newlines with semicolons in composite literals
+    
+    Fixes #29748
+    
+    Change-Id: I2b19165bdb3c99df5b79574390b5d5f6d40462dc
+    Reviewed-on: https://go-review.googlesource.com/c/157961
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue29748.go | 22 ++++++++++++++++++++++
+ src/cmd/cgo/godefs.go       | 15 ++++++++++++++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 26a5f6a32e76e977d4d937140991bf70b5e27161
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 13:57:47 2019 -0400
+
+    runtime: fix scattered non-tab indentation in assembly
+    
+    Change-Id: I6940a4c747f2da871263afa6a4e3386395d5cf54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180839
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s         |  8 ++++----
+ src/runtime/asm_ppc64x.s      |  8 ++++----
+ src/runtime/asm_s390x.s       |  4 ++--
+ src/runtime/memclr_arm64.s    |  8 ++++----
+ src/runtime/memmove_arm64.s   | 10 +++++-----
+ src/runtime/race_arm64.s      |  2 +-
+ src/runtime/race_ppc64le.s    | 12 ++++++------
+ src/runtime/rt0_linux_mipsx.s |  2 +-
+ src/runtime/sys_aix_ppc64.s   |  2 +-
+ src/runtime/tls_arm.s         |  2 +-
+ 10 files changed, 29 insertions(+), 29 deletions(-)

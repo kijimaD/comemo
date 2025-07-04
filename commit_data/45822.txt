@@ -1,0 +1,19 @@
+commit a752bc07462f01a4c1ee1940c3ea316b270af146
+Author: Rahul Bajaj <rahulrb0509@gmail.com>
+Date:   Tue Jun 15 13:23:10 2021 +0000
+
+    syscall: fix TestGroupCleanupUserNamespace test failure on Fedora
+    
+    Fixes #46752
+    
+    Change-Id: I2eaa9d15fac4e859e18191fcf1372e5be94899df
+    GitHub-Last-Rev: 8a2672d8dc6713ec6cbd207d870e893062c8fe5b
+    GitHub-Pull-Request: golang/go#46753
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328109
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_linux_test.go | 1 +
+ 1 file changed, 1 insertion(+)

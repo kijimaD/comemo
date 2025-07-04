@@ -1,0 +1,235 @@
+commit 1d20a362d0ca4898d77865e314ef6f73582daef0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 21:57:24 2021 -0400
+
+    math: avoid assembly stubs
+    
+    Currently almost all math functions have the following pattern:
+    
+    func Sin(x float64) float64
+    
+    func sin(x float64) float64 {
+        // ... pure Go implementation ...
+    }
+    
+    Architectures that implement a function in assembly provide the
+    assembly implementation directly as the exported function (e.g., Sin),
+    and architectures that don't implement it in assembly use a small stub
+    to jump back to the Go code, like:
+    
+    TEXT ·Sin(SB), NOSPLIT, $0
+            JMP ·sin(SB)
+    
+    However, most functions are not implemented in assembly on most
+    architectures, so this jump through assembly is a waste. It defeats
+    compiler optimizations like inlining. And, with regabi, it actually
+    adds a small but non-trivial overhead because the jump from assembly
+    back to Go must go through an ABI0->ABIInternal bridge function.
+    
+    Hence, this CL reorganizes this structure across the entire package.
+    It now leans on inlining to achieve peak performance, but allows the
+    compiler to see all the way through the pure Go implementation.
+    
+    Now, functions follow this pattern:
+    
+    func Sin(x float64) float64 {
+            if haveArchSin {
+                    return archSin(x)
+            }
+            return sin(x)
+    }
+    
+    func sin(x float64) float64 {
+        // ... pure Go implementation ...
+    }
+    
+    Architectures that have assembly implementations use build-tagged
+    files to set haveArchX to true an provide an archX implementation.
+    That implementation can also still call back into the Go
+    implementation (some of them do this).
+    
+    Prior to this change, enabling ABI wrappers results in a geomean
+    slowdown of the math benchmarks of 8.77% (full results:
+    https://perf.golang.org/search?q=upload:20210415.6) and of the Tile38
+    benchmarks by ~4%. After this change, enabling ABI wrappers is
+    completely performance-neutral on Tile38 and all but one math
+    benchmark (full results:
+    https://perf.golang.org/search?q=upload:20210415.7). ABI wrappers slow
+    down SqrtIndirectLatency-12 by 2.09%, which makes sense because that
+    call must still go through an ABI wrapper.
+    
+    With ABI wrappers disabled (which won't be an option on amd64 much
+    longer), on linux/amd64, this change is largely performance-neutral
+    and slightly improves the performance of a few benchmarks:
+    
+    (Because there are so many benchmarks, I've applied the Šidák
+    correction to the alpha threshold. It makes relatively little
+    difference in which benchmarks are statistically significant.)
+    
+    name                    old time/op  new time/op  delta
+    Acos-12                 22.3ns ± 0%  18.8ns ± 1%  -15.44%  (p=0.000 n=18+16)
+    Acosh-12                28.2ns ± 0%  28.2ns ± 0%     ~     (p=0.404 n=18+20)
+    Asin-12                 18.1ns ± 0%  18.2ns ± 0%   +0.20%  (p=0.000 n=18+16)
+    Asinh-12                32.8ns ± 0%  32.9ns ± 1%     ~     (p=0.891 n=18+20)
+    Atan-12                 9.92ns ± 0%  9.90ns ± 1%   -0.24%  (p=0.000 n=17+16)
+    Atanh-12                27.7ns ± 0%  27.5ns ± 0%   -0.72%  (p=0.000 n=16+20)
+    Atan2-12                18.5ns ± 0%  18.4ns ± 0%   -0.59%  (p=0.000 n=19+19)
+    Cbrt-12                 22.1ns ± 0%  22.1ns ± 0%     ~     (p=0.804 n=16+17)
+    Ceil-12                 0.84ns ± 0%  0.84ns ± 0%     ~     (p=0.663 n=18+16)
+    Copysign-12             0.84ns ± 0%  0.84ns ± 0%     ~     (p=0.762 n=16+19)
+    Cos-12                  12.7ns ± 0%  12.7ns ± 1%     ~     (p=0.145 n=19+18)
+    Cosh-12                 22.2ns ± 0%  22.5ns ± 0%   +1.60%  (p=0.000 n=17+19)
+    Erf-12                  11.1ns ± 1%  11.1ns ± 1%     ~     (p=0.010 n=19+19)
+    Erfc-12                 12.6ns ± 1%  12.7ns ± 0%     ~     (p=0.066 n=19+15)
+    Erfinv-12               16.1ns ± 0%  16.1ns ± 0%     ~     (p=0.462 n=17+20)
+    Erfcinv-12              16.0ns ± 1%  16.0ns ± 1%     ~     (p=0.015 n=17+16)
+    Exp-12                  16.3ns ± 0%  16.5ns ± 1%   +1.25%  (p=0.000 n=19+16)
+    ExpGo-12                36.2ns ± 1%  36.1ns ± 1%     ~     (p=0.242 n=20+18)
+    Expm1-12                18.6ns ± 0%  18.7ns ± 0%   +0.25%  (p=0.000 n=16+19)
+    Exp2-12                 34.7ns ± 0%  34.6ns ± 1%     ~     (p=0.010 n=19+18)
+    Exp2Go-12               34.8ns ± 1%  34.8ns ± 1%     ~     (p=0.372 n=19+19)
+    Abs-12                  0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.766 n=18+16)
+    Dim-12                  0.84ns ± 1%  0.84ns ± 1%     ~     (p=0.167 n=17+19)
+    Floor-12                0.84ns ± 0%  0.84ns ± 0%     ~     (p=0.993 n=18+16)
+    Max-12                  3.35ns ± 0%  3.35ns ± 0%     ~     (p=0.894 n=17+19)
+    Min-12                  3.35ns ± 0%  3.36ns ± 1%     ~     (p=0.214 n=18+18)
+    Mod-12                  35.2ns ± 0%  34.7ns ± 0%   -1.45%  (p=0.000 n=18+17)
+    Frexp-12                5.31ns ± 0%  4.75ns ± 0%  -10.51%  (p=0.000 n=19+18)
+    Gamma-12                14.8ns ± 0%  16.2ns ± 1%   +9.21%  (p=0.000 n=20+19)
+    Hypot-12                6.16ns ± 0%  6.17ns ± 0%   +0.26%  (p=0.000 n=19+20)
+    HypotGo-12              7.79ns ± 1%  7.78ns ± 0%     ~     (p=0.497 n=18+17)
+    Ilogb-12                4.47ns ± 0%  4.47ns ± 0%     ~     (p=0.167 n=19+19)
+    J0-12                   76.0ns ± 0%  76.3ns ± 0%   +0.35%  (p=0.000 n=19+18)
+    J1-12                   76.8ns ± 1%  75.9ns ± 0%   -1.14%  (p=0.000 n=18+18)
+    Jn-12                    167ns ± 1%   168ns ± 1%     ~     (p=0.038 n=18+18)
+    Ldexp-12                6.98ns ± 0%  6.43ns ± 0%   -7.97%  (p=0.000 n=17+18)
+    Lgamma-12               15.9ns ± 0%  16.0ns ± 1%     ~     (p=0.011 n=20+17)
+    Log-12                  13.3ns ± 0%  13.4ns ± 1%   +0.37%  (p=0.000 n=15+18)
+    Logb-12                 4.75ns ± 0%  4.75ns ± 0%     ~     (p=0.831 n=16+18)
+    Log1p-12                19.5ns ± 0%  19.5ns ± 1%     ~     (p=0.851 n=18+17)
+    Log10-12                15.9ns ± 0%  14.0ns ± 0%  -11.92%  (p=0.000 n=17+16)
+    Log2-12                 7.88ns ± 1%  8.01ns ± 0%   +1.72%  (p=0.000 n=20+20)
+    Modf-12                 4.75ns ± 0%  4.34ns ± 0%   -8.66%  (p=0.000 n=19+17)
+    Nextafter32-12          5.31ns ± 0%  5.31ns ± 0%     ~     (p=0.389 n=17+18)
+    Nextafter64-12          5.03ns ± 1%  5.03ns ± 0%     ~     (p=0.774 n=17+18)
+    PowInt-12               29.9ns ± 0%  28.5ns ± 0%   -4.69%  (p=0.000 n=18+19)
+    PowFrac-12              91.0ns ± 0%  91.1ns ± 0%     ~     (p=0.029 n=19+19)
+    Pow10Pos-12             1.12ns ± 0%  1.12ns ± 0%     ~     (p=0.363 n=20+20)
+    Pow10Neg-12             3.90ns ± 0%  3.90ns ± 0%     ~     (p=0.921 n=17+18)
+    Round-12                2.31ns ± 0%  2.31ns ± 1%     ~     (p=0.390 n=18+18)
+    RoundToEven-12          0.84ns ± 0%  0.84ns ± 0%     ~     (p=0.280 n=18+19)
+    Remainder-12            31.6ns ± 0%  29.6ns ± 0%   -6.16%  (p=0.000 n=18+17)
+    Signbit-12              0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.385 n=19+18)
+    Sin-12                  12.5ns ± 0%  12.5ns ± 0%     ~     (p=0.080 n=18+18)
+    Sincos-12               16.4ns ± 2%  16.4ns ± 2%     ~     (p=0.253 n=20+19)
+    Sinh-12                 26.1ns ± 0%  26.1ns ± 0%   +0.18%  (p=0.000 n=17+19)
+    SqrtIndirect-12         3.91ns ± 0%  3.90ns ± 0%     ~     (p=0.133 n=19+19)
+    SqrtLatency-12          2.79ns ± 0%  2.79ns ± 0%     ~     (p=0.226 n=16+19)
+    SqrtIndirectLatency-12  6.68ns ± 0%  6.37ns ± 2%   -4.66%  (p=0.000 n=17+20)
+    SqrtGoLatency-12        49.4ns ± 0%  49.4ns ± 0%     ~     (p=0.289 n=18+16)
+    SqrtPrime-12            3.18µs ± 0%  3.18µs ± 0%     ~     (p=0.084 n=17+18)
+    Tan-12                  13.8ns ± 0%  13.9ns ± 2%     ~     (p=0.292 n=19+20)
+    Tanh-12                 25.4ns ± 0%  25.4ns ± 0%     ~     (p=0.101 n=17+17)
+    Trunc-12                0.84ns ± 0%  0.84ns ± 0%     ~     (p=0.765 n=18+16)
+    Y0-12                   75.8ns ± 0%  75.9ns ± 1%     ~     (p=0.805 n=16+18)
+    Y1-12                   76.3ns ± 0%  75.3ns ± 1%   -1.34%  (p=0.000 n=19+17)
+    Yn-12                    164ns ± 0%   164ns ± 2%     ~     (p=0.356 n=18+20)
+    Float64bits-12          0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.383 n=18+18)
+    Float64frombits-12      0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.066 n=18+19)
+    Float32bits-12          0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.889 n=16+19)
+    Float32frombits-12      0.56ns ± 0%  0.56ns ± 0%     ~     (p=0.007 n=18+19)
+    FMA-12                  23.9ns ± 0%  24.0ns ± 0%   +0.31%  (p=0.000 n=16+17)
+    [Geo mean]              9.86ns       9.77ns        -0.87%
+    
+    (https://perf.golang.org/search?q=upload:20210415.5)
+    
+    For #40724.
+    
+    Change-Id: I44fbba2a17be930ec9daeb0a8222f55cd50555a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310331
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/acosh.go        |   7 ++-
+ src/math/arith_s390x.go  | 101 +++++++++++++++++++++++++++--
+ src/math/asin.go         |  14 ++++-
+ src/math/asinh.go        |   7 ++-
+ src/math/atan.go         |   7 ++-
+ src/math/atan2.go        |   7 ++-
+ src/math/atanh.go        |   7 ++-
+ src/math/cbrt.go         |   7 ++-
+ src/math/dim.go          |  14 ++++-
+ src/math/dim_amd64.s     |   8 +--
+ src/math/dim_arm64.s     |   8 +--
+ src/math/dim_asm.go      |  16 +++++
+ src/math/dim_noasm.go    |  20 ++++++
+ src/math/dim_riscv64.s   |   8 +--
+ src/math/dim_s390x.s     |   6 +-
+ src/math/erf.go          |  14 ++++-
+ src/math/exp.go          |  14 ++++-
+ src/math/exp2_asm.go     |  12 ++++
+ src/math/exp2_noasm.go   |  14 +++++
+ src/math/exp_amd64.go    |  12 ++++
+ src/math/exp_amd64.s     |   2 +-
+ src/math/exp_arm64.s     |   4 +-
+ src/math/exp_asm.go      |  10 +--
+ src/math/exp_noasm.go    |  14 +++++
+ src/math/expm1.go        |   7 ++-
+ src/math/floor.go        |  21 ++++++-
+ src/math/floor_386.s     |  12 ++--
+ src/math/floor_amd64.s   |  12 ++--
+ src/math/floor_arm64.s   |  12 ++--
+ src/math/floor_asm.go    |  20 ++++++
+ src/math/floor_noasm.go  |  26 ++++++++
+ src/math/floor_ppc64x.s  |   6 +-
+ src/math/floor_s390x.s   |  12 ++--
+ src/math/floor_wasm.s    |   6 +-
+ src/math/frexp.go        |   7 ++-
+ src/math/hypot.go        |   7 ++-
+ src/math/hypot_386.s     |   4 +-
+ src/math/hypot_amd64.s   |   4 +-
+ src/math/hypot_asm.go    |  12 ++++
+ src/math/hypot_noasm.go  |  14 +++++
+ src/math/ldexp.go        |   7 ++-
+ src/math/log.go          |   7 ++-
+ src/math/log10.go        |  14 ++++-
+ src/math/log1p.go        |   7 ++-
+ src/math/log_amd64.s     |   2 +-
+ src/math/log_asm.go      |  12 ++++
+ src/math/log_stub.go     |  14 +++++
+ src/math/mod.go          |   7 ++-
+ src/math/modf.go         |   7 ++-
+ src/math/modf_arm64.s    |   4 +-
+ src/math/modf_asm.go     |  12 ++++
+ src/math/modf_noasm.go   |  14 +++++
+ src/math/modf_ppc64x.s   |   4 +-
+ src/math/pow.go          |   7 ++-
+ src/math/remainder.go    |   7 ++-
+ src/math/sin.go          |  14 ++++-
+ src/math/sinh.go         |  14 ++++-
+ src/math/sqrt.go         |   7 ++-
+ src/math/sqrt_386.s      |   4 +-
+ src/math/sqrt_amd64.s    |   4 +-
+ src/math/sqrt_arm.s      |   4 +-
+ src/math/sqrt_arm64.s    |   4 +-
+ src/math/sqrt_asm.go     |  12 ++++
+ src/math/sqrt_mipsx.s    |   4 +-
+ src/math/sqrt_noasm.go   |  14 +++++
+ src/math/sqrt_ppc64x.s   |   4 +-
+ src/math/sqrt_riscv64.s  |   4 +-
+ src/math/sqrt_s390x.s    |   4 +-
+ src/math/sqrt_wasm.s     |   2 +-
+ src/math/stubs.go        | 161 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/stubs_386.s     |  98 -----------------------------
+ src/math/stubs_amd64.s   |  86 -------------------------
+ src/math/stubs_arm.s     | 110 --------------------------------
+ src/math/stubs_arm64.s   |  88 --------------------------
+ src/math/stubs_mips64x.s | 115 ---------------------------------
+ src/math/stubs_mipsx.s   | 113 ---------------------------------
+ src/math/stubs_ppc64x.s  | 101 -----------------------------
+ src/math/stubs_riscv64.s | 104 ------------------------------
+ src/math/stubs_s390x.s   |  68 +++++++-------------
+ src/math/stubs_wasm.s    | 101 -----------------------------
+ src/math/tan.go          |   7 ++-
+ src/math/tanh.go         |   7 ++-
+ 82 files changed, 813 insertions(+), 1081 deletions(-)

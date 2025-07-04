@@ -1,0 +1,16 @@
+commit a6f69b31e0bdc625e1e026d8df6fc1f7c604067a
+Author: Katrina Owen <katrina.owen@gmail.com>
+Date:   Tue Oct 13 16:42:20 2015 -0600
+
+    encoding/csv: indicate package of EOF in docs
+    
+    The documentation listing err == EOF can be confusing to newcomers
+    to the language who are looking for the relevant documentation for
+    that error.
+    
+    Change-Id: I301885950d0e1d0fbdf3a1892fca86eac7a0c616
+    Reviewed-on: https://go-review.googlesource.com/15806
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/csv/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

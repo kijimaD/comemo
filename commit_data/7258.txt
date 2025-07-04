@@ -1,0 +1,12 @@
+commit 1e17621cbe84a0dde3892e04ab2a746ff3d78c31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 22:09:14 2011 -0800
+
+    go/scanner: fix build (adjust scanner EOF linecount)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3990045
+
+ src/pkg/go/scanner/scanner_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit d0591d5ebdd5137154cf797bcad22918f6ccd356
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 7 17:05:16 2014 +0100
+
+    cmd/gc: revert CL 60740044
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/60590047
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

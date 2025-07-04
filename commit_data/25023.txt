@@ -1,0 +1,20 @@
+commit f1b919574cf8022d09afdece1f76b2c2b2529004
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 23 12:55:37 2015 -0800
+
+    cmd/link: support R_PPC_REL32 relocation
+    
+    This relocation is found in libgcc.a in the .eh_frame, and therefore
+    needs to be handled when doing an internal link.
+    
+    Fixes #13375.
+    
+    Change-Id: Idd9e8178e08851a101b43261a30939bcfaf394f9
+    Reviewed-on: https://go-review.googlesource.com/17173
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/link/internal/ld/ldelf.go  |  3 ++-
+ src/cmd/link/internal/ppc64/asm.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

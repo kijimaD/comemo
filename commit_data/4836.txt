@@ -1,0 +1,15 @@
+commit 3b1a71862e0db013ec1b2c1cb55212e9611e8885
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 10 00:47:52 2010 -0800
+
+    8l: pe executable building code changed to include import table for kernel32.dll functions
+    
+    Fixes #586.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/203060
+
+ src/cmd/ld/pe.c | 74 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/pe.h | 25 +++++++++++++++++++
+ 2 files changed, 99 insertions(+)

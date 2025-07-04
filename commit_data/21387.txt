@@ -1,0 +1,16 @@
+commit a257ffb1784709658efcb622a88d7b54cbee0b55
+Author: Alex Plugaru <alex@plugaru.org>
+Date:   Mon Jan 26 11:51:43 2015 +0100
+
+    encoding/json: add UnmarshalTypeError.Offset
+    
+    Fixes #9693
+    
+    Change-Id: Ibf07199729bfc883b2a7e051cafd98185f912acd
+    Reviewed-on: https://go-review.googlesource.com/3283
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go      | 39 ++++++++++++++++++++-------------------
+ src/encoding/json/decode_test.go |  4 ++--
+ 2 files changed, 22 insertions(+), 21 deletions(-)

@@ -1,0 +1,30 @@
+commit 6b8977372263504535cad6e880ffca156bdfdf68
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 9 12:25:04 2021 -0500
+
+    testenv: abstract run-with-timeout into testenv
+    
+    This lifts the logic to run a subcommand with a timeout in a test from
+    the runtime's runTestProg into testenv. The implementation is
+    unchanged in this CL. We'll improve it in a future CL.
+    
+    Currently, tests that run subcommands usually just timeout with no
+    useful output if the subcommand runs for too long. This is a step
+    toward improving this.
+    
+    For #37405.
+    
+    Change-Id: I2298770db516e216379c4c438e05d23cbbdda51d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370701
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/testenv.go                    | 51 ++++++++++++++++++++++
+ .../testenv/testenv_notunix.go}                    |  8 ++--
+ src/internal/testenv/testenv_unix.go               | 13 ++++++
+ src/runtime/crash_test.go                          | 41 +----------------
+ src/runtime/crash_unix_test.go                     |  6 +--
+ 5 files changed, 71 insertions(+), 48 deletions(-)

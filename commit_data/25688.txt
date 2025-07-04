@@ -1,0 +1,19 @@
+commit d326a9641994eccdac1c95901762af45ec801bf1
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 19:10:11 2016 +0000
+
+    runtime: remove redundant empty function call from Breakpoint on arm
+    
+    CL 18964 included an extra patch (sorry, my first experience of
+    git-codereview) which defined the conventional breakpoint instruction
+    used by Plan 9 on arm, but also introduced a benign but unneeded
+    call to runtime.emptyfunc.  This CL removes the redundant call again.
+    
+    This completes the series of CLs which add support for Plan 9 on arm.
+    
+    Change-Id: Id293cfd40557c9d79b4b6cb164ed7ed49295b178
+    Reviewed-on: https://go-review.googlesource.com/19010
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_arm.s | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 7de610cc61ee3fc402289ec997e8a0ef90285d30
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 31 15:58:21 2010 -0700
+
+    regexp: use panic/recover to handle errors
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/821046
+
+ src/pkg/regexp/regexp.go | 122 +++++++++++++++++++----------------------------
+ 1 file changed, 50 insertions(+), 72 deletions(-)

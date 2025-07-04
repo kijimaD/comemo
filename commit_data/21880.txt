@@ -1,0 +1,15 @@
+commit b745ab95af0daaddb733f845ad0a5a7123889f8f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 12:25:27 2015 -0800
+
+    cmd/asm: move some machine-dependent code out of the asm directory
+    
+    cmd/asm/internal/asm no longer imports obj/$GOARCH, only obj itself.
+    
+    Change-Id: I7c0d107524d833b4a1b6e6a497cca4addadee570
+    Reviewed-on: https://go-review.googlesource.com/6670
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arm.go | 24 +++++++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go  | 42 ++++++++++++----------------------------
+ 2 files changed, 36 insertions(+), 30 deletions(-)

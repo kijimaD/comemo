@@ -1,0 +1,14 @@
+commit bcabc99a92f3ff7c04cf17c7467eedecfccc9cc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 30 15:30:57 2009 -0800
+
+    More Xcode support.
+    Recognize special comments starting
+    with TODO or BUG.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183095
+
+ misc/xcode/go.xclangspec | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

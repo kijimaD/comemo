@@ -1,0 +1,29 @@
+commit b660a4b04d0a88e86d15c1235a4d3bdf1efcd12c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 13:59:19 2017 +1100
+
+    cmd/link: add all pe section names to pe symbol table
+    
+    dwarf relocations refer to dwarf section symbols, so dwarf
+    section symbols must be present in pe symbol table before we
+    write dwarf relocations.
+    
+    .ctors pe section already refer to .text symbol.
+    
+    Write all pe section name symbols into symbol table, so we
+    can use them whenever we need them.
+    
+    This CL also simplified some code.
+    
+    For #10776.
+    
+    Change-Id: I9b8c680ea75904af90c797a06bbb1f4df19e34b6
+    Reviewed-on: https://go-review.googlesource.com/36978
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go |  6 ----
+ src/cmd/link/internal/ld/ldpe.go |  1 +
+ src/cmd/link/internal/ld/pe.go   | 62 +++++++++++++++++++++-------------------
+ 3 files changed, 33 insertions(+), 36 deletions(-)

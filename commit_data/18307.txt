@@ -1,0 +1,19 @@
+commit a453f28c70c7b2317c9c1096d1b32ebe7b01d021
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 13:47:47 2014 -0500
+
+    cmd/link: pclntab generation
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/53820043
+
+ src/cmd/link/pclntab.go                       |  480 +++++++
+ src/cmd/link/pclntab_test.go                  |  334 +++++
+ src/cmd/link/prog.go                          |    2 +
+ src/cmd/link/runtime.go                       |   17 +
+ src/cmd/link/testdata/Makefile                |   10 +
+ src/cmd/link/testdata/genpcln.go              |  112 ++
+ src/cmd/link/testdata/link.hello.darwin.amd64 |   54 +-
+ src/cmd/link/testdata/pclntab.s               | 1751 +++++++++++++++++++++++++
+ 8 files changed, 2744 insertions(+), 16 deletions(-)

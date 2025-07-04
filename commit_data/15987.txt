@@ -1,0 +1,12 @@
+commit cb79b2cf22ecd84b51ee46ddc922b9214fccc3c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 13:13:55 2013 -0700
+
+    go/doc: fix typo in comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8113043
+
+ src/pkg/go/doc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

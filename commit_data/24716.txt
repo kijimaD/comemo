@@ -1,0 +1,30 @@
+commit 8ee90fad125ffa4a5cf12d04958d26f8611cb581
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 4 02:17:57 2015 -0500
+
+    syscall: allow nacl's fake network code to Listen twice on the same address
+    
+    Noticed from nacl trybot failures on new tests in
+    https://golang.org/cl/16630
+    
+    Related earlier fix of mine to nacl's listen code:
+    
+      syscall: fix nacl listener to not accept connections once closed
+      https://go-review.googlesource.com/15940
+    
+    Perhaps a better fix (in the future?) would be to remove the listener
+    from the map at close, but that didn't seem entirely straightforward
+    last time I looked into it. It's not my code, but it seems that the
+    map entry continues to have a purpose even after Listener close. (?)
+    
+    But given that this code is only really used for running tests and the
+    playground, this seems fine.
+    
+    Change-Id: I43bfedc57c07f215f4d79c18f588d3650687a48f
+    Reviewed-on: https://go-review.googlesource.com/16650
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go     | 23 +++++++++++++++++++++++
+ src/syscall/net_nacl.go |  4 ++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

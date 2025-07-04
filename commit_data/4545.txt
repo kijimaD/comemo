@@ -1,0 +1,12 @@
+commit 616394b1774aa31b714501180dae72b20e93c1c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 17:59:15 2010 -0800
+
+    deps.bash: handle space between .go and \ in GOFILES=
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181157
+
+ src/pkg/deps.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

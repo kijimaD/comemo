@@ -1,0 +1,17 @@
+commit a4f8d36ba5f69e03073fa9f3bf79c04d4234fc85
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 14:15:15 2010 -0700
+
+    Run initcgo for all amd64 targets, not just GNU/Linux.
+    
+    This is required to make cgo export work on Darwin.  Note that
+    this corrects the stack alignment when calling initcgo to that
+    required by gcc on amd64.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/907041
+
+ src/pkg/runtime/amd64/asm.s       | 9 ++++++++-
+ src/pkg/runtime/linux/amd64/rt0.s | 7 -------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

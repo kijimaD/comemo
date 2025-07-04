@@ -1,0 +1,20 @@
+commit d2490e7419269e34c1ae10a086e8c6b90b2e6140
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 19 15:45:07 2008 -0700
+
+    - Implemented simple rule for optional semicolons:
+      Semicolons are terminators for statements as in C,
+      but if followed by a "}" they are not required.
+      This is easy to understand and produces the desired
+      result for statements.
+    - Updated todo.txt.
+    
+    SVN=113198
+
+ tests/char_lit.go   | 35 +++++++++++++++++++++++++++
+ tests/float_lit.go  | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ tests/hashmap.go    |  4 +--
+ tests/int_lit.go    | 19 +++++++++++++++
+ tests/string_lit.go | 29 ++++++++++++++++++++++
+ tests/test0.go      |  2 +-
+ 6 files changed, 156 insertions(+), 3 deletions(-)

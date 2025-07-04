@@ -1,0 +1,17 @@
+commit 2eafbb8878ffc5a032fdc9361ed75731da5bb698
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 01:18:28 2013 -0500
+
+    cmd/gc: elide self-assignment during return
+    
+    More efficient, less racy code.
+    
+    Fixes #4014.
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/7275047
+
+ src/cmd/gc/walk.c                                |  6 +++++-
+ src/pkg/runtime/race/testdata/regression_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

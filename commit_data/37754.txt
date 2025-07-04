@@ -1,0 +1,13 @@
+commit d902f23ec416fc881d567c1a81a3d2c48cc16855
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Dec 19 13:50:13 2018 +0100
+
+    cmd/cgo,doc/go1.12.html: document breaking EGLDisplay change
+    
+    Change-Id: I3c8ba5fdb05b6b1324648622656cc10071c70a34
+    Reviewed-on: https://go-review.googlesource.com/c/154997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html    | 10 ++++++++++
+ src/cmd/cgo/doc.go |  7 +++++++
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,26 @@
+commit d2eab5ff19f36cc8550a2871a60d307e598eca91
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 16:05:11 2023 -0700
+
+    cmd/compile/internal/ir: remove OrigNode
+    
+    The OrigNode functionality used to be relevant to the typecheck
+    frontend, because we wanted to report errors using the same syntax as
+    the user originally wrote. However, now that types2 handles all
+    spec-required error diagnostics, there's no need to preserve original
+    nodes anymore.
+    
+    Change-Id: I64a0540b8952513913021e7b84d165beb1f9f801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526397
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/copy.go             | 59 +++----------------------
+ src/cmd/compile/internal/ir/expr.go             |  4 --
+ src/cmd/compile/internal/ir/stmt.go             |  4 +-
+ src/cmd/compile/internal/typecheck/expr.go      |  3 --
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 ---
+ 5 files changed, 8 insertions(+), 67 deletions(-)

@@ -1,0 +1,16 @@
+commit dc75670ae244a3f26771288d82eefc819b1e6716
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 12 17:52:52 2013 +1100
+
+    test: limit runoutput tests on arm platforms
+    
+    runoutput styles tests generally consume a lot of memory. On arm platforms rotate?.go consume around 200mb each to compile, and as tests are sorted alphabetically, they all tend to run at once.
+    
+    This change limits the number of runoutput jobs to 2 on arm platforms.
+    
+    R=minux.ma, remyoudompheng, bradfitz, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/7099047
+
+ test/run.go | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

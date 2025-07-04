@@ -1,0 +1,16 @@
+commit 9709d92bfaab7a9fb5350c102f46c8c9758e615d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Aug 17 17:11:13 2022 +0800
+
+    runtime: gofmt -w -s
+    
+    Change-Id: I1226ff66fd0c64984939793eb8ef96c08d030fa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424399
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

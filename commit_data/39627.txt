@@ -1,0 +1,21 @@
+commit 29d3c569e00ab46075dc9ab0520ef7a1a0fc91b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 22 17:03:30 2019 -0700
+
+    go/types: postpone interface method type comparison to the end
+    
+    Introduce a new list of final actions that is executed at the
+    end of type checking and use it to collect method type comparisons
+    and also map key checks.
+    
+    Fixes #33656.
+    
+    Change-Id: Ia77a35a45a9d7eaa7fc3e9e19f41f32dcd6ef9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191418
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go             | 23 ++++++++++++++++++++++-
+ src/go/types/testdata/cycles2.src |  6 ++----
+ src/go/types/type.go              | 18 ++++++++++++++----
+ src/go/types/typexpr.go           | 23 +++++++++++++----------
+ 4 files changed, 51 insertions(+), 19 deletions(-)

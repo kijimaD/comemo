@@ -1,0 +1,15 @@
+commit e153d3d8180277b2872ffae857c8fbc1fd950a39
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 18:45:48 2010 -0700
+
+    syscall: add const ARCH, analogous to OS
+    
+    R=r
+    CC=giles, golang-dev
+    https://golang.org/cl/600041
+
+ src/pkg/syscall/Makefile         | 1 +
+ src/pkg/syscall/syscall_386.go   | 7 +++++++
+ src/pkg/syscall/syscall_amd64.go | 7 +++++++
+ src/pkg/syscall/syscall_arm.go   | 7 +++++++
+ 4 files changed, 22 insertions(+)

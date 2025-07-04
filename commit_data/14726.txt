@@ -1,0 +1,15 @@
+commit 4b7c2dfcea6568f4f9c5d9b0aadd205821e6f7d3
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Sat Dec 22 13:41:01 2012 -0500
+
+    testing: fix example test fd leak
+    
+    Close the read side of the pipe.
+    Fixes #4551.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6962049
+
+ src/pkg/testing/example.go | 1 +
+ 1 file changed, 1 insertion(+)

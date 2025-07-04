@@ -1,0 +1,27 @@
+commit e704ef2b8529119a11694b4cb15215d3dd6b0a9f
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Apr 15 22:02:21 2022 +0000
+
+    go/doc: fix incorrect identifier parsing in comments
+    
+    This code was trying to iterate codepoints, but didn't reslice the string,
+    so it was reading the first codepoint over and over, if the string length was
+    not a multiple of the first codepoint length, this would cause to overshoot
+    past the end of the string.
+    
+    This was a latent bug introduced in CL 384265 but was revealed to
+    Ngolo-fuzzing in OSS-Fuzz in CL 397277.
+    
+    Fixes #52353
+    
+    Change-Id: I13f0352e6ad13a42878927f3b1c18c58360dd40c
+    GitHub-Last-Rev: 424f6cfad1bc7d66314911e6b4b4ce6751330435
+    GitHub-Pull-Request: golang/go#52356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400240
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/go/doc/comment/parse.go      |  2 +-
+ src/go/doc/comment/parse_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

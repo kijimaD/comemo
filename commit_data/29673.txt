@@ -1,0 +1,14 @@
+commit 0b1b6d4ce32818e0aa6db3bd37c6ca4a4d5613af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 17:04:31 2016 -0800
+
+    doc: remove remaining cmd/go entries from go1.8.txt
+    
+    None of them need to be called out in the release notes.
+    
+    Change-Id: I143a1879b25063574e4107c1e89264434d45d1d5
+    Reviewed-on: https://go-review.googlesource.com/33676
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.txt | 12 ------------
+ 1 file changed, 12 deletions(-)

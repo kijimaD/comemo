@@ -1,0 +1,23 @@
+commit 0c45ed05612bb315c949229f7b484b4b573af4b0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 13 17:11:16 2021 +0700
+
+    cmd/compile: fix irgen reports wrong error message for misuse of //go:embed
+    
+    Fixes #48230
+    
+    Change-Id: Ic6490e065e7e79793faa0d0201dc94f5fcea694a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355529
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/decl.go         | 11 +++++++++--
+ src/cmd/compile/internal/noder/irgen.go        |  8 +++++++-
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue48230.go                   | 10 ++++++++++
+ 5 files changed, 28 insertions(+), 4 deletions(-)

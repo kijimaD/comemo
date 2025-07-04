@@ -1,0 +1,26 @@
+commit a6a0ed3c4760fb6c59c55c1a01ddba8a558e04eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 14:31:48 2019 -0400
+
+    misc/cgo: disable testcarchive, testplugin during -short test (including all.bash)
+    
+    These tests take 20 seconds each to rebuild the entire world
+    in their respective modes. That's too much for short mode,
+    including all.bash on developer machines.
+    
+    Keep doing it on builders and if someone runs 'go test' by hand
+    in that directory.
+    
+    For #26473.
+    
+    Change-Id: I3dc6955bc3aa7a20fd170efcde72a7d19b37bdbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177417
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 6 ++++++
+ misc/cgo/testcshared/cshared_test.go   | 6 ++++++
+ misc/cgo/testplugin/plugin_test.go     | 6 ++++++
+ src/cmd/dist/test.go                   | 2 +-
+ 4 files changed, 19 insertions(+), 1 deletion(-)

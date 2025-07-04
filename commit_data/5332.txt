@@ -1,0 +1,13 @@
+commit 455e799f6ddf2df2e96770e785df1c7186a7d40d
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Apr 21 17:12:36 2010 -0700
+
+    big: Add some tests
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/967041
+
+ src/pkg/big/int_test.go | 24 +++++++++++++++++++-----
+ src/pkg/big/nat_test.go | 31 ++++++++++++++++++++++++++++++-
+ 2 files changed, 49 insertions(+), 6 deletions(-)

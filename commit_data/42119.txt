@@ -1,0 +1,17 @@
+commit 6b5ab20b6587b02da1091d2ca9e6c9dbef70f6cb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:46:11 2020 -0700
+
+    cmd/compile: convert devirtualization rule to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iebcdc35f1a2112d5384c70eb3fdbd92ebb3d248e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229689
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/rewrite.go        |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
+ 4 files changed, 11 insertions(+), 9 deletions(-)

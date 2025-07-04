@@ -1,0 +1,18 @@
+commit 6f7caf8894a4c8c15a011b06373178f8b031edf6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 14:10:38 2023 -0700
+
+    cmd/compile/internal/types: separate printing of structs and tuples
+    
+    This CL changes the pretty printer to not rely on parameter lists
+    being represented as TSTRUCTs.
+    
+    Change-Id: Ie2b8192ee07b96ffbe224e5d98a335368f47abc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521316
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/fmt.go | 60 +++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 30 deletions(-)

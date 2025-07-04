@@ -1,0 +1,39 @@
+commit 9c436ab7dca9898d013eef321f5b51feb56feb56
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 8 15:59:23 2011 -0700
+
+    http: fix handling of 0-lengthed http requests
+    
+    Via Russ Ross' bug report on golang-nuts, it was not possible
+    to send an HTTP request with a zero length body with either a
+    Content-Length (it was stripped) or chunking (it wasn't set).
+    
+    This means Go couldn't upload 0-length objects to Amazon S3.
+    (which aren't as silly as they might sound, as S3 objects can
+    have key/values associated with them, set in the headers)
+    
+    Amazon further doesn't supported chunked uploads. (not Go's
+    problem, but we should be able to let users set an explicit
+    Content-Length, even if it's zero.)
+    
+    To fix the ambiguity of an explicit zero Content-Length and
+    the Request struct's default zero value, users need to
+    explicit set TransferEncoding to []string{"identity"} to force
+    the Request.Write to include a Content-Length: 0.  identity is
+    in RFC 2616 but is ignored pretty much everywhere.  We don't
+    even then serialize it on the wire, since it's kinda useless,
+    except as an internal sentinel value.
+    
+    The "identity" value is then documented, but most users can
+    ignore that because NewRequest now sets that.
+    
+    And adds more tests.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4603041
+
+ src/pkg/http/request.go           | 11 ++++++++---
+ src/pkg/http/requestwrite_test.go | 36 ++++++++++++++++++++++++++++++++++--
+ src/pkg/http/transfer.go          |  8 +++++++-
+ 3 files changed, 49 insertions(+), 6 deletions(-)

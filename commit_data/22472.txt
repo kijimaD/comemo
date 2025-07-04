@@ -1,0 +1,24 @@
+commit 93644c9118dfcd5c7b46d22fbe6b7f1cb1f1b696
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 3 09:40:10 2015 -0700
+
+    runtime: shared library runtime init for arm
+    
+    Adds the runtime initialization flow for arm akin to amd64.
+    In particular,we use the library initialization entry point to:
+        - create a new OS thread and run the "regular" runtime init stack on
+          that thread
+        - return immediately from the main (i.e., loader) thread
+        - at the first CGO invocation, we wait for the runtime initialization
+          to complete.
+    
+    Verified to work on a Raspberry Pi and an Android phone.
+    
+    Change-Id: I32f39228ae30a03ce9569287f234b305790fecf6
+    Reviewed-on: https://go-review.googlesource.com/8455
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
+
+ src/runtime/rt0_linux_arm.s | 52 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s | 37 +++++++++++++++++++++++++++++---
+ 2 files changed, 86 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 377141510005e1b6d67044f557f7367cccc7e659
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Sep 26 00:56:49 2011 -0700
+
+    exp/template/html: fix infinite loop in escapeText on bad input
+    
+    The template
+        "<a="
+    caused an infinite loop in escape text.
+    
+    The change to tTag fixes that and the change to escape.go causes
+    escapeText to panic on any infinite loop that does not involve
+    a state cycle.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5115041
+
+ src/pkg/exp/template/html/escape.go      |  3 +++
+ src/pkg/exp/template/html/escape_test.go |  4 ++++
+ src/pkg/exp/template/html/transition.go  | 38 ++++++++++++++++++--------------
+ 3 files changed, 28 insertions(+), 17 deletions(-)

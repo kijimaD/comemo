@@ -1,0 +1,14 @@
+commit b1d1da405af4ef7c928ef90712ba064248dd2794
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 12 11:47:44 2011 +1000
+
+    exp/template: add builtin len function
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4868045
+
+ src/pkg/exp/template/doc.go       |  2 ++
+ src/pkg/exp/template/exec_test.go |  6 ++++++
+ src/pkg/exp/template/funcs.go     | 16 ++++++++++++++++
+ 3 files changed, 24 insertions(+)

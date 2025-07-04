@@ -1,0 +1,27 @@
+commit f00bfb385ba7f9148a3f3af6c4882a3e53c3b536
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 28 16:10:19 2018 -0400
+
+    cmd/link: split off 'Dynimp' string fields to reduce sym.Symbol size
+    
+    The linker's sym.Symbol struct contains two string fields, "Dynimplib"
+    and "Dynimpvers" that are used only in very specific circumstances
+    (for many symbols, such as DWARF syms, they are wasted space). Split
+    these two off into a separate struct, then point to an instance of
+    that struct when needed. This reduces the size of sym.Symbol so as to
+    save space in the common case.
+    
+    Updates #26186
+    
+    Change-Id: Id9c74824e78423a215c8cbc105b72665525a1eff
+    Reviewed-on: https://go-review.googlesource.com/121916
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go            |  8 ++---
+ src/cmd/link/internal/ld/go.go             |  9 +++--
+ src/cmd/link/internal/ld/lib.go            |  2 +-
+ src/cmd/link/internal/ld/pe.go             |  4 +--
+ src/cmd/link/internal/loadelf/ldelf.go     |  2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go        | 58 ++++++++++++++++++++++++------
+ 7 files changed, 61 insertions(+), 24 deletions(-)

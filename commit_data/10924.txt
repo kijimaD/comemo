@@ -1,0 +1,15 @@
+commit 4fe73ef40a8b831593249e935921ba4f3c5a1fa7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 14:07:32 2011 +1100
+
+    dashboard: put http handlers in new file handler.go
+    
+    This CL contains no code changes.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5498056
+
+ misc/dashboard/app/build/build.go   | 367 +----------------------------------
+ misc/dashboard/app/build/handler.go | 377 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 378 insertions(+), 366 deletions(-)

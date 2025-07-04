@@ -1,0 +1,15 @@
+commit 4ec7e76a741ae617425b6c6674eee99085eb26da
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Fri Mar 27 01:59:31 2015 +0000
+
+    cmd/go: small code reorganization
+    
+    covermode is not passed to 6.out, so it should not be grouped
+    with the flags that are. Move it to the "local" section.
+    
+    Change-Id: Id487898962e7ab7adf98b0854c2f1802116bec11
+    Reviewed-on: https://go-review.googlesource.com/8132
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/testflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 2da1e47fb06bef29a99eaa1395ef1f7d11b05929
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Mar 8 16:16:49 2022 -0500
+
+    go/types, types: add additional generic cases for the Selections API
+    
+    Change-Id: Icc5240db7447846061d0d81f5e15f788758d4d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393372
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go | 61 ++++++++++++++++++-----------
+ src/go/types/api_test.go                    | 61 ++++++++++++++++++-----------
+ 2 files changed, 78 insertions(+), 44 deletions(-)

@@ -1,0 +1,15 @@
+commit c2b87ce0079a1981f01243886ff01cbc4b3e784d
+Author: John DeNero <denero@google.com>
+Date:   Tue Jan 3 12:15:08 2012 +1100
+
+    doc/codewalk/functions.xml: Fix broken function examples
+    
+    I removed the broken function comparison example and fixed a code highlighting regexp.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5501078
+
+ doc/codewalk/functions.xml | 12 +-----------
+ doc/codewalk/pig.go        |  3 ---
+ 2 files changed, 1 insertion(+), 14 deletions(-)

@@ -1,0 +1,16 @@
+commit 61170f85e62f1326d42c4dbd8aa17ab4a1305a87
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 14:01:55 2019 +1100
+
+    time: move the explanation of u/micro to the ParseDuration example
+    
+    Fix a few missing capitalizations in drive-by.
+    
+    Change-Id: I7353c12f3ccddefc0f26a98590caf9e446129558
+    Reviewed-on: https://go-review.googlesource.com/c/163918
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

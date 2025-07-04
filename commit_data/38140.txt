@@ -1,0 +1,21 @@
+commit 2deda8792a1f0139eba0bee527f3141659491444
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 15:48:22 2019 +0100
+
+    cmd/link: improve XCOFF symbol table
+    
+    This commit improves symbol table for XCOFF format.
+    It adds symbol alignment, TLS symbols and move the whole symbol table at
+    the end of the FILE. As relocations in the future external linking will
+    need symbols' index, we cannot write the symbol table when it's
+    generated.
+    
+    Change-Id: I5dcae85b95e538b65f1a128faf56d4e2aa15baf1
+    Reviewed-on: https://go-review.googlesource.com/c/163998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go  |   1 +
+ src/cmd/link/internal/ld/xcoff.go | 178 +++++++++++++++++++++++++-------------
+ 2 files changed, 118 insertions(+), 61 deletions(-)

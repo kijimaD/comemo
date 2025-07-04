@@ -1,0 +1,12 @@
+commit 9bd1f49e377d86c935d13d0bd0a8e8c3d986c18c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Sep 28 11:06:50 2013 +1000
+
+    syscall: Fix one issue detected by vet.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14038044
+
+ src/pkg/syscall/exec_linux.go | 5 -----
+ 1 file changed, 5 deletions(-)

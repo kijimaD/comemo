@@ -1,0 +1,15 @@
+commit 11e08d9d96fa13346d50b5f728058f2f2647664a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 13 10:28:19 2025 -0800
+
+    strconv: adjust comment so that gofmt doesn't mung it
+    
+    Change-Id: I7fe5c6a0521d3c597eae0f3568942df1db9370b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642497
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/strconv/quote.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

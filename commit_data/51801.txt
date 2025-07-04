@@ -1,0 +1,22 @@
+commit 6b8b7823c7fd9f3f2317f657120dc2e965d97b77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 26 17:21:51 2023 -0800
+
+    go/types, types2: move tparamIndex from unify.go into infer.go
+    
+    Minor code reorganization: the next version of unify.go doesn't
+    need this function anymore, so move it where it is still used.
+    
+    Change-Id: I6744a2361b5dfe2564ec73787a7a110e85ac9f1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463230
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 15 +++++++++++++++
+ src/cmd/compile/internal/types2/unify.go | 15 ---------------
+ src/go/types/infer.go                    | 15 +++++++++++++++
+ src/go/types/unify.go                    | 15 ---------------
+ 4 files changed, 30 insertions(+), 30 deletions(-)

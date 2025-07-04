@@ -1,0 +1,19 @@
+commit fedb0b30188952dc082672cbd45b39a49136d29c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 29 09:22:01 2016 -0400
+
+    cmd/internal/obj/arm: optimize MOVW $-off(R), R
+    
+    When offset < 0 and -offset fits in instruction, generate SUB
+    instruction, instead of ADD with constant from the pool.
+    
+    Fixes #13280.
+    
+    Change-Id: I57d97fe9300fe1f6554365e2262393ef50acbdd3
+    Reviewed-on: https://go-review.googlesource.com/30014
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

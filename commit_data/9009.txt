@@ -1,0 +1,15 @@
+commit d53385fd0c986c33c60e4d6fce6b39b6bd779a72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 15:47:42 2011 -0700
+
+    os: don't permit Process.Signal after a successful Wait
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/4689043
+
+ src/pkg/os/exec.go         | 3 ++-
+ src/pkg/os/exec_unix.go    | 6 ++++++
+ src/pkg/os/exec_windows.go | 4 ++++
+ src/pkg/os/os_test.go      | 9 ++++++++-
+ 4 files changed, 20 insertions(+), 2 deletions(-)

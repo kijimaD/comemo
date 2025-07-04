@@ -1,0 +1,21 @@
+commit 4bea6c65947caf815ad4dde8bf50c43dcca539be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 14:15:54 2018 -0700
+
+    go/internal/gccgoimporter: backport from x/tools to ensure identical code
+    
+    This change backports a minor modification of the x/tools version of this
+    code back into the std library. It simply ensures that both versions of
+    the code are the same and will simplify keeping them in sync down the
+    road.
+    
+    While this is an API change, this is an internal package, so we're ok.
+    
+    Updates #27891.
+    
+    Change-Id: Ib153141382f727a2692ca80179ae09c4a383ba4f
+    Reviewed-on: https://go-review.googlesource.com/c/142894
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gccgoimporter/gccgoinstallation.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 37fc70bac3a02e38859a09996e7ea95c3c64aed4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 15 12:04:34 2017 -0700
+
+    cmd/internal/objabi: remove unused flag funcs
+    
+    Change-Id: I728c5606882ece949d58e86f9558fc16ae4ffd85
+    Reviewed-on: https://go-review.googlesource.com/64052
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objabi/flag.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

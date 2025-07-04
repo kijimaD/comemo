@@ -1,0 +1,14 @@
+commit e683fb7a54ab60530e8c1e06c416cc646dbf519b
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Dec 12 13:10:36 2008 -0800
+
+    bug104
+    
+    R=r
+    OCL=21082
+    CL=21082
+
+ src/cmd/gc/const.c | 42 ++++++++++++++++++++++++++----------------
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/walk.c  |  2 +-
+ 3 files changed, 28 insertions(+), 17 deletions(-)

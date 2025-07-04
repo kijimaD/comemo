@@ -1,0 +1,20 @@
+commit 81c7beb04eda3ecc97e723793e11c61732ff37e8
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 16:58:13 2019 +0200
+
+    cmd/dist: set buildmode=pie on Android
+    
+    Android refuses to run non-PIE binaries, a restriction already
+    encoded in the cmd/go tool's buildModeInit function. This CL adds
+    the necessary flags to cmd/dist to make ./make.bash run on an
+    Android device.
+    
+    Change-Id: I162084f573befaa41dcb47a2b78448bce5b83d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170943
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/dist/build.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

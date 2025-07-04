@@ -1,0 +1,20 @@
+commit 8e3dfe783ab5ed110b6b338662ee1dee6a7dc51b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 16 17:24:16 2023 -0700
+
+    go/types, types2: assert that builtin reports valid operand mode upon success
+    
+    Fix a case where x.mode == invalid was returned despite builtin
+    returning true.
+    
+    Change-Id: Iae9c18aac16bcbadc3530d341b380e05c8743fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495299
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go | 14 +++++++++-----
+ src/go/types/builtins.go                    | 14 +++++++++-----
+ 2 files changed, 18 insertions(+), 10 deletions(-)

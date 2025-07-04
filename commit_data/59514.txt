@@ -1,0 +1,19 @@
+commit 6df855ebac86499402cfd31d92256592c3b2a233
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu May 15 11:16:34 2025 -0400
+
+    testing: fix panic in t.Log
+    
+    If a testing.TB is no longer on the stack, t.Log would panic because
+    its outputWriter is nil. Check for nil and drop the write, which
+    is the previous behavior.
+    
+    Change-Id: Ifde97997a3aa26ae604ac9c218588c1980110cbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Jonathan Amsterdam <jba@google.com>
+
+ src/testing/sub_test.go | 24 ++++++++++++++++++++----
+ src/testing/testing.go  | 19 ++++++++++++++-----
+ 2 files changed, 34 insertions(+), 9 deletions(-)

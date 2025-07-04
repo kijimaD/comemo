@@ -1,0 +1,19 @@
+commit abdd73cc43f9187e8918879944ec0dacbc912b5c
+Author: Edward Muller <edwardam@interlix.com>
+Date:   Tue Oct 4 21:24:58 2016 -0700
+
+    net/http/httptrace: add ClientTrace.TLSHandshakeStart & TLSHandshakeDone
+    
+    Fixes #16965
+    
+    Change-Id: I3638fe280a5b1063ff589e6e1ff8a97c74b77c66
+    Reviewed-on: https://go-review.googlesource.com/30359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go       |  2 +-
+ src/net/http/httptrace/trace.go | 11 ++++++++
+ src/net/http/transport.go       | 19 +++++++++++++
+ src/net/http/transport_test.go  | 60 ++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 90 insertions(+), 2 deletions(-)

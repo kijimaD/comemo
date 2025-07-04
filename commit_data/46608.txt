@@ -1,0 +1,17 @@
+commit f9a53b6b4d6d2a036e80ff79cc7bc34d788cd1c0
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Sep 22 22:32:55 2021 +0800
+
+    encoding/base32: Add examples for Encode/Decode
+    
+    Updates golang/go#37595
+    
+    Change-Id: I7568e7416d5504e9dc67061c79f66e3a0d597dee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351470
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/encoding/base32/example_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

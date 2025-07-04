@@ -1,0 +1,19 @@
+commit 12665b9a067789004ca45cedcd3ebbbdc143f1d7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 14:36:40 2020 -0700
+
+    cmd/compile: convert two generic rules to be typed
+    
+    Prelude to changing the rules.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I22fead7f74d2cf97bb3fbeb22741125b42914c43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229123
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 20 +++++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 80 +++++++++++++-------------
+ 2 files changed, 56 insertions(+), 44 deletions(-)

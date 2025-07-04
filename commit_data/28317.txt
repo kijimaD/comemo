@@ -1,0 +1,15 @@
+commit 8086e7c6ab85646cd53d5cb6d6183750a76e6214
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 12 13:17:02 2016 +1000
+
+    testing: improve the documentation for the -run flag
+    
+    It's not intuitive, especially in the presence of subtests, so improve the
+    explanation and extend and explain the examples.
+    
+    Change-Id: I6c4d3f8944b60b12311d0c0f0a8e952e7c35a9ed
+    Reviewed-on: https://go-review.googlesource.com/28995
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/testing/testing.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

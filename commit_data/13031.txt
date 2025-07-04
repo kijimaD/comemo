@@ -1,0 +1,19 @@
+commit 018bcc35350c83956f8d77550873cd6886acd011
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 5 01:35:13 2012 +0800
+
+    runtime, misc/cgo/test: fix build for Linux/ARM
+    1. In CL 5989057, I made a mistake in the last minute change.
+    "MOVW.W R4, -4(SP)" should really be "MOVW.W R4, -4(R13)",
+    as 5l will rewrite offset for SP.
+    2. misc/cgo/test/issue1560.go tests for parallel sleep of 1s,
+    but on ARM, the deadline is frequently missed, so change sleep
+    time to 2s on ARM.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6202043
+
+ misc/cgo/test/issue1560.go | 15 +++++++++++----
+ src/pkg/runtime/asm_arm.s  |  2 +-
+ 2 files changed, 12 insertions(+), 5 deletions(-)

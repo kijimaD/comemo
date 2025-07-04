@@ -1,0 +1,21 @@
+commit 142a76530cf610fe02d151727fa0d8038c552127
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Mar 9 14:22:38 2021 -0500
+
+    go/types: improve the positioning of broken import errors
+    
+    The heuristic gopls uses to guess error spans can get tripped-up on
+    certain valid characters in an import path (for example '-').
+    
+    Update the error for broken imports to capture the full import path
+    span, so that gopls doesn't need to rely on heuristics.
+    
+    Change-Id: Ieb8e0dce11933643f701b32271ff5f3477fecaaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300169
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/resolver.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

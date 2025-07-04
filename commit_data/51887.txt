@@ -1,0 +1,21 @@
+commit d871f63bcfa4d32ec442afa0f2a190543f94073f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 20:30:35 2023 -0800
+
+    go/types, types2: avoid recursive invocation when unifying underlying types
+    
+    There's no need to invoke unifier.nify recursively when we decide to
+    unify underlying types. Just update the respective type variable and
+    continue.
+    
+    Change-Id: I3abe335464786dc509d18651dff14b20022c7d63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464347
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 8 ++++++--
+ src/go/types/unify.go                    | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,29 @@
+commit 19028bdd18483689a3743639fa89d272cbb96c7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 15:02:49 2017 -0800
+
+    math/bits: faster Rotate functions, added respective benchmarks
+    
+    Measured on 2.3 GHz Intel Core i7, running maxOS 10.12.3.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkRotateLeft-8        7.87          7.00          -11.05%
+    BenchmarkRotateLeft8-8       8.41          4.52          -46.25%
+    BenchmarkRotateLeft16-8      8.07          4.55          -43.62%
+    BenchmarkRotateLeft32-8      8.36          4.73          -43.42%
+    BenchmarkRotateLeft64-8      7.93          4.78          -39.72%
+    
+    BenchmarkRotateRight-8       8.23          6.72          -18.35%
+    BenchmarkRotateRight8-8      8.76          4.39          -49.89%
+    BenchmarkRotateRight16-8     9.07          4.44          -51.05%
+    BenchmarkRotateRight32-8     8.85          4.46          -49.60%
+    BenchmarkRotateRight64-8     8.11          4.43          -45.38%
+    
+    Change-Id: I79ea1e9e6fc65f95794a91f860a911efed3aa8a1
+    Reviewed-on: https://go-review.googlesource.com/37219
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/math/bits/bits.go      | 96 ++++++++++++++++++++++++++++++++++++++--------
+ src/math/bits/bits_impl.go | 11 ------
+ src/math/bits/bits_test.go | 80 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 26 deletions(-)

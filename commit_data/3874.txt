@@ -1,0 +1,17 @@
+commit 6ea866c04bde1956796c30ae1c542616de8e5dc6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Nov 6 18:43:57 2009 -0800
+
+    Typo fixes.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1026014
+
+ src/pkg/asn1/asn1.go              | 2 +-
+ src/pkg/compress/flate/inflate.go | 2 +-
+ src/pkg/exp/ogle/abort.go         | 2 +-
+ src/pkg/exp/ogle/process.go       | 2 +-
+ src/pkg/log/log.go                | 2 +-
+ src/pkg/rpc/server.go             | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

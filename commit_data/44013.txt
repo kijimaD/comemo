@@ -1,0 +1,18 @@
+commit 663cd862edf8dfa9c78d9df0f372c9bea03139e4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 11:11:27 2020 +0100
+
+    cmd/link: do not mark resource section as writable
+    
+    Resources are immutable, and all other linkers set this section to be
+    read-only and not read-write. Fix this oversight by removing the writable
+    flag.
+    
+    Change-Id: Ib441bde6620be2000f1685df1ea7bfaebdbe7860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268258
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/ld/pe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

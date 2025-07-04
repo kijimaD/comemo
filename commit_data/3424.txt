@@ -1,0 +1,16 @@
+commit 433e05974a7b81d21d95543ae373afaf013c8f3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 2 10:03:25 2009 -0700
+
+    - allow parenthesized [...]T types as in: ([...]int){}
+    - added extra tests
+    
+    R=rsc
+    DELTA=55  (37 added, 0 deleted, 18 changed)
+    OCL=35250
+    CL=35276
+
+ src/pkg/go/parser/parser.go                    | 30 ++++++++++++++------------
+ src/pkg/go/printer/testdata/expressions.go     | 23 ++++++++++++++++++--
+ src/pkg/go/printer/testdata/expressions.golden | 20 +++++++++++++++--
+ 3 files changed, 55 insertions(+), 18 deletions(-)

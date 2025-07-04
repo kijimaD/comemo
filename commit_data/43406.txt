@@ -1,0 +1,20 @@
+commit 3ca3ca51d70aac890fb023786db1fcbbeea139f1
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 21:44:32 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (to32)
+    
+    Type casting changed to 32 from 64.
+    L1055-L1056
+    L1193-L1194, L1197-L1198
+    
+    toolstash-check successful.
+    
+    Change-Id: Icdb9985673292294bc4549afaaa6cf4fcf92ffa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257640
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 12 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 48 +++++++++++++++---------------
+ 2 files changed, 30 insertions(+), 30 deletions(-)

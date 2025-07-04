@@ -1,0 +1,12 @@
+commit 0e771c72ede28220a26ac8bfe60d88f3a0a5072a
+Author: Carlos Cirello <uldericofilho@gmail.com>
+Date:   Wed Aug 26 22:57:52 2015 +0200
+
+    unicode: add function level examples
+    
+    Change-Id: I9e968c03c6615a539b18701c84f830898242441d
+    Reviewed-on: https://go-review.googlesource.com/13926
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/unicode/example_test.go | 196 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 196 insertions(+)

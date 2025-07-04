@@ -1,0 +1,23 @@
+commit 639957eb661c0c99c000bfc2e79bc750b02abd1a
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 14 14:09:12 2023 -0400
+
+    internal/reflectlite, runtime: move more constants and types into internal/abi
+    
+    Change-Id: If5da1057ead34eb3e4c7f42bbe6ad3d350b97725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484856
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/reflectlite/all_test.go            |  35 ++---
+ src/internal/reflectlite/reflect_mirror_test.go |   3 +-
+ src/internal/reflectlite/type.go                | 194 +++++-------------------
+ src/internal/reflectlite/value.go               |  37 ++---
+ src/runtime/alg.go                              |   2 +-
+ src/runtime/cgocall.go                          |   4 +-
+ src/runtime/cgocheck.go                         |   2 +-
+ src/runtime/syscall_windows.go                  |   2 +-
+ src/runtime/type.go                             |  70 ++-------
+ 9 files changed, 90 insertions(+), 259 deletions(-)

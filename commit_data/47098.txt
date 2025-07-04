@@ -1,0 +1,22 @@
+commit 834e36ec778c11b068a2d5354343d4668e5a9ceb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 16:23:51 2021 -0400
+
+    net/http: restore generated // +build comment
+    
+    The upstream cmd/bundle tool does not yet omit it,
+    and the longtest builders test that the generated
+    file is not modified.
+    
+    For #41184.
+    
+    Change-Id: Ib68f532139ed1436cbaf3a756f300fe60f520cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359484
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 1 +
+ 1 file changed, 1 insertion(+)

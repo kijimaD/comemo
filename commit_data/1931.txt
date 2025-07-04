@@ -1,0 +1,28 @@
+commit 8f628f4955a7b2a70ac7fbdcdf7225cf566d1000
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 31 16:53:58 2009 -0700
+
+    daily snapshot:
+    - adjustments to match new ast/parser interface
+    - removed printer.go; functionality now in astprinter.go and docprinter.go
+      (more cleanups pending)
+    - enabled new doc printing in gds
+      (lots of fine tuning missing, but pieces falling into place; e.g. methods
+      associated with types. Consts, Vars, to come. Collection of all files
+      belonging to a package to come)
+    
+    R=r
+    OCL=26970
+    CL=26972
+
+ usr/gri/pretty/Makefile       |   10 +-
+ usr/gri/pretty/astprinter.go  |  213 +----
+ usr/gri/pretty/compilation.go |    2 +-
+ usr/gri/pretty/docprinter.go  |  256 +++++-
+ usr/gri/pretty/gds.go         |   48 +-
+ usr/gri/pretty/parser.go      | 1968 -----------------------------------------
+ usr/gri/pretty/pretty.go      |   34 +-
+ usr/gri/pretty/printer.go     | 1413 -----------------------------
+ usr/gri/pretty/template.html  |   12 +-
+ usr/gri/pretty/typechecker.go |    4 +-
+ 10 files changed, 338 insertions(+), 3622 deletions(-)

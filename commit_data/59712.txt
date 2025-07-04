@@ -1,0 +1,19 @@
+commit 09f1546cba2998a8d89f4506c16ba3bff115071d
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue May 27 19:11:28 2025 +0100
+
+    log/slog: fix longtests with empty source
+    
+    Tests broken by CL 674875
+    
+    Updates #73808
+    
+    Change-Id: I7ad93e4a8ba1977d136f99b9d4963fa8a9c159ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676595
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/log/slog/logger_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 28547615ceea277c5f1e256067fe7e30cbc7e292
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 5 15:20:58 2008 -0700
+
+    - fixed another export bug
+    - more self-verification code
+    
+    R=r
+    OCL=13894
+    CL=13894
+
+ usr/gri/gosrc/export.go   |  21 +++----
+ usr/gri/gosrc/globals.go  |   2 +-
+ usr/gri/gosrc/import.go   |  35 +++++------
+ usr/gri/gosrc/parser.go   | 155 ++++++++++++++++++++++++++--------------------
+ usr/gri/gosrc/printer.go  |  14 +++--
+ usr/gri/gosrc/test/d.go   |   4 ++
+ usr/gri/gosrc/universe.go |   1 +
+ usr/gri/gosrc/verifier.go |  69 +++++++++++++++++----
+ 8 files changed, 186 insertions(+), 115 deletions(-)

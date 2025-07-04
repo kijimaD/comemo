@@ -1,0 +1,16 @@
+commit 1c5ed263aef81dc91055980cf039837f971096fd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 16 11:41:29 2011 +1100
+
+    compress: move zlib/testdata to testdata so it can be shared by all
+    compression algorithms.
+    
+    R=rsc, r2, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/4188054
+
+ src/pkg/compress/flate/deflate_test.go      | 134 +---------------------------
+ src/pkg/compress/{zlib => }/testdata/e.txt  |   0
+ src/pkg/compress/{zlib => }/testdata/pi.txt |   0
+ src/pkg/compress/zlib/writer_test.go        |   4 +-
+ 4 files changed, 6 insertions(+), 132 deletions(-)

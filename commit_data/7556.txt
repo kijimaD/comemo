@@ -1,0 +1,12 @@
+commit a1d95deaaabf31f0ff80a8314dc8fb1d90f76d2f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 24 15:56:53 2011 +1100
+
+    build: remove unused nacl conditional from make.bash
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4217042
+
+ src/make.bash | 41 ++++++++++++++++++-----------------------
+ 1 file changed, 18 insertions(+), 23 deletions(-)

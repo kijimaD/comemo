@@ -1,0 +1,13 @@
+commit a238087aa22f163fa0bbf6890a451b3919925930
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 10 15:46:45 2008 -0800
+
+    StringBytes help routine, common functionality put into package io for sharing.
+    
+    R=rsc
+    DELTA=10  (10 added, 0 deleted, 0 changed)
+    OCL=20928
+    CL=20931
+
+ src/lib/io/io.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

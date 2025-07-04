@@ -1,0 +1,47 @@
+commit 9d1e120c421440b450e87cc6ac8900658f9bf01a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 20:20:56 2020 -0400
+
+    crypto/x509: require perfect matches for invalid hostnames
+    
+    When the input or SAN dNSNames are not valid hostnames, the specs don't
+    define what should happen, because this should ideally never happen, so
+    everything we do is undefined behavior. Browsers get to just return an
+    error, because browsers can assume that the resolving layer is DNS. We
+    can't, names can be resolved by anything implementing a Dial function,
+    and the crypto/x509 APIs can also be used directly without actual
+    networks in sight.
+    
+    Trying to process invalid hostnames leads to issues like #27591 where
+    wildcards glob stuff they aren't expected to, because wildcards are only
+    defined on hostnames.
+    
+    Try to rationalize the behavior like this: if both the VerifyHostname
+    input and the SAN dNSNames are a valid hostname, follow the specs;
+    otherwise, only accept perfect 1:1 case-insensitive matches (without
+    wildcards or trailing dot processing).
+    
+    This should allow us to keep supporting weird names, with less
+    unexpected side-effects from undefined behavior. Also, it's a rule, even
+    if completely made up, so something we can reason about and code against.
+    
+    The commonName field does allow any string, but no specs define how to
+    process it. Processing it differently from dNSNames would be confusing,
+    and allowing it to match invalid hostnames is incompatible with Name
+    Constraint processing (#24151).
+    
+    This does encourage invalid dNSNames, regrettably, but we need some way
+    for the standard API to match weird names, and the alternative of
+    keeping CN alive sounds less appealing.
+    
+    Fixes #27591
+    
+    Change-Id: Id2d515f068a17ff796a32b30733abe44ad4f0339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231378
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/verify.go    | 44 +++++++++++++++++++++++++++++++-------------
+ src/crypto/x509/x509_test.go |  9 ++++++++-
+ 2 files changed, 39 insertions(+), 14 deletions(-)

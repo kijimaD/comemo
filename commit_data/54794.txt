@@ -1,0 +1,26 @@
+commit 5fe2035927bc9fac8a375a96d9ef47735c10fba4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 7 18:53:49 2023 +0100
+
+    internal/profile: actually return errors in postDecode
+    
+    As spotted by staticcheck, the body did keep track of errors by sharing
+    a single err variable, but its last value was never used as the function
+    simply finished by returning nil.
+    
+    To prevent postDecode from erroring on empty profiles,
+    which breaks TestEmptyProfile, add a check at the top of the function.
+    
+    Update the runtime/pprof test accordingly,
+    since the default units didn't make sense for an empty profile anyway.
+    
+    Change-Id: I188cd8337434adf9169651ab5c914731b8b20f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483137
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/profile/encode.go  | 5 ++++-
+ src/runtime/pprof/proto_test.go | 8 ++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

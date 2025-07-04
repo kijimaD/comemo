@@ -1,0 +1,32 @@
+commit 3c7e491ba82e713129665fcff98a2fd796f968aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 20 21:54:41 2017 -0800
+
+    go/types: add debugging code to detect use of incomplete interfaces
+    
+    The comment for phase 2 of checker.interfaceType (typexpr.go:517)
+    requires that embedded interfaces be complete for correctness of
+    the algorithm.
+    
+    Yet, the very next comment (typexpr.go:530) states that underlying
+    embedded interfaces may in fact be incomplete.
+    
+    This is in fact the case and the underlying bug in issue #18395.
+    
+    This change makes sure that new interface types are marked complete
+    when finished (per the implicit definition in Interface.Complete,
+    type.go:302). It also adds a check, enabled in debug mode only, to
+    detect the use of incomplete embedded interfaces during construction
+    of a new interface. In debug mode, this check fails for the testcase
+    in the issue (and several others).
+    
+    This change has no noticeable impact with debug mode disabled.
+    
+    For #18395.
+    
+    Change-Id: Ibb81e47257651282fb3755a80a36ab5d392e636d
+    Reviewed-on: https://go-review.googlesource.com/78955
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/typexpr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

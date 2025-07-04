@@ -1,0 +1,23 @@
+commit 413d8a833d6eb98f2881ae10d1f9cd5286900047
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Feb 28 16:37:23 2018 -0500
+
+    cmd/trace: skip tests if parsing fails with timestamp error
+    
+    runtime/trace test already skips tests in case of the timestamp
+    error.
+    
+    Moreover, relax TestAnalyzeAnnotationGC test condition to
+    deal with the inaccuracy caused from use of cputicks in tracing.
+    
+    Fixes #24081
+    Updates #16755
+    
+    Change-Id: I708ecc6da202eaec07e431085a75d3dbfbf4cc06
+    Reviewed-on: https://go-review.googlesource.com/97757
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/annotations_test.go | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

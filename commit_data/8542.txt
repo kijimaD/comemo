@@ -1,0 +1,15 @@
+commit 87dbec54bb0357a5de587e55d30ee0716b3def79
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon May 30 11:53:09 2011 -0300
+
+    template: fix and clean interaction between quotes and formatters
+    
+    Fixes issue #1897.
+    
+    R=r, gustavo, r
+    CC=golang-dev
+    https://golang.org/cl/4561049
+
+ src/pkg/template/template.go      | 47 ++++++++++++++++++++++++++++-----------
+ src/pkg/template/template_test.go | 12 +++++-----
+ 2 files changed, 40 insertions(+), 19 deletions(-)

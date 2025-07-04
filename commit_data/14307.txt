@@ -1,0 +1,18 @@
+commit c46f1f40daad83c940e1b3c09f77b9867d598473
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Nov 3 00:11:06 2012 +0100
+
+    cmd/gc: instrument blocks for race detection.
+    
+    It happens that blocks are used for function calls in a
+    quite low-level way so they cannot be instrumented as
+    usual.
+    
+    Blocks are also used for inlined functions.
+    
+    R=golang-dev, rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6821068
+
+ src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

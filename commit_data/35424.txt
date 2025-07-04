@@ -1,0 +1,14 @@
+commit d583ca764afc3bf5caae52f2b1361114e550a120
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 21 17:23:05 2018 +0000
+
+    net/http: clarify that ReadRequest is only for HTTP/1.x
+    
+    Fixes #25476
+    
+    Change-Id: I5a81cdf7d0ef9a22b0267732f27bcc2ef76eaa29
+    Reviewed-on: https://go-review.googlesource.com/113817
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/request.go | 5 +++++
+ 1 file changed, 5 insertions(+)

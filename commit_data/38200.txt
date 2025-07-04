@@ -1,0 +1,16 @@
+commit 5126feadd6e4ca890da0156c59b159085959120e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Jan 14 13:43:11 2019 +0530
+
+    bufio: fix emptyFinalToken example to handle multiple Reads
+    
+    Fixes #25909
+    
+    Change-Id: I9a53a1a06aab5d1877a8e9b1b8b782d77d6027a8
+    Reviewed-on: https://go-review.googlesource.com/c/157758
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bufio/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

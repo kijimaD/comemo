@@ -1,0 +1,17 @@
+commit 7b5303d08a1b589708d6bad3d7015d9856273aac
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sun Apr 12 10:00:27 2020 -0400
+
+    errors: add example for Is
+    
+    Add ExampleIs to illustrate how errors.Is works.
+    
+    Updates #31716.
+    Updates #38369.
+    
+    Change-Id: I1b9a6667614635aa3a5ed8b2c108d8eb6f35748b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228038
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/wrap_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

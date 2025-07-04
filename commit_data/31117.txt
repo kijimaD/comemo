@@ -1,0 +1,25 @@
+commit c18fd098401805478fac6a3ff42bfad9a66a16d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 17:43:30 2017 -0700
+
+    cmd/internal/obj: build ctxt.Text during Sym init
+    
+    Instead of constructing ctxt.Text in Flushplist,
+    which will be called concurrently,
+    do it in InitTextSym, which must be called serially.
+    This allows us to avoid a mutex for ctxt.Text,
+    and preserves the existing ordering of functions
+    for debug output.
+    
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I6322b4da24f9f0db7ba25e5b1b50e8d3be2deb37
+    Reviewed-on: https://go-review.googlesource.com/40502
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/plist.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

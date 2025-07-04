@@ -1,0 +1,29 @@
+commit 283b02063b470a0f5df7ba99c9fc801d020763ab
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 7 22:21:35 2021 -0400
+
+    cmd/compile: sanitize before/after expansion OpSelectN references
+    
+    In expand_calls, OpSelectN occurs both before and after the rewriting.
+    Attempting to rewrite a post-expansion OpSelectN is bad.
+    (The only ones rewritten in place are the ones returning mem;
+    others are synthesized to replace other selection chains with
+    register references.)
+    
+    Updates #40724.
+    Updates #44816#issuecomment-815258897.
+    
+    Change-Id: I7b6022cfb47f808d3ce6cc796c067245f36047f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308309
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go       |  75 +++++++-----
+ .../genCaller42/genCaller42.go                     |  71 +++++++++++
+ .../genChecker42/genChecker42.go                   | 135 +++++++++++++++++++++
+ test/abi/bad_select_crash.dir/genMain.go           |  17 +++
+ test/abi/bad_select_crash.dir/genUtils/genUtils.go |  61 ++++++++++
+ test/abi/bad_select_crash.dir/go.mod               |   2 +
+ test/abi/bad_select_crash.go                       |   2 +
+ 7 files changed, 332 insertions(+), 31 deletions(-)

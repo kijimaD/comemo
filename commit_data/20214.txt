@@ -1,0 +1,35 @@
+commit 39a021bc0e48b0509706432f4363dd3407385be5
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Sat Aug 30 13:12:28 2014 +0900
+
+    net: implement query-response fast failover in builtin dns stub resolver
+    
+    Speed improvements via code cleanup, and changes to make go dns behave more like glibc resolver.  See https://groups.google.com/forum/#!topic/golang-dev/lV-0aHqxVeo
+    
+    Fixes #6579.
+    
+    Benchmark results on linux/amd64
+    
+    benchmark                                  old ns/op    new ns/op    delta
+    BenchmarkGoLookupIP                          4831903      2572937  -46.75%
+    BenchmarkGoLookupIPNoSuchHost               10114105      2419641  -76.08%
+    BenchmarkGoLookupIPWithBrokenNameServer  20007735624   5004490730  -74.99%
+    
+    benchmark                                 old allocs   new allocs    delta
+    BenchmarkGoLookupIP                              287          288    0.35%
+    BenchmarkGoLookupIPNoSuchHost                    204          102  -50.00%
+    BenchmarkGoLookupIPWithBrokenNameServer          410          358  -12.68%
+    
+    benchmark                                  old bytes    new bytes    delta
+    BenchmarkGoLookupIP                            13181        13271    0.68%
+    BenchmarkGoLookupIPNoSuchHost                  17260         8714  -49.51%
+    BenchmarkGoLookupIPWithBrokenNameServer        28160        22432  -20.34%
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh, bradfitz, josharian, abursavich
+    CC=golang-codereviews
+    https://golang.org/cl/128820043
+
+ src/pkg/net/dnsclient_unix.go      | 74 +++++++++++++++++---------------------
+ src/pkg/net/dnsclient_unix_test.go | 21 +++++++++++
+ 2 files changed, 54 insertions(+), 41 deletions(-)

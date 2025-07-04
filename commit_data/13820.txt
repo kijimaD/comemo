@@ -1,0 +1,15 @@
+commit f269f9a3c7235d95966681b2f05851908d17f10e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 13 13:59:00 2012 -0700
+
+    cmd/yacc: allow utf-8 token values
+    Also clean up the code and allow \U.
+    Fixes #3007.
+    
+    R=golang-dev, rsc, 0xjnml
+    CC=golang-dev
+    https://golang.org/cl/6492105
+
+ src/cmd/yacc/units.y |   6 +--
+ src/cmd/yacc/yacc.go | 110 ++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 63 insertions(+), 53 deletions(-)

@@ -1,0 +1,23 @@
+commit c620dd9759f0fe06bf88a0c25a29f510250ab96d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 9 16:28:09 2009 -0800
+
+    - preparation to add type info to ast
+    - consolidation of files, cleanup
+    - more success producing idempotent output for some files with comments
+      containing tabs
+    - snapshot of the day
+    
+    R=r
+    OCL=22474
+    CL=22474
+
+ usr/gri/pretty/Makefile       |  14 +--
+ usr/gri/pretty/ast.go         | 249 +++++++++++++++++++++++++++++++++++++++---
+ usr/gri/pretty/parser.go      |  90 +++++++--------
+ usr/gri/pretty/printer.go     |  50 ++++++---
+ usr/gri/pretty/scanner.go     |   5 +-
+ usr/gri/pretty/test.sh        |   6 +-
+ usr/gri/pretty/typechecker.go |   3 -
+ usr/gri/pretty/universe.go    |  88 ++++++++-------
+ 8 files changed, 361 insertions(+), 144 deletions(-)

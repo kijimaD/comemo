@@ -1,0 +1,24 @@
+commit a7f73c436dd6fee6a267bdc72b286524a70b685b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 11:41:41 2018 -0500
+
+    cmd/compile: eliminate NoFramePointer
+    
+    The NoFramePointer function flag is no longer used, so this CL
+    eliminates it. This cleans up some confusion between the compiler's
+    NoFramePointer flag and obj's NOFRAME flag. NoFramePointer was
+    intended to eliminate the saved base pointer on x86, but it was
+    translated into obj's NOFRAME flag. On x86, NOFRAME does mean to omit
+    the saved base pointer, but on ppc64 and s390x it has a more general
+    meaning of omitting *everything* from the frame, including the saved
+    LR and ppc64's "fixed frame". Hence, on ppc64 and s390x there are far
+    fewer situations where it is safe to set this flag.
+    
+    Change-Id: If68991310b4d00638128c296bdd57f4ed731b46d
+    Reviewed-on: https://go-review.googlesource.com/92036
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/gsubr.go  | 3 ---
+ src/cmd/compile/internal/gc/syntax.go | 3 ---
+ 2 files changed, 6 deletions(-)

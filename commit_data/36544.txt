@@ -1,0 +1,28 @@
+commit 6c0b8b5f8c74560007ae5929c7a2bfe3b9b875a8
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu Aug 30 16:01:15 2018 -0400
+
+    go/types: fix crash following misuse of [...]T in composite literal
+    
+    The type-checker currently crashes when checking code such as:
+    
+            _ = map[string][...]int{"": {1, 2, 3}}
+    
+    In this case, the type checker reports an error for map[string][...]int,
+    then proceeds to type-check the values of the map literal using a hint
+    type of [...]int. When type-checking the inner composite (array) literal,
+    the length of the open array type is computed from the elements,
+    then the array type is recorded, but the literal has no explicit type
+    syntax against which to record the type, so this code causes the
+    type-checker to panic. Add a nil check before calling
+    check.recordTypeAndValue to avoid that.
+    
+    Updates #22467
+    
+    Change-Id: Ic4453ba485b7b88ede2a89f209365eda9e032abc
+    Reviewed-on: https://go-review.googlesource.com/132355
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go | 1 +
+ src/go/types/expr.go     | 8 +++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

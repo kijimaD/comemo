@@ -1,0 +1,22 @@
+commit 5d9c78201f0f226b0b8c7ece63f6731e168efb09
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Apr 30 16:55:13 2018 +0100
+
+    cmd/compile: allow R11 to be allocated on s390x
+    
+    R11 is only used as a temporary by a very small set of instructions
+    (DIV, MOD, MULH and extended MVC/XC instructions). By marking these
+    instructions as clobbering R11 we can allocate R11 in the general
+    case.
+    
+    Change-Id: I0d4ffe80e57c164d42a5ea5ef6308756a5b0f742
+    Reviewed-on: https://go-review.googlesource.com/110255
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  42 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 722 ++++++++++++++-------------
+ src/cmd/compile/internal/ssa/regalloc.go     |   2 +-
+ src/runtime/asm_s390x.s                      |  48 +-
+ 4 files changed, 406 insertions(+), 408 deletions(-)

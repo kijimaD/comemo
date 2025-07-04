@@ -1,0 +1,14 @@
+commit 5667d8259980472f787b015079940d22ff54b2cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 15 17:00:00 2010 -0700
+
+    fix build
+    
+    R=iant
+    CC=golang-dev, ken2
+    https://golang.org/cl/2182043
+
+ test/errchk                        | 4 ++--
+ test/{bugs => fixedbugs}/bug305.go | 2 +-
+ test/golden.out                    | 8 --------
+ 3 files changed, 3 insertions(+), 11 deletions(-)

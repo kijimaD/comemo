@@ -1,0 +1,18 @@
+commit 7bf959c67a64ad93ea9914d19b565ddf9cb152e9
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 2 11:29:57 2015 +1200
+
+    cmd/internal/obj: remove Link.Tlsoffset
+    
+    Nothing uses it any more.
+    
+    Change-Id: I42ee7222b06b1a79b8b44894f3071752f9166d7a
+    Reviewed-on: https://go-review.googlesource.com/14193
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/obj/link.go |  1 -
+ src/cmd/internal/obj/sym.go  | 60 --------------------------------------------
+ 2 files changed, 61 deletions(-)

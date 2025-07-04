@@ -1,0 +1,12 @@
+commit 9be56adf3c6339543a59a208c2cd354b0e81b95c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 14:26:28 2009 -0800
+
+    gc: allow implicit conversion of *[10]int -> []int
+    when used as arg to copy.
+    
+    R=ken2
+    https://golang.org/cl/157071
+
+ src/cmd/gc/typecheck.c | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

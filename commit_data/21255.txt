@@ -1,0 +1,37 @@
+commit 776aecaf6e16076bde940124c309dc6e5027c6e2
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jan 13 20:12:50 2015 +0300
+
+    runtime: fix spurious deadlock in netpoll
+    
+    There is a small possibility that runtime deadlocks when netpoll is just activated.
+    Consider the following scenario:
+    GOMAXPROCS=1
+    epfd=-1 (netpoll is not activated yet)
+    A thread is in findrunnable, sets sched.lastpoll=0, calls netpoll(true),
+    which returns nil. Now the thread is descheduled for some time.
+    Then sysmon retakes a P from syscall and calls handoffp.
+    The "If this is the last running P and nobody is polling network" check in handoffp fails,
+    since the first thread set sched.lastpoll=0. So handoffp decides that there is already
+    a thread that polls network and so it calls pidleput.
+    Now the first thread is scheduled again, finds no work and calls stopm.
+    There is no thread that polls network and so checkdead reports deadlock.
+    
+    To fix this, don't set sched.lastpoll=0 when netpoll is not activated.
+    
+    The deadlock can happen if cgo is disabled (-tag=netgo) and only on program startup
+    (when netpoll is just activated).
+    
+    The test is from issue 5216 that lead to addition of the
+    "If this is the last running P and nobody is polling network" check in handoffp.
+    
+    Update issue 9576.
+    
+    Change-Id: I9405f627a4d37bd6b99d5670d4328744aeebfc7a
+    Reviewed-on: https://go-review.googlesource.com/2750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/netpoll.go    | 10 +++++++++-
+ src/runtime/proc1.go      |  2 +-
+ 3 files changed, 38 insertions(+), 2 deletions(-)

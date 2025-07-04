@@ -1,0 +1,14 @@
+commit 32f011e46b8bf188db0d485cfd38d4e7cf19eb75
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 18:04:12 2012 -0500
+
+    syscall: add Timeval.Nano, Timespec.Nano, for conversion to Duration
+    
+    Fixes #2534.
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5635051
+
+ src/pkg/syscall/syscall.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

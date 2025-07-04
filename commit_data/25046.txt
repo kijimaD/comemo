@@ -1,0 +1,15 @@
+commit d0351e96669be3629e9a0ad4c841af42eeb624e5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 10:17:59 2015 -0800
+
+    text/template,html/template: correct comment in DefinedTemplates
+    
+    The prefix includes a semicolon.
+    
+    Change-Id: I4bdb79aa9931e835e297f3ea2c46a001cd123d56
+    Reviewed-on: https://go-review.googlesource.com/17200
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/template.go | 2 +-
+ src/text/template/exec.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

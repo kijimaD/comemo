@@ -1,0 +1,13 @@
+commit 19e207d24d228f996dcc1317bba0ac2a811c877a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 11:00:23 2011 +1000
+
+    exp/template: simplify method and function calls by using the value's Method
+    rather than the type's, so a method's invocation works the same as a function's.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4704049
+
+ src/pkg/exp/template/exec.go | 38 ++++++++++++++++++--------------------
+ 1 file changed, 18 insertions(+), 20 deletions(-)

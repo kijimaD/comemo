@@ -1,0 +1,17 @@
+commit 279b530d6822dd381c049f3c0b5a7ef677574e18
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 10:16:00 2018 -0400
+
+    cmd/go: respect vet typecheck failures again
+    
+    Now that #18395 is fixed, let's see if we can insist
+    on vet during go test being able to type-check
+    packages again.
+    
+    Change-Id: Iaa55a4d9c582ba743df2347d28c24f130e16e406
+    Reviewed-on: https://go-review.googlesource.com/108555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

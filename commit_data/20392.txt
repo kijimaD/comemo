@@ -1,0 +1,20 @@
+commit 00365b13b45a7a0cbfd0752c44ef84dc4961ce76
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 11 13:46:58 2014 -0700
+
+    runtime: get rid of copyable check - all G frames are copyable.
+    
+    Just go ahead and do it, if something is wrong we'll throw.
+    
+    Also rip out cc-generated arg ptr maps, they are useless now.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/133690045
+
+ src/cmd/cc/bv.c     |  45 -------------
+ src/cmd/cc/cc.h     |   6 --
+ src/cmd/cc/pgen.c   | 163 ---------------------------------------------
+ src/runtime/stack.c | 187 +++++++++-------------------------------------------
+ 4 files changed, 31 insertions(+), 370 deletions(-)

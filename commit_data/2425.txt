@@ -1,0 +1,15 @@
+commit cd80000d8d0e3804761407e94e7919bf613566b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 14:03:21 2009 -0700
+
+    add exec example to http triv.go.
+    fix darwin interrupt bug (race with SIGCHLD).
+    
+    R=gri
+    DELTA=46  (40 added, 0 deleted, 6 changed)
+    OCL=30052
+    CL=30057
+
+ src/lib/http/triv.go            | 28 ++++++++++++++++++++++++++++
+ src/lib/runtime/darwin/thread.c | 20 ++++++++++++++++----
+ 2 files changed, 44 insertions(+), 4 deletions(-)

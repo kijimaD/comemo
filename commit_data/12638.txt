@@ -1,0 +1,15 @@
+commit c959ebe4d85c24a17b74120fa9b6abe27427d9ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 14 14:41:06 2012 -0700
+
+    archive/zip: move r.zip off disk, into reader_test.go
+    
+    Makes certain virus scanners happier.
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5823053
+
+ src/pkg/archive/zip/reader_test.go |  59 +++++++++++++++++++++++++++++++++----
+ src/pkg/archive/zip/testdata/r.zip | Bin 440 -> 0 bytes
+ 2 files changed, 54 insertions(+), 5 deletions(-)

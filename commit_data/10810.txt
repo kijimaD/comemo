@@ -1,0 +1,15 @@
+commit 5b2f8d96cec0b1800cc099e022175b3588fd86a2
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 15 17:38:47 2011 +0100
+
+    gc: omit argument names from function types in error messages
+    
+    Fixes #2563
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5495047
+
+ src/cmd/gc/fmt.c         |  2 +-
+ test/fixedbugs/bug389.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 6f6403eddf0161deb63dcf8d91e408c81fa7280f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 17:36:00 2015 -0400
+
+    runtime: fix checkmarks to rescan stacks
+    
+    Currently checkmarks mode fails to rescan stacks because it sees the
+    leftover state bits indicating that the stacks haven't changed since
+    the last scan. As a result, it won't detect lost marks caused by
+    failing to scan stacks correctly during regular garbage collection.
+    
+    Fix this by marking all stacks dirty before performing the checkmark
+    phase.
+    
+    Change-Id: I1f06882bb8b20257120a4b8e7f95bb3ffc263895
+    Reviewed-on: https://go-review.googlesource.com/10794
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 1 +
+ 1 file changed, 1 insertion(+)

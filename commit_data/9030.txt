@@ -1,0 +1,44 @@
+commit daaf29cf9320011af9b5feee36f75cb2ac175718
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 12 09:24:21 2011 -0700
+
+    sync: improve RWMutex performance
+    The new implementation features wait-free
+    fast path for readers which significantly improves
+    performance/scalability on read-mostly workloads.
+    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
+    are as follows:
+    benchmark                              old ns/op    new ns/op    delta
+    BenchmarkRWMutexUncontended               179.00        96.60  -46.03%
+    BenchmarkRWMutexUncontended-2              89.10        49.10  -44.89%
+    BenchmarkRWMutexUncontended-4              44.70        24.70  -44.74%
+    BenchmarkRWMutexUncontended-8              23.30        12.90  -44.64%
+    BenchmarkRWMutexUncontended-16             16.80         8.75  -47.92%
+    BenchmarkRWMutexWrite100                   79.60        26.80  -66.33%
+    BenchmarkRWMutexWrite100-2                305.00        33.00  -89.18%
+    BenchmarkRWMutexWrite100-4                245.00       113.00  -53.88%
+    BenchmarkRWMutexWrite100-8                330.00       147.00  -55.45%
+    BenchmarkRWMutexWrite100-16               371.00       152.00  -59.03%
+    BenchmarkRWMutexWrite10                    78.30        29.80  -61.94%
+    BenchmarkRWMutexWrite10-2                 348.00       165.00  -52.59%
+    BenchmarkRWMutexWrite10-4                 447.00       199.00  -55.48%
+    BenchmarkRWMutexWrite10-8                 564.00       180.00  -68.09%
+    BenchmarkRWMutexWrite10-16                492.00       192.00  -60.98%
+    BenchmarkRWMutexWorkWrite100             1077.00      1037.00   -3.71%
+    BenchmarkRWMutexWorkWrite100-2            659.00       596.00   -9.56%
+    BenchmarkRWMutexWorkWrite100-4            509.00       361.00  -29.08%
+    BenchmarkRWMutexWorkWrite100-8            603.00       351.00  -41.79%
+    BenchmarkRWMutexWorkWrite100-16           750.00       607.00  -19.07%
+    BenchmarkRWMutexWorkWrite10               990.00       951.00   -3.94%
+    BenchmarkRWMutexWorkWrite10-2            1119.00      1070.00   -4.38%
+    BenchmarkRWMutexWorkWrite10-4            1300.00      1199.00   -7.77%
+    BenchmarkRWMutexWorkWrite10-8            1424.00      1291.00   -9.34%
+    BenchmarkRWMutexWorkWrite10-16           1981.00      1786.00   -9.84%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4671051
+
+ src/pkg/sync/rwmutex.go      | 67 ++++++++++++++++++++----------------
+ src/pkg/sync/rwmutex_test.go | 81 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+), 30 deletions(-)

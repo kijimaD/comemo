@@ -1,0 +1,21 @@
+commit 42f387aae123ec416b57d84ba96ec4a5ef0e8a1b
+Author: Robert Griesemer <gri@google.com>
+Date:   Wed May 24 16:30:49 2023 +0000
+
+    Revert "cmd/compile: enable printing of error URLs by default"
+    
+    This reverts commit e7a9ca0a53db4b4f357b5d3caaef65e44ce08a90.
+    
+    Reason for revert: Decided to delay to Go 1.22.
+    
+    Change-Id: I4635cb4c1372b54cac573041be8a43e294de5183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/flag.go    | 1 -
+ src/cmd/internal/testdir/testdir_test.go | 6 +++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

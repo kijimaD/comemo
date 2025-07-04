@@ -1,0 +1,21 @@
+commit 2a061fdd47ccb5420229ce5f9f057e194be76995
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 14 11:15:28 2022 -0500
+
+    cmd/go: fix TestScript/version_buildvcs_git_gpg
+    
+    This test was missed in CL 358539, presumably because the 'longtest'
+    builders lack a 'gpg' executable.
+    
+    Updates #49168
+    Fixes #50675
+    
+    Change-Id: Ie3bfc761a5e4304531119625742f3def9df8af3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378575
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

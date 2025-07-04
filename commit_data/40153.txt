@@ -1,0 +1,31 @@
+commit 80fb18e3c0136150965f0bc01c9ef1e6dc4039ac
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 5 15:08:07 2019 +0100
+
+    cmd/go: avoid ssh known_hosts prompts on test
+    
+    TestScripts/mod_get_svn would stop with the following prompt if the real
+    user didn't have vcs-test.golang.org in their known_hosts file:
+    
+            The authenticity of host 'vcs-test.golang.org (35.184.38.56)' can't be established.
+            ECDSA key fingerprint is SHA256:[...]
+            Are you sure you want to continue connecting (yes/no/[fingerprint])?
+    
+    This was bad because it relied on the user's real ssh known_hosts file.
+    Worse even, if the user didn't expert or notice the prompt, it could
+    hang a 'go test' run for quite a while.
+    
+    Work around that by forcing svn to not use ssh at all. Other potentially
+    better approaches were tried, but none worked on svn 1.12.2 with openssh
+    8.0p1.
+    
+    Fixes #33883.
+    
+    Change-Id: I2f925fa892f2fa53c77d86b0034141162517ee69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199142
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/script/mod_get_svn.txt | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

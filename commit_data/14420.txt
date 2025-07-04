@@ -1,0 +1,14 @@
+commit a42e8a80864281807384a6e5a45bebf3327a53fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 16 11:53:26 2012 -0800
+
+    go/ast: FuncType.Params may be nil (per AST documentation)
+    
+    ast.Walk needs to check for it or it will crash.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6852062
+
+ src/pkg/go/ast/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

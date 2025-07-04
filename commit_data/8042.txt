@@ -1,0 +1,14 @@
+commit 8b8b54ad5c3735706babf695fa7b99a9e7ea61e0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Apr 11 10:39:21 2011 +1000
+
+    net: disable multicast tests by default.
+    
+    Fixes #1649.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4343056
+
+ src/pkg/net/multicast_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

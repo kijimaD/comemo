@@ -1,0 +1,20 @@
+commit 6433bff205f24c0f527f87284b8c09c6476e5812
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 5 12:40:13 2014 -0800
+
+    net/http: minor fixes and optimization for Response.TLS
+    
+    Also add it to doc/go1.3.txt.
+    
+    Update #7289
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/71740043
+
+ doc/go1.3.txt                   | 1 +
+ src/pkg/net/http/client_test.go | 7 +++----
+ src/pkg/net/http/response.go    | 8 ++++----
+ src/pkg/net/http/transport.go   | 8 +++++---
+ 4 files changed, 13 insertions(+), 11 deletions(-)

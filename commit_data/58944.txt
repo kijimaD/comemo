@@ -1,0 +1,22 @@
+commit 2c1604142324be55a9274bc13a5a143bb3cde809
+Author: rorycl <rorycl@campbell-lange.net>
+Date:   Tue Mar 4 22:47:17 2025 +0000
+
+    text/template: provide example of overwriting template func after parse
+    
+    This example illustrates how to overwrite a template function after parsing a template.
+    
+    This example is intended to clarify the point made in the template.Funcs docstring
+    that "[i]t is legal to overwrite elements of the map."
+    
+    Change-Id: Ibded05974d580c54a24fcc16687fd52ce21133ff
+    GitHub-Last-Rev: ef19a221ab44f47695c27b3114281112231a1b42
+    GitHub-Pull-Request: golang/go#72094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654416
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/text/template/examplefunc_test.go | 44 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

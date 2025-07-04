@@ -1,0 +1,10 @@
+commit 30706a7ee7bcd997e7b6317ed5cdddc23f408dbc
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 15 12:22:35 2008 -0700
+
+    error messages now have colon after line number
+    
+    SVN=122803
+
+ test/golden.out | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

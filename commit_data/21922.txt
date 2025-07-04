@@ -1,0 +1,14 @@
+commit 6c58d28ca4f626e11b4ea84d79236df443b55e0b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Mar 4 21:24:58 2015 +0300
+
+    runtime: cleanup
+    
+    Cleanup after https://go-review.googlesource.com/3742
+    
+    Change-Id: Iff3ceffc31b778b1ed0b730696fce6d1b5124447
+    Reviewed-on: https://go-review.googlesource.com/6761
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/proc1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

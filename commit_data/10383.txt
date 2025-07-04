@@ -1,0 +1,12 @@
+commit 23f541aa54a1835ba7c851e476f3bc040cd9c103
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Mon Nov 14 11:18:00 2011 -0800
+
+    misc/bbedit: error and rune support
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5369057
+
+ misc/bbedit/Go.plist | 2 ++
+ 1 file changed, 2 insertions(+)

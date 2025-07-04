@@ -1,0 +1,16 @@
+commit 6b3e3434086133ecba3fa8cc45bf7cca88c64cdb
+Author: Joe Cortopassi <joe@joecortopassi.com>
+Date:   Mon Apr 30 22:32:33 2018 +0000
+
+    doc: remove GOROOT custom install instruction
+    
+    Setting GOROOT is no longer necessary for custom installation as of 1.10 (reference: https://go-review.googlesource.com/c/go/+/42533). Fixes #25002
+    
+    Change-Id: Ic3980833ac437b7a20b951df33805ad1071a40ce
+    GitHub-Last-Rev: 156bf6510a21266bfb8397e564635278aa3bb1e5
+    GitHub-Pull-Request: golang/go#25190
+    Reviewed-on: https://go-review.googlesource.com/110435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install.html | 25 -------------------------
+ 1 file changed, 25 deletions(-)

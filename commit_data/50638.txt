@@ -1,0 +1,18 @@
+commit caa8e1f97788d4276276d68610fadc6179a022ee
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 27 14:37:35 2022 -0400
+
+    cmd/compile: make a type-specialized copy of encoding/binary.ReadUvarint
+    
+    This is to get better escape analysis for a frequently-allocated object.
+    
+    Change-Id: I1942a4e1c3cd1f0fa870bc8433a0165c18ce9c75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435336
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/pkgbits/decoder.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

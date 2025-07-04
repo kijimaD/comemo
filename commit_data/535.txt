@@ -1,0 +1,13 @@
+commit 52861558f4fcca548c600bc00fa62c96ad2f7249
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Aug 12 19:13:09 2008 -0700
+
+    put i2s, s2i and i2i in convert
+    
+    R=r
+    OCL=14143
+    CL=14143
+
+ src/cmd/gc/go.h   |   1 +
+ src/cmd/gc/walk.c | 107 ++++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 68 insertions(+), 40 deletions(-)

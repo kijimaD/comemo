@@ -1,0 +1,26 @@
+commit a2e150c7cded1367fb092e87abb37ce2a1673d11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 17:02:46 2021 -0800
+
+    go/types, cmd/compile/internal/types2: use regular type printing for unsafe.Pointer
+    
+    Type string printing special-cased printing of unsafe.Pointer because
+    it's a built-in type; yet it's declared in a package like any other
+    imported or used-defined type (unlike built-in types such as int).
+    
+    Use the same mechanism for printing unsafe.Pointer like any other
+    (non-basic) type. This will make it possible to use the package
+    Qualifier if so desired.
+    
+    Fixes #44515.
+    
+    Change-Id: I0dd1026f850737ecfc4bb99135cfb8e3c18be9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295271
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 22 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typestring.go  | 10 ++++++++--
+ src/go/types/issues_test.go                    | 22 ++++++++++++++++++++++
+ src/go/types/typestring.go                     | 11 +++++++++--
+ 4 files changed, 61 insertions(+), 4 deletions(-)

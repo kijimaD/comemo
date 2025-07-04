@@ -1,0 +1,144 @@
+commit 2db4cc38a02d6e74c45365344c6d8738fdb38a00
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 12 17:34:33 2020 -0700
+
+    cmd/compile: improve generated code for concrete cases in type switches
+    
+    Consider
+    
+    switch x:= x.(type) {
+    case int:
+      // int stmts
+    case error:
+      // error stmts
+    }
+    
+    Prior to this change, we lowered this roughly as:
+    
+    if x, ok := x.(int); ok {
+      // int stmts
+    } else if x, ok := x.(error); ok {
+      // error stmts
+    }
+    
+    x, ok := x.(error) is implemented with a call to runtime.assertE2I2 or runtime.assertI2I2.
+    
+    x, ok := x.(int) generates inline code that checks whether x has type int,
+    and populates x and ok as appropriate. We then immediately branch again on ok.
+    The shortcircuit pass in the SSA backend is designed to recognize situations
+    like this, in which we are immediately branching on a bool value
+    that we just calculated with a branch.
+    
+    However, the shortcircuit pass has limitations when the intermediate state has phis.
+    In this case, the phi value is x (the int).
+    CL 222923 improved the situation, but many cases are still unhandled.
+    I have further improvements in progress, which is how I found this particular problem,
+    but they are expensive, and may or may not see the light of day.
+    
+    In the common case of a lone concrete type in a type switch case,
+    it is easier and cheaper to simply lower a different way, roughly:
+    
+    if _, ok := x.(int); ok {
+      x := x.(int)
+      // int stmts
+    }
+    
+    Instead of using a type assertion, though, we extract the value of x
+    from the interface directly.
+    
+    This removes the need to track x (the int) across the branch on ok,
+    which removes the phi, which lets the shortcircuit pass do its job.
+    
+    Benchmarks for encoding/binary show improvements, as well as some
+    wild swings on the super fast benchmarks (alignment effects?):
+    
+    name                      old time/op    new time/op    delta
+    ReadSlice1000Int32s-8       5.25µs ± 2%    4.87µs ± 3%   -7.11%  (p=0.000 n=44+49)
+    ReadStruct-8                 451ns ± 2%     417ns ± 2%   -7.39%  (p=0.000 n=45+46)
+    WriteStruct-8                412ns ± 2%     405ns ± 3%   -1.58%  (p=0.000 n=46+48)
+    ReadInts-8                   296ns ± 8%     275ns ± 3%   -7.23%  (p=0.000 n=48+50)
+    WriteInts-8                  324ns ± 1%     318ns ± 2%   -1.67%  (p=0.000 n=44+49)
+    WriteSlice1000Int32s-8      5.21µs ± 2%    4.92µs ± 1%   -5.67%  (p=0.000 n=46+44)
+    PutUint16-8                 0.58ns ± 2%    0.59ns ± 2%   +0.63%  (p=0.000 n=49+49)
+    PutUint32-8                 0.87ns ± 1%    0.58ns ± 1%  -33.10%  (p=0.000 n=46+44)
+    PutUint64-8                 0.66ns ± 2%    0.87ns ± 2%  +33.07%  (p=0.000 n=47+48)
+    LittleEndianPutUint16-8     0.86ns ± 2%    0.87ns ± 2%   +0.55%  (p=0.003 n=47+50)
+    LittleEndianPutUint32-8     0.87ns ± 1%    0.87ns ± 1%     ~     (p=0.547 n=45+47)
+    LittleEndianPutUint64-8     0.87ns ± 2%    0.87ns ± 1%     ~     (p=0.451 n=46+47)
+    ReadFloats-8                79.8ns ± 5%    75.9ns ± 2%   -4.83%  (p=0.000 n=50+47)
+    WriteFloats-8               89.3ns ± 1%    88.9ns ± 1%   -0.48%  (p=0.000 n=46+44)
+    ReadSlice1000Float32s-8     5.51µs ± 1%    4.87µs ± 2%  -11.74%  (p=0.000 n=47+46)
+    WriteSlice1000Float32s-8    5.51µs ± 1%    4.93µs ± 1%  -10.60%  (p=0.000 n=48+47)
+    PutUvarint32-8              25.9ns ± 2%    24.0ns ± 2%   -7.02%  (p=0.000 n=48+50)
+    PutUvarint64-8              75.1ns ± 1%    61.5ns ± 2%  -18.12%  (p=0.000 n=45+47)
+    [Geo mean]                  57.3ns         54.3ns        -5.33%
+    
+    Despite the rarity of type switches, this generates noticeably smaller binaries.
+    
+    file      before    after     Δ       %
+    addr2line 4413296   4409200   -4096   -0.093%
+    api       5982648   5962168   -20480  -0.342%
+    cgo       4854168   4833688   -20480  -0.422%
+    compile   19694784  19682560  -12224  -0.062%
+    cover     5278008   5265720   -12288  -0.233%
+    doc       4694824   4682536   -12288  -0.262%
+    fix       3411336   3394952   -16384  -0.480%
+    link      6721496   6717400   -4096   -0.061%
+    nm        4371152   4358864   -12288  -0.281%
+    objdump   4760960   4752768   -8192   -0.172%
+    pprof     14810820  14790340  -20480  -0.138%
+    trace     11681076  11668788  -12288  -0.105%
+    vet       8285464   8244504   -40960  -0.494%
+    total     115824120 115627576 -196544 -0.170%
+    
+    Compiler performance is marginally improved (note that go/types has many type switches):
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         35.0MB ± 0%       35.0MB ± 0%  +0.09%  (p=0.008 n=5+5)
+    Unicode          28.5MB ± 0%       28.5MB ± 0%    ~     (p=0.548 n=5+5)
+    GoTypes           114MB ± 0%        114MB ± 0%  -0.76%  (p=0.008 n=5+5)
+    Compiler          541MB ± 0%        541MB ± 0%  -0.03%  (p=0.008 n=5+5)
+    SSA              1.17GB ± 0%       1.17GB ± 0%    ~     (p=0.841 n=5+5)
+    Flate            21.9MB ± 0%       21.9MB ± 0%    ~     (p=0.421 n=5+5)
+    GoParser         26.9MB ± 0%       26.9MB ± 0%    ~     (p=0.222 n=5+5)
+    Reflect          74.6MB ± 0%       74.6MB ± 0%    ~     (p=1.000 n=5+5)
+    Tar              32.9MB ± 0%       32.8MB ± 0%    ~     (p=0.056 n=5+5)
+    XML              42.4MB ± 0%       42.1MB ± 0%  -0.77%  (p=0.008 n=5+5)
+    [Geo mean]       73.2MB            73.1MB       -0.15%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           377k ± 0%         377k ± 0%  +0.06%  (p=0.008 n=5+5)
+    Unicode            354k ± 0%         354k ± 0%    ~     (p=0.095 n=5+5)
+    GoTypes           1.31M ± 0%        1.30M ± 0%  -0.73%  (p=0.008 n=5+5)
+    Compiler          5.44M ± 0%        5.44M ± 0%  -0.04%  (p=0.008 n=5+5)
+    SSA               11.7M ± 0%        11.7M ± 0%    ~     (p=1.000 n=5+5)
+    Flate              239k ± 0%         239k ± 0%    ~     (p=1.000 n=5+5)
+    GoParser           302k ± 0%         302k ± 0%  -0.04%  (p=0.008 n=5+5)
+    Reflect            977k ± 0%         977k ± 0%    ~     (p=0.690 n=5+5)
+    Tar                346k ± 0%         346k ± 0%    ~     (p=0.889 n=5+5)
+    XML                431k ± 0%         430k ± 0%  -0.25%  (p=0.008 n=5+5)
+    [Geo mean]         806k              806k       -0.10%
+    
+    For packages with many type switches, this considerably shrinks function text size.
+    Some examples:
+    
+    file                                                           before   after    Δ       %
+    encoding/binary.s                                              30726    29504    -1222   -3.977%
+    go/printer.s                                                   77597    76005    -1592   -2.052%
+    cmd/vendor/golang.org/x/tools/go/ast/astutil.s                 65704    63318    -2386   -3.631%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable.s 8047     7714     -333    -4.138%
+    
+    Text size regressions are rare.
+    
+    Change-Id: Ic10982bbb04876250eaa5bfee97990141ae5fc28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228106
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  |  2 +-
+ src/cmd/compile/internal/gc/subr.go |  3 +++
+ src/cmd/compile/internal/gc/swt.go  | 27 ++++++++++++++++++++-------
+ test/writebarrier.go                |  8 ++++----
+ 4 files changed, 28 insertions(+), 12 deletions(-)

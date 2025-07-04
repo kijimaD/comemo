@@ -1,0 +1,30 @@
+commit e13df02e5fbf2c0cd8811b826a8c8567efa882dd
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Sep 19 11:19:32 2016 -0700
+
+    database/sql: add context methods
+    
+    Add context methods to sql and sql/driver methods. If
+    the driver doesn't implement context methods the connection
+    pool will still handle timeouts when a query fails to return
+    in time or when a connection is not available from the pool
+    in time.
+    
+    There will be a follow-up CL that will add support for
+    context values that specify transaction levels and modes
+    that a driver can use.
+    
+    Fixes #15123
+    
+    Change-Id: Ia99f3957aa3f177b23044dd99d4ec217491a30a7
+    Reviewed-on: https://go-review.googlesource.com/29381
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/ctxutil.go       | 231 ++++++++++++++++++++++++++
+ src/database/sql/driver/driver.go |  46 +++++-
+ src/database/sql/sql.go           | 335 +++++++++++++++++++++++++++-----------
+ src/database/sql/sql_test.go      |   9 +-
+ src/go/build/deps_test.go         |   4 +-
+ 5 files changed, 525 insertions(+), 100 deletions(-)

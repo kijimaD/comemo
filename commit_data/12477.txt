@@ -1,0 +1,47 @@
+commit a324a5ac2081f3760aefaf27ab47efbd59fecb17
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Wed Mar 7 13:12:35 2012 -0500
+
+    crypto/x509: new home for root fetchers; build chains using Windows API
+    
+    This moves the various CA root fetchers from crypto/tls into crypto/x509.
+    
+    The move was brought about by issue 2997. Windows doesn't ship with all
+    its root certificates, but will instead download them as-needed when using
+    CryptoAPI for certificate verification.
+    
+    This CL changes crypto/x509 to verify a certificate using the system root
+    CAs when VerifyOptions.RootCAs == nil. On Windows, this verification is
+    now implemented using Windows's CryptoAPI. All other root fetchers are
+    unchanged, and still use Go's own verification code.
+    
+    The CL also fixes the hostname matching logic in crypto/tls/tls.go, in
+    order to be able to test whether hostname mismatches are honored by the
+    Windows verification code.
+    
+    The move to crypto/x509 also allows other packages to use the OS-provided
+    root certificates, instead of hiding them inside the crypto/tls package.
+    
+    Fixes #2997.
+    
+    R=agl, golang-dev, alex.brainman, rsc, mikkel
+    CC=golang-dev
+    https://golang.org/cl/5700087
+
+ src/pkg/crypto/tls/common.go                |  30 +--
+ src/pkg/crypto/tls/handshake_client.go      |   2 +-
+ src/pkg/crypto/tls/root_test.go             |  37 +++-
+ src/pkg/crypto/tls/root_windows.go          |  47 -----
+ src/pkg/crypto/tls/tls.go                   |   4 +-
+ src/pkg/crypto/x509/root.go                 |  17 ++
+ src/pkg/crypto/{tls => x509}/root_darwin.go |  17 +-
+ src/pkg/crypto/{tls => x509}/root_stub.go   |   9 +-
+ src/pkg/crypto/{tls => x509}/root_unix.go   |  18 +-
+ src/pkg/crypto/x509/root_windows.go         | 193 +++++++++++++++++
+ src/pkg/crypto/x509/verify.go               |  16 +-
+ src/pkg/crypto/x509/verify_test.go          |  53 +++--
+ src/pkg/syscall/syscall_windows.go          |   7 +
+ src/pkg/syscall/zsyscall_windows_386.go     | 316 ++++++++++++++++++----------
+ src/pkg/syscall/zsyscall_windows_amd64.go   | 316 ++++++++++++++++++----------
+ src/pkg/syscall/ztypes_windows.go           | 142 +++++++++++++
+ 16 files changed, 875 insertions(+), 349 deletions(-)

@@ -1,0 +1,19 @@
+commit d28242724872c6ab82d53a71fc775095d1171ee7
+Author: qeed <qeed.quan@gmail.com>
+Date:   Mon Jun 20 21:11:53 2016 -0400
+
+    cmd/cgo: error, not panic, if not enough arguments to function
+    
+    Fixes #16116.
+    
+    Change-Id: Ic3cb0b95382bb683368743bda49b4eb5fdcc35c0
+    Reviewed-on: https://go-review.googlesource.com/24286
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/errors/issue16116.go | 12 ++++++++++++
+ misc/cgo/errors/test.bash     |  1 +
+ src/cmd/cgo/gcc.go            | 12 +++++++-----
+ 3 files changed, 20 insertions(+), 5 deletions(-)

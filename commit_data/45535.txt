@@ -1,0 +1,32 @@
+commit f62739b8611a0f1c96e59eb6574422562bb46233
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 13:24:11 2021 -0400
+
+    cmd/compile: establish regabi name/value mapping for small in-params
+    
+    When the expand_calls phase in the SSA backend lowers prolog OpArg
+    values into OpArgIntReg/OpArgFloatReg values, we don't always record
+    the assocation between the new lowered value and the parameter name.
+    
+    This patch handles the simple case where a given parameter fits into
+    exactly one register; in this scenario it makes sense to manufacture a
+    new pseudo-slot for the value that points to the param, and install
+    the slot/value mapping in the NamedValues table for the function. More
+    work will be needed to deal with params that span multiple registers;
+    that will need to be addressed in a subsequent patch.
+    
+    This change improves the parameter error rate "optargorder" benchmark
+    by about 7-8% (when run on the optargorder binary).
+    
+    Updates #45945.
+    
+    Change-Id: Ic9adbe20b6f91145d49651348818f0f5cba92b18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316890
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

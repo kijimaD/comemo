@@ -1,0 +1,16 @@
+commit e0bb5ba52cff479f70d4351d3fafa35e1655839b
+Author: Markus Zimmermann <zimmski@gmail.com>
+Date:   Thu Feb 13 16:43:52 2014 -0800
+
+    container/list: mark must be an element of the list
+    
+    The methods MoveAfter and MoveBefore of the container/list package did silently corrupt the interal structure of the list if a mark element is used which is not an element of the list.
+    
+    LGTM=gri
+    R=golang-codereviews, gobot, gri
+    CC=golang-codereviews
+    https://golang.org/cl/60980043
+
+ src/pkg/container/list/list.go      |  8 ++++----
+ src/pkg/container/list/list_test.go | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

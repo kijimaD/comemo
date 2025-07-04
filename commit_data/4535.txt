@@ -1,0 +1,17 @@
+commit 2eb9171dfb755d86e57dc0496fb6db3c4e072c34
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Wed Jan 6 07:47:56 2010 -0800
+
+    Fix missing explicit GOBIN in src/pkg/Makefile. Clean up creation of
+    QUOTED_GOBIN. Re-take of 181077; fixes copy-pasta that broke build.
+    
+    Fixes #468
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183125
+
+ src/Make.conf    |  8 ++------
+ src/Make.pkg     | 10 ++--------
+ src/pkg/Makefile | 16 ++++++++++++----
+ 3 files changed, 16 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit 638233a7d67d527c4f3e9465a18357264f1571ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 7 18:30:08 2008 -0700
+
+    - don't allow empty decl lists (e.g. const ())
+    
+    R=r
+    OCL=16698
+    CL=16698
+
+ usr/gri/pretty/parser.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

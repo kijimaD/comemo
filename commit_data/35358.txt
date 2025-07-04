@@ -1,0 +1,12 @@
+commit 25f73db0b66c9bfbf7ea7d46feb6db4de49da003
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 10 17:38:23 2018 +0200
+
+    misc/ios: update documentation for running iOS programs and tests
+    
+    Change-Id: I8e3077ab9c7dff66877ac00dc4600b53c07eb1f8
+    Reviewed-on: https://go-review.googlesource.com/112655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/README | 88 ++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 41 deletions(-)

@@ -1,0 +1,16 @@
+commit 93cf82f08af78869a721d4e48fc4fd1ce08cd259
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Oct 12 11:36:54 2018 +0200
+
+    os: make UserHomeDir return "/" on iOS
+    
+    The UserHomeDir test succeeds on the builder, but not when run
+    manually where HOME is set to the host $HOME.
+    
+    Change-Id: I1db0f608b04b311b53cc0c8160a3778caaf542f6
+    Reviewed-on: https://go-review.googlesource.com/c/141798
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 5 +++++
+ 1 file changed, 5 insertions(+)

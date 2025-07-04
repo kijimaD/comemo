@@ -1,0 +1,15 @@
+commit b0a53d22026a22864e1ca411cc0d9a2630eb5f75
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 14:58:38 2018 -0800
+
+    doc: release notes: "go tool vet" is no longer supported
+    
+    Updates #28869
+    
+    Change-Id: Ie152bf959af2e9cd32b1ccc031e8208e64fbe3ce
+    Reviewed-on: https://go-review.googlesource.com/c/152161
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go1.12.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

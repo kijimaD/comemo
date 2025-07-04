@@ -1,0 +1,21 @@
+commit eb56a79e995f2d4b27ad9565c5d8db5a2fbb4817
+Author: Ben Lynn <benlynn@gmail.com>
+Date:   Wed Jan 19 13:47:04 2011 -0500
+
+    regexp: reject bare ?
+    
+    Minor cleanup:
+      - removed a duplicate test case
+      - added a function to remove repeated code
+      - for consistency, replaced "return nil" with a panic at an
+        unreachable point
+    
+    Fixes #1428.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4057042
+
+ src/pkg/regexp/all_test.go |  3 ++-
+ src/pkg/regexp/regexp.go   | 50 ++++++++++++++++++++--------------------------
+ 2 files changed, 24 insertions(+), 29 deletions(-)

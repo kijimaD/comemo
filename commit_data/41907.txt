@@ -1,0 +1,22 @@
+commit 83e288f3dbfdc83e4a016c60d54f928f69608d9a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 09:43:22 2020 -0700
+
+    cmd/compile: prevent constant folding of +/- when result is NaN
+    
+    Missed as part of CL 221790. It isn't just * and / that can make NaNs.
+    
+    Update #36400
+    Fixes #38359
+    
+    Change-Id: I3fa562f772fe03b510793a6dc0cf6189c0c3e652
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227860
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 16 ++++++++++++++++
+ test/fixedbugs/issue38359.go                   | 19 +++++++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

@@ -1,0 +1,27 @@
+commit b0532a96a850c6c93de2c414f5349562938f0f19
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jun 7 20:13:21 2015 -0400
+
+    runtime: fix write-barrier-enabled phase list in gcmarkwb_m
+    
+    Commit 1303957 was supposed to enable write barriers during the
+    concurrent scan phase, but it only enabled *calls* to the write
+    barrier during this phase. It failed to update the redundant list of
+    write-barrier-enabled phases in gcmarkwb_m, so it still wasn't greying
+    objects during the scan phase.
+    
+    This commit fixes this by replacing the redundant list of phases in
+    gcmarkwb_m with simply checking writeBarrierEnabled. This is almost
+    certainly redundant with checks already done in callers, but the last
+    time we tried to remove these redundant checks everything got much
+    slower, so I'm leaving it alone for now.
+    
+    Fixes #11105.
+    
+    Change-Id: I00230a3cb80a008e749553a8ae901b409097e4be
+    Reviewed-on: https://go-review.googlesource.com/10801
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/mbarrier.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

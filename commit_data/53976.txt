@@ -1,0 +1,22 @@
+commit 8870b8d2817dc90da96ce6cfb767034d12965252
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Aug 10 02:00:54 2023 +0000
+
+    strconv: use the built-in min/max function
+    
+    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
+    
+    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
+    GitHub-Last-Rev: 2964e03f1fbc499247bb6c3365475a91ef64547a
+    GitHub-Pull-Request: golang/go#61828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/strconv/ftoa.go | 14 --------------
+ 1 file changed, 14 deletions(-)

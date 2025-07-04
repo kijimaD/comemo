@@ -1,0 +1,12 @@
+commit 0a40137bf839ac198f95dc0d1c58fc92321b720e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 21 10:53:39 2013 +1100
+
+    C: add Bill Neubauer's Gmail account
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7172044
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

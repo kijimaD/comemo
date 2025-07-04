@@ -1,0 +1,19 @@
+commit 4a4398825f84af9e46400bc1ff6a5feaa38e9a58
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:06:46 2017 -0400
+
+    runtime/pprof: accept fewer PCs
+    
+    TestBlockProfile currently requires exactly five PCs in each sample.
+    With more aggressive inlining there may be fewer, so change this test
+    to use the same pattern as TestMutexProfile, which accepts one or more
+    PCs. With this change, this test passes when compiled with -l=4.
+    
+    Change-Id: I1421a6d56c96b77111bdc671d88723a222672fd6
+    Reviewed-on: https://go-review.googlesource.com/41110
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Lazar <lazard@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

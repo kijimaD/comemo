@@ -1,0 +1,20 @@
+commit 753caecc7e576e46a329b71c49dbf0ea9bfbd867
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 29 22:32:59 2016 -0400
+
+    cmd/go: set CCACHE_DIR when setting HOME to non-existent dir
+    
+    This fixes systems for which ccache is the default compiler.
+    
+    Also remove a couple of temporary files created by TestImportMain.
+    
+    Fixes #17668.
+    
+    Change-Id: I1edefdcec5f417be0533c146253c35ff4928c1c0
+    Reviewed-on: https://go-review.googlesource.com/32328
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

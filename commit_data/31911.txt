@@ -1,0 +1,25 @@
+commit 8ec7a39fec2acab98ce5e41363dd1c65c03d7479
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 16 09:29:44 2017 -0700
+
+    os/signal: avoid race between Stop and receiving on channel
+    
+    When Stop is called on a channel, wait until all signals have been
+    delivered to the channel before returning.
+    
+    Use atomic operations in sigqueue to communicate more reliably between
+    the os/signal goroutine and the signal handler.
+    
+    Fixes #14571
+    
+    Change-Id: I6c5a9eea1cff85e37a34dffe96f4bb2699e12c6e
+    Reviewed-on: https://go-review.googlesource.com/46003
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/os/signal/signal.go       | 59 ++++++++++++++++++++++++++++-
+ src/os/signal/signal_test.go  | 88 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sigqueue.go       | 63 +++++++++++++++++++++++++++----
+ src/runtime/sigqueue_plan9.go | 20 ++++++++++
+ 4 files changed, 221 insertions(+), 9 deletions(-)

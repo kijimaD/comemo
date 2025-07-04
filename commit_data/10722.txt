@@ -1,0 +1,15 @@
+commit 06a9bc683518552991820581cb8a4cf5e6978d47
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 12 13:56:56 2011 -0800
+
+    sql: fix missing mutex unlock in an error case
+    
+    Fixes #2542
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5483054
+
+ src/pkg/exp/sql/sql.go      |  1 +
+ src/pkg/exp/sql/sql_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)

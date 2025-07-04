@@ -1,0 +1,25 @@
+commit d227a0811b76791fad04eeba35cf2794a719d610
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Mon Mar 4 10:07:07 2019 +0000
+
+    internal/poll, os: cancel pending I/O when closing pipes on Windows
+    
+    When closing a pipe, use CancelIoEx to cancel pending I/O.
+    This makes concurrent Read and Write calls return os.ErrClosed.
+    
+    This change also enables some pipe tests on Windows.
+    
+    Fixes #28477
+    Fixes #25835
+    
+    Change-Id: If52bb7d80895763488a61632e4682a78336e8420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164721
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go       | 18 ++++++++++++++++++
+ src/internal/poll/sendfile_windows.go |  8 ++------
+ src/os/file_windows.go                |  5 ++++-
+ src/os/pipe_test.go                   | 30 +++++++++++++++++++++++-------
+ 4 files changed, 47 insertions(+), 14 deletions(-)

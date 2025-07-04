@@ -1,0 +1,17 @@
+commit 3567f71b45810f433fe8199dd0ecca733939a5c3
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Apr 15 09:06:34 2020 -0700
+
+    crypto/tls: help linker remove code when only Client or Server is used
+    
+    This saves 166 KiB for a tls.Dial hello world program (5382441 to
+    5212356 to bytes), by permitting the linker to remove TLS server code.
+    
+    Change-Id: I16610b836bb0802b7d84995ff881d79ec03b6a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/tls/conn.go      |  11 ++--
+ src/crypto/tls/link_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/tls.go       |  15 +++++-
+ 3 files changed, 138 insertions(+), 9 deletions(-)

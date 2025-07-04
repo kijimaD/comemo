@@ -1,0 +1,17 @@
+commit 0454d7346f4ca89261356d3f17da11ab5bc643c5
+Author: helbing <helbingxxx@gmail.com>
+Date:   Tue Oct 12 23:33:50 2021 +0000
+
+    embed: add example
+    
+    Change-Id: I4e50e469047ac7efbf4ed464e238000dbdf53d6b
+    GitHub-Last-Rev: 8d29b73d1160b4498a38aa3ef6530ee5c9353186
+    GitHub-Pull-Request: golang/go#48785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353936
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/embed/example_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

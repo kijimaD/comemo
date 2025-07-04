@@ -1,0 +1,11 @@
+commit d06dc14aa800ff780eba51d707cfbf14e1e9da29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 10:58:13 2009 -0800
+
+    remove "em" unit from td width specification
+    
+    R=rsc
+    http://go/go-review/1018037
+
+ lib/godoc/dirs.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

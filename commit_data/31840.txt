@@ -1,0 +1,20 @@
+commit 023593d0a858e31d9cf67c6c08ad3f6a7a9e842a
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu Jun 15 16:59:16 2017 +0200
+
+    runtime: enable GDB tests on mips64 (except TestGdbPythonCgo)
+    
+    They were failing when run on 32bit RFS, with 32bit gdb.
+    (mips64 builder now has 64bit RFS, with gdb 7.9.)
+    Leaving TestGdbPythonCgo disabled, it behaves as described in #18784.
+    
+    Fixes #18173
+    
+    Change-Id: I3c438cd5850b7bfd118ac6396f40c1208bac8c2d
+    Reviewed-on: https://go-review.googlesource.com/45874
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

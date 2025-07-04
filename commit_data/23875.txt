@@ -1,0 +1,20 @@
+commit 92e2252b21d4e884bbd06737e5578537267205eb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 28 07:42:09 2015 -0700
+
+    test: don't run issue10607.go on ppc64
+    
+    This is a reprise of https://golang.org/cl/12623.  In that a CL I made
+    a suggestion which forgot that the +build constraints in the test
+    directory are not the same as those supported by the go tool: in the
+    test directory, if a single +build line fails, the test is skipped.
+    (In my defense, the code I was commenting on was also wrong.)
+    
+    Change-Id: I8f29392a80b1983027f9a33043c803578409d678
+    Reviewed-on: https://go-review.googlesource.com/12776
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

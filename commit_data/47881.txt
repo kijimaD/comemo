@@ -1,0 +1,20 @@
+commit 10f1ed131cd2cfb5ac4d9aa09888deb1bac6e921
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 6 11:59:09 2022 -0500
+
+    time: skip TestTimerModifiedEarlier on plan9/arm
+    
+    This test is observed to be flaky on the plan9-arm builder.
+    Skip it on that platform until it can be diagnosed and fixed.
+    
+    For #50470
+    
+    Change-Id: If626af426d856c377e00ac5baaca52899456556e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375934
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sleep_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

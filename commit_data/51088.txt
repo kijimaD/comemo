@@ -1,0 +1,26 @@
+commit ebb71ad681ec5711c004537e5800a10e5a3ab533
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Nov 2 17:41:21 2022 +0100
+
+    cmd/go: update TestScripts/svn to not depend on TZ database
+    
+    `TestScripts/svn` test suite fails if the host does not have a TZ
+    database installed.
+    
+    This CL updates those tests so SVN formats dates using UTC, which
+    don't require a TZ database.
+    
+    Fixes #56527
+    
+    Change-Id: I20f3c03c3cedd7d748f4623dddc66bd04d1df318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447335
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/vcstest/svn/hello.txt         |  5 +++--
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 14 ++++++++------
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 10 ++++++----
+ 3 files changed, 17 insertions(+), 12 deletions(-)

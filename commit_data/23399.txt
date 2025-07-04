@@ -1,0 +1,12 @@
+commit bbf79575a56afdd4f2aadbdcee6bdd700160516a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 17 13:19:33 2015 -0700
+
+    math/big: incorporate feedback by josharian (Example_fibonacci)
+    
+    Change-Id: I376ff39594b532a5490f13e3985b7a6ff4b6761d
+    Reviewed-on: https://go-review.googlesource.com/11191
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/math/big/example_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

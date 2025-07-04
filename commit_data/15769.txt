@@ -1,0 +1,14 @@
+commit a4a8651419af7864996b904203cc3496416a6ac8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 14 14:06:46 2013 -0700
+
+    database/sql: document non-open of Open; add Ping
+    
+    Fixes #4804
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7819043
+
+ src/pkg/database/sql/sql.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

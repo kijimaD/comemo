@@ -1,0 +1,18 @@
+commit b93220c9ca1935c56c01afc1d72d063f1e026f15
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 12 16:50:35 2021 -0700
+
+    encoding/xml: add generic encoding test
+    
+    Fixes #48521
+    
+    Change-Id: Id8402bcff243c0ab19e4ec0b138b9af8c111f88d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355492
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/encoding/xml/marshal_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

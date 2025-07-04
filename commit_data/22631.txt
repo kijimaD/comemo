@@ -1,0 +1,54 @@
+commit 24a7252e254619f0c08cd22b8de9ecf93da23c10
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 13 23:34:57 2015 -0400
+
+    runtime: finish sweeping before concurrent GC starts
+    
+    Currently, the concurrent sweep follows a 1:1 rule: when allocation
+    needs a span, it sweeps a span (likewise, when a large allocation
+    needs N pages, it sweeps until it frees N pages). This rule worked
+    well for the STW collector (especially when GOGC==100) because it did
+    no more sweeping than necessary to keep the heap from growing, would
+    generally finish sweeping just before GC, and ensured good temporal
+    locality between sweeping a page and allocating from it.
+    
+    It doesn't work well with concurrent GC. Since concurrent GC requires
+    starting GC earlier (sometimes much earlier), the sweep often won't be
+    done when GC starts. Unfortunately, the first thing GC has to do is
+    finish the sweep. In the mean time, the mutator can continue
+    allocating, pushing the heap size even closer to the goal size. This
+    worked okay with the 7/8ths trigger, but it gets into a vicious cycle
+    with the GC trigger controller: if the mutator is allocating quickly
+    and driving the trigger lower, more and more sweep work will be left
+    to GC; this both causes GC to take longer (allowing the mutator to
+    allocate more during GC) and delays the start of the concurrent mark
+    phase, which throws off the GC controller's statistics and generally
+    causes it to push the trigger even lower.
+    
+    As an example of a particularly bad case, the garbage benchmark with
+    GOMAXPROCS=4 and -benchmem 512 (MB) spends the first 0.4-0.8 seconds
+    of each GC cycle sweeping, during which the heap grows by between
+    109MB and 252MB.
+    
+    To fix this, this change replaces the 1:1 sweep rule with a
+    proportional sweep rule. At the end of GC, GC knows exactly how much
+    heap allocation will occur before the next concurrent GC as well as
+    how many span pages must be swept. This change computes this "sweep
+    ratio" and when the mallocgc asks for a span, the mcentral sweeps
+    enough spans to bring the swept span count into ratio with the
+    allocated byte count.
+    
+    On the benchmark from above, this entirely eliminates sweeping at the
+    beginning of GC, which reduces the time between startGC readying the
+    GC goroutine and GC stopping the world for sweep termination to ~100µs
+    during which the heap grows at most 134KB.
+    
+    Change-Id: I35422d6bba0c2310d48bb1f8f30a72d29e98c1af
+    Reviewed-on: https://go-review.googlesource.com/8921
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mcentral.go | 18 ++++++++++++++++++
+ src/runtime/mgc.go      | 37 +++++++++++++++++++++++++++++++------
+ src/runtime/mgcsweep.go |  2 ++
+ src/runtime/mheap.go    | 11 +++++++++++
+ 4 files changed, 62 insertions(+), 6 deletions(-)

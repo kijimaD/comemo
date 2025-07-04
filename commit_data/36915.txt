@@ -1,0 +1,16 @@
+commit dc2ae2886fbcd2297d2a0ea67a5d220ae2c74152
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Tue Oct 9 22:12:40 2018 +0530
+
+    runtime/cgo: annotate unused variable with __attribute__((unused))
+    
+    Fixes #28095
+    
+    Change-Id: Id8668d52986c9805213e8847f49fe42dfde2e01a
+    Reviewed-on: https://go-review.googlesource.com/c/140797
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_libinit.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

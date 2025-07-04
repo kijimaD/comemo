@@ -1,0 +1,13 @@
+commit 927678694cc819c970167cdf9165098c901bb363
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 21:41:12 2009 -0800
+
+    typos
+    
+    R=gri
+    DELTA=3  (0 added, 1 deleted, 2 changed)
+    OCL=25728
+    CL=25728
+
+ src/lib/regexp/regexp.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

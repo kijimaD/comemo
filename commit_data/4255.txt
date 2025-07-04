@@ -1,0 +1,17 @@
+commit 9e450880e9c96b6211f37860ccdfbc274fdb8b40
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 09:15:05 2009 -0800
+
+    some godoc cleanup:
+    - simplified dealing with parse errors: no need to intersperse them in the source
+    - improve visibility of highlighted identifiers by showing them in bold
+    
+    R=rsc
+    https://golang.org/cl/163051
+
+ doc/style.css                              |   1 +
+ lib/godoc/parseerror.txt                   |   6 --
+ lib/godoc/{parseerror.html => source.html} |  11 ++-
+ src/cmd/godoc/godoc.go                     | 124 +++++++----------------------
+ src/cmd/godoc/main.go                      |   3 +-
+ 5 files changed, 36 insertions(+), 109 deletions(-)

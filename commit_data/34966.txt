@@ -1,0 +1,22 @@
+commit 2d4ccbfe51c3a51cf59c91ac384a37aa3d427176
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 17:55:59 2018 -0700
+
+    crypto/x509: don't return nil, nil from SystemCertPool
+    
+    If there are no certs, return an empty pool, not nil.
+    
+    Fixes #21405
+    
+    Change-Id: Ib4ac9d5c4a8cef83dd53565b0707a63b73ba0a8b
+    Reviewed-on: https://go-review.googlesource.com/103596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_plan9.go     | 3 +++
+ src/crypto/x509/root_unix.go      | 2 +-
+ src/crypto/x509/root_unix_test.go | 4 ----
+ src/crypto/x509/x509_test.go      | 3 ---
+ 4 files changed, 4 insertions(+), 8 deletions(-)

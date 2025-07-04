@@ -1,0 +1,27 @@
+commit e3323f57df1f4a44093a2d25fee33513325cbb86
+Author: nrxr <nrxrco@gmail.com>
+Date:   Wed Apr 8 10:21:40 2020 +0000
+
+    net/url: add URL.Redacted to return a password scrubbed string
+    
+    Returning an URL.String() without the password is very useful for
+    situations where the URL is supposed to be logged and the password is
+    not useful to be shown.
+    
+    This method re-uses URL.String() but with the password scrubbed and
+    substituted for a "xxxxx" in order to make it obvious that there was a
+    password. If the URL had no password then no "xxxxx" will be shown.
+    
+    Fixes #34855
+    
+    Change-Id: I7f17d81aa09a7963d2731d16fe15c6ae8e2285fc
+    GitHub-Last-Rev: 46d06dbc4f9e30a57667bb8d0627bc1abed83bdc
+    GitHub-Pull-Request: golang/go#35578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207082
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/url/url.go      | 14 +++++++++++
+ src/net/url/url_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

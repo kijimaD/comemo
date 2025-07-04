@@ -1,0 +1,18 @@
+commit 1170d946060cb6b6267c14ed87abbe30c7b8309a
+Author: Alexander F Rødseth <alexander.rodseth@appeartv.com>
+Date:   Mon May 28 10:40:54 2018 +0000
+
+    crypto: fix typos in the comments
+    
+    * Fix typos in the comments in the assembly code for the crypto package.
+    
+    Change-Id: Iac146a7d8bee4a680a8d4d3af533fbc1b259482d
+    GitHub-Last-Rev: 65090a38956df4c14bf55df4881c76e8c3d32447
+    GitHub-Pull-Request: golang/go#25606
+    Reviewed-on: https://go-review.googlesource.com/114803
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/elliptic/p256_asm_s390x.s  | 2 +-
+ src/crypto/sha1/sha1block_amd64.s     | 4 ++--
+ src/crypto/sha256/sha256block_amd64.s | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit ec4051763d439e7108bc673dd0b1bf1cbbc5dfc5
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Fri Jan 22 15:00:35 2021 +0000
+
+    runtime: fix typo in mgcscavenge.go
+    
+    recieved -> received
+    
+    Change-Id: I84336170e179832604e1311ea9263af36f9ce15a
+    GitHub-Last-Rev: a6068c1d2b5a7711b93899f798dbc84f1ea339e4
+    GitHub-Pull-Request: golang/go#43845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285675
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

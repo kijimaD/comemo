@@ -1,0 +1,24 @@
+commit 3307597069f533a1f34beadb735af804d47ef6de
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 16 19:25:55 2011 +1100
+
+    html: parse <optgroup> tags
+    
+    Pass tests2.dat, test 34:
+    <!DOCTYPE html><select><option><optgroup>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <select>
+    |       <option>
+    |       <optgroup>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5393045
+
+ src/pkg/html/parse.go      | 8 +++++++-
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

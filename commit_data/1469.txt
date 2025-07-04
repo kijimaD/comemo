@@ -1,0 +1,19 @@
+commit 2b57a1124e87b0dc8bc1ff6899297b4d7d6e74f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 14 08:21:25 2009 -0800
+
+    Add cgo2c program to translate mixed Go/C code into C.  This
+    lets us use a single source file for both 6c and gcc, handling
+    the incompatible handling of return values.
+    
+    R=rsc
+    DELTA=649  (613 added, 35 deleted, 1 changed)
+    OCL=22682
+    CL=22730
+
+ src/runtime/Makefile      |  10 +-
+ src/runtime/cgo2c.c       | 583 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/malloc.c      |  35 ---
+ src/runtime/malloc.h      |   4 +
+ src/runtime/malloc_go.cgo |  23 ++
+ 5 files changed, 619 insertions(+), 36 deletions(-)

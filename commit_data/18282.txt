@@ -1,0 +1,19 @@
+commit 451667a67f5b7765bb4d1d5e94e12ea1b18cfe23
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 17 13:19:00 2014 -0800
+
+    syscall: allocate 64 bits of "basep" for Getdirentries
+    Recent crashes on 386 Darwin appear to be caused by this system call
+    smashing the stack. Phenomenology shows that allocating more data
+    here addresses the probem.
+    The guess is that since the actual system call is getdirentries64, 64 is
+    what we should allocate.
+    
+    Should fix the darwin/386 build.
+    
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/53840043
+
+ src/pkg/syscall/syscall_bsd.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 49ab0dba561ba1abd8b6b001789a155f47a8cb34
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 7 12:57:58 2017 +1000
+
+    internal/poll: add tests for Windows file and serial ports
+    
+    I also wanted to test net sockets, but I do not know how to
+    access their file handles. So I did not implement socket tests.
+    
+    Updates #21172
+    
+    Change-Id: I5062c0e65a817571d755397d60762c175f9791ce
+    Reviewed-on: https://go-review.googlesource.com/53530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/export_windows_test.go |  17 +++++
+ src/internal/poll/fd_windows.go          |  14 +++-
+ src/internal/poll/fd_windows_test.go     | 111 +++++++++++++++++++++++++++++++
+ 3 files changed, 139 insertions(+), 3 deletions(-)

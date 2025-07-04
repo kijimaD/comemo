@@ -1,0 +1,21 @@
+commit 6dfba5c7ce867583cbcea9da09dceacd2633bacc
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 26 13:02:42 2016 +0100
+
+    runtime/race: improve TestNoRaceIOHttp test
+    
+    TestNoRaceIOHttp does all kinds of bad things:
+    1. Binds to a fixed port, so concurrent tests fail.
+    2. Registers HTTP handler multiple times, so repeated tests fail.
+    3. Relies on sleep to wait for listen.
+    
+    Fix all of that.
+    
+    Change-Id: I1210b7797ef5e92465b37dc407246d92a2a24fe8
+    Reviewed-on: https://go-review.googlesource.com/19953
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/testdata/io_test.go | 37 +++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

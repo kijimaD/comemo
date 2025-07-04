@@ -1,0 +1,12 @@
+commit 108ba69ae3bcfbbbe32ed2ec1b20fb59774c7348
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 13:25:58 2011 -0700
+
+    roadmap: add sections on tools, packages.
+    
+    R=golang-dev, rsc1, r2, bradfitzgo, gri
+    CC=golang-dev
+    https://golang.org/cl/4344068
+
+ doc/devel/roadmap.html | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

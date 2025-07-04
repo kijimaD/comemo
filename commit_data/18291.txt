@@ -1,0 +1,17 @@
+commit 6592aeb8f3a0398f32a31642695188b361c6c434
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 19 10:02:10 2014 -0800
+
+    net/http, net/http/httputil: make chunked reader alloc test more robust
+    
+    Use testing.AllocsPerRun now that it exists, instead of doing it by hand.
+    
+    Fixes #6076
+    
+    R=golang-codereviews, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/53810043
+
+ src/pkg/net/http/chunked_test.go          | 39 ++++++++++++++-----------------
+ src/pkg/net/http/httputil/chunked_test.go | 39 ++++++++++++++-----------------
+ 2 files changed, 34 insertions(+), 44 deletions(-)

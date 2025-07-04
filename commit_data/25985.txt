@@ -1,0 +1,15 @@
+commit ac006ad1034b6552e97fcc5f3400810380e245c8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 1 00:15:27 2016 -0800
+
+    cmd/compile: change defaultlit2's force param to bool
+    
+    Change-Id: I5546c4e8092ef61648cdae9c04288bb7d6f32476
+    Reviewed-on: https://go-review.googlesource.com/20084
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 5 +++--
+ src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

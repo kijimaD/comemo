@@ -1,0 +1,12 @@
+commit 59ae15106a2ae0a409f710a16a8180ae81f81a3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 24 14:15:37 2012 -0500
+
+    cmd/go: fix get github
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5569054
+
+ src/cmd/go/vcs.go | 1 +
+ 1 file changed, 1 insertion(+)

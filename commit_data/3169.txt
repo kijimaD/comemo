@@ -1,0 +1,18 @@
+commit 8c7eb442494065e7926eb59405a2c6323cd4d864
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 11:51:33 2009 -0700
+
+    move generated code into its own file.
+    simplify expr by merging all simple eval functions
+    into a single eval interface{}.
+    
+    R=austin
+    DELTA=1597  (730 added, 780 deleted, 87 changed)
+    OCL=34182
+    CL=34198
+
+ usr/austin/eval/Makefile |   1 +
+ usr/austin/eval/expr.go  | 958 +++++------------------------------------------
+ usr/austin/eval/expr1.go | 723 +++++++++++++++++++++++++++++++++++
+ usr/austin/eval/stmt.go  |   2 +-
+ 4 files changed, 817 insertions(+), 867 deletions(-)

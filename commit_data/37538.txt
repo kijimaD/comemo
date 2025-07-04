@@ -1,0 +1,27 @@
+commit fbdaa965634be842647195ee2d610dc363c760d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 20 15:55:02 2018 -0800
+
+    cmd/cgo: use field alignment when setting field offset
+    
+    The old code ignored the field alignment, and only looked at the field
+    offset: if the field offset required padding, cgo added padding. But
+    while that approach works for Go (at least with the gc toolchain) it
+    doesn't work for C code using packed structs. With a packed struct the
+    added padding may leave the struct at a misaligned position, and the
+    inserted alignment, which cgo is not considering, may introduce
+    additional, unexpected, padding. Padding that ignores alignment is not
+    a good idea when the struct is not packed, and Go structs are never
+    packed. So don't ignore alignment.
+    
+    Fixes #28896
+    
+    Change-Id: Ie50ea15fa6dc35557497097be9fecfecb11efd8a
+    Reviewed-on: https://go-review.googlesource.com/c/150602
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue28896.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 18 +++++++---
+ 3 files changed, 97 insertions(+), 5 deletions(-)

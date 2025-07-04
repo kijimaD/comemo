@@ -1,0 +1,63 @@
+commit 2f35e1375e6706938d5a307f11388cad92afe288
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 14 15:27:28 2024 +0100
+
+    crypto/internal/nistec: move to crypto/internal/fips/nistec
+    
+    For #69536
+    
+    Change-Id: Id9d76aefbbe1f7c957973380c6eaeb5bfb9de967
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627957
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Commit-Queue: Filippo Valsorda <filippo@golang.org>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go     |  2 +-
+ src/crypto/ecdh/nist.go                            |  2 +-
+ src/crypto/ecdsa/ecdsa.go                          |  2 +-
+ src/crypto/elliptic/nistec.go                      | 10 +--
+ src/crypto/elliptic/nistec_p256.go                 |  2 +-
+ src/crypto/internal/{ => fips}/nistec/_asm/go.mod  |  2 +-
+ src/crypto/internal/{ => fips}/nistec/_asm/go.sum  |  0
+ .../internal/{ => fips}/nistec/_asm/p256_asm.go    |  2 +-
+ src/crypto/internal/fips/nistec/benchmark_test.go  | 71 ++++++++++++++++++++++
+ .../internal/{ => fips}/nistec/fiat/Dockerfile     |  0
+ src/crypto/internal/{ => fips}/nistec/fiat/README  |  0
+ .../nistec/fiat/benchmark_test.go}                 |  2 +-
+ .../internal/{ => fips}/nistec/fiat/generate.go    |  2 +-
+ src/crypto/internal/{ => fips}/nistec/fiat/p224.go |  2 +-
+ .../internal/{ => fips}/nistec/fiat/p224_fiat64.go |  0
+ .../internal/{ => fips}/nistec/fiat/p224_invert.go |  0
+ src/crypto/internal/{ => fips}/nistec/fiat/p256.go |  2 +-
+ .../internal/{ => fips}/nistec/fiat/p256_fiat64.go |  0
+ .../internal/{ => fips}/nistec/fiat/p256_invert.go |  0
+ src/crypto/internal/{ => fips}/nistec/fiat/p384.go |  2 +-
+ .../internal/{ => fips}/nistec/fiat/p384_fiat64.go |  0
+ .../internal/{ => fips}/nistec/fiat/p384_invert.go |  0
+ src/crypto/internal/{ => fips}/nistec/fiat/p521.go |  2 +-
+ .../internal/{ => fips}/nistec/fiat/p521_fiat64.go |  0
+ .../internal/{ => fips}/nistec/fiat/p521_invert.go |  0
+ src/crypto/internal/{ => fips}/nistec/generate.go  |  4 +-
+ src/crypto/internal/{ => fips}/nistec/nistec.go    |  2 +-
+ src/crypto/internal/{ => fips}/nistec/p224.go      |  4 +-
+ src/crypto/internal/{ => fips}/nistec/p224_sqrt.go |  2 +-
+ src/crypto/internal/{ => fips}/nistec/p256.go      | 28 ++++-----
+ src/crypto/internal/{ => fips}/nistec/p256_asm.go  | 20 +++---
+ .../internal/{ => fips}/nistec/p256_asm_amd64.s    |  0
+ .../internal/{ => fips}/nistec/p256_asm_arm64.s    |  0
+ .../internal/{ => fips}/nistec/p256_asm_ppc64le.s  |  0
+ .../internal/{ => fips}/nistec/p256_asm_s390x.s    |  0
+ .../internal/{ => fips}/nistec/p256_asm_test.go    |  0
+ .../internal/{ => fips}/nistec/p256_ordinv.go      |  0
+ .../{ => fips}/nistec/p256_ordinv_noasm.go         |  0
+ .../internal/{ => fips}/nistec/p256_table.go       |  0
+ .../nistec/p256_table_test.go}                     |  2 +-
+ src/crypto/internal/{ => fips}/nistec/p384.go      |  4 +-
+ src/crypto/internal/{ => fips}/nistec/p521.go      |  4 +-
+ .../nistec_ordinv_test.go}                         |  4 +-
+ .../internal/{nistec => fipstest}/nistec_test.go   | 56 +----------------
+ src/go/build/deps_test.go                          |  4 +-
+ 45 files changed, 130 insertions(+), 109 deletions(-)

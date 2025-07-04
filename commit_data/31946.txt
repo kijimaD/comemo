@@ -1,0 +1,22 @@
+commit 3ea53cb08f1709b2f9bf39cfcfaa1d285256baa2
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Fri May 26 01:14:30 2017 +0300
+
+    sync: deflake TestPool and TestPoolNew
+    
+    Prevent possible goroutine rescheduling to another P between
+    Put and Get calls by locking the goroutine to OS thread.
+    
+    Inspired by the CL 42770.
+    
+    Fixes #20198.
+    
+    Change-Id: I18e24fcad1630658713e6b9d80d90d7941f604be
+    Reviewed-on: https://go-review.googlesource.com/44310
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/sync/export_test.go |  2 ++
+ src/sync/pool_test.go   | 11 +++++++++++
+ 2 files changed, 13 insertions(+)

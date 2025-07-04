@@ -1,0 +1,17 @@
+commit 3b8c716e0fb897f867cabd2aeeb77b2b8ccd2241
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 15:40:20 2022 -0800
+
+    spec: document numeric operations behavior for generic types
+    
+    Includes a few minor cosmetic changes.
+    
+    Change-Id: I6c307d958b47d83671142688630ea7835168439f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384622
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 43 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 36 insertions(+), 7 deletions(-)

@@ -1,0 +1,28 @@
+commit ab00f89c2742792ae23c6861e82c4b0b6cc6376b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 7 13:33:39 2019 -0700
+
+    cmd/compile: remove useless block-indirection in type switch
+    
+    Previously, when emitting type switches without an explicit "case nil"
+    clause, we would emit:
+    
+        if x == nil { goto Lnil }
+        ...
+        Lnil: goto Ldefault
+    
+    But we can instead just emit:
+    
+        if x == nil { goto Ldefault }
+    
+    Doesn't pass toolstash-check; seems like it causes some harmless
+    instruction scheduling changes.
+    
+    Change-Id: Ie233dda26756911e93a08b3db40407ba38694c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199644
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

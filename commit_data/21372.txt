@@ -1,0 +1,13 @@
+commit 2059ffbc8db0dff3fd9780a817f76e95559193ba
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Dec 23 22:22:56 2014 +0300
+
+    runtime/pprof: add tests for tracer
+    
+    Change-Id: I832a433f0f2fc10b0a2fea0bfb003a988fc2c81b
+    Reviewed-on: https://go-review.googlesource.com/2039
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/trace_parser_test.go | 651 +++++++++++++++++++++++++++++++++
+ src/runtime/pprof/trace_test.go        | 223 +++++++++++
+ 2 files changed, 874 insertions(+)

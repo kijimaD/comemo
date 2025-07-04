@@ -1,0 +1,12 @@
+commit aaec61555a3963903be8efa46d54b2db029adfec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 16:23:19 2010 -0800
+
+    godoc: fix path resolution for command-line one more time (sigh...)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217058
+
+ src/cmd/godoc/main.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 6e866fea2b80b0c4744517ab306dfbc47e649144
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Sep 27 15:25:40 2023 +0000
+
+    internal/zstd: handle match extending past window
+    
+    For #62513
+    
+    Change-Id: I59c24b254d5073140811b41497eabb91fb0046e9
+    GitHub-Last-Rev: 4dd16fcfa813da2b612d5753e11c163476d44b53
+    GitHub-Pull-Request: golang/go#63248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/zstd/block.go                         |  44 +++++++++------------
+ .../zstd/testdata/f2a8e35c.helloworld-11000x.zst   | Bin 0 -> 47 bytes
+ 2 files changed, 18 insertions(+), 26 deletions(-)

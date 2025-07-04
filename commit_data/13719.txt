@@ -1,0 +1,18 @@
+commit 3efc482190c9c2fa80cb0fc80d160624514652db
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Fri Aug 31 15:52:27 2012 -0400
+
+    net/rpc/jsonrpc: handles missing "params" in jsonrpc.
+    
+    A crash happens in the first request in a connection
+    if "params" field is missing because c.req.Params is Nil.
+    
+    Fixes #3848.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6446051
+
+ src/pkg/net/rpc/jsonrpc/all_test.go | 53 ++++++++++++++++++++++++++-----------
+ src/pkg/net/rpc/jsonrpc/server.go   | 13 ++++-----
+ 2 files changed, 45 insertions(+), 21 deletions(-)

@@ -1,0 +1,14 @@
+commit a5b2623dab33d4e54b9995d0f0cfd4b95b439683
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:39:14 2013 -0400
+
+    build: skip benchmarks on OpenBSD
+    
+    They are making the build die. I want to be able to see that everything else is okay.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7546049
+
+ src/run.bash | 3 +++
+ 1 file changed, 3 insertions(+)

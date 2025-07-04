@@ -1,0 +1,16 @@
+commit d23c80b8e4cf1ff69176c78794a2cae10a1f5501
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 17 09:54:11 2022 -0700
+
+    doc: update jump table performance release note
+    
+    Just make it clearer that the performance gains are for the switch
+    statement itself, not the whole program.
+    
+    Change-Id: I2d1bf2888f61112af3dc37113e740b00b092e2cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406874
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.19.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 2ffcfcef5597ae9d8f27f6d251785e1624c8c020
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 2 11:33:34 2024 -0700
+
+    time: restore support for large negative days in Date
+    
+    CL 586257 converted days to uint32 which is usually fine but fails for
+    negative days close to cycle boundaries.
+    
+    Fixes #68718
+    
+    Change-Id: I8dc5b8fe0c7c1921beb204da1913b9a1ab39280d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602815
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/time.go      |  3 ++-
+ src/time/time_test.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 0dfb6fb4907c770269d5530f210567e371eebeaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 21:38:43 2021 -0700
+
+    go/ast: print CommentMap contents in source order
+    
+    Sort the comment map entries before printing.
+    Makes it easier to use the output for debugging.
+    
+    For #39753.
+    
+    Change-Id: Ic8e7d27dd2df59173e2c3a04a6b71ae966703885
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315370
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/ast/commentmap.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

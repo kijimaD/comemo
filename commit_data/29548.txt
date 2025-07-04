@@ -1,0 +1,23 @@
+commit b906df653b58bc2ab9b93e18f62adccc8c1419b7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 17:55:28 2016 -0800
+
+    os/exec: add closeOnce.WriteString method
+    
+    Add an explicit WriteString method to closeOnce that acquires the
+    writers lock.  This overrides the one promoted from the
+    embedded *os.File field.  The promoted one naturally does not acquire
+    the lock, and can therefore race with the Close method.
+    
+    Fixes #17647.
+    
+    Change-Id: I3460f2a0d503449481cfb2fd4628b4855ab0ecdf
+    Reviewed-on: https://go-review.googlesource.com/33298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go     |  4 ++--
+ src/os/exec/exec.go      |  7 +++++++
+ src/os/exec/exec_test.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

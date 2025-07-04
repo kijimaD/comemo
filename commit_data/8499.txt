@@ -1,0 +1,12 @@
+commit c0decc35ae031333a61b816670d668f01f594dd8
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu May 26 22:05:25 2011 +1000
+
+    exp/eval: fix compile error.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4550086
+
+ src/pkg/exp/eval/gen.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

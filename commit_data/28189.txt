@@ -1,0 +1,19 @@
+commit be8a1c61392c97328db0026c7c80cd7d69c0aa36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 3 16:31:56 2016 -0700
+
+    test: add test for issue 15895
+    
+    It was fixed earlier in the Go 1.8 cycle.
+    Add a test.
+    
+    Fixes #15895
+    
+    Change-Id: I5834831235d99b9fcf21b435932cdd7ac6dc2c6e
+    Reviewed-on: https://go-review.googlesource.com/28476
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue15895.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

@@ -1,0 +1,17 @@
+commit 9859f6bedb6b85c9fa6e1a260ae62f1df8c8594e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 28 14:32:10 2019 -0400
+
+    test/codegen: fix ARM32 RotateLeft32 test
+    
+    The syntax of a shifted operation does not have a "$" sign for
+    the shift amount. Remove it.
+    
+    Change-Id: I50782fe942b640076f48c2fafea4d3175be8ff99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192100
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/codegen/mathbits.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

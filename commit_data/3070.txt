@@ -1,0 +1,13 @@
+commit c36fbdf713a1ed29d0dbe4546be52050c3db1fd3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 24 15:45:51 2009 -0700
+
+    - fix for multiple fields at same depth error
+    
+    R=rsc
+    DELTA=9  (5 added, 0 deleted, 4 changed)
+    OCL=33768
+    CL=33785
+
+ src/pkg/reflect/type.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

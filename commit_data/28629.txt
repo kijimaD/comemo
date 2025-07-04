@@ -1,0 +1,18 @@
+commit bf776a988bf6fe82cbef5cfc954f33d127c5172c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 26 13:10:41 2016 -0400
+
+    runtime: document bmap.tophash
+    
+    In particular, it wasn't obvious that some values are special (unless
+    you also found those special values), so document that it isn't
+    necessarily a hash value.
+    
+    Change-Id: Iff292822b44408239e26cd882dc07be6df2c1d38
+    Reviewed-on: https://go-review.googlesource.com/30143
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/hashmap.go | 5 +++++
+ 1 file changed, 5 insertions(+)

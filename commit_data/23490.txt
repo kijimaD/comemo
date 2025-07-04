@@ -1,0 +1,14 @@
+commit 26f12beb5d1828858c365409af23393013c0e4e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 05:33:51 2015 +0200
+
+    doc: add a missing space in func signature
+    
+    Fixes #11383
+    
+    Change-Id: I7ef0bb8b535ef513afdfcda19317ae4ff21f7166
+    Reviewed-on: https://go-review.googlesource.com/11490
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

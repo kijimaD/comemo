@@ -1,0 +1,46 @@
+commit 093049b3709eda7537ece92a2991918cf53782d6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Feb 28 16:31:19 2020 -0500
+
+    cmd/go: make module zip extraction more robust
+    
+    Currently, we extract module zip files to temporary directories, then
+    atomically rename them into place. On Windows, this can fail with
+    ERROR_ACCESS_DENIED if another process (antivirus) has files open
+    before the rename. In CL 220978, we repeated the rename operation in a
+    loop over 500 ms, but this didn't solve the problem for everyone.
+    
+    A better solution will extract module zip files to their permanent
+    locations in the cache and will keep a ".partial" marker file,
+    indicating when a module hasn't been fully extracted (CL 221157).
+    This approach is not safe if current versions of Go access the module
+    cache concurrently, since the module directory is detected with a
+    single os.Stat.
+    
+    In the interim, this CL makes two changes:
+    
+    1. Flaky file system operations are repeated over 2000 ms to reduce
+    the chance of this error occurring.
+    2. cmd/go will now check for .partial files created by future
+    versions. If a .partial file is found, it will lock the lock file,
+    then remove the .partial file and directory if needed.
+    
+    After some time has passed and Go versions lacking this CL are no
+    longer supported, we can start extracting module zip files in place.
+    
+    Updates #36568
+    
+    Change-Id: I467ee11aa59a90b63cf0e3e761c4fec89d57d3b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221820
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/verify.go               | 11 ++--
+ src/cmd/go/internal/modfetch/cache.go              | 40 +++++++++++++--
+ src/cmd/go/internal/modfetch/fetch.go              | 58 ++++++++++++++--------
+ src/cmd/go/internal/modload/build.go               |  4 +-
+ src/cmd/go/internal/robustio/robustio_flaky.go     |  2 +-
+ .../go/testdata/script/mod_download_partial.txt    | 54 ++++++++++++++++++++
+ 6 files changed, 136 insertions(+), 33 deletions(-)

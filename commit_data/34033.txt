@@ -1,0 +1,17 @@
+commit 4a2f28f51ecabfb4a839d7f483a32ae9b9206c83
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 22 12:56:01 2018 -0500
+
+    doc, cmd/go: final release notes edits
+    
+    Except for removing the DRAFT marker, I think these are now ready to go.
+    
+    Change-Id: I20604f5b135616189a24990db463c7bb5e7d48f1
+    Reviewed-on: https://go-review.googlesource.com/88975
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html                  | 29 +++++++++++++++--------------
+ src/cmd/go/alldocs.go            |  9 ++++++---
+ src/cmd/go/internal/test/test.go |  9 ++++++---
+ 3 files changed, 27 insertions(+), 20 deletions(-)

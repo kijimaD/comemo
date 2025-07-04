@@ -1,0 +1,14 @@
+commit e42bc0df87e865417f6a13908cd8d3e6f6945b96
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Sun Mar 31 12:28:22 2013 -0700
+
+    lib9/utf: Remove superfluous header inclusion.
+    
+    <stdint.h> does not seem to be needed.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8178044
+
+ src/lib9/utf/utf.h | 2 --
+ 1 file changed, 2 deletions(-)

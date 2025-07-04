@@ -1,0 +1,13 @@
+commit 4c9c36e6554471c3c372a1c87b81a938e99e6dbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 10 11:35:43 2012 -0700
+
+    C+A: added Taj Khattra (individual CLA)
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6635061
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

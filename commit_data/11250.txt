@@ -1,0 +1,17 @@
+commit c109705c6f30d568b7c7af8a203bdd69c6fb99af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 19:35:53 2012 -0800
+
+    go/doc: collect imports
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5556051
+
+ src/pkg/go/doc/doc.go                |  2 +-
+ src/pkg/go/doc/exports.go            |  3 +++
+ src/pkg/go/doc/reader.go             | 22 ++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.out        |  3 +++
+ src/pkg/go/doc/testdata/template.txt |  6 +++---
+ src/pkg/go/doc/testdata/testing.out  | 12 ++++++++++++
+ 6 files changed, 44 insertions(+), 4 deletions(-)

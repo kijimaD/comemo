@@ -1,0 +1,26 @@
+commit 1a0b86375fad202048adb88cba4caec535a52a45
+Author: khr@golang.org <khr@golang.org>
+Date:   Sat Apr 13 19:21:15 2024 -0700
+
+    cmd/compile: remove redundant calls to cmpstring
+    
+    The results of cmpstring are reuseable if the second call has the
+    same arguments and memory.
+    
+    Note that this gets rid of cmpstring, but we still generate a
+    redundant </<= test and branch afterwards, because the compiler
+    doesn't know that cmpstring only ever returns -1,0,1.
+    
+    Update #61725
+    
+    Change-Id: I93a0d1ccca50d90b1e1a888240ffb75a3b10b59b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578835
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  9 ++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 30 +++++++++++++++++++++++++
+ src/cmp/cmp.go                                  | 14 ++++++++----
+ test/codegen/comparisons.go                     | 26 ++++++++++++++++++++-
+ 4 files changed, 74 insertions(+), 5 deletions(-)

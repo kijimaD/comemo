@@ -1,0 +1,21 @@
+commit 0c14345c9638effe6d19569b8bc75caa7c026f66
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Mon Jul 17 17:00:35 2017 -0400
+
+    cmd/go: ensure pkgsFilter is run before build
+    
+    Return an error when a user passes -o and -buildmode=exe to build a package
+    without a main.
+    
+    Fixes #20017.
+    
+    Change-Id: I07d49c75e7088a96f00afe18c9faa842c5d71afb
+    Reviewed-on: https://go-review.googlesource.com/49371
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go                        | 10 ++++++++++
+ src/cmd/go/internal/work/build.go            |  4 ++--
+ src/cmd/go/internal/work/init.go             |  6 ++++++
+ src/cmd/go/testdata/src/not_main/not_main.go |  3 +++
+ 4 files changed, 21 insertions(+), 2 deletions(-)

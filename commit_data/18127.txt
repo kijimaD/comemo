@@ -1,0 +1,12 @@
+commit 36c8c5f063a73ad85a2ac36a8af8de93d348d07b
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Dec 29 22:38:05 2013 +1100
+
+    io: add tests for SectionReader ReadAt and Size
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/39200045
+
+ src/pkg/io/io_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

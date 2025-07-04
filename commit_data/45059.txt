@@ -1,0 +1,20 @@
+commit 3f4977bd5800beca059defb5de4dc64cd758cbb9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 7 22:36:15 2021 -0700
+
+    cmd/compile/internal/types2: use combined type and ordinary args for type inference
+    
+    Fixes #44799.
+    
+    Change-Id: I51d5b6d6fdfcf47b87bf40b1f7e31c3284c2813f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308372
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        |  2 +-
+ src/cmd/compile/internal/types2/call.go            | 37 +++++++++++++++++++---
+ .../internal/types2/fixedbugs/issue39754.go2       |  6 ++--
+ .../internal/types2/fixedbugs/issue44799.go2       | 19 +++++++++++
+ 4 files changed, 57 insertions(+), 7 deletions(-)

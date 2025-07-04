@@ -1,0 +1,18 @@
+commit 42d2d5e2b575a034b43bc1ab4e6b948a1670ef9f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 15:15:40 2022 -0400
+
+    cmd/link: delete oReader.flags
+    
+    Same information is provided from the fields of the embedded
+    goobj.Reader, and are accessed through it. Delete the flags field.
+    
+    Change-Id: I7a4f5dca054e567443d719b2931fceff231d6efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394216
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/loader/loader.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

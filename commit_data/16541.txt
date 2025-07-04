@@ -1,0 +1,37 @@
+commit 6120ef079948340d6819b8f9a9d526ad4292e26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 11 16:49:24 2013 -0400
+
+    runtime: rename _rt0_$GOARCH to _rt0_go
+    
+    There's no reason to use a different name on each architecture,
+    and doing so makes it impossible for portable code to refer to
+    the original Go runtime entry point. Rename it _rt0_go everywhere.
+    
+    This is a global search and replace only.
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/10196043
+
+ src/pkg/runtime/asm_386.s           | 2 +-
+ src/pkg/runtime/asm_amd64.s         | 2 +-
+ src/pkg/runtime/asm_arm.s           | 2 +-
+ src/pkg/runtime/rt0_darwin_386.s    | 2 +-
+ src/pkg/runtime/rt0_darwin_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_freebsd_386.s   | 2 +-
+ src/pkg/runtime/rt0_freebsd_amd64.s | 2 +-
+ src/pkg/runtime/rt0_freebsd_arm.s   | 2 +-
+ src/pkg/runtime/rt0_linux_386.s     | 2 +-
+ src/pkg/runtime/rt0_linux_amd64.s   | 2 +-
+ src/pkg/runtime/rt0_linux_arm.s     | 2 +-
+ src/pkg/runtime/rt0_netbsd_386.s    | 2 +-
+ src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_netbsd_arm.s    | 2 +-
+ src/pkg/runtime/rt0_openbsd_386.s   | 2 +-
+ src/pkg/runtime/rt0_openbsd_amd64.s | 2 +-
+ src/pkg/runtime/rt0_plan9_386.s     | 2 +-
+ src/pkg/runtime/rt0_plan9_amd64.s   | 2 +-
+ src/pkg/runtime/rt0_windows_386.s   | 2 +-
+ src/pkg/runtime/rt0_windows_amd64.s | 2 +-
+ 20 files changed, 20 insertions(+), 20 deletions(-)

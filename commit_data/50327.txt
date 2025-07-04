@@ -1,0 +1,16 @@
+commit 32f68b5ab7b4f2a5a87497816260d9b671f6c74e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:26:48 2022 +0800
+
+    bufio: use strings.Builder
+    
+    Change-Id: Ief82f12a5c48c46165c28140997d5fc83700c758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428256
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bufio/bufio_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

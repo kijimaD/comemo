@@ -1,0 +1,21 @@
+commit 691db3737c989ba07ec4565c16628d35cb08418c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 25 20:48:27 2021 +0100
+
+    cmd/cover: use golang.org/x/tools/cover directly
+    
+    As suggested by Bryan in CL 249759, remove the forwarding aliases in
+    cmd/cover and use the symbols from golang.org/x/tools directly.
+    
+    cmd/cover is not an importable package, so it is fine to remove these
+    exported symbols.
+    
+    Change-Id: I887c5e9349f2dbe4c90be57f708412b844e18081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304690
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/cover/func.go    |  8 +++++---
+ src/cmd/cover/html.go    |  8 +++++---
+ src/cmd/cover/profile.go | 30 ------------------------------
+ 3 files changed, 10 insertions(+), 36 deletions(-)

@@ -1,0 +1,14 @@
+commit 73fb3c38a685158591503a3d760ae6e1d1a2a565
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Jan 7 09:48:39 2019 +0100
+
+    doc: remove incorrect space in %T and %v output examples
+    
+    Change-Id: I321890237f703b945711e59c15233ccf59c4f190
+    Reviewed-on: https://go-review.googlesource.com/c/156477
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

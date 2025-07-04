@@ -1,0 +1,18 @@
+commit 79ac638e41abed1d8f46762ecd6d63a93d9bb382
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 14 21:27:29 2019 +0000
+
+    runtime: refactor coalescing into its own method
+    
+    The coalescing process is complex and in a follow-up change we'll need
+    to do it in more than one place, so this change factors out the
+    coalescing code in freeSpanLocked into a method on mheap.
+    
+    Change-Id: Ia266b6cb1157c1b8d3d8a4287b42fbcc032bbf3a
+    Reviewed-on: https://go-review.googlesource.com/c/157838
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 117 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 61 insertions(+), 56 deletions(-)

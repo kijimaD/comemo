@@ -1,0 +1,18 @@
+commit 7ae1fe420e708acc62cdacb81a2eec7ed3250277
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 22:46:56 2012 -0500
+
+    gc: eliminate duplicate ambiguous selector message
+    
+    Also show actual expression in message when possible.
+    
+    Fixes #2599.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5654059
+
+ src/cmd/gc/subr.c        |  7 +++++--
+ src/cmd/gc/typecheck.c   | 25 +++++++++++++++++--------
+ test/fixedbugs/bug412.go | 16 ++++++++++++++++
+ 3 files changed, 38 insertions(+), 10 deletions(-)

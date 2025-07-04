@@ -1,0 +1,17 @@
+commit fb7134e4e3a45fee4ab662ef0d467ef864c23e2e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 26 11:28:02 2020 +0700
+
+    test: add index bounds check elided with "&^"
+    
+    For follow up CL, which will defer lowering OANDNOT until SSA.
+    
+    Change-Id: I5a988d0b8f0ae664580f08b123811b2a31ef55c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265040
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/bounds.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,24 @@
+commit 0566ab33834f0bd851ff11ad509d33849c7f2b7c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jul 9 22:40:51 2018 +0100
+
+    strings: add Builder.Cap
+    
+    To report the capacity of the underlying buffer. The method mirrors
+    bytes.Buffer.Cap.
+    
+    The method can be useful to know whether or not calling write or grow
+    methods will result in an allocation, or to know how much memory has
+    been allocated so far.
+    
+    Fixes #26269.
+    
+    Change-Id: I391db45ae825011566b594836991e28135369a78
+    Reviewed-on: https://go-review.googlesource.com/122835
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/builder.go      |  5 +++++
+ src/strings/builder_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+)

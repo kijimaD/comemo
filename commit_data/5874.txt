@@ -1,0 +1,21 @@
+commit 7f9e24748970e57e47d9bd5a444c05541772da49
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jul 26 09:43:35 2010 +1000
+
+    syscall: add ForkExec, Syscall12 on Windows
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/1578041
+
+ src/pkg/runtime/windows/os.h              |   2 +-
+ src/pkg/runtime/windows/syscall.goc       |  23 ++++
+ src/pkg/runtime/windows/thread.c          |   2 +-
+ src/pkg/syscall/Makefile                  |   8 +-
+ src/pkg/syscall/{exec.go => exec_unix.go} |   0
+ src/pkg/syscall/exec_windows.go           | 199 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/mksyscall_windows.sh      |   9 ++
+ src/pkg/syscall/syscall_windows.go        |   6 +
+ src/pkg/syscall/zsyscall_windows_386.go   |  74 ++++++++++-
+ src/pkg/syscall/ztypes_windows_386.go     |  38 +++++-
+ 10 files changed, 356 insertions(+), 5 deletions(-)

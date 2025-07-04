@@ -1,0 +1,15 @@
+commit 858042b8fd51ae827e85cd47a0daf2957b84738e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 14 11:47:34 2018 +0100
+
+    test/codegen: add codegen tests for div
+    
+    Change-Id: I6ce8981e85fd55ade6078b0946e54a9215d9deca
+    Reviewed-on: https://go-review.googlesource.com/100575
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/codegen/arithmetic.go | 66 +++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 63 insertions(+), 3 deletions(-)

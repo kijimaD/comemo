@@ -1,0 +1,16 @@
+commit 29918e85abe5cca2349788d0ddb12195f8b59a1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 20:08:03 2017 -0500
+
+    testing: emphasize that Fatal/FailNow/etc run deferred calls
+    
+    Fixes #22989.
+    
+    Change-Id: I9776a7b0d0598c2cb118c323d1f8f933665da254
+    Reviewed-on: https://go-review.googlesource.com/83881
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/testing/testing.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

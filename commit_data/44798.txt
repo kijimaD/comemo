@@ -1,0 +1,15 @@
+commit 179bcd787e4a5c4cfe475fd6fd33a41d77751113
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 24 13:18:13 2021 -0700
+
+    test: only run bug513.go if cgo is enabled
+    
+    Change-Id: I868eeb79edaba9e3afc1407ae18b89daf7e67037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304570
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/bug513.go | 1 +
+ 1 file changed, 1 insertion(+)

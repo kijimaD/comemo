@@ -1,0 +1,15 @@
+commit 2ff1074f5ac48e67ee079dafc9f0e314bc454510
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 27 10:13:50 2021 -0700
+
+    reflect: undeprecate Ptr, PtrTo
+    
+    Fixes #48665
+    
+    Change-Id: Id838f7508f6e93c4546a2aeefc2db194e647db77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359175
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit b50a3d95e16ef642c40218dd298ee56ab26f76b0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 10 16:34:57 2010 +1000
+
+    image: change image representation from slice-of-slices to linear buffer,
+    stride and rect.
+    
+    R=r
+    CC=golang-dev, rog
+    https://golang.org/cl/1849041
+
+ src/pkg/exp/draw/draw.go     |  78 +++++---
+ src/pkg/exp/draw/x11/conn.go |   2 +-
+ src/pkg/image/geom.go        |   6 +
+ src/pkg/image/image.go       | 449 ++++++++++++++++++++++++-------------------
+ src/pkg/image/jpeg/reader.go |   2 +-
+ 5 files changed, 301 insertions(+), 236 deletions(-)

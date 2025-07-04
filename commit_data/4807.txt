@@ -1,0 +1,36 @@
+commit 48cdb63baabd6809850644b20fa9266a41c44df7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 6 15:57:19 2010 +1100
+
+    draw.Draw fast paths for a nil mask (and RGBA dst).
+    
+    Averaged times (in microseconds) for drawing an 800x600 rectangle
+    are listed below. The summary is: around a 100x improvement.
+    
+    draw.Draw call times were typically linear in the number of pixels
+    touched (i.e. drawing an 800x600 rectangle took 100x as much time as
+    drawing an 80x60 rectangle).
+    
+    Before this change, there was only the general-but-slow code path.
+    When drawing any src with a 50%-opaque mask: 237300 us
+    When drawing any src with a nil mask: 50100 us
+    
+    After this change, the 50%-opaque mask case is unchanged.
+    For an *image.RGBA dst and nil mask and...
+    ...a uniform color (i.e. an image.ColorImage) src: 282 us
+    ...another *image.RGBA src: 615 us.
+    
+    For the curious, an intermediate implementation detected the special
+    cases but used simple nested for loops instead of the built-in copy
+    function. The respective times (compared to 282 and 615 for the
+    final implementation, or 50100 for the original) were 3110 and 3573.
+    
+    Times were measured with 8g/8l on my laptop. I haven't tried gccgo
+    or other architectures.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/201048
+
+ src/pkg/exp/draw/draw.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

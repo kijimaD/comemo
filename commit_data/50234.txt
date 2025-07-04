@@ -1,0 +1,20 @@
+commit d31c4bc2de1105d2b77beb6447166fdae7b64e94
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Sep 1 21:42:25 2022 +0800
+
+    cmd/internal/objabi: use strings.Builder
+    
+    Since when go1.17 is now used for bootstraping.
+    
+    Change-Id: I5ee65aff72500a04e243238cffeae92ea659627b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427555
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/internal/objabi/flag.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

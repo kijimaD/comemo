@@ -1,0 +1,15 @@
+commit 3c6b6684ce21c1092ba208a0f1744ad7c930248a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 10:00:23 2016 +1000
+
+    api: promote next.txt to go1.7.txt and update api tool
+    
+    Change-Id: Idb348be00f949da553aa6aab62836f59dfee298d
+    Reviewed-on: https://go-review.googlesource.com/23671
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+
+ api/go1.7.txt      | 276 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 276 -----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 277 insertions(+), 277 deletions(-)

@@ -1,0 +1,32 @@
+commit c5f21c0dc2bccad03d076d4d56c073334e06a3fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 13 13:42:26 2008 -0800
+
+    * 6l:
+            if an object in an archive tries to refer
+            to a file in its original source directory,
+            ignore it.
+    
+    * 6ar:
+            fix bug if archive is empty.
+    
+    * gobuild:
+            build archive in current directory.
+    
+    * math:
+            use new gobuild Makefile.
+    
+    * test/math.go:
+            rename to mathest.go, add // run line, make it run.
+    
+    R=r
+    DELTA=494  (277 added, 203 deleted, 14 changed)
+    OCL=19090
+    CL=19171
+
+ src/cmd/6l/obj.c              | 47 ++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/ar/ar.c               |  6 ++++++
+ src/cmd/gobuild/gobuild.c     | 29 ++++++++++++++++++++------
+ src/lib/math/Makefile         | 12 ++++++++---
+ test/{math.go => mathtest.go} | 10 ++++++---
+ 5 files changed, 89 insertions(+), 15 deletions(-)

@@ -1,0 +1,29 @@
+commit 41be62e168fa7de2cf3357ad32f7105377bfd758
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Nov 4 09:50:09 2022 +0100
+
+    cmd/go: fix svn vctest on Windows and make them timezone agnostic
+    
+    This CL updates svn vctest so they work on Windows.
+    
+    Side effect is that svn logs are no longer timezone dependant, as this
+    updated the `svn log` command to format logs using XML, which contain
+    UTC dates instead of local dates. Therefore it supersedes
+    https://go-review.googlesource.com/c/go/+/447795.
+    
+    Fixes #56555
+    Fixes #56527
+    
+    Change-Id: I5a654fd0a0f741e0a8a6ca7021ad699c07b974d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447935
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/go/internal/vcweb/script.go               |  1 +
+ src/cmd/go/testdata/vcstest/svn/hello.txt         | 28 ++++++----
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 65 ++++++++++++++---------
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 45 ++++++++++------
+ 4 files changed, 89 insertions(+), 50 deletions(-)

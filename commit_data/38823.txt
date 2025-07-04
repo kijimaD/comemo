@@ -1,0 +1,17 @@
+commit 4a119141303407d9223296e9092611560665d3e1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 19 09:48:36 2019 -0700
+
+    bootstrap.bash: make source writable before cleaning
+    
+    Otherwise the "git clean" command fails with errors like
+        rm: cannot remove '/home/iant/go-linux-ppc64-bootstrap/pkg/mod/golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c/encoding/simplifiedchinese/all.go': Permission denied
+    
+    Change-Id: Iecfb1fed6d59819d7fdceb9e391a2b3f81ea620c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bootstrap.bash | 1 +
+ 1 file changed, 1 insertion(+)

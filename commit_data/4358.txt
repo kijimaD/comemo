@@ -1,0 +1,12 @@
+commit 916533119e4d952412d44ff9907691e8137cc0ef
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Dec 9 12:55:19 2009 -0800
+
+    Make the operations on the global rng thread safe.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/168041
+
+ src/pkg/rand/rand.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

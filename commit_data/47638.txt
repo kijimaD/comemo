@@ -1,0 +1,27 @@
+commit bc32dd1b69b0629a54cfe50626e42eb4b75eb017
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 13:14:01 2021 -0800
+
+    go/types: better error position for instantiation failure
+    
+    This is a port of CL 366757 from types2 to go/types,
+    adjusted for the different handling of index expressions
+    in go/types.
+    
+    For #49179.
+    
+    Change-Id: Ic859eb09683134d055e28c8e0cb1f3814a87dc5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367198
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/builtins.go                       |  2 +-
+ src/go/types/call.go                           | 39 +++++++++++---------------
+ src/go/types/mono.go                           |  7 +++--
+ src/go/types/testdata/check/issues.go2         |  2 +-
+ src/go/types/testdata/fixedbugs/issue39754.go2 |  5 +---
+ src/go/types/testdata/fixedbugs/issue49179.go2 | 19 +++++++++++++
+ src/go/types/typexpr.go                        | 13 ++-------
+ 7 files changed, 45 insertions(+), 42 deletions(-)

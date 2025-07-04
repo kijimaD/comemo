@@ -1,0 +1,14 @@
+commit 556258e57b4a937b0021472b7489520605f80c79
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 11:09:04 2012 +0100
+
+    gc: fix stray %#N in error message
+    
+    Fixes #2639.
+    
+    R=rsc
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5489140
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

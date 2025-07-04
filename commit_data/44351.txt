@@ -1,0 +1,17 @@
+commit c4b771348c3e5c5372bd00254f2e796b627c13dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 22 12:56:33 2021 -0500
+
+    runtime: fix windows/arm signal handling assembly
+    
+    Bug introduced in CL 288799: R12 is used but not set.
+    
+    Fixes windows/arm builder.
+    
+    Change-Id: I015a5a83cfa3bdd23da1ffb73713623764f2f817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295109
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_windows_arm.s | 5 +++++
+ 1 file changed, 5 insertions(+)

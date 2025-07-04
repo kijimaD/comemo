@@ -1,0 +1,16 @@
+commit d122bb2193cfb239efc1d9a3e63d4bb0b0635b3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 14:26:50 2009 -0800
+
+    gc: double-check usage of ...
+    
+    Fixes #423.
+    
+    R=ken2
+    https://golang.org/cl/180045
+
+ src/cmd/gc/dcl.c         | 10 +++++++---
+ src/cmd/gc/go.h          |  2 +-
+ src/cmd/gc/go.y          |  8 +++++++-
+ test/fixedbugs/bug228.go | 19 +++++++++++++++++++
+ 4 files changed, 34 insertions(+), 5 deletions(-)

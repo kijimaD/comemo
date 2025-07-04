@@ -1,0 +1,24 @@
+commit 96428e160de755d6b3b3b7dc1b9c81196957d679
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Mar 2 15:55:03 2023 +0800
+
+    cmd/compile: split DIVV/DIVVU op on loong64
+    
+    Previously, we need calculate both quotient and remainder together.
+    However, in most cases, only one result is needed. By separating these
+    instructions, we can save one instruction in most cases.
+    
+    Change-Id: I0a2d4167cda68ab606783ba1aa2720ede19d6b53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475315
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go         |  29 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  48 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   8 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  52 ++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 560 ++++++++++--------------
+ 5 files changed, 310 insertions(+), 387 deletions(-)

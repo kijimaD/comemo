@@ -1,0 +1,13 @@
+commit b770c9e9a2d2b19af317924f015467626be7b5a4
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Oct 15 12:22:08 2011 +1100
+
+    html: improve parsing of comments and "bogus comments"
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5279044
+
+ src/pkg/html/token.go      | 111 +++++++++++++++++++++++++++++++++------------
+ src/pkg/html/token_test.go |  56 +++++++++++++++++++----
+ 2 files changed, 129 insertions(+), 38 deletions(-)

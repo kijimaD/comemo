@@ -1,0 +1,16 @@
+commit e5b5f9b39d743893732ed0dca2e697d6de64a775
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Tue Feb 25 17:12:19 2014 +0900
+
+    syscall: generate zfiles for GOOS=solaris
+    
+    LGTM=minux.ma, mikioh.mikioh
+    R=golang-codereviews, minux.ma, gobot, jsing, mikioh.mikioh, dave
+    CC=golang-codereviews
+    https://golang.org/cl/36010043
+
+ src/pkg/syscall/zerrors_solaris_amd64.go  | 1414 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_solaris_amd64.go |  882 ++++++++++++++++++
+ src/pkg/syscall/zsysnum_solaris_amd64.go  |   11 +
+ src/pkg/syscall/ztypes_solaris_amd64.go   |  365 ++++++++
+ 4 files changed, 2672 insertions(+)

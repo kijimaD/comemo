@@ -1,0 +1,22 @@
+commit ab7e82ef3b773468f008df439568e792eb24d5fd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Oct 28 17:57:30 2015 -0400
+
+    cmd/go: buildmode=c-shared support for linux/arm64
+    
+    Change-Id: Ic826dc25b5203b2e9fc253d6fe997e4b41de3789
+    Reviewed-on: https://go-review.googlesource.com/16453
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/src/libgo2/dup2.go   | 13 +++++++++++++
+ misc/cgo/testcshared/src/libgo2/dup3.go   | 13 +++++++++++++
+ misc/cgo/testcshared/src/libgo2/libgo2.go |  2 +-
+ misc/cgo/testcshared/test.bash            |  2 +-
+ src/cmd/compile/internal/gc/lex.go        |  3 ++-
+ src/cmd/dist/test.go                      |  2 +-
+ src/cmd/go/build.go                       |  2 +-
+ src/cmd/link/internal/arm64/obj.go        |  4 ++++
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ 9 files changed, 37 insertions(+), 6 deletions(-)

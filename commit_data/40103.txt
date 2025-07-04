@@ -1,0 +1,42 @@
+commit ac2ceba01a503ca0b4fee2de915dad8e97e75f3f
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Sep 24 10:42:32 2019 -0400
+
+    cmd/compile/internal/gc: intrinsify mulWW on s390x
+    
+    SSA rule have already been added previously to intrisinfy Mul/Mul64 on s390x. In this CL,
+    we want to let mulWW use that SSA rule as well. Also removed an extra line for formatting.
+    
+    Benchmarks:
+    QuoRem-18                            3.59µs ±15%    2.94µs ± 3%  -18.06%  (p=0.000 n=8+8)
+    ModSqrt225_Tonelli-18                 806µs ± 0%     800µs ± 0%   -0.85%  (p=0.000 n=7+8)
+    ModSqrt225_3Mod4-18                   245µs ± 1%     243µs ± 0%   -0.81%  (p=0.001 n=8+8)
+    ModSqrt231_Tonelli-18                 837µs ± 0%     834µs ± 1%   -0.36%  (p=0.028 n=8+8)
+    ModSqrt231_5Mod8-18                   282µs ± 0%     280µs ± 0%   -0.76%  (p=0.000 n=8+8)
+    Sqrt-18                              45.8µs ± 2%    38.6µs ± 0%  -15.63%  (p=0.000 n=8+8)
+    IntSqr/1-18                          19.1ns ± 0%    13.1ns ± 0%  -31.41%  (p=0.000 n=8+8)
+    IntSqr/2-18                          48.3ns ± 2%    48.2ns ± 0%     ~     (p=0.094 n=8+8)
+    IntSqr/3-18                          70.5ns ± 1%    70.7ns ± 0%     ~     (p=0.428 n=8+8)
+    IntSqr/5-18                           119ns ± 1%     118ns ± 0%   -1.02%  (p=0.000 n=7+8)
+    IntSqr/8-18                           215ns ± 1%     215ns ± 0%     ~     (p=0.320 n=8+7)
+    IntSqr/10-18                          302ns ± 1%     301ns ± 0%     ~     (p=0.148 n=8+7)
+    IntSqr/20-18                          952ns ± 1%     807ns ± 0%  -15.28%  (p=0.000 n=8+8)
+    IntSqr/30-18                         1.74µs ± 0%    1.53µs ± 0%  -11.93%  (p=0.000 n=8+8)
+    IntSqr/50-18                         3.91µs ± 0%    3.57µs ± 0%   -8.64%  (p=0.000 n=7+8)
+    IntSqr/80-18                         8.66µs ± 1%    8.11µs ± 0%   -6.39%  (p=0.000 n=8+8)
+    IntSqr/100-18                        12.8µs ± 0%    12.2µs ± 0%   -5.19%  (p=0.000 n=8+8)
+    IntSqr/200-18                        46.0µs ± 0%    44.5µs ± 0%   -3.06%  (p=0.000 n=8+8)
+    IntSqr/300-18                        81.4µs ± 0%    78.4µs ± 0%   -3.71%  (p=0.000 n=7+8)
+    IntSqr/500-18                         212µs ± 1%     206µs ± 0%   -2.66%  (p=0.000 n=8+8)
+    IntSqr/800-18                         419µs ± 1%     406µs ± 0%   -3.07%  (p=0.000 n=8+8)
+    IntSqr/1000-18                        635µs ± 0%     621µs ± 0%   -2.13%  (p=0.000 n=8+8)
+    
+    Change-Id: Ib097857186932b902601ab087cbeff3fc9555c3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197639
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go    | 2 +-
+ src/cmd/compile/internal/s390x/ssa.go | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

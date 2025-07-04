@@ -1,0 +1,14 @@
+commit da1b83067dfe554ba1c3de564bc4e6a1f1a9bdb0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 14:06:25 2017 -0700
+
+    sort: clarify comment about not-a-number values
+    
+    Updates #20540
+    
+    Change-Id: I864008fadd77b0aeb10fe7e7f1ec696516a5add5
+    Reviewed-on: https://go-review.googlesource.com/44492
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/sort/sort.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

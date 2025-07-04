@@ -1,0 +1,13 @@
+commit 770543107d64088cdcfc875dde9c2d867d89946e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 25 12:25:23 2011 -0400
+
+    syscall: remove unused windows code and comments
+    
+    R=golang-dev, vcc.163, rsc
+    CC=golang-dev
+    https://golang.org/cl/4826042
+
+ src/pkg/syscall/syscall_windows.go | 30 ++--------------
+ src/pkg/syscall/ztypes_windows.go  | 74 +++++++++-----------------------------
+ 2 files changed, 18 insertions(+), 86 deletions(-)

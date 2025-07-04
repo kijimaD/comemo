@@ -1,0 +1,23 @@
+commit 12debf4a6574c8fa521e76629f20f8ff77a35e0e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 30 12:04:46 2020 -0400
+
+    crypto/x509/pkix: print non-standard parsed Names at the end
+    
+    This doesn't change how ExtraNames are printed, so as not to cause
+    unnecessary churn of current outputs. Switched the ExtraNames check to a
+    nil check as we are checking for just-parsed values.
+    
+    Fixes #39924
+    Fixes #39873
+    
+    Change-Id: Ifa07cfc1a057d73643710a774ef8a154222db187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240543
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.15.html              |  4 ++--
+ src/crypto/x509/pkix/pkix.go | 14 ++++++++++----
+ src/crypto/x509/x509_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 6 deletions(-)

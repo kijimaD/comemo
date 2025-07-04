@@ -1,0 +1,16 @@
+commit 3bbeef52016a489940f05d7f14e12fe65a7dad05
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 19 17:06:13 2011 +1000
+
+    sync/atomic: attempt to get the arm build green.
+    Disable the LoadInt32 and LoadUint32 tests, since they fail.
+    These should be fixed but we want to get through the rest of the build
+    to see if something else unrelated is broken.  The arm build has been
+    bad for a long time.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4780041
+
+ src/pkg/sync/atomic/atomic_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

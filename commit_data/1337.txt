@@ -1,0 +1,14 @@
+commit 58a320f926975571d2a9a185e946a709a401ddb7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 12 13:29:25 2008 -0800
+
+    test update
+    
+    R=rsc
+    DELTA=16  (5 added, 10 deleted, 1 changed)
+    OCL=21085
+    CL=21087
+
+ test/{bugs => fixedbugs}/bug104.go | 0
+ test/golden.out                    | 7 +------
+ 2 files changed, 1 insertion(+), 6 deletions(-)

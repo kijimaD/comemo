@@ -1,0 +1,20 @@
+commit 202b7e7e76128f524142ac7d328fe8458a096dbf
+Author: RenKanai <rk2904powr@gmail.com>
+Date:   Thu Jun 9 01:42:26 2022 +0900
+
+    encoding/asn1: fix doc for BitString.At's return value
+    
+    Fixes #53287
+    
+    Change-Id: If983ae34850d9b1b29764156a38628fa53897573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411134
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Subham <sarkar.subhams2@gmail.com>
+
+ src/encoding/asn1/asn1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

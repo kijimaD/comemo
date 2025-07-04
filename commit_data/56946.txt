@@ -1,0 +1,21 @@
+commit 3f9360345cc1e3286abbb7bf5fbce50481a0bbbd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 4 00:17:05 2024 +0700
+
+    cmd/compile: prevent un-necessary wrapping in switch statement
+    
+    Follow up discussion in CL 594575.
+    
+    The wrapping in "any" is only necessary if either casType or tagType is
+    an interface, as "==" in this situation is implemented by upconverting
+    to an interface anyway.
+    
+    Change-Id: I73da771d25685a23eec612ac696965c892db4764
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

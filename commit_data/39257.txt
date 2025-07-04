@@ -1,0 +1,17 @@
+commit 3970667d958eadbe591400ac9a53051a39f40ea2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 25 18:47:22 2019 +0000
+
+    net/http: fix TestTransportServerClosingUnexpectedly flake
+    
+    Fixes #32119
+    
+    Change-Id: I8cf2e2e69737e2485568af91ab75149f3cf66781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178918
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/export_test.go    | 15 +++++++++++++++
+ src/net/http/transport_test.go | 17 ++++++++++-------
+ 2 files changed, 25 insertions(+), 7 deletions(-)

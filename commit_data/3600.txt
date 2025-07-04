@@ -1,0 +1,31 @@
+commit 02fd255a14233ff77fd1176bba2834dbce42d98e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 20 08:03:43 2009 -0700
+
+    bug162, over and over
+    
+    R=ken
+    OCL=35919
+    CL=35919
+
+ src/cmd/6g/cgen.c                             |  11 +++
+ src/cmd/6g/gg.h                               |   3 +-
+ src/cmd/6g/ggen.c                             |  22 +++++-
+ src/cmd/6g/gsubr.c                            | 109 +++++++++++++++-----------
+ src/cmd/6g/reg.c                              |   2 +-
+ src/cmd/gc/align.c                            |   4 +-
+ src/cmd/gc/subr.c                             |  11 ++-
+ src/pkg/runtime/slice.c                       |  14 ++++
+ test/golden.out                               |  66 +++++++++++++++-
+ test/{bugs/bug162.go => nilptr/arrayindex.go} |   2 +-
+ test/nilptr/arrayindex1.go                    |  30 +++++++
+ test/nilptr/arraytoslice.go                   |  35 +++++++++
+ test/nilptr/arraytoslice1.go                  |  32 ++++++++
+ test/nilptr/arraytoslice2.go                  |  33 ++++++++
+ test/nilptr/slicearray.go                     |  31 ++++++++
+ test/nilptr/structfield.go                    |  33 ++++++++
+ test/nilptr/structfield1.go                   |  36 +++++++++
+ test/nilptr/structfield2.go                   |  35 +++++++++
+ test/nilptr/structfieldaddr.go                |  33 ++++++++
+ test/run                                      |   2 +-
+ 20 files changed, 483 insertions(+), 61 deletions(-)

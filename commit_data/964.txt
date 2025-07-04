@@ -1,0 +1,12 @@
+commit 6d3d56d55a46cd04efe5f61e2eab9183969bcae7
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Oct 25 13:50:18 2008 -0700
+
+    bug
+    
+    R=r
+    OCL=17852
+    CL=17852
+
+ src/cmd/gc/subr.c | 2 --
+ 1 file changed, 2 deletions(-)

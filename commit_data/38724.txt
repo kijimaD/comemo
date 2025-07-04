@@ -1,0 +1,20 @@
+commit ccaa4913864d49137012d04a0cd3ddf2d8ffc015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 11 16:35:56 2019 -0400
+
+    cmd/go: log failures to remove workdir
+    
+    Failures here don't otherwise affect the build, but they do cause a
+    slow file leak in the user's temp directory. The user deserves at
+    least a cursory warning that something may be amiss.
+    
+    Updates #30789
+    
+    Change-Id: Id0e72b1967e7f7c88cdc94d532554496653f264b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171764
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/action.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

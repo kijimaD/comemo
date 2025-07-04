@@ -1,0 +1,32 @@
+commit a9a01a3fbdf70e7a9d914fe0b9b5ab1199fd74fe
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 7 10:54:17 2021 -0700
+
+    cmd/compile: remove now-unneeded SetHasTParam() for cached ptr element
+    
+    We had code in NewPtr() to set the HasTParam/HasShape flag as needed for
+    the cached ptr element if it wasn't set correctly based on its Elem.
+    This was causing the race mentioned in the issue.
+    
+    But that setting code is no longer needed, as long as we call
+    SetRParams() soon after calling NewIncompleteNamedType(), before
+    creating/translating the underlying type (which we do). The
+    HasTParam/HasShape attribute can only come from setting of rparams or a
+    direct typeparam/shape somewhere in the underlying type, both of which
+    don't depend on recursion, etc. (as long as the rparams are set early).
+    Added a check that HasTParam/HasShape are set correctly for the cached
+    pointer/slice elems in NewPtr() and NewSlice().
+    
+    Fixes #48191
+    
+    Change-Id: Ide7d82efb77ae97901e75b2e6c65bd1bfc25e0ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348089
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/iimport.go |   5 +-
+ src/cmd/compile/internal/types/type.go        |  13 +-
+ test/typeparam/issue48191.go                  | 269 ++++++++++++++++++++++++++
+ 3 files changed, 278 insertions(+), 9 deletions(-)

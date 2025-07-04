@@ -1,0 +1,23 @@
+commit 986582126a371ff927182ba6e61e364c1341171a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 11:13:23 2017 -0400
+
+    runtime: avoid monotonic time zero on systems with low-res timers
+    
+    Otherwise low-res timers cause problems at call sites that expect to
+    be able to use 0 as meaning "no time set" and therefore expect that
+    nanotime never returns 0 itself. For example, sched.lastpoll == 0
+    means no last poll.
+    
+    Fixes #22394.
+    
+    Change-Id: Iea28acfddfff6f46bc90f041ec173e0fea591285
+    Reviewed-on: https://go-review.googlesource.com/73410
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 3 +++
+ src/runtime/time.go | 8 +++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

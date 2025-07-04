@@ -1,0 +1,16 @@
+commit 6fb6ace3089edb868ceaefc2a804a794d6889574
+Author: Andy Pan <i@andypan.me>
+Date:   Mon Aug 19 14:06:40 2024 +0800
+
+    internal/poll: raise Linux's maxCopyFileRangeRound to MAX_RW_COUNT
+    
+    Change-Id: I23c0c850ba57e7a49b78159d9293d1d25e1d2340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606637
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

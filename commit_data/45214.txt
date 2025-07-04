@@ -1,0 +1,31 @@
+commit a72622d028077643169dc48c90271a82021f0534
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Mon Apr 19 02:39:50 2021 +0700
+
+    cmd/compile: skip "_" function in reflectdata.MarkUsedIfaceMethod
+    
+    CL 256798 added compiler ability to retain only used interface methods,
+    by generating a mark relocation whenever an interface method is used. To
+    do that, the compiler needs the current function linker object.
+    
+    However, for unnamed function "func _()", its linker object is nil,
+    causes the compiler crashes for code in #45258.
+    
+    CL 283313 fixed the code in #45258 unintentionally, since when the
+    compiler now does not walk unnamed functions anymore.
+    
+    This CL fixes the root issue, by making reflectdata.MarkUsedIfaceMethod
+    skips unnamed functions, and also adding regression test.
+    
+    Fixes #45258
+    
+    Change-Id: I4cbefb0a89d9928f70c00dc8a271cb61cd20a49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311130
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 ++++
+ test/fixedbugs/issue45258.go                    | 28 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

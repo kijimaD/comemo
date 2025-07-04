@@ -1,0 +1,24 @@
+commit a53e853964cc9220ebc4b35aeb81a382939fb479
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 19 12:45:17 2017 -0700
+
+    cmd/compile/internal/types: simplify dclstack
+    
+    We used to backup symbol declarations using complete Syms, but this
+    was unnecessary: very few of Sym's fields were actually needed. Also,
+    to restore a symbol, we had to re-Lookup the Sym in its Pkg.
+    
+    By introducing a new dedicated dsym type for this purpose, we can
+    address both of these deficiencies.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I39f3d672b301f84a3a62b9b34b4b2770cb25df79
+    Reviewed-on: https://go-review.googlesource.com/64811
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/scope.go | 61 +++++++++++++++++++--------------
+ src/cmd/compile/internal/types/sym.go   |  5 +--
+ 2 files changed, 38 insertions(+), 28 deletions(-)

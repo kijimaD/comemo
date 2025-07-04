@@ -1,0 +1,14 @@
+commit 1faf06eabf32f00e8d472b857d22089cbb4a358a
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jun 9 11:34:35 2009 -0700
+
+    make 5g use 1 byte per binary asm statement.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (0 added, 4 deleted, 0 changed)
+    OCL=30110
+    CL=30112
+
+ src/cmd/5g/gobj.c | 4 ----
+ 1 file changed, 4 deletions(-)

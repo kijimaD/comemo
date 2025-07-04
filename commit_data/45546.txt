@@ -1,0 +1,20 @@
+commit caf4c9434b0c9b3f27e1c5e620b2acb0e46a74bb
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 20:38:24 2021 -0400
+
+    cmd/compile: debug trace output for -N variable location gen
+    
+    Add some rudimentary debug trace output for -N location list
+    generation if "-d=ssa/locationlists" is set.
+    
+    Updates #45948.
+    
+    Change-Id: If1a95730538a6e7def7ebe1ece1a71da8e5f0975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317089
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,12 @@
+commit a9824f178da9c636a7c4110c74cdcf0a297173ac
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 15 17:04:02 2013 +0400
+
+    runtime: fix debug output
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7312101
+
+ src/pkg/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

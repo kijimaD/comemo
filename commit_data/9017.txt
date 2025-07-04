@@ -1,0 +1,14 @@
+commit ce3c3953be1c179685a5d318fd85f9b8009f0fb2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 20:56:21 2011 -0700
+
+    http: support for periodic flushing in ReverseProxy
+    
+    Fixes #2012
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4662091
+
+ src/pkg/http/reverseproxy.go | 60 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 59 insertions(+), 1 deletion(-)

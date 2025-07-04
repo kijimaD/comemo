@@ -1,0 +1,21 @@
+commit 9e3e61627de958d4f3252cb60e2e5bff3861d7b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 20:14:21 2009 -0800
+
+    proposed XML parser design.
+    inspired by expat's callback interface,
+    but a bit simpler thanks to go interfaces.
+    
+    also serves as reference notes about XML.
+    
+    the parser itself is unimplemented.
+    
+    not in Makefiles, though it does build.
+    
+    R=r
+    DELTA=425  (425 added, 0 deleted, 0 changed)
+    OCL=25077
+    CL=25080
+
+ src/lib/xml.go | 426 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 426 insertions(+)

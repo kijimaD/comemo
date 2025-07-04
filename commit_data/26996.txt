@@ -1,0 +1,24 @@
+commit 262814467e7e574ac03114d23931042272fc714d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Apr 18 22:37:33 2016 +0200
+
+    net: handle hangup in read on Plan 9
+    
+    On Plan 9, when closing a TCP connection, we
+    write the "hangup" string to the TCP ctl file.
+    
+    The next read on the TCP data file will return
+    an error like "/net/tcp/18/data: Hangup", while
+    in Go, we expect to return io.EOF.
+    
+    This change makes Read to return io.EOF when
+    an error string containing "Hangup" is returned.
+    
+    Change-Id: I3f71ed543704190b441cac4787488a77f46d88a1
+    Reviewed-on: https://go-review.googlesource.com/22149
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/fd_plan9.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

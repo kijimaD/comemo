@@ -1,0 +1,13 @@
+commit 48b3156908e029465023a907c145b984770e1915
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 18:25:23 2009 -0800
+
+    gofmt'ed big
+    
+    R=agl
+    http://go/go-review/1022003
+
+ src/pkg/big/arith_test.go | 4 ++--
+ src/pkg/big/int_test.go   | 4 ++--
+ src/pkg/big/nat.go        | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

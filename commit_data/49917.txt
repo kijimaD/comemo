@@ -1,0 +1,24 @@
+commit 0df7ad2e79ac5ca5197509596446dd83380aaf90
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Aug 16 13:43:23 2022 +0000
+
+    all: fix some typos
+    
+    Change-Id: I147622770587cff1551a0be189003666463f34e3
+    GitHub-Last-Rev: 71b5375983820445a331c46481a2a3a44fafb760
+    GitHub-Pull-Request: golang/go#54472
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424154
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/transform.go   | 2 +-
+ src/cmd/compile/internal/typecheck/func.go    | 2 +-
+ src/cmd/compile/internal/types2/check_test.go | 2 +-
+ src/go/types/check_test.go                    | 2 +-
+ src/runtime/asan/asan.go                      | 4 ++--
+ src/runtime/mgclimit.go                       | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

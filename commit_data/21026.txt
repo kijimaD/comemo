@@ -1,0 +1,12 @@
+commit ddb24da850d5034d8f63dd3d900f7db7e569d2a1
+Author: Emil Hessman <emil@hessman.se>
+Date:   Fri Dec 19 08:37:52 2014 +0100
+
+    doc: fix typo in gccgo contribute
+    
+    Change-Id: Ib9699fc9c45f61e9d75e9d9ae69167f039a66dfc
+    Reviewed-on: https://go-review.googlesource.com/1890
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/gccgo_contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

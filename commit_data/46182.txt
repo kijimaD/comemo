@@ -1,0 +1,20 @@
+commit 62f88b6dc8782cedf1a945e4992abda3bc0ad67d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 15:54:44 2021 -0700
+
+    cmd/compile: add types.RecalcSize
+    
+    This is the only case where Align is assigned outside of package
+    types. Rather than adding a SetAlign method, adding a RecalcSize
+    function is a bit more descriptive.
+    
+    Change-Id: I1b3c01ebd0e41183665baa63c926592865bbbd0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345479
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/func.go | 3 +--
+ src/cmd/compile/internal/types/size.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

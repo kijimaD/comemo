@@ -1,0 +1,18 @@
+commit 088a9ad543398fa6e656dd5e6f837fb07caada16
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 30 15:47:46 2017 -0800
+
+    cmd/compile: permit indices of certain non-constant shifts
+    
+    Per the decision for #14844, index expressions that are non-constant
+    shifts where the LHS operand is representable as an int are now valid.
+    
+    Fixes #21693.
+    
+    Change-Id: Ifafad2c0c65975e0200ce7e28d1db210e0eacd9d
+    Reviewed-on: https://go-review.googlesource.com/81277
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 20 +++++++++-----------
+ test/shift1.go                           |  3 +--
+ 2 files changed, 10 insertions(+), 13 deletions(-)

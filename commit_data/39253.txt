@@ -1,0 +1,21 @@
+commit a3863fc18a2a7f91b9f523cb3af56733460cac4c
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 24 15:38:47 2019 -0400
+
+    cmd/link: fix incorrect constant for macho-o load command
+    
+    The constant defined in macho.go for LC_LOAD_WEAK_DYLIB was
+    not correct, was 0x18 should have been 0x80000018. Switch
+    to the correct definition.
+    
+    Fixes #32233.
+    
+    Change-Id: I9fb660a3cfd5e8c451a64947258f7ead76d98c79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178723
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

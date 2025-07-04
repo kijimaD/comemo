@@ -1,0 +1,26 @@
+commit 434e0bc0a06afa124a6d9167fa51b5d02ff4db14
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 28 22:26:35 2015 -0400
+
+    cmd/link: record missing pcdata tables correctly
+    
+    The old code was recording the current table output offset,
+    so the table from the next function would be used instead of
+    the runtime realizing that there was no table at all.
+    
+    Add debug constant in runtime to check this for every function
+    at startup. It's too expensive to do that by default, but we can
+    do the last five functions. The end of the table is usually where
+    the C symbols end up, so that's where the problems typically are.
+    
+    Fixes #10747.
+    Fixes #11396.
+    
+    Change-Id: I13592e78017969fc22979fa902e19e1b151d41b1
+    Reviewed-on: https://go-review.googlesource.com/11657
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 10 ++++++----
+ src/runtime/symtab.go            | 11 ++++++++++-
+ 2 files changed, 16 insertions(+), 5 deletions(-)

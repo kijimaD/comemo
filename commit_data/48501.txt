@@ -1,0 +1,22 @@
+commit 7e0a1d340ffd71f239bddbd4686392a5a2c5906b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 22 20:25:37 2022 +0700
+
+    cmd/compile: remove reportTypeLoop
+    
+    reportTypeLoop used to be used to report invalid recursive types in old
+    typechecker.
+    
+    However, types2 now reports this error, so this can be removed.
+    
+    Updates #51691
+    
+    Change-Id: I5e73369dadafb0cc56e682668b32cbd1e1210f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394554
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/size.go | 94 +---------------------------------
+ 1 file changed, 2 insertions(+), 92 deletions(-)

@@ -1,0 +1,12 @@
+commit a39f3b29ec47fb9ed73fc922a44b5e6ff931073d
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Jan 1 17:54:06 2014 +1100
+
+    encoding/json: improve omitempty test coverage
+    
+    R=golang-codereviews, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/46250043
+
+ src/pkg/encoding/json/encode_test.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit 4d9bda51ff91f79944a12106b77315c9414b851a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 28 11:15:44 2016 -0700
+
+    net: append ":53" to DNS servers when reading resolv.conf
+    
+    Avoids generating some redundant garbage from re-concatenating the
+    same string for every DNS query.
+    
+    benchmark                                      old allocs     new allocs     delta
+    BenchmarkGoLookupIP-32                         156            154            -1.28%
+    BenchmarkGoLookupIPNoSuchHost-32               456            446            -2.19%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     577            564            -2.25%
+    
+    benchmark                                      old bytes     new bytes     delta
+    BenchmarkGoLookupIP-32                         10873         10824         -0.45%
+    BenchmarkGoLookupIPNoSuchHost-32               43303         43140         -0.38%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     46824         46616         -0.44%
+    
+    Update #15473.
+    
+    Change-Id: I3b0173dfedf31bd08eaea1069968b416850864a1
+    Reviewed-on: https://go-review.googlesource.com/22556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 1 -
+ src/net/dnsclient_unix_test.go | 4 ++--
+ src/net/dnsconfig_unix.go      | 8 ++++----
+ src/net/dnsconfig_unix_test.go | 8 ++++----
+ 4 files changed, 10 insertions(+), 11 deletions(-)

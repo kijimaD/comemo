@@ -1,0 +1,15 @@
+commit 1eb66be1b933055102b2bdcaa113c04cc24e41f9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Apr 13 01:45:12 2020 +1000
+
+    cmd/compile: enable Sqrt as a compiler intrinsic on riscv64
+    
+    Change-Id: I829a02ced9aa73b45079e67194186116b39504b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227805
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit a9dddb53f70703bedbfced143cb2e8838aa77d66
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 9 13:42:45 2015 +1100
+
+    encoding/xml: add more EncodeToken tests.
+    
+    There are no behavior changes in this CL, only specifying the status
+    quo. A follow-up CL, https://go-review.googlesource.com/#/c/2660/, will
+    change the EncodeToken behavior.
+    
+    Change-Id: I6ecbcfb05ae681de71fa1099d054df2826ed4acb
+    Reviewed-on: https://go-review.googlesource.com/4167
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/marshal_test.go | 372 ++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 347 insertions(+), 25 deletions(-)

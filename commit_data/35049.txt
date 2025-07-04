@@ -1,0 +1,15 @@
+commit c6bbfbe708467a8d2f4f978a7ca2e417b21551c0
+Author: Zheng Dayu <davidzheng23@gmail.com>
+Date:   Wed Apr 18 17:28:34 2018 +0800
+
+    text/template: improve comment example in doc
+    
+    Make comment example consistent with its description.
+    Fixes #24767
+    
+    Change-Id: Icff54b489040b1ce66c644a21343c6576304cf75
+    Reviewed-on: https://go-review.googlesource.com/107663
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

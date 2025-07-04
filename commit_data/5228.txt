@@ -1,0 +1,12 @@
+commit 0085e35498b7d4933d9bfb1a301c429b25d69847
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 5 23:36:52 2010 -0700
+
+    io/ioutil: fix bug in ReadFile when Open succeeds but Stat fails
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/867044
+
+ src/pkg/io/ioutil/ioutil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

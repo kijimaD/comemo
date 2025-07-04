@@ -1,0 +1,19 @@
+commit 76661d12e89971e3bf4caaae2c37b969ab654194
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 27 23:10:13 2020 +1100
+
+    runtime: remove new g register (X27) from preempt save/restore
+    
+    The g register is now in X27 (previously X4, which collided with TP usage). Remove
+    X27 from preempt save/restore.
+    
+    Change-Id: I9dd38ec3a8222fa0710757463769dbfac8ae7d20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265517
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mkpreempt.go      |   6 +-
+ src/runtime/preempt_riscv64.s | 150 +++++++++++++++++++++---------------------
+ 2 files changed, 77 insertions(+), 79 deletions(-)

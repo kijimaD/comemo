@@ -1,0 +1,12 @@
+commit d668d4fbbd89abc64977c40e426af77fabcbd2fd
+Author: Yongjian Xu <i3dmaster@gmail.com>
+Date:   Mon Jan 11 13:03:01 2010 -0800
+
+    gc: clean opnames.h
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/181186
+
+ src/cmd/gc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

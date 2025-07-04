@@ -1,0 +1,17 @@
+commit 5bd8c924274865a9bddec8d6a4d59ca6d98b6112
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Oct 22 08:54:26 2009 -0700
+
+    go-mode for Emacs.  This provides basic syntax highlighting
+    for keywords, built-ins, functions, and some types.  It also
+    provides indentation that is (almost) identical to gofmt.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=509  (509 added, 0 deleted, 0 changed)
+    OCL=35951
+    CL=35994
+
+ misc/emacs/go-mode-load.el |  37 ++++
+ misc/emacs/go-mode.el      | 472 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 509 insertions(+)

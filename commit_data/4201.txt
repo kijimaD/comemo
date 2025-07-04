@@ -1,0 +1,12 @@
+commit a9d0da75f139c81a337b7fc912a100c3496bd0f1
+Author: Eden Li <eden.li@gmail.com>
+Date:   Mon Nov 23 22:02:12 2009 -0800
+
+            cgo translates empty function arguments into void instead of dying with 'unexpected type: ...'.
+      Fixes #162.
+    
+    R=rsc
+    https://golang.org/cl/157147
+
+ src/cmd/cgo/gcc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

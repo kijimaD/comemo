@@ -1,0 +1,12 @@
+commit 1a8bd6715d0f4d1edb3cb1570ca090ba0b2c1133
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 23 10:40:07 2010 +1000
+
+    http: fix redirect test for international users
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2197047
+
+ src/pkg/http/request_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

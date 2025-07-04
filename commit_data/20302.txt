@@ -1,0 +1,25 @@
+commit 73a6d36d872b00fe873f70fe6c36333ea5c7b65f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 21:22:18 2014 -0400
+
+    cmd/dist: make textflag.h available in runtime, avoid android/linux conflicts
+    
+    1) cmd/dist was copying textflag.h to the build include directory,
+    but only after compiling package runtime. So other packages could
+    use it, just not runtime. Copy earlier, so that runtime can use it too.
+    
+    2) We decided for android that anything marked linux is also included
+    in the build. The generated linux-specific files in cmd/dist must therefore
+    have explicit +build !android tags, or else you can't have simultaneous
+    linux/arm and android/arm builds in a single client. The tag was already
+    there for at least one file, but it was missing from many others.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/134500043
+
+ src/cmd/dist/build.c        |  7 +++----
+ src/cmd/dist/buildruntime.c | 18 ++++++++++++++++--
+ src/cmd/dist/goc2c.c        |  4 ++++
+ 3 files changed, 23 insertions(+), 6 deletions(-)

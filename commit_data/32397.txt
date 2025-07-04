@@ -1,0 +1,21 @@
+commit 07ec4385f16ad5d10933f4540624aba8b48b1891
+Author: philhofer <phofer@umich.edu>
+Date:   Mon Aug 14 21:50:43 2017 -0700
+
+    cmd/compile: omit unnecessary boolean zero extension on arm64
+    
+    On arm64, all boolean-generating instructions (CSET, etc.) set the upper
+    63 bits of the destination register to zero, so there is no need
+    to zero-extend the lower 8 bits again.
+    
+    Fixes #21445
+    
+    Change-Id: I3b176baab706eb684105400bacbaa24175f721f3
+    Reviewed-on: https://go-review.googlesource.com/55671
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,26 @@
+commit 3ed8a1e629e95dc6337a73d5db9936dabd43f4f4
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 5 19:41:27 2022 +0800
+
+    cmd/internal/obj/loong64: save LR after decrementing SP
+    
+    Refer to CL 413428 and 412474, for loong64, like mips, s390x and riscv, there
+    is no single instruction that saves the LR and decrements the SP, so we also
+    need to insert an instruction to save the LR after decrementing the SP.
+    
+    Fixes #56623.
+    Updates #53374.
+    
+    Change-Id: I3de040792f0a041d3d2a98ea89c23a2dd2f4ad10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416154
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/cmd/internal/obj/loong64/obj.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

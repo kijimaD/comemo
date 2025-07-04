@@ -1,0 +1,42 @@
+commit fa23a70044dba2cc23bfa22cb739e552258700cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 11 22:33:15 2011 -0400
+
+    http: fix two Transport gzip+persist crashes
+    
+    There were a couple issues:
+    
+    -- HEAD requests were attempting to be ungzipped,
+       despite having no content.  That was fixed in
+       the previous patch version, but ultimately was
+       fixed as a result of other refactoring:
+    
+    -- persist.go's ClientConn "lastbody" field was
+       remembering the wrong body, since we were
+       mucking with it later. Instead, ditch
+       ClientConn's readRes func field and add a new
+       method passing it in, so we can use a closure
+       and do all our bodyEOFSignal + gunzip stuff
+       in one place, simplifying a lot of code and
+       not requiring messing with ClientConn's innards.
+    
+    -- closing the gzip reader didn't consume its
+       contents.  if the caller wasn't done reading
+       all the response body and ClientConn closed it
+       (thinking it'd move past those bytes in the
+       TCP stream), it actually wouldn't.  so introduce
+       a new wrapper just for gzip reader to have its
+       Close method do an ioutil.Discard on its body
+       first, before the close.
+    
+    Fixes #1725
+    Fixes #1804
+    
+    R=rsc, eivind
+    CC=golang-dev
+    https://golang.org/cl/4523058
+
+ src/pkg/http/persist.go        | 11 ++++---
+ src/pkg/http/transport.go      | 65 +++++++++++++++++++++++++-----------------
+ src/pkg/http/transport_test.go | 13 +++++++++
+ 3 files changed, 59 insertions(+), 30 deletions(-)

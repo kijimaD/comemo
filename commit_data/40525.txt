@@ -1,0 +1,19 @@
+commit 8405cd3005a5274e80e41676146629c4086b6380
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 1 13:49:20 2019 +0100
+
+    internal/syscall/unix: add support for linux/riscv64
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I3a4d86783fbd625e3ade16d08f87d66e4502f3f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204660
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/at_sysnum_fstatat_linux.go |  2 +-
+ src/internal/syscall/unix/getrandom_linux_generic.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 0e9d7d430b1aa74a58054a6a69aa3fb37353168d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Mar 9 14:11:40 2019 +0100
+
+    bytes: return early in Repeat if count is 0
+    
+    This matches the implementation of strings.Repeat and slightly increases
+    performance:
+    
+    name      old time/op  new time/op  delta
+    Repeat-8   145ns ±12%   125ns ±29%  -13.35%  (p=0.009 n=10+10)
+    
+    Change-Id: Ic0a0e2ea9e36591286a49def320ddb67fe0b2c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166399
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

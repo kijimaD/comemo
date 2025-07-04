@@ -1,0 +1,22 @@
+commit 37f261010f837f945eaa2d33d90cd822b4e93459
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 27 14:05:52 2020 -0700
+
+    cmd/compile: make go:notinheap error message friendlier for cgo
+    
+    Update #40954
+    
+    Change-Id: Ifaab7349631ccb12fc892882bbdf7f0ebf3d845f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251158
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      |  8 ++++----
+ test/notinheap.go                        | 14 +++++++-------
+ test/notinheap2.go                       | 14 +++++++-------
+ 6 files changed, 24 insertions(+), 24 deletions(-)

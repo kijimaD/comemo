@@ -1,0 +1,20 @@
+commit 36b81acfa19d9fedf6a0cd60c394fd7a7703834e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 15:48:32 2022 -0800
+
+    cmd/go: document that GOENV=off disables the default config file
+    
+    Fixes #46840
+    
+    Change-Id: Icc5475e312003e316dc039413a35089485163ba6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381894
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 ++
+ src/cmd/go/internal/help/helpdoc.go | 2 ++
+ 2 files changed, 4 insertions(+)

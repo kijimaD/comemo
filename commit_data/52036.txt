@@ -1,0 +1,23 @@
+commit dd87e33d88eadaf5302895fb91b0a0e2e16b136e
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 18 14:06:56 2022 +0800
+
+    os: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I84d469d12ca1f39175b713ca41e7cd2202d11d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451895
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec_test.go             |  2 +-
+ src/os/exec/exec_windows_test.go     |  3 ++-
+ src/os/exec/lp_windows_test.go       |  4 ++--
+ src/os/signal/signal_test.go         | 12 ++++++------
+ src/os/signal/signal_windows_test.go |  5 ++---
+ 5 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,0 +1,25 @@
+commit e4f73769bcb06fca7b22d4ac3ec17c7247e84f39
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 6 14:13:24 2017 -0500
+
+    runtime: strongly encourage CallersFrames with the result of Callers
+    
+    For historical reasons, it's still commonplace to iterate over the
+    slice returned by runtime.Callers and call FuncForPC on each PC. This
+    is broken in gccgo and somewhat broken in gc and will become more
+    broken in gc with mid-stack inlining.
+    
+    In Go 1.7, we introduced runtime.CallersFrames to deal with these
+    problems, but didn't strongly direct people toward using it. Reword
+    the documentation on runtime.Callers to more strongly encourage people
+    to use CallersFrames and explicitly discourage them from iterating
+    over the PCs or using FuncForPC on the results.
+    
+    Fixes #19426.
+    
+    Change-Id: Id0d14cb51a0e9521c8fdde9612610f2c2b9383c4
+    Reviewed-on: https://go-review.googlesource.com/37726
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/extern.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

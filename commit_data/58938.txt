@@ -1,0 +1,25 @@
+commit 350118666d75445761bef5c45e681415e6d1b326
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 4 15:20:28 2025 -0800
+
+    net/http: don't modify caller's tls.Config.NextProtos
+    
+    Clone the input slice before adjusting NextProtos
+    to add or remove "http/1.1" and "h2" entries,
+    so as not to modify a slice that the caller might be using.
+    (We clone the tls.Config that contains the slice, but
+    that's a shallow clone.)
+    
+    Fixes #72100
+    
+    Change-Id: I9f228b8fb6f6f2ca5023179ec114929c002dbda9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654875
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/serve_test.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  6 ++++
+ 2 files changed, 75 insertions(+)

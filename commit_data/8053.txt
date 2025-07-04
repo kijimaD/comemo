@@ -1,0 +1,14 @@
+commit a46c481f4bdd07f86e205276c06e92906cf2cbaa
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 12 10:58:54 2011 -0700
+
+    C+A: Add Lucio De Re
+    I entered only one of his several addresses, the one that recent CLs use.
+    
+    R=rsc, lucio
+    CC=golang-dev
+    https://golang.org/cl/4368078
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

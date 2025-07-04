@@ -1,0 +1,16 @@
+commit 2f4368c174f616b6623e66ca4c84e701d209fa4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 14:10:24 2020 -0400
+
+    cmd/fix: rename confusing boolean
+    
+    ("truth" says nothing about what is true.
+    This boolean tracks whether the file was fixed.)
+    
+    Change-Id: I29bb80c4fad3ca7f2ae96e50e16f6cde484b374f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240556
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/fix/gotypes.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

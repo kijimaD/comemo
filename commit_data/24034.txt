@@ -1,0 +1,15 @@
+commit b733234856879fa2df787649fce6e46adf7a6663
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 20 11:56:24 2015 +0000
+
+    net/http: document that [ListenAnd]Serve always returns a non-nil error
+    
+    Fixes #12229
+    
+    Change-Id: I243e39f67748e6754fb7726b21b3afc1ff436771
+    Reviewed-on: https://go-review.googlesource.com/13780
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 23 +++++++++++++----------
+ src/net/http/triv.go   |  5 +----
+ 2 files changed, 14 insertions(+), 14 deletions(-)

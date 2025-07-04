@@ -1,0 +1,15 @@
+commit 9585bb29c83a4a705e1f6135d9ca156a1b50ad89
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jun 16 13:23:42 2015 -0400
+
+    go/types: disable example on darwin/arm
+    
+    Sadly examples cannot use the new internal/testenv, so this is
+    extends the crude build tag restriction in this file.
+    
+    Change-Id: I49646ca71e45074a917813ae8e612cc715c78be8
+    Reviewed-on: https://go-review.googlesource.com/11086
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

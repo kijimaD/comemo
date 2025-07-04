@@ -1,0 +1,14 @@
+commit 648f25b237b47cc41ef64e9f8cee1c2afe894188
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat May 21 08:00:53 2011 -0700
+
+    5l: fix set but not used warnings
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/4538083
+
+ src/cmd/5l/asm.c  | 7 +------
+ src/cmd/5l/obj.c  | 3 +--
+ src/cmd/5l/span.c | 2 --
+ 3 files changed, 2 insertions(+), 10 deletions(-)

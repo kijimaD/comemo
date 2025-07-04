@@ -1,0 +1,21 @@
+commit 47e5152790e6dab326237259e4898da22917342a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 14:24:23 2009 -0700
+
+    fix implicit star for range on *map, *[].
+    do not update lineno from ONAME nodes,
+            because they have declaration lineno not use.
+    show actual name in top-level statement error.
+    
+    before
+    runtime.a:7: x.go:5: walkstate: NAME not a top level statement
+    
+    after
+    x.go:14: walkstate: runtime.Goexit not a top level statement
+    
+    R=ken
+    OCL=29113
+    CL=29116
+
+ src/cmd/gc/walk.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

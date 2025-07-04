@@ -1,0 +1,14 @@
+commit 3c5f3a864115a3d06d531adf71df02d208b7ab25
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:36:28 2009 -0800
+
+    print(map) and print(chan) as pointers.
+    
+    R=ken
+    OCL=23520
+    CL=23520
+
+ src/cmd/gc/sys.go      | 2 +-
+ src/cmd/gc/sysimport.c | 2 +-
+ src/cmd/gc/walk.c      | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

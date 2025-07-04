@@ -1,0 +1,34 @@
+commit e45b58fe96c40de5f393165cf10281c613fa5394
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 4 08:34:52 2010 +1000
+
+    os: change the type of permissions argument for Open etc. to uint32.
+    Besides being more correct, it protects against people accidentally
+    exchanging the permission and open mode arguments to Open.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1904045
+
+ doc/progs/file.go                         |  8 ++++----
+ src/cmd/goyacc/goyacc.go                  |  2 +-
+ src/cmd/hgpatch/main.go                   |  4 ++--
+ src/pkg/io/ioutil/ioutil.go               |  2 +-
+ src/pkg/os/file.go                        | 32 +++++++++++++++----------------
+ src/pkg/os/file_unix.go                   |  2 +-
+ src/pkg/os/file_windows.go                |  4 ++--
+ src/pkg/os/path.go                        |  2 +-
+ src/pkg/syscall/syscall_darwin.go         | 12 ++++++------
+ src/pkg/syscall/syscall_freebsd.go        | 12 ++++++------
+ src/pkg/syscall/syscall_linux.go          | 30 ++++++++++++++---------------
+ src/pkg/syscall/syscall_nacl.go           |  8 ++++----
+ src/pkg/syscall/syscall_windows.go        |  8 ++++----
+ src/pkg/syscall/zsyscall_darwin_386.go    | 12 ++++++------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 12 ++++++------
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 12 ++++++------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 12 ++++++------
+ src/pkg/syscall/zsyscall_linux_386.go     | 26 ++++++++++++-------------
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 26 ++++++++++++-------------
+ src/pkg/syscall/zsyscall_linux_arm.go     | 26 ++++++++++++-------------
+ src/pkg/syscall/zsyscall_nacl_386.go      |  4 ++--
+ 21 files changed, 128 insertions(+), 128 deletions(-)

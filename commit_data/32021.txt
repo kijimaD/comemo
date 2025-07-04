@@ -1,0 +1,26 @@
+commit 2a2a283418b3ba4914520b5a7235c9b48049d1c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 15 06:33:24 2017 -0700
+
+    cmd/dist: don't run moved_goroot test on android, iOS, Plan 9
+    
+    Fails on iOS because CC_FOR_TARGET points to clangwrap.sh in the
+    original GOROOT. We could fix that but it doesn't seem worth it.
+    
+    Fails on Android with "exec format error". I'm not sure why but I
+    doubt it is interesting.
+    
+    Fails on Plan 9 because the original GOROOT is being preserved in some
+    unknown way. This is issue #21016.
+    
+    Updates #21016
+    
+    Change-Id: I4e7115d734fc7bf21e5a2ba18fb6ad0bfa31c735
+    Reviewed-on: https://go-review.googlesource.com/48650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit fad365ba924291ce9994cb382191fc610984ed79
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Wed May 1 12:07:23 2019 -0400
+
+    cmd/go/internal/get: fix strayed verbose output on stdout
+    
+    Fixes #31768
+    
+    Change-Id: I3cc0ebc4be34d7c2d2d4fd655bfd0c2515ff3021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174739
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

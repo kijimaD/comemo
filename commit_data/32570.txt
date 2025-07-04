@@ -1,0 +1,16 @@
+commit c1679286c3911befd94f1ddb4b29fbdd12301da9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Aug 26 02:12:56 2017 -0700
+
+    archive/tar: minor doc fixes
+    
+    Use "file" consistently instead of "entry".
+    
+    Change-Id: Ia81c9665d0d956adb78f7fa49de40cdb87fba000
+    Reviewed-on: https://go-review.googlesource.com/60150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/common.go | 9 ++++-----
+ src/archive/tar/reader.go | 8 ++++----
+ src/archive/tar/writer.go | 2 +-
+ 3 files changed, 9 insertions(+), 10 deletions(-)

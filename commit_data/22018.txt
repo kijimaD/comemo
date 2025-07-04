@@ -1,0 +1,12 @@
+commit 6e3cf70e684cb9a766b3cfb39a6e16a7bcf9fdc1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 13 18:16:21 2015 -0700
+
+    debug/gosym: fix typo in comment
+    
+    Change-Id: Ieb13359c5bbe26bbf7baaaa8eb63d5e90bdefdd8
+    Reviewed-on: https://go-review.googlesource.com/7591
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/debug/gosym/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

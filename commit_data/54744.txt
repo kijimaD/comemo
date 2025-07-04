@@ -1,0 +1,23 @@
+commit 1c5862cc0afada6ef0c07687ce4bf951ed9dd798
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Oct 18 13:42:25 2023 -0500
+
+    test/codegen: fix PPC64 AddLargeConst test
+    
+    Commit 061d77cb70 was published in parallel with another commit
+    36ecff0893 which changed how certain constants were generated.
+    
+    Update the test to account for the changes.
+    
+    Change-Id: I314b735a34857efa02392b7a0dd9fd634e4ee428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536256
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ test/codegen/arithmetic.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

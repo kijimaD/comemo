@@ -1,0 +1,15 @@
+commit 72b14cbb75b3b0d8899d24174a94ece100d073b7
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue May 14 20:23:35 2013 -0700
+
+    misc/emacs: Add support for methods with unnamed receiver
+    
+    This fixes fontification, navigation and indentation for methods
+    of the form `func (Foo) Bar...`
+    
+    R=adonovan
+    CC=gobot, golang-dev
+    https://golang.org/cl/8951043
+
+ misc/emacs/go-mode.el | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

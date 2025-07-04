@@ -1,0 +1,20 @@
+commit ea143c299040f8a270fb782c5efd3a3a5e6057a4
+Author: Thomas de Zeeuw <thomasdezeeuw@gmail.com>
+Date:   Thu Sep 1 14:54:08 2016 +0200
+
+    net/http/httptest: fill ContentLength in recorded Response
+    
+    This change fills the ContentLength field in the http.Response returned by
+    ResponseRecorder.Result.
+    
+    Fixes #16952.
+    
+    Change-Id: I9c49b1bf83e3719b5275b03a43aff5033156637d
+    Reviewed-on: https://go-review.googlesource.com/28302
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/recorder.go      | 20 ++++++++++++++++++++
+ src/net/http/httptest/recorder_test.go | 20 +++++++++++++++++++-
+ 2 files changed, 39 insertions(+), 1 deletion(-)

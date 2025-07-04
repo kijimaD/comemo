@@ -1,0 +1,14 @@
+commit fa98cf6eefce9266b44e8c44349a731918928d72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 18 21:59:47 2009 -0800
+
+    More evaluation order tests, for global variables and switch.
+    
+    gccgo currently fails this test.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179108
+
+ test/fixedbugs/bug236.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

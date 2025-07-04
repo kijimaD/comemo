@@ -1,0 +1,15 @@
+commit 5c8f9e38eb96d274f82a93c936a8ec8015f90845
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 17 11:15:06 2015 +1100
+
+    image: fix Rectangle.Overlaps and Rectangle.Union for empty rectangles.
+    
+    Fixes #9895.
+    
+    Change-Id: I37d78ced9ff8196e32d299504908a1c41ad4592d
+    Reviewed-on: https://go-review.googlesource.com/4990
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/geom.go      |   9 ++++-
+ src/image/geom_test.go | 103 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

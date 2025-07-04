@@ -1,0 +1,13 @@
+commit e6b1d424c48423a1599631a218a2d7427fb70f25
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 11:01:25 2011 -0700
+
+    spec: add parens missing from "protect" example.
+    Fixes #1665.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4351051
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

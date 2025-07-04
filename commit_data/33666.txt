@@ -1,0 +1,23 @@
+commit 88599f184d686339954482d1be067d44b2efb644
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 22 18:21:39 2017 +0000
+
+    cmd/vet: add missing %v to the verb regex
+    
+    In golang.org/cl/74352, the print rules were overhauled to give better
+    error messages. This also meant adding a regex to find and extract the
+    used formatting verbs.
+    
+    However, %v was missed. Add it to the expression, and add a test too.
+    
+    Fixes #22847.
+    
+    Change-Id: If117cc364db0cb91373742239b8a626c137642b0
+    Reviewed-on: https://go-review.googlesource.com/79455
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/print.go          | 2 +-
+ src/cmd/vet/testdata/print.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 05ecf534566c0cd05b4afdaa9619522e4204328e
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Mon Jun 27 19:06:17 2016 -0700
+
+    net/http/pprof: remove comments pointing to gperftools
+    
+    The version of pprof in gperftools has been deprecated.
+    No need to have a pointer to that version since go tool pprof
+    is included with the Go distro.
+    
+    Change-Id: I6d769a68f64280f5db89ff6fbc67bfea9c8f1526
+    Reviewed-on: https://go-review.googlesource.com/24509
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 2 --
+ 1 file changed, 2 deletions(-)

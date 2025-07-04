@@ -1,0 +1,17 @@
+commit bbfe31238b414d404358d060713afb936fe2523b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 9 17:12:09 2008 -0700
+
+    More spec progress:
+    - language for selectors and array/map indices
+    - formal description of syntax notation used
+    - factor out common productions to better show
+      symmetries in grammar
+    
+    R=r
+    DELTA=113  (77 added, 13 deleted, 23 changed)
+    OCL=16853
+    CL=16865
+
+ doc/go_spec.txt | 132 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 98 insertions(+), 34 deletions(-)

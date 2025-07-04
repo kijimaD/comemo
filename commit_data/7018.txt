@@ -1,0 +1,18 @@
+commit c0d0d4ef05378c6a297e36c60b7af2b799f5653f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 3 11:31:51 2011 -0800
+
+    regexp: fix performance bug, make anchored searches fail fast.
+    
+    The bug was that for an anchored pattern such as ^x, the prefix
+    scan ignored the anchor, and could scan the whole file if there was
+    no x present.  The fix is to do prefix matching after the anchor;
+    the cost miniscule; the speedups huge.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3837042
+
+ src/pkg/regexp/all_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go   | 35 ++++++++++++++++++++++++++++-------
+ 2 files changed, 74 insertions(+), 7 deletions(-)

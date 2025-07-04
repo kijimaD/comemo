@@ -1,0 +1,16 @@
+commit 17d803d25133b34f519cf620a28b2302677a02e8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 1 12:16:37 2013 -0700
+
+    net/http: don't write out invalid cookie lines
+    
+    Fixes #3033
+    
+    R=golang-dev, fvbommel, rsc
+    CC=golang-dev
+    https://golang.org/cl/12204043
+
+ src/pkg/net/http/cookie.go      | 69 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/net/http/cookie_test.go | 31 ++++++++++++++++++
+ src/pkg/net/http/request.go     |  2 +-
+ 3 files changed, 94 insertions(+), 8 deletions(-)

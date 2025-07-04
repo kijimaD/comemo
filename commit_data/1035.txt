@@ -1,0 +1,13 @@
+commit 63f38d62ac7807f47d69610cf559393569e3622f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 3 15:22:15 2008 -0800
+
+    in traceback, handle the case where we've called through a nil function pointer
+    
+    R=rsc
+    DELTA=7  (7 added, 0 deleted, 0 changed)
+    OCL=18372
+    CL=18372
+
+ src/runtime/rt2_amd64.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

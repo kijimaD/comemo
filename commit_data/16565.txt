@@ -1,0 +1,12 @@
+commit b9ddb0d8b3d18c1c2a79eae686fe20fe36c707cb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 13 16:40:10 2013 +0400
+
+    runtime: fix bug introduced in cl/10256043
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/10260043
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

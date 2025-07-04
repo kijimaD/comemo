@@ -1,0 +1,14 @@
+commit 862a57df5aa6948f7cc209e6c117f2dd08b066cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:25:25 2020 -0800
+
+    doc/go1.14: mention update to Unicode 12
+    
+    Updates #36878
+    
+    Change-Id: Ia8441de8a04fead1f76c72f662bcb877e2265c3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217133
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,30 @@
+commit 870d079c76ffd3766fb336a4071ae273867761d1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 13:38:49 2017 -0800
+
+    cmd/compile/internal/gc: replace Node.Ullman with Node.HasCall
+    
+    Since switching to SSA, the only remaining use for the Ullman field
+    was in tracking whether or not an expression contained a function
+    call. Give it a new name and encode it in our fancy new bitset field.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I95b7f9cb053856320c0d66efe14996667e6011c2
+    Reviewed-on: https://go-review.googlesource.com/37721
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/bitset.go   | 10 ++++++
+ src/cmd/compile/internal/gc/closure.go  |  4 ---
+ src/cmd/compile/internal/gc/dcl.go      |  3 --
+ src/cmd/compile/internal/gc/fmt.go      |  8 ++---
+ src/cmd/compile/internal/gc/gen.go      |  2 --
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/reflect.go  |  2 --
+ src/cmd/compile/internal/gc/ssa.go      |  1 -
+ src/cmd/compile/internal/gc/subr.go     | 63 +++++++++++----------------------
+ src/cmd/compile/internal/gc/syntax.go   |  6 ++--
+ src/cmd/compile/internal/gc/walk.go     | 24 ++++++-------
+ 11 files changed, 52 insertions(+), 73 deletions(-)

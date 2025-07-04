@@ -1,0 +1,20 @@
+commit a34f1bbb2201c0e66ebd172ac4a533bfeb7e9957
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 14:15:41 2011 -0400
+
+    gofix: new command for updating code to new release
+    
+    R=bradfitzgo, dsymonds, r, gri, adg
+    CC=golang-dev
+    https://golang.org/cl/4282044
+
+ src/cmd/Makefile                 |   1 +
+ src/cmd/gofix/Makefile           |  16 +++
+ src/cmd/gofix/doc.go             |  34 +++++
+ src/cmd/gofix/fix.go             | 297 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/httpserver.go      | 125 ++++++++++++++++
+ src/cmd/gofix/httpserver_test.go |  46 ++++++
+ src/cmd/gofix/main.go            | 179 +++++++++++++++++++++++
+ src/cmd/gofix/main_test.go       | 102 ++++++++++++++
+ src/pkg/Makefile                 |   1 +
+ 9 files changed, 801 insertions(+)

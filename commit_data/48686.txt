@@ -1,0 +1,15 @@
+commit a041a752955d772a3b5e1080ee7951a66c2be12b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 30 00:18:48 2022 +0200
+
+    crypto/elliptic: fix BenchmarkMarshalUnmarshal/Compressed
+    
+    Change-Id: Ifbf4a95e5f315a88633ec0170625cadb087167c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396934
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/elliptic/elliptic_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

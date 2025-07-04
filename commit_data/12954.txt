@@ -1,0 +1,17 @@
+commit 52f122d72ee3fab46603ccd76259d1f9db50be7b
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Wed Apr 25 14:33:33 2012 +1000
+
+    encoding/json: allow punctuation in tag names
+    
+    everything except backslash and the quote chars is fair game.
+    
+    Fixes #3546.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6048047
+
+ src/pkg/encoding/json/encode.go      | 9 ++++++---
+ src/pkg/encoding/json/tagkey_test.go | 5 +++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

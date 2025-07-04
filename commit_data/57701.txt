@@ -1,0 +1,29 @@
+commit f2d9f5ffcaf3aabaa8c8bd128a22fc07355f267e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 7 11:20:15 2024 -0400
+
+    cmd/internal/macho: new package for handling mach-o files in toolchain
+    
+    Currently the linker has some code handling and manipulating
+    Mach-O files. Specifically, it augments the debug/macho package
+    with file offset and length, so the content can be handled or
+    updated easily with the file.
+    
+    Move this code to an internal package, so it can be used by other
+    part of the toolchain, e.g. buildid computation.
+    
+    For #68678.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
+    Change-Id: I2311af0a06441b7fd887ca5c6ed9e6fc44670a16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618596
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/buildtool.go                       |   1 +
+ src/cmd/internal/macho/macho.go                 | 134 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go               |  93 ++++------------
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  81 ++++----------
+ src/cmd/link/internal/ld/macho_update_uuid.go   |  16 ++-
+ 5 files changed, 180 insertions(+), 145 deletions(-)

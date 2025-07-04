@@ -1,0 +1,15 @@
+commit 5490814c3058f4cab756e353b8855e1ba155cdb3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Sep 26 22:34:25 2012 +0800
+
+    cmd/go, cmd/ld: fix libgcc order and add __image_base__ symbol for windows
+            Fixes #4063.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/6543066
+
+ src/cmd/go/build.go | 7 +++++--
+ src/cmd/ld/pe.c     | 3 +++
+ src/run.bat         | 9 ++++-----
+ 3 files changed, 12 insertions(+), 7 deletions(-)

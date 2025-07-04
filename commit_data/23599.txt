@@ -1,0 +1,12 @@
+commit 71832ff489fdca6f41fe5f5bc8ca56976c7fc5aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 3 11:11:42 2015 -0700
+
+    math/rand: improve NewZipf documentation
+    
+    Change-Id: I78f0f9ac33db153c4a0d7f9866da20ebcd3d3639
+    Reviewed-on: https://go-review.googlesource.com/11872
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/rand/zipf.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

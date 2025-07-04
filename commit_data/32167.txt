@@ -1,0 +1,13 @@
+commit 392834ff2b68b3d917b01fc16a2feaaaaf9fe26b
+Author: molivier <olivier.matthieu@gmail.com>
+Date:   Thu Aug 10 18:39:57 2017 +0200
+
+    time: add examples for Duration functions
+    
+    Change-Id: I78f4ec32c6445015ce626a552edcba561eb650fa
+    Reviewed-on: https://go-review.googlesource.com/54710
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/time/example_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

@@ -1,0 +1,18 @@
+commit 9f22de7aaf17d29163eda3616b9d88d5255e484c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 28 17:11:15 2015 -0800
+
+    math/big: parsing of fractions and floats in mantissa bases other than 10
+    
+    Change-Id: I1eaebf956a69e0958201cc5e0a9beefa062c71e1
+    Reviewed-on: https://go-review.googlesource.com/3454
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 213 ++++++++++++++++++++++++---------------------
+ src/math/big/float_test.go | 102 ++++++++++++----------
+ src/math/big/int.go        |   2 +-
+ src/math/big/nat.go        |  59 +++++++------
+ src/math/big/nat_test.go   |  65 +++++++-------
+ src/math/big/rat.go        |   6 +-
+ src/math/big/rat_test.go   |  22 ++++-
+ 7 files changed, 257 insertions(+), 212 deletions(-)

@@ -1,0 +1,22 @@
+commit c4335f81a29dd6d43db7337707a27908c5059b0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 17:18:02 2017 -0700
+
+    cmd/compile: checkwidthj all expressions in walk
+    
+    Instead of playing whack-a-mole finding all
+    the non-dowidth'd expressions that can sneak
+    out of the frontend and then deciding on
+    just the right place to handle them,
+    use a big hammer.
+    
+    Fixes #20152
+    
+    Change-Id: Id452d9e8c4e9585216bd8bf0e0004c85aba4f9f7
+    Reviewed-on: https://go-review.googlesource.com/42021
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

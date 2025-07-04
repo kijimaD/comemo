@@ -1,0 +1,21 @@
+commit 2f7fbf8851e4c45f7e0d207836a3c7a97eaa1823
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 22:55:33 2017 +0000
+
+    path, path/filepath: clarify and cross-reference packages
+    
+    The path package has a reference to the path/filepath package, so add
+    a reverse reference.
+    
+    And clarify the path package doesn't do Windows paths.
+    
+    Fixes #20117
+    
+    Change-Id: I65c5ce24e600b32ea20c5821b744bd89f6aff98c
+    Reviewed-on: https://go-review.googlesource.com/45653
+    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path.go | 5 +++++
+ src/path/path.go          | 5 ++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

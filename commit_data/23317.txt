@@ -1,0 +1,26 @@
+commit bd8e3d028eeca723bb37f72c6d513e32c374af73
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jun 10 22:32:14 2015 +0200
+
+    os: fix error returned by dirstat on Plan 9
+    
+    When the Stat or Fstat system calls return -1,
+    dirstat incorrectly returns ErrShortStat.
+    
+    However, the error returned by Stat or Fstat
+    could be different. For example, when the
+    file doesn't exist, they return "does not exist".
+    
+    Dirstat should return the error returned by
+    the system call.
+    
+    Fixes #10911.
+    Fixes #11132.
+    
+    Change-Id: Icf242d203d256f12366b1e277f99b1458385104a
+    Reviewed-on: https://go-review.googlesource.com/10900
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/stat_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

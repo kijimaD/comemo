@@ -1,0 +1,24 @@
+commit ae7497bda63382930cf729803435fc455980c9dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 13:34:35 2012 -0500
+
+    doc: remove overuse of simply
+    
+    Specifically, remove simply where it is claiming that the
+    code or the action to be carried out is simple, since the
+    reader might disagree.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/5637048
+
+ doc/articles/error_handling.html      | 2 +-
+ doc/articles/error_handling.tmpl      | 2 +-
+ doc/devel/weekly.html                 | 2 +-
+ doc/gccgo_install.html                | 2 +-
+ src/pkg/crypto/cipher/io.go           | 4 ++--
+ src/pkg/database/sql/driver/driver.go | 2 +-
+ src/pkg/encoding/gob/decoder.go       | 2 +-
+ src/pkg/expvar/expvar.go              | 2 +-
+ src/pkg/text/tabwriter/tabwriter.go   | 4 ++--
+ 9 files changed, 11 insertions(+), 11 deletions(-)

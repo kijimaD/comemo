@@ -1,0 +1,14 @@
+commit 689c808c12ed8a802fea063cda61af122a6dce14
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 4 11:46:39 2009 -0800
+
+    clean up flags package a bit.
+    fix a bug in Usage message - would print current value instead of default.
+    
+    R=rsc
+    DELTA=53  (7 added, 4 deleted, 42 changed)
+    OCL=24323
+    CL=24323
+
+ src/lib/flag.go | 59 ++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 31 insertions(+), 28 deletions(-)

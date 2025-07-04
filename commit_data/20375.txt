@@ -1,0 +1,20 @@
+commit 16c59acb9790b0d1d17ed45256b95fa60c2e55f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 9 15:38:55 2014 -0400
+
+    runtime: avoid read overrun in heapdump
+    
+    Start the stack a few words below the actual top, so that
+    if something tries to read goexit's caller PC from the stack,
+    it won't fault on a bad memory address.
+    Today, heapdump does that.
+    Maybe tomorrow, traceback or something else will do that.
+    Make it not a bug.
+    
+    TBR=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/136450043
+
+ src/runtime/proc.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit bf6164719a20b5003ed6a4f49fb2d796801240af
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Dec 8 20:50:17 2008 -0800
+
+    conversion to/from
+    any pointer or uintptr
+    and unsafe.pointer
+    
+    R=r
+    OCL=20795
+    CL=20795
+
+ src/cmd/gc/walk.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

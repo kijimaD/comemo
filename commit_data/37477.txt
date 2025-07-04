@@ -1,0 +1,24 @@
+commit 9ab2ffe8e92f9660cbde1a18921ae864c64f280b
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Nov 21 14:04:29 2018 -0800
+
+    runtime: windows/arm fix tracebacks printed from sigpanic
+    
+    The exception handler modifies the stack and continuation context so
+    it looks like the faulting code calls sigpanic() directly. The call was
+    not set up correctly on ARM, because it did not handle the link register
+    correctly. This change handles the link register correctly for ARM.
+    
+    Updates #28854
+    
+    Change-Id: I7ccf838adfc05cd968a5edd7d19ebba6a2478360
+    Reviewed-on: https://go-review.googlesource.com/c/150957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/defs_windows_386.go   |  7 ++++---
+ src/runtime/defs_windows_amd64.go |  7 ++++---
+ src/runtime/defs_windows_arm.go   |  5 +++--
+ src/runtime/signal_windows.go     | 14 +++++++++++---
+ 4 files changed, 22 insertions(+), 11 deletions(-)

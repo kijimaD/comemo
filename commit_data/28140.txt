@@ -1,0 +1,34 @@
+commit b2e0e9688a512970ea8d270238c8ff3bbf85cbe1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 26 15:41:51 2016 -0400
+
+    cmd/compile: remove Zero and NilCheck for newobject
+    
+    Recognize runtime.newobject and don't Zero or NilCheck it.
+    
+    Fixes #15914 (?)
+    Updates #15390.
+    
+    TBD: add test
+    
+    Change-Id: Ia3bfa5c2ddbe2c27c92d9f68534a713b5ce95934
+    Reviewed-on: https://go-review.googlesource.com/27930
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/config.go         |   2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  15 ++++
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   2 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  10 ++-
+ src/cmd/compile/internal/ssa/rewrite386.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
+ src/runtime/malloc.go                          |   2 +
+ 14 files changed, 148 insertions(+), 13 deletions(-)

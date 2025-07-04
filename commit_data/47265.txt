@@ -1,0 +1,21 @@
+commit 1e0c3b28777420e5af73f40d4cad691ad8c43513
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Nov 4 12:19:04 2021 -0700
+
+    internal/poll: re-use RawSockaddrAny buffers across requests on windows
+    
+    We were re-allocating a new RawSockaddrAny on every UDP read/write.
+    We can re-use them instead.
+    
+    This reduces the number of allocs for UDP read/write on windows to zero.
+    
+    Co-authored-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2f05c974e2e7b4f67937ae4e1c99583e81d140af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361404
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 59 ++++++++++++++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 21 deletions(-)

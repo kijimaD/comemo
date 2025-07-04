@@ -1,0 +1,13 @@
+commit 60c2e5f4534380a85737f18ed96e64697042b9dc
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Mar 19 14:20:15 2010 -0700
+
+    issue 608
+    error compiling if(long long) in 6c compiler
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/657042
+
+ src/cmd/6c/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

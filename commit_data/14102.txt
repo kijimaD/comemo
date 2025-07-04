@@ -1,0 +1,23 @@
+commit 32316bba5b7c198c320681104c9bfcbc622e31df
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 9 15:29:43 2012 -0700
+
+    cmd/ld: add -B option to set build ID
+    
+    Background on build ID:
+    http://fedoraproject.org/wiki/RolandMcGrath/BuildID
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6625072
+
+ src/cmd/5l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/5l/obj.c  |  4 +++
+ src/cmd/6l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/6l/obj.c  |  4 +++
+ src/cmd/8l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/8l/obj.c  |  4 +++
+ src/cmd/ld/doc.go |  3 +++
+ src/cmd/ld/elf.c  | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/elf.h  |  4 +++
+ 9 files changed, 167 insertions(+), 15 deletions(-)

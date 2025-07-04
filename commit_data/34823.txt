@@ -1,0 +1,12 @@
+commit a818ddd972165564d0660ee867db1d01c41a9723
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 3 13:59:14 2018 -0700
+
+    cmd/compile/internal/syntax: update a couple of comments
+    
+    Change-Id: Ie84d0e61697922c1e808d815fb7d9aec694ee8e9
+    Reviewed-on: https://go-review.googlesource.com/104615
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/nodes.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 2d1fa08967a6bcb064f7690719ea9638866c7715
+Author: Peter Kleiweg <pkleiweg@xs4all.nl>
+Date:   Tue May 29 16:30:06 2012 -0400
+
+    Emacs go-mode: don't indent the inside of strings.
+    
+    Two fixes for indentation problems:
+    
+    1. Properly recognize multi-line strings. These start with `, not ".
+    
+    2. Don't indent a line if the beginning of the line is the end of a multi-line string. This happened for instance when inserting a closing bracket after a multi-line string.
+    
+    R=sameer
+    CC=golang-dev
+    https://golang.org/cl/6157044
+
+ misc/emacs/go-mode.el | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

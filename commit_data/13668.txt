@@ -1,0 +1,13 @@
+commit a738f2b2a24019ff205c79f4de9c8a14f478ef2c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 22 20:48:54 2012 -0700
+
+    C+A: add Carlos Castillo cookieo9@gmail.com (individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6479045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

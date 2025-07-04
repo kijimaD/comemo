@@ -1,0 +1,13 @@
+commit a0b5b46ae47d2df1f8ed3d640b220c67e7ccc0d9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 22 03:18:20 2013 +0800
+
+    doc/go_spec: cap doesn't apply to maps
+    Fixes #4682.
+    
+    R=golang-dev, adg, dave
+    CC=golang-dev
+    https://golang.org/cl/7094062
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit 2a9aa4dcac0c33f7fffefb94a1bc92a17fd7cfd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:28:52 2020 -0400
+
+    html/template, text/template: add ParseFS
+    
+    Now templates can be parsed not just from operating system files
+    but from arbitrary file systems, including zip files.
+    
+    For #41190.
+    
+    Change-Id: I2172001388ddb1f13defa6c5e644e8ec8703ee80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243938
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/multi_test.go   |  43 +++++++++++++++++++++++++++
+ src/html/template/template.go     |  58 +++++++++++++++++++++++++++++++++----
+ src/html/template/testdata/fs.zip | Bin 0 -> 406 bytes
+ src/text/template/helper.go       |  59 ++++++++++++++++++++++++++++++++++----
+ src/text/template/multi_test.go   |  30 +++++++++++++++++++
+ 5 files changed, 178 insertions(+), 12 deletions(-)

@@ -1,0 +1,22 @@
+commit 5a6a830c1ceafd551937876f11590fd60aea1799
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 14:34:47 2022 -0400
+
+    cmd/vendor: undo stray edits from CL 384262
+    
+    cmd/internal/moddeps is currently failing on the longtest builders
+    because vendored third-party dependencies were accidentally edited as
+    part of CL 384262 (a global cleanup of the standard library).
+    
+    Updates #51082
+    
+    Change-Id: I6f79c8f1177420a51128ce42d6c14fa5dcc4bd7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398455
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go  | 2 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

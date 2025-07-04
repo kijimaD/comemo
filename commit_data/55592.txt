@@ -1,0 +1,29 @@
+commit d90a57ffe8ad8f3cb0137822a768ae48cf80a09d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 14 11:52:22 2024 -0500
+
+    cmd/link/internal/ld: unify OS/SDK versions for macOS linking
+    
+    Go 1.23 will require macOS 11 Big Sur or later, even on AMD64.
+    The comment here suggests the main requirement for the OS and
+    SDK version is to be recent enough not to break Apple signing,
+    and recent enough not to cause other problems.
+    
+    For now, this CL simplifies the code by merging the ARM64 and
+    AMD64 cases into one, given 1.23 will be the first Go release
+    with a common minimum macOS version for both architectures so
+    there's no need to treat them separately here.
+    
+    For #64207.
+    
+    Change-Id: I821fcb9a2a316de0703833c8a75abcbaa10b17a3
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_11,gotip-darwin-amd64_14,gotip-darwin-arm64_11,gotip-darwin-arm64_13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563857
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 4 +---
+ src/cmd/link/link_test.go         | 6 +++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

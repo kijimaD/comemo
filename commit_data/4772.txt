@@ -1,0 +1,12 @@
+commit 4a9a0056c1684b47f7986b0224b308e45e94af6e
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Feb 2 23:01:21 2010 -0800
+
+    sort: fix comment typo
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198084
+
+ src/pkg/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

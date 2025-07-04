@@ -1,0 +1,25 @@
+commit 6b0026ae31720a01f846335d05e42e67e3a2a7cc
+Author: Leigh McCulloch <351529+leighmcculloch@users.noreply.github.com>
+Date:   Wed Sep 29 02:19:34 2021 +0000
+
+    time: add doc comment about tzdata package
+    
+    Add doc comment about the time/tzdata package to the time.LoadLocation
+    function. The time.LoadLocation function was changed in Go 1.15 to add an extra
+    source that it considers for the time zone database. That location is the
+    time/tzdata package. It is not easy to discover this behavior because the
+    documentation for the time package doesn't mention it in the discussion on the
+    time.LoadLocation function when discussing the different sources. It would be helpful to
+    describe all possible sources that time.LoadLocation considers when loading the
+    time zone database, and so I think it would be worthwhile to mention
+    time/tzdata.
+    
+    Change-Id: I408fbe188bf9d4ba797e59ec17eb677136d6a9c2
+    GitHub-Last-Rev: 3dac204326960a18c4e44d3ea24fd428e91e9fcb
+    GitHub-Pull-Request: golang/go#48673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/time/zoneinfo.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

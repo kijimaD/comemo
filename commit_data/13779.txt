@@ -1,0 +1,15 @@
+commit 5d7ece6f4408736bdb9f9f2dfd7c145c21bea8d2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 10 11:24:34 2012 +1000
+
+    6g: delete unnecessary OXXX initialization.
+    
+    No longer necessary after https://golang.org/cl/6497073/
+    removed the `if(n5.op != OXXX) { regfree(&n5); }`.
+    
+    R=remy, r
+    CC=golang-dev, rsc
+    https://golang.org/cl/6498101
+
+ src/cmd/6g/cgen.c | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 17eafcd05da81f4333eed6760baa5315a3bff412
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 3 10:05:28 2013 -0800
+
+    CONTRIBUTORS: add Matthew Dempsky (Google CLA)
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/7049043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

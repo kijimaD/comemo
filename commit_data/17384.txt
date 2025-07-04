@@ -1,0 +1,21 @@
+commit e7b125fc65695e22e33da1f6bc5bec7efae2bf65
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 24 16:54:56 2013 -0500
+
+    cmd/api: be more robust against OS deleting temp files
+    
+    OS X in particular deletes tmp files (but not directories)
+    pretty reliably.
+    
+    Ask hg whether the go.tools directory in tmp is good before
+    using it.
+    
+    Fixes issue Rob and others were reporting, which I just hit
+    myself now.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13084049
+
+ src/cmd/api/run.go | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

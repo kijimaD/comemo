@@ -1,0 +1,12 @@
+commit d8bc797ed5f7e97706d59616dabd1ede4a72878c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 2 11:40:54 2009 -0800
+
+    apply gofmt to json files
+    
+    R=rsc
+    https://golang.org/cl/164071
+
+ src/pkg/json/decode.go      | 4 +---
+ src/pkg/json/decode_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 5 deletions(-)

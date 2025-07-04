@@ -1,0 +1,15 @@
+commit ce7e11997b9706aa3e0c2aa284470b8e8c11b86c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 28 12:10:16 2011 -0500
+
+    exp/ssh: fix three shift bugs related to packet lengths
+    
+    Thanks for Ke Lan for the initial report and investigation.
+    
+    R=agl, gustav.paul, tg8866, rsc
+    CC=golang-dev
+    https://golang.org/cl/5443044
+
+ src/pkg/exp/ssh/channel.go | 12 ++++++------
+ src/pkg/exp/ssh/client.go  |  4 ++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

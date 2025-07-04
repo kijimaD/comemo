@@ -1,0 +1,17 @@
+commit 66130907d1483f851b514ab564c64fe1d1fceec6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 17:31:57 2015 -0400
+
+    cmd/compile: handle copy in escape analysis
+    
+    Somehow we missed this!
+    Fixes #11387.
+    
+    Change-Id: Ida08fe52eff7da2ef7765b4cf35a39a301420c43
+    Reviewed-on: https://go-review.googlesource.com/11460
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  3 +++
+ test/escape2.go                    | 12 ++++++++++--
+ test/escape2n.go                   | 12 ++++++++++--
+ 3 files changed, 23 insertions(+), 4 deletions(-)

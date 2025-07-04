@@ -1,0 +1,15 @@
+commit 276ffd297daed8d7bafc043dd3b9c44657d17ecf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 29 16:48:53 2008 -0700
+
+    - added shl operation, extra tests
+    - fixed code so it works with any base between 9 and 64
+    - work-around for 6g shift problems in various places
+    
+    R=r
+    OCL=18080
+    CL=18080
+
+ usr/gri/bignum/bignum.go      | 232 +++++++++++++++++++++---------------------
+ usr/gri/bignum/bignum_test.go |  36 +++++--
+ 2 files changed, 144 insertions(+), 124 deletions(-)

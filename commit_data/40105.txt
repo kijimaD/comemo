@@ -1,0 +1,21 @@
+commit 0000f0be0a3d357de56839330b5ccf04f4d593fe
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Oct 1 13:36:07 2019 -0700
+
+    cmd/compile:  add an explicit test for compile of arch.ZeroRange
+    
+    Add a test that causes generation of arch.ZeroRange calls of various sizes 8-136
+    bytes in the compiler. This is to test that ZeroRanges of various sizes actually
+    compile on different architectures, but is not testing runtime correctness (which
+    is hard to do).
+    
+    Updates #34604
+    
+    Change-Id: I4131eb86669bdfe8d4e36f4ae5c2a7b069abd6c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198045
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/zerorange_test.go | 98 +++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)

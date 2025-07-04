@@ -1,0 +1,23 @@
+commit 0ed70efc6b7ec096603c58f27c2668af3862bb3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 2 09:19:47 2016 -0500
+
+    cmd/go: fix rebuild after installation of new Go release
+    
+    The loading of zversion.go was expecting it to be in
+    package runtime, but it moved to runtime/internal/sys.
+    Worse, the load was not checking the error.
+    
+    Update the path, check the error, add a test.
+    
+    Fixes #14176.
+    
+    Change-Id: I203c40afe1448875581415d5e42c29f09b14545d
+    Reviewed-on: https://go-review.googlesource.com/19180
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/go/pkg.go     |  9 ++++--
+ 2 files changed, 85 insertions(+), 10 deletions(-)

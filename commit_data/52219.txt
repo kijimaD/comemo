@@ -1,0 +1,33 @@
+commit 4460291e0eb291ad90d814ae1e2e18140677ddcb
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu Mar 2 16:20:07 2023 -0500
+
+    runtime/trace: update outdated Task and Region documentation
+    
+    A previous iteration of the tracer's user annotation API had different
+    names for tasks and regions, and used to return functions for ending
+    them rather than types with End methods. This CL updates the doc
+    comments to reflect those changes, and also fixes up the internal
+    documentation of the events (similar to go.dev/cl/465335, the stack
+    argument was in the wrong place in the list).
+    
+    The User Log event internal documentation might also look wrong since
+    the value argument follows the stack argument. However, the User Log
+    event is a special case where the log message is appended immediately
+    following the normal event, including the stack argument. There isn't
+    much room to clarify this next to the event type definitions, so this CL
+    clarifies the comment where the event is encoded.
+    
+    Change-Id: I846c709f6026ef01c0a272557d6390b2c17074e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472955
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+
+ src/internal/trace/parser.go    |  4 ++--
+ src/runtime/trace.go            | 12 +++++++-----
+ src/runtime/trace/annotation.go | 16 ++++++++--------
+ 3 files changed, 17 insertions(+), 15 deletions(-)

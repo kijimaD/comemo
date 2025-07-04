@@ -1,0 +1,18 @@
+commit fc0b5ef0fdc3bc90d93759b068f9be486f4252da
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Jun 21 18:07:57 2013 -0700
+
+    time: handle integer overflow in Sub
+    
+    If time.Sub results in a value that won't fit in a Duration (int64),
+    return either the min or max int64 value as appropriate.
+    
+    Fixes #5011.
+    
+    R=golang-dev, bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/10328043
+
+ src/pkg/time/time.go      | 20 ++++++++++++++++++--
+ src/pkg/time/time_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 2 deletions(-)

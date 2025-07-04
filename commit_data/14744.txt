@@ -1,0 +1,14 @@
+commit 4380fa6d99284c03e471bafcb1be2db83b225af4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Dec 24 21:06:57 2012 +0400
+
+    runtime: diagnose double wakeup on Note
+    Double wakeup is prohibited by the Note interface
+    and checked in lock_sema.c.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6976054
+
+ src/pkg/runtime/lock_futex.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

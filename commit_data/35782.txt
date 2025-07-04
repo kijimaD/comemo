@@ -1,0 +1,22 @@
+commit 00eac8921e04c07df2d25df33b9401226f5d0326
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 19 19:50:03 2018 -0700
+
+    os, net: avoid races between dup, set-blocking-mode, and closing
+    
+    Fixes #24481
+    Fixes #24483
+    
+    Change-Id: Id7da498425a440c91582aa5480c253ae7a9c932c
+    Reviewed-on: https://go-review.googlesource.com/119955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go         |  2 +-
+ src/internal/poll/fd_unix.go | 53 +++++++++++++++++++++++++++++++++++++++++--
+ src/net/fd_unix.go           | 40 ++++----------------------------
+ src/net/file_test.go         | 54 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/file_unix.go         |  5 +++-
+ src/os/pipe_test.go          | 23 +++++++++++++++++++
+ 6 files changed, 137 insertions(+), 40 deletions(-)

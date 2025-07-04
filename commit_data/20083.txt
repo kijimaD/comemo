@@ -1,0 +1,13 @@
+commit d2165672ca8f9bf02389f02ad211ec34394cb722
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 22 22:22:16 2014 +0400
+
+    runtime: fix futex notes
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/126540043
+
+ src/pkg/runtime/lock_futex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

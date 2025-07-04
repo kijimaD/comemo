@@ -1,0 +1,17 @@
+commit 536a7d6712933255a3bafe946f199aa809f4b1e0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Oct 24 15:43:45 2018 +0200
+
+    internal/traceparser: skip test on iOS
+    
+    The iOS test harness only include files from the tested package or
+    below. Skip a test on iOS that required files outside the package.
+    
+    Change-Id: Iaee7e488eb783b443f2b2b84d8be2de01227ab62
+    Reviewed-on: https://go-review.googlesource.com/c/144110
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/internal/traceparser/parser_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

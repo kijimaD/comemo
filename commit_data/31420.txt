@@ -1,0 +1,20 @@
+commit f105c917573dea3e94edf7c7a4e64e1c934a0db2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Apr 5 13:50:52 2017 -0400
+
+    runtime/pprof: propagate profile labels into profile proto
+    
+    Profile labels added by the user using pprof.Do, if present will
+    be in a *labelMap stored in the unsafe.Pointer 'tag' field of
+    the profile map entry. This change extracts the labels from the tag
+    field and writes them to the profile proto.
+    
+    Change-Id: Ic40fdc58b66e993ca91d5d5effe0e04ffbb5bc46
+    Reviewed-on: https://go-review.googlesource.com/39613
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 33 +++++++++++++++++++++++++++++----
+ src/runtime/pprof/proto.go      | 11 ++++++++++-
+ 2 files changed, 39 insertions(+), 5 deletions(-)

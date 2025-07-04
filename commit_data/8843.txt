@@ -1,0 +1,14 @@
+commit 7a471eadcc4b00c2a998639a0797b4742bfc8aea
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Jun 24 11:23:49 2011 -0700
+
+    os: remove duplicate package description
+    
+    file.go contains a more complete package description.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4645058
+
+ src/pkg/os/file_posix.go | 2 --
+ 1 file changed, 2 deletions(-)

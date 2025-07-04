@@ -1,0 +1,123 @@
+commit 9828c43288a53d3df75b1f73edad0d037a91dff8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 27 11:28:05 2020 -0800
+
+    runtime: prevent allocation when converting small ints to interfaces
+    
+    Prior to this change, we avoid allocation when
+    converting 0 to an interface.
+    
+    This change extends that optimization to larger value types
+    whose values happens to be in the range 0 to 255.
+    This is marginally more expensive in the case of a 0 value,
+    in that the address is computed rather than fixed.
+    
+    name                         old time/op  new time/op  delta
+    ConvT2ESmall-8               2.36ns ± 4%  2.65ns ± 4%  +12.23%  (p=0.000 n=87+91)
+    ConvT2EUintptr-8             2.36ns ± 4%  2.84ns ± 6%  +20.05%  (p=0.000 n=96+99)
+    ConvT2ELarge-8               23.8ns ± 2%  23.1ns ± 3%   -2.94%  (p=0.000 n=93+95)
+    ConvT2ISmall-8               2.67ns ± 5%  2.74ns ±27%     ~     (p=0.214 n=99+100)
+    ConvT2IUintptr-8             2.65ns ± 5%  2.46ns ± 5%   -7.19%  (p=0.000 n=98+98)
+    ConvT2ILarge-8               24.2ns ± 2%  23.5ns ± 4%   -3.16%  (p=0.000 n=91+97)
+    ConvT2Ezero/zero/16-8        2.79ns ± 6%  2.99ns ± 4%   +7.52%  (p=0.000 n=94+88)
+    ConvT2Ezero/zero/32-8        2.34ns ± 3%  2.65ns ± 3%  +13.06%  (p=0.000 n=92+98)
+    ConvT2Ezero/zero/64-8        2.35ns ± 4%  2.65ns ± 6%  +12.86%  (p=0.000 n=99+94)
+    ConvT2Ezero/zero/str-8       2.55ns ± 4%  2.54ns ± 4%     ~     (p=0.063 n=97+99)
+    ConvT2Ezero/zero/slice-8     2.82ns ± 4%  2.85ns ± 5%   +1.00%  (p=0.000 n=99+95)
+    ConvT2Ezero/zero/big-8       94.3ns ± 5%  93.4ns ± 4%   -0.94%  (p=0.000 n=88+90)
+    ConvT2Ezero/nonzero/str-8    29.6ns ± 3%  27.7ns ± 3%   -6.69%  (p=0.000 n=98+97)
+    ConvT2Ezero/nonzero/slice-8  36.6ns ± 2%  37.1ns ± 2%   +1.31%  (p=0.000 n=94+90)
+    ConvT2Ezero/nonzero/big-8    93.4ns ± 3%  92.7ns ± 3%   -0.74%  (p=0.000 n=88+84)
+    ConvT2Ezero/smallint/16-8    13.3ns ± 4%   2.7ns ± 6%  -79.82%  (p=0.000 n=100+97)
+    ConvT2Ezero/smallint/32-8    12.5ns ± 1%   2.9ns ± 5%  -77.17%  (p=0.000 n=85+96)
+    ConvT2Ezero/smallint/64-8    14.7ns ± 3%   2.6ns ± 3%  -82.05%  (p=0.000 n=94+94)
+    ConvT2Ezero/largeint/16-8    14.0ns ± 4%  13.2ns ± 7%   -5.44%  (p=0.000 n=95+99)
+    ConvT2Ezero/largeint/32-8    12.8ns ± 4%  12.9ns ± 3%     ~     (p=0.096 n=99+87)
+    ConvT2Ezero/largeint/64-8    15.5ns ± 2%  15.0ns ± 2%   -3.46%  (p=0.000 n=95+96)
+    
+    An example of a program for which this makes a perceptible difference
+    is running the compiler with the -S flag:
+    
+    name        old time/op       new time/op       delta
+    Template          349ms ± 2%        344ms ± 2%   -1.48%  (p=0.000 n=23+25)
+    Unicode           138ms ± 4%        136ms ± 3%   -1.67%  (p=0.003 n=25+25)
+    GoTypes           1.25s ± 2%        1.24s ± 2%   -1.11%  (p=0.001 n=24+25)
+    Compiler          5.73s ± 2%        5.67s ± 2%   -1.09%  (p=0.002 n=25+24)
+    SSA               20.2s ± 2%        19.9s ± 2%   -1.45%  (p=0.000 n=25+23)
+    Flate             216ms ± 4%        210ms ± 2%   -2.77%  (p=0.000 n=25+24)
+    GoParser          283ms ± 2%        278ms ± 3%   -1.58%  (p=0.000 n=23+23)
+    Reflect           757ms ± 2%        745ms ± 2%   -1.58%  (p=0.000 n=25+25)
+    Tar               303ms ± 4%        296ms ± 2%   -2.20%  (p=0.000 n=22+23)
+    XML               415ms ± 2%        411ms ± 3%   -0.94%  (p=0.002 n=25+22)
+    [Geo mean]        726ms             715ms        -1.59%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          434ms ± 3%        427ms ± 2%   -1.66%  (p=0.000 n=23+24)
+    Unicode           204ms ±12%        198ms ±12%   -2.83%  (p=0.032 n=25+25)
+    GoTypes           1.59s ± 2%        1.56s ± 2%   -1.64%  (p=0.000 n=22+25)
+    Compiler          7.50s ± 1%        7.40s ± 2%   -1.32%  (p=0.000 n=25+25)
+    SSA               27.2s ± 2%        26.8s ± 2%   -1.50%  (p=0.000 n=24+23)
+    Flate             266ms ± 6%        254ms ± 3%   -4.38%  (p=0.000 n=25+25)
+    GoParser          357ms ± 2%        351ms ± 2%   -1.90%  (p=0.000 n=24+23)
+    Reflect           966ms ± 2%        947ms ± 2%   -1.94%  (p=0.000 n=24+25)
+    Tar               387ms ± 2%        380ms ± 3%   -1.83%  (p=0.000 n=22+24)
+    XML               538ms ± 1%        532ms ± 1%   -1.15%  (p=0.000 n=24+20)
+    [Geo mean]        942ms             923ms        -2.02%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         54.1MB ± 0%       52.9MB ± 0%   -2.26%  (p=0.000 n=25+25)
+    Unicode          33.5MB ± 0%       33.1MB ± 0%   -1.03%  (p=0.000 n=25+24)
+    GoTypes           189MB ± 0%        185MB ± 0%   -2.27%  (p=0.000 n=25+25)
+    Compiler          875MB ± 0%        858MB ± 0%   -1.99%  (p=0.000 n=23+25)
+    SSA              3.19GB ± 0%       3.13GB ± 0%   -1.95%  (p=0.000 n=25+25)
+    Flate            32.9MB ± 0%       32.2MB ± 0%   -2.26%  (p=0.000 n=25+25)
+    GoParser         44.0MB ± 0%       42.9MB ± 0%   -2.33%  (p=0.000 n=25+25)
+    Reflect           117MB ± 0%        114MB ± 0%   -2.60%  (p=0.000 n=25+25)
+    Tar              48.6MB ± 0%       47.5MB ± 0%   -2.18%  (p=0.000 n=25+24)
+    XML              65.7MB ± 0%       64.4MB ± 0%   -1.96%  (p=0.000 n=23+25)
+    [Geo mean]        118MB             115MB        -2.08%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template          1.07M ± 0%        0.92M ± 0%  -14.29%  (p=0.000 n=25+25)
+    Unicode            539k ± 0%         494k ± 0%   -8.27%  (p=0.000 n=25+25)
+    GoTypes           3.97M ± 0%        3.43M ± 0%  -13.71%  (p=0.000 n=24+25)
+    Compiler          17.6M ± 0%        15.4M ± 0%  -12.69%  (p=0.000 n=25+24)
+    SSA               66.1M ± 0%        58.1M ± 0%  -12.17%  (p=0.000 n=25+25)
+    Flate              629k ± 0%         536k ± 0%  -14.73%  (p=0.000 n=24+24)
+    GoParser           929k ± 0%         799k ± 0%  -13.96%  (p=0.000 n=25+25)
+    Reflect           2.49M ± 0%        2.11M ± 0%  -15.28%  (p=0.000 n=25+25)
+    Tar                919k ± 0%         788k ± 0%  -14.30%  (p=0.000 n=25+25)
+    XML               1.28M ± 0%        1.11M ± 0%  -12.85%  (p=0.000 n=24+25)
+    [Geo mean]        2.32M             2.01M       -13.24%
+    
+    There is a slight increase in binary size from this change:
+    
+    file      before    after     Δ       %
+    addr2line 4307728   4307760   +32     +0.001%
+    api       5972680   5972728   +48     +0.001%
+    asm       5114200   5114232   +32     +0.001%
+    buildid   2843720   2847848   +4128   +0.145%
+    cgo       4823736   4827864   +4128   +0.086%
+    compile   24912056  24912104  +48     +0.000%
+    cover     5259800   5259832   +32     +0.001%
+    dist      3665080   3665128   +48     +0.001%
+    doc       4672712   4672744   +32     +0.001%
+    fix       3376952   3376984   +32     +0.001%
+    link      6618008   6622152   +4144   +0.063%
+    nm        4253280   4257424   +4144   +0.097%
+    objdump   4655376   4659504   +4128   +0.089%
+    pack      2294280   2294328   +48     +0.002%
+    pprof     14747476  14751620  +4144   +0.028%
+    test2json 2819320   2823448   +4128   +0.146%
+    trace     11665068  11669212  +4144   +0.036%
+    vet       8342360   8342408   +48     +0.001%
+    
+    Change-Id: I38ef70244e23069bfd14334061d43ae22a294519
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216401
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/iface.go      | 54 +++++++++++++++++++++++++++++++++++++++++------
+ src/runtime/iface_test.go | 52 ++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 85 insertions(+), 21 deletions(-)

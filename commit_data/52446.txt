@@ -1,0 +1,23 @@
+commit b441eb3f978b8b7d4f09f8e583d419d8f4e40af6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 28 14:35:20 2023 -0700
+
+    os: remove mixed dot- and non-dot- imports in tests
+    
+    Some test files imported "os" twice, once with a dot and once without.
+    Consolidate on importing with a dot.
+    
+    Change-Id: I1db31053dff9dee19a6bdfc263c7e7ef0c15ee42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go             | 63 +++++++++++++++++++++----------------------
+ src/os/os_unix_test.go        |  3 +--
+ src/os/readfrom_linux_test.go | 17 ++++++------
+ src/os/removeall_test.go      |  7 +++--
+ 4 files changed, 43 insertions(+), 47 deletions(-)

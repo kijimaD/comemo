@@ -1,0 +1,14 @@
+commit 399f50c9d773e17221e0c80ba1d739c5575c8460
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:18:54 2022 -0400
+
+    runtime: tricky replacements of g in traceback.go
+    
+    Change-Id: I80e847451b697de049a01df051a73b5976b39d4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418589
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

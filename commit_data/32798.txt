@@ -1,0 +1,17 @@
+commit dd5a86f18c8d00e47a03ed11523307cafe1f2f1c
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Thu Sep 21 12:25:02 2017 +0200
+
+    bytes: add documentation to reader methods
+    
+    Some methods that were used to implement various `io` interfaces in the
+    Reader were documented, whereas others were not. This change adds
+    documentation to all the missing methods used to implement these
+    interfaces.
+    
+    Change-Id: I2dac6e328542de3cd87e89510651cd6ba74a7b7d
+    Reviewed-on: https://go-review.googlesource.com/65231
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/reader.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

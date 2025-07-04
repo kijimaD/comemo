@@ -1,0 +1,15 @@
+commit 427a0adb39a883be182f222a40a22f00ad4531cb
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 30 18:17:52 2009 -0700
+
+    further simplification of the case fold calculation.
+    hard to beat at this point, i think.
+    
+    R=rsc
+    DELTA=38  (8 added, 21 deleted, 9 changed)
+    OCL=34092
+    CL=34096
+
+ src/pkg/unicode/letter.go     | 45 +++++++++++++++----------------------------
+ src/pkg/unicode/maketables.go |  2 +-
+ 2 files changed, 17 insertions(+), 30 deletions(-)

@@ -1,0 +1,27 @@
+commit bcd82125f85c7c552493e863fa1bb14e6c444557
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 18 00:53:07 2023 +0700
+
+    cmd/compile: re-compile instantiated generic methods in linkshared mode
+    
+    For G[T] that was seen and compiled in imported package, it is not added
+    to typecheck.Target.Decls, prevent wasting compile time re-creating
+    DUPOKS symbols. However, the linker do not support a type symbol
+    referencing a method symbol across DSO boundary. That causes unreachable
+    sym error when building under -linkshared mode.
+    
+    To fix it, always re-compile generic methods in linkshared mode.
+    
+    Fixes #58966
+    
+    Change-Id: I894b417cfe8234ae1fe809cc975889345df22cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477375
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go              |  7 ++++++-
+ misc/cgo/testshared/testdata/issue58966/main.go | 15 +++++++++++++++
+ src/cmd/compile/internal/noder/unified.go       |  6 +++++-
+ 3 files changed, 26 insertions(+), 2 deletions(-)

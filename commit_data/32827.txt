@@ -1,0 +1,15 @@
+commit 7739b8a97fb767ceb141af05a1213b538c32e8da
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 17 20:05:15 2017 +1000
+
+    path/filepath: simplify TestEvalSymlinks
+    
+    Change-Id: I4a747fca0db3cbd4972feaddcb625041b648620b
+    Reviewed-on: https://go-review.googlesource.com/56710
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path_test.go         | 204 ++++++++++-----------------------
+ src/path/filepath/path_windows_test.go |  58 ++++++++++
+ 2 files changed, 117 insertions(+), 145 deletions(-)

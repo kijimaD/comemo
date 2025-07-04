@@ -1,0 +1,14 @@
+commit 1dbd3c8d3dee1ee31ae97686fd6b2c756e2f4855
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 16:03:14 2009 -0800
+
+    reflect: document that PkgPath and Name return
+            empty string for unnamed types.
+    
+    Fixes #249.
+    
+    R=r
+    https://golang.org/cl/156052
+
+ src/pkg/reflect/type.go | 2 ++
+ 1 file changed, 2 insertions(+)

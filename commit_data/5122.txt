@@ -1,0 +1,15 @@
+commit 60482f06d03c75c48d1b22059fcd393610f0815d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 24 14:51:55 2010 -0700
+
+    godoc: use http GET for remote search instead of rpc
+    (this will allow the use of golang.org for remote
+    searches)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/734041
+
+ src/cmd/godoc/godoc.go | 28 ++++++-------------------
+ src/cmd/godoc/main.go  | 56 ++++++++++++++++++++++----------------------------
+ 2 files changed, 31 insertions(+), 53 deletions(-)

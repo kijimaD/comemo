@@ -1,0 +1,27 @@
+commit d50390ce7253e2caac9931bc83b49b32cdcd9698
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Dec 15 17:03:37 2018 +0100
+
+    cmd/fix,cmd/cgo,misc/cgo: map the EGLDisplay C type to uintptr in Go
+    
+    Similar to to macOS' CF* types and JNI's jobject and derived types,
+    the EGLDisplay type is declared as a pointer but can contain
+    non-pointers (see #27054).
+    Fix it the same way: map EGLDisplay to uintptr in Go.
+    
+    Fixes #27054
+    
+    RELNOTE=yes
+    
+    Change-Id: I6136f8f8162687c5493b30ed324e29efe55a8fd7
+    Reviewed-on: https://go-review.googlesource.com/c/154417
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/issue27054/egl.h        |   7 ++
+ misc/cgo/test/issue27054/test27054.go |  17 ++++
+ src/cmd/cgo/gcc.go                    |  16 +++
+ src/cmd/fix/egltype.go                |  32 ++++++
+ src/cmd/fix/egltype_test.go           | 185 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 257 insertions(+)

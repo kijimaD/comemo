@@ -1,0 +1,16 @@
+commit f6e2eab8e02c3797d03987b5f394b2cb775b5518
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 11 10:39:56 2010 -0400
+
+            crypto/tls: better error messages for certificate issues.
+    
+            Fixes #1146.
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/2380042
+
+ src/pkg/crypto/tls/handshake_client.go | 20 +++++++++++++-------
+ src/pkg/crypto/tls/handshake_server.go |  9 ++++++---
+ src/pkg/crypto/tls/tls.go              |  3 ++-
+ 3 files changed, 21 insertions(+), 11 deletions(-)

@@ -1,0 +1,25 @@
+commit 607f99904e3f5565517eee452d9153a634a66369
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 11:55:16 2021 -0700
+
+    cmd/compile/internal/types2: review of api.go
+    
+    The changes between (equivalent, and reviewed) go/types/api.go
+    and api.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences to go/types/api.go are:
+    - use of syntax instead of go/ast package
+    - use of simpler Error type (for now)
+    - additional exported Config flags
+    - different handling of nil values (we can't use Typ[UntypedNil]
+      to represent an untyped nil because types2 gives such nil values
+      context-dependent types)
+    
+    Change-Id: I7d46b29d460c656d7a36fe70108a370383266373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304050
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go | 3 ---
+ 1 file changed, 3 deletions(-)

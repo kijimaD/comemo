@@ -1,0 +1,23 @@
+commit 17f54231e86591174b964c5ba93f9d578e2bfa01
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu May 17 09:39:21 2018 +1000
+
+    cmd/go: don't refuse to update a present package only because of its source configuration
+    
+    If a package is checked out in the right place, but uses, for instance,
+    an unusual Git remote configuration, don't refuse to update just because
+    cmd/go can't parse it. In most cases, `git pull -ff-only` (or the
+    equivalent in other VCSes) works just fine.
+    
+    Updates #25432.
+    
+    Change-Id: I1952a0e6e03f185f34029b186e1756c9549689e1
+    Reviewed-on: https://go-review.googlesource.com/113456
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/go_test.go          | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/get/get.go |  9 ++++++---
+ 2 files changed, 40 insertions(+), 3 deletions(-)

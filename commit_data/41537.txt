@@ -1,0 +1,44 @@
+commit a2bff7c2964c6bf2c9741eb767d749d773f20770
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 1 16:44:06 2020 -0800
+
+    cmd/compile: make pre-elimination of rulegen bounds checks more precise
+    
+    In cases in which we had a named value whose args were all _,
+    like this rule from ARM.rules:
+    
+    (MOVBUreg x:(MOVBUload _ _)) -> (MOVWreg x)
+    
+    We previously inserted
+    
+    _ = x.Args[1]
+    
+    even though it is unnecessary.
+    This change eliminates this pointless bounds check.
+    And in other cases, we now check bounds just as far as strictly necessary.
+    
+    No significant movement on any compiler metrics.
+    Just nicer (and less) code.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I075dfe9f926cc561cdc705e9ddaab563164bed3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221781
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  25 +--
+ src/cmd/compile/internal/ssa/rewrite386.go     |  15 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  82 +++------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  92 +++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  92 ++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  35 +---
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  19 --
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  30 +---
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 233 +++++--------------------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  12 --
+ src/cmd/compile/internal/ssa/rewritedec.go     |   5 -
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  13 --
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 162 +++--------------
+ 13 files changed, 170 insertions(+), 645 deletions(-)

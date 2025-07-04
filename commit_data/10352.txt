@@ -1,0 +1,12 @@
+commit 3f2d787c2b4eb7a1dd75c2613be6d76dfa0dba5a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 11 14:30:27 2011 -0800
+
+    runtime: remove declarations of nonexistent functions
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5369089
+
+ src/pkg/runtime/proc.c | 2 --
+ 1 file changed, 2 deletions(-)

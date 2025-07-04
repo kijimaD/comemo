@@ -1,0 +1,23 @@
+commit 607147d000d9455113f28bb529ab5932e4274ba3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Dec 10 10:35:44 2017 +1100
+
+    net: skip some tests on Windows XP
+    
+    Parts of TestUDPConnSpecificMethods and TestWriteToUDP fail, because
+    UDPConn.WriteMsgUDP is broken on Windows XP. UDPConn.WriteMsgUDP uses
+    Windows WSASendMsg API, but that call is not implemented on Windows XP (see
+    https://msdn.microsoft.com/en-us/library/windows/desktop/ms741692(v=vs.85).aspx
+    for details)
+    
+    Update #23072
+    
+    Change-Id: I4e8f149bc62bd87cd7c199e6832b9ce479af0a3e
+    Reviewed-on: https://go-review.googlesource.com/83077
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/protoconn_test.go | 15 ++++++++++-----
+ src/net/udpsock_test.go   | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 5 deletions(-)

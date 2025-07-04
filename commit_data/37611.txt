@@ -1,0 +1,19 @@
+commit 4a801cdd319dc25a2bcdced0b70377c2dfa1464f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 5 17:24:41 2018 -0800
+
+    cmd/cover: run tests in parallel, don't change source directory
+    
+    This speeds up the cmd/cover testsuite by about 40% on my laptop.
+    
+    Updates #26473
+    Updates #28386
+    
+    Change-Id: I853b1b3b8c98dc89440f7b7bf5c0ade1d3d66802
+    Reviewed-on: https://go-review.googlesource.com/c/152817
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover_test.go | 147 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 102 insertions(+), 45 deletions(-)

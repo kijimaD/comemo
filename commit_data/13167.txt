@@ -1,0 +1,16 @@
+commit ca6b4d535f56dbfd0f0334bc7747bde20914d7b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 24 17:32:25 2012 -0700
+
+    misc/dist: use archive/tar.FileInfoHeader
+    
+    Fixes #3299
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6250056
+
+ misc/dist/bindist.go     | 64 ++----------------------------------------------
+ misc/dist/stat_darwin.go | 32 ------------------------
+ misc/dist/stat_linux.go  | 32 ------------------------
+ 3 files changed, 2 insertions(+), 126 deletions(-)

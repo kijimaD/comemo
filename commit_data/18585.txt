@@ -1,0 +1,15 @@
+commit 574e0f9a4833a0c81bc4ea7efd9ea9bb46cb59b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 20 15:42:08 2014 -0500
+
+    cmd/gc: explain 'nointerface' method failure
+    
+    The message used to say that there was a type
+    mismatch, which is not necessarily true.
+    
+    TBR=ken2
+    CC=golang-codereviews
+    https://golang.org/cl/66600044
+
+ src/cmd/gc/subr.c | 3 +++
+ 1 file changed, 3 insertions(+)

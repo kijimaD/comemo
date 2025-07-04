@@ -1,0 +1,22 @@
+commit 1a7d921aa545bb888e06ec7af364c86e919e399f
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 25 12:23:44 2021 -0700
+
+    cmd/compile: remove typechecker calls in varDecl()
+    
+    We can now use transformAssign.
+    
+    The only remaining typechecker calls in the noder2 pass are for
+    CompLitExpr nodes (OCOMPLIT).
+    
+    Change-Id: I25671c79cc30749767bb16f84e9f151b943eccd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305509
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/decl.go    | 17 +++++++++++++++--
+ src/cmd/compile/internal/noder/expr.go    |  1 -
+ src/cmd/compile/internal/noder/helpers.go |  4 ----
+ 3 files changed, 15 insertions(+), 7 deletions(-)

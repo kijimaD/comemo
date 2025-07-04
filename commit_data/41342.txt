@@ -1,0 +1,37 @@
+commit ccb95b6492ad6e7a7d1a7fda896baee4caffb3b4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 17:45:54 2020 -0800
+
+    cmd/compile: preserve shift boundness during wasm rewrite rules
+    
+    Mostly for clarity. There are nominal improvements to the generated code:
+    
+    file      before    after     Δ       %
+    addr2line 4742769   4742639   -130    -0.003%
+    api       6973284   6973209   -75     -0.001%
+    asm       5922230   5922127   -103    -0.002%
+    buildid   3117327   3117252   -75     -0.002%
+    cgo       5539274   5539199   -75     -0.001%
+    compile   27423605  27424940  +1335   +0.005%
+    cover     6096973   6096898   -75     -0.001%
+    dist      4121655   4121580   -75     -0.002%
+    doc       5386254   5386179   -75     -0.001%
+    fix       3755243   3755168   -75     -0.002%
+    link      7602682   7602607   -75     -0.001%
+    nm        4687186   4687056   -130    -0.003%
+    objdump   5184883   5184753   -130    -0.003%
+    pack      2511360   2511285   -75     -0.003%
+    pprof     16872050  16871832  -218    -0.001%
+    test2json 3060633   3060558   -75     -0.002%
+    trace     13170181  13170018  -163    -0.001%
+    vet       9865995   9865920   -75     -0.001%
+    total     151188868 151188504 -364    -0.000%
+    
+    Change-Id: If765e3661549d183a2dbb44e83521c4a3f61d175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216998
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  42 ++---
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 270 ++++++++++++++++++----------
+ 2 files changed, 201 insertions(+), 111 deletions(-)

@@ -1,0 +1,17 @@
+commit a6bc3443519058a56d4983aee1c1d41c32b73532
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 20 18:51:13 2009 -0700
+
+    rewrite template library:
+            - separate parsing from execution
+            - rearrange code for organizational clarity
+            - provide execution errors and parse-time errors
+            - implement .or for repeated
+    
+    TBR=rsc
+    OCL=27650
+    CL=27650
+
+ src/lib/template/template.go      | 638 +++++++++++++++++++++++---------------
+ src/lib/template/template_test.go |  30 ++
+ 2 files changed, 417 insertions(+), 251 deletions(-)

@@ -1,0 +1,16 @@
+commit b57ffae094f817755251b90871cc55f2b5b570dc
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Fri Jul 30 11:47:11 2010 +1000
+
+    cov and prof: implement windows version (just function stubs and build mods)
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/1676054
+
+ include/libc.h        |  8 ++++++-
+ src/cmd/cov/Makefile  |  9 +++++++-
+ src/cmd/prof/Makefile |  9 +++++++-
+ src/libmach/Makefile  |  4 ++++
+ src/libmach/windows.c | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 86 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 9b6d385cb59879f699cec7af72af1081b423d885
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 12:36:21 2009 -0800
+
+    interface speedups and fixes.
+    more caching, better hash functions, proper locking.
+    fixed a bug in interface comparison too.
+    
+    R=ken
+    DELTA=177  (124 added, 10 deleted, 43 changed)
+    OCL=23491
+    CL=23493
+
+ src/Make.conf         |   2 +-
+ src/cmd/6g/obj.c      |  24 +++++---
+ src/runtime/iface.c   | 149 +++++++++++++++++++++++++++++++++++---------------
+ src/runtime/runtime.c |  36 ++++++++++++
+ src/runtime/runtime.h |   2 +
+ test/cmp1.go          |   9 ++-
+ 6 files changed, 168 insertions(+), 54 deletions(-)

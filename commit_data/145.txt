@@ -1,0 +1,15 @@
+commit 0b3093f0a5a71749c44835a9e3703853238d8d4d
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 10 21:29:57 2008 -0700
+
+    debugging to get fmt to run
+    
+    SVN=122046
+
+ src/cmd/6g/gen.c       |  21 ++++--
+ src/cmd/gc/go.h        |   5 +-
+ src/cmd/gc/sys.go      |   8 ++
+ src/cmd/gc/sysimport.c |  91 ++++++++++++----------
+ src/cmd/gc/walk.c      | 199 +++++++++++++++++++++++++++++++++++++------------
+ src/runtime/runtime.c  | 154 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 386 insertions(+), 92 deletions(-)

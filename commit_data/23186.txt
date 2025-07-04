@@ -1,0 +1,29 @@
+commit 5c60a4fb0a7f49105e2daa10efe45faf2bf3a36b
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed May 27 11:44:19 2015 +0000
+
+    text/template: fix variadic function call corner case
+    
+    Executing a template involving variadic functions featuring
+    a []interface{} slice (such as printf) could result in a
+    panic in reflect.Value.Call, due to incorrect type checking.
+    
+    The following expressions failed (with a panic):
+    {{true|printf}}
+    {{1|printf}}
+    {{1.1|printf}}
+    {{'x'|printf}}
+    {{1+2i|printf}}
+    
+    Implemented proper type checks for the fixed parameters of the
+    variadic functions.
+    
+    Fixes #10946
+    
+    Change-Id: Ia75333f651f73b3d2e024cb0c47cc30d90cb6852
+    Reviewed-on: https://go-review.googlesource.com/10403
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      | 10 +++++++++-
+ src/text/template/exec_test.go | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

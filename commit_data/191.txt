@@ -1,0 +1,16 @@
+commit c242b53d22aacbce0b78a2d0c977e2d92069cba5
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 22:33:32 2008 -0700
+
+    more maps
+    more semi-colons
+    type assignment of constants
+    
+    SVN=123278
+
+ src/cmd/gc/const.c | 12 +++++++++++-
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/go.y    | 45 ++++++++++++++++++++++++++-------------------
+ src/cmd/gc/subr.c  | 10 ++++++++++
+ src/cmd/gc/walk.c  | 15 ++++++++++++---
+ 5 files changed, 60 insertions(+), 23 deletions(-)

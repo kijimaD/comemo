@@ -1,0 +1,28 @@
+commit 563556ccc7c4099ac896c87178043b60365d33b5
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 31 12:32:29 2023 -0400
+
+    cmd/cgo/internal/testerrors: pass if GOEXPERIMENT=cgocheck2 is set
+    
+    The tests in this package are meant to check cgocheck and cgocheck2
+    mode, so they're of course sensitive to whether they're set.
+    Currently, the test will set GOEXPERIMENT=cgocheck2 for tests of
+    cgocheck2 mode, but won't *unset* cgocheck2 mode if it's already in
+    the environment for tests that expect it to be off. This means
+    
+      GOEXPERIMENT=cgocheck2 go test cmd/cgo/internal/testerrors
+    
+    fails.
+    
+    Fix this by removing cgocheck2 from GOEXPERIMENT if it's set and the
+    test case expects it to be unset.
+    
+    Change-Id: If663e41b791fb89df9940bc5356a566e2a54a77a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499557
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/cgo/internal/testerrors/ptr_test.go | 30 ++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)

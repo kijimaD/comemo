@@ -1,0 +1,19 @@
+commit 8527b8ef9b00c72b1a8e30e5917c7bdd3c0e79ef
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Wed May 18 18:47:24 2016 -0700
+
+    syscall: add Unshare flags to SysProcAttr on Linux
+    
+    This patch adds Unshare flags to SysProcAttr for Linux systems.
+    
+    Fixes #1954
+    
+    Change-Id: Id819c3f92b1474e5a06dd8d55f89d74a43eb770c
+    Reviewed-on: https://go-review.googlesource.com/23233
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go      |  9 +++++++++
+ src/syscall/exec_linux_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

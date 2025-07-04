@@ -1,0 +1,26 @@
+commit 376472ddb7252a4a859d89fc5ccb6db802e2b3b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 12:36:35 2020 -0700
+
+    cmd/compile: clean up slice and string offsets/sizes
+    
+    Minor cleanup:
+    
+    * Modernize comments.
+    * Change from int to int64 to avoid conversions.
+    * Use idiomatic names.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I93560c81926c0f4e00f33129cb4846b53bea99e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227548
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go    |  6 ++---
+ src/cmd/compile/internal/gc/go.go       | 46 ++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/sinit.go    | 18 ++++++-------
+ src/cmd/compile/internal/gc/ssa.go      |  4 +--
+ src/cmd/compile/internal/gc/universe.go | 10 +++----
+ 5 files changed, 41 insertions(+), 43 deletions(-)

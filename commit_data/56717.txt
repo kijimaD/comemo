@@ -1,0 +1,27 @@
+commit 9114c51521c641ff6c33648da03774dc3eb86b79
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 29 16:43:38 2024 +0000
+
+    Revert "runtime: prepare for extensions to waiting M list"
+    
+    This reverts commit be0b569caa0eab1a7f30edf64e550bbf5f6ff235 (CL 585635).
+    
+    Reason for revert: This is part of a patch series that changed the
+    handling of contended lock2/unlock2 calls, reducing the maximum
+    throughput of contended runtime.mutex values, and causing a performance
+    regression on applications where that is (or became) the bottleneck.
+    
+    Updates #66999
+    Updates #67585
+    
+    Change-Id: I7843ccaecbd273b7ceacfa0f420dd993b4b15a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589117
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lock_sema.go | 10 +++++-----
+ src/runtime/mprof.go     | 11 -----------
+ src/runtime/runtime2.go  |  2 +-
+ 3 files changed, 6 insertions(+), 17 deletions(-)

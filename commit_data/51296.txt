@@ -1,0 +1,18 @@
+commit 318ceda632c3e961b2d883262ea57f06ab09d06d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 11:06:03 2022 -0500
+
+    cmd/addr2line: use the test binary as 'addr2line' instead of rebuilding it twice
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: Ie9a3c03d32d7eea268ba6f8f8ac4000539434052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450713
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/addr2line/addr2line_test.go | 62 ++++++++++++++++++++++++++-----------
+ 1 file changed, 44 insertions(+), 18 deletions(-)

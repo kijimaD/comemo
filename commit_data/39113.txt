@@ -1,0 +1,19 @@
+commit ef4666eccedd457b33baa5b7d4bff95680e60741
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 10 11:13:06 2019 -0400
+
+    runtime: fix windows-amd64-2012 build
+    
+    I forgot that in Go assembly, x+16(SP) is not the same as 16(SP).
+    The former is the virtual stack pointer (one word below FP on x86)
+    while the latter is the actual stack pointer.
+    
+    Change-Id: Ibb7012bb97261949f5e1a0dc70869d9a6f50aa99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176557
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_windows.go       | 3 ++-
+ src/runtime/sys_windows_amd64.s | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

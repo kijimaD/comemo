@@ -1,0 +1,12 @@
+commit ddd67f2ecd1c100c48563addf4293bfe6dc7535f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 25 10:29:44 2012 +1100
+
+    math/big: add examples for Rat and Int's SetString and Scan methods
+    
+    R=golang-dev, bradfitz, rsc, r, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5543047
+
+ src/pkg/math/big/example_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

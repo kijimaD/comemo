@@ -1,0 +1,15 @@
+commit 82accf44bffcb4834c6ec794596fc8b335f99c2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 9 11:31:57 2013 -0800
+
+    go/parser: better error message for declaration error
+    
+    Fixes #4616.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7069049
+
+ src/pkg/go/parser/parser.go     | 2 +-
+ src/pkg/go/parser/short_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

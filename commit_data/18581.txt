@@ -1,0 +1,13 @@
+commit 5a6af5fc9439f96829bcdc9463a28baee0e41d85
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 20 17:24:25 2014 +1100
+
+    net/http: remove tmp file created in TestMultipartReaderOrder
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/66470043
+
+ src/pkg/net/http/request_test.go | 1 +
+ 1 file changed, 1 insertion(+)

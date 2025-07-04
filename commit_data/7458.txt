@@ -1,0 +1,13 @@
+commit 29ae8e9a986f9597c922ceae8266b49bf47dc2b7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 14 11:47:19 2011 -0800
+
+    makehtml: use append
+    The program is old and missed its opportunity.
+    
+    R=gri, adg
+    CC=golang-dev
+    https://golang.org/cl/4178050
+
+ doc/htmlgen.go | 24 +++++-------------------
+ 1 file changed, 5 insertions(+), 19 deletions(-)

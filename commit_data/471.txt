@@ -1,0 +1,18 @@
+commit 989676d2ba8d337af8d35ce1ff78097b00e97a15
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 3 18:47:02 2008 -0700
+
+    add 'export' adjectives to external
+    var, const and type declarations.
+    
+    R=r
+    DELTA=49  (12 added, 28 deleted, 9 changed)
+    OCL=13791
+    CL=13791
+
+ src/cmd/gc/dcl.c    | 10 +++++++---
+ src/cmd/gc/export.c | 20 ++------------------
+ src/cmd/gc/go.h     |  5 +++--
+ src/cmd/gc/go.y     | 18 +++++++-----------
+ src/cmd/gc/subr.c   |  1 -
+ 5 files changed, 19 insertions(+), 35 deletions(-)

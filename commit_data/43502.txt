@@ -1,0 +1,27 @@
+commit ce46f197b6c75281b77ee93338e2559671e28b01
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:48:06 2020 +0000
+
+    runtime: access the assist ratio atomically
+    
+    This change makes it so that the GC assist ratio (the pair of
+    gcControllerState fields assistBytesPerWork and assistWorkPerByte) is
+    updated atomically. Note that the pair of fields are not updated
+    together atomically, but that's OK. The code here was already racy for
+    some time and in practice the assist ratio moves very slowly.
+    
+    The purpose of this change is so that we can document
+    gcController.revise to be safe for concurrent use, which will be useful
+    in further changes.
+    
+    Change-Id: Ie25d630207c88e4f85f2b8953f6a0051ebf1b4ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246963
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go     | 51 ++++++++++++++++++++++++++++++++++++++++++--------
+ src/runtime/mgcmark.go | 17 +++++++++++------
+ src/runtime/proc.go    |  3 ++-
+ 3 files changed, 56 insertions(+), 15 deletions(-)

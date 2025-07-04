@@ -1,0 +1,29 @@
+commit 40d81cf061d8a2a277d70446f582a984c1701ff3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:26:07 2016 -0400
+
+    sync: throw, not panic, for unlock of unlocked mutex
+    
+    The panic leaves the lock in an unusable state.
+    Trying to panic with a usable state makes the lock significantly
+    less efficient and scalable (see early CL patch sets and discussion).
+    
+    Instead, use runtime.throw, which will crash the program directly.
+    
+    In general throw is reserved for when the runtime detects truly
+    serious, unrecoverable problems. This problem is certainly serious,
+    and, without a significant performance hit, is unrecoverable.
+    
+    Fixes #13879.
+    
+    Change-Id: I41920d9e2317270c6f909957d195bd8b68177f8d
+    Reviewed-on: https://go-review.googlesource.com/31359
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/panic.go     |   5 +++
+ src/sync/mutex.go        |   6 ++-
+ src/sync/mutex_test.go   | 104 +++++++++++++++++++++++++++++++++++++++++++----
+ src/sync/rwmutex.go      |   4 +-
+ src/sync/rwmutex_test.go |  42 -------------------
+ 5 files changed, 106 insertions(+), 55 deletions(-)

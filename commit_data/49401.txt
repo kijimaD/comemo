@@ -1,0 +1,19 @@
+commit 11195c60e6197016c0d5d32b04d4cb0ca7594014
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue May 3 13:17:08 2022 -0400
+
+    cmd/go: use index to match packages in dependency modules
+    
+    If we're trying to search in a module in the module cache, instead
+    iterate over the packages in the index.
+    Change-Id: Ia94cbe6e9690110c28b93dbb33810680e3010381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403756
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modindex/read.go  |  2 +-
+ src/cmd/go/internal/modindex/scan.go  |  7 ++--
+ src/cmd/go/internal/modload/search.go | 63 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 4 deletions(-)

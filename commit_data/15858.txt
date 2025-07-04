@@ -1,0 +1,12 @@
+commit bcb39a778cbf06582615e9110a480cedd096bb8b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 20 15:38:51 2013 -0700
+
+    runtime: free map structures more aggressively
+    
+    R=rsc, bradfitz, khr
+    CC=golang-dev
+    https://golang.org/cl/7849047
+
+ src/pkg/runtime/hashmap.c | 62 ++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 12 deletions(-)

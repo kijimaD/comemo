@@ -1,0 +1,13 @@
+commit 32cb495b185b50b08aea7fd9402ddf3152f1fda8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 16 10:26:01 2012 +1100
+
+    build: keep environment variable changes local during Windows build
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5673048
+
+ src/all.bat  |  7 +++----
+ src/make.bat | 15 ++++++++++-----
+ 2 files changed, 13 insertions(+), 9 deletions(-)

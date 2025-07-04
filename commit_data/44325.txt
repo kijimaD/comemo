@@ -1,0 +1,15 @@
+commit 40656f3a758728276e164ecb48822527a80e5f7b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Feb 20 17:53:43 2021 +0100
+
+    doc/1.16: fix link to fs.FileInfo
+    
+    Updates #40700
+    
+    Change-Id: Ifff622ccadaa31c0c0684c3c695aadcaa2305623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294669
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

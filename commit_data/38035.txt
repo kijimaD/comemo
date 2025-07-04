@@ -1,0 +1,33 @@
+commit 3cf56e78d812069d2ffb65b5c29a76961b0b0af8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 23:21:29 2019 -0500
+
+    text/template: accept new number syntax
+    
+    This CL updates text/template's scanner to accept the
+    new number syntaxes:
+    
+     - Hexadecimal floating-point values.
+     - Digit-separating underscores.
+     - Leading 0b and 0o prefixes.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #12711.
+    For #19308.
+    For #28493.
+    For #29008.
+    
+    Change-Id: I68c16ea35c3f506701063781388de72bafee6b8d
+    Reviewed-on: https://go-review.googlesource.com/c/160248
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/html/template/template_test.go    |  6 ++++++
+ src/text/template/exec.go             |  6 +++---
+ src/text/template/exec_test.go        | 21 +++++++++++++++++++++
+ src/text/template/parse/lex.go        | 21 ++++++++++++++++-----
+ src/text/template/parse/lex_test.go   | 12 +++++++++++-
+ src/text/template/parse/node.go       |  2 +-
+ src/text/template/parse/parse_test.go | 12 ++++++++++++
+ 7 files changed, 70 insertions(+), 10 deletions(-)

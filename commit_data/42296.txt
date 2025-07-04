@@ -1,0 +1,14 @@
+commit 9e8157805fed930c292d5593aab3016ce6d9c8ed
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu May 7 10:17:08 2020 +0800
+
+    cmd/internal/obj/arm64: fix typos in document
+    
+    Correct "PCALING" to "PCALIGN".
+    
+    Change-Id: Id80728142febd2a42e112dc06a6c1bc0759687e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232697
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

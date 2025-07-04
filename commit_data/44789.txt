@@ -1,0 +1,33 @@
+commit e8700f1ce6f4103207f470cce443f04377baa600
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 8 15:18:35 2020 -0500
+
+    cmd/compile, cmd/link: use weak reference in itab
+    
+    When converting a type T to a non-empty interface I, we build the
+    itab which contains the code pointers of the methods. Currently,
+    this brings those methods live (if the itab is live), even if the
+    interface method is never used. This CL changes the itab to use
+    weak references, so the methods can be pruned if not otherwise
+    live.
+    
+    Fixes #42421.
+    
+    Change-Id: Iee5de2ba11d603c5a102a2ba60440d839a7f9702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268479
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/objw/objw.go                      | 7 +++++++
+ src/cmd/compile/internal/reflectdata/reflect.go            | 2 +-
+ src/cmd/internal/obj/data.go                               | 7 +++++++
+ src/cmd/internal/objabi/reloctype.go                       | 1 +
+ src/cmd/link/internal/ld/data.go                           | 7 +++++++
+ src/cmd/link/internal/ld/deadcode.go                       | 3 +++
+ src/cmd/link/internal/ld/lib.go                            | 3 +++
+ src/cmd/link/internal/ld/testdata/deadcode/ifacemethod4.go | 2 ++
+ src/runtime/iface.go                                       | 7 +++++++
+ src/runtime/type.go                                        | 2 +-
+ 10 files changed, 39 insertions(+), 2 deletions(-)

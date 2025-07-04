@@ -1,0 +1,17 @@
+commit e08d1fba37ad32fbe7e8d57cd75c9a88dfdde87f
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 7 14:51:45 2021 -0500
+
+    doc/go1.18: mention bytes.Cut and strings.Cut
+    
+    For #47694.
+    
+    Updates #46336.
+    
+    Change-Id: Ibbd058a1fd4d6b0aa38d3e8dc15b560d1e149f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369981
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 7db509e682891f3bc501c7b23e32e02c64893557
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Sep 29 22:10:43 2018 -0700
+
+    database/sql: correctly report MaxIdleClosed stat
+    
+    Previously the MaxIdleClosed counter was incremented when added
+    to the free connection list, rather then when it wasn't added
+    to the free connection list. Flip this logic to correct.
+    
+    Fixes #27792
+    
+    Change-Id: I405302c14fb985369dab48fbe845e5651afc4ccf
+    Reviewed-on: https://go-review.googlesource.com/c/138578
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 10 +++++----
+ src/database/sql/sql_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 4 deletions(-)

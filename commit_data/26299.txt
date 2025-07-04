@@ -1,0 +1,15 @@
+commit 7e3344f74eea51433918e29abb925e9f6e037888
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Mar 15 17:45:10 2016 -0400
+
+    runtime: update link to WriteHeapDump format
+    
+    The new link is https://golang.org/s/go15heapdump.
+    
+    Change-Id: Ifcaf8572bfe815ffaa78442a1991f6e20e990a50
+    Reviewed-on: https://go-review.googlesource.com/20740
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/debug/garbage.go | 2 +-
+ src/runtime/heapdump.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

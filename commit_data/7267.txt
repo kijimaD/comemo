@@ -1,0 +1,18 @@
+commit 634cef25c3574f96fde66c3dc41014eac20b4425
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 28 09:42:51 2011 -0500
+
+    doc/codelab/wiki: fixes
+    
+    make test.sh runnable as a command.
+    announce only on 127.0.0.1.
+    rebuild final-test.bin when final-test.go changes.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4030044
+
+ doc/codelab/wiki/Makefile |  3 ++-
+ doc/codelab/wiki/get.go   |  6 +++---
+ doc/codelab/wiki/test.sh  | 30 ++++++++++++++----------------
+ 3 files changed, 19 insertions(+), 20 deletions(-)

@@ -1,0 +1,16 @@
+commit 1d37c1165792bdfc84d46e7d4ab9f6e390398dc6
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Apr 5 23:44:05 2010 -0700
+
+    libcgo: initial mingw port work - builds but untested
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/812041
+
+ src/libcgo/386.S         |  2 +-
+ src/libcgo/Makefile      |  2 ++
+ src/libcgo/amd64.S       |  2 +-
+ src/libcgo/mingw_386.c   | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/libcgo/mingw_amd64.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 94 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit f6f1750a0523897d6343fa3117265b5206266379
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 20:18:16 2018 +0100
+
+    cmd/compile: use | in the most repetitive boolean rules
+    
+    For now, limited to a few repetitive boolean rules where the win is
+    substantial (4+ variants).
+    
+    Change-Id: I67bce0d356ca7d71a0f15ff98551fe2caff8abf9
+    Reviewed-on: https://go-review.googlesource.com/95535
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 74 ++++++--------------------
+ 1 file changed, 15 insertions(+), 59 deletions(-)

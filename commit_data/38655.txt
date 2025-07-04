@@ -1,0 +1,18 @@
+commit a8e83d2febe28a79e2906a9249ab2d79e0523c2a
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Apr 4 14:08:06 2019 -0700
+
+    syscall: don't use INODE64 for fdopendir on darwin/386
+    
+    The INODE64 variant only exists on 64-bit.
+    
+    Fixes #31262
+    
+    Change-Id: I528277c9b3312fdb15463ccbea0d537ff300f4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170837
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_darwin_386.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

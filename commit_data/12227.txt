@@ -1,0 +1,14 @@
+commit 28668c3a28c8eee186362692af981d9f4fc4fc96
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 16:23:22 2012 +1100
+
+    cmd/go: run examples even if -run is set if -example is also set
+    Allows one to disable everything but the example being debugged.
+    This time for sure.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5700079
+
+ src/pkg/testing/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

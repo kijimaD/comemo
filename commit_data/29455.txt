@@ -1,0 +1,16 @@
+commit 73497c7656fa55ac33bac960ecee806b9b07ae5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 17:02:33 2016 -0800
+
+    cmd/gofmt: don't leave tmp file if -w failed
+    
+    Follow-up on https://golang.org/cl/33018.
+    
+    For #8984.
+    
+    Change-Id: I6655a5537a60d4ea3ee13029a56a75b150f8c8f8
+    Reviewed-on: https://go-review.googlesource.com/33020
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

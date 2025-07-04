@@ -1,0 +1,15 @@
+commit 062d6998abfa3fd59d47ed86547783db25ab066b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 10 20:03:31 2009 -0700
+
+    Add support for a -I option.  -I DIR searches for packages in
+    DIR.
+    
+    R=ken,rsc
+    DELTA=49  (41 added, 2 deleted, 6 changed)
+    OCL=26057
+    CL=26092
+
+ src/cmd/gc/go.h  |  9 +++++++++
+ src/cmd/gc/lex.c | 46 ++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 47 insertions(+), 8 deletions(-)

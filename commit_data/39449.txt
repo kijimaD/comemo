@@ -1,0 +1,26 @@
+commit 24f7d89a73b7bd77127a56e8a8552c48278d251b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 25 17:25:01 2019 -0400
+
+    cmd/go: 'go get' should not delete binaries when run from $GOBIN
+    
+    When 'go install' is run without arguments in a directory containing a
+    main package, it deletes an executable file with the same name as the
+    package (presumably created by 'go build' previously).
+    
+    'go get' in module mode executes the same code after updating and
+    downloading modules. However, the special case was misfiring because
+    we passed an empty list of patterns to InstallPackages.
+    
+    Fixes #32766
+    
+    Change-Id: I19aca64ee1fb5a216777dd7d559e8e6a45b3e90c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183846
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                    |  3 +--
+ src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_get_cmd.txt           | 20 ++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

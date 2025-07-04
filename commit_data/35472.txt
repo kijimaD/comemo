@@ -1,0 +1,23 @@
+commit 67fe8b5677c8dca1503550ca72d1e460bca0375c
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue May 22 19:13:44 2018 +0300
+
+    cmd/internal/obj/x86: add missing Yi8 for VEX ytabs
+    
+    This change adds Yi8 forms for every ytab that had them before AVX-512 patch.
+    The rationale is backwards-compatibility.
+    
+    EVEX forms remain strict and unchanged as they're not bound to any
+    backwards-compatibility issues.
+    
+    Fixes #25510
+    
+    Change-Id: Icd692266010ed64c9fe47cc837afc2edf2ad2d1d
+    Reviewed-on: https://go-review.googlesource.com/114136
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 54 ++++++++++++++++++++++
+ src/cmd/internal/obj/x86/avx_optabs.go             | 54 ++++++++++++++--------
+ 2 files changed, 90 insertions(+), 18 deletions(-)

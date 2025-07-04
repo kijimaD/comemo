@@ -1,0 +1,14 @@
+commit c8423f90029e24b9b714678f9d23f7497f97a1e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 7 16:10:10 2012 +1000
+
+    io: document ReaderFrom and WriterTo
+    
+    Fixes #3711
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6445083
+
+ src/pkg/io/io.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

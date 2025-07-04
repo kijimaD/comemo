@@ -1,0 +1,21 @@
+commit 8ee9bca2729ead81da6bf5a18b87767ff396d1b7
+Author: Gergely Brautigam <skarlso777@gmail.com>
+Date:   Fri Jan 18 21:43:56 2019 +0100
+
+    cmd/compile: suppress typecheck errors in a type switch case with broken type
+    
+    If a type switch case expression has failed typechecking, the case body is
+    likely to also fail with confusing or spurious errors. Suppress
+    typechecking the case body when this happens.
+    
+    Fixes #28926
+    
+    Change-Id: Idfdb9d5627994f2fd90154af1659e9a92bf692c4
+    Reviewed-on: https://go-review.googlesource.com/c/158617
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
+ test/fixedbugs/issue28926.go       | 24 ++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 8 deletions(-)

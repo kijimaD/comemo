@@ -1,0 +1,22 @@
+commit f511467532f7b0009b6eff7752f2250e7f63ab12
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Nov 9 00:21:02 2019 +0000
+
+    runtime: fix min/max logic in findScavengeCandidate
+    
+    Before this CL, if max > min and max was unaligned to min, then the
+    function could return an unaligned (unaligned to min) region to
+    scavenge. On most platforms, this leads to some kind of crash.
+    
+    Fix this by explicitly aligning max to the next multiple of min.
+    
+    Fixes #35445.
+    Updates #35112.
+    
+    Change-Id: I0af42d4a307b48a97e47ed152c619d77b0298291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mgcscavenge.go      | 18 ++++++++++++------
+ src/runtime/mgcscavenge_test.go | 12 ++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

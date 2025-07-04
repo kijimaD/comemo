@@ -1,0 +1,20 @@
+commit ede97290edd6ca9291d44f8eba503fbd8b162ed4
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 22:28:18 2021 -0500
+
+    go/types: re-use type hashing logic in Context.typeHash
+    
+    The special handling for *Named types is not necessary. The hash of an
+    instance is simply the hash of its type followed by its type argument
+    list.
+    
+    Change-Id: I7aa58e73b81731c3cad3a2fd14124f63cfb685a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362800
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/context.go     | 26 ++++++++++----------------
+ src/go/types/instantiate.go |  4 ++--
+ 2 files changed, 12 insertions(+), 18 deletions(-)

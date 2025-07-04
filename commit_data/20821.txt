@@ -1,0 +1,14 @@
+commit 3bbc8638d5dd2564b3c60a603c094c0e570bd301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 06:53:05 2014 -0700
+
+    fmt: fix one-letter typo in doc.go
+    Stupid mistake in previous CL.
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166880043
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

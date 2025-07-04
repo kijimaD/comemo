@@ -1,0 +1,16 @@
+commit 35778aa4972e5c005877fe77970183281fab1d44
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 19 10:54:12 2018 -0400
+
+    cmd/go: final edits for add go list -cgo and -export
+    
+    These got lost because I violated the cardinal rule of Gerrit
+    which is never click the Submit button in the web UI.
+    
+    Change-Id: I8ccdfb5d8691960f244941036d33fb5a5a3f0c9a
+    Reviewed-on: https://go-review.googlesource.com/117015
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go            | 7 +++----
+ src/cmd/go/internal/list/list.go | 7 +++----
+ 2 files changed, 6 insertions(+), 8 deletions(-)

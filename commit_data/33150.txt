@@ -1,0 +1,20 @@
+commit 292366e7162a030cade7b177eb4ad55bd887d25f
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Oct 17 22:04:17 2017 +0000
+
+    Revert "database/sql: prevent race in driver by locking dc in Next"
+    
+    This reverts commit 897080d5cbb1793f8ad3ef5fb7c6fafba2e97d42.
+    
+    Reason for revert: Fails to fix all the locking issues.
+    
+    Updates #21117
+    
+    Change-Id: I6fc9cb7897244d6e1af78c089a2bf383258ec049
+    Reviewed-on: https://go-review.googlesource.com/71450
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/fakedb_test.go |  1 -
+ src/database/sql/sql.go         | 12 ------------
+ src/database/sql/sql_test.go    |  8 +-------
+ 3 files changed, 1 insertion(+), 20 deletions(-)

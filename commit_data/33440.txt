@@ -1,0 +1,21 @@
+commit 60a3c95dcb7ba40994a41baf48d64f2fae1c2313
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 4 13:14:19 2017 -0400
+
+    cmd/go: do not print entire help text for unrecognized flag
+    
+    I typed 'go list -josn' without realizing I'd mistyped json, and I was confused for
+    quite a while as to why I was staring at the 'go help json' text: the actual problem
+    (a missing flag) scrolls far off the screen. If people want the full text, they can
+    easily ask for it, but don't drown the important bit - unrecognized flag or other
+    improper usage - with pages of supporting commentary. The help text does not
+    help people who just need to be told about a typo.
+    
+    Change-Id: I179c431baa831e330f3ee495ce0a5369319962d5
+    Reviewed-on: https://go-review.googlesource.com/76013
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/base/base.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

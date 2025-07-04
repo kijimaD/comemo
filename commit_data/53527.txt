@@ -1,0 +1,15 @@
+commit 0fcc70ecd56e3b5c214ddaee4065ea1139ae16b5
+Author: chressie <chressie@google.com>
+Date:   Mon Jun 12 15:09:21 2023 +0200
+
+    doc/go1.21: fix typo
+    
+    Change-Id: Ie0af0ff135ac14d35476d738a16f04e9c3eebcd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502475
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

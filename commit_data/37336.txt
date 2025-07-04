@@ -1,0 +1,18 @@
+commit f9fff4554c7ac2c9fa51150d57b163132338b51b
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Fri Nov 9 23:28:54 2018 +0300
+
+    go/build, go/doc: fix tautological conditions
+    
+    These issues were found by the new vet's nilness check. The variables
+    were already checked against nil, so remove extra checks.
+    
+    Change-Id: Ie252ccfcc755f3d06f691f354bf13d5a623fe17b
+    Reviewed-on: https://go-review.googlesource.com/c/148937
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/read_test.go | 2 +-
+ src/go/doc/reader.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

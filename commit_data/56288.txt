@@ -1,0 +1,19 @@
+commit d037bba19b26064dcbd19be2c17e042c8d421f2c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 24 11:31:19 2024 -0400
+
+    cmd/compile: add debug log prior to export data lookup
+    
+    If there is a crash in LookupFunc (which has occurred a few times now),
+    this ensures that we log the offending symbol before crashing.
+    
+    For #67016.
+    
+    Change-Id: I0119597de2be3d1b97c41a9361273d1feb90ec11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581437
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/pgoir/irgraph.go | 3 +++
+ 1 file changed, 3 insertions(+)

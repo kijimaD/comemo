@@ -1,0 +1,13 @@
+commit e8fb0b014ca37ffd34b99f2f83c477bca8ad13ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 19 17:46:18 2010 -0700
+
+    godoc: revert change 5089, per gri's instructions
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/630043
+
+ lib/godoc/search.txt   |  7 +++----
+ src/cmd/godoc/godoc.go | 27 +++------------------------
+ 2 files changed, 6 insertions(+), 28 deletions(-)

@@ -1,0 +1,23 @@
+commit 02798ed936cc3c4789ee8a3ca5ac26a24105947d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 14 10:50:49 2018 +0000
+
+    cmd/compile: use more range fors in gc
+    
+    Slightly simplifies the code. Made sure to exclude the cases that would
+    change behavior, such as when the iterated value is a string, when the
+    index is modified within the body, or when the slice is modified.
+    
+    Also checked that all the elements are of pointer type, to avoid the
+    corner case where non-pointer types could be copied by mistake.
+    
+    Change-Id: Iea64feb2a9a6a4c94ada9ff3ace40ee173505849
+    Reviewed-on: https://go-review.googlesource.com/100557
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dwinl.go | 34 ++++++++++++++++------------------
+ src/cmd/compile/internal/gc/phi.go   |  2 +-
+ src/cmd/compile/internal/gc/plive.go |  4 ++--
+ src/cmd/compile/internal/gc/subr.go  |  6 +++---
+ 4 files changed, 22 insertions(+), 24 deletions(-)

@@ -1,0 +1,27 @@
+commit 87350393e684f1eb10f28b6b1d712a6d60093f49
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 11 15:15:51 2023 -0400
+
+    cmd/go: fix GOTOOLCHAIN parsing for +auto
+    
+    The call from toolchain.Select to gover.FromToolchain was passing the
+    wrong argument but this was masked by gover.IsValid being a little bit
+    too lax.
+    
+    Fix and test IsValid, which then breaks the existing gotoolchain_local
+    test, and then fix toolchain.Select to fix the test.
+    
+    Fixes #61068.
+    
+    Change-Id: I505ceb227457d6a51bd5e47f009b2fb1010c0d1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508820
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/gover/gover.go               |  3 +++
+ src/cmd/go/internal/gover/gover_test.go          | 19 +++++++++++++++++++
+ src/cmd/go/internal/gover/toolchain.go           |  2 +-
+ src/cmd/go/internal/toolchain/select.go          |  2 +-
+ src/cmd/go/testdata/script/gotoolchain_local.txt |  4 ++--
+ 5 files changed, 26 insertions(+), 4 deletions(-)

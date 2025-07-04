@@ -1,0 +1,15 @@
+commit de1ea5de8637876c81a6c05e5a9cc9e572a5c62f
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sun Mar 23 18:58:35 2014 -0700
+
+    strings: minor cleanup
+    
+    bi is a slice and not an array, so bi[:] does not make much sense.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/79280043
+
+ src/pkg/strings/replace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

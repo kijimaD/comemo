@@ -1,0 +1,29 @@
+commit e0f08b938a37490cd6e4f6bb33360678ac5f42b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 23:14:21 2014 -0400
+
+    runtime: use cas loop to coordinate with sigprof
+    
+    sigprof and setcpuprofilerate coordinate the enabling/disabling
+    of the handler using a Mutex. This has always been a bit dodgy:
+    setcpuprofilerate must be careful to turn off signals before acquiring
+    the lock to avoid a deadlock.
+    
+    Now the lock implementations use onM, and onM isn't okay on the
+    signal stack. We know how to make it okay, but it's more work than
+    is probably worth doing.
+    
+    Since this is super-dodgy anyway, replace the lock with a simple
+    cas loop. It is only contended if setcpuprofilerate is being called,
+    and that doesn't happen frequently enough to care about the
+    raw speed or about using futexes/semaphores.
+    
+    TBR to fix freebsd/amd64 and dragonfly/amd64 builds.
+    Happy to make changes in a follow-up CL.
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/141080044
+
+ src/pkg/runtime/proc.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

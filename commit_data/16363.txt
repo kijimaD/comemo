@@ -1,0 +1,17 @@
+commit ddda7980c52414d6de69758c588bca1ba418d95d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 15:21:30 2013 -0700
+
+    net/http: don't send Accept-Encoding on HEAD requests
+    
+    Works around a bug in nginx: http://trac.nginx.org/nginx/ticket/358
+    
+    Fixes #5522
+    
+    R=iant
+    CC=gobot, golang-dev
+    https://golang.org/cl/9627043
+
+ src/pkg/net/http/transport.go      | 7 ++++++-
+ src/pkg/net/http/transport_test.go | 9 ++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)

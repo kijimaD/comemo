@@ -1,0 +1,17 @@
+commit 6f2e6f8dd6d2b0fc1b32447c4ed38231fde4a3c2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:11:15 2017 -0400
+
+    runtime/pprof: don't accept "," in profile PCs
+    
+    TestBlockProfile matches samples against a regexp that accepts "," in
+    profile PCs. I suspect this was just a syntax mistake. Remove "," from
+    the character class.
+    
+    Change-Id: Idcfc20ed6900075abae08597ba71db559e89b37b
+    Reviewed-on: https://go-review.googlesource.com/41111
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/runtime/pprof/pprof_test.go | 42 ++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

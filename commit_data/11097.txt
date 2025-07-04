@@ -1,0 +1,12 @@
+commit d03bfa8e5b2040565ecf3563f83787970bab854c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 11 14:55:10 2012 +1100
+
+    net: fix windows build
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5533065
+
+ src/pkg/net/sockoptip_windows.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

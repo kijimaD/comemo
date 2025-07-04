@@ -1,0 +1,16 @@
+commit 1eae1252e9ba5d11f637e656617e804ce7990c3d
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Thu Nov 1 12:57:44 2012 -0400
+
+    net: fix a bad cast in dnsmsg.go
+    
+    Incorrect cast was causing panics when
+    calling String() on dnsMsg with dnsRR_A
+    answers.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6818043
+
+ src/pkg/net/dnsmsg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 42b37819a132fc2e79149643691894f501077161
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 18 16:11:50 2016 -0700
+
+    cmd/compile: rework mkbuiltin.go to generate code
+    
+    Generating binary export data requires a working Go compiler. Even
+    trickier to change the export data format itself requires a careful
+    bootstrapping procedure.
+    
+    Instead, simply generate normal Go code that lets us directly
+    construct the builtin runtime declarations.
+    
+    Passes toolstash -cmp.
+    
+    Fixes #17508.
+    
+    Change-Id: I4f6078a3c7507ba40072580695d57c87a5604baf
+    Reviewed-on: https://go-review.googlesource.com/31493
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go   | 345 ++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/dcl.go       |   8 +
+ src/cmd/compile/internal/gc/main.go      |  27 ++-
+ src/cmd/compile/internal/gc/mkbuiltin.go | 205 ++++++++++++++----
+ 4 files changed, 438 insertions(+), 147 deletions(-)

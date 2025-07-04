@@ -1,0 +1,15 @@
+commit b0507f15798af22f2c23042ec6308702380112c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 14 16:59:15 2015 -0700
+
+    go/parser: better error message for incorrect type switch header
+    
+    Fixes 11829.
+    
+    Change-Id: I2e39f61e12953147b0cd6a11d29179c500c94964
+    Reviewed-on: https://go-review.googlesource.com/14566
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/go/parser/parser.go     | 19 ++++++++++++++-----
+ src/go/parser/short_test.go |  2 +-
+ 2 files changed, 15 insertions(+), 6 deletions(-)

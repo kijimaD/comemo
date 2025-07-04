@@ -1,0 +1,16 @@
+commit 381ab58e2c1c3e10e64faeca292ee1a5b3fb0226
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 16 13:59:31 2010 +1000
+
+    netchan: fix bug for imported send.
+    Also add a bit of debugging and sanitation code.
+    Fixes #769.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2206042
+
+ src/pkg/netchan/common.go | 10 ++++++++++
+ src/pkg/netchan/export.go |  3 ++-
+ src/pkg/netchan/import.go |  3 ++-
+ 3 files changed, 14 insertions(+), 2 deletions(-)

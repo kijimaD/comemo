@@ -1,0 +1,27 @@
+commit b813465c4faeb3054a2689481b0b5f9562b8b077
+Author: George Adams <georgeadams1995@gmail.com>
+Date:   Tue Oct 8 10:52:54 2024 +0100
+
+    os: check for valid Windows path when creating files
+    
+    Checks for a valid Windows path by ensuring the path doesn't end with trailing spaces or periods.
+    
+    Fixes #54040.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: I266f79963c821f8cc474097d3e57c5645ad996fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618496
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/os/export_windows_test.go |  9 +++---
+ src/os/file.go                | 19 ++++-------
+ src/os/file_nonwindows.go     | 15 +++++++++
+ src/os/file_windows.go        | 22 +++++++++++++
+ src/os/os_windows_test.go     | 73 +++++++++++++++++++++++++++++++++++++++++++
+ src/os/path_windows.go        | 29 +++++++++++++++++
+ src/os/path_windows_test.go   | 53 +++++++++++++++++++++++++++++++
+ 7 files changed, 203 insertions(+), 17 deletions(-)

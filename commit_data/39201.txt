@@ -1,0 +1,22 @@
+commit 4ee4607c97a3968b7252fbcac4631a6b6b7b4537
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon May 20 15:07:01 2019 +0700
+
+    cmd/compile: use internal/race
+    
+    CL 14870 added internal/race to factor out duplicated race thunks,
+    we should use it.
+    
+    No signification changes in compile time and compile binary size.
+    
+    Change-Id: I786af44dd5bb0f4ab6709432eeb603f27a5b6c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/norace.go | 9 ---------
+ src/cmd/compile/internal/gc/pgen.go   | 5 +++--
+ src/cmd/compile/internal/gc/race.go   | 9 ---------
+ src/cmd/dist/buildtool.go             | 1 +
+ 4 files changed, 4 insertions(+), 20 deletions(-)

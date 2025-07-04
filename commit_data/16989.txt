@@ -1,0 +1,20 @@
+commit 39679ca88f8f37f6797daa9e866f8ba65ee18c9e
+Author: Scott Ferguson <scottwferg@gmail.com>
+Date:   Thu Aug 1 15:52:56 2013 -0700
+
+    net/url: prepend slash to path in String()
+    
+    Previously if a path was set manually without a leading /, String()
+    would not insert the slash when writing its output. This would lead
+    to situations where a URL that should be http://www.google.com/search
+    is output as http://www.google.comsearch
+    
+    Fixes #5927.
+    
+    R=golang-dev, bradfitz, rsc, 0xjnml
+    CC=golang-dev
+    https://golang.org/cl/11698045
+
+ src/pkg/net/url/url.go      |  3 +++
+ src/pkg/net/url/url_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

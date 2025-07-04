@@ -1,0 +1,21 @@
+commit 236901384dc9fc3d7810ae96b43c8404f0fea6c1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 19 23:13:29 2016 +0000
+
+    net/http: fix unwanted HTTP/2 conn Transport crash after IdleConnTimeout
+    
+    Go 1.7 crashed after Transport.IdleConnTimeout if an HTTP/2 connection
+    was established but but its caller no longer wanted it. (Assuming the
+    connection cache was enabled, which it is by default)
+    
+    Fixes #16208
+    
+    Change-Id: I9628757f7669e344f416927c77f00ed3864839e3
+    Reviewed-on: https://go-review.googlesource.com/27450
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  4 +++
+ src/net/http/transport_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

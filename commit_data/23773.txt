@@ -1,0 +1,17 @@
+commit 6c7acdfbdbfd5c8a3b60d6b796041257360a19c3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 21 14:05:13 2015 +1000
+
+    doc: add a clause about embedded methods to go1compat
+    
+    This is a corner case but it is suggested we call it out.
+    
+    Fixes #11798.
+    
+    Change-Id: I2ddb5b363cd2921666dbf03bbf98107697ca40e5
+    Reviewed-on: https://go-review.googlesource.com/12460
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1compat.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,13 @@
+commit 03d6909ff74d9793b98f587717d5dbd76a4589d5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 19:35:01 2009 -0800
+
+    more fun with triv.go: flags and arguments
+    
+    R=rsc
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=25088
+    CL=25134
+
+ src/lib/http/triv.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

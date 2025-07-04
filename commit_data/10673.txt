@@ -1,0 +1,12 @@
+commit a933635579355dc152ab0ad6571d92015bb88cb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 8 21:48:19 2011 -0500
+
+    spec: var x = 'a' defaults to type rune
+    
+    R=gri, r, r, adg, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/5444053
+
+ doc/go_spec.html | 67 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 33 insertions(+), 34 deletions(-)

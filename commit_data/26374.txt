@@ -1,0 +1,22 @@
+commit 5c83e651adfa78d73634557cfaf2fbc9bde599f0
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jan 19 22:43:52 2016 +0100
+
+    testing: prepare for the introduction of Run methods
+    
+    The biggest change is that each test is now responsible for managing
+    the starting and stopping of its parallel subtests.
+    
+    The "Main" test could be run as a tRunner as well. This shows that
+    the introduction of subtests is merely a generalization of and
+    consistent with the current semantics.
+    
+    Change-Id: Ibf8388c08f85d4b2c0df69c069326762ed36a72e
+    Reviewed-on: https://go-review.googlesource.com/18893
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/benchmark.go |  15 +--
+ src/testing/sub_test.go  | 101 ++++++++++++++++++++
+ src/testing/testing.go   | 234 +++++++++++++++++++++++++++++++++--------------
+ test/fixedbugs/bug229.go |   2 +-
+ 4 files changed, 275 insertions(+), 77 deletions(-)

@@ -1,0 +1,18 @@
+commit 9ed0d81fb5b2a7e6707010a226b72626433b83d2
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Tue Feb 8 22:38:28 2022 -0800
+
+    crypto/aes: fix key size typo
+    
+    AES-196 does not exist, but AES-192 does.
+    
+    Signed-off-by: Eric Lagergren <eric@ericlagergren.com>
+    Change-Id: I8c9ac67735e99e5b2ee7fb9824029c1164221153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384374
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/aes/asm_amd64.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

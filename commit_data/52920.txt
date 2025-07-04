@@ -1,0 +1,20 @@
+commit 91ebed3fd2e0857eec7775835cd6c2a0c0635a03
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 8 14:03:02 2023 -0400
+
+    all: make safe for new vet analyzer
+    
+    The unused analyzer handles dot imports now, so a few tests
+    have picked up vet errors. This CL errors like:
+    
+    context/x_test.go:524:47: result of context.WithValue call not used
+    
+    Change-Id: I711a62fd7b50381f8ea45ac526bf0c946a171047
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493598
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/context/x_test.go | 10 ++++-----
+ src/fmt/fmt_test.go   | 56 +++++++++++++++++++++++++--------------------------
+ 2 files changed, 33 insertions(+), 33 deletions(-)

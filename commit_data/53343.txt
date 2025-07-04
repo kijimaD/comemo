@@ -1,0 +1,17 @@
+commit f0e356a07d321ef674fcda71cd8014f055c10b07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 25 14:50:08 2023 -0700
+
+    doc: add release notes for new min/max built-ins
+    
+    For #59488.
+    
+    Change-Id: Iefabb06014767c5f633082a112a81e9ff5f09a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.21.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,19 @@
+commit 503091a77c43263a5ce86f9358de3445524627b7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Nov 28 13:38:02 2018 +0100
+
+    cmd: improve aix/ppc64 new symbol addressing
+    
+    This commit updates the new symbol addressing made for aix/ppc64 according
+    to feedbacks given in CL 151039.
+    
+    Change-Id: Ic4eb9943dc520d65f7d084adf8fa9a2530f4d3f9
+    Reviewed-on: https://go-review.googlesource.com/c/151302
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 12 +++++++-----
+ src/cmd/internal/obj/ppc64/obj9.go |  1 +
+ src/cmd/link/internal/ppc64/asm.go |  9 ++++++++-
+ 3 files changed, 16 insertions(+), 6 deletions(-)

@@ -1,0 +1,22 @@
+commit b8cb75fb17511538524ac304abe68e62699c4e23
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 11 10:55:32 2019 +1100
+
+    text/template: add error check for parenthesized first argument in pipeline
+    
+    An error check was missing: If the first argument of a pipeline is
+    parenthesized, and the pipeline has further arguments, then
+    syntactically the pipeline is a function invocation and there must
+    be a "call". Tricky rare corner case, but easily caught.
+    
+    Add the error check and some tests to verify behavior.
+    
+    Fixes #31810.
+    
+    Change-Id: Ica80b7c11284e4ea9e8cc94a01dbbc9a67e42079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206124
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/exec.go      |  3 ++-
+ src/text/template/exec_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

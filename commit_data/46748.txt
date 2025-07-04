@@ -1,0 +1,18 @@
+commit 75773b0e7b4dac6b779e869a13096a7b7f0be5bb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 09:40:15 2021 -0700
+
+    runtime: add BenchmarkStackCopyWithStkobj
+    
+    For benchmarking and improving recent stkobj-related changes.
+    
+    Co-Authored-By: Cherry Mui <cherryyz@google.com>
+    Change-Id: I34c8b1a09e4cf98547460882b0d3908158269f57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354071
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/stack_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

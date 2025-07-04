@@ -1,0 +1,26 @@
+commit 036e93ba7631bb12844f01078979e761144f227f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 15:54:12 2024 -0400
+
+    cmd/go: add go telemetry command and GOTELEMETRY, GOTELEMETRYDIR
+    
+    Add the go telemetry command to support setting and viewing the
+    telemetry mode. Also add the non-settable GOTELEMETRY and GOTELEMETRYDIR
+    variables to go env, which contain the mode and telemetry dir.
+    
+    For #67111
+    
+    Change-Id: Id7e89cefe30acfe3d865fa467315fe7cda975de9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584535
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                             | 33 ++++++++
+ src/cmd/go/internal/envcmd/env.go                 |  3 +
+ src/cmd/go/internal/telemetrycmd/telemetry.go     | 92 +++++++++++++++++++++++
+ src/cmd/go/main.go                                |  2 +
+ src/cmd/go/testdata/script/telemetry.txt          | 51 +++++++++++++
+ src/cmd/internal/telemetry/telemetry.go           | 35 +++++++++
+ src/cmd/internal/telemetry/telemetry_bootstrap.go |  3 +
+ 7 files changed, 219 insertions(+)

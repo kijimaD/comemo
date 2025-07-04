@@ -1,0 +1,19 @@
+commit 4c69e92f51645c291dc4c74aed5c56ecb0dcd57f
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 4 10:14:03 2016 -0500
+
+    cmd/link: align string data to Minalign when merging strings
+    
+    Minalign > 1 implies that relocations inserted by the linker cannot
+    target arbitrary bytes.
+    
+    Related to #14604
+    
+    Change-Id: Ie68d14887bc4047d9b29b0cb1149a8d14b6c62e2
+    Reviewed-on: https://go-review.googlesource.com/20214
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/mergestrings.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit ba2e8a629b36e43cc27b23470b631a1dfee0900f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 19 16:24:59 2018 -0400
+
+    cmd/asm: add mode to collect symbol ABIs
+    
+    This adds a -symabis flag that runs the assembler in a special mode
+    that outputs symbol definition and reference ABIs rather than
+    assembling the code. This uses a fast and somewhat lax parser because
+    the go_asm.h definitions may not be available.
+    
+    For #27539.
+    
+    Change-Id: I248ba0ebab7cc75dcb2a90e82a82eb445da7e88e
+    Reviewed-on: https://go-review.googlesource.com/c/147098
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/operand_test.go | 43 +++++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        | 81 ++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/flags/flags.go      |  1 +
+ src/cmd/asm/main.go                      | 22 ++++++---
+ 4 files changed, 140 insertions(+), 7 deletions(-)

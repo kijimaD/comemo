@@ -1,0 +1,15 @@
+commit 575257d503432be3a1195919203262289f2c328c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 16 21:55:37 2009 -0800
+
+    use proper strconv in string values.
+    make test a little stronger.
+    
+    R=rsc
+    DELTA=94  (27 added, 39 deleted, 28 changed)
+    OCL=25085
+    CL=25087
+
+ src/lib/flag.go      | 73 ++++++++++++++--------------------------------------
+ src/lib/flag_test.go | 47 +++++++++++++++++++++++----------
+ 2 files changed, 54 insertions(+), 66 deletions(-)

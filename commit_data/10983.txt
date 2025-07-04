@@ -1,0 +1,14 @@
+commit 07db252222253ac103ff46ed85a1cccc1f33b73d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 15:16:06 2011 -0800
+
+    fmt: make the malloc test check its counts
+    Discover than %g is now down to 1 malloc from 2 from 4.
+    Have fun with funcs.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504077
+
+ src/pkg/fmt/fmt_test.go | 98 ++++++++++++++++---------------------------------
+ 1 file changed, 31 insertions(+), 67 deletions(-)

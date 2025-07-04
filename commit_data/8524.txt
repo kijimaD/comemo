@@ -1,0 +1,17 @@
+commit f7a266a5aa73d314e77f4c2aa02c2605568d65b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 27 16:29:33 2011 -0700
+
+    encoding/binary: add a non-reflect fast path for Write
+    
+    before/after:
+    binary.BenchmarkWrite     100000             18312 ns/op
+    binary.BenchmarkWrite     500000              4468 ns/op
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4515154
+
+ src/pkg/encoding/binary/binary.go      | 104 +++++++++++++++++++++++++--------
+ src/pkg/encoding/binary/binary_test.go |  32 ++++++++++
+ 2 files changed, 111 insertions(+), 25 deletions(-)

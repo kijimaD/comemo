@@ -1,0 +1,20 @@
+commit eb21b31e487344fb0045b3ef7b14df9521b94952
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 22 16:35:21 2021 -0500
+
+    runtime: define dummy msanmove
+    
+    In msan mode we instrument code with msan* functions, including
+    msanmove. In some configurations the code is instrumented by the
+    compiler but msan is not actually linked in, so we need dummy
+    definitions for those functions so the program links. msanmove is
+    newly added in CL 270859 but a dummy definition in msan0.go was
+    not added, causing link failures. Add it.
+    
+    Change-Id: I91f8e749919f57f1182e90b43412b0282cf4767c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285955
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/msan0.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,10 @@
+commit aff8d9b468c6292a4f33f1cde0fc414d18cee124
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 10:44:02 2008 -0700
+
+    nested breaks handled wrong
+    
+    SVN=127239
+
+ test/bugs/bug070.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

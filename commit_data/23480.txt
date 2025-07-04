@@ -1,0 +1,21 @@
+commit a9e536442ed3e6ecd57ec24cc187557152b6d655
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 12:32:05 2015 -0400
+
+    runtime: set m.procid always on Linux
+    
+    For debuggers and other program inspectors.
+    
+    Fixes #9914.
+    
+    Change-Id: I670728cea28c045e6eaba1808c550ee2f34d16ff
+    Reviewed-on: https://go-review.googlesource.com/11341
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os1_linux.go       | 5 +++++
+ src/runtime/sys_linux_386.s    | 6 ++++++
+ src/runtime/sys_linux_amd64.s  | 6 ++++++
+ src/runtime/sys_linux_arm.s    | 6 ++++++
+ src/runtime/sys_linux_arm64.s  | 6 ++++++
+ src/runtime/sys_linux_ppc64x.s | 5 +++++
+ 6 files changed, 34 insertions(+)

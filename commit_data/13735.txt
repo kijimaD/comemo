@@ -1,0 +1,20 @@
+commit 9b8c94a46f3ad978ed3e0fa9037bf18dec6c30b0
+Author: Uriel Mangado <uriel@berlinblue.org>
+Date:   Sat Sep 1 19:55:29 2012 -0400
+
+    codereview.py: correct error handling without decorator
+    
+    The decorator hides the number of function arguments from Mercurial,
+    so Mercurial cannot give proper error messages about commands
+    invoked with the wrong number of arguments.
+    
+    Left a 'dummy' hgcommand decorator in place as a way to document
+    what functions are hg commands, and just in case we need some other
+    kind of hack in the future.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/6488059
+
+ lib/codereview/codereview.py | 77 ++++++++++++++++++--------------------------
+ 1 file changed, 32 insertions(+), 45 deletions(-)

@@ -1,0 +1,29 @@
+commit 519b0116a15d80042a0ab1a35c14d98c47093109
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 00:05:04 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥2,000 dependents
+    
+    For #67401.
+    
+    Change-Id: I3ae93042dffd0683b7e6d6225536ae667749515b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587221
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/badlinkname.go |  3 ---
+ src/reflect/type.go        | 20 ++++++++++++++++++++
+ src/runtime/alg.go         | 10 ++++++++++
+ src/runtime/badlinkname.go |  2 --
+ src/runtime/cgo.go         | 19 +++++++++++++++++++
+ src/runtime/cgocall.go     |  9 +++++++++
+ src/runtime/env_posix.go   | 21 ++++++++++++++++++++-
+ src/runtime/linkname.go    |  1 -
+ src/runtime/malloc.go      |  2 ++
+ src/runtime/panic.go       |  1 +
+ src/runtime/runtime.go     |  8 ++++++++
+ src/runtime/runtime1.go    |  1 +
+ src/runtime/stubs.go       | 10 ++++++++++
+ src/runtime/time_nofake.go |  4 +++-
+ 14 files changed, 103 insertions(+), 8 deletions(-)

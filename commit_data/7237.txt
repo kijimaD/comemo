@@ -1,0 +1,12 @@
+commit 66905bd9ac26eeb26f358f6545a5cc06bc06c332
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 25 19:40:36 2011 +0100
+
+    cc: fix -q and build break.
+    
+    R=rsc
+    CC=golang-dev, golang-dev
+    https://golang.org/cl/3992047
+
+ src/cmd/cc/godefs.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

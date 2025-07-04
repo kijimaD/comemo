@@ -1,0 +1,14 @@
+commit c155e59062d5ee6689ca59c20b108ce56c51d590
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 4 08:30:15 2015 +1200
+
+    cmd/link: enable external linking on ppc64
+    
+    Change-Id: Iffe8ccb55b2c555b2cb8c168cebfbfd5892212df
+    Reviewed-on: https://go-review.googlesource.com/14236
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/elf.go    | 29 +++++++------
+ src/cmd/link/internal/ppc64/asm.go | 84 +++++++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ppc64/obj.go |  3 ++
+ 3 files changed, 98 insertions(+), 18 deletions(-)

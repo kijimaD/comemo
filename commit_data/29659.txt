@@ -1,0 +1,18 @@
+commit b079869dadbb607aecbe9e2d38fbd13b89a5cc91
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Nov 22 16:09:28 2016 -0500
+
+    internal/pprof/profile: parse mutex profile including comments
+    
+    Skip lines if they are empty or starting with "#" which are valid
+    legacy pprof output format.
+    
+    Fixes #18025
+    
+    Change-Id: I7aee439171496932637b8ae3188700911f569b16
+    Reviewed-on: https://go-review.googlesource.com/33454
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/internal/pprof/profile/legacy_profile.go | 66 +++++++++++++++++-----------
+ src/internal/pprof/profile/profile_test.go   | 55 +++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 26 deletions(-)

@@ -1,0 +1,11 @@
+commit 244a65c66e45ac572f795bd122ac45f30912c7d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 20:11:16 2009 -0800
+
+    move release tag
+    
+    R=r
+    https://golang.org/cl/154045
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

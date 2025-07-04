@@ -1,0 +1,16 @@
+commit b75ad09cae8918343000e304c66c5df27101829b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jul 11 19:10:50 2022 +0200
+
+    cmd/trace: fix typo in web documentation
+    
+    Change-Id: I950224c3f698fbdf2bcab6f847f4afddaa6e9c2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416974
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/trace/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

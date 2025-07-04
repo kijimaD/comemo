@@ -1,0 +1,31 @@
+commit ac6d706a058de56e5817ea820df4ed59492adbdf
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 10 14:51:57 2021 -0700
+
+    [dev.typeparams] cmd/compile: add test for number of instantiations
+    
+    Add a test for a generic sort function, operating on several different
+    pointer types (across two packages), so they should all share the same
+    shape-based instantiation. Actually check that only one instantiation of
+    Sort is created using 'go tool nm', and also check that the output is
+    correct.
+    
+    In order to do the test on the executable using 'go nm', added this as a
+    'go test' in cmd/compile/internal/test.
+    
+    Added the genembed.go test that I meant to include with a previous CL.
+    
+    Change-Id: I9962913c2f1809484c2b1dfef3b07e4c8770731c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354696
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/test/inst_test.go         | 71 ++++++++++++++++++++++
+ .../internal/test/testdata/mysort/mysort.go        | 40 ++++++++++++
+ src/cmd/compile/internal/test/testdata/ptrsort.go  | 30 +++++++++
+ src/cmd/compile/internal/test/testdata/ptrsort.out |  3 +
+ test/typeparam/genembed.go                         | 52 ++++++++++++++++
+ 5 files changed, 196 insertions(+)

@@ -1,0 +1,22 @@
+commit bb7495a46d6024da9d77722f04b438e573bcb26f
+Author: Vishal Dalwadi <dalwadivishal26@gmail.com>
+Date:   Fri May 7 10:25:27 2021 +0530
+
+    doc/go1.17: document new math constants
+    
+    Documents the newly introduced:
+    * MaxInt
+    * MinInt
+    * MaxUint
+    
+    Updates #28538.
+    For #44513.
+    Fixes #46012.
+    
+    Change-Id: Iab6bbcf8f76ebe105b973d5fd39b86b8cd078348
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317911
+    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.17.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

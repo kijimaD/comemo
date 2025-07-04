@@ -1,0 +1,22 @@
+commit bc6bb3efb4f2f75375ab8820ee536f696269c6b4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 11:22:09 2013 +1000
+
+    math/big: fix nil bug in GobEncode
+    
+    Update #5305.
+    This handles the case where the nil pointers are inside a slice.
+    A top-level nil pointer is harder, maybe fundamentally broken by gob's model.
+    Thinking required.
+    However, a slice is the important case since people don't expect to be sending
+    top-level nils much, but they can arise easily in slices.
+    
+    R=golang-dev, josharian, adg
+    CC=golang-dev
+    https://golang.org/cl/13042044
+
+ src/pkg/math/big/int.go      |  7 ++++++-
+ src/pkg/math/big/int_test.go | 26 ++++++++++++++++++++++++++
+ src/pkg/math/big/rat.go      |  7 ++++++-
+ src/pkg/math/big/rat_test.go | 26 ++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 2 deletions(-)

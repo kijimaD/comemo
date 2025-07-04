@@ -1,0 +1,13 @@
+commit 46db2e3c25f417008d2e639781169702104a9ef2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 9 15:11:02 2010 -0700
+
+    regexp: document that backslashes are the escape character.
+    Fixes #1013.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/1938041
+
+ src/pkg/regexp/regexp.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

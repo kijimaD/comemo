@@ -1,0 +1,17 @@
+commit 968701beb1562c3492d06e39bf137ee9796e7f57
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 15:04:54 2008 -0700
+
+    - fix signedness bug in sys.Inf()
+    - add NaN, Inf printing to fmt
+    - fix a couple of bugs in fmt
+    - add a test for fmt
+    
+    R=ken
+    OCL=14092
+    CL=14092
+
+ src/lib/fmt.go        | 30 ++++++++++++++++-
+ src/runtime/runtime.c |  2 +-
+ test/fmt.go           | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 121 insertions(+), 2 deletions(-)

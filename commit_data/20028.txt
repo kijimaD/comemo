@@ -1,0 +1,17 @@
+commit afb6221bf79d7ed59e4a859f147bbed2ea2c3617
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 19 10:52:50 2014 +1000
+
+    cmd/6g: fix undefined behavior in reg.c
+    
+    Update #8527
+    
+    Fixes, cmd/6g/reg.c:847:24: runtime error: left shift of 1 by 31 places cannot be represented in type 'int'
+    
+    LGTM=minux, rsc
+    R=minux, rsc
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/129290043
+
+ src/cmd/6g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

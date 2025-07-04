@@ -1,0 +1,14 @@
+commit 6e15683caee9085dfc953c39a49f13ccc9dc1c86
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 16:54:07 2013 -0400
+
+    spec: define method values
+    
+    Fixes #2280.
+    
+    R=golang-dev, r, bradfitz, iant, andybalholm, gri
+    CC=golang-dev
+    https://golang.org/cl/7816045
+
+ doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 118 insertions(+), 4 deletions(-)

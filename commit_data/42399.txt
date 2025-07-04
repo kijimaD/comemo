@@ -1,0 +1,16 @@
+commit 4abec2a48070da6ca9b8cf53888ad993e0ee82ef
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 26 15:58:13 2020 +0200
+
+    runtime, time: gofmt
+    
+    Change-Id: Ib36a5f239db5af497aae122eba049c15d0d4c4a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235139
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sizeof_test.go                    | 2 +-
+ src/runtime/testdata/testprog/lockosthread.go | 6 +++---
+ src/time/example_test.go                      | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

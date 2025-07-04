@@ -1,0 +1,16 @@
+commit f1f970ad212dc096bb0d4dd959ec9e90489c0499
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:21:58 2009 -0700
+
+    minor cleanup, 64-bit /= and %= on 32-bit
+    
+    R=ken
+    OCL=29806
+    CL=29808
+
+ src/cmd/6g/cgen.c |  6 ++--
+ src/cmd/6g/ggen.c | 11 +++----
+ src/cmd/gc/go.h   |  3 ++
+ src/cmd/gc/subr.c | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c | 20 +++++++++---
+ 5 files changed, 119 insertions(+), 13 deletions(-)

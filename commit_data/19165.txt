@@ -1,0 +1,16 @@
+commit d0d425a9872105e8f5c44e6d489ee9088ecf1bdd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 01:46:56 2014 -0400
+
+    cmd/ld: cast PE32 absolute addend to int32.
+    Didn't manage to find a way to write test cases.
+    
+    Fixes #7769.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/88000045
+
+ src/cmd/ld/ldpe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

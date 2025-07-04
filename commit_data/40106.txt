@@ -1,0 +1,26 @@
+commit 30d7b6400860d87d810a0db3593b28dfb72879f2
+Author: W. Trevor King <wking@tremily.us>
+Date:   Wed Oct 2 17:49:49 2019 +0000
+
+    crypto/x509: add Detail to Expired errors
+    
+    Because errors like:
+    
+        certificate has expired or is not yet valid
+    
+    make it difficult to distinguish between "certificate has expired" and
+    "my local clock is skewed".  Including our idea of the local time
+    makes it easier to identify the clock-skew case, and including the
+    violated certificate constraint saves folks the trouble of looking it
+    up in the target certificate.
+    
+    Change-Id: I52e0e71705ee36f6afde1bb5a47b9b42ed5ead5b
+    GitHub-Last-Rev: db2ca4029c1e0b17363772d9824e3042d5501d48
+    GitHub-Pull-Request: golang/go#34646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198046
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/verify.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

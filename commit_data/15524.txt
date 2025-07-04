@@ -1,0 +1,21 @@
+commit d17506e52d1c6625a204727f4e1fc79ce918a54a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 28 22:14:55 2013 -0800
+
+    runtime/cgo: make crosscall2 5a/6a/8a-assembled
+    
+    There is a #pragma dynexport crosscall2, to help SWIG,
+    and 6l cannot export the symbol if it doesn't get to see it.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7448044
+
+ src/pkg/runtime/cgo/asm_386.s   | 29 +++++++++++++++++++++++++
+ src/pkg/runtime/cgo/asm_amd64.s | 45 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/asm_arm.s   | 22 +++++++++++++++++++
+ src/pkg/runtime/cgo/callbacks.c |  8 +++----
+ src/pkg/runtime/cgo/gcc_386.S   | 25 ---------------------
+ src/pkg/runtime/cgo/gcc_amd64.S | 48 -----------------------------------------
+ src/pkg/runtime/cgo/gcc_arm.S   | 21 ------------------
+ 7 files changed, 100 insertions(+), 98 deletions(-)

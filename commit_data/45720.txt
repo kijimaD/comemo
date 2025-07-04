@@ -1,0 +1,15 @@
+commit 6f58088bd84daef583f30dcfdb7c2b9179bfff3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 17:19:12 2021 -0700
+
+    doc/go1.17: document new go/build/BuildContext.ToolTags field
+    
+    For #44513
+    
+    Change-Id: Ib21af742e574fcaa7e38bb437d42dbeed9d01f0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323350
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,14 @@
+commit 251e50065b99eb6c40b6cc549b3bea9126e96bde
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 10 19:57:46 2015 +0000
+
+    syscall: fix duplicated copyright header in mksysnum_plan9.sh
+    
+    Fixes #13569
+    
+    Change-Id: I04c9a44437414177e2fee260518cfe53a67e6364
+    Reviewed-on: https://go-review.googlesource.com/17684
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/mksysnum_plan9.sh | 2 --
+ 1 file changed, 2 deletions(-)

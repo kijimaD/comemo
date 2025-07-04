@@ -1,0 +1,22 @@
+commit 5b1b2ba9c79e54b3b34d066d43e88d1a4c330790
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 9 14:38:33 2011 -0500
+
+    runtime: new allocation strategy for amd64
+    
+    Do not reserve virtual address space.
+    Instead, assume it will be there when we need it,
+    and crash loudly if that assumption is violated.
+    Reserving the address space gets charged to
+    ulimit -v, which exceeds commonly set limits.
+    
+    http://groups.google.com/group/golang-dev/msg/7c477af5f5a8dd2c
+    
+    R=r, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4148045
+
+ src/pkg/runtime/freebsd/mem.c | 17 +++++++++++++++++
+ src/pkg/runtime/linux/mem.c   | 17 +++++++++++++++++
+ test/run                      |  4 +---
+ 3 files changed, 35 insertions(+), 3 deletions(-)

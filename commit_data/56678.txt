@@ -1,0 +1,21 @@
+commit 378c48df3b485da1ed287f59e5d1f59ad232e554
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 23 15:00:49 2024 -0400
+
+    cmd/go/internal/modload: fix bug in error message
+    
+    CL 513756 moved the usage of modGo after it was set to its proper value,
+    so the error message text always listed the version of go as
+    "unspecified". Fix the error message in the case where the version was
+    set in the go.mod, and provide an error message where it wasn't.
+    
+    Fixes #67587
+    
+    Change-Id: I763f6be7ee811da32fcb7e785682fd6f48145981
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588075
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/init.go                |  7 +++---
+ .../script/list_buildmod_reason_issue67587.txt     | 26 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 4 deletions(-)

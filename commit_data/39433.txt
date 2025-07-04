@@ -1,0 +1,21 @@
+commit df901bce5ed71132f5837b513663fec889d82731
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Jun 24 02:17:40 2019 +0000
+
+    runtime: fix a register save/restore bug in sigtramp of arm-darwin
+    
+    In sigtramp of sys_darwin_arm.s, the callee-save register R4 is
+    saved to the stack, but later R2 is also saved to the save position.
+    
+    That CL fixes the unexpected lost of the value in R4.
+    
+    fixes #32744
+    
+    Change-Id: Ifaeb99f11e4abf0c79bec9da67e0db97c358010c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183517
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin_arm.s | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

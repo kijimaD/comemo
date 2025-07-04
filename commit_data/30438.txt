@@ -1,0 +1,22 @@
+commit 9515cb511a1210e013c26354ea09e786acd61365
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 10:20:32 2017 -0800
+
+    math/bits: faster TrailingZeroes8
+    
+    For sizes > 8, the existing code is faster.
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkTrailingZeros8-8     1.95          1.29          -33.85%
+    
+    Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.
+    
+    Change-Id: I6f3a33ec633a2c544ec29693c141f2f99335c745
+    Reviewed-on: https://go-review.googlesource.com/37581
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/bits.go        |  2 +-
+ src/math/bits/bits_impl.go   |  8 --------
+ src/math/bits/bits_tables.go | 19 +++++++++++++++++++
+ src/math/bits/make_tables.go |  9 +++++++++
+ 4 files changed, 29 insertions(+), 9 deletions(-)

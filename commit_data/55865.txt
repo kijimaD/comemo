@@ -1,0 +1,30 @@
+commit 32014d549609422748dcb698fef1d43a5a33b0b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 18:25:14 2024 +0000
+
+    Revert "encoding/xml: reject XML declaration after start of document"
+    
+    This reverts commit 8a0fbd75a54c27ff2ae624ac2775bf752cdbceb4.
+    
+    Reason for revert: Breaking real-world tests inside Google,
+    which means it probably breaks real-world tests outside Google.
+    
+    One instance I have seen is a <!-- --> comment (often a copyright notice) before the procinst.
+    
+    Another test checks that a canonicalizer can handle a test input that simply has procinsts mid-XML.
+    
+    XML is full of contradictions, XML implementations more so. If we are going to start being picky, that probably needs to be controlled by a GODEBUG (and a proposal).
+    
+    For #65691 (will reopen manually).
+    
+    Change-Id: Ib52d0944b1478e71744a2a35b271fdf7e1c972ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570175
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/marshal.go      | 28 ++++------------------------
+ src/encoding/xml/marshal_test.go |  3 ---
+ src/encoding/xml/xml.go          | 12 ------------
+ src/encoding/xml/xml_test.go     |  2 --
+ 4 files changed, 4 insertions(+), 41 deletions(-)

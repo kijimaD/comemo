@@ -1,0 +1,13 @@
+commit e11447f7dace12797cbe6f6c5df60f65fc18e135
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 23:29:44 2009 -0700
+
+    bug148.
+    
+    R=ken
+    OCL=31582
+    CL=31582
+
+ src/cmd/gc/subr.c | 2 +-
+ test/golden.out   | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

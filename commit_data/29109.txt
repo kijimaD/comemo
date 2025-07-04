@@ -1,0 +1,16 @@
+commit 31f50643c36b3d2a74cf4f8df3a943bbbc06dafe
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Oct 25 14:10:47 2016 -0700
+
+    context: add comments to the WithCancel example, apply minor improvements
+    
+    Fixes #17534.
+    
+    Change-Id: I28af74b287a5a09d5f6607a012f3d5d133b04ed2
+    Reviewed-on: https://go-review.googlesource.com/32017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/example_test.go | 39 +++++++++++++++++++++++----------------
+ 1 file changed, 23 insertions(+), 16 deletions(-)

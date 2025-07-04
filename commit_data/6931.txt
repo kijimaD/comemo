@@ -1,0 +1,29 @@
+commit e7a0f6760377c6a4ad7f37ade8eabf2fdf150e0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 11:57:41 2010 -0500
+
+    gc: introduce explicit alignments
+    
+    No semantic changes here, but working
+    toward being able to align structs based
+    on the maximum alignment of the fields
+    inside instead of having a fixed alignment
+    for all structs (issue 482).
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3617041
+
+ src/cmd/5g/galign.c  |  1 -
+ src/cmd/5g/ggen.c    |  4 ++--
+ src/cmd/6g/galign.c  |  1 -
+ src/cmd/6g/ggen.c    |  4 ++--
+ src/cmd/8g/galign.c  |  1 -
+ src/cmd/8g/ggen.c    |  4 ++--
+ src/cmd/gc/align.c   | 66 ++++++++++++++++++++++++++++------------------------
+ src/cmd/gc/gen.c     |  4 ++--
+ src/cmd/gc/go.h      |  2 +-
+ src/cmd/gc/lex.c     |  2 +-
+ src/cmd/gc/reflect.c | 11 ++-------
+ src/cmd/gc/subr.c    |  3 ++-
+ 12 files changed, 49 insertions(+), 54 deletions(-)

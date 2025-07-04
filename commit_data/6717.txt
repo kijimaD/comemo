@@ -1,0 +1,13 @@
+commit ea84b4700a8205e2db824941a52c3fa03632b254
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 5 10:47:35 2010 -0700
+
+    CLA: Benny Siegert <bsiegert@gmail.com>
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2934041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

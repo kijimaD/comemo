@@ -1,0 +1,21 @@
+commit ab26623182bb94e1b29668d86b5ee387991926fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 25 09:13:37 2014 -0800
+
+    spec: clarify default "true" condition/tag in for/switch statements
+    
+    An absent condition/tag in for and switch statements is equivalent
+    to the predeclared constant true; not simply the expression true
+    (which might lead to a locally defined true).
+    
+    Not a language change.
+    
+    Fixes #7404.
+    
+    LGTM=iant, r
+    R=r, iant, rsc, ken
+    CC=golang-codereviews
+    https://golang.org/cl/68150046
+
+ doc/go_spec.html | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

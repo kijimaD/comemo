@@ -1,0 +1,18 @@
+commit 79fbbe37a76502e6f5f9647d2d82bab953ab1546
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Nov 5 21:50:28 2008 -0800
+
+    select default
+    
+    R=r
+    OCL=18646
+    CL=18646
+
+ src/cmd/gc/subr.c      |  3 +++
+ src/cmd/gc/sys.go      |  1 +
+ src/cmd/gc/sysimport.c |  1 +
+ src/cmd/gc/walk.c      | 30 +++++++++++++++++++++++++-----
+ src/runtime/chan.c     | 16 +++++++---------
+ src/runtime/runtime.c  |  5 ++++-
+ src/runtime/runtime.h  |  1 +
+ 7 files changed, 42 insertions(+), 15 deletions(-)

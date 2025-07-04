@@ -1,0 +1,21 @@
+commit f2ee58b6bb3d8312dad2ed7826c1a0e67aea8483
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 13 20:43:39 2020 -0400
+
+    cmd/compile: using new calls, optimize runtime.memequal(x,constant,1)
+    
+    Proof of concept; also an actual optimization that fires 180 times
+    in the Go source base.
+    
+    Change-Id: I5cb87474be764264cde6e4cbcb471ef109306f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248404
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  6 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 70 ++++++++++++++++++++++++++
+ 4 files changed, 92 insertions(+), 3 deletions(-)

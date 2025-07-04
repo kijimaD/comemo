@@ -1,0 +1,18 @@
+commit 3b9e8bb7f214db90fb116d25d67161e7fb932d75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 13:39:04 2015 -0700
+
+    math/big: more documentation
+    
+    Good enough for now.
+    
+    Fixes #11241.
+    
+    Change-Id: Ieb50809f104d20bcbe14daecac503f72486bec92
+    Reviewed-on: https://go-review.googlesource.com/15111
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/doc.go            | 51 ++++++++++++++++++++++++++++++++----------
+ src/math/big/floatconv_test.go |  1 -
+ src/math/big/ftoa.go           |  1 +
+ 3 files changed, 40 insertions(+), 13 deletions(-)

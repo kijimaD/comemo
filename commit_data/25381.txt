@@ -1,0 +1,14 @@
+commit 5b5e19ea654ff0ed774587f5c62b100722772ade
+Author: Jonathan Boulle <jonathanboulle@gmail.com>
+Date:   Wed Dec 23 23:56:47 2015 +0100
+
+    net/http: fix typo in docstring
+    
+    s/activitiy/activity
+    
+    Change-Id: Ib2bbc929b38b1993000da57daed2d795f4a93997
+    Reviewed-on: https://go-review.googlesource.com/18131
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

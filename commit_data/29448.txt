@@ -1,0 +1,28 @@
+commit 60a9bf9f957d48856839873c6dcb699afe7da359
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 8 16:01:56 2016 -0800
+
+    cmd/compile/internal/syntax: fix error handling for Read/Parse calls
+    
+    - define syntax.Error for cleaner error reporting
+    - abort parsing after first error if no error handler is installed
+    - make sure to always report the first error, if any
+    - document behavior of API calls
+    - while at it: rename ReadXXX -> ParseXXX (clearer)
+    - adjust cmd/compile noder.go accordingly
+    
+    Fixes #17774.
+    
+    Change-Id: I7893eedea454a64acd753e32f7a8bf811ddbb03c
+    Reviewed-on: https://go-review.googlesource.com/32950
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go            | 28 +++++--
+ src/cmd/compile/internal/syntax/dumper_test.go  |  2 +-
+ src/cmd/compile/internal/syntax/parser.go       | 17 +----
+ src/cmd/compile/internal/syntax/parser_test.go  | 28 ++++++-
+ src/cmd/compile/internal/syntax/printer_test.go |  2 +-
+ src/cmd/compile/internal/syntax/scanner_test.go | 17 +++--
+ src/cmd/compile/internal/syntax/source.go       | 18 +++--
+ src/cmd/compile/internal/syntax/syntax.go       | 99 ++++++++++++++-----------
+ 8 files changed, 126 insertions(+), 85 deletions(-)

@@ -1,0 +1,23 @@
+commit a43033a315700dd222d1f54fecc384f092ba6613
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 15 11:48:37 2008 -0700
+
+    develop interfaces through cats
+    sort
+    2,3,5
+    
+    R=gri
+    DELTA=648  (647 added, 0 deleted, 1 changed)
+    OCL=15315
+    CL=15352
+
+ doc/go_tutorial.txt    | 241 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ doc/progs/235A.go      |  52 +++++++++++
+ doc/progs/235B.go      |  48 ++++++++++
+ doc/progs/235_gen.go   |  59 ++++++++++++
+ doc/progs/cat.go       |  44 +++++++++
+ doc/progs/cat_rot13.go |  91 +++++++++++++++++++
+ doc/progs/fd.go        |   4 +
+ doc/progs/sort.go      |  72 +++++++++++++++
+ doc/progs/sortmain.go  |  66 ++++++++++++++
+ 9 files changed, 676 insertions(+), 1 deletion(-)

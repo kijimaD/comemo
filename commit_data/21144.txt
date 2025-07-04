@@ -1,0 +1,12 @@
+commit 9a5789d499ffe180749d02d36ab015400067a256
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 4 17:58:13 2015 -0500
+
+    fmt: fix two typos
+    
+    Change-Id: I7b65cf3b67bef8950115066d6d12b25cd0a5edfc
+    Reviewed-on: https://go-review.googlesource.com/2272
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

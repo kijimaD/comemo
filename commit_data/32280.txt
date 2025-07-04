@@ -1,0 +1,12 @@
+commit 03929984b9b473aa1c2e7f86c89a9c3624667d59
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 15 11:32:02 2017 -0400
+
+    runtime: fix getclosureptr doc
+    
+    Change-Id: I1b42fca2107b06e6fc95728f7bf3d08d005c4cb4
+    Reviewed-on: https://go-review.googlesource.com/55810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

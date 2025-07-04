@@ -1,0 +1,27 @@
+commit 936b977c174dd66348bacd1392f761ae518ca7c1
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Nov 3 21:57:08 2017 -0700
+
+    bytes: reduce work in IndexNearPageBoundary test
+    
+    This test was taking too long on ppc64x.
+    There were a few reasons.
+    
+    The first is that the page size on ppc64x is 64k instead of 4k.
+    That's 16x more work.
+    
+    The second is that the generic Index is pretty bad in this case.
+    It first calls IndexByte which does a bunch of setup work only to find
+    the byte we're looking for at index 0.  Then it calls Equal which
+    has to look at the whole string to find a difference on the last byte.
+    
+    To fix, just limit our attention to near the end of the page.
+    
+    Change-Id: I6b8bcbb94652a2da853862acc23803def0c49303
+    Reviewed-on: https://go-review.googlesource.com/76050
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/bytes/boundary_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

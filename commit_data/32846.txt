@@ -1,0 +1,29 @@
+commit 7246585f8c4211df2b678639ba58a72f70573c3c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 25 15:03:49 2017 -0700
+
+    archive/tar: avoid empty IO operations
+    
+    The interfaces for io.Reader and io.Writer permit calling Read/Write
+    with an empty buffer. However, this condition is often not well tested
+    and can lead to bugs in various implementations of io.Reader and io.Writer.
+    For example, see #22028 for buggy io.Reader in the bzip2 package.
+    
+    We reduce the likelihood of hitting these bugs by adjusting
+    regFileReader.Read and regFileWriter.Write to avoid performing
+    Read and Write calls when the buffer is known to be empty.
+    
+    Fixes #22029
+    
+    Change-Id: Ie4a26be53cf87bc4d2abd951fa005db5871cc75c
+    Reviewed-on: https://go-review.googlesource.com/66111
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go      |  8 +++++---
+ src/archive/tar/reader_test.go | 17 ++++++++++++++---
+ src/archive/tar/writer.go      |  8 +++++---
+ src/archive/tar/writer_test.go | 17 +++++++++++++++--
+ 4 files changed, 39 insertions(+), 11 deletions(-)

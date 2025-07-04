@@ -1,0 +1,25 @@
+commit f1ea0249ed2a1e91095ed20cca31378027847c7d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 28 19:10:44 2023 -0500
+
+    cmd/link: update -T flag's documentation
+    
+    The -T flag actually means the start address of text symbols, not
+    the text sections, which may differ by the header size. It has
+    been behaving like this since at least 2009. Make it clear in the
+    documentation.
+    
+    Also remove the -D flag from the doc. The flag doesn't actually
+    exist in the implementation.
+    
+    Fixes #58727.
+    
+    Change-Id: Ic5b7e93adca3f1ff9f0de33dbb6089f46cdf4738
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472356
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/doc.go              | 4 +---
+ src/cmd/link/internal/ld/main.go | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

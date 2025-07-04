@@ -1,0 +1,18 @@
+commit 12f3d6858e73abf6bc78c8fe5ce5d0220ffaeb5c
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 19 11:21:00 2023 -0400
+
+    go/types, types2: update documentation for GoVersion
+    
+    Update the documentation for Config.GoVersion to reflect the changes
+    made for #61175.
+    
+    Change-Id: I9f3fbcf8ee88e52d6a5e7cf80dad3d2fb5313893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go | 10 +++++-----
+ src/go/types/api.go                    | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

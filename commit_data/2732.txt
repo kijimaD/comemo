@@ -1,0 +1,14 @@
+commit a93c5c85506b2a03736f42543752b6d41351b102
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 18:21:14 2009 -0700
+
+    add FieldByName to the interface of reflect.StructType
+    
+    R=rsc
+    DELTA=34  (33 added, 0 deleted, 1 changed)
+    OCL=31752
+    CL=31754
+
+ src/pkg/reflect/all_test.go | 11 ++++++++++-
+ src/pkg/reflect/type.go     | 24 ++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit fa63d243333a735e81906bafc3951a4697fb6dee
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 22 11:23:29 2020 +0200
+
+    cmd/compile: switch to typed for const memory folding amd64 rules
+    
+    Passes
+    
+      gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Ide811e4b4130a0bd2ac560375fd7634bc51be251
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256220
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  116 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1892 +++++++++++++-------------
+ 2 files changed, 1004 insertions(+), 1004 deletions(-)

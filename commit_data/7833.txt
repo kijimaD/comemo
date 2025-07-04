@@ -1,0 +1,14 @@
+commit bc0469da33f6b52ae13f71afa5c216b99194aad7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 22 13:30:16 2011 -0700
+
+    Make.pkg: Always define _CGO_CFLAGS and friends.
+    
+    Submitting TBR to fix Darwin build.
+    
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/4273096
+
+ src/Make.pkg | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

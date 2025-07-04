@@ -1,0 +1,32 @@
+commit af99c2092a878500d508433baddcfcc12910c21b
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Mar 30 15:47:04 2022 +0800
+
+    cmd/internal/objabi: define Go relocation types for loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+    https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I8d31b3cd827325aa0ff748ca8c0c0da6df6ed99f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396734
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/objabi/reloctype.go        | 30 ++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/reloctype_string.go | 20 ++++++++++++-------
+ 2 files changed, 42 insertions(+), 8 deletions(-)

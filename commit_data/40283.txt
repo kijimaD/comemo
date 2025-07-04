@@ -1,0 +1,22 @@
+commit f38a51069278054205ac2d6aa20b3968b1f5c06f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 17 09:57:42 2019 -0400
+
+    os/exec: re-enable TestExtraFiles checks skipped on various OSes
+    
+    The issues associated with these skipped checks are closed.
+    If they are working around unfixed bugs, the issues should remain open.
+    If they are working around unfixable properties of the system, the skips
+    should refer to those properties rather than closed issues.
+    
+    Updates #2603
+    Updates #3955
+    Updates #25628
+    
+    Change-Id: I3491c69b2ef5bad0fb12001fe8f7e06b424883ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201718
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_test.go | 79 ++++++++++++++++++------------------------------
+ 1 file changed, 30 insertions(+), 49 deletions(-)

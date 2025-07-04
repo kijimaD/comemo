@@ -1,0 +1,19 @@
+commit ba0fab3cb731fe9a383bd61c3480cccfe32bb1f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 29 14:11:18 2020 -0700
+
+    debug/elf: run relocation tests in parallel
+    
+    Also don't restart DWARF reading from beginning when we are testing
+    multiple entries.
+    
+    Also reformat relocationTests slice to use indexed literals.
+    
+    Change-Id: Ia5f17214483394d0ef033be516df61f0bdc521b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/debug/elf/file_test.go | 550 ++++++++++++++++++++++++---------------------
+ 1 file changed, 296 insertions(+), 254 deletions(-)

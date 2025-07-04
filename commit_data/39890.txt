@@ -1,0 +1,20 @@
+commit a9fdd6bba281c98cbfd61803bbf92bcd6bd8ed49
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 12 11:00:31 2019 -0400
+
+    doc/go1.14: start doc; note end of NaCl platform support
+    
+    This skeleton follows the model of CL 174521,
+    with additions from 'relnote -html'.
+    
+    Updates #33738
+    Updates #30439
+    
+    Change-Id: I0f88ff7f231b7728dca0695143f2f2eda74d60c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195058
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 140 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)

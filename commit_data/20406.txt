@@ -1,0 +1,13 @@
+commit fbd1b5f98f1bbe0c992b7a99719f0ec38a7033bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 12 07:52:56 2014 -0700
+
+    runtime: fix typo in comment
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/140590043
+
+ src/runtime/mgc0.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

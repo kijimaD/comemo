@@ -1,0 +1,14 @@
+commit c1ad0509ee31822f817c11ca79706ab148ae5aee
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 13 13:13:36 2008 -0700
+
+    remove special trap-handling code for array out of bounds -
+    compiler doesn't generate them any more
+    
+    R=ken
+    OCL=15309
+    CL=15309
+
+ src/runtime/rt1_amd64_darwin.c | 43 +++++------------------------------------
+ src/runtime/rt1_amd64_linux.c  | 44 ++++++------------------------------------
+ 2 files changed, 11 insertions(+), 76 deletions(-)

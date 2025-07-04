@@ -1,0 +1,14 @@
+commit 1880b90afffc94c047b60a142b007a2438277af5
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 10 11:20:10 2009 -0700
+
+    DeepEqual for maps
+    
+    R=rsc
+    DELTA=47  (30 added, 16 deleted, 1 changed)
+    OCL=31455
+    CL=31455
+
+ src/pkg/reflect/all_test.go  | 30 ++++++++++++++++++------------
+ src/pkg/reflect/deepequal.go | 18 +++++++++++++-----
+ 2 files changed, 31 insertions(+), 17 deletions(-)

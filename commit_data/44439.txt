@@ -1,0 +1,21 @@
+commit ba9168bd07bfed6071e3eadcaae40b5481c52c24
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 17:37:20 2021 +0100
+
+    syscall: add support for proc thread attribute lists
+    
+    This will allow us to pass additional attributes when starting
+    processes.
+    
+    Updates #44011.
+    
+    Change-Id: I4af365c5544a6d421830f247593ec970200e5e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288296
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/syscall_windows.go  | 23 +++++++++++++++++++++++
+ src/syscall/types_windows.go    | 16 ++++++++++++++++
+ src/syscall/zsyscall_windows.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+)

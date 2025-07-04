@@ -1,0 +1,13 @@
+commit 0ebf6ce087388cdd501a02ff92f2f8cafc3e1378
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Jul 18 08:19:17 2016 -0700
+
+    [release-branch.go1.7] go1.7rc2
+    
+    Change-Id: I5473071f672f8352fbd3352e158d5be12823b58a
+    Reviewed-on: https://go-review.googlesource.com/25017
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,52 @@
+commit 261fe25c83a94fc3defe064baed3944cd3d16959
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 01:43:20 2022 +1000
+
+    internal/bytealg: simplify and improve compare on riscv64
+    
+    Remove some unnecessary loops and pull the comparison code out from the
+    compare/loop code. Add an unaligned 8 byte comparison, which reads 8 bytes
+    from each input before comparing them. This gives a reasonable gain in
+    performance for the large unaligned case.
+    
+    Updates #50615
+    
+    name                                 old time/op    new time/op    delta
+    CompareBytesEqual-4                     116ns _ 0%     111ns _ 0%   -4.10%  (p=0.000 n=5+5)
+    CompareBytesToNil-4                    34.9ns _ 0%    35.0ns _ 0%   +0.45%  (p=0.002 n=5+5)
+    CompareBytesEmpty-4                    29.6ns _ 1%    29.8ns _ 0%   +0.71%  (p=0.016 n=5+5)
+    CompareBytesIdentical-4                29.8ns _ 0%    29.9ns _ 1%   +0.50%  (p=0.036 n=5+5)
+    CompareBytesSameLength-4               66.1ns _ 0%    60.4ns _ 0%   -8.59%  (p=0.000 n=5+5)
+    CompareBytesDifferentLength-4          63.1ns _ 0%    60.5ns _ 0%   -4.20%  (p=0.000 n=5+5)
+    CompareBytesBigUnaligned/offset=1-4    6.84ms _ 3%    6.04ms _ 5%  -11.70%  (p=0.001 n=5+5)
+    CompareBytesBigUnaligned/offset=2-4    6.99ms _ 4%    5.93ms _ 6%  -15.22%  (p=0.000 n=5+5)
+    CompareBytesBigUnaligned/offset=3-4    6.74ms _ 1%    6.00ms _ 5%  -10.94%  (p=0.001 n=5+5)
+    CompareBytesBigUnaligned/offset=4-4    7.20ms _ 6%    5.97ms _ 6%  -17.05%  (p=0.000 n=5+5)
+    CompareBytesBigUnaligned/offset=5-4    6.75ms _ 1%    5.81ms _ 8%  -13.93%  (p=0.001 n=5+5)
+    CompareBytesBigUnaligned/offset=6-4    6.89ms _ 5%    5.75ms _ 2%  -16.58%  (p=0.000 n=5+4)
+    CompareBytesBigUnaligned/offset=7-4    6.91ms _ 6%    6.13ms _ 6%  -11.27%  (p=0.001 n=5+5)
+    CompareBytesBig-4                      2.75ms _ 5%    2.71ms _ 8%     ~     (p=0.651 n=5+5)
+    CompareBytesBigIdentical-4             29.9ns _ 1%    29.8ns _ 0%     ~     (p=0.751 n=5+5)
+    
+    name                                 old speed      new speed      delta
+    CompareBytesBigUnaligned/offset=1-4   153MB/s _ 3%   174MB/s _ 6%  +13.40%  (p=0.003 n=5+5)
+    CompareBytesBigUnaligned/offset=2-4   150MB/s _ 4%   177MB/s _ 6%  +18.06%  (p=0.001 n=5+5)
+    CompareBytesBigUnaligned/offset=3-4   156MB/s _ 1%   175MB/s _ 5%  +12.39%  (p=0.002 n=5+5)
+    CompareBytesBigUnaligned/offset=4-4   146MB/s _ 6%   176MB/s _ 6%  +20.67%  (p=0.001 n=5+5)
+    CompareBytesBigUnaligned/offset=5-4   155MB/s _ 1%   181MB/s _ 7%  +16.35%  (p=0.002 n=5+5)
+    CompareBytesBigUnaligned/offset=6-4   152MB/s _ 5%   182MB/s _ 2%  +19.74%  (p=0.000 n=5+4)
+    CompareBytesBigUnaligned/offset=7-4   152MB/s _ 6%   171MB/s _ 6%  +12.70%  (p=0.001 n=5+5)
+    CompareBytesBig-4                     382MB/s _ 5%   388MB/s _ 9%     ~     (p=0.616 n=5+5)
+    CompareBytesBigIdentical-4           35.1TB/s _ 1%  35.1TB/s _ 0%     ~     (p=0.800 n=5+5)
+    
+    Change-Id: I127edc376e62a2c529719a4ab172f481e0a81357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431100
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/internal/bytealg/compare_riscv64.s | 173 ++++++++++++++++++++-------------
+ 1 file changed, 103 insertions(+), 70 deletions(-)

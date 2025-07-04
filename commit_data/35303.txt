@@ -1,0 +1,15 @@
+commit a8a050819bd4693ea7c6fdc1744038f172c2a439
+Author: Keith Randall <khr@google.com>
+Date:   Mon May 7 13:42:28 2018 -0700
+
+    cmd/compile: mention the AuxInt field for bounded shifts
+    
+    This comment needs updating after moving the "bounded" mark from
+    Aux to AuxInt.
+    
+    Change-Id: I924fb22a81fffcd6944b93f0e3357c3aa2c4c49e
+    Reviewed-on: https://go-review.googlesource.com/111880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

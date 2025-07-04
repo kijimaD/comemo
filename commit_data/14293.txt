@@ -1,0 +1,18 @@
+commit 03c52a5d65e06ab881af75a365004bea7ed7359d
+Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+Date:   Thu Nov 1 16:21:18 2012 -0400
+
+    crypto: use better hash benchmarks
+    
+    Labels the existing benchmark as stream, and add benchmarks that
+    compute the checksum.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/6814060
+
+ src/pkg/crypto/md5/md5_test.go       | 28 ++++++++++++++--------------
+ src/pkg/crypto/sha1/sha1_test.go     | 28 ++++++++++++++--------------
+ src/pkg/crypto/sha256/sha256_test.go | 28 ++++++++++++++--------------
+ src/pkg/crypto/sha512/sha512_test.go | 28 ++++++++++++++--------------
+ 4 files changed, 56 insertions(+), 56 deletions(-)

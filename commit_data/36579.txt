@@ -1,0 +1,20 @@
+commit 669fa8f36a298cc0e2d1f817ca30c8d613ce7483
+Author: Alexey Naidonov <alexey.naidyonov@gmail.com>
+Date:   Tue Aug 28 00:39:34 2018 +0300
+
+    cmd/compile: remove unnecessary nil-check
+    
+    Removes unnecessary nil-check when referencing offset from an
+    address. Suggested by Keith Randall in golang/go#27180.
+    
+    Updates golang/go#27180
+    
+    Change-Id: I326ed7fda7cfa98b7e4354c811900707fee26021
+    Reviewed-on: https://go-review.googlesource.com/131735
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
+ test/nilptr3.go                          | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 1a0bde24ae765023278ce0b22328e871dbd1913c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 13 10:24:06 2009 -0800
+
+    Add USED declarations for SysUnused parameters.
+    
+    R=rsc
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=22640
+    CL=22642
+
+ src/runtime/malloc.c | 2 ++
+ 1 file changed, 2 insertions(+)

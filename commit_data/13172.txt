@@ -1,0 +1,16 @@
+commit dcc80e4553e4a9a9676d0fd35092cc1009bc148c
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Sat May 26 14:27:36 2012 -0700
+
+    net/rpc: improve response reading logic
+    
+    CL 5956051 introduced too many call != nil checks, so
+    attempt to improve this by splitting logic into three
+    distinct parts.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6248048
+
+ src/pkg/net/rpc/client.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

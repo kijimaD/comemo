@@ -1,0 +1,21 @@
+commit d160d1bc878566ad62a5426956b23b95403513c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 10 10:45:59 2014 -0500
+
+    build: change all.bash output to be more markdown-friendly
+    
+    People keep pasting all.bash output into GitHub bugs, which turns
+    the # lines into <h1> headlines. Add some more #s so that the
+    bug reports are more readable. Not ideal but seems like the best
+    of a few bad options.
+    
+    Change-Id: I4c69930ec304b2d504d7cd66221281a8577b87ae
+    Reviewed-on: https://go-review.googlesource.com/1286
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/make.bash |  8 ++++----
+ src/make.bat  |  8 ++++----
+ src/run.bash  | 14 +++++++-------
+ src/run.bat   | 26 +++++++++++++-------------
+ 4 files changed, 28 insertions(+), 28 deletions(-)

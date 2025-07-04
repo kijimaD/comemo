@@ -1,0 +1,14 @@
+commit b955bbfbdbe070d65910f76dcd09276d16978e52
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 10:30:08 2011 -0800
+
+    misc/benchcmp: don't require "Benchmark" at beginning of line
+    
+    Output is package_name.BenchmarkXXX.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5440123
+
+ misc/benchcmp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

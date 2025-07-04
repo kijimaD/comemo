@@ -1,0 +1,27 @@
+commit 72275c0dea7887597e3e445676674ba6af702f06
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Oct 18 15:02:49 2019 -0700
+
+    cmd/vet: re-vendor x/tools upstream for printf verb fix
+    
+    This pulls in the x/tools fix from
+    https://go-review.googlesource.com/c/tools/+/202041
+    so that cmd/vet won't flag %x/%X verbs incorrectly for floating-point
+    and complex types.
+    
+    Fixes #34993
+    
+    Change-Id: I68d89a19d95fe6ad336e87d12d56f03556974086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202083
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go.mod                                                     | 2 +-
+ src/cmd/go.sum                                                     | 4 ++--
+ .../golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go       | 5 -----
+ .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go  | 4 ++--
+ src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go          | 7 -------
+ src/cmd/vendor/modules.txt                                         | 2 +-
+ src/cmd/vet/testdata/print/print.go                                | 5 ++---
+ 7 files changed, 8 insertions(+), 21 deletions(-)

@@ -1,0 +1,34 @@
+commit bf09a8c9708104c2f2b172d3a2e5ef80198d5256
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 17:03:29 2012 -0400
+
+    undo CL 5754088 / cae9a7c0db06
+    
+    broke builders
+    
+    ««« original CL description
+    cmd/go: respect $GOBIN always
+    
+    Before, we only consulted $GOBIN for source code
+    found in $GOROOT, but that's confusing to explain
+    and less useful.  The new behavior lets users set
+    GOBIN=$HOME/bin and have all go-compiled binaries
+    installed there.
+    
+    Fixes #3269.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5754088
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5794065
+
+ doc/install-source.html |  5 ++---
+ src/cmd/go/build.go     | 35 +++++++++++++++++------------------
+ src/cmd/go/doc.go       |  4 +---
+ src/cmd/go/help.go      |  4 +---
+ src/cmd/go/pkg.go       |  4 +---
+ 5 files changed, 22 insertions(+), 30 deletions(-)

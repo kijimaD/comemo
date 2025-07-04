@@ -1,0 +1,21 @@
+commit d3946f75d3061c6150e74d854e7345ecc1751785
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Mar 2 15:52:30 2018 -0500
+
+    internal/trace: remove backlinks from span/task end to start
+    
+    This is an updated version of golang.org/cl/96395, with the fix to
+    TestUserSpan.
+    
+    This reverts commit 7b6f6267e90a8e4eab37a3f2164ba882e6222adb.
+    
+    Change-Id: I31eec8ba0997f9178dffef8dac608e731ab70872
+    Reviewed-on: https://go-review.googlesource.com/98236
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations.go         | 103 ++++++++++++++++++++++++-----------
+ src/internal/trace/parser.go         |  11 ++--
+ src/runtime/trace/annotation_test.go |  17 ++++--
+ 3 files changed, 89 insertions(+), 42 deletions(-)

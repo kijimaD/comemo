@@ -1,0 +1,119 @@
+commit 999589e14829e8c69517efa58d903bb9a7588da3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 15:09:31 2022 -0700
+
+    test: use dot-relative imports where appropriate
+    
+    Currently, run.go's *dir tests allow "x.go" to be imported
+    interchangeably as either "x" or "./x". This is generally fine, but
+    can cause problems when "x" is the name of a standard library
+    package (e.g., "fixedbugs/bug345.dir/io.go").
+    
+    This CL is an automated rewrite to change all `import "x"` directives
+    to use `import "./x"` instead. It has no effect today, but will allow
+    subsequent CLs to update test/run.go to resolve "./x" to "test/x" to
+    avoid stdlib collisions.
+    
+    Change-Id: Ic76cd7140e83b47e764f8a499e59936be2b3c876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395116
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/closure5.dir/main.go                 | 2 +-
+ test/fixedbugs/bug222.dir/chanbug2.go     | 3 ++-
+ test/fixedbugs/bug302.dir/main.go         | 3 +--
+ test/fixedbugs/issue11053.dir/p_test.go   | 2 +-
+ test/fixedbugs/issue22962.dir/b.go        | 2 +-
+ test/fixedbugs/issue23179.dir/b.go        | 2 +-
+ test/fixedbugs/issue31252.dir/c.go        | 4 ++--
+ test/fixedbugs/issue31252.dir/main.go     | 2 +-
+ test/fixedbugs/issue31636.dir/main.go     | 6 +++---
+ test/fixedbugs/issue31959.dir/main.go     | 2 +-
+ test/fixedbugs/issue32595.dir/main.go     | 4 ++--
+ test/fixedbugs/issue33013.dir/b.go        | 2 +-
+ test/fixedbugs/issue33013.dir/c.go        | 4 ++--
+ test/fixedbugs/issue33013.dir/d.go        | 4 ++--
+ test/fixedbugs/issue33020.dir/b.go        | 2 +-
+ test/fixedbugs/issue33158.dir/b.go        | 2 +-
+ test/fixedbugs/issue33219.dir/c.go        | 4 ++--
+ test/fixedbugs/issue33739.dir/b.go        | 2 +-
+ test/fixedbugs/issue34503.dir/b.go        | 2 +-
+ test/fixedbugs/issue34577.dir/b.go        | 2 +-
+ test/fixedbugs/issue35586.dir/b.go        | 2 +-
+ test/fixedbugs/issue36085.dir/b.go        | 2 +-
+ test/fixedbugs/issue45503.dir/b.go        | 2 +-
+ test/fixedbugs/issue47068.dir/main.go     | 4 ++--
+ test/fixedbugs/issue47087.dir/main.go     | 4 ++--
+ test/fixedbugs/issue48088.dir/b.go        | 2 +-
+ test/fixedbugs/issue5910.dir/main.go      | 2 +-
+ test/fixedbugs/issue7648.dir/b.go         | 2 +-
+ test/fixedbugs/issue8060.dir/b.go         | 2 +-
+ test/typeparam/absdiffimp2.dir/main.go    | 2 +-
+ test/typeparam/aliasimp.dir/main.go       | 2 +-
+ test/typeparam/chansimp.dir/main.go       | 2 +-
+ test/typeparam/dedup.dir/b.go             | 2 +-
+ test/typeparam/dedup.dir/c.go             | 2 +-
+ test/typeparam/dedup.dir/main.go          | 4 ++--
+ test/typeparam/factimp.dir/main.go        | 2 +-
+ test/typeparam/gencrawler.dir/main.go     | 2 +-
+ test/typeparam/geninline.dir/main.go      | 2 +-
+ test/typeparam/issue47514c.dir/main.go    | 2 +-
+ test/typeparam/issue47775.dir/main.go     | 2 +-
+ test/typeparam/issue47892.dir/main.go     | 6 +++---
+ test/typeparam/issue47892b.dir/main.go    | 2 +-
+ test/typeparam/issue48094.dir/main.go     | 2 +-
+ test/typeparam/issue48185a.dir/p_test.go  | 2 +-
+ test/typeparam/issue48185b.dir/main.go    | 2 +-
+ test/typeparam/issue48280.dir/main.go     | 2 +-
+ test/typeparam/issue48306.dir/main.go     | 2 +-
+ test/typeparam/issue48337a.dir/main.go    | 2 +-
+ test/typeparam/issue48337b.dir/main.go    | 2 +-
+ test/typeparam/issue48454.dir/b.go        | 2 +-
+ test/typeparam/issue48454.dir/main.go     | 2 +-
+ test/typeparam/issue48462.dir/main.go     | 2 +-
+ test/typeparam/issue48716.dir/main.go     | 2 +-
+ test/typeparam/issue48962.dir/b.go        | 2 +-
+ test/typeparam/issue49027.dir/main.go     | 2 +-
+ test/typeparam/issue49241.dir/b.go        | 6 +++---
+ test/typeparam/issue49241.dir/c.go        | 6 +++---
+ test/typeparam/issue49241.dir/main.go     | 4 ++--
+ test/typeparam/issue49497.dir/main.go     | 2 +-
+ test/typeparam/issue49524.dir/main.go     | 2 +-
+ test/typeparam/issue49659.dir/b.go        | 2 +-
+ test/typeparam/issue49667.dir/b.go        | 2 +-
+ test/typeparam/issue49667.dir/main.go     | 2 +-
+ test/typeparam/issue49893.dir/b.go        | 2 +-
+ test/typeparam/issue49893.dir/main.go     | 2 +-
+ test/typeparam/issue50121.dir/main.go     | 2 +-
+ test/typeparam/issue50121b.dir/b.go       | 2 +-
+ test/typeparam/issue50121b.dir/c.go       | 2 +-
+ test/typeparam/issue50121b.dir/d.go       | 2 +-
+ test/typeparam/issue50121b.dir/main.go    | 2 +-
+ test/typeparam/issue50481b.dir/main.go    | 2 +-
+ test/typeparam/issue50481c.dir/main.go    | 2 +-
+ test/typeparam/issue50485.dir/main.go     | 2 +-
+ test/typeparam/issue50486.dir/main.go     | 2 +-
+ test/typeparam/issue50552.dir/main.go     | 2 +-
+ test/typeparam/issue50561.dir/main.go     | 2 +-
+ test/typeparam/issue50598.dir/a1.go       | 2 +-
+ test/typeparam/issue50598.dir/a2.go       | 2 +-
+ test/typeparam/issue50598.dir/main.go     | 4 ++--
+ test/typeparam/issue50841.dir/b.go        | 2 +-
+ test/typeparam/issue51219.dir/main.go     | 2 +-
+ test/typeparam/issue51367.dir/main.go     | 2 +-
+ test/typeparam/listimp.dir/main.go        | 2 +-
+ test/typeparam/listimp2.dir/main.go       | 2 +-
+ test/typeparam/mapimp.dir/main.go         | 2 +-
+ test/typeparam/mapsimp.dir/main.go        | 2 +-
+ test/typeparam/mincheck.dir/main.go       | 2 +-
+ test/typeparam/minimp.dir/main.go         | 2 +-
+ test/typeparam/orderedmapsimp.dir/main.go | 2 +-
+ test/typeparam/pairimp.dir/main.go        | 2 +-
+ test/typeparam/recoverimp.dir/main.go     | 2 +-
+ test/typeparam/setsimp.dir/main.go        | 2 +-
+ test/typeparam/sliceimp.dir/main.go       | 2 +-
+ test/typeparam/stringerimp.dir/main.go    | 2 +-
+ test/typeparam/valimp.dir/main.go         | 2 +-
+ 95 files changed, 114 insertions(+), 114 deletions(-)

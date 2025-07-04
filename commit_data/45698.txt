@@ -1,0 +1,16 @@
+commit a92460fd2f5537bbd91a713ced00731d429563ac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 26 12:18:32 2021 -0400
+
+    doc/go1.17: add release notes for runtime/metrics package
+    
+    Updates #44513.
+    
+    Change-Id: I571a791e9c76371be3b3f1a323f1ea8ff485cf0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322857
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.17.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

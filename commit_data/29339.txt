@@ -1,0 +1,14 @@
+commit a3aaa189a484e18cad30391b7b5a70d04bc3cbe3
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Nov 3 19:53:27 2016 +0530
+
+    cmd/go: run mkalldocs.sh
+    
+    Follow-up to CL 32114
+    
+    Change-Id: I75247ed9c1c0a0e8a278eb75a60d4c5bee355409
+    Reviewed-on: https://go-review.googlesource.com/32690
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)

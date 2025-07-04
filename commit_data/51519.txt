@@ -1,0 +1,20 @@
+commit 89871dd8323f5eaa934f700327f9256d960b0537
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 2 16:41:23 2022 -0500
+
+    cmd/go: unskip TestScript/build_issue48319 on Windows
+    
+    Now that we have newer C compilers on the Windows builders, they
+    should fully support reproducible builds.
+    
+    Updates #35006.
+    
+    Change-Id: I0a8995fe327067c9e73e5578c385ea01ae5dee5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454504
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/build_issue48319.txt | 1 -
+ 1 file changed, 1 deletion(-)

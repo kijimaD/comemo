@@ -1,0 +1,14 @@
+commit fb3b27329ef584d51f9cdb9a500cc45037439e3d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Jan 20 20:01:29 2012 -0800
+
+    os: fix Plan 9 build after more FileMode changes
+    
+    This should go in after Brad's CL 5553064.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5555056
+
+ src/pkg/os/file_plan9.go | 39 ++++++++++++++++++++++++++-------------
+ 1 file changed, 26 insertions(+), 13 deletions(-)

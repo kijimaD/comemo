@@ -1,0 +1,12 @@
+commit 351caa4b9109a3d307557b539427869abefbf815
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Dec 29 20:56:05 2013 +1100
+
+    crypto/hmac: add tests for Size() and BlockSize()
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/41320044
+
+ src/pkg/crypto/hmac/hmac_test.go | 66 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 62 insertions(+), 4 deletions(-)

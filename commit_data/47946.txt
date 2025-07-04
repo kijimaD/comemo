@@ -1,0 +1,20 @@
+commit e4a6b84962cc2fb4f4b8bb532a84bab5bfd68d99
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Jan 4 15:47:02 2022 +0100
+
+    debug/elf: do not read unrelated bytes for SHT_NOBITS sections
+    
+    SHT_NOBITS sections do not occupy space in the file and their offset is
+    "conceptual", reading their data should return all zeroes instead of
+    reading bytes from the section that follows them.
+    
+    Change-Id: Iaa9634792c1909c3e87dab841dd646cd6dcf9027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375216
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/elf_test.go | 22 ++++++++++++++++++++++
+ src/debug/elf/file.go     | 12 ++++++++++++
+ 2 files changed, 34 insertions(+)

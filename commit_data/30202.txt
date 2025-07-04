@@ -1,0 +1,32 @@
+commit 78e6abd244eb4f75180fdb3bc72d69a2f471feca
+Author: David R. Jenni <david.r.jenni@gmail.com>
+Date:   Wed Feb 8 11:32:58 2017 +0100
+
+    sort: optimize average calculation in symMerge and doPivot.
+    
+    Change code of the form `i + (j-i)/2` to `int(uint(i+j) >> 1)`.
+    
+    The optimized average calculation uses fewer instructions to calculate
+    the average without overflowing at the addition.
+    
+    Analogous to https://golang.org/cl/36332.
+    
+    name                 old time/op  new time/op  delta
+    StableString1K-4     49.6µs ± 3%  49.1µs ± 8%    ~     (p=0.659 n=16+19)
+    StableInt1K-4         160µs ±10%   148µs ± 5%  -7.29%  (p=0.000 n=20+16)
+    StableInt1K_Slice-4   139µs ± 4%   136µs ± 3%  -2.52%  (p=0.000 n=20+16)
+    StableInt64K-4       8.84ms ± 6%  8.57ms ± 5%  -3.07%  (p=0.001 n=20+19)
+    Stable1e2-4           162µs ±19%   147µs ±16%  -8.79%  (p=0.002 n=20+20)
+    Stable1e4-4          31.0ms ± 5%  30.6ms ± 5%    ~     (p=0.221 n=20+20)
+    Stable1e6-4           6.37s ± 3%   6.27s ± 2%  -1.67%  (p=0.000 n=19+20)
+    
+    Change-Id: I1cea0bcb9ace8ef7e48b8fab772e41b4b2170da9
+    Reviewed-on: https://go-review.googlesource.com/36570
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/sort/genzfunc.go     |  4 ++++
+ src/sort/sort.go         | 10 +++++-----
+ src/sort/zfuncversion.go | 10 +++++-----
+ 3 files changed, 14 insertions(+), 10 deletions(-)

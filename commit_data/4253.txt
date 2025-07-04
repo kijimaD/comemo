@@ -1,0 +1,12 @@
+commit 593ea313611bc347ec53daec9dc27338c1340e7b
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Mon Nov 30 19:24:32 2009 -0800
+
+    Syntax coloring and function navigation for BBEdit/TextWrangler
+    
+    R=rsc
+    CC=agl1
+    https://golang.org/cl/154123
+
+ misc/bbedit/Go.plist | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

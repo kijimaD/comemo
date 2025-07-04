@@ -1,0 +1,18 @@
+commit 7694bf329d89c15d34e9b58d48de472ec50d537a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 7 16:39:42 2020 -0700
+
+    os/exec: use subprocess deadline in TestExtraFiles
+    
+    Try to get some output even if the subprocess hangs.
+    
+    For #25628
+    
+    Change-Id: I4cc0a8f2c52b03a322b8fd0a620cba37b06ff10a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227517
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

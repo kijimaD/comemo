@@ -1,0 +1,12 @@
+commit 094e5a92886948ed2ba42031e29919ecb6087c8b
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:38 2016 -0400
+
+    misc/cgo/test: add mips64x test case for issue9400
+    
+    Change-Id: If2b4abb6ff322c20e35de025298c8e5ab53edd42
+    Reviewed-on: https://go-review.googlesource.com/19808
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/test/issue9400/asm_mips64x.s | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,0 +1,12 @@
+commit 6e4d24999f4874ae7ec0462530cc54b3e3c0c12c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 18 13:02:37 2012 +1000
+
+    syscall: attempt to find error message in "local" language before resorting to error number on windows
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6499121
+
+ src/pkg/syscall/syscall_windows.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

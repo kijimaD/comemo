@@ -1,0 +1,26 @@
+commit 393b3b130489b86d44b45f2fa7c53e62516a0aaa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 13:35:49 2013 -0700
+
+    net/http: server optimization; reduce GCs, generate ~half the garbage
+    
+    There was another bufio.Writer not being reused, found with
+    GOGC=off and -test.memprofile.
+    
+    benchmark                               old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAlive        18270        16046  -12.17%
+    
+    benchmark                              old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAlive           38           36   -5.26%
+    
+    benchmark                               old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAlive         4598         2488  -45.89%
+    
+    Update #5100
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/8038047
+
+ src/pkg/net/http/server.go | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)

@@ -1,0 +1,35 @@
+commit 76ace947aeaa53e4f743f0a3bc69cea17e63580a
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat May 2 11:03:35 2015 +0000
+
+    text/template: check for literals in chain of terms
+    
+    The current parser ignores obvious errors such as:
+    {{0.1.E}}
+    {{true.any}}
+    {{"hello".wrong}}
+    {{nil.E}}
+    
+    The common problem is that a chain is built from
+    a literal value. It then panics at execution time.
+    
+    Furthermore, a double dot triggers the same behavior:
+    {{..E}}
+    
+    Addresses a TODO left in Tree.operand to catch these
+    errors at parsing time.
+    
+    Note that identifiers can include a '.', and pipelines
+    could return an object which a field can be derived
+    from (like a variable), so they are excluded from the check.
+    
+    Fixes #10615
+    
+    Change-Id: I903706d1c17861b5a8354632c291e73c9c0bc4e1
+    Reviewed-on: https://go-review.googlesource.com/9621
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec_test.go        |  6 ++++--
+ src/text/template/parse/parse.go      |  7 +++++--
+ src/text/template/parse/parse_test.go | 13 ++++++++++++-
+ 3 files changed, 21 insertions(+), 5 deletions(-)

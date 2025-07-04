@@ -1,0 +1,15 @@
+commit 37cd1658386bcc1d4f4ffddb30dd863df2e2ce7b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 12 11:34:06 2012 -0800
+
+    strconv: implement fast path for rounding already short numbers.
+    
+    benchmark                   old ns/op   new ns/op   delta
+    BenchmarkFormatFloatDecimal      3765        1386    -63%
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5494060
+
+ src/pkg/strconv/ftoa.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

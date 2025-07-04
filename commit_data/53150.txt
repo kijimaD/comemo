@@ -1,0 +1,18 @@
+commit e6fb1905cb740b7d68b1c9676f058bf44266539d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 19 19:39:28 2023 +0000
+
+    runtime: make traceClockNow nosplit
+    
+    It's called from exitsyscall, which is nosplit.
+    
+    Change-Id: I3f5f92e044497a88a72c1870beb2bdd15c4263c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496517
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/trace.go | 4 ++++
+ 1 file changed, 4 insertions(+)

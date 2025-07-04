@@ -1,0 +1,12 @@
+commit 26c2443d80904d167b1ae062cc02a2a593bdf6c2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 28 15:50:41 2012 +1100
+
+    text/template: add example showing use of custom function
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5694100
+
+ src/pkg/text/template/examplefunc_test.go | 54 +++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

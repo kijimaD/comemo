@@ -1,0 +1,21 @@
+commit 4d118835abd0dc37c0f1a4f49fe4fb47d62e00e8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 26 17:04:58 2011 -0400
+
+    syscall: add routing messages support for Linux
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4515135
+
+ src/pkg/syscall/Makefile               |  13 +-
+ src/pkg/syscall/mkerrors.sh            |   3 +-
+ src/pkg/syscall/netlink_linux.go       | 227 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/types_linux.c          |  38 ++++++
+ src/pkg/syscall/zerrors_linux_386.go   |  77 +++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go |  77 +++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go   |  77 +++++++++++
+ src/pkg/syscall/ztypes_linux_386.go    |  44 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go  |  44 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go    |  44 +++++++
+ 10 files changed, 637 insertions(+), 7 deletions(-)

@@ -1,0 +1,25 @@
+commit 1ae08bee90b7db1d52843225c23de9ff2849c3ca
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 13 14:49:36 2008 -0700
+
+    Automated g4 rollback of changelist 15312.
+    
+    *** Reason for rollback ***
+    
+      <enter reason for rollback>
+    
+    *** Original change description ***
+    
+    correct signal name thru package rename
+    
+    R=r
+    OCL=15313
+    CL=15313
+
+ src/cmd/6g/gsubr.c  |   2 +-
+ src/cmd/gc/dcl.c    | 100 +++++++++++++-----------------
+ src/cmd/gc/go.h     |  13 ++--
+ src/cmd/gc/go.y     |   4 +-
+ src/cmd/gc/walk.c   | 173 +++++++++++++++++++++++++++++++++-------------------
+ src/runtime/print.c |   7 +--
+ 6 files changed, 166 insertions(+), 133 deletions(-)

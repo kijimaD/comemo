@@ -1,0 +1,12 @@
+commit 52114724b779d2826746dfc3c2475f659bbd7961
+Author: William Josephson <wjosephson@gmail.com>
+Date:   Tue Dec 15 21:10:37 2009 -0800
+
+    rand: Zipf distributed random variates.
+    
+    R=rsc
+    https://golang.org/cl/176070
+
+ src/pkg/rand/Makefile |  1 +
+ src/pkg/rand/zipf.go  | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

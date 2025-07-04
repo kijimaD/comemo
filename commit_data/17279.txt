@@ -1,0 +1,16 @@
+commit 205329aaf2ec9aff13c4052f6dfa552e65760ea9
+Author: Dimitri Tcaciuc <dtcaciuc@gmail.com>
+Date:   Fri Aug 16 11:43:43 2013 +1000
+
+        image: Inline example image data to make it runnable on playground.
+    
+    Use more compressed image to reduce source clutter.
+    
+    Fixes #5983.
+    
+    R=nigeltao, adg
+    CC=golang-dev
+    https://golang.org/cl/12513044
+
+ src/pkg/image/decode_example_test.go | 113 +++++++++++++++++++++++++++--------
+ 1 file changed, 87 insertions(+), 26 deletions(-)

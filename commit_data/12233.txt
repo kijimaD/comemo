@@ -1,0 +1,17 @@
+commit b495e5c538d73b8cf0be99960c44d3ab9650ddee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 12:22:10 2012 -0800
+
+    strings: make Count example show results
+    
+    Thanks to dr.volker.dobler for tracking this down.
+    
+    Filed a long-term issue (3142) which may eventually
+    resolve this problem w/o the need for a manual fix.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5698078
+
+ src/pkg/strings/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

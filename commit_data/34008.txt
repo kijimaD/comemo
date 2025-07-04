@@ -1,0 +1,12 @@
+commit 8f6e8f9efd433fc67ff1e6e1caa5bc8edcad38f6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 15 14:17:43 2018 +0100
+
+    doc: specify which pprof version was vendored in go1.10
+    
+    Change-Id: I248cb10a2e24f089600c13e86da251970c773d95
+    Reviewed-on: https://go-review.googlesource.com/87662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

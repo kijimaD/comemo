@@ -1,0 +1,17 @@
+commit 70cee781fc16c743ec3aa0ab441f1cb0254d4a8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 22:52:00 2015 -0500
+
+    cmd/go: use tags when evaluating file system wildcards like ./...
+    
+    Thanks to Albert Hafvenström for the diagnosis.
+    
+    Fixes #11246.
+    
+    Change-Id: I2b9e670c0ecf6aa01e5bf4d7a402619e93cc4f4a
+    Reviewed-on: https://go-review.googlesource.com/17942
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 10 ++++++++++
+ src/cmd/go/main.go    |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

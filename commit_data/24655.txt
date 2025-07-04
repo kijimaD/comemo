@@ -1,0 +1,15 @@
+commit 26d0b00536c3d2808f195a095858a3f25354177d
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Oct 16 14:19:13 2015 -0400
+
+    cmd/go: enable android/amd64 build.
+    
+    For golang/go#10743
+    
+    Change-Id: Iec047821147a0e28edebf875fefe25993785702b
+    Reviewed-on: https://go-review.googlesource.com/15994
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcshared/test.bash | 2 +-
+ src/cmd/go/build.go            | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

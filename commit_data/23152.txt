@@ -1,0 +1,19 @@
+commit 0858d8847d0cdcc03ecb336c208706516bc0ab40
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 26 14:57:05 2015 -0700
+
+    math/big: removed TODO, cleanups
+    
+    - factor out handling of sign
+    - rename bstring, pstring to fmtB, fmtP consistent with fmtE, fmtF
+    - move all float-to-string conversion functions into ftoa.go
+    - no functional changes
+    
+    Change-Id: I5970ecb874dc9c387630b59147d90bda16a5d8e6
+    Reviewed-on: https://go-review.googlesource.com/10387
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go      | 136 +-----------------------------
+ src/math/big/floatconv_test.go |   1 +
+ src/math/big/ftoa.go           | 185 +++++++++++++++++++++++++++++++++--------
+ 3 files changed, 152 insertions(+), 170 deletions(-)

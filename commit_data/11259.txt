@@ -1,0 +1,15 @@
+commit f2f0059307e3ff555858b2d51493187f467c17e2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 19 16:17:44 2012 +0400
+
+    math/rand: decrease test duration in short mode
+    TestNonStandardNormalValues runs 1.5s,
+    the change reduces it to 0.2s in short mode.
+    The problem is with slow machines, emulators and dynamic tools.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5540065
+
+ src/pkg/math/rand/rand_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

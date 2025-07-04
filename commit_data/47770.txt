@@ -1,0 +1,19 @@
+commit 49b7c9caec6b96d0b327624efee61bd8a72cf68c
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Sun Dec 12 10:53:17 2021 -0500
+
+    net/netip: make Prefix.MarshalText format 4-in-6 IPs consistently
+    
+    Fixes #50115.
+    
+    Change-Id: Iac76e5b486d3a2a784583345eaeb22c31cc4a36d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371134
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/netip/netip.go      |  7 ++++++-
+ src/net/netip/netip_test.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 751c8903d29752bffa0c846a69fe465b2487f3f4
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 1 13:27:32 2016 -0800
+
+    doc: fix typo in go1.8.html
+    
+    Change-Id: I853da2666ed2b5f8b80bd9438f8c352f233b9c89
+    Reviewed-on: https://go-review.googlesource.com/33800
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

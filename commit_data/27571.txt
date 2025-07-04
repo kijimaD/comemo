@@ -1,0 +1,16 @@
+commit 4e01c132d03ee1f862ae8ba9db465d6047f950f2
+Author: Augusto Roman <aroman@gmail.com>
+Date:   Sat May 28 16:59:28 2016 -0700
+
+    doc: correct release notes for non-string map keys in encoding/json
+    
+    The original draft mentioned support for json.Marshaler, but that's
+    not the case.  JSON supports only string keys (not arbitrary JSON)
+    so only encoding.TextMarshaller is supported.
+    
+    Change-Id: I7788fc23ac357da88e92aa0ca17b513260840cee
+    Reviewed-on: https://go-review.googlesource.com/23529
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)

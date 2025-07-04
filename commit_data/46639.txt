@@ -1,0 +1,29 @@
+commit df63673d6a85d4243cc68c2225264afab6cfbf3b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 15:35:46 2021 -0400
+
+    cmd/internal/obj: index pcdata symbols in NumberSyms
+    
+    When writing an object file, most symbols are indexed in
+    NumberSyms. Currently, pcdata symbols are indexed late and
+    separately. This is not really necessary, as pcdata symbols
+    already exist at the time of NumberSyms. Just do it there.
+    
+    As pcdata symbols are laid out in the pclntab in a special way at
+    link time, distinguish them from other symbols in the content
+    hash. (In the old code this was partly achieved by indexing them
+    late.)
+    
+    Change-Id: Ie9e721382b0af2cfb39350d031e2e66d79095a3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352611
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/obj/link.go    |  4 ++++
+ src/cmd/internal/obj/objfile.go | 24 ++++++++----------------
+ src/cmd/internal/obj/pcln.go    |  4 ++--
+ src/cmd/internal/obj/sym.go     | 28 ++++++++++++++++++++--------
+ 4 files changed, 34 insertions(+), 26 deletions(-)

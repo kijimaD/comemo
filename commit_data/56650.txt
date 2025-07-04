@@ -1,0 +1,25 @@
+commit 9a3ef861732031dc70794531452922d70855e27a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 23:50:52 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥5,000 dependents
+    
+    For #67401.
+    
+    Change-Id: Ifea84af92017b405466937f50fb8f28e6893c8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587220
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/crypto/tls/badlinkname.go   |  3 --
+ src/crypto/tls/cipher_suites.go | 10 +++++++
+ src/math/big/arith_decl.go      | 65 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/badlinkname.go     | 21 -------------
+ src/runtime/linkname.go         |  3 --
+ src/runtime/map.go              |  3 ++
+ src/runtime/time_fake.go        |  1 +
+ src/runtime/time_nofake.go      | 12 ++++++++
+ src/syscall/linkname_darwin.go  | 10 +++++++
+ src/syscall/linkname_openbsd.go | 10 +++++++
+ 10 files changed, 111 insertions(+), 27 deletions(-)

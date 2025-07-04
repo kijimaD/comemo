@@ -1,0 +1,18 @@
+commit 20bba866d3aaeba728c78ff24c940b98441c791b
+Author: Rohan Verma <hello@rohanverma.net>
+Date:   Wed Oct 23 22:12:27 2019 +0000
+
+    doc/play: match the hello world snippet in x/website
+    
+    Fixes #35099
+    
+    Change-Id: Ieaf3174540087bd20443b38703ef88d9f9638052
+    GitHub-Last-Rev: 12973bc66f39caebb4156396de3b9df670bf12b5
+    GitHub-Pull-Request: golang/go#35123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202998
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/play/hello.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,17 @@
+commit 8fbe8bee6c82f9c1a346eab78a1babfb2bb86d54
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 14:32:59 2010 -0700
+
+    syscall: add IPV6 constants
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/848041
+
+ src/pkg/syscall/mkerrors.sh             |    4 +-
+ src/pkg/syscall/mksysnum_linux.sh       |    3 -
+ src/pkg/syscall/zerrors_darwin_386.go   | 1089 ++++++++++++++++---------------
+ src/pkg/syscall/zerrors_darwin_amd64.go | 1089 ++++++++++++++++---------------
+ src/pkg/syscall/zerrors_linux_386.go    |   89 ++-
+ src/pkg/syscall/zerrors_linux_amd64.go  |   89 ++-
+ 6 files changed, 1255 insertions(+), 1108 deletions(-)

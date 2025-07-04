@@ -1,0 +1,19 @@
+commit 8265683dda363d00f94e86ce8c5aa86c7b2bd2a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 14:29:26 2022 -0700
+
+    go/types: remove special handling for .go1 files in tests
+    
+    All but local tests are now shared and reside in internal/types;
+    and there are no .go1 files anymore.
+    
+    Change-Id: I3f8374e85639348de3cb8b568a7a05df5f9c2a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444276
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/check_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

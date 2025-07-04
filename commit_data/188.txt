@@ -1,0 +1,8 @@
+commit 504aa698f7790711a191f78c63ada53d6e08e8cd
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 18:01:05 2008 -0700
+
+    SVN=123249
+
+ src/cmd/gc/const.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

@@ -1,0 +1,21 @@
+commit 9d2aeae72d34880510c7221f35ab61171cec1ffd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 31 20:22:32 2024 +0000
+
+    iter: propagate runtime.Goexit from iterator passed to Pull
+    
+    This change propagates a runtime.Goexit initiated by the iterator into
+    the caller of next and/or stop.
+    
+    Fixes #67712.
+    
+    Change-Id: I5bb8d22f749fce39ce4f587148c5fc71aee2af65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589137
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/iter/iter.go      | 55 ++++++++++++++++++++++++-------
+ src/iter/pull_test.go | 89 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/coro.go   |  2 +-
+ 3 files changed, 133 insertions(+), 13 deletions(-)

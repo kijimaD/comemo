@@ -1,0 +1,20 @@
+commit 0ac4ea79f725a0cc3797faa32ab698b8b3d77343
+Author: andrius4669 <andrius4669@gmail.com>
+Date:   Thu May 23 15:43:51 2019 +0000
+
+    mime: encode CTL and non-US-ASCII characters in FormatMediaType
+    
+    Encodes non-WSP CTL and non-US-ASCII UTF-8 characters using syntax specified in RFC 2231.
+    
+    Fixes #7668
+    Fixes #9624
+    
+    Change-Id: I433f167c5bdd84a7f811ac0410b08b10790e0d9f
+    GitHub-Last-Rev: 9c77146760341fdb3af35c1b94d4ee00ffb0daae
+    GitHub-Pull-Request: golang/go#29328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154760
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/mediatype.go      | 36 ++++++++++++++++++++++++++++++++----
+ src/mime/mediatype_test.go | 25 ++++++++++++++++++++++---
+ 2 files changed, 54 insertions(+), 7 deletions(-)

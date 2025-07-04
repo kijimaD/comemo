@@ -1,0 +1,17 @@
+commit 7db8835a5063248ce1e8db53a93706a2f5fc51dd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:10:39 2015 -0400
+
+    runtime/debug: disable arm64 test for issue 9993
+    
+    Like other arm64 platforms, darwin/arm64 has a different physical
+    page size to logical page size so it is running into issue 9993. I
+    hope it can be fixed for Go 1.5, but for now it is demonstrating the
+    same bug as the other skipped os+arch combinations.
+    
+    Change-Id: Iedaf9afe56d6954bb4391b6e843d81742a75a00c
+    Reviewed-on: https://go-review.googlesource.com/8814
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/debug/garbage_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

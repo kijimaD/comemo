@@ -1,0 +1,20 @@
+commit e3e48cd075091d8f0e1265ae6a18e69ac83d2af4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 23 18:46:01 2014 +0900
+
+    syscall: consolidate, simplify socket options for Unix-like systems
+    
+    Also exposes common socket option functions on Solaris.
+    
+    Update #7174
+    Update #7175
+    
+    LGTM=aram
+    R=golang-codereviews, aram
+    CC=golang-codereviews
+    https://golang.org/cl/107280044
+
+ src/pkg/syscall/syscall_bsd.go   | 42 -----------------------
+ src/pkg/syscall/syscall_linux.go | 34 ------------------
+ src/pkg/syscall/syscall_unix.go  | 74 +++++++++++++++++++++++++++++++---------
+ 3 files changed, 58 insertions(+), 92 deletions(-)

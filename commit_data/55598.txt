@@ -1,0 +1,41 @@
+commit daa58db486c3806b6767a8d87ee275ed4d7c2713
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 1 23:58:54 2024 +1100
+
+    cmd/compile: improve rotations for riscv64
+    
+    Enable canRotate for riscv64, enable rotation intrinsics and provide
+    better rewrite implementations for rotations. By avoiding Lsh*x64
+    and Rsh*Ux64 we can produce better code, especially for 32 and 64
+    bit rotations. By enabling canRotate we also benefit from the generic
+    rotation rewrite rules.
+    
+    Benchmark on a StarFive VisionFive 2:
+    
+                   │   rotate.1   │              rotate.2               │
+                   │    sec/op    │   sec/op     vs base                │
+    RotateLeft-4     14.700n ± 0%   8.016n ± 0%  -45.47% (p=0.000 n=10)
+    RotateLeft8-4     14.70n ± 0%   10.69n ± 0%  -27.28% (p=0.000 n=10)
+    RotateLeft16-4    14.70n ± 0%   12.02n ± 0%  -18.23% (p=0.000 n=10)
+    RotateLeft32-4   13.360n ± 0%   8.016n ± 0%  -40.00% (p=0.000 n=10)
+    RotateLeft64-4   13.360n ± 0%   8.016n ± 0%  -40.00% (p=0.000 n=10)
+    geomean           14.15n        9.208n       -34.92%
+    
+    Change-Id: I1a2036fdc57cf88ebb6617eb8d92e1d187e183b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560315
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go         |   6 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |   9 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  22 ++--
+ src/cmd/compile/internal/ssa/opGen.go           |  30 +++++
+ src/cmd/compile/internal/ssa/rewrite.go         |   2 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 142 +++++++++++++-----------
+ src/cmd/compile/internal/ssagen/ssa.go          |   8 +-
+ test/codegen/rotate.go                          |  22 ++++
+ 8 files changed, 153 insertions(+), 88 deletions(-)

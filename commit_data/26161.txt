@@ -1,0 +1,16 @@
+commit aa3650f01976524ad80b2aad987e2d4f655cbe65
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 17:45:55 2016 -0800
+
+    cmd/compile: eliminate IterParams
+    
+    It's only used once, so just make the caller responsible for iterating
+    both the receiver and input params.
+    
+    Change-Id: Icb34f3f0cf96e80fbe27f3f49d12eddc26599b92
+    Reviewed-on: https://go-review.googlesource.com/20454
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/align.go | 14 +++++--------
+ src/cmd/compile/internal/gc/type.go  | 39 +++++++++++++++---------------------
+ 2 files changed, 21 insertions(+), 32 deletions(-)

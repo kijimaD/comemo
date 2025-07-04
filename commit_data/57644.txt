@@ -1,0 +1,17 @@
+commit 3352db152b8347650e1fd3c9f26c335586577b21
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 9 12:03:33 2024 -0400
+
+    internal/runtime/maps: support big endian architectures
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10
+    Change-Id: I0a928c4b1e90056c50d2abca8982bdb540c33a34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619035
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/group.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

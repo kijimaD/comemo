@@ -1,0 +1,18 @@
+commit e92ce92662172196ebe5099de93ee5bdabaa3f18
+Author: gzdaijie <gzdaijie@gmail.com>
+Date:   Mon Oct 12 05:39:16 2020 +0000
+
+    os: call f.Close before t.Fatal to avoid vet unreachable code warnings
+    
+    Change-Id: Ic3f756ecf9b4fad8fb8c259e7dad6df894863b0e
+    GitHub-Last-Rev: 303e524029289fb4c0cb114dad7cb03c4fce9637
+    GitHub-Pull-Request: golang/go#41900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261217
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

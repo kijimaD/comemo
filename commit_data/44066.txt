@@ -1,0 +1,22 @@
+commit 2018b68a65c32a12ed5f65983212bea175b7a0fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 23 14:01:12 2020 -0800
+
+    net/mail: don't use MDT in test
+    
+    When time.Parse sees a timezone name that matches the local timezone,
+    it uses the local timezone. The tests weren't expecting that,
+    so using MDT broke with TZ=America/Boise (where MDT means Mountain
+    Daylight Time). Just use GMT instead.
+    
+    Fixes #43354
+    
+    Change-Id: Ida70c8c867e2568b1535d1dfbf1fb0ed9e0e5c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280072
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/mail/message_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

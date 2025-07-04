@@ -1,0 +1,43 @@
+commit 4bc9badd759f863f784e5f8d105a25c615324359
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 17 16:10:31 2015 -0700
+
+    cmd/internal/gc: speed up large string switches
+    
+    Switch statements do a binary search on long runs of constants.
+    Doing a less-than comparison on a string is much more expensive
+    than on (say) an int. Use two part comparison for strings:
+    First compare length, then the strings themselves.
+    
+    Benchmarks from issue 10000:
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkIf0               3.36          3.35          -0.30%
+    BenchmarkIf1               4.45          4.47          +0.45%
+    BenchmarkIf2               5.22          5.26          +0.77%
+    BenchmarkIf3               5.56          5.58          +0.36%
+    BenchmarkIf4               10.5          10.6          +0.95%
+    BenchmarkIfNewStr0         5.26          5.30          +0.76%
+    BenchmarkIfNewStr1         7.19          7.15          -0.56%
+    BenchmarkIfNewStr2         7.23          7.16          -0.97%
+    BenchmarkIfNewStr3         7.47          7.43          -0.54%
+    BenchmarkIfNewStr4         12.4          12.2          -1.61%
+    BenchmarkSwitch0           9.56          4.24          -55.65%
+    BenchmarkSwitch1           8.64          5.58          -35.42%
+    BenchmarkSwitch2           9.38          10.1          +7.68%
+    BenchmarkSwitch3           8.66          5.00          -42.26%
+    BenchmarkSwitch4           7.99          8.18          +2.38%
+    BenchmarkSwitchNewStr0     11.3          6.12          -45.84%
+    BenchmarkSwitchNewStr1     11.1          8.33          -24.95%
+    BenchmarkSwitchNewStr2     11.0          11.1          +0.91%
+    BenchmarkSwitchNewStr3     10.3          6.93          -32.72%
+    BenchmarkSwitchNewStr4     11.0          11.2          +1.82%
+    
+    Fixes #10000
+    
+    Change-Id: Ia2fffc32e9843425374c274064f709ec7ee46d80
+    Reviewed-on: https://go-review.googlesource.com/7698
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/gc/swt.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

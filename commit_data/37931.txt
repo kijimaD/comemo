@@ -1,0 +1,19 @@
+commit 3a91061504818fec41c3896de46ae61ff8709e94
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 19 18:24:32 2019 +0100
+
+    doc: note go tool tour removal in 1.12 release notes
+    
+    Note the removal of the go tool tour command in the Go 1.12 release
+    notes.
+    
+    Updates #24819
+    
+    Change-Id: I258ab9401ea2cc06a83328c67299376fcf23c980
+    Reviewed-on: https://go-review.googlesource.com/c/158618
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.12.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,58 @@
+commit 63caec5dee719d20907810b0ad5a3fe84421d77a
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 26 18:27:17 2015 -0400
+
+    runtime: eliminate one heapBitsForObject from scanobject
+    
+    scanobject with ptrmask!=nil is only ever called with the base
+    pointer of a heap object. Currently, scanobject calls
+    heapBitsForObject, which goes to a great deal of trouble to check
+    that the pointer points into the heap and to find the base of the
+    object it points to, both of which are completely unnecessary in
+    this case.
+    
+    Replace this call to heapBitsForObject with much simpler logic to
+    fetch the span and compute the heap bits.
+    
+    Benchmark results with five runs:
+    
+    name                                    old mean                new mean        delta
+    BenchmarkBinaryTree17              9.21s × (0.95,1.02)     8.55s × (0.91,1.03)  -7.16% (p=0.022)
+    BenchmarkFannkuch11                2.65s × (1.00,1.00)     2.62s × (1.00,1.00)  -1.10% (p=0.000)
+    BenchmarkFmtFprintfEmpty          73.2ns × (0.99,1.01)    71.7ns × (1.00,1.01)  -1.99% (p=0.004)
+    BenchmarkFmtFprintfString          302ns × (0.99,1.00)     292ns × (0.98,1.02)  -3.31% (p=0.020)
+    BenchmarkFmtFprintfInt             281ns × (0.98,1.01)     279ns × (0.96,1.02)  ~ (p=0.596)
+    BenchmarkFmtFprintfIntInt          482ns × (0.98,1.01)     488ns × (0.95,1.02)  ~ (p=0.419)
+    BenchmarkFmtFprintfPrefixedInt     382ns × (0.99,1.01)     365ns × (0.96,1.02)  -4.35% (p=0.015)
+    BenchmarkFmtFprintfFloat           475ns × (0.99,1.01)     472ns × (1.00,1.00)  ~ (p=0.108)
+    BenchmarkFmtManyArgs              1.89µs × (1.00,1.01)    1.90µs × (0.94,1.02)  ~ (p=0.883)
+    BenchmarkGobDecode                22.4ms × (0.99,1.01)    21.9ms × (0.92,1.04)  ~ (p=0.332)
+    BenchmarkGobEncode                24.7ms × (0.98,1.02)    23.9ms × (0.87,1.07)  ~ (p=0.407)
+    BenchmarkGzip                      397ms × (0.99,1.01)     398ms × (0.99,1.01)  ~ (p=0.718)
+    BenchmarkGunzip                   96.7ms × (1.00,1.00)    96.9ms × (1.00,1.00)  ~ (p=0.230)
+    BenchmarkHTTPClientServer         71.5µs × (0.98,1.01)    68.5µs × (0.92,1.06)  ~ (p=0.243)
+    BenchmarkJSONEncode               46.1ms × (0.98,1.01)    44.9ms × (0.98,1.03)  -2.51% (p=0.040)
+    BenchmarkJSONDecode               86.1ms × (0.99,1.01)    86.5ms × (0.99,1.01)  ~ (p=0.343)
+    BenchmarkMandelbrot200            4.12ms × (1.00,1.00)    4.13ms × (1.00,1.00)  +0.23% (p=0.000)
+    BenchmarkGoParse                  5.89ms × (0.96,1.03)    5.82ms × (0.96,1.04)  ~ (p=0.522)
+    BenchmarkRegexpMatchEasy0_32       141ns × (0.99,1.01)     142ns × (1.00,1.00)  ~ (p=0.178)
+    BenchmarkRegexpMatchEasy0_1K       408ns × (1.00,1.00)     392ns × (0.99,1.00)  -3.83% (p=0.000)
+    BenchmarkRegexpMatchEasy1_32       122ns × (1.00,1.00)     122ns × (1.00,1.00)  ~ (p=0.178)
+    BenchmarkRegexpMatchEasy1_1K       626ns × (1.00,1.01)     624ns × (0.99,1.00)  ~ (p=0.122)
+    BenchmarkRegexpMatchMedium_32      202ns × (0.99,1.00)     205ns × (0.99,1.01)  +1.58% (p=0.001)
+    BenchmarkRegexpMatchMedium_1K     54.4µs × (1.00,1.00)    55.5µs × (1.00,1.00)  +1.86% (p=0.000)
+    BenchmarkRegexpMatchHard_32       2.68µs × (1.00,1.00)    2.71µs × (1.00,1.00)  +0.97% (p=0.002)
+    BenchmarkRegexpMatchHard_1K       79.8µs × (1.00,1.01)    80.5µs × (1.00,1.01)  +0.94% (p=0.003)
+    BenchmarkRevcomp                   590ms × (0.99,1.01)     585ms × (1.00,1.00)  ~ (p=0.066)
+    BenchmarkTemplate                  111ms × (0.97,1.02)     112ms × (0.99,1.01)  ~ (p=0.201)
+    BenchmarkTimeParse                 392ns × (1.00,1.00)     385ns × (1.00,1.00)  -1.69% (p=0.000)
+    BenchmarkTimeFormat                449ns × (0.98,1.01)     448ns × (0.99,1.01)  ~ (p=0.550)
+    
+    Change-Id: Ie7c3830c481d96c9043e7bf26853c6c1d05dc9f4
+    Reviewed-on: https://go-review.googlesource.com/9364
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 20 ++++++++++----------
+ src/runtime/mgcwork.go |  1 +
+ src/runtime/mheap.go   | 19 +++++++++++++++++++
+ 3 files changed, 30 insertions(+), 10 deletions(-)

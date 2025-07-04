@@ -1,0 +1,14 @@
+commit a35377515f6a232305a52f89c164d2782951bc11
+Author: Lyle Franklin <lylejfranklin@gmail.com>
+Date:   Sat Jul 15 13:33:56 2017 -0700
+
+    strings: add Examples for TrimFunc and variants during Gophercon!
+    
+    Change-Id: I6bfe5b914cf11be1cd1f8e61d557cc718725f0be
+    Reviewed-on: https://go-review.googlesource.com/49013
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/example_test.go | 81 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 52 insertions(+), 29 deletions(-)

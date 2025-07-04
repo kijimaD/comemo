@@ -1,0 +1,12 @@
+commit 30637151c753635e8c7473d4d0c70b3558ee7e03
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 3 15:10:52 2009 -0800
+
+    remove gccgo restriction with respect to blank identifiers
+    
+    R=iant
+    CC=go-dev
+    http://go/go-review/1016032
+
+ doc/go_spec.html | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,27 @@
+commit e7dd28891ef84684b83242caba3ba338908235a0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 8 13:34:42 2015 -0400
+
+    cmd/internal/gc, cmd/[56789]g: rename stackcopy to blockcopy
+    
+    To avoid confusion with the runtime concept of copying stack.
+    
+    Change-Id: I33442377b71012c2482c2d0ddd561492c71e70d0
+    Reviewed-on: https://go-review.googlesource.com/8639
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5g/cgen.go          | 2 +-
+ src/cmd/5g/galign.go        | 2 +-
+ src/cmd/6g/cgen.go          | 2 +-
+ src/cmd/6g/galign.go        | 2 +-
+ src/cmd/7g/cgen.go          | 2 +-
+ src/cmd/7g/galign.go        | 2 +-
+ src/cmd/8g/cgen.go          | 2 +-
+ src/cmd/8g/galign.go        | 2 +-
+ src/cmd/9g/cgen.go          | 2 +-
+ src/cmd/9g/galign.go        | 2 +-
+ src/cmd/internal/gc/cgen.go | 2 +-
+ src/cmd/internal/gc/go.go   | 2 +-
+ src/runtime/mkduff.go       | 2 +-
+ 13 files changed, 13 insertions(+), 13 deletions(-)

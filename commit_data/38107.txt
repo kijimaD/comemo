@@ -1,0 +1,21 @@
+commit 4a9aba5afe8358b1f7a55d374fbefd9504f377e2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 11:17:12 2019 +0100
+
+    syscall: add missing Setrlimit and Termios on aix/ppc64
+    
+    This commits adds a missing syscall and a missing structure in syscall
+    package.
+    
+    Change-Id: I9d630454c56337267f7bbb023e601246e14fc929
+    Reviewed-on: https://go-review.googlesource.com/c/163978
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_aix.go        |  1 +
+ src/syscall/types_aix.go          |  5 ++++
+ src/syscall/zsyscall_aix_ppc64.go | 13 +++++++++
+ src/syscall/ztypes_aix_ppc64.go   | 56 +++++++++++++++++++++------------------
+ 4 files changed, 49 insertions(+), 26 deletions(-)

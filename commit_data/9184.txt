@@ -1,0 +1,16 @@
+commit 8fdc2851e4340105db8c2646b2cba71bfb6357ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 22 18:30:07 2011 -0700
+
+    zip: add a test for the previous >65k files fix
+    
+    This surprisingly takes 30 seconds on my fast machine
+    so disabling by default. Need to optimize the Writer
+    at some point.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/4815048
+
+ src/pkg/archive/zip/zip_test.go | 57 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

@@ -1,0 +1,14 @@
+commit 79eded509c040d0ee0999352114417062d16934b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 13:33:05 2011 +1000
+
+    doc: don't insert paragraphs inside pre blocks
+    doc: update go_tutorial
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4568056
+
+ doc/go_tutorial.html | 54 ++++++++++++++++++++++++++--------------------------
+ doc/htmlgen.go       |  4 ++--
+ 2 files changed, 29 insertions(+), 29 deletions(-)

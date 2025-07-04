@@ -1,0 +1,12 @@
+commit 0fcb24b91c6e4b3786da6e6b4592a252e54f561b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 08:05:04 2011 -0500
+
+    cmd/go: fix build (piece of 5489100 leaked in to last checkin)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5489102
+
+ src/cmd/go/main.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 51e85612f9beff6bb715199c1ddf5ff421c4ae77
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 18 14:19:31 2012 -0700
+
+    vet: add range variable misuse detection
+    
+    R=fullung, r, remyoudompheng, minux.ma, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/6494075
+
+ src/cmd/vet/Makefile     |   2 +-
+ src/cmd/vet/main.go      |  26 ++++++++----
+ src/cmd/vet/rangeloop.go | 104 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 122 insertions(+), 10 deletions(-)

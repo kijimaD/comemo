@@ -1,0 +1,12 @@
+commit a83d0175a832eae170bee146b0f6743b02fbc59f
+Author: Aditya Mukerjee <dev@chimeracoder.net>
+Date:   Sat Jul 15 16:27:30 2017 -0400
+
+    math/rand: add concurrency warning to overview comment
+    
+    Change-Id: I52efa7aa72a23256e5ca56470ffeba975ed8f739
+    Reviewed-on: https://go-review.googlesource.com/48760
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/math/rand/rand.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

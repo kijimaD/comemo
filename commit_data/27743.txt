@@ -1,0 +1,31 @@
+commit a2a4db7375204c22898559d3b96a748c6df96294
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jun 28 12:31:02 2016 +0200
+
+    unicode: upgrade to version 9.0.0
+    
+    Changes beyond generated tables:
+    - Now supports aliases to handle deprecated
+      property classes.
+    - Some Mongolian letters are now modifiers.
+    
+    Other changes:
+    - strconv: newly generated table to be in sync
+    - regexp/syntax: updated maxFold
+    
+    Fixes #16191
+    
+    Change-Id: I56bdf21ee2f775f2a82d0465b3772faf5c24cb61
+    Reviewed-on: https://go-review.googlesource.com/24496
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt             |   1 +
+ api/go1.7.txt              |   9 +
+ src/regexp/syntax/parse.go |   2 +-
+ src/strconv/isprint.go     |  82 +++++---
+ src/unicode/letter_test.go |   2 +-
+ src/unicode/maketables.go  |  17 +-
+ src/unicode/script_test.go |  10 +-
+ src/unicode/tables.go      | 487 +++++++++++++++++++++++++++++++++++----------
+ 8 files changed, 473 insertions(+), 137 deletions(-)

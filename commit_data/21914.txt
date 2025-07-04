@@ -1,0 +1,16 @@
+commit 59584ede73897f991c1e687848a827af53e2c99d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 23:54:13 2015 -0500
+
+    cmd/internal/obj/x86: accept TYPE_MEM in CMPPS 3rd argument
+    
+    (Because that's what the assembly files actually say - no $ on the constant.)
+    
+    Change-Id: Idb774cdca0e089c4ac24ab665e23290bf7b565bf
+    Reviewed-on: https://go-review.googlesource.com/6895
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go |   9 +++
+ src/cmd/old6a/a.y                |   3 +-
+ src/cmd/old6a/y.go               | 125 ++++++++++++++++++++-------------------
+ 3 files changed, 74 insertions(+), 63 deletions(-)

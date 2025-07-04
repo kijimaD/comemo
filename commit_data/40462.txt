@@ -1,0 +1,15 @@
+commit 18e9cdc70e8da645302d96bab905e902f9cc776a
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Mon Oct 21 15:48:23 2019 +0900
+
+    cmd/link: use filepath.Clean rather than path.Clean
+    
+    pname already translated package path into a file path on for statement.
+    Use same as filepath.Clean rather than path.Clean.
+    
+    Change-Id: I9782e2396313abc39ac55e3fdcec8f53bcaff84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202377
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/internal/ld/ld.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

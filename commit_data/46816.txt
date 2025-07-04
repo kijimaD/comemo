@@ -1,0 +1,24 @@
+commit 5b9206f64ef4d8ea3201627cf9ba5c2b86e65022
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Sep 26 14:56:55 2021 +0800
+
+    time: allow minimum int64 in ParseDuration
+    
+    ParseDuration should handle minimum int64 (-1<<63) nanosecond
+    since type Duration is alias of int64
+    
+    name           old time/op  new time/op  delta
+    ParseDuration  91.4ns ± 0%  86.4ns ± 1%  -5.49%  (p=0.000 n=9+8)
+    
+    Fixes: #48629
+    Change-Id: I81b7035b25cefb4c1e5b7801c20f2d335e29358a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352269
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go    | 56 +++++++++++++++++++++++++--------------------------
+ src/time/time_test.go | 27 ++++++++++++++++++++-----
+ 2 files changed, 49 insertions(+), 34 deletions(-)

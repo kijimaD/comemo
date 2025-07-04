@@ -1,0 +1,12 @@
+commit 98ac4c6e65a953aa04e6ac627760b691960e1ce7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 4 13:13:17 2009 -0800
+
+    stylistic issues in a couple of cmd docs
+    
+    R=rsc
+    http://go/go-review/1017028
+
+ src/cmd/nm/doc.go   | 2 +-
+ src/cmd/prof/doc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

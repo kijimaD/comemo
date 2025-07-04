@@ -1,0 +1,17 @@
+commit 4af0a58ea90f84d31ff87a0d3e140b71419a22fa
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Feb 18 23:33:06 2010 -0800
+
+    8a/8l: Added FCMOVcc instructions
+    
+    Thanks to Charles Dorian for the help.
+    
+    R=rsc
+    CC=Charlie Dorian, golang-dev
+    https://golang.org/cl/207049
+
+ src/cmd/8a/lex.c   |  8 ++++++++
+ src/cmd/8l/8.out.h |  9 +++++++++
+ src/cmd/8l/optab.c | 15 +++++++++++++++
+ src/libmach/8db.c  |  8 ++++++++
+ 4 files changed, 40 insertions(+)

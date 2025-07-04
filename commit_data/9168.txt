@@ -1,0 +1,12 @@
+commit e109a2bb8cde0f31cf58164d861407351ceaf1bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 21 15:01:58 2011 -0700
+
+    big: minor comment adjustments
+    
+    R=mtj, r
+    CC=golang-dev
+    https://golang.org/cl/4814044
+
+ src/pkg/big/int.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

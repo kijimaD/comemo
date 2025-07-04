@@ -1,0 +1,16 @@
+commit 39c39ae52f0f35085be8ca1e004dee509abc21de
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 7 14:28:14 2021 -0700
+
+    doc: document Go 1.17 language changes
+    
+    Fixes #46020.
+    
+    Change-Id: Iadf9a0ac4a8863e17155d6ba1af2cc497634a634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325870
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 44 +++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 39 insertions(+), 5 deletions(-)

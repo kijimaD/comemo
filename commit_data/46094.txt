@@ -1,0 +1,17 @@
+commit 4d00fcbc4303bca38ecfc1c8a07661089496c1ab
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 15:59:08 2021 -0400
+
+    go/types: clean up panics in instantiation
+    
+    This is a straightforward port of CL 341862 to go/types.
+    
+    Change-Id: I4214c08d2889e2daf40254385656c6beed79571d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342487
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go | 43 +++++++++++++++++++++++++------------------
+ src/go/types/named.go       |  9 ++++-----
+ 2 files changed, 29 insertions(+), 23 deletions(-)

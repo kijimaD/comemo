@@ -1,0 +1,13 @@
+commit 00b75a237af6ec8cdf227c18a5e6afe701bd61a0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 14:00:10 2014 +1000
+
+    misc/makerelease: exit with nonzero status code on error
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/129040043
+
+ misc/makerelease/makerelease.go | 5 +++++
+ 1 file changed, 5 insertions(+)

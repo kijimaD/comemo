@@ -1,0 +1,16 @@
+commit 82253ddc7a6b85240fd74cc5138f685ca931f355
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 28 12:36:03 2020 -0800
+
+    cmd/compile: constant fold CtzNN
+    
+    Change-Id: I3ecd2c7ed3c8ae35c2bb9562aed09f7ade5c8cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221609
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
+ src/cmd/compile/internal/ssa/rewrite.go        |   7 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
+ 3 files changed, 166 insertions(+), 3 deletions(-)

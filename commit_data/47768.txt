@@ -1,0 +1,20 @@
+commit 8692bacb6a43d1f65e09d0e581ca8b464fd77664
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 9 13:52:18 2021 -0500
+
+    runtime: run gdb with a timeout for TestGdbBacktrace
+    
+    This sometimes times out and we don't have any useful output for
+    debugging it. Hopefully this will help.
+    
+    For #37405.
+    
+    Change-Id: I79074e6fbb9bd16a864c651109a0acbfc8aa6cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370703
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 2debfeb93666dcde759b7cc3a3e001a82307a84c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Sep 18 21:16:01 2014 -0400
+
+    os: handle 'has been removed' error as IsNotExist on Plan 9
+    
+    It fixes the TestRemoveAllRace test introduced
+    in CL 145860043.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/147820044
+
+ src/os/error_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

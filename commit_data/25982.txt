@@ -1,0 +1,12 @@
+commit 86235d5dd7b2dbbe3ec94f48276af96c7ed78a5a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 22:01:38 2016 -0800
+
+    go/constant: fix typos in MakeFromLiteral docs
+    
+    Change-Id: I99c737415a082df883a9c12cdb43bdd5a1b9a8ad
+    Reviewed-on: https://go-review.googlesource.com/20082
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/constant/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

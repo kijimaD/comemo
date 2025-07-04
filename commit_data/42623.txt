@@ -1,0 +1,18 @@
+commit 71218dbc401cbb8f7e052e7a64372d9732082d5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 21:37:58 2020 -0700
+
+    runtime: don't mlock on Ubuntu 5.4 systems
+    
+    For #35777
+    For #37436
+    Fixes #40184
+    
+    Change-Id: I68561497d9258e994d1c6c48d4fb41ac6130ee3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244059
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_linux_x86.go | 35 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 34 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit b6a6847b2f33dc8fb231c78cc4d807eaf10a133a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 30 06:32:09 2022 +1000
+
+    cmd/compile: avoid zero extension after properly typed atomic operation on riscv64
+    
+    LoweredAtomicLoad8 is implemented using MOVBU, hence it is already zero
+    extended. LoweredAtomicCas32 and LoweredAtomicCas64 return a properly
+    typed boolean.
+    
+    Change-Id: Ie0acbaa19403d59c7e5f76d060cc13ee51eb7834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428214
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 45 ++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

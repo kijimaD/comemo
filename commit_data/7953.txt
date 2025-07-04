@@ -1,0 +1,14 @@
+commit 6865cc0e8e6964b9313c8966b45a40caea1ac870
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 1 20:52:38 2011 -0400
+
+    gc: avoid saying same error 3 times
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4316051
+
+ src/cmd/gc/const.c | 1 -
+ src/cmd/gc/subr.c  | 5 ++++-
+ test/ddd1.go       | 2 +-
+ 3 files changed, 5 insertions(+), 3 deletions(-)

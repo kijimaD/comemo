@@ -1,0 +1,12 @@
+commit a411cea124706fc746fcb57c0107863b8b414a16
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:51:42 2009 -0800
+
+    a few tweaks to the language design faq
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017007
+
+ doc/go_lang_faq.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

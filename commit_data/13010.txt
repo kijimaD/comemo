@@ -1,0 +1,16 @@
+commit c1c851bbe806d8fb3f483a32e8dfac48522dfe21
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 2 18:01:11 2012 +0400
+
+    runtime: avoid unnecessary zeroization of huge memory blocks
+    +move zeroization out of the heap mutex
+    
+    R=golang-dev, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6094050
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ src/pkg/runtime/malloc.h   | 2 +-
+ src/pkg/runtime/mcentral.c | 2 +-
+ src/pkg/runtime/mheap.c    | 7 +++----
+ 4 files changed, 6 insertions(+), 7 deletions(-)

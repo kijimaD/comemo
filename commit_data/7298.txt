@@ -1,0 +1,23 @@
+commit 400d7772cc7f990f93330d3652545147f60ff3cb
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 11:12:45 2011 +1100
+
+    misc/vim: Document better syntax sync parameter
+    
+    Forcing the synchronization of 500 lines is both slower and
+    less precise than searching for a known sync point.
+    Unfortunately, though, the way to synchronize correctly is
+    using the grouphere instruction, which has a bug.
+    
+    I've already proposed the fix to Vim, so future releases
+    should have this working.  We can continue using the 500 lines
+    syncing for now.
+    
+    This change just documents the proper way to sync.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4029047
+
+ misc/vim/syntax/go.vim | 5 +++++
+ 1 file changed, 5 insertions(+)

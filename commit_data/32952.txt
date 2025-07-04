@@ -1,0 +1,12 @@
+commit ec40c7e189182918480099bd73b5c0c73018736c
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Oct 4 13:20:45 2017 -0700
+
+    doc: add missing "Minor revisions" header for 1.9
+    
+    Change-Id: Ib042e472e62f48a6afaba1762beaf102a9b99cf5
+    Reviewed-on: https://go-review.googlesource.com/68290
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/devel/release.html | 2 ++
+ 1 file changed, 2 insertions(+)

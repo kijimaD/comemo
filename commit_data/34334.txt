@@ -1,0 +1,30 @@
+commit b86e76681366447798c94abb959bb60875bcc856
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 19 13:26:01 2018 -0800
+
+    path: use OS-specific function in MkdirAll, don't always keep trailing slash
+    
+    CL 86295 changed MkdirAll to always pass a trailing path separator to
+    support extended-length paths on Windows.
+    
+    However, when Stat is called on an existing file followed by trailing
+    slash, it will return a "not a directory" error, skipping the fast
+    path at the beginning of MkdirAll.
+    
+    This change fixes MkdirAll to only pass the trailing path separator
+    where required on Windows, by using an OS-specific function fixRootDirectory.
+    
+    Updates #23918
+    
+    Change-Id: I23f84a20e65ccce556efa743d026d352b4812c34
+    Reviewed-on: https://go-review.googlesource.com/95255
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/path.go         |  4 +---
+ src/os/path_plan9.go   |  4 ++++
+ src/os/path_unix.go    |  4 ++++
+ src/os/path_windows.go | 11 +++++++++++
+ 4 files changed, 20 insertions(+), 3 deletions(-)

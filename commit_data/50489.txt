@@ -1,0 +1,26 @@
+commit f6436c60e49f17f2ca723fdf76a0cb4323cbe02c
+Author: Erik Pellizzon <erikpellizzon1@gmail.com>
+Date:   Wed Sep 14 10:13:06 2022 +0000
+
+    hash/crc32: remove redundant code
+    
+    Merge the CRC32 Update and Write functions using an unexported function, to avoid duplication of code and make it more readable.
+    The only difference between them is the check of the initialization of the IEEE table, and a boolean value specifies that.
+    
+    Throughout the crc32.go file, in the switches the default value is inserted inside the switch statement, this change uniforms the style of the MakeTable function, making it like the other pieces of code.
+    
+    Change-Id: I3889f6c6671210c82f0d7250cea67907bccf3ce7
+    GitHub-Last-Rev: b8777ee213f2ebad0bb4a5dcdb812fd356d6d086
+    GitHub-Pull-Request: golang/go#55044
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430456
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/hash/crc32/crc32.go      | 32 ++++++++++++++++----------------
+ src/hash/crc32/crc32_test.go |  3 +++
+ 2 files changed, 19 insertions(+), 16 deletions(-)

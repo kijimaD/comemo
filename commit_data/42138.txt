@@ -1,0 +1,17 @@
+commit 70d9b72a87f17736784fc91764fe3ffed9dee8a6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Apr 25 18:46:29 2020 +0200
+
+    cmd/compile: convert more arm64 lowering rules to typed aux
+    
+    Passes
+    
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Idc0ac2638c7a9b840ba2d6f4bba2e9c5df24c807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230177
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 202 +++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++--------------
+ 2 files changed, 248 insertions(+), 248 deletions(-)

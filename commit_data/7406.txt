@@ -1,0 +1,14 @@
+commit bbb7080b99b377e91c1aadb43d69f55086380659
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 9 00:03:08 2011 -0500
+
+    misc/dashboard: hide benchmarks link temporarily
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4128061
+
+ misc/dashboard/godashboard/main.html    | 2 +-
+ misc/dashboard/godashboard/package.html | 2 +-
+ misc/dashboard/godashboard/project.html | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

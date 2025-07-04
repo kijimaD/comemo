@@ -1,0 +1,19 @@
+commit 3a95587e019c2a0da3f960dd05c19caaf59d704a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 9 10:01:47 2011 -0800
+
+    fmt: make ScanState.Token more general.
+    When writing custom scanners, I found that
+    Token itself was rarely useful, as I did not always
+    want to stop at white space. This change makes
+    it possible to stop at any class of characters
+    while reusing the buffer within State.
+    (also fix a bug in Token)
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4243055
+
+ src/pkg/fmt/scan.go      | 39 ++++++++++++++++++++++++++++-----------
+ src/pkg/fmt/scan_test.go | 13 ++++++++-----
+ 2 files changed, 36 insertions(+), 16 deletions(-)

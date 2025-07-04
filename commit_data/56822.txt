@@ -1,0 +1,19 @@
+commit 20b79fd5775c39061d949569743912ad5e58b0e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 2 14:29:16 2024 -0400
+
+    time: provide non-default metric for asynctimerchan
+    
+    The original implementation could not support a non-default metric,
+    but now that it is set during package time, we can. Do that.
+    
+    
+    Change-Id: If7929b0afa5b0142d299718d9bd811c5a8d1cf93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589058
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/godebugs/table.go | 2 +-
+ src/runtime/metrics/doc.go     | 4 ++++
+ src/time/sleep.go              | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)

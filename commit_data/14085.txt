@@ -1,0 +1,15 @@
+commit 05e4e805e0367ef9688c95bcecad4b8d3efc0584
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 9 08:56:34 2012 +1100
+
+    encoding/base{32,64}: add examples.
+    
+    Fixes #4136.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6615061
+
+ src/pkg/encoding/base32/example_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/encoding/base64/example_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

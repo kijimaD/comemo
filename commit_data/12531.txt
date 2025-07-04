@@ -1,0 +1,31 @@
+commit 36aa7d4d14c1dbca2405e265b8bbf1260e9d825c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 14:03:56 2012 -0500
+
+    runtime: inline calls to notok
+    
+    When a very low-level system call that should never fail
+    does fail, we call notok, which crashes the program.
+    Often, we are then left with only the program counter as
+    information about the crash, and it is in notok.
+    Instead, inline calls to notok (it is just one instruction
+    on most systems) so that the program counter will
+    tell us which system call is unhappy.
+    
+    R=golang-dev, gri, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5792048
+
+ src/pkg/runtime/asm_amd64.s         |  2 +-
+ src/pkg/runtime/sys_darwin_386.s    | 22 +++++++++-------------
+ src/pkg/runtime/sys_darwin_amd64.s  | 21 ++++++++-------------
+ src/pkg/runtime/sys_freebsd_386.s   | 18 +++++++-----------
+ src/pkg/runtime/sys_freebsd_amd64.s | 19 +++++++------------
+ src/pkg/runtime/sys_linux_amd64.s   | 15 +++++----------
+ src/pkg/runtime/sys_linux_arm.s     | 14 ++++++--------
+ src/pkg/runtime/sys_netbsd_386.s    | 16 ++++++----------
+ src/pkg/runtime/sys_netbsd_amd64.s  | 17 ++++++-----------
+ src/pkg/runtime/sys_openbsd_386.s   | 16 ++++++----------
+ src/pkg/runtime/sys_openbsd_amd64.s | 17 ++++++-----------
+ src/pkg/runtime/sys_windows_amd64.s |  5 -----
+ 12 files changed, 67 insertions(+), 115 deletions(-)

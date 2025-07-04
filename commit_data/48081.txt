@@ -1,0 +1,15 @@
+commit 56a539724809122ecee26acddc3b8a7b775afed6
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Feb 4 17:11:18 2022 -0500
+
+    testing: remove TODO and link to fuzz docs
+    
+    Change-Id: I3f5ee9629b0b0f3f29a021a656dbf3bca27e582d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383415
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/testing/testing.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 72921c663d7df47bfc9b78766366dbfaa55a0915
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 11:17:08 2015 -0700
+
+    cmd/go: skip TestGoInstallErrorOnCrossCompileToBin in short mode
+    
+    That test will install cmd/pack for linux_386; we don't want to change
+    GOROOT in short mode.
+    
+    Change-Id: I4b00c578a99779a13c558208bfd4115f8f0513fa
+    Reviewed-on: https://go-review.googlesource.com/12481
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

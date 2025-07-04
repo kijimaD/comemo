@@ -1,0 +1,17 @@
+commit dbaf5010b33e5819050ebb0a387eb0bff2cfb8bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 03:28:15 2015 +0000
+
+    Revert "fmt: check newline in the end of input"
+    
+    This change can break real code. There are other newline-related bugs in this code, and fixing them will also break real code. If we're going to break real code, let's fix all the bugs together and just break things once.
+    
+    This reverts commit 8331f19d9700457d74bf377755ca270a32d2faa3.
+    
+    Change-Id: Ie4b3022f3a305c3e1f78cc208e50beed212608e6
+    Reviewed-on: https://go-review.googlesource.com/17724
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/scan.go      | 19 +++++++------------
+ src/fmt/scan_test.go | 10 +---------
+ 2 files changed, 8 insertions(+), 21 deletions(-)

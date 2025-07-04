@@ -1,0 +1,14 @@
+commit 5ecbdb049bc9f33be49e1fd2e7279b6d84f801d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 7 13:51:29 2014 -0700
+
+    cmd/go: don't pass --buildid=none on FreeBSD
+    
+    According to the FreeBSD builder, it doesn't work.
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/121400043
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

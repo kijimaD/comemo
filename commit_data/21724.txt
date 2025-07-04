@@ -1,0 +1,22 @@
+commit 7abdc90fe372b39946f46884d06f953f4f675316
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 25 17:28:52 2015 +0900
+
+    runtime: remove gogetcallerpc and gogetcallersp functions
+    
+    Package runtime's Go code was converted to directly call getcallerpc
+    and getcallersp in https://golang.org/cl/138740043, but the assembly
+    implementations were not removed.
+    
+    Change-Id: Ib2eaee674d594cbbe799925aae648af782a01c83
+    Reviewed-on: https://go-review.googlesource.com/5901
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/asm_386.s      | 12 ------------
+ src/runtime/asm_amd64.s    | 12 ------------
+ src/runtime/asm_amd64p32.s | 12 ------------
+ src/runtime/asm_arm.s      | 11 -----------
+ src/runtime/asm_ppc64x.s   | 12 ------------
+ 5 files changed, 59 deletions(-)

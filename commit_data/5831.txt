@@ -1,0 +1,12 @@
+commit d1e2f73b1d1d53b468011e10acdcd1c13c0e0326
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 16 11:18:45 2010 -0700
+
+    big: attempt to fix arm build
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1752043
+
+ src/pkg/big/arith_arm.s | 5 +++++
+ 1 file changed, 5 insertions(+)

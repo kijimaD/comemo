@@ -1,0 +1,17 @@
+commit 6fe8ee78e9b4870ebc1de2b5cfd6170a78a56c00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 22:21:23 2018 -0700
+
+    cmd/compile/internal/gc: remove isforw predicate table (cleanup)
+    
+    Was only ever filled with one Etype (TFORW) and only used
+    in one place. Easier to just check for TFORW.
+    
+    Change-Id: Icc96da3a22b0af1d7e60bc5841c744916c53341e
+    Reviewed-on: https://go-review.googlesource.com/c/147285
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/gc/go.go       | 1 -
+ src/cmd/compile/internal/gc/reflect.go  | 2 +-
+ src/cmd/compile/internal/gc/universe.go | 2 --
+ 3 files changed, 1 insertion(+), 4 deletions(-)

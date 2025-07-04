@@ -1,0 +1,22 @@
+commit 7df0a002e64e92f35db5a70e64345651ad2cbf97
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Sun May 1 14:32:02 2022 +0800
+
+    cmd/go/internal/modfetch: cache latest revinfo in Versions func
+    
+    The responses have been cached by the web2 package before removed
+    it in CL 170879. This change add latest revinfo cache in Versions
+    func.
+    
+    Fixes #51391
+    
+    Change-Id: I73597e0a6b4938238e69d85e1cbbaa9007776db3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Lee Baokun <bk@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/modfetch/proxy.go | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

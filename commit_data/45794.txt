@@ -1,0 +1,17 @@
+commit 2f1128461dcc6c9915f21327ce18fa1925269f30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 10 16:54:53 2021 -0400
+
+    cmd/go: match Windows paths in TestScript/mod_invalid_version
+    
+    Fixes #46691
+    
+    Change-Id: I3bef9a773be640bed96eb2dc395cb11671a0767a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326869
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

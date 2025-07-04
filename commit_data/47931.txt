@@ -1,0 +1,33 @@
+commit deb45802a4384ea3c7c3434113fb64a57a494cb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 20:55:56 2022 -0800
+
+    go/types, types2: prevent unification from recursing endlessly
+    
+    This is a stop gap solution to avoid panics due to stack overflow
+    during type unification. While this doesn't address the underlying
+    issues (for which we are still investigating the correct approach),
+    it prevents a panic during compilation and reports a (possibly not
+    quite correct) error message.
+    
+    If the programs are correct in the first place, manually providing
+    the desired type arguments is a viable work-around, resulting in
+    code that will continue to work even when the issues here are fixed
+    satisfactorily.
+    
+    For #48619.
+    For #48656.
+    
+    Change-Id: I13bb14552b38b4170b5a1b820e3172d88ff656ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377954
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue48619.go2       | 25 ++++++++++++----------
+ .../types2/testdata/fixedbugs/issue48656.go2       | 11 ++++++----
+ src/cmd/compile/internal/types2/unify.go           | 17 +++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48619.go2     | 25 ++++++++++++----------
+ src/go/types/testdata/fixedbugs/issue48656.go2     | 11 ++++++----
+ src/go/types/unify.go                              | 17 +++++++++++++++
+ 6 files changed, 76 insertions(+), 30 deletions(-)

@@ -1,0 +1,27 @@
+commit 2fe53d8d55e93602a8fcda7bf78385d93da58da4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 8 16:38:25 2017 -0700
+
+    cmd/compile: remove gc.Sysfunc calls from 387 backend
+    
+    gc.Sysfunc must not be called concurrently.
+    We set up runtime routines used by the backend
+    prior to doing any backend compilation.
+    I missed the 387 ones; fix that.
+    
+    Sysfunc should have been unexported during 1.9.
+    I will rectify that in a subsequent CL.
+    
+    Fixes #21352
+    
+    Change-Id: I8386eaa1e05879c25c672b9c9fc693c938e9aeb6
+    Reviewed-on: https://go-review.googlesource.com/54090
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   | 4 ++++
+ src/cmd/compile/internal/gc/ssa.go  | 4 ++++
+ src/cmd/compile/internal/x86/387.go | 4 ++--
+ 3 files changed, 10 insertions(+), 2 deletions(-)

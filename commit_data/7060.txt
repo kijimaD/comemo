@@ -1,0 +1,13 @@
+commit 80055c658b0570f5c621892d7137b1426b0ede8e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 7 17:17:42 2011 -0800
+
+    arm: fix build
+    previous version was built with -l32; should be -b32
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/3867044
+
+ src/pkg/syscall/zsyscall_linux_arm.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

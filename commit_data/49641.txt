@@ -1,0 +1,19 @@
+commit aa802285265ac370f7ce62299e54ec84635b794e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 14:07:06 2022 -0500
+
+    cmd/go/internal/modfetch: avoid duplicating path components in Git fetch errors
+    
+    Fixes #51114
+    
+    Change-Id: Iebfe65f826b7b583ff2b48b8bc9d2eb23f2726af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386234
+    Reviewed-by: Valentin Deleplace <deleplace@google.com>
+    Reviewed-by: Nooras Saba‎ <saba@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go            |  8 ++++----
+ .../go/testdata/script/mod_download_issue51114.txt  | 21 +++++++++++++++++++++
+ .../go/testdata/script/mod_download_private_vcs.txt | 10 +++-------
+ 3 files changed, 28 insertions(+), 11 deletions(-)

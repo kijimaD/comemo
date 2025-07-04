@@ -1,0 +1,14 @@
+commit c51195386e7dc5e0c8550ef1e7cb254aaa9b538e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 11:50:34 2008 -0700
+
+    snapshot: more pretty printer stuff
+    
+    R=r
+    OCL=15863
+    CL=15863
+
+ usr/gri/pretty/ast.go     |  53 +++++++++++++++--------
+ usr/gri/pretty/parser.go  | 107 +++++++++++++++++++++-------------------------
+ usr/gri/pretty/printer.go |  52 +++++++++++++++++-----
+ 3 files changed, 125 insertions(+), 87 deletions(-)

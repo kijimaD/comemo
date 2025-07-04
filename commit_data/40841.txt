@@ -1,0 +1,19 @@
+commit 96c9f3aa005001f9b316208220328a5178c6e967
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 19 07:00:45 2019 -0800
+
+    time: give TestTicker more time on darwin-arm64
+    
+    The darwin-arm64-correlium builder was failing the test consistently
+    at the old values. Give the ticks more time to let the test pass.
+    
+    Updates #35692
+    
+    Change-Id: Ibc636cd4db2595c82f4e8c6c822c3df4c2b7e0a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207839
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/tick_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

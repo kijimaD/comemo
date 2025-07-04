@@ -1,0 +1,32 @@
+commit 10fb001c7519f2a694e987ecb1e75da80f832b41
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 13:59:09 2024 +0100
+
+    crypto/rsa: refuse to generate and/or use keys smaller than 1024 bits
+    
+    Fixes #68762
+    
+    Change-Id: Id89c770571d7cc27c6cf7932139ec3424383a7ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629938
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/godebug.md                                 |   4 +
+ doc/next/6-stdlib/99-minor/crypto/rsa/68762.md |   7 ++
+ src/crypto/rsa/boring_test.go                  |   2 +
+ src/crypto/rsa/equal_test.go                   |   7 +-
+ src/crypto/rsa/example_test.go                 |  58 +++++++++++
+ src/crypto/rsa/fips.go                         |  24 +++++
+ src/crypto/rsa/pkcs1v15.go                     |  12 +++
+ src/crypto/rsa/pkcs1v15_test.go                |  37 ++++---
+ src/crypto/rsa/pss_test.go                     |  17 ++--
+ src/crypto/rsa/rsa.go                          |  48 +++++++++
+ src/crypto/rsa/rsa_test.go                     | 129 +++++++++++++++++++++----
+ src/crypto/tls/fips_test.go                    |   2 +-
+ src/crypto/x509/x509_test.go                   |   6 +-
+ src/crypto/x509/x509_test_import.go            |  20 ++--
+ src/internal/godebugs/table.go                 |   1 +
+ src/runtime/metrics/doc.go                     |   4 +
+ 16 files changed, 317 insertions(+), 61 deletions(-)

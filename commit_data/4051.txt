@@ -1,0 +1,12 @@
+commit 529216fa83741ca96a110a1f8e9d983091252e32
+Author: Kai Backman <kaib@golang.org>
+Date:   Sat Nov 14 23:08:22 2009 -0800
+
+    complain if GOARCH != arm. fix build break caused by gomake
+    introduction.
+    
+    R=rsc
+    https://golang.org/cl/152109
+
+ src/make-arm.bash | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

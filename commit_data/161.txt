@@ -1,0 +1,10 @@
+commit 54bca54655345fcdd9f66c9c87b24f59f4cb2118
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 13:43:47 2008 -0700
+
+    make paths explicit for easier installation
+    
+    SVN=122488
+
+ src/runtime/make.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

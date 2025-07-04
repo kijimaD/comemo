@@ -1,0 +1,26 @@
+commit 50ad09418eb22cb9f6294ca86b0bfd77af7d2128
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Apr 24 14:33:50 2019 -0300
+
+    cmd/compile: intrinsify math/bits.Add64 for ppc64x
+    
+    This change creates an intrinsic for Add64 for ppc64x and adds a
+    testcase for it.
+    
+    name               old time/op  new time/op  delta
+    Add64-160          1.90ns ±40%  2.29ns ± 0%     ~     (p=0.119 n=5+5)
+    Add64multiple-160  6.69ns ± 2%  2.45ns ± 4%  -63.47%  (p=0.016 n=4+5)
+    
+    Change-Id: I9abe6fb023fdf62eea3c9b46a1820f60bb0a7f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173758
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ppc64/ssa.go        | 30 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 17 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 17 ++++++++++++++++
+ test/codegen/mathbits.go                     | 10 ++++++++++
+ 7 files changed, 78 insertions(+), 3 deletions(-)

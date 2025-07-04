@@ -1,0 +1,18 @@
+commit 73d213708e3186b48d5147b8eb939fdfd51f1f8d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:55:01 2020 +1100
+
+    cmd/vendor: provide riscv64 support in tools/go/analysis/passes/asmdecl
+    
+    Manually add riscv64 support.
+    
+    Currently being added via https://go-review.googlesource.com/c/tools/+/216337.
+    
+    Updates #27532
+    
+    Change-Id: I0e1f7c0eeca4e85ae588f427eff818bb7946a851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216262
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go | 2 ++
+ 1 file changed, 2 insertions(+)

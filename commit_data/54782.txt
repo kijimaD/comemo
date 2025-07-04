@@ -1,0 +1,16 @@
+commit 9ab5121691ee0c4f32bf8d8c3c10c0e85a89ceb5
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 12 10:57:04 2023 -0700
+
+    cmd/compile: use new runtime type mechanism for type switches and asserts
+    
+    Change-Id: Ife7d6d6d773ac0d8ac38dbd2da7dccc519998b63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534816
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/rttype/rttype.go | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go     | 16 +++++++---------
+ src/cmd/compile/internal/walk/switch.go   | 20 +++++++++++---------
+ 3 files changed, 44 insertions(+), 18 deletions(-)

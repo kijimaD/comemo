@@ -1,0 +1,13 @@
+commit 0714fbb6ae908566c2779579a26b1cb371150ed4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 13:54:00 2009 -0800
+
+    misc/bash: completion file for bash
+    suggested by Alex Ray <ajray@ncsu.edu>
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/174063
+
+ misc/bash/go | 6 ++++++
+ 1 file changed, 6 insertions(+)

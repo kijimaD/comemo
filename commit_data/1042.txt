@@ -1,0 +1,13 @@
+commit bcd6403cc9f64a7a04297b9cac891ffe96a5dd0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 16:00:08 2008 -0800
+
+    remove unnecessary 6g workaround
+    
+    R=r
+    DELTA=51  (0 added, 0 deleted, 51 changed)
+    OCL=18399
+    CL=18402
+
+ src/lib/reflect/value.go | 102 +++++++++++++++++++++++------------------------
+ 1 file changed, 51 insertions(+), 51 deletions(-)

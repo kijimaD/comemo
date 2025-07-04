@@ -1,0 +1,18 @@
+commit 5b21bf6f814180e45d9f048f311a28b7886cd626
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 27 13:31:12 2018 +0100
+
+    runtime: simplify walltime/nanotime on linux/{386,amd64}
+    
+    Avoid an unnecessary MOVL/MOVQ.
+    
+    Follow CL 97377
+    
+    Change-Id: Ic43976d6b0cece3ed455496d18aedd67e0337d3f
+    Reviewed-on: https://go-review.googlesource.com/97358
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_386.s   | 6 ++----
+ src/runtime/sys_linux_amd64.s | 6 ++----
+ 2 files changed, 4 insertions(+), 8 deletions(-)

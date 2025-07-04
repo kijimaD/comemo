@@ -1,0 +1,12 @@
+commit f296adf819b0c2d20b7b44d04f947602b43f226c
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Dec 25 14:54:24 2012 -0800
+
+    fmt: update an old comment; fix a typo.
+    
+    R=golang-dev, iant
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6998055
+
+ src/pkg/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

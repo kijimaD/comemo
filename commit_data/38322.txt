@@ -1,0 +1,38 @@
+commit 0271d41ed63cacd1d79716161d0797790e930dfa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 8 13:26:04 2019 -0500
+
+    internal/testenv: remove SetModVendor
+    
+    It turns out not to be necessary. Russ expressed a preference for
+    avoiding module fetches over making 'go mod tidy' work within std and
+    cmd right away, so for now we will make the loader use the vendor
+    directory for the standard library even if '-mod=vendor' is not set
+    explicitly.
+    
+    Updates #30228
+    
+    Change-Id: Idf7208e63da8cb7bfe281b93ec21b61d40334947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166357
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/addr2line/addr2line_test.go             |  2 --
+ src/cmd/compile/internal/gc/scope_test.go       |  2 --
+ src/cmd/cover/cover_test.go                     |  2 --
+ src/cmd/internal/obj/x86/obj6_test.go           |  2 --
+ src/cmd/link/internal/ld/ld_test.go             |  2 --
+ src/cmd/link/link_test.go                       |  2 --
+ src/cmd/nm/nm_test.go                           |  2 --
+ src/cmd/objdump/objdump_test.go                 |  1 -
+ src/cmd/vet/all/main.go                         |  1 -
+ src/cmd/vet/vet_test.go                         |  2 --
+ src/crypto/x509/x509_test.go                    |  2 --
+ src/debug/gosym/pclntab_test.go                 |  2 --
+ src/go/importer/importer_test.go                |  2 --
+ src/go/internal/srcimporter/srcimporter_test.go |  2 --
+ src/internal/testenv/testenv.go                 | 26 -------------------------
+ src/runtime/crash_test.go                       |  2 --
+ src/runtime/pprof/proto_test.go                 |  2 --
+ 17 files changed, 56 deletions(-)

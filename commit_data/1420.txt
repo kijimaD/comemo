@@ -1,0 +1,12 @@
+commit e2862606866b5618f6726579db2b1dd923c3469a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 6 15:30:26 2009 -0800
+
+    - fix parse heuristic: make(x) must accept a type for x
+    
+    R=r
+    OCL=22171
+    CL=22171
+
+ usr/gri/pretty/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

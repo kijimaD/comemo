@@ -1,0 +1,21 @@
+commit d93cc8cb9639212ee674ecbc9149fb897dd8fd77
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 17 19:43:49 2022 -0500
+
+    runtime: define racefuncenter and racefuncexit as ABIInternal
+    
+    They are called from compiler instrumented code as ABIInternal.
+    Define them as ABIInternal to avoid the wrappers and save some
+    stack space, to avoid nosplit overflow in -race -N -l build.
+    
+    For #51247.
+    
+    Change-Id: Iadad7d6da8ac03780a7b02b03b004c52d34e020a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386715
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/race_arm64.s | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

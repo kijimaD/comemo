@@ -1,0 +1,56 @@
+commit bdab5df40f474c7768a945ef4fcf5aab634f7af5
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Oct 2 17:51:13 2020 -0400
+
+    cmd/compile,cmd/internal/obj/ppc64: use mulli where possible
+    
+    This adds support to allow the use of mulli when one of the multiply
+    operands is a constant that fits in 16 bits.
+    
+    This especially helps in the case where this instruction appears in
+    a loop since the load of the constant is not being moved out of the loop.
+    
+    Some improvements seen in compress/flate on power9:
+    
+    Decode/Digits/Huffman/1e4         259µs ± 0%     261µs ± 0%   +0.57%  (p=1.000 n=1+1)
+    Decode/Digits/Huffman/1e5        2.43ms ± 0%    2.45ms ± 0%   +0.79%  (p=1.000 n=1+1)
+    Decode/Digits/Huffman/1e6        23.9ms ± 0%    24.2ms ± 0%   +0.86%  (p=1.000 n=1+1)
+    Decode/Digits/Speed/1e4           278µs ± 0%     279µs ± 0%   +0.34%  (p=1.000 n=1+1)
+    Decode/Digits/Speed/1e5          2.80ms ± 0%    2.81ms ± 0%   +0.29%  (p=1.000 n=1+1)
+    Decode/Digits/Speed/1e6          28.0ms ± 0%    28.1ms ± 0%   +0.28%  (p=1.000 n=1+1)
+    Decode/Digits/Default/1e4         278µs ± 0%     278µs ± 0%   +0.28%  (p=1.000 n=1+1)
+    Decode/Digits/Default/1e5        2.68ms ± 0%    2.69ms ± 0%   +0.19%  (p=1.000 n=1+1)
+    Decode/Digits/Default/1e6        26.6ms ± 0%    26.6ms ± 0%   +0.21%  (p=1.000 n=1+1)
+    Decode/Digits/Compression/1e4     278µs ± 0%     278µs ± 0%   +0.00%  (p=1.000 n=1+1)
+    Decode/Digits/Compression/1e5    2.68ms ± 0%    2.69ms ± 0%   +0.21%  (p=1.000 n=1+1)
+    Decode/Digits/Compression/1e6    26.6ms ± 0%    26.6ms ± 0%   +0.07%  (p=1.000 n=1+1)
+    Decode/Newton/Huffman/1e4         322µs ± 0%     312µs ± 0%   -2.84%  (p=1.000 n=1+1)
+    Decode/Newton/Huffman/1e5        3.11ms ± 0%    2.91ms ± 0%   -6.41%  (p=1.000 n=1+1)
+    Decode/Newton/Huffman/1e6        31.4ms ± 0%    29.3ms ± 0%   -6.85%  (p=1.000 n=1+1)
+    Decode/Newton/Speed/1e4           282µs ± 0%     269µs ± 0%   -4.69%  (p=1.000 n=1+1)
+    Decode/Newton/Speed/1e5          2.29ms ± 0%    2.20ms ± 0%   -4.13%  (p=1.000 n=1+1)
+    Decode/Newton/Speed/1e6          22.7ms ± 0%    21.3ms ± 0%   -6.06%  (p=1.000 n=1+1)
+    Decode/Newton/Default/1e4         254µs ± 0%     237µs ± 0%   -6.60%  (p=1.000 n=1+1)
+    Decode/Newton/Default/1e5        1.86ms ± 0%    1.75ms ± 0%   -5.99%  (p=1.000 n=1+1)
+    Decode/Newton/Default/1e6        18.1ms ± 0%    17.4ms ± 0%   -4.10%  (p=1.000 n=1+1)
+    Decode/Newton/Compression/1e4     254µs ± 0%     244µs ± 0%   -3.91%  (p=1.000 n=1+1)
+    Decode/Newton/Compression/1e5    1.85ms ± 0%    1.79ms ± 0%   -3.10%  (p=1.000 n=1+1)
+    Decode/Newton/Compression/1e6    18.0ms ± 0%    17.3ms ± 0%   -3.88%  (p=1.000 n=1+1)
+    
+    Change-Id: I840320fab1c4bf64c76b001c2651ab79f23df4eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259444
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  4 +++
+ src/cmd/compile/internal/gc/bench_test.go    | 12 +++++++
+ src/cmd/compile/internal/ppc64/ssa.go        |  3 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 30 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 54 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go           |  9 ++---
+ 8 files changed, 111 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit f9902c7197f436578e8fafa7946d8cd83467729e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 26 21:14:34 2012 +0800
+
+    encoding/binary: ReadVarint reads a signed number, not unsigned number
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6762051
+
+ src/pkg/encoding/binary/varint.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

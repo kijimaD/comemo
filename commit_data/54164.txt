@@ -1,0 +1,20 @@
+commit b0a17c04890c32dd0527061c132c639a01ee6f6f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 14:27:27 2023 -0700
+
+    cmd/compile/internal/types: replace BOGUS_FUNARG_OFFSET with BADWIDTH
+    
+    We already have a magic constant to represent fields that haven't had
+    their offsets calculated. We don't need two.
+    
+    Change-Id: Ibfa95a3a15a5cd43e1e5ec7d0971d3e61d47fb3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521317
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go | 15 +++++++--------
+ src/cmd/compile/internal/ssagen/ssa.go   |  7 -------
+ src/cmd/compile/internal/types/type.go   | 16 +---------------
+ 3 files changed, 8 insertions(+), 30 deletions(-)

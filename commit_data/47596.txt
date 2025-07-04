@@ -1,0 +1,15 @@
+commit 14f2b2a4c55b707828be2890b8c750cb849203f6
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Mon Nov 22 23:39:52 2021 +0800
+
+    cmd/internal/obj/x86: modify the threshold of assert loop for span6
+    
+    Fixes: #49716
+    
+    Change-Id: I7ed73f874c2ee1ee3f31c9c4428ed484167ca803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366094
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

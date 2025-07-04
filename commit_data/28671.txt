@@ -1,0 +1,20 @@
+commit f69991c17d9dea88e927643e4b7fdc43ad789ac3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 23:58:42 2016 -0400
+
+    context: make DeadlineExceeded implement net.Error
+    
+    It already implemented the Timeout method,
+    but implementing the full net.Error is more convenient.
+    
+    Fixes #14238 (again).
+    
+    Change-Id: Ia87f897f0f35bcb49865e2355964049227951ca6
+    Reviewed-on: https://go-review.googlesource.com/30370
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go  |  6 +++---
+ src/context/net_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

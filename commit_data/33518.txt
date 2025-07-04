@@ -1,0 +1,20 @@
+commit 79dbc1cc7b029e9f2e45cc9d7796151bd90b224a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Nov 10 18:35:30 2017 +0000
+
+    cmd/compile: replace classnames with Class.String
+    
+    Since the slice of names is almost exactly the same as what stringer is
+    already generating for us.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I3f1e95efc690c0108236689e721627f00f79a461
+    Reviewed-on: https://go-review.googlesource.com/77190
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/fmt.go | 16 +---------------
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ 2 files changed, 3 insertions(+), 17 deletions(-)

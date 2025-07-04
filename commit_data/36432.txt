@@ -1,0 +1,15 @@
+commit 7b8930ed4587a7f423380220be170daedc620c49
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 22 19:53:45 2018 +0000
+
+    runtime: fix build, rename a since-renamed hasprefix to hasPrefix
+    
+    I merged CL 115835 without testing it after a rebase. My bad.
+    
+    Change-Id: I0acc6ed78ea7d718ac2df11d509cfcf4364dfaee
+    Reviewed-on: https://go-review.googlesource.com/130815
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/panic.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

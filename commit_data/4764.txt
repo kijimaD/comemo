@@ -1,0 +1,12 @@
+commit b13b80e555c2e629eba5cfd27c672f84f93d50c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:46:37 2010 -0800
+
+    math: change Cosh test to close, not veryclose (needed on some x86 chips)
+    
+    R=r
+    CC=Charlie Dorian, golang-dev
+    https://golang.org/cl/199054
+
+ src/pkg/math/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

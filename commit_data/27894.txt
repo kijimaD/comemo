@@ -1,0 +1,21 @@
+commit 57370a87d80be0ab588eb8bb9a5e2a31f4613355
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 17 20:34:09 2016 +0200
+
+    encoding/hex: change lookup table from string to array
+    
+    name            old time/op  new time/op  delta
+    Encode/256-4     431ns ± 2%   391ns ± 2%   -9.36%  (p=0.000 n=8+8)
+    Encode/1024-4   1.68µs ± 0%  1.51µs ± 0%   -9.91%  (p=0.001 n=7+7)
+    Encode/4096-4   6.68µs ± 0%  6.03µs ± 1%   -9.69%  (p=0.000 n=8+8)
+    Encode/16384-4  27.0µs ± 1%  24.0µs ± 0%  -11.03%  (p=0.000 n=8+7)
+    
+    Change-Id: I6994e02f77797349c4e188377d84f97dffe98399
+    Reviewed-on: https://go-review.googlesource.com/27254
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/hex/hex.go      |  5 ++++-
+ src/encoding/hex/hex_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

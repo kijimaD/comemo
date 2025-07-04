@@ -1,0 +1,22 @@
+commit 710f4d3e7e0901f8fa2f04c31c0d28c603903ff2
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Tue Mar 14 14:00:38 2017 -0700
+
+    cmd/compile/internal/gc: mark generated wrappers as DUPOK
+    
+    Interface wrapper functions now get compiled eagerly in some cases.
+    Consequently, they may be present in multiple translation units.
+    Mark them as DUPOK, just like closures.
+    
+    Fixes #19548
+    Fixes #19550
+    
+    Change-Id: Ibe74adb5a62dbf6447db37fde22dcbb3479969ef
+    Reviewed-on: https://go-review.googlesource.com/38156
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  1 +
+ test/fixedbugs/issue19548.dir/a.go  | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue19548.dir/b.go  | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue19548.go        |  9 +++++++++
+ 4 files changed, 60 insertions(+)

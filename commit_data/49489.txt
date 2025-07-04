@@ -1,0 +1,26 @@
+commit 635b1244aa7671bcd665613680f527452cac7555
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 15:43:57 2022 -0400
+
+    cmd/go: pass GOEXPERIMENT through to subtests
+    
+    This fixes:
+    
+            export GOEXPERIMENT=unified
+            go install cmd
+            go install std cmd
+            go install std cmd
+            go test -short cmd/go -run=TestScript/test_relative_import_dash_i
+    
+    That script test checks that runtime is non-stale, but whether it's stale
+    depends on the setting of GOEXPERIMENT. Stop filtering that variable out.
+    
+    Change-Id: I71bdbca495c16981cdcddf4ab4d87a38ca72a389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412874
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

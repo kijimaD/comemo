@@ -1,0 +1,13 @@
+commit 31fb879ec2759e911c1cd15fdf4112c25ffd7ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 16:58:46 2010 -0800
+
+    A+C: Dean Prichard (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186283
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

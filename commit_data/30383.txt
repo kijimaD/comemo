@@ -1,0 +1,21 @@
+commit 2fa09a20e56eb27f7cec635be42fc3137c091085
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 24 10:35:43 2017 -0800
+
+    vendor/golang_org/x/crypto/chacha20poly1305: revendor
+    
+    Brings in chacha20poly1305 directory from golang.org/x/crypto revision
+    453249f01cfeb54c3d549ddb75ff152ca243f9d8, adding:
+    
+    CL 35874: crypto/chacha20poly1305/internal/chacha20: add missing copyright header
+    CL 35875: crypto/chacha20poly1305: rename test vectors file
+    
+    Fixes #19155.
+    
+    Change-Id: I25cf83d060113f6b2a197f243a25614440008f7e
+    Reviewed-on: https://go-review.googlesource.com/37408
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ ...cha20poly1305_test_vectors.go => chacha20poly1305_vectors_test.go} | 0
+ .../x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go        | 4 ++++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,15 @@
+commit 9a7fb683599536af53fefba693dceff3810cdc8d
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 7 23:50:31 2014 +1100
+
+    crypto/sha512: avoid duplicate block declaration on 386
+    
+    Unbreak the build - we do not have a sha512 block implementation in
+    386 assembly (yet).
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/48520043
+
+ src/pkg/crypto/sha512/sha512block_decl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

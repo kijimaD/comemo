@@ -1,0 +1,16 @@
+commit 7ff52e13cdc61af1f63ab27bd91c1f00cf11bd86
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 09:15:19 2015 -0400
+
+    debug/elf: added MIPS ELF relocations
+    
+    Change-Id: I05352749a852095baae2f67fd71ffcf5f727538d
+    Reviewed-on: https://go-review.googlesource.com/14453
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/debug/elf/elf.go                               | 109 +++++++++++++++++++++
+ src/debug/elf/file.go                              |  54 ++++++++++
+ src/debug/elf/file_test.go                         |  38 +++++++
+ .../testdata/go-relocation-test-gcc492-mips64.obj  | Bin 0 -> 4120 bytes
+ .../go-relocation-test-gcc493-mips64le.obj         | Bin 0 -> 4160 bytes
+ 5 files changed, 201 insertions(+)

@@ -1,0 +1,12 @@
+commit a61dcef23275880d901db5a158fd1d9a9e71a00d
+Author: Dustin Shields-Cloues <dcloues@gmail.com>
+Date:   Tue Jan 22 14:43:37 2013 -0500
+
+    cmd/go: add hg ssh support
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7133048
+
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

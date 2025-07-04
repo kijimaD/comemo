@@ -1,0 +1,16 @@
+commit 1c2c225d6f84ba9c29a4be4767412dc6935053c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 16:27:56 2023 -0800
+
+    go/types, types2: factor out type parameter renaming (cleanup)
+    
+    Change-Id: I2d7e32ee2496d391f334ad9956e8d37c53f9be98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461687
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 94 +++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 45 deletions(-)

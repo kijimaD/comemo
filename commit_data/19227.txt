@@ -1,0 +1,16 @@
+commit 9144d8752a4a1cdee1a9c7ebd2c5ae2739293509
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 25 09:46:07 2014 -0600
+
+    bufio: make all read functions UnreadByte-friendly
+    
+    Fixes #7844.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/90620045
+
+ src/pkg/bufio/bufio.go      | 23 +++++++++++++++----
+ src/pkg/bufio/bufio_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 5 deletions(-)

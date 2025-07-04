@@ -1,0 +1,12 @@
+commit cfa3eda58726aa79aa68b94abd99a1416779ca5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 13:56:03 2015 -0400
+
+    runtime: fix race in scanvalid assertion
+    
+    Change-Id: I389b2e10fe667eaa55f87b71b1e004994694d4a3
+    Reviewed-on: https://go-review.googlesource.com/11173
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc1.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 6083bd65f7a8e621efe9b6381c040ffab7f8d189
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 5 10:20:32 2015 +0100
+
+    cmd/go: skip TestBuildOutputToDevNull on Plan 9
+    
+    TestBuildOutputToDevNull was added in CL 16585.
+    However, copying to /dev/null couldn't work on Plan 9,
+    because /dev/null is a regular file. Since it's not
+    different from any other file, the logic in copyFile
+    couldn't distinguish it from another, already existing,
+    file, that we wouldn't want to overwrite.
+    
+    Change-Id: Ie8d353f318fedfc7cfb9541fed00a2397e232592
+    Reviewed-on: https://go-review.googlesource.com/16691
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

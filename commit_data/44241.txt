@@ -1,0 +1,30 @@
+commit 30641e36aa5b547eee48565caa3078b0a2e7c185
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 14 17:14:41 2021 -0800
+
+    internal/poll: if copy_file_range returns 0, assume it failed
+    
+    On current Linux kernels copy_file_range does not correctly handle
+    files in certain special file systems, such as /proc. For those file
+    systems it fails to copy any data and returns zero. This breaks Go's
+    io.Copy for those files.
+    
+    Fix the problem by assuming that if copy_file_range returns 0 the
+    first time it is called on a file, that that file is not supported.
+    In that case fall back to just using read. This will force an extra
+    system call when using io.Copy to copy a zero-sized normal file,
+    but at least it will work correctly.
+    
+    For #36817
+    Fixes #44272
+    
+    Change-Id: I02e81872cb70fda0ce5485e2ea712f219132e614
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291989
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 10 +++++++++-
+ src/os/readfrom_linux_test.go              | 32 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

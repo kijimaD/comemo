@@ -1,0 +1,15 @@
+commit 585a0b03b243e1847b3028bc0f2e77bb3688adba
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:45 2016 +0200
+
+    cmd/link/internal/ld: add support for GOARCH=mips{,le}
+    
+    Change-Id: Ida214ccc5858969ea60abb0787f4d98bab4336d6
+    Reviewed-on: https://go-review.googlesource.com/31480
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/elf.go   | 28 ++++++++++++++++------------
+ src/cmd/link/internal/ld/ldelf.go |  6 ++++++
+ 2 files changed, 22 insertions(+), 12 deletions(-)

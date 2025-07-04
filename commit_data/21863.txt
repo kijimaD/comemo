@@ -1,0 +1,13 @@
+commit ec7d8a6167309d2f9d6ee63c20fdfa960ce63bce
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 12:25:36 2015 -0500
+
+    runtime: remove makeStringSlice
+    
+    Change-Id: I38d716de9d5a9c1b868641262067d0456d52c86d
+    Reviewed-on: https://go-review.googlesource.com/6612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_windows.go | 2 +-
+ src/runtime/runtime.go     | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit ebdbbe0f49fe69d5870f85bdfef35a0b77bd0447
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 00:11:24 2009 -0700
+
+    fix amd64 build
+    
+    R=ken
+    OCL=32771
+    CL=32771
+
+ src/cmd/6g/gobj.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 28a55111b25a9f0b6b683509bac25836750eec2e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 24 11:23:37 2013 +1000
+
+    os: rename error_posix.go to error_unix.go
+    
+    The tradition is to use _posix when the platform extends beyond unix variants. As windows has its own file, rename to the more usual _unix.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10320043
+
+ src/pkg/os/{error_posix.go => error_unix.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

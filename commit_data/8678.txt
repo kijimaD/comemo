@@ -1,0 +1,14 @@
+commit aac6afbb11d7845ecd431f296d4cbe625a0001da
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jun 9 18:04:26 2011 -0700
+
+    gopack: remove warning from the use of mktemp
+    
+    gcc-4.6 considers mktemp to be racey
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/4602050
+
+ src/cmd/gopack/ar.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

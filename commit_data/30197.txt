@@ -1,0 +1,14 @@
+commit 4fafc843a27940c76f43d0d897d918dab2efd529
+Author: Tuo Shan <shantuo@google.com>
+Date:   Mon Feb 6 18:06:40 2017 -0800
+
+    encoding/json: clarify documention for Unmarshal into a pointer.
+    
+    Fixes #18730.
+    
+    Change-Id: If3ef28e62f7e449d4c8dc1dfd78f7d6f5a87ed26
+    Reviewed-on: https://go-review.googlesource.com/36478
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/decode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

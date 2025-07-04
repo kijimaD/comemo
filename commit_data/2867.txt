@@ -1,0 +1,14 @@
+commit 9155bb3345aaf481939e4e0d18b3eeebc27ea159
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 21:03:58 2009 -0700
+
+    benchmark checkpoint milestone checkin submission
+    
+    R=rsc
+    DELTA=311  (311 added, 0 deleted, 0 changed)
+    OCL=32696
+    CL=32699
+
+ test/bench/fasta.c  | 173 +++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/fasta.go | 198 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 371 insertions(+)

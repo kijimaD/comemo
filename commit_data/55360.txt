@@ -1,0 +1,70 @@
+commit 1d45a7ef560a76318ed59dfdb178cecd58caf948
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Nov 6 22:58:32 2023 +0800
+
+    net: add available godoc link
+    
+    Change-Id: Ib7c4baf0247c421954aedabfbb6a6af8a08a8936
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540021
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/dial.go                          |  28 ++++----
+ src/net/http/cgi/child.go                |   6 +-
+ src/net/http/client.go                   |  84 +++++++++++------------
+ src/net/http/cookie.go                   |   4 +-
+ src/net/http/cookiejar/jar.go            |   6 +-
+ src/net/http/doc.go                      |  16 ++---
+ src/net/http/fcgi/child.go               |   2 +-
+ src/net/http/filetransport.go            |  10 +--
+ src/net/http/fs.go                       |  44 ++++++------
+ src/net/http/header.go                   |  14 ++--
+ src/net/http/http.go                     |   6 +-
+ src/net/http/httptest/httptest.go        |   2 +-
+ src/net/http/httptest/recorder.go        |  18 ++---
+ src/net/http/httptest/server.go          |   8 +--
+ src/net/http/httptrace/trace.go          |   4 +-
+ src/net/http/httputil/dump.go            |  10 +--
+ src/net/http/httputil/httputil.go        |   2 +-
+ src/net/http/httputil/persist.go         |  32 ++++-----
+ src/net/http/httputil/reverseproxy.go    |  10 +--
+ src/net/http/internal/ascii/print.go     |   2 +-
+ src/net/http/internal/chunked.go         |   8 +--
+ src/net/http/pprof/pprof.go              |   4 +-
+ src/net/http/request.go                  |  76 ++++++++++-----------
+ src/net/http/response.go                 |  10 +--
+ src/net/http/responsecontroller.go       |  12 ++--
+ src/net/http/roundtrip.go                |   4 +-
+ src/net/http/roundtrip_js.go             |   2 +-
+ src/net/http/server.go                   | 114 +++++++++++++++----------------
+ src/net/http/transfer.go                 |   6 +-
+ src/net/http/transport.go                |  34 ++++-----
+ src/net/http/triv.go                     |   2 +-
+ src/net/interface.go                     |   4 +-
+ src/net/internal/socktest/switch.go      |   2 +-
+ src/net/internal/socktest/sys_unix.go    |   2 +-
+ src/net/internal/socktest/sys_windows.go |  12 ++--
+ src/net/ip.go                            |  14 ++--
+ src/net/iprawsock.go                     |  16 ++---
+ src/net/lookup.go                        |  38 +++++------
+ src/net/net.go                           |  20 +++---
+ src/net/netip/netip.go                   | 112 +++++++++++++++---------------
+ src/net/pipe.go                          |   2 +-
+ src/net/rawconn.go                       |   2 +-
+ src/net/rpc/client.go                    |  16 ++---
+ src/net/rpc/jsonrpc/client.go            |   4 +-
+ src/net/rpc/jsonrpc/server.go            |   2 +-
+ src/net/rpc/server.go                    |  62 ++++++++---------
+ src/net/smtp/auth.go                     |   4 +-
+ src/net/smtp/smtp.go                     |  14 ++--
+ src/net/tcpsock.go                       |  28 ++++----
+ src/net/textproto/header.go              |   4 +-
+ src/net/textproto/reader.go              |  20 +++---
+ src/net/textproto/textproto.go           |  20 +++---
+ src/net/textproto/writer.go              |   4 +-
+ src/net/unixsock.go                      |  30 ++++----
+ src/net/url/url.go                       |  44 ++++++------
+ 55 files changed, 528 insertions(+), 528 deletions(-)

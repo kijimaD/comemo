@@ -1,0 +1,20 @@
+commit 1fba1f60620d386c4754814d462c6482226431b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 14 09:17:15 2024 -0800
+
+    text/template: don't crash piping to call with no arguments
+    
+    Fixes #70341
+    
+    Change-Id: I792b15d5e8d08c3762659fbcdfb3d620b59071ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628096
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Zxilly Chou <zhouxinyu1001@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/text/template/exec.go      | 8 +++++++-
+ src/text/template/exec_test.go | 3 +++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

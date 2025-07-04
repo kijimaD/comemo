@@ -1,0 +1,16 @@
+commit 8f0ca7dc720b7197c91e02c8cef6e19ad95978d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 09:58:12 2021 -0700
+
+    cmd/compile/internal/types2: report cause for failing const conversions
+    
+    Follow-up on CL 360396.
+    
+    Change-Id: Icd802baffb1fef91f8fef0070b6167a438ceda1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360795
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go              | 11 +++++++++--
+ .../compile/internal/types2/testdata/spec/conversions.go2   | 13 +++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

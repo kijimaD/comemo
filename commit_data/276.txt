@@ -1,0 +1,11 @@
+commit 8b45c369fbfeba860de1c93cf1c7e58d10618a5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 1 18:06:00 2008 -0700
+
+    - filed a bug
+    
+    SVN=125596
+
+ test/bugs/bug062.go | 11 ++++++++++
+ test/golden.out     | 58 +++++++++++++++++++++++++++--------------------------
+ 2 files changed, 41 insertions(+), 28 deletions(-)

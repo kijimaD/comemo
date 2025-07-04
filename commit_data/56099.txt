@@ -1,0 +1,36 @@
+commit dfb17c126cdfddc57ba929e50354b6b025779117
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Mar 22 11:41:58 2024 -0500
+
+    cmd/compile: support float min/max instructions on PPC64
+    
+    This enables efficient use of the builtin min/max function
+    for float64 and float32 types on GOPPC64 >= power9.
+    
+    Extend the assembler to support xsminjdp/xsmaxjdp and use
+    them to implement float min/max.
+    
+    Simplify the VSX xx3 opcode rules to allow FPR arguments,
+    if all arguments are an FPR.
+    
+    Change-Id: I15882a4ce5dc46eba71d683cf1d184dc4236a328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574535
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s     |  7 ++-
+ src/cmd/compile/internal/ppc64/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  3 +
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go         | 30 ++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 80 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go        |  7 +++
+ src/cmd/internal/obj/ppc64/a.out.go           |  2 +
+ src/cmd/internal/obj/ppc64/anames.go          |  2 +
+ src/cmd/internal/obj/ppc64/asm9.go            | 17 ++++--
+ test/codegen/floats.go                        |  8 +++
+ 11 files changed, 153 insertions(+), 9 deletions(-)

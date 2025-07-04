@@ -1,0 +1,12 @@
+commit 5977e34741212f80a87370b5a89f4f373405b187
+Author: Alexei Sholik <alcosholik@gmail.com>
+Date:   Wed Apr 3 16:44:03 2013 -0700
+
+    doc: fix typos and trailing spaces
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8285044
+
+ doc/code.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

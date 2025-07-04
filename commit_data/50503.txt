@@ -1,0 +1,30 @@
+commit e4a2c38af5bdae12591004c3d35762d23da7a9bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 14:15:03 2022 -0400
+
+    cmd/go, testing: add go test -skip flag
+    
+    For proposal #41583, add a new 'go test -skip' flag to make it easy
+    to disable specific tests, benchmarks, examples, or fuzz targets.
+    
+    Fixes #41583.
+    
+    Change-Id: Id12a6575f505dafdce4a149aedc454a002e93afa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421439
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                    |  9 +++
+ src/cmd/go/internal/test/flagdefs.go     |  1 +
+ src/cmd/go/internal/test/test.go         |  9 +++
+ src/cmd/go/internal/test/testflag.go     |  1 +
+ src/cmd/go/testdata/script/test_skip.txt | 34 ++++++++++++
+ src/testing/benchmark.go                 |  2 +-
+ src/testing/fuzz.go                      |  6 +-
+ src/testing/helper_test.go               |  6 +-
+ src/testing/match.go                     | 50 +++++++++++++----
+ src/testing/match_test.go                | 95 ++++++++++++++++++++------------
+ src/testing/sub_test.go                  |  6 +-
+ src/testing/testing.go                   | 17 +++++-
+ 12 files changed, 177 insertions(+), 59 deletions(-)

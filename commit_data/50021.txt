@@ -1,0 +1,21 @@
+commit 5a53807950e8bde126180590a2f922d1046acc7e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 20:38:39 2022 -0700
+
+    go/types: remove TODO in testdata/examples/types.go
+    
+    Follow-up on CL 424674. With this change, the files in
+    testdata/examples are identical to the corresponding
+    files for types2.
+    
+    For #54511.
+    
+    Change-Id: Ic61c089bbf61492094e31057ad2635803f50a30d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424714
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/testdata/examples/types.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

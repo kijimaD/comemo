@@ -1,0 +1,29 @@
+commit 9b64fef71acf71175bc74e2d04ea7fc0a011b03b
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Jul 14 17:26:14 2010 -0700
+
+    mime/multipart and HTTP multipart/form-data support
+    
+    Somewhat of a work-in-progress (in that MIME is a large spec), but this is
+    functional and enough for discussion and/or code review.
+    
+    In addition to the unit tests, I've tested with curl and Chrome with
+    a variety of test files, making sure the digests of files are unaltered
+    when read via a multipart Part.
+    
+    R=rsc, adg, dsymonds1, agl1
+    CC=golang-dev
+    https://golang.org/cl/1681049
+
+ src/pkg/Makefile                         |   1 +
+ src/pkg/http/request.go                  |  22 +++
+ src/pkg/http/request_test.go             |  18 ++
+ src/pkg/mime/Makefile                    |   2 +
+ src/pkg/mime/grammar.go                  |  36 ++++
+ src/pkg/mime/mediatype.go                | 120 +++++++++++++
+ src/pkg/mime/mediatype_test.go           | 117 +++++++++++++
+ src/pkg/mime/multipart/Makefile          |  11 ++
+ src/pkg/mime/multipart/multipart.go      | 280 +++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/multipart_test.go | 204 ++++++++++++++++++++++
+ src/pkg/mime/type.go                     |  17 +-
+ 11 files changed, 820 insertions(+), 8 deletions(-)

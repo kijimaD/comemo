@@ -1,0 +1,45 @@
+commit cf7ec0fa098a46c3b75cc3d625f5d7528fe6e984
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 16 18:44:48 2022 -0400
+
+    cmd/pprof: update vendored github.com/google/pprof
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of go.dev/issue/36905.
+    
+    Done with:
+    
+            go get github.com/google/pprof@upgrade
+            go mod tidy
+            go mod vendor
+    
+    For #36905.
+    
+    Change-Id: I3c8279fce2f20cb940a4e46b2b850703e1fc7964
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406359
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |    4 +-
+ src/cmd/go.sum                                     |   12 +-
+ .../google/pprof/internal/driver/html/common.css   |  272 ++++
+ .../google/pprof/internal/driver/html/common.js    |  693 ++++++++++
+ .../pprof/internal/driver/html/flamegraph.html     |  103 ++
+ .../google/pprof/internal/driver/html/graph.html   |   16 +
+ .../google/pprof/internal/driver/html/header.html  |  113 ++
+ .../pprof/internal/driver/html/plaintext.html      |   18 +
+ .../google/pprof/internal/driver/html/source.html  |   18 +
+ .../google/pprof/internal/driver/html/top.html     |  114 ++
+ .../google/pprof/internal/driver/tagroot.go        |   11 +-
+ .../google/pprof/internal/driver/webhtml.go        | 1419 +-------------------
+ .../pprof/internal/measurement/measurement.go      |   37 +-
+ .../google/pprof/profile/legacy_profile.go         |   30 +-
+ .../pprof/third_party/d3flamegraph/README.md       |    2 +-
+ .../github.com/ianlancetaylor/demangle/ast.go      |   52 +-
+ .../github.com/ianlancetaylor/demangle/demangle.go |  544 ++++----
+ .../github.com/ianlancetaylor/demangle/rust.go     |  190 ++-
+ src/cmd/vendor/modules.txt                         |    6 +-
+ 19 files changed, 1925 insertions(+), 1729 deletions(-)

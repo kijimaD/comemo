@@ -1,0 +1,37 @@
+commit 30b6bc30b208299e4cb6598be854ec276db85661
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 18 09:18:34 2018 -0400
+
+    cmd/go, cmd/vet, go/internal/gccgoimport: make vet work with gccgo
+    
+    When using gccgo/GoLLVM, there is no package file for a standard
+    library package. Since it is impossible for the go tool to rebuild the
+    package, and since the package file exists only in the form of a .gox
+    file, this seems like the best choice. Unfortunately it was confusing
+    vet, which wanted to see a real file. This caused vet to report errors
+    about missing package files for standard library packages. The
+    gccgoimporter knows how to correctly handle this case. Fix this by
+    
+    1) telling vet which packages are standard;
+    2) letting vet skip those packages;
+    3) letting the gccgoimporter handle this case.
+    
+    As a separate required fix, gccgo/GoLLVM has no runtime/cgo package,
+    so don't try to depend on it (as it happens, this fixes #25324).
+    
+    The result is that the cmd/go vet tests pass when using -compiler=gccgo.
+    
+    Fixes #25324
+    
+    Change-Id: Iba8f948fe944da5dc674f580bd3321929ee50fa0
+    Reviewed-on: https://go-review.googlesource.com/113716
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go           |  8 +++++---
+ src/cmd/go/internal/work/exec.go          | 16 +++++++++++++---
+ src/cmd/vet/main.go                       | 10 ++++++++++
+ src/go/internal/gccgoimporter/importer.go |  5 ++++-
+ 4 files changed, 32 insertions(+), 7 deletions(-)

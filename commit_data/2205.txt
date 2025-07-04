@@ -1,0 +1,16 @@
+commit 025506d0a3b8c3974114fa9a65a895c456bf64f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 14 06:25:40 2009 -0700
+
+    A comparison of two values with a type equivalent to string
+    gives an type mismatch error, although both values appear to
+    have the same type.
+    
+    R=ken,rsc
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=28786
+    CL=28805
+
+ test/bugs/bug151.go | 21 +++++++++++++++++++++
+ test/golden.out     |  6 ++++++
+ 2 files changed, 27 insertions(+)

@@ -1,0 +1,19 @@
+commit a77f85a61874c05097a60f08d9dda71512d9dcc3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 17:23:56 2019 -0800
+
+    cmd/compile: remove work-arounds for 0o/0O octals
+    
+    With math/big supporting the new octal prefixes directly,
+    the compiler doesn't have to manually convert such numbers
+    into old-style 0-prefix octals anymore.
+    
+    Updates #12711.
+    
+    Change-Id: I300bdd095836595426a1478d68da179f39e5531a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165861
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/mpfloat.go | 27 +++++----------------------
+ src/cmd/compile/internal/gc/mpint.go   |  5 +----
+ 2 files changed, 6 insertions(+), 26 deletions(-)

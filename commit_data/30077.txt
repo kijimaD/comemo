@@ -1,0 +1,24 @@
+commit 36ce197c858ea9e187ee59fc18576c73a0a513e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:18:56 2017 -0500
+
+    cmd/go: split out cmd/go/internal/fmt
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I8e325d75f553b5d0b6224b56a705d2e2cb895de4
+    Reviewed-on: https://go-review.googlesource.com/36199
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/{ => internal/fmt}/fmt.go | 11 ++++++-----
+ src/cmd/go/main.go                   |  3 ++-
+ 2 files changed, 8 insertions(+), 6 deletions(-)

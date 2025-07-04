@@ -1,0 +1,26 @@
+commit 71c1a7b77700ea8e549368c8606d74d7a7b5104f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 22 18:41:20 2012 -0700
+
+    cmd/api: add api/next.txt
+    
+    This quiets all.bash noise for upcoming features we know about.
+    
+    The all.bash warnings will now only print for things not in next.txt
+    (or in next.txt but not in the API).
+    
+    Once an API is frozen, we rename next.txt to a new frozen file
+    (like go1.txt)
+    
+    Fixes #3651
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6218069
+
+ api/README           |  11 ++
+ api/next.txt         | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/api/goapi.go | 107 +++++++++----
+ src/run.bash         |   2 +-
+ src/run.bat          |   2 +-
+ 5 files changed, 515 insertions(+), 35 deletions(-)

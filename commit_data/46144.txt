@@ -1,0 +1,21 @@
+commit e6798795ff523b9b5df2514bffd8d5ce743c312e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 21:04:56 2021 -0700
+
+    cmd/compile/internal/types2: use TypeList in the Inferred struct
+    
+    This is a port of CL 343934 from go/types with the necessary
+    adjustments to the compiler.
+    
+    Change-Id: I810144e6e2eb2bc8fa0d34dc206403c993cbbe7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344616
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/expr.go      | 16 ++++++++--------
+ src/cmd/compile/internal/noder/writer.go    | 13 +++++++------
+ src/cmd/compile/internal/types2/api.go      |  2 +-
+ src/cmd/compile/internal/types2/api_test.go |  9 +++++----
+ src/cmd/compile/internal/types2/check.go    |  2 +-
+ 5 files changed, 22 insertions(+), 20 deletions(-)

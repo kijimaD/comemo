@@ -1,0 +1,15 @@
+commit 752b47cfc59cee54dabe7aad6ce36b098e1aa27e
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 28 22:32:29 2010 -0700
+
+    netchan: improve closing and shutdown. there's still more to do.
+    Fixes #805.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1400041
+
+ src/pkg/netchan/export.go       |  9 +++++++--
+ src/pkg/netchan/import.go       | 14 +++++++++++++-
+ src/pkg/netchan/netchan_test.go | 29 +++++++++++++++++++++++++----
+ 3 files changed, 45 insertions(+), 7 deletions(-)

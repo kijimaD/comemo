@@ -1,0 +1,18 @@
+commit 505fa7b42338f0aba7e4235acbc8274a20f3c1f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 12 07:03:28 2016 -0800
+
+    cmd/cgo: document C.sizeof_T and zero-sized field restriction
+    
+    Update #9401.
+    Update #11925.
+    Update #13919.
+    
+    Change-Id: I52c679353693e8165b2972d4d3974ee8bb1207ef
+    Reviewed-on: https://go-review.googlesource.com/18542
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/doc.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,15 @@
+commit 2ec293123f5769ea679ed547455e6f2b41838196
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:13:05 2015 -0500
+
+    liblink: make Prog, Addr more portable and document
+    
+    Change-Id: Idda476b71ae23f7b73fe63f062cf3531c1268eb3
+    Reviewed-on: https://go-review.googlesource.com/3514
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ include/link.h | 199 ++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 156 insertions(+), 43 deletions(-)

@@ -1,0 +1,15 @@
+commit 72185093f669eab9b07523bded3d186b4bb4321d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 13 20:19:10 2014 -0400
+
+    runtime: increase timeout in TestStackGrowth
+    
+    It looks like maybe on slower builders 4 seconds is not enough.
+    Trying to get rid of the flaky failures.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/86870044
+
+ src/pkg/runtime/stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

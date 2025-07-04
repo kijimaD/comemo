@@ -1,0 +1,16 @@
+commit 73eb24ccb6d8dd2cf9dd807acf69987a05e8d142
+Author: surechen <surechen17@gmail.com>
+Date:   Wed May 6 20:04:35 2020 +0800
+
+    math: Remove redundant local variable Ln2
+    
+    Use the const variable Ln2 in math/const.go for function acosh.
+    
+    Change-Id: I5381d03dd3142c227ae5773ece9be6c8f377615e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/math/acosh.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,29 @@
+commit 092d18b31824d35a07f796c90380d5e607b61681
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 3 10:36:36 2024 +0200
+
+    internal/coverage: use 128-bit FNV-1a hash instead of MD5
+    
+    This change replaces the MD5 hash used to identify coverage files with a
+    128-bit FNV-1a hash. This change is motivated by the fact that MD5
+    should only be used for legacy cryptographic purposes.
+    
+    The 128-bit FNV-1a hash is sufficient for the purpose of identifying
+    coverage files, it having the same theoretical collision resistance as
+    MD5, but with the added benefit of being faster to compute.
+    
+    Change-Id: I7b547ce2ea784f8f4071599a10fcb512b87ee469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617360
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/covdata/metamerge.go                   |  9 ++++++---
+ src/go/build/deps_test.go                      |  2 +-
+ src/internal/coverage/cfile/emit.go            |  4 ++--
+ src/internal/coverage/decodemeta/decodefile.go |  6 ++++--
+ src/internal/coverage/encodemeta/encode.go     |  6 +++---
+ src/internal/coverage/encodemeta/encodefile.go |  6 ++++--
+ src/internal/coverage/pods/pods_test.go        | 28 +++++++++++++++-----------
+ 7 files changed, 36 insertions(+), 25 deletions(-)

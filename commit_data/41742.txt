@@ -1,0 +1,18 @@
+commit f4fe89108c42bde3978fda8b826acbcd77db6076
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 02:58:23 2020 +1100
+
+    test: re-enable atomic intrinsic related tests on riscv64
+    
+    riscv64 now has atomic intrinsics, so re-enable the atomic intrinsic tests.
+    
+    Fixes #36765
+    
+    Change-Id: I838f27570a94d7fa5774c43f1ca5f4df2ca104cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223560
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/inline_sync.go      | 5 +----
+ test/intrinsic_atomic.go | 2 +-
+ 2 files changed, 2 insertions(+), 5 deletions(-)

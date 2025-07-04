@@ -1,0 +1,15 @@
+commit 8090f868fc44542a777e888947f8a3f6b6f4112c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 12 10:18:31 2015 +0300
+
+    runtime: cleanup after conversion to Go
+    
+    Change-Id: I7c41cc6a5ab9fb3b0cc3812cf7e9776884658778
+    Reviewed-on: https://go-review.googlesource.com/4671
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_plan9.go |  5 +++++
+ src/runtime/proc.go     |  4 +++-
+ src/runtime/proc1.go    | 14 +++++---------
+ src/runtime/stubs3.go   | 12 ------------
+ 4 files changed, 13 insertions(+), 22 deletions(-)

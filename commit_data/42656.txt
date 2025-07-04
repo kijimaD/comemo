@@ -1,0 +1,239 @@
+commit 52fe92fbaa41a6441144029760ada24b5be1d398
+Merge: 2bfa45cfa9 ffa9f33803
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 12 17:37:18 2020 -0400
+
+    cmd: merge branch 'dev.link' into master
+    
+    In the dev.link branch we have continued developing the new object
+    file format support and the linker improvements described in
+    https://golang.org/s/better-linker . Since the last merge (May 1st
+    2020), more progress has been made to improve the new linker, with
+    improvements on both linker speed and memory usage.
+    
+    Fixes #40703.
+    
+    Change-Id: I9924ea88d981845c3a40ec8c25820120fc21c003
+
+ src/cmd/asm/internal/flags/flags.go                |    2 -
+ src/cmd/asm/main.go                                |    6 +-
+ src/cmd/compile/internal/gc/closure.go             |    1 +
+ src/cmd/compile/internal/gc/iexport.go             |   47 +-
+ src/cmd/compile/internal/gc/iimport.go             |   33 +-
+ src/cmd/compile/internal/gc/main.go                |   15 +-
+ src/cmd/compile/internal/gc/obj.go                 |    7 +-
+ src/cmd/compile/internal/gc/order.go               |    3 +-
+ src/cmd/compile/internal/gc/pgen.go                |   27 +-
+ src/cmd/compile/internal/gc/plive.go               |    1 +
+ src/cmd/compile/internal/gc/reflect.go             |   14 +-
+ src/cmd/compile/internal/gc/sinit.go               |   33 +-
+ src/cmd/compile/internal/gc/walk.go                |   14 +-
+ src/cmd/dist/build.go                              |    1 +
+ src/cmd/dist/buildtool.go                          |    2 +-
+ src/cmd/internal/archive/archive.go                |  460 ++++
+ .../goobj_test.go => archive/archive_test.go}      |  161 +-
+ .../internal/{goobj => archive}/testdata/go1.go    |    0
+ .../internal/{goobj => archive}/testdata/go2.go    |    0
+ .../{goobj => archive}/testdata/mycgo/c1.c         |    0
+ .../{goobj => archive}/testdata/mycgo/c2.c         |    0
+ .../{goobj => archive}/testdata/mycgo/go.go        |    0
+ .../{goobj => archive}/testdata/mycgo/go1.go       |    0
+ .../{goobj => archive}/testdata/mycgo/go2.go       |    0
+ src/cmd/internal/bio/buf.go                        |    7 +-
+ src/cmd/internal/dwarf/dwarf.go                    |   18 +-
+ src/cmd/internal/{goobj2 => goobj}/builtin.go      |    2 +-
+ src/cmd/internal/{goobj2 => goobj}/builtinlist.go  |   40 +-
+ src/cmd/internal/{goobj2 => goobj}/funcinfo.go     |   49 +-
+ src/cmd/internal/{goobj2 => goobj}/mkbuiltin.go    |   38 +-
+ src/cmd/internal/{goobj2 => goobj}/objfile.go      |  225 +-
+ src/cmd/internal/{goobj2 => goobj}/objfile_test.go |    2 +-
+ src/cmd/internal/goobj/read.go                     |  660 -----
+ src/cmd/internal/goobj/readnew.go                  |  191 --
+ src/cmd/internal/obj/dwarf.go                      |  555 +++-
+ src/cmd/internal/obj/line.go                       |   12 +-
+ src/cmd/internal/obj/link.go                       |   73 +-
+ src/cmd/internal/obj/objfile.go                    | 1388 +++++-----
+ src/cmd/internal/obj/objfile2.go                   |  485 ----
+ src/cmd/internal/obj/objfile_test.go               |   87 +
+ src/cmd/internal/obj/pcln.go                       |   23 +-
+ src/cmd/internal/obj/plist.go                      |   26 +-
+ src/cmd/internal/obj/ppc64/obj9.go                 |    2 +
+ src/cmd/internal/obj/sym.go                        |   99 +-
+ src/cmd/internal/objabi/funcid.go                  |   22 +-
+ src/cmd/internal/objabi/symkind.go                 |    7 +-
+ src/cmd/internal/objabi/symkind_string.go          |   21 +-
+ src/cmd/internal/objfile/goobj.go                  |  281 +-
+ src/cmd/internal/src/xpos.go                       |    4 +-
+ src/cmd/link/dwarf_test.go                         |    9 +
+ src/cmd/link/elf_test.go                           |    2 +
+ src/cmd/link/internal/amd64/asm.go                 |  331 +--
+ src/cmd/link/internal/amd64/obj.go                 |   15 +-
+ src/cmd/link/internal/arm/asm.go                   |  403 +--
+ src/cmd/link/internal/arm/obj.go                   |   10 +-
+ src/cmd/link/internal/arm64/asm.go                 |  474 ++--
+ src/cmd/link/internal/arm64/obj.go                 |    9 +-
+ src/cmd/link/internal/ld/asmb.go                   |  214 ++
+ src/cmd/link/internal/ld/data.go                   |  888 ++++---
+ src/cmd/link/internal/ld/data2.go                  |  518 ----
+ src/cmd/link/internal/ld/data_test.go              |   92 +
+ src/cmd/link/internal/ld/deadcode.go               |  131 +-
+ src/cmd/link/internal/ld/deadcode_test.go          |   17 +-
+ src/cmd/link/internal/ld/decodesym.go              |   10 +-
+ src/cmd/link/internal/ld/dwarf.go                  | 1082 ++++----
+ src/cmd/link/internal/ld/dwarf2.go                 |  199 --
+ src/cmd/link/internal/ld/dwarf_test.go             |  123 +
+ src/cmd/link/internal/ld/elf.go                    |  269 +-
+ src/cmd/link/internal/ld/elf2.go                   |   79 -
+ src/cmd/link/internal/ld/errors.go                 |   45 -
+ src/cmd/link/internal/ld/go.go                     |   54 +-
+ src/cmd/link/internal/ld/heap.go                   |   54 +
+ src/cmd/link/internal/ld/heap_test.go              |   90 +
+ src/cmd/link/internal/ld/issue33808_test.go        |    1 +
+ src/cmd/link/internal/ld/ld.go                     |   12 +-
+ src/cmd/link/internal/ld/ld_test.go                |   33 +
+ src/cmd/link/internal/ld/lib.go                    |  766 ++----
+ src/cmd/link/internal/ld/link.go                   |   56 +-
+ src/cmd/link/internal/ld/macho.go                  |  209 +-
+ src/cmd/link/internal/ld/main.go                   |  139 +-
+ src/cmd/link/internal/ld/outbuf.go                 |   36 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go            |   26 +-
+ src/cmd/link/internal/ld/outbuf_nommap.go          |    9 +-
+ src/cmd/link/internal/ld/outbuf_test.go            |    2 +-
+ src/cmd/link/internal/ld/outbuf_windows.go         |   15 +
+ src/cmd/link/internal/ld/pcln.go                   |  578 ++--
+ src/cmd/link/internal/ld/pe.go                     |  279 +-
+ src/cmd/link/internal/ld/sym.go                    |    3 +-
+ src/cmd/link/internal/ld/symtab.go                 |  409 +--
+ .../internal/ld/testdata/deadcode/ifacemethod.go   |   23 +
+ .../internal/ld/testdata/deadcode/ifacemethod2.go  |   22 +
+ .../ld/testdata/issue39757/issue39757main.go       |   15 +
+ src/cmd/link/internal/ld/typelink.go               |   26 +-
+ src/cmd/link/internal/ld/util.go                   |   16 +-
+ src/cmd/link/internal/ld/xcoff.go                  |  392 ++-
+ src/cmd/link/internal/ld/xcoff2.go                 |  113 -
+ src/cmd/link/internal/loadelf/ldelf.go             |    2 +-
+ src/cmd/link/internal/loader/loader.go             | 1528 ++++-------
+ src/cmd/link/internal/loader/loader_test.go        |   82 +-
+ src/cmd/link/internal/loader/symbolbuilder.go      |  127 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go         |    2 +-
+ src/cmd/link/internal/loadpe/ldpe.go               |    2 +-
+ src/cmd/link/internal/mips/asm.go                  |  166 +-
+ src/cmd/link/internal/mips/obj.go                  |    7 +-
+ src/cmd/link/internal/mips64/asm.go                |  217 +-
+ src/cmd/link/internal/mips64/obj.go                |    7 +-
+ src/cmd/link/internal/ppc64/asm.go                 |  540 ++--
+ src/cmd/link/internal/ppc64/obj.go                 |   19 +-
+ src/cmd/link/internal/riscv64/asm.go               |  115 +-
+ src/cmd/link/internal/riscv64/obj.go               |    5 +-
+ src/cmd/link/internal/s390x/asm.go                 |  192 +-
+ src/cmd/link/internal/s390x/obj.go                 |    7 +-
+ src/cmd/link/internal/sym/attribute.go             |  129 -
+ src/cmd/link/internal/sym/compilation_unit.go      |   38 +-
+ src/cmd/link/internal/sym/library.go               |   12 +-
+ src/cmd/link/internal/sym/reloc.go                 |   54 -
+ src/cmd/link/internal/sym/segment.go               |   11 +-
+ src/cmd/link/internal/sym/sizeof_test.go           |   37 -
+ src/cmd/link/internal/sym/symbol.go                |  395 ---
+ src/cmd/link/internal/sym/symbols.go               |   63 -
+ src/cmd/link/internal/sym/symkind.go               |   16 +-
+ src/cmd/link/internal/sym/symkind_string.go        |   30 +-
+ src/cmd/link/internal/wasm/asm.go                  |   59 +-
+ src/cmd/link/internal/wasm/obj.go                  |    2 +-
+ src/cmd/link/internal/x86/asm.go                   |  297 +--
+ src/cmd/link/internal/x86/obj.go                   |   13 +-
+ src/cmd/link/link_test.go                          |   73 +-
+ src/cmd/link/testdata/testHashedSyms/p.go          |   33 +
+ src/cmd/oldlink/doc.go                             |  129 -
+ src/cmd/oldlink/internal/amd64/asm.go              |  874 -------
+ src/cmd/oldlink/internal/amd64/l.go                |   43 -
+ src/cmd/oldlink/internal/amd64/obj.go              |  117 -
+ src/cmd/oldlink/internal/arm/asm.go                |  790 ------
+ src/cmd/oldlink/internal/arm/l.go                  |   75 -
+ src/cmd/oldlink/internal/arm/obj.go                |  107 -
+ src/cmd/oldlink/internal/arm64/asm.go              |  946 -------
+ src/cmd/oldlink/internal/arm64/l.go                |   74 -
+ src/cmd/oldlink/internal/arm64/obj.go              |  110 -
+ src/cmd/oldlink/internal/ld/ar.go                  |  193 --
+ src/cmd/oldlink/internal/ld/config.go              |  272 --
+ src/cmd/oldlink/internal/ld/data.go                | 2501 ------------------
+ src/cmd/oldlink/internal/ld/deadcode.go            |  409 ---
+ src/cmd/oldlink/internal/ld/deadcode2.go           |  441 ----
+ src/cmd/oldlink/internal/ld/decodesym.go           |  380 ---
+ src/cmd/oldlink/internal/ld/dwarf.go               | 2044 ---------------
+ src/cmd/oldlink/internal/ld/elf.go                 | 2448 -----------------
+ src/cmd/oldlink/internal/ld/execarchive.go         |   37 -
+ src/cmd/oldlink/internal/ld/execarchive_noexec.go  |   13 -
+ src/cmd/oldlink/internal/ld/go.go                  |  442 ----
+ src/cmd/oldlink/internal/ld/ld.go                  |  217 --
+ src/cmd/oldlink/internal/ld/lib.go                 | 2751 --------------------
+ src/cmd/oldlink/internal/ld/link.go                |  187 --
+ src/cmd/oldlink/internal/ld/macho.go               | 1119 --------
+ src/cmd/oldlink/internal/ld/macho_combine_dwarf.go |  462 ----
+ src/cmd/oldlink/internal/ld/main.go                |  338 ---
+ src/cmd/oldlink/internal/ld/outbuf.go              |  177 --
+ src/cmd/oldlink/internal/ld/outbuf_mmap.go         |   44 -
+ src/cmd/oldlink/internal/ld/outbuf_nommap.go       |   15 -
+ src/cmd/oldlink/internal/ld/outbuf_windows.go      |   49 -
+ src/cmd/oldlink/internal/ld/pcln.go                |  530 ----
+ src/cmd/oldlink/internal/ld/pe.go                  | 1562 -----------
+ src/cmd/oldlink/internal/ld/sym.go                 |  109 -
+ src/cmd/oldlink/internal/ld/symtab.go              |  713 -----
+ .../internal/ld/testdata/httptest/main/main.go     |   22 -
+ .../internal/ld/testdata/issue10978/main.go        |   27 -
+ .../oldlink/internal/ld/testdata/issue10978/main.s |    1 -
+ .../oldlink/internal/ld/testdata/issue25459/a/a.go |   27 -
+ .../internal/ld/testdata/issue25459/main/main.go   |   10 -
+ .../internal/ld/testdata/issue26237/b.dir/b.go     |   16 -
+ .../internal/ld/testdata/issue26237/main/main.go   |   16 -
+ .../internal/ld/testdata/issue32233/lib/ObjC.m     |   16 -
+ .../internal/ld/testdata/issue32233/lib/lib.go     |   19 -
+ .../internal/ld/testdata/issue32233/main/main.go   |   11 -
+ src/cmd/oldlink/internal/ld/typelink.go            |   49 -
+ src/cmd/oldlink/internal/ld/util.go                |   97 -
+ src/cmd/oldlink/internal/ld/xcoff.go               | 1685 ------------
+ src/cmd/oldlink/internal/loadelf/ldelf.go          | 1282 ---------
+ src/cmd/oldlink/internal/loader/loader.go          |  629 -----
+ src/cmd/oldlink/internal/loadmacho/ldmacho.go      |  794 ------
+ src/cmd/oldlink/internal/loadpe/ldpe.go            |  513 ----
+ src/cmd/oldlink/internal/loadxcoff/ldxcoff.go      |  238 --
+ src/cmd/oldlink/internal/mips/asm.go               |  230 --
+ src/cmd/oldlink/internal/mips/l.go                 |   74 -
+ src/cmd/oldlink/internal/mips/obj.go               |   89 -
+ src/cmd/oldlink/internal/mips64/asm.go             |  278 --
+ src/cmd/oldlink/internal/mips64/l.go               |   74 -
+ src/cmd/oldlink/internal/mips64/obj.go             |   98 -
+ src/cmd/oldlink/internal/objfile/objfile.go        |  664 -----
+ src/cmd/oldlink/internal/ppc64/asm.go              | 1185 ---------
+ src/cmd/oldlink/internal/ppc64/l.go                |   74 -
+ src/cmd/oldlink/internal/ppc64/obj.go              |  106 -
+ src/cmd/oldlink/internal/riscv64/asm.go            |  168 --
+ src/cmd/oldlink/internal/riscv64/l.go              |   14 -
+ src/cmd/oldlink/internal/riscv64/obj.go            |   60 -
+ src/cmd/oldlink/internal/s390x/asm.go              |  574 ----
+ src/cmd/oldlink/internal/s390x/l.go                |   74 -
+ src/cmd/oldlink/internal/s390x/obj.go              |   88 -
+ src/cmd/oldlink/internal/sym/attribute.go          |  121 -
+ src/cmd/oldlink/internal/sym/compilation_unit.go   |   23 -
+ src/cmd/oldlink/internal/sym/library.go            |   25 -
+ src/cmd/oldlink/internal/sym/reloc.go              |  128 -
+ src/cmd/oldlink/internal/sym/segment.go            |   58 -
+ src/cmd/oldlink/internal/sym/sizeof_test.go        |   37 -
+ src/cmd/oldlink/internal/sym/symbol.go             |  543 ----
+ src/cmd/oldlink/internal/sym/symbols.go            |  135 -
+ src/cmd/oldlink/internal/sym/symkind.go            |  168 --
+ src/cmd/oldlink/internal/sym/symkind_string.go     |   76 -
+ src/cmd/oldlink/internal/wasm/asm.go               |  583 -----
+ src/cmd/oldlink/internal/wasm/obj.go               |   35 -
+ src/cmd/oldlink/internal/x86/asm.go                |  699 -----
+ src/cmd/oldlink/internal/x86/l.go                  |   43 -
+ src/cmd/oldlink/internal/x86/obj.go                |  113 -
+ src/cmd/oldlink/main.go                            |   71 -
+ src/cmd/pack/pack.go                               |  418 +--
+ src/cmd/pack/pack_test.go                          |   77 +-
+ src/debug/gosym/pclntab.go                         |  150 +-
+ src/debug/gosym/pclntab_test.go                    |   50 +
+ src/debug/gosym/testdata/pcln115.gz                |  Bin 0 -> 124875 bytes
+ src/net/http/http_test.go                          |    2 +-
+ src/runtime/runtime2.go                            |    6 +-
+ src/runtime/symtab.go                              |   28 +-
+ 221 files changed, 7875 insertions(+), 43456 deletions(-)

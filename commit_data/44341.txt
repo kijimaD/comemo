@@ -1,0 +1,18 @@
+commit 89eb2b55b9d128f0bd2bfada5d8b2bb115e1d6d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 16:58:24 2021 -0800
+
+    cmd/compile/internal/types2: review of issues_test.go
+    
+    The changes between (equivalent, and reviewed) go/types/issues_test.go
+    and issues_test.go can be seen by comparing patchset 1 and 3. The actual
+    change is just removing the "// UNREVIEWED" marker and making making
+    some minor code adjustments to match go/types's version more closely.
+    
+    Change-Id: I26f3f700d12db69fc68161a6b0dc081a0e9cd0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294473
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

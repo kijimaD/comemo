@@ -1,0 +1,17 @@
+commit 0b2da60fb8a5f883ee29fe794e4976df55fe902c
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Jul 18 09:25:59 2014 -0700
+
+    bufio: fix UnreadSlice followed by UnreadRune
+    
+    Also, fix a write check in writeBuf and make some bounds checks simpler.
+    
+    LGTM=gri
+    R=golang-codereviews, adg, gri, r, minux
+    CC=golang-codereviews
+    https://golang.org/cl/113060043
+
+ src/pkg/bufio/bufio.go      | 32 ++++++++++++++++----------------
+ src/pkg/bufio/bufio_test.go | 12 ++++++++++++
+ src/pkg/bufio/scan.go       |  5 +++--
+ 3 files changed, 31 insertions(+), 18 deletions(-)

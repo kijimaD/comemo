@@ -1,0 +1,12 @@
+commit b006cd9bb097c6b3a8cf7cebdb8067eef34957b1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 5 21:15:51 2013 +1100
+
+    cmd/go: avoid leaking timer if test process failed to start
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7034047
+
+ src/cmd/go/test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

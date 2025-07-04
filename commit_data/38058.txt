@@ -1,0 +1,24 @@
+commit da50e10c2e80e8c4f53a0bb1d20de57995abc7ca
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Feb 18 14:43:06 2019 +0530
+
+    go/doc: skip escaping comments in pre-formatted blocks
+    
+    CL 150377 made the change of converting smart quotes to their html escaped entities
+    for ToHTML, and to unicode quotes for ToText. But for ToText, the change
+    converted the quotes in pre-formatted text too.
+    
+    This fixes that behavior to not touch any text in pre-formatted blocks, which also
+    makes the behavior consistent with ToHTML.
+    
+    Fixes #29730
+    
+    Change-Id: I58e0216cbdbe189d06d82147e5a02b620af14734
+    Reviewed-on: https://go-review.googlesource.com/c/162922
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/comment.go      | 1 -
+ src/go/doc/comment_test.go | 8 ++++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 3eae1a905854fd9f4ebeeae406c4ebb88cbd779b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 15:29:25 2020 -0400
+
+    cmd/objdump: skip TestDisasmExtld on AIX
+    
+    Fixes #42025.
+    
+    Change-Id: I34bed3364902e37df24ed6f56cddf163c7a4dc52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263147
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

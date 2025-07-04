@@ -1,0 +1,16 @@
+commit 592dbb2d0a50ace6095c6d30e3d3d6c36991ab15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 17 18:41:35 2009 -0700
+
+    daily snapshot:
+    - first part of AST cleaned up and documented
+    - tons of related cleanups and adjustments
+    
+    R=r
+    OCL=26430
+    CL=26430
+
+ usr/gri/pretty/ast.go     | 268 +++++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/parser.go  | 268 +++++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/printer.go | 115 ++++++++++----------
+ 3 files changed, 399 insertions(+), 252 deletions(-)

@@ -1,0 +1,14 @@
+commit 28ce6f3600fd87a1ae39c492ee56307f0be3c32f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 28 19:32:29 2016 -0500
+
+    time: document Tick will return nil if d <= 0
+    
+    Fixes #14557.
+    
+    Change-Id: I9610b79aafe9c15f9c998739b586fd0b41b90d70
+    Reviewed-on: https://go-review.googlesource.com/20031
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/tick.go | 1 +
+ 1 file changed, 1 insertion(+)

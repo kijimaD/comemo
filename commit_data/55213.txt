@@ -1,0 +1,15 @@
+commit e418258993cc1a11816baf5d9004cea3b029ae7c
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue Dec 5 22:54:10 2023 +0000
+
+    doc: document new cmp.Or function
+    
+    Change-Id: I41ea06018daae2c929edc24a714007cede9296ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547756
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ doc/go1.22.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

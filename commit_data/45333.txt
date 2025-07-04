@@ -1,0 +1,15 @@
+commit b8fed48a9ae7e6229a4fdccf6aae7bc670f61aca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:38:20 2021 -0400
+
+    cmd/dist: enable cgo on windows/arm64
+    
+    Change-Id: I4d470e2af1bfb4fba004a6f3e00a163a575593da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312047
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ src/cmd/dist/test.go  | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

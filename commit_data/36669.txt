@@ -1,0 +1,15 @@
+commit 0670b28bf031c5f33ca9831ee894e67bcd79c64c
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sat Sep 15 17:06:08 2018 +0900
+
+    runtime: fix TODO comment filepath
+    
+    The cmd/compile/internal/ld/go.go file not exist, actually cmd/link/internal/ld/go.go.
+    Also, write line number is not good because it changes every commit of the file.
+    
+    Change-Id: Id2b9f2c9904390adb011dab357716ee8e2fe84fc
+    Reviewed-on: https://go-review.googlesource.com/135516
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

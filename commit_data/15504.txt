@@ -1,0 +1,15 @@
+commit 7ae41e80103674f5cbc3e76724729c248e62d65f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 28 13:32:36 2013 -0800
+
+    doc: correct some minor HTML errors found by tidy
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7439046
+
+ doc/contribute.html         | 2 +-
+ doc/debugging_with_gdb.html | 2 +-
+ doc/go1.1.html              | 4 ++--
+ doc/go_spec.html            | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

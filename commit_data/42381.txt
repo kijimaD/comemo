@@ -1,0 +1,34 @@
+commit c53b2bdb35c5339df35b53c8fbf34e5cbede081f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 14:14:11 2020 -0400
+
+    runtime: add a barrier after a new span is allocated
+    
+    When copying a stack, we
+    1. allocate a new stack,
+    2. adjust pointers pointing to the old stack to pointing to the
+       new stack.
+    
+    If the GC is running on another thread concurrently, on a machine
+    with weak memory model, the GC could observe the adjusted pointer
+    (e.g. through gp._defer which could be a special heap-to-stack
+    pointer), but not observe the publish of the new stack span. In
+    this case, the GC will see the adjusted pointer pointing to an
+    unallocated span, and throw. Fixing this by adding a publication
+    barrier between the allocation of the span and adjusting pointers.
+    
+    One testcase for this is TestDeferHeapAndStack in long mode. It
+    fails reliably on linux-mips64le-mengzhuo builder without the fix,
+    and passes reliably after the fix.
+    
+    Fixes #35541.
+    
+    Change-Id: I82b09b824fdf14be7336a9ee853f56dec1b13b90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234478
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 1f570787a804e2cbc44a3afc83d85c7564aeb394
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 2 10:06:44 2023 -0700
+
+    cmd/compile: enable reverse type inference
+    
+    For #59338.
+    
+    Change-Id: I8141d421cdc60e47ee5794fc1ca81246bd8a8a25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491475
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/irgen.go        |  5 ++--
+ src/cmd/compile/internal/types2/stdlib_test.go | 11 ++++++--
+ src/go/types/stdlib_test.go                    |  7 ++++-
+ test/fixedbugs/issue59338.go                   | 39 ++++++++++++++++++++++++++
+ 4 files changed, 56 insertions(+), 6 deletions(-)

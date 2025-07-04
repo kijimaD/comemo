@@ -1,0 +1,22 @@
+commit 0f57c88bce9899a91686646a1e9cd7aae55911ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 11:42:59 2022 -0400
+
+    misc/cgo/testsanitizers: buffer the signal channel in TestTSAN/tsan11
+    
+    This fix is analogous to the one in CL 407888.
+    
+    'go vet' catches the error, but it is not run on this file because the
+    file is (only) compiled when running testsanitizers/TestTSAN.
+    
+    Fixes #53113.
+    
+    Change-Id: I74f7b7390a9775ff00a06214c1019ba28846dd11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409094
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ misc/cgo/testsanitizers/testdata/tsan11.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

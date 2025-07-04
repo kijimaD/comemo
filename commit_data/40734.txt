@@ -1,0 +1,55 @@
+commit 64c9ee98b7684cf2156f620cbab4dbb6081b9771
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jul 28 20:16:14 2019 -0700
+
+    encoding/json: error when encoding a pointer cycle
+    
+    Otherwise we'd panic with a stack overflow.
+    
+    Most programs are in control of the data being encoded and can ensure
+    there are no cycles, but sometimes it's not that simple. For example,
+    running a user's html template with script tags can easily result in
+    crashes if the user can find a pointer cycle.
+    
+    Adding the checks via a map to every ptrEncoder.encode call slowed down
+    the benchmarks below by a noticeable 13%. Instead, only start doing the
+    relatively expensive pointer cycle checks if we're many levels of
+    pointers deep in an encode state.
+    
+    A threshold of 1000 is small enough to capture pointer cycles before
+    they're a problem (the goroutine stack limit is currently 1GB, and I
+    needed close to a million levels to reach it). Yet it's large enough
+    that reasonable uses of the json encoder only see a tiny 1% slow-down
+    due to the added ptrLevel field and check.
+    
+            name           old time/op    new time/op    delta
+            CodeEncoder-8    2.34ms ± 1%    2.37ms ± 0%  +1.05%  (p=0.000 n=10+10)
+            CodeMarshal-8    2.42ms ± 1%    2.44ms ± 0%  +1.10%  (p=0.000 n=10+10)
+    
+            name           old speed      new speed      delta
+            CodeEncoder-8   829MB/s ± 1%   820MB/s ± 0%  -1.04%  (p=0.000 n=10+10)
+            CodeMarshal-8   803MB/s ± 1%   795MB/s ± 0%  -1.09%  (p=0.000 n=10+10)
+    
+            name           old alloc/op   new alloc/op   delta
+            CodeEncoder-8    43.1kB ± 8%    42.5kB ±10%    ~     (p=0.989 n=10+10)
+            CodeMarshal-8    1.99MB ± 0%    1.99MB ± 0%    ~     (p=0.254 n=9+6)
+    
+            name           old allocs/op  new allocs/op  delta
+            CodeEncoder-8      0.00           0.00         ~     (all equal)
+            CodeMarshal-8      1.00 ± 0%      1.00 ± 0%    ~     (all equal)
+    
+    Finally, add a few tests to ensure that the code handles the edge cases
+    properly.
+    
+    Fixes #10769.
+    
+    Change-Id: I73d48e0cf6ea140127ea031f2dbae6e6a55e58b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187920
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/encoding/json/encode.go      | 29 +++++++++++++++++++++++++++--
+ src/encoding/json/encode_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 2 deletions(-)

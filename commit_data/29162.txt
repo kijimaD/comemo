@@ -1,0 +1,25 @@
+commit dd500193d3e96e6bc9700fd43fc68b55e662d7c1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 27 21:52:51 2016 -0400
+
+    runtime: fix preemption of fractional and idle mark workers
+    
+    Currently, gcDrain looks for the preemption flag at getg().preempt.
+    However, commit d6625ca moved mark worker draining to the system
+    stack, which means getg() returns the g0, which never has the preempt
+    flag set, so idle and fractional workers don't get preempted after
+    10ms and just run until they run out of work. As a result, if there's
+    enough idle time, GC becomes effectively STW.
+    
+    Fix this by looking for the preemption flag on getg().m.curg, which
+    will always be the user G (where the preempt flag is set), regardless
+    of whether gcDrain is running on the user or the g0 stack.
+    
+    Change-Id: Ib554cf49a705b86ccc3d08940bc869f868c50dd2
+    Reviewed-on: https://go-review.googlesource.com/32251
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

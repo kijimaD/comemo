@@ -1,0 +1,33 @@
+commit b7cb92ad12e6e988ad73313773e1ca229a333005
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 15 13:59:24 2021 -0400
+
+    cmd/go: remove renameio package and its last usage
+    
+    The last primary usage of renameio was the WriteFile in
+    modfetch.WriteDiskCache. Because it's not guaranteed that the fsync in
+    WriteDiskCache will eliminate file corruption, and it slows down tests
+    on Macs significantly, inline that last usage, removing the fsync.
+    
+    Also, remove the uses of renameio.Pattern. The ziphash file is no
+    longer written to a temporary location before being copied to its
+    final location, so that usage can just be cut. The remaining use is
+    for the zipfile . Remove the first because the files are no longer
+    written using the pattern anyway, so that the pattern variable has no
+    effect. Replace it with a local pattern variable that is also passed
+    to os.CreateTemp.
+    
+    Change-Id: Icf3adabf2a26c37b82afa1d07f821a46b30d69ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301889
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/cache.go         |  43 ++++++-
+ src/cmd/go/internal/modfetch/fetch.go         |  12 +-
+ src/cmd/go/internal/renameio/renameio.go      |  88 --------------
+ src/cmd/go/internal/renameio/renameio_test.go | 161 --------------------------
+ src/cmd/go/internal/renameio/umask_test.go    |  43 -------
+ 5 files changed, 45 insertions(+), 302 deletions(-)

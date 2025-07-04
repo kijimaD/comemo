@@ -1,0 +1,84 @@
+commit 4a8cb4a49c8bda0759dd3bc0c9fc6bdf5f6aa6b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 17:13:24 2014 -0400
+
+    math: avoid assumption of denormalized math mode in Sincos
+    
+    The extra-clever code in Sincos is trying to do
+    
+            if v&2 == 0 {
+                    mask = 0xffffffffffffffff
+            } else {
+                    mask = 0
+            }
+    
+    It does this by turning v&2 into a float64 X0 and then using
+    
+            MOVSD $0.0, X3
+            CMPSD X0, X3, 0
+    
+    That CMPSD is defined to behave like:
+    
+            if X0 == X3 {
+                    X3 = 0xffffffffffffffff
+            } else {
+                    X3 = 0
+            }
+    
+    which gives the desired mask in X3. The goal in using the
+    CMPSD was to avoid a conditional branch.
+    
+    This code fails when called from a PortAudio callback.
+    In particular, the failure behavior is exactly as if the
+    CMPSD always chose the 'true' execution.
+    
+    Notice that the comparison X0 == X3 is comparing as
+    floating point values the 64-bit pattern v&2 and the actual
+    floating point value zero. The only possible values for v&2
+    are 0x0000000000000000 (floating point zero)
+    and 0x0000000000000002 (floating point 1e-323, a denormal).
+    If they are both comparing equal to zero, I conclude that
+    in a PortAudio callback (whatever that means), the processor
+    is running in "denormals are zero" mode.
+    
+    I confirmed this by placing the processor into that mode
+    and running the test case in the bug; it produces the
+    incorrect output reported in the bug.
+    
+    In general, if a Go program changes the floating point math
+    modes to something other than what Go expects, the math
+    library is not going to work exactly as intended, so we might
+    be justified in not fixing this at all.
+    
+    However, it seems reasonable that the client code might
+    have expected "denormals are zero" mode to only affect
+    actual processing of denormals. This code has produced
+    what is in effect a gratuitous denormal by being extra clever.
+    There is nothing about the computation being requested
+    that fundamentally requires a denormal.
+    
+    It is also easy to do this computation in integer math instead:
+    
+            mask = ((v&2)>>1)-1
+    
+    Do that.
+    
+    For the record, the other math tests that fail if you put the
+    processor in "denormals are zero" mode are the tests for
+    Frexp, Ilogb, Ldexp, Logb, Log2, and FloatMinMax, but all
+    fail processing denormal inputs. Sincos was the only function
+    for which that mode causes incorrect behavior on non-denormal inputs.
+    
+    The existing tests check that the new assembly is correct.
+    There is no test for behavior in "denormals are zero" mode,
+    because I don't want to add assembly to change that.
+    
+    Fixes #8623.
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/151750043
+
+ src/math/sincos_amd64.s | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

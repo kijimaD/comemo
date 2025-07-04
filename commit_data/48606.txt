@@ -1,0 +1,18 @@
+commit b76f8df1334993cb5d43b2d883fdb0ed66b402f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 31 09:34:50 2022 -0700
+
+    test: update comments in run.go (cleanup)
+    
+    The -G compiler option doesn't exist anymore. Update some variable
+    names and comments to reflect the new reality.
+    
+    Change-Id: I227e9c59a01615c3a40c3869102e8045cb012980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397254
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/run.go | 41 +++++++++++++++++++----------------------
+ 1 file changed, 19 insertions(+), 22 deletions(-)

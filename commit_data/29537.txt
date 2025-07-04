@@ -1,0 +1,24 @@
+commit b687d6a7886fe7ffea0e36072c2a882c8c485838
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 16:50:15 2016 -0800
+
+    misc/cgo/testcarchive, misc/cgo/testcshared: sleep instead of sched_yield
+    
+    Apparently when GOMAXPROCS == 1 a simple sched_yield in a tight loop is
+    not necessarily sufficient to permit a signal handler to run. Instead,
+    sleep for 1/1000 of a second.
+    
+    Fixes #16649.
+    
+    Change-Id: I83910144228556e742b7a92a441732ef61aa49d9
+    Reviewed-on: https://go-review.googlesource.com/33239
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/main2.c |  7 ++++---
+ misc/cgo/testcarchive/main3.c | 14 ++++++++------
+ misc/cgo/testcarchive/main4.c | 15 +++++++++------
+ misc/cgo/testcshared/main4.c  |  7 ++++---
+ misc/cgo/testcshared/main5.c  | 14 ++++++++------
+ 5 files changed, 33 insertions(+), 24 deletions(-)

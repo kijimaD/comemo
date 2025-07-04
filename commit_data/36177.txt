@@ -1,0 +1,32 @@
+commit b7d3f4c0b2f421c6b7bf6ce3533f1b34b470b39d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 14:53:44 2018 -0400
+
+    cmd/doc: adapt directory search for modules
+    
+    Previously, cmd/doc treated GOROOT/src and GOPATH/src
+    as the roots of the directory trees holding packages, assuming
+    that the import path would be the path elements after the src directory.
+    
+    With modules, each module serves as its own root of a file tree,
+    and the import path prefix starts with the module path before
+    adding the path elements after the module root.
+    
+    There are ways we could make this more efficient,
+    but for now this is a fairly small adjustment to get 'go doc'
+    working OK for modules for Go 1.11.
+    
+    Fixes #26635.
+    
+    Change-Id: Ifdee4194601312846c7b1fc67f2fe7a4a44269cc
+    Reviewed-on: https://go-review.googlesource.com/126799
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/dirs.go                    | 125 ++++++++++++++++++++++++++-------
+ src/cmd/doc/doc_test.go                |   5 +-
+ src/cmd/doc/main.go                    |  21 ++++--
+ src/cmd/doc/pkg.go                     |  26 ++++++-
+ src/cmd/go/testdata/script/mod_doc.txt |  34 +++++++++
+ 5 files changed, 180 insertions(+), 31 deletions(-)

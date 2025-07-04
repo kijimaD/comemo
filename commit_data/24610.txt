@@ -1,0 +1,12 @@
+commit 3319ea98cd04789e4c16d8b96bf3ca59175c4841
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 10:04:23 2015 -0700
+
+    cmd/compile/internal/gc: fixed comments (cosmetic change)
+    
+    Change-Id: I9cbbfcf55ce3cccb6f14b9ffe6777567dcdad9c9
+    Reviewed-on: https://go-review.googlesource.com/16179
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

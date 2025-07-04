@@ -1,0 +1,24 @@
+commit 4c0a47a8ff74c5fe4366e1016250607943562569
+Author: Than McIntosh <thanm@golang.org>
+Date:   Wed Dec 11 19:20:58 2024 -0500
+
+    cmd/compile,cmd/link: move to DWARF5-style range lists
+    
+    This patch updates the compiler to generate DWARF5-style range lists
+    (e.g. entries that feed into .debug_rnglists) as opposed to
+    DWARF4-style range lists (which wind up in .debug_ranges). The DWARF5
+    format is much more compact, and can make indirect references to text
+    address via the .debug_addr section for further space savings.
+    
+    Updates #26379.
+    
+    Change-Id: I273a6283484b7fe33d79d5412e31c5155b22a7c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635345
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go      |  29 ++++++++
+ src/cmd/internal/dwarf/dwarf_defs.go |  13 ++++
+ src/cmd/link/internal/ld/dwarf.go    | 136 +++++++++++++++++++++++++----------
+ 3 files changed, 139 insertions(+), 39 deletions(-)

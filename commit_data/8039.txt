@@ -1,0 +1,41 @@
+commit 1bc84b7e18ae704483ab028bb2030970bbc0b2f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 9 09:44:20 2011 -0400
+
+    ld: 25% faster
+    
+    The ld time was dominated by symbol table processing, so
+      * increase hash table size
+      * emit fewer symbols in gc (just 1 per string, 1 per type)
+      * add read-only lookup to avoid creating spurious symbols
+      * add linked list to speed whole-table traversals
+    
+    Breaks dwarf generator (no idea why), so disable dwarf.
+    
+    Reduces time for 6l to link godoc by 25%.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4383047
+
+ src/cmd/5g/gobj.c    | 186 ++++++++++++---------------------------------------
+ src/cmd/5l/l.h       |   2 +-
+ src/cmd/6g/gobj.c    | 174 ++++++++++-------------------------------------
+ src/cmd/6l/asm.c     |  49 +++++++-------
+ src/cmd/6l/l.h       |   2 +-
+ src/cmd/6l/obj.c     |  18 ++---
+ src/cmd/8g/gobj.c    | 170 +++++++++-------------------------------------
+ src/cmd/8l/l.h       |   2 +-
+ src/cmd/gc/go.h      |   4 ++
+ src/cmd/gc/lex.c     |   3 -
+ src/cmd/gc/obj.c     |  54 +++++++++++++++
+ src/cmd/gc/reflect.c |  47 +++++++------
+ src/cmd/ld/data.c    |  22 +++---
+ src/cmd/ld/dwarf.c   |  10 +--
+ src/cmd/ld/elf.c     |  38 +++++------
+ src/cmd/ld/go.c      |  11 ++-
+ src/cmd/ld/lib.c     |  28 ++++++--
+ src/cmd/ld/lib.h     |   4 ++
+ src/cmd/ld/pe.c      |   8 +--
+ src/cmd/ld/symtab.c  |  32 +++------
+ 20 files changed, 303 insertions(+), 561 deletions(-)

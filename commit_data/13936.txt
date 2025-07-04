@@ -1,0 +1,17 @@
+commit 54af752865d4759eb49437904f3a2d04d3779cc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 15:53:12 2012 -0400
+
+    cmd/gc: fix escape analysis bug
+    
+    Was not handling &x.y[0] and &x.y.z correctly where
+    y is an array or struct-valued field (not a pointer).
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6551059
+
+ src/cmd/gc/esc.c |  8 +++++++-
+ test/escape2.go  | 18 ++++++++++++++++++
+ test/escape4.go  | 18 ++++++++++++++++++
+ 3 files changed, 43 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit eb86abaa36097971d1cd52c1479da246f2b49073
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 15 13:52:13 2017 -0700
+
+    cmd/compile: better error for malformed packages
+    
+    Fixes #14270.
+    
+    Change-Id: Iaf2496a24b1aba443391b90951cef472add73f13
+    Reviewed-on: https://go-review.googlesource.com/45950
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

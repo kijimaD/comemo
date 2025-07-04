@@ -1,0 +1,11 @@
+commit c0efa07c65ab85dee65d1de4adc225a12756ab63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 2 19:32:15 2009 -0800
+
+    updated documentation for gofmt
+    
+    R=rsc
+    https://golang.org/cl/164085
+
+ src/cmd/gofmt/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

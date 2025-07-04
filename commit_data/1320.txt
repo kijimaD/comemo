@@ -1,0 +1,12 @@
+commit a4459c55208e53a010a81f8421b9f10906e291d6
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 10 16:23:29 2008 -0800
+
+    bug
+    
+    R=r
+    OCL=20940
+    CL=20940
+
+ src/cmd/6g/obj.c | 3 +++
+ 1 file changed, 3 insertions(+)

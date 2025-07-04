@@ -1,0 +1,20 @@
+commit 9f3b00579eca946337d486776797b78aaf3bc55b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Aug 1 09:35:02 2012 +1000
+
+    exp/html: tokenize attributes of end tags
+    
+    If an end tag has an attribute that is a quoted string containing '>',
+    the tokenizer would end the tag prematurely. Now it reads the attributes
+    on end tags just as it does on start tags, but the high-level interface
+    still doesn't return them, because their presence is a parse error.
+    
+    Pass 1 additional test.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6457060
+
+ src/pkg/exp/html/testlogs/scriptdata01.dat.log |  2 +-
+ src/pkg/exp/html/token.go                      | 71 +++++++++++---------------
+ 2 files changed, 32 insertions(+), 41 deletions(-)

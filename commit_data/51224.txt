@@ -1,0 +1,18 @@
+commit ffc4496306a93a5d95abd6b1ec7bb81ca02c0026
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Nov 10 22:55:00 2022 +0800
+
+    cmd/compile: remove output registers limit for MUL/DIV on loong64
+    
+    This limitation exists on MIPS platform, but not on loong64.
+    
+    Change-Id: I14bb3ec6895a8f7850873c171e1756843ffea72e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449395
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 10 +++----
+ src/cmd/compile/internal/ssa/opGen.go           | 40 ++++++++++++++-----------
+ 2 files changed, 27 insertions(+), 23 deletions(-)

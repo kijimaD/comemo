@@ -1,0 +1,66 @@
+commit d9c989fa2512aa5ea7f571c212d3a7cf04e95549
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 13 16:20:22 2010 -0400
+
+    various: avoid %ld etc
+    
+    The Plan 9 tools assume that long is 32 bits.
+    We converted all instances of long to int32 when
+    importing the code but missed the print formats.
+    Because int32 is always int on the compilers we use,
+    it is never correct to use %lux, %ld, etc.  Convert to %ux, %d, etc.
+    
+    (It matters because on 64-bit gcc, long is 64 bits,
+    so we were printing 32-bit quantities with 64-bit formats.)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2491041
+
+ src/cmd/5c/list.c    | 16 ++++++++--------
+ src/cmd/5c/mul.c     |  4 ++--
+ src/cmd/5c/reg.c     | 10 +++++-----
+ src/cmd/5c/swt.c     | 12 ++++++------
+ src/cmd/5g/list.c    |  8 ++++----
+ src/cmd/5l/asm.c     | 18 +++++++++---------
+ src/cmd/5l/list.c    |  4 ++--
+ src/cmd/5l/obj.c     | 10 +++++-----
+ src/cmd/5l/pass.c    |  4 ++--
+ src/cmd/5l/span.c    |  4 ++--
+ src/cmd/5l/symtab.c  |  2 +-
+ src/cmd/5l/thumb.c   | 26 +++++++++++++-------------
+ src/cmd/6c/div.c     |  4 ++--
+ src/cmd/6c/mul.c     |  2 +-
+ src/cmd/6c/reg.c     | 12 ++++++------
+ src/cmd/6c/swt.c     |  2 +-
+ src/cmd/6g/list.c    | 10 +++++-----
+ src/cmd/6g/reg.c     | 20 ++++++++++----------
+ src/cmd/6l/asm.c     |  2 +-
+ src/cmd/6l/list.c    |  2 +-
+ src/cmd/6l/obj.c     | 12 ++++++------
+ src/cmd/6l/symtab.c  |  2 +-
+ src/cmd/8c/div.c     |  4 ++--
+ src/cmd/8c/mul.c     |  2 +-
+ src/cmd/8c/reg.c     | 10 +++++-----
+ src/cmd/8c/swt.c     |  8 ++++----
+ src/cmd/8g/gsubr.c   |  4 ++--
+ src/cmd/8g/list.c    |  6 +++---
+ src/cmd/8g/reg.c     | 18 +++++++++---------
+ src/cmd/8l/asm.c     |  6 +++---
+ src/cmd/8l/list.c    | 24 ++++++++++++------------
+ src/cmd/8l/obj.c     | 16 ++++++++--------
+ src/cmd/8l/span.c    |  4 ++--
+ src/cmd/8l/symtab.c  |  8 ++++----
+ src/cmd/cc/acid.c    | 12 ++++++------
+ src/cmd/cc/dcl.c     | 10 +++++-----
+ src/cmd/cc/dpchk.c   | 12 ++++++------
+ src/cmd/cc/lex.c     |  8 ++++----
+ src/cmd/cc/pickle.c  | 10 +++++-----
+ src/cmd/cc/pswt.c    |  2 +-
+ src/cmd/cc/sub.c     |  8 ++++----
+ src/cmd/cov/main.c   |  2 +-
+ src/cmd/gc/closure.c |  2 +-
+ src/cmd/gc/subr.c    | 16 ++++++++--------
+ src/cmd/ld/lib.c     | 14 +++++++-------
+ src/cmd/nm/nm.c      |  2 +-
+ 46 files changed, 197 insertions(+), 197 deletions(-)

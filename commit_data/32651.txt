@@ -1,0 +1,31 @@
+commit 401609c3ff0da3d7bbf78f5034c87ef5c4640792
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 13:00:19 2017 +0200
+
+    cmd/dist: move functions for the better
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (6).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I1c49e3427079194210a6416057100a7e94a37619
+    Reviewed-on: https://go-review.googlesource.com/61012
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go |  18 -----
+ src/cmd/dist/main.go  | 177 +++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/dist/util.go  | 158 +++++++++++---------------------------------
+ 3 files changed, 177 insertions(+), 176 deletions(-)

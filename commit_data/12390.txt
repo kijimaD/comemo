@@ -1,0 +1,20 @@
+commit 6e3a7930eb0fd16c10df1d12cf386b50e9dbb75e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 16:13:33 2012 -0500
+
+    cmd/gc: if $GOROOT_FINAL is set, rewrite file names in object files
+    
+    GOROOT_FINAL is a build parameter that means "eventually
+    the Go tree will be installed here".  Make the file name information
+    match that eventual location.
+    
+    Fixes #3180.
+    
+    R=ken, ken
+    CC=golang-dev
+    https://golang.org/cl/5742043
+
+ src/cmd/dist/build.c |  3 +++
+ src/cmd/gc/obj.c     | 32 +++++++++++++++++++++++++++++++-
+ test/run             |  2 ++
+ 3 files changed, 36 insertions(+), 1 deletion(-)

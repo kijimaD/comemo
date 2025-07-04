@@ -1,0 +1,19 @@
+commit e5da468c51ad13a08730dc7890311915eefd2199
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Fri Aug 21 08:01:01 2020 +0000
+
+    net/http: use iotest.ErrReader in tests
+    
+    Updates #38781
+    
+    Change-Id: I16a66904167ca4c0e916619b4da1dd23795b3ab2
+    GitHub-Last-Rev: 45054235a009cf776030bc951ba9a2a2a02c13e9
+    GitHub-Pull-Request: golang/go#40864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249037
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/requestwrite_test.go | 5 +++--
+ src/net/http/transport_test.go    | 9 ++-------
+ 2 files changed, 5 insertions(+), 9 deletions(-)

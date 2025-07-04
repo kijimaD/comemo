@@ -1,0 +1,26 @@
+commit 1f0ef6bec73e972d15e1c44307558a8263f81ea4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 25 22:51:21 2022 +0000
+
+    runtime: cancel mark and scavenge assists if the limiter is enabled
+    
+    This change forces mark and scavenge assists to be cancelled early if
+    the limiter is enabled. This avoids goroutines getting stuck in really
+    long assists if the limiter happens to be disabled when they first come
+    into the assist. This can get especially bad for mark assists, which, in
+    dire situations, can end up "owing" the GC a really significant debt.
+    
+    For #52890.
+    
+    Change-Id: I4bfaa76b8de3e167d49d2ffd8bc2127b87ea566a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408816
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go | 2 +-
+ src/runtime/mgcmark.go     | 4 +++-
+ src/runtime/mgcscavenge.go | 7 +++++--
+ src/runtime/mheap.go       | 6 ++++--
+ 4 files changed, 13 insertions(+), 6 deletions(-)

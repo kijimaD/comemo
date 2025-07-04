@@ -1,0 +1,17 @@
+commit 8076f21e8ea9cd3fc7d0fd23b2262fce662e4bde
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Apr 7 11:00:07 2014 +0400
+
+    net: fix data race in benchmark
+    If an error happens on a connection, server goroutine can call b.Logf
+    after benchmark finishes.
+    So join both client and server goroutines.
+    Update #7718
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/84750047
+
+ src/pkg/net/tcp_test.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,22 @@
+commit 763bd58b19a3aea9760cb8c8326dabf78653db68
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Sun Apr 5 16:12:05 2020 -0600
+
+    cmd/compile: restore missing columns in ssa.html
+    
+    If the final pass(es) are identical during ssa.html generation,
+    they are persisted in-memory as "pendingPhases" but never get
+    written as a column in the html. This change flushes those
+    in-memory phases.
+    
+    Fixes #38242
+    
+    Change-Id: Id13477dcbe7b419a818bb457861b2422ba5ef4bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227182
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go |  5 +++++
+ src/cmd/compile/internal/ssa/html.go    | 22 ++++++++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 4da805159244796e6c0b7ce7434307f66d8c1aa2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 21 20:43:08 2017 +0000
+
+    net: skip Windows test using getmac if getmac cmdlet not available
+    
+    This doesn't appear to be present on Windows Server 2012 or 2016:
+    
+    https://build.golang.org/log/6ea21b99c9b8a2be20f9aeaec6c425b84faf1af7
+    https://build.golang.org/log/2bcf04f1df003577352f4f987a39a59a081094ee
+    
+    Updates golang/go#17513
+    Updates golang/go#20073
+    
+    Change-Id: I72820704b4cb16bb1720b7f6a9f2e10028c71334
+    Reviewed-on: https://go-review.googlesource.com/41395
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/net_windows_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

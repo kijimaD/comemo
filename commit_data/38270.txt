@@ -1,0 +1,51 @@
+commit 4a9064ef41ccc65454564536f40cf7d5a00db8ad
+Author: Keith Randall <khr@google.com>
+Date:   Tue Mar 5 17:42:48 2019 -0800
+
+    cmd/compile: fix ordering for short-circuiting ops
+    
+    Make sure the side effects inside short-circuited operations (&& and ||)
+    happen correctly.
+    
+    Before this CL, we attached the side effects to the node itself using
+    exprInPlace. That caused other side effects in sibling expressions
+    to get reordered with respect to the short circuit side effect.
+    
+    Instead, rewrite a && b like:
+    
+    r := a
+    if r {
+      r = b
+    }
+    
+    That code we can keep correctly ordered with respect to other
+    side-effects extracted from part of a big expression.
+    
+    exprInPlace seems generally unsafe. But this was the only case where
+    exprInPlace is called not at the top level of an expression, so I
+    don't think the other uses can actually trigger an issue (there can't
+    be a sibling expression). TODO: maybe those cases don't need "in
+    place", and we can retire that function generally.
+    
+    This CL needed a small tweak to the SSA generation of OIF so that the
+    short circuit optimization still triggers. The short circuit optimization
+    looks for triangle but not diamonds, so don't bother allocating a block
+    if it will be empty.
+    
+    Go 1 benchmarks are in the noise.
+    
+    Fixes #30566
+    
+    Change-Id: I19c04296bea63cbd6ad05f87a63b005029123610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165617
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/order.go | 40 +++++++++++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/ssa.go   | 24 ++++++++++++++--------
+ test/checkbce.go                     |  4 +---
+ test/fixedbugs/issue30566a.go        | 23 +++++++++++++++++++++
+ test/fixedbugs/issue30566b.go        | 27 ++++++++++++++++++++++++
+ test/live.go                         |  9 ++++----
+ 6 files changed, 104 insertions(+), 23 deletions(-)

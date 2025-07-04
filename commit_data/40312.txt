@@ -1,0 +1,20 @@
+commit 6a24de92a21f1762a61fbff171d26957b6dcee53
+Author: Umang Parmar <umangjparmar@gmail.com>
+Date:   Sun Oct 20 11:34:23 2019 +0000
+
+    cmd/go: allow passing -U flag in cgo CFLAGS
+    
+    Fixes #34730
+    
+    Change-Id: I2a16bbbd7af386e0abf59e1cc4b7d6e4ca3047c6
+    GitHub-Last-Rev: 096ff5a59ace36ac6ed5a0c87b4eef061be6b937
+    GitHub-Pull-Request: golang/go#34899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201039
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go                        | 2 +-
+ src/cmd/go/internal/work/security.go      | 3 +++
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 3 files changed, 6 insertions(+), 1 deletion(-)

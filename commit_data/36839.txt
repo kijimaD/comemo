@@ -1,0 +1,30 @@
+commit c216c3aa9fe34cd81e9d4bcc28c64257064eddc9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 17 15:42:19 2018 -0400
+
+    runtime: fix race between unminit and Windows profile loop
+    
+    Currently, the Windows profile loop isn't robust against racing with
+    unminit. For example,
+    
+    T1 is running profileloop1, T2 is another thread
+    T1: thread := atomic.Loaduintptr(&T2.thread)
+    T2: calls unminit, which does CloseHandle(T2.thread)
+    T1: attempts to suspends T2
+    
+    In this case the SuspendThread will fail, but currently we ignore this
+    failure and forge ahead, which will cause further failures and
+    probably bad profile data.
+    
+    Handle this race by defending against SuspendThread failing. If
+    SuspendThread succeeds, then we know the thread is no longer going
+    anywhere.
+    
+    Change-Id: I4726553239b17f05ca07a0cf7df49631e0cb550d
+    Reviewed-on: https://go-review.googlesource.com/c/129685
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

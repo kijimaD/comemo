@@ -1,0 +1,18 @@
+commit 065c5d220e802e85d410a5e6adba0819ab71aeda
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Mar 8 16:23:36 2024 -0500
+
+    cmd/go: check checkCounters counter read only on supported platforms
+    
+    Telemetry counters writing is disabled on certain platforms.
+    See x/telemetry/internal/telemetry.DisabledOnPlatform.
+    
+    For #66205
+    
+    Change-Id: I833e15ae33fb27e09d67fc77b921498476237176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570196
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/script_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit b8526a83804fa3e75ee3fc2a3a55f27791f6bd8f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 16:40:50 2015 -0400
+
+    runtime: steal the correct amount of GC assist credit
+    
+    GC assists are supposed to steal at most the amount of background GC
+    credit available so that background GC credit doesn't go negative.
+    However, they are instead stealing the *total* amount of their debt
+    but only claiming up to the amount of credit that was available. This
+    results in draining the background GC credit pool too quickly, which
+    results in unnecessary assist work.
+    
+    The fix is trivial: steal the amount of work we meant to steal (which
+    is already computed).
+    
+    Change-Id: I837fe60ed515ba91c6baf363248069734a7895ef
+    Reviewed-on: https://go-review.googlesource.com/12643
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

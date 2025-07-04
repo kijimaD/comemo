@@ -1,0 +1,16 @@
+commit ed2fce2d87ea9aae2e6fcc11610fb64f72e5377e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Jan 7 10:22:42 2019 +0100
+
+    cmd/link: support dwarf64 when writing .debug_frame
+    
+    Fixes #28558
+    
+    Change-Id: I0ecd9c47fb017cf4bd44725a83a0016c7bb94633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156478
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

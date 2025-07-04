@@ -1,0 +1,13 @@
+commit d04ac4b0b74ff7fdb42d9578ddb3f25d15f5b477
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 22 04:00:54 2013 +0800
+
+    cmd/ld: portability fixes
+    fix code that implicitly assumes little-endian machines.
+    
+    R=golang-dev, bradfitz, rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6792043
+
+ src/cmd/ld/ldpe.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

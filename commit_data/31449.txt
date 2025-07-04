@@ -1,0 +1,19 @@
+commit 320aabbada08d72d19d190e523bb31874a61471a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Apr 29 11:50:34 2017 -0600
+
+    cmd/compile: add test for blank field in composite literal
+    
+    Updates #18089.
+    
+    Test for that issue; it was inadvertently fixed
+    by CL 34988. Ensure that we don't regress on the fix.
+    
+    Change-Id: Icb85fc20dbb0a47f028f088281319b552b16759d
+    Reviewed-on: https://go-review.googlesource.com/42173
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue18089.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

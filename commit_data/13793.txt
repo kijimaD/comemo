@@ -1,0 +1,18 @@
+commit b19c32acce20c9e7ef54111bfecae97f0906fa1a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 11 14:40:08 2012 +1000
+
+    strings: more thorough Replacer tests.
+    
+    This verifies existing behavior. Some replacements are arguably wrong
+    (these are marked with TODO) but changing behavior is left for a
+    follow-up CL.
+    
+    Also fix that BenchmarkGenericMatch wasn't actually matching anything.
+    
+    R=rsc, eric.d.eisner
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6488110
+
+ src/pkg/strings/replace_test.go | 319 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 259 insertions(+), 60 deletions(-)

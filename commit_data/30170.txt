@@ -1,0 +1,14 @@
+commit 3a6842a0ecf66cf06ce4f0a5fcb9c09fbfdbecc1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 12:32:33 2017 +0900
+
+    database/sql: replace the expr of timeunit * N with N * timeunit in test
+    
+    Change-Id: I97981b30a9629916f896cb989cc2a42a8bdbef47
+    Reviewed-on: https://go-review.googlesource.com/36672
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,24 @@
+commit 89a2a8c8df6f494dc75dd6a44dcd8ad1eccf1a20
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 23:47:03 2013 -0500
+
+    cmd/go, testing: revise docs for test flags
+    
+    In cmd/go's 'go help testflag':
+    * Rewrite list of flags to drop test. prefix on every name.
+    * Sort list of flags.
+    * Add example of using -bench to match all benchmarks.
+    
+    In testing:
+    * Remove mention of undefined 'CPU group' concept.
+    
+    Fixes #4488.
+    Fixes #4508.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7288053
+
+ src/cmd/go/test.go         | 87 +++++++++++++++++++++++++---------------------
+ src/pkg/testing/testing.go |  2 +-
+ 2 files changed, 48 insertions(+), 41 deletions(-)

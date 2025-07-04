@@ -1,0 +1,56 @@
+commit 983f06bdb657d1abf79effc1454f8c94754363aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:31:31 2008 -0700
+
+    update code to follow new semicolon rules:
+    
+     *  1. all statements and declarations are terminated by semicolons
+     *  2. semicolons can be omitted at top level.
+     *  3. semicolons can be omitted before and after the closing ) or }
+     *      on a list of statements or declarations.
+    
+    /home/rsc/bin/addsemi and then diff+tweak.
+    
+    R=r,gri
+    OCL=16620
+    CL=16643
+
+ src/lib/bufio.go                 |  78 +++++++--------
+ src/lib/flag.go                  |  12 +--
+ src/lib/io.go                    |   4 +-
+ src/lib/net/fd.go                |  52 +++++-----
+ src/lib/net/fd_darwin.go         |   8 +-
+ src/lib/net/fd_linux.go          |  30 +++---
+ src/lib/net/ip.go                |  50 +++++-----
+ src/lib/net/net.go               | 102 +++++++++----------
+ src/lib/net/net_darwin.go        |  12 +--
+ src/lib/net/net_linux.go         |  12 +--
+ src/lib/once.go                  |   6 +-
+ src/lib/os/os_error.go           |   4 +-
+ src/lib/os/os_file.go            |   2 +-
+ src/lib/os/os_time.go            |   2 +-
+ src/lib/rand.go                  |   4 +-
+ src/lib/syscall/errstr_darwin.go | 206 +++++++++++++++++++--------------------
+ src/lib/syscall/file_darwin.go   |   2 +-
+ src/lib/syscall/file_linux.go    |   2 +-
+ src/lib/syscall/socket_darwin.go |   6 +-
+ src/lib/syscall/socket_linux.go  |  10 +-
+ src/lib/time/time.go             |  50 +++++-----
+ src/lib/time/zoneinfo.go         |  54 +++++-----
+ test/bufiolib.go                 |  70 ++++++-------
+ test/bugs/bug102.go              |   2 +-
+ test/bugs/bug111.go              |   2 +-
+ test/chan/powser1.go             |   8 +-
+ test/chan/sieve.go               |   4 +-
+ test/dialgoogle.go               |  10 +-
+ test/fixedbugs/bug055.go         |  12 +--
+ test/fixedbugs/bug067.go         |   2 +-
+ test/ken/chan.go                 |   2 +-
+ test/ken/rob2.go                 |   2 +-
+ test/method.go                   |   2 +-
+ test/readfile.go                 |   4 +-
+ test/sieve.go                    |   2 +-
+ test/tcpserver.go                |   2 +-
+ test/timelib.go                  |   4 +-
+ usr/gri/gosrc/compilation.go     |  24 ++---
+ 38 files changed, 430 insertions(+), 430 deletions(-)

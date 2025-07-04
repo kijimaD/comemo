@@ -1,0 +1,16 @@
+commit 723479bc30f998f29ecbba7caea118ac4e2c9afd
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Aug 3 02:08:43 2018 +0200
+
+    cmd/go: add graphviz output to graph command
+    
+    This allows to quickly visual inspect dependencies.
+    
+    Change-Id: Ice326ec69d7d57720f608b04cdf3ece153b8c5f1
+    Reviewed-on: https://go-review.googlesource.com/127599
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/graph.go | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

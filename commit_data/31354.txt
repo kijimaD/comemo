@@ -1,0 +1,17 @@
+commit 2fb2ebc32ee37a66e3d6a77ff9450665153a604c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 08:51:52 2017 -0700
+
+    cmd/compile: make node.hasVal into two bools
+    
+    In addition to being more compact,
+    this makes the code a lot clearer.
+    
+    Change-Id: Ibcb70526c2e5913dcf34904fda194e3585228c3f
+    Reviewed-on: https://go-review.googlesource.com/41761
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

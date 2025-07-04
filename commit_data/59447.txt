@@ -1,0 +1,18 @@
+commit cad1fc52076f1368d79aa833c1810ae050df57e6
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed May 7 16:46:47 2025 -0400
+
+    cmd/compile/internal/noder: begin a formal UIR grammar.
+    
+    The UIR export data format can be reasonably expressed using EBNF.
+    The noder owns the definition of the export data format, so this
+    seems like a reasonable place to put this.
+    
+    Change-Id: I0205ab29a3c5e57d670d7fd3164a8bd604ab8e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670616
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/noder/doc.go | 37 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

@@ -1,0 +1,45 @@
+commit 7557a24927080557fc9baec62786e8c1d1aaa4b5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 30 16:54:12 2024 +0200
+
+    crypto/internal/fips/sha3: import x/crypto/sha3@750a45fe5e4
+    
+    For now just internally, pending a dedicated proposal for the exposed
+    package API.
+    
+    In this CL the code is copied verbatim, for ease of review. Only the
+    imports were replaced with the corresponding internal ones, and
+    crypto.RegisterHash calls were disabled. Also, the 0.5MB keccakkats file
+    was dropped, supplanted by TestCSHAKEAccumulated and ACVP tests.
+    
+    Updates #65269
+    Updates #69982
+    For #69536
+    
+    Change-Id: Ia4735b50c99b9573a5c4889733c4a119930fe658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616717
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/crypto/internal/fips/sha3/_asm/go.mod          |   15 +
+ src/crypto/internal/fips/sha3/_asm/go.sum          |   12 +
+ .../internal/fips/sha3/_asm/keccakf_amd64_asm.go   |  438 ++
+ src/crypto/internal/fips/sha3/allocations_test.go  |   60 +
+ src/crypto/internal/fips/sha3/doc.go               |   66 +
+ src/crypto/internal/fips/sha3/hashes.go            |  125 +
+ src/crypto/internal/fips/sha3/hashes_noasm.go      |   23 +
+ src/crypto/internal/fips/sha3/keccakf.go           |  414 ++
+ src/crypto/internal/fips/sha3/keccakf_amd64.go     |   13 +
+ src/crypto/internal/fips/sha3/keccakf_amd64.s      | 5419 ++++++++++++++++++++
+ src/crypto/internal/fips/sha3/sha3.go              |  243 +
+ src/crypto/internal/fips/sha3/sha3_s390x.go        |  302 ++
+ src/crypto/internal/fips/sha3/sha3_s390x.s         |   33 +
+ src/crypto/internal/fips/sha3/sha3_test.go         |  552 ++
+ src/crypto/internal/fips/sha3/shake.go             |  193 +
+ src/crypto/internal/fips/sha3/shake_noasm.go       |   15 +
+ .../fips/sha3/testdata/keccakKats.json.deflate     |  Bin 0 -> 540828 bytes
+ src/go/build/deps_test.go                          |    1 +
+ 18 files changed, 7924 insertions(+)

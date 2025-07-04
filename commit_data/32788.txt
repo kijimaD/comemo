@@ -1,0 +1,18 @@
+commit 475df0ebccaf0871c86b2c0b55ee841aede324b7
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Sep 12 13:53:55 2017 -0500
+
+    cmd/compile/internal/gc: better inliner diagnostics
+    
+    When debugging inliner with -m -m print cost of complex functions,
+    instead of simple "function too complex". This helps to understand,
+    how close to inlining is this particular function.
+    
+    Change-Id: I6871f69b5b914d23fd0b43a24d7c6fc928f4b716
+    Reviewed-on: https://go-review.googlesource.com/63330
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

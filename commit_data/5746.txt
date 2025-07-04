@@ -1,0 +1,12 @@
+commit 040f08184294daee78bea0d193aea945b1835be9
+Author: Daniel Fleischman <danielfleischman@gmail.com>
+Date:   Wed Jun 30 19:57:26 2010 -0700
+
+    template: fix typo in doc comment
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1665047
+
+ src/pkg/template/template.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

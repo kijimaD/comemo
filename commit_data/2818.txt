@@ -1,0 +1,13 @@
+commit 6b8ba5d8fc8125d2c6a0ead44884d8f5a650999c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 11:47:11 2009 -0700
+
+    quietgcc: do not use -m64 on 32-bit machines
+    
+    R=r
+    DELTA=9  (8 added, 0 deleted, 1 changed)
+    OCL=32413
+    CL=32418
+
+ src/quietgcc.bash | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

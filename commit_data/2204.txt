@@ -1,0 +1,13 @@
+commit 7cf30cd49ee9ed8fd04604696e298d9c250d5bf2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 13 18:05:27 2009 -0700
+
+    bug150
+    
+    R=ken
+    OCL=28785
+    CL=28785
+
+ test/bugs/bug150.go | 23 +++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 27 insertions(+)

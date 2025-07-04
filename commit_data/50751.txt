@@ -1,0 +1,23 @@
+commit 826efd7f25f789ab06f257eee19f02b1dc6c8a09
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 23 11:02:41 2022 +0700
+
+    internal/singleflight: fix duplicate deleting key when ForgetUnshared called
+    
+    A key may be forgotten while the call is still in flight. So when the
+    call finished, it should only delete the key if that key is associated
+    with the call. Otherwise, we may remove the wrong newly created call.
+    
+    Fixes #55343
+    
+    Change-Id: I4fa72d79cad006e5884e42d885d193641ef84e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433315
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/singleflight/singleflight.go      |  4 +-
+ src/internal/singleflight/singleflight_test.go | 56 ++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

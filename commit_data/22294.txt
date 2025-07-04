@@ -1,0 +1,22 @@
+commit ca0adeddd5515a02b76f30e5b72eb202c65f5f2f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 3 12:43:43 2015 -0400
+
+    cmd/7g: reserve registers R26 to R32
+    
+    These registers are not available for programs to use. Prior to this
+    change, the compiler would crash attempting to use ZR as a general
+    purpose register. Other programs would compile but on execution would
+    overwrite the G register and cause havoc.
+    
+    Fixes linux/arm64 build.
+    Fixes #10304
+    Fixes #10320
+    
+    Change-Id: I5cf51d3b77cfe3db7dd6377324950cafb02f8d8b
+    Reviewed-on: https://go-review.googlesource.com/8456
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/7g/reg.go            |  5 ++++
+ test/fixedbugs/issue10320.go | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

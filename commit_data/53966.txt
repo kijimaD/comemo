@@ -1,0 +1,30 @@
+commit b888ec4ac3715b3b8d153f697ce35f932b33cf67
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 29 15:37:26 2023 -0400
+
+    cmd/compile/internal/inline: add framework to compute func "properties"
+    
+    Add some machinery to support computing function "properties" for use
+    in driving inlining heuristics, and a unit testing framework to check
+    to see if the property computations are correct for a given set of
+    canned Go source files. This CL is mainly the analysis skeleton and a
+    testing framework; the code to compute the actual props will arrive in
+    a later patch.
+    
+    Updates #61502.
+    
+    Change-Id: I7970b64f713d17d7fdd7e8e9ccc7d9b0490571bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511557
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/inline/inl.go             |   9 +
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 168 ++++++++
+ .../internal/inline/inlheur/funcprops_test.go      | 462 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/README.txt       |  75 ++++
+ .../internal/inline/inlheur/testdata/props/stub.go | 107 +++++
+ .../compile/internal/inline/inlheur/trace_off.go   |  15 +
+ .../compile/internal/inline/inlheur/trace_on.go    |  17 +
+ 8 files changed, 854 insertions(+)

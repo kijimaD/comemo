@@ -1,0 +1,118 @@
+commit 5a9ad8b9e3a5835c3dc051fff97c1d81844260f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 6 14:23:18 2010 -0800
+
+            go/ast: use token.Pos instead of token.Position; adjust all dependent code
+    
+            Specifically:
+    
+            * lib/godoc:
+            - provide file set (FSet) argument to formatters where needed
+    
+            * src/cmd:
+            - cgo, ebnflint, godoc, gofmt, goinstall: provide file set (fset) where needed
+            - godoc: remove local binary search with sort.Search (change by rsc),
+              extract file set for formatters
+    
+            * src/pkg:
+            - exp/eval: remove embedded token.Position fields from nodes and replace
+              with named token.Pos fields; add corresponding Pos() accessor methods
+            - go/token: added file.Line(), changed signature of File.Position()
+    
+            * test/fixedbugs/:
+            - bug206.go: change test to not rely on token.Pos details
+    
+            * added various extra comments
+            * Runs all.bash
+            * gofmt formats all of src, misc w/o changes
+            * godoc runs
+    
+            * performance:
+            - The new version of godoc consumes about the same space after indexing
+              has completed, but indexing is half the speed. Significant space savings
+              are expected from smaller ASTs, but since they are thrown away after a
+              file has been indexed, this is not visible anymore. The slower indexing
+              time is due to the much more expensive computation of line information.
+              However, with the new compressed position information, indexing can be
+              rewritten and simplified. Furthermore, computing the line info can be
+              done more efficiently.
+    
+            New godoc, immediately after indexing completed (best of three runs):
+    
+              PID COMMAND      %CPU   TIME   #TH #PRTS #MREGS RPRVT  RSHRD  RSIZE  VSIZE
+            44381 godoc        0.0%  0:38.00   4    19    149  145M   184K   148M   176M
+    
+            2010/12/03 17:58:35 index updated (39.231s, 18505 unique words, 386387 spots)
+            2010/12/03 17:58:35 bytes=90858456 footprint=199182584
+            2010/12/03 17:58:36 bytes=47858568 footprint=167295224
+    
+            Old godoc, immediately after indexing completed (best of three runs):
+    
+              PID COMMAND      %CPU   TIME   #TH #PRTS #MREGS RPRVT  RSHRD  RSIZE  VSIZE
+            23167 godoc        0.0%  0:22.02   4    17    132  129M   184K   132M   173M
+    
+            2010/12/03 14:51:32 index updated (24.892s, 18765 unique words, 393830 spots)
+            2010/12/03 14:51:32 bytes=66404528 footprint=163907832
+            2010/12/03 14:51:32 bytes=46282224 footprint=163907832
+    
+            The different numbers for unique words/spots stem from the fact the the
+            two workspaces are not exactly identical. The new godoc maintains a large
+            file set data structure during indexing which (probably) is the reason
+            for the larger heap (90858456 vs 66404528) before garbage collection.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3050041
+
+ lib/godoc/package.html                     |  34 ++--
+ lib/godoc/package.txt                      |  16 +-
+ src/cmd/cgo/ast.go                         |   7 +-
+ src/cmd/cgo/gcc.go                         |   6 +-
+ src/cmd/cgo/main.go                        |  10 +-
+ src/cmd/cgo/out.go                         |  14 +-
+ src/cmd/cgo/util.go                        |   5 +-
+ src/cmd/ebnflint/ebnflint.go               |   6 +-
+ src/cmd/godoc/dirtrees.go                  |  11 +-
+ src/cmd/godoc/godoc.go                     |  89 ++++-----
+ src/cmd/godoc/index.go                     |  19 +-
+ src/cmd/godoc/main.go                      |   2 +-
+ src/cmd/godoc/snippet.go                   |  23 +--
+ src/cmd/godoc/spec.go                      |  33 ++--
+ src/cmd/gofmt/gofmt.go                     |   6 +-
+ src/cmd/gofmt/rewrite.go                   |   4 +-
+ src/cmd/goinstall/main.go                  |   2 +
+ src/cmd/goinstall/parse.go                 |   2 +-
+ src/pkg/ebnf/ebnf.go                       |  75 ++++----
+ src/pkg/ebnf/ebnf_test.go                  |   8 +-
+ src/pkg/ebnf/parser.go                     |  34 ++--
+ src/pkg/exp/datafmt/datafmt_test.go        |   6 +-
+ src/pkg/exp/datafmt/parser.go              |  38 ++--
+ src/pkg/exp/eval/bridge.go                 |   2 +-
+ src/pkg/exp/eval/compiler.go               |  14 +-
+ src/pkg/exp/eval/eval_test.go              |   6 +-
+ src/pkg/exp/eval/expr.go                   |  24 +--
+ src/pkg/exp/eval/main.go                   |  12 +-
+ src/pkg/exp/eval/scope.go                  |  28 ++-
+ src/pkg/exp/eval/stmt.go                   |  41 ++--
+ src/pkg/exp/eval/type.go                   |  16 +-
+ src/pkg/exp/eval/typec.go                  |  44 ++---
+ src/pkg/exp/eval/world.go                  |  33 ++--
+ src/pkg/exp/ogle/cmd.go                    |   8 +-
+ src/pkg/go/ast/ast.go                      | 296 ++++++++++++++---------------
+ src/pkg/go/ast/filter.go                   |  33 +---
+ src/pkg/go/doc/doc.go                      |   5 +-
+ src/pkg/go/parser/interface.go             |  41 ++--
+ src/pkg/go/parser/parser.go                |  67 ++++---
+ src/pkg/go/parser/parser_test.go           |  11 +-
+ src/pkg/go/printer/nodes.go                |  67 +++----
+ src/pkg/go/printer/printer.go              |  27 +--
+ src/pkg/go/printer/printer_test.go         |   8 +-
+ src/pkg/go/scanner/scanner.go              | 125 ++++++------
+ src/pkg/go/scanner/scanner_test.go         |  47 +++--
+ src/pkg/go/token/position.go               |  31 ++-
+ src/pkg/go/token/position_test.go          |   4 +-
+ src/pkg/go/typechecker/scope.go            |   2 +-
+ src/pkg/go/typechecker/typechecker.go      |  15 +-
+ src/pkg/go/typechecker/typechecker_test.go |  12 +-
+ test/fixedbugs/bug206.go                   |   4 +-
+ 51 files changed, 782 insertions(+), 691 deletions(-)

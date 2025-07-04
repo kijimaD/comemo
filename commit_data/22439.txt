@@ -1,0 +1,17 @@
+commit 84efd6fc746d2348fa4fe5693479f02b9ec855fb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:17:47 2015 -0400
+
+    os: adjust working dir for darwin/arm64 tests
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ib64a3e8ff11249a20b0208bd3b900db318c682b7
+    Reviewed-on: https://go-review.googlesource.com/8817
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go   | 68 +++++++++++++++++++++++------------------------------
+ src/os/path_test.go |  3 ++-
+ 2 files changed, 32 insertions(+), 39 deletions(-)

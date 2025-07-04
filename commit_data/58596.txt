@@ -1,0 +1,17 @@
+commit bdc2d856a872f42705b3a7045c3420031efa4af7
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Tue Jan 14 21:29:50 2025 +0100
+
+    cmd/compile: use isGenericIntConst() in prove
+    
+    Use the existing Value method to make it a bit shorter.
+    
+    Change-Id: I47c4328b5241ab48b3490a04a3d93d4428f7b88c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 89930bda9dcda11d1c4a09f18894efc7cc071a8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 15:30:51 2011 -0800
+
+    os: adjust test: /bin is a symlink, not a directory, on Solaris.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4239066
+
+ src/pkg/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

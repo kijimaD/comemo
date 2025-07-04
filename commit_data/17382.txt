@@ -1,0 +1,12 @@
+commit 33f3dffa7c3105b98e40c417df577683e341be87
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 24 22:05:14 2013 +0900
+
+    net: allow TestDialFailPDLeak run in long-mode test
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12917050
+
+ src/pkg/net/dial_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

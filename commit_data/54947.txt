@@ -1,0 +1,55 @@
+commit 130baf3d42f0d7e911e9cae7e7ded8e0c6dd6919
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 1 20:00:27 2023 +0000
+
+    runtime: improve tickspersecond
+    
+    Currently tickspersecond forces a 100 millisecond sleep the first time
+    it's called. This isn't great for profiling short-lived programs, since
+    both CPU profiling and block profiling might call into it.
+    
+    100 milliseconds is a long time, but it's chosen to try and capture a
+    decent estimate of the conversion on platform with course-granularity
+    clocks. If the granularity is 15 ms, it'll only be 15% off at worst.
+    
+    Let's try a different strategy. First, let's require 5 milliseconds of
+    time to have elapsed at a minimum. This should be plenty on platforms
+    with nanosecond time granularity from the system clock, provided the
+    caller of tickspersecond intends to use it for calculating durations,
+    not timestamps. Next, grab a timestamp as close to process start as
+    possible, so that we can cover some of that 5 millisecond just during
+    runtime start.
+    
+    Finally, this function is only ever called from normal goroutine
+    contexts. Let's do a regular goroutine sleep instead of a thread-level
+    sleep under a runtime lock, which has all sorts of nasty effects on
+    preemption.
+    
+    While we're here, let's also rename tickspersecond to ticksPerSecond.
+    Also, let's write down some explicit rules of thumb on when to use this
+    function. Clocks are hard, and using this for timestamp conversion is
+    likely to make lining up those timestamps with other clocks on the
+    system difficult if not impossible.
+    
+    Note that while this improves ticksPerSecond on platforms with good
+    clocks, we still end up with a pretty coarse sleep on platforms with
+    coarse clocks, and a pretty coarse result. On these platforms, keep the
+    minimum required elapsed time at 100 ms. There's not much we can do
+    about these platforms except spin and try to catch the clock boundary,
+    but at 10+ ms of granularity, that might be a lot of spinning.
+    
+    Fixes #63103.
+    Fixes #63078.
+    
+    Change-Id: Ic32a4ba70a03bdf5c13cb80c2669c4064aa4cca2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538898
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/cpuprof.go |   2 +-
+ src/runtime/mprof.go   |   2 +-
+ src/runtime/proc.go    |  18 ++++++++-
+ src/runtime/runtime.go | 104 ++++++++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 104 insertions(+), 22 deletions(-)

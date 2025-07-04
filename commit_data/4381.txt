@@ -1,0 +1,12 @@
+commit 130ac74010af410f8d162a530271ad5078557093
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 16:43:01 2009 -0800
+
+    Spec modified to reflect new semicolon rules.
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/166066
+
+ doc/go_spec.html | 515 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 273 insertions(+), 242 deletions(-)

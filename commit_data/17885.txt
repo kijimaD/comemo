@@ -1,0 +1,12 @@
+commit 49f6415b956a79472dd0fbc6e6c8ed9004d66f8c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 15 11:01:54 2013 -0800
+
+    C: add Marko Mikulicic (Google CLA)
+    
+    R=golang-dev, crawshaw
+    CC=golang-dev
+    https://golang.org/cl/27000043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

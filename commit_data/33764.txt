@@ -1,0 +1,18 @@
+commit aaccb3834c37a923659d1dc1004dcde94f04d871
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 30 15:47:04 2017 -0500
+
+    runtime: improve sigsend documentation
+    
+    I think of "sending" a signal as calling kill, but sigsend is involved
+    in handling a signal and, specifically delivering it to the internal
+    signal queue. The term "delivery" is already used in
+    signalWaitUntilIdle, so this CL also uses it in the documentation for
+    sigsend.
+    
+    Change-Id: I86e171f247f525ece884a680bace616fa9a3c7bd
+    Reviewed-on: https://go-review.googlesource.com/81235
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sigqueue.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

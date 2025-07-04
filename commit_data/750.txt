@@ -1,0 +1,13 @@
+commit 43c5e63c00a36c294cafa089b11bdb8eaf04abf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:46:28 2008 -0700
+
+    Darwin kqueue/kevent-based network FDs
+    
+    R=r
+    OCL=15998
+    CL=16004
+
+ src/lib/net/fd_darwin.go | 333 +++++++++++++++++++++++++++++++++++++++++------
+ test/dialgoogle.go       |  19 ++-
+ 2 files changed, 311 insertions(+), 41 deletions(-)

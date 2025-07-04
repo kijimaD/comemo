@@ -1,0 +1,34 @@
+commit b1868cf10770eed86688631ac46d2d510e0621a6
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 26 17:58:31 2017 -0400
+
+    dwarf: add marker for embedded fields in dwarf
+    
+    Currently, the following two codes generate the identical dwarf info
+    for type Foo.
+    
+    prog 1)
+    type Foo struct {
+       Bar
+    }
+    
+    prog 2)
+    type Foo struct {
+       Bar Bar
+    }
+    
+    This change adds a go-specific attribute DW_AT_go_embedded_field
+    to annotate each member entry. Its absence or false value indicates
+    the corresponding member is not an embedded field.
+    
+    Update #20037
+    
+    Change-Id: Ibcbd2714f3e4d97c7b523d7398f29ab2301cc897
+    Reviewed-on: https://go-review.googlesource.com/41873
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go        |  4 ++
+ src/cmd/link/internal/ld/decodesym.go  |  6 ++-
+ src/cmd/link/internal/ld/dwarf.go      | 15 +++---
+ src/cmd/link/internal/ld/dwarf_test.go | 98 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 115 insertions(+), 8 deletions(-)

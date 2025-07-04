@@ -1,0 +1,14 @@
+commit f268c295a380747df60f9e5d304c74e3826ed7e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 10:39:06 2013 -0400
+
+    cmd/6c: use full 64-bit address in block copy
+    
+    Already fixed independently in Plan 9.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/10041044
+
+ src/cmd/6c/cgen.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

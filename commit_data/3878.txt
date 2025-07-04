@@ -1,0 +1,16 @@
+commit 49d4e8cb8008f6508edfcd1b948b54e35fa33ede
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 7 12:27:11 2009 -0800
+
+    Ignore more unimportant files.
+    - Emacs backup files.
+    - *.orig files left by hg merge conflicts.
+    - core files.
+    - generated enam.c files.
+    - runtime.acid now has an architecture.
+    
+    R=rsc
+    http://go/go-review/1026017
+
+ .hgignore | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

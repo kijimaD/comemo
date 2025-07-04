@@ -1,0 +1,18 @@
+commit cdec0850f8d1e7b95d6dde7333bb229d92982464
+Author: Thomas Kappler <tkappler@gmail.com>
+Date:   Wed Jan 2 17:39:41 2013 -0500
+
+    encoding/json: don't panic marshaling anonymous non-struct field
+    
+    Add a check for this case and don't try to follow the anonymous
+    type's non-existent fields.
+    
+    Fixes #4474.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6945065
+
+ src/pkg/encoding/json/encode.go      | 16 +++++++++-------
+ src/pkg/encoding/json/encode_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 7 deletions(-)

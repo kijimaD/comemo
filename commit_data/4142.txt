@@ -1,0 +1,13 @@
+commit 3ab331ed29279cdf53ade59aa1b57372caece359
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 18 16:32:44 2009 -0800
+
+    asn1: add support for RawContent
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157056
+
+ src/pkg/asn1/asn1.go      | 21 ++++++++++++++++++++-
+ src/pkg/asn1/asn1_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 2351bbfd3b11122936fc5858be826d1da413bab3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 15 10:27:42 2017 +0200
+
+    syscall: fix definition of _AT_FDCWD on dragonfly
+    
+    CL golang.org/cl/55130 messed up the definition of _AT_FDCWD on
+    dragonfly.
+    
+    This fixes the following test failure on dragonfly/amd64:
+    
+      --- FAIL: TestPackageMainTestImportsArchiveNotBinary (0.00s)
+              go_test.go:192: chtimes ./testdata/src/main_test/m.go: bad file descriptor
+    
+    Change-Id: I4c96983769e6b02d714859dc838875c3c0f1be50
+    Reviewed-on: https://go-review.googlesource.com/55690
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/ztypes_dragonfly_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

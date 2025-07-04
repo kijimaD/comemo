@@ -1,0 +1,28 @@
+commit 1a99ba55df902a2657d1ccfc52a60024c22dba98
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Tue Apr 28 11:20:19 2015 +0000
+
+    encoding/json: fix decoding of JSON null values
+    
+    JSON decoding currently fails for null values bound to any type
+    which does implement the JSON Unmarshaler interface without checking
+    for null values (such as time.Time).
+    
+    It also fails for types implementing the TextUnmarshaler interface.
+    
+    The expected behavior of the JSON decoding engine in such case is
+    to process null by keeping the value unchanged without producing
+    any error.
+    
+    Make sure null values are handled by the decoding engine itself,
+    and never passed to the UnmarshalText or UnmarshalJSON methods.
+    
+    Fixes #9037
+    
+    Change-Id: I261d85587ba543ef6f1815555b2af9311034d5bb
+    Reviewed-on: https://go-review.googlesource.com/9376
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 76 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit f04b5a3bac0206d507a4984897c60a362a3bdab7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 16 14:06:50 2011 -0500
+
+    http: add proxy support
+    Fixes #53.
+    
+    R=agl1, jacek.masiulaniec, adg, rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/3794041
+
+ src/pkg/http/client.go     | 109 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/http/proxy_test.go |  45 +++++++++++++++++++
+ 2 files changed, 146 insertions(+), 8 deletions(-)

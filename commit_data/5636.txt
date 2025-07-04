@@ -1,0 +1,13 @@
+commit fb279e73471738b80e1cacab1f6a7c9d55bccb70
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 9 16:05:00 2010 -0700
+
+    bug286: test case
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1644042
+
+ test/bugs/bug286.go | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  7 ++++
+ 2 files changed, 101 insertions(+)

@@ -1,0 +1,35 @@
+commit 969b9d8127c0ef3bbffeb1fa7d13a7ec1afccce4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Aug 26 06:24:33 2018 -0600
+
+    encoding/json: fix handling of nil anonymous structs
+    
+    Given the following types:
+    
+            type S2 struct{ Field string }
+            type S  struct{ *S2 }
+    
+    Marshalling a value of type T1 should result in "{}", as there's no way
+    to access any value of T2.Field. This is how Go 1.10 and earlier
+    versions behave.
+    
+    However, in the recent refactor golang.org/cl/125417 I broke this logic.
+    When the encoder found an anonymous struct pointer field that was nil,
+    it no longer skipped the embedded fields underneath it. This can be seen
+    in the added test:
+    
+            --- FAIL: TestAnonymousFields/EmbeddedFieldBehindNilPointer (0.00s)
+                encode_test.go:430: Marshal() = "{\"Field\":\"\\u003c*json.S2 Value\\u003e\"}", want "{}"
+    
+    The human error was a misplaced label, meaning we weren't actually
+    skipping the right loop iteration. Fix that.
+    
+    Change-Id: Iba8a4a77d358dac73dcba4018498fe4f81afa263
+    Reviewed-on: https://go-review.googlesource.com/131376
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go      |  2 +-
+ src/encoding/json/encode_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit d25a90676d5212f156de334e9f6f9ee009298c9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 6 14:14:54 2024 -0700
+
+    make.bash: drop GNU/kFreeBSD handling
+    
+    The GNU/kFreeBSD project has been canceled.
+    https://wiki.debian.org/Debian_GNU/kFreeBSD
+    
+    For #3533
+    
+    Change-Id: I30990fced48e1ba43e1e59806379eb97bac3ab6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596937
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/make.bash | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,0 +1,28 @@
+commit abaf53fb8e7dfbb9d513745e8280488b159ceb1e
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Mon Jul 2 08:08:14 2018 +0100
+
+    misc/wasm: use single map for string, symbol and object id mapping.
+    
+    Currently we use a globally unique symbol property on objects that get
+    passed from JavaScript to Go to store a unique ID that Go then uses when
+    referring back to the JavaScript object (via js.Value.ref). This
+    approach fails however when a JavaScript object cannot be modified, i.e.
+    cannot have new properties added or is frozen. The test that is added as
+    part of this commit currently fails with:
+    
+      Cannot add property Symbol(), object is not extensible
+    
+    Instead we consolidate the string, symbol and object unique ID mapping
+    into a single map. Map key equality is determined via strict equality,
+    which is the semantic we want in this situation.
+    
+    Change-Id: Ieb2b50fc36d3c30e148aa7a41557f3c59cd33766
+    Reviewed-on: https://go-review.googlesource.com/121799
+    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.js    | 32 ++++----------------------------
+ src/syscall/js/js_test.go |  8 ++++++++
+ 2 files changed, 12 insertions(+), 28 deletions(-)

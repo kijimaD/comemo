@@ -1,0 +1,38 @@
+commit cc0a04d351c69a99f65342ad5822f2bba8b247d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 10 21:46:51 2016 -0800
+
+    runtime: fix errno sign for some mmap and mincore cases
+    
+    The caller of mmap expects it to return a positive errno value, but the
+    linux-arm64 and nacl-386 system calls returned a negative errno value.
+    Correct them to negate the errno value.
+    
+    The caller of mincore expects it to return a negative errno value (yes,
+    this is inconsistent), but the linux-mips64x and linux-ppc64x system
+    call returned a positive errno value.  Correct them to negate the errno
+    value.
+    
+    Add a test that mmap returns errno with the correct sign.  Brad added a
+    test for mincore's errno value in https://golang.org/cl/19457.
+    
+    Fixes #14297.
+    
+    Change-Id: I2b93f32e679bd1eae1c9aef9ae7bcf0ba39521b5
+    Reviewed-on: https://go-review.googlesource.com/19455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_linux_test.go |  1 +
+ src/runtime/export_mmap_test.go  | 15 +++++++++++++++
+ src/runtime/export_test.go       |  2 --
+ src/runtime/mem_bsd.go           |  4 ++--
+ src/runtime/os2_nacl.go          | 25 +++++++++++++------------
+ src/runtime/runtime_mmap_test.go | 30 ++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm64.s    |  3 +++
+ src/runtime/sys_linux_mips64x.s  |  1 +
+ src/runtime/sys_linux_ppc64x.s   |  1 +
+ src/runtime/sys_nacl_386.s       |  3 +++
+ 10 files changed, 69 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit f1562c761014111ce359b14016718ddabd24c2f2
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Feb 15 20:20:15 2021 +0100
+
+    cmd/go: recognize DLL magic from llvm binaries
+    
+    When using LLD with c-shared, the magic in the output DLL is slightly
+    different than for EXEs.
+    
+    Change-Id: Icc5f34f7bb61f11a9d75494236b7797cc1988b40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291638
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

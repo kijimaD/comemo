@@ -1,0 +1,16 @@
+commit d166a0b03e88e3ffe17a5bee4e5405b5091573c6
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jun 10 13:55:09 2025 -0700
+
+    encoding/json/jsontext, encoding/json/v2: document experimental nature
+    
+    Change-Id: I7b2c391749e0113e006f37b2ac1ebfe3ee0a4e0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680715
+    TryBot-Bypass: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/encoding/json/jsontext/doc.go | 5 +++++
+ src/encoding/json/v2/doc.go       | 5 +++++
+ 2 files changed, 10 insertions(+)

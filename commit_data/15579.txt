@@ -1,0 +1,12 @@
+commit a969f3c247b45ab5557aff1a8777751360b9c0a4
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Mar 4 15:31:57 2013 -0500
+
+    misc/emacs: Add tab completion for godoc command, completing from known installed packages
+    
+    R=golang-dev, adonovan, bradfitz, cw, patrick.allen.higgins, sameer, ugorji
+    CC=golang-dev
+    https://golang.org/cl/7373051
+
+ misc/emacs/go-mode.el | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

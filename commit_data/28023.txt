@@ -1,0 +1,15 @@
+commit a8eb6d51bbd668b9e6fefa9f0cf39fccde3a305e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 15:18:09 2016 -0700
+
+    cmd/compile: simplify field/method export (internal cleanup)
+    
+    Towards a fix for #15514.
+    
+    Change-Id: I62073e9fdcfe5ddda9b0a47fe8554b524191a77c
+    Reviewed-on: https://go-review.googlesource.com/27638
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 43 +++++++++++-----------------------
+ src/cmd/compile/internal/gc/bimport.go |  2 +-
+ 2 files changed, 15 insertions(+), 30 deletions(-)

@@ -1,0 +1,15 @@
+commit cd7062ef6f49aceca653d3787846df9f34d67c2c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 17:17:30 2009 -0700
+
+    clean up the mess that copyright notices make
+    
+    R=rsc
+    DELTA=555  (92 added, 38 deleted, 425 changed)
+    OCL=35691
+    CL=35693
+
+ doc/go_tutorial.html | 830 +++++++++++++++++++++++++--------------------------
+ doc/go_tutorial.txt  |  40 +--
+ doc/prog.sh          |   2 +-
+ 3 files changed, 425 insertions(+), 447 deletions(-)

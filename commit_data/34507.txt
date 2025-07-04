@@ -1,0 +1,24 @@
+commit 7a2a96d6ad75762f427669beb0220810adb6a9e1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 7 18:23:21 2018 +0100
+
+    runtime/cgo: make sure nil is undefined before defining it
+    
+    While working on standalone builds of gomobile bindings, I ran into
+    errors on the form:
+    
+    gcc_darwin_arm.c:30:31: error: ambiguous expansion of macro 'nil' [-Werror,-Wambiguous-macro]
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.2.sdk/usr/include/MacTypes.h:94:15: note: expanding this definition of 'nil'
+    
+    Fix it by undefining nil before defining it in libcgo.h.
+    
+    Change-Id: I8e9660a68c6c351e592684d03d529f0d182c0493
+    Reviewed-on: https://go-review.googlesource.com/99215
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_darwin_arm.c   | 6 +++---
+ src/runtime/cgo/gcc_darwin_arm64.c | 6 +++---
+ src/runtime/cgo/libcgo.h           | 1 +
+ 3 files changed, 7 insertions(+), 6 deletions(-)

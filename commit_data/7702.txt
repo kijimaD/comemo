@@ -1,0 +1,12 @@
+commit 9267b0ddf1ab53338610840268e3f5d2c88b42ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 8 13:04:30 2011 -0500
+
+    nm: document -S flag
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4247066
+
+ src/cmd/nm/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

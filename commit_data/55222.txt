@@ -1,0 +1,29 @@
+commit a9c9cc07ac0d3dc73865a57e6ce45c22ada3b5c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 20 11:22:48 2023 +1100
+
+    iter, runtime: add coroutine support
+    
+    The exported API is only available with GOEXPERIMENT=rangefunc.
+    This will let Go 1.22 users who want to experiment with rangefuncs
+    access an efficient implementation of iter.Pull and iter.Pull2.
+    
+    For #61897.
+    
+    Change-Id: I6ef5fa8f117567efe4029b7b8b0f4d9b85697fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543319
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/test.go              |  11 +++
+ src/cmd/internal/objabi/funcid.go |   1 +
+ src/go/build/deps_test.go         |   3 +
+ src/internal/abi/symtab.go        |   1 +
+ src/iter/iter.go                  | 161 +++++++++++++++++++++++++++++++++++++
+ src/iter/pull_test.go             | 118 +++++++++++++++++++++++++++
+ src/runtime/coro.go               | 165 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go               |   8 +-
+ src/runtime/runtime2.go           |   5 ++
+ src/runtime/sizeof_test.go        |   6 +-
+ src/runtime/traceback.go          |   2 +-
+ 11 files changed, 475 insertions(+), 6 deletions(-)

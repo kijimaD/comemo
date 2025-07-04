@@ -1,0 +1,14 @@
+commit e076c502dda7da7308599c20c5f482e67edf6855
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 14 15:33:37 2011 -0700
+
+    debug/elf: permit another case of SHT_NOBITS section overlap in test
+    
+    Lets test pass when using gccgo.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5018046
+
+ src/pkg/debug/elf/file_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

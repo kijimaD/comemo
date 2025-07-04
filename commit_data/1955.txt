@@ -1,0 +1,14 @@
+commit 184c623e6b3b92f4a0df25796dbb5ddca9559ded
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 22:24:52 2009 -0700
+
+    - renamed hasPostfix -> hasSuffix
+    - fixed printing of function literals (require separating ";")
+    
+    R=rsc
+    OCL=27055
+    CL=27055
+
+ usr/gri/pretty/astprinter.go | 1 +
+ usr/gri/pretty/godoc.go      | 6 +++---
+ 2 files changed, 4 insertions(+), 3 deletions(-)

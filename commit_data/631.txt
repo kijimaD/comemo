@@ -1,0 +1,15 @@
+commit 6693730e774177c8f3c069af3c890e93f16e119e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 12 16:03:16 2008 -0700
+
+    next section: i/o package that has structs, methods
+    
+    R=gri
+    DELTA=137  (134 added, 0 deleted, 3 changed)
+    OCL=15251
+    CL=15259
+
+ doc/go_tutorial.txt      | 73 ++++++++++++++++++++++++++++++++++++++++++++++--
+ doc/progs/fd.go          | 58 ++++++++++++++++++++++++++++++++++++++
+ doc/progs/helloworld3.go | 17 +++++++++++
+ 3 files changed, 145 insertions(+), 3 deletions(-)

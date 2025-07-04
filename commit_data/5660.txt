@@ -1,0 +1,12 @@
+commit 43b3a247d3471507da5df1f144ef12bda303dfe0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 15 09:07:47 2010 +1000
+
+    html: sync testdata/webkit to match WebKit tip.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1701041
+
+ src/pkg/html/testdata/webkit/webkit01.dat | 44 +++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

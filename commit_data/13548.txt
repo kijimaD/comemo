@@ -1,0 +1,15 @@
+commit f2b8f6b451667a2c8d1b3553ac7fb06de28e8181
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 1 12:55:04 2012 +1000
+
+    os: Rename error to fit IsExist
+    
+    Fixes #3828.
+    
+    R=golang-dev, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6420056
+
+ src/pkg/os/error_windows.go      |  3 +++
+ src/pkg/os/error_windows_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

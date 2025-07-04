@@ -1,0 +1,40 @@
+commit e7c7ce646f37b260fe5a5635bc52243d28125dd8
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 17 16:14:48 2020 -0500
+
+    cmd/compile: combine multiply/add into maddld on ppc64le/power9
+    
+    Add a new lowering rule to match and replace such instances
+    with the MADDLD instruction available on power9 where
+    possible.
+    
+    Likewise, this plumbs in a new ppc64 ssa opcode to house
+    the newly generated MADDLD instructions.
+    
+    When testing ed25519, this reduced binary size by 936B.
+    Similarly, MADDLD combination occcurs in a few other less
+    obvious cases such as division by constant.
+    
+    Testing of golang.org/x/crypto/ed25519 shows non-trivial
+    speedup during keygeneration:
+    
+    name           old time/op  new time/op  delta
+    KeyGeneration  65.2µs ± 0%  63.1µs ± 0%  -3.19%
+    Signing        64.3µs ± 0%  64.4µs ± 0%  +0.16%
+    Verification    147µs ± 0%   147µs ± 0%  +0.11%
+    
+    Similarly, this test binary has shrunk by 66488B.
+    
+    Change-Id: I077aeda7943119b41f07e4e62e44a648f16e4ad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248723
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 21 +++++++++++++++++++++
+ test/codegen/arithmetic.go                   | 12 ++++++++----
+ 6 files changed, 64 insertions(+), 4 deletions(-)

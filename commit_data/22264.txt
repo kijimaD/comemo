@@ -1,0 +1,31 @@
+commit ad3600945aaf168ba12ae82c9f66c3c60836ba87
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 31 09:19:10 2015 -0700
+
+    runtime: auto-generate duff routines
+    
+    This makes it easier to experiment with alternative implementations.
+    
+    While we're here, update the comments.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I428535754908f0fdd7cc36c214ddb6e1e60f376e
+    Reviewed-on: https://go-review.googlesource.com/8310
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_386.s     | 794 ---------------------------------------------
+ src/runtime/asm_amd64.s   | 795 ----------------------------------------------
+ src/runtime/asm_arm.s     | 408 ------------------------
+ src/runtime/asm_arm64.s   | 139 --------
+ src/runtime/asm_ppc64x.s  | 140 --------
+ src/runtime/duff_386.s    | 779 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/duff_amd64.s  | 779 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/duff_arm.s    | 523 ++++++++++++++++++++++++++++++
+ src/runtime/duff_arm64.s  | 138 ++++++++
+ src/runtime/duff_ppc64x.s | 140 ++++++++
+ src/runtime/mkduff.go     | 180 +++++++++++
+ src/runtime/runtime.go    |   1 +
+ 12 files changed, 2540 insertions(+), 2276 deletions(-)

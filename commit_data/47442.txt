@@ -1,0 +1,23 @@
+commit 1cd600301ea2a0b13d5e158282200114dc9de3fd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 28 14:54:30 2021 -0400
+
+    cmd/go: use workspace modules' go.sum files to check sums
+    
+    By default, use workspace modules' go.sum files to check sums. Any
+    missing sums will still be written to go.work.sum
+    
+    For #45713
+    
+    Change-Id: I0f537602523dfec44d423c3c80c7ef396e1397b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359478
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/fetch.go            | 79 ++++++++++++++++++++----
+ src/cmd/go/internal/modload/init.go              |  6 +-
+ src/cmd/go/testdata/script/work_sum.txt          |  5 +-
+ src/cmd/go/testdata/script/work_sum_mismatch.txt | 61 ++++++++++++++++++
+ 4 files changed, 134 insertions(+), 17 deletions(-)

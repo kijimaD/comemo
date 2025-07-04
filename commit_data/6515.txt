@@ -1,0 +1,15 @@
+commit b33f5d537f1b1b445b9cd1c3206922acc4196068
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 13 13:24:14 2010 -0700
+
+    fix arm bug in reflect.call
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2475042
+
+ src/cmd/5l/asm.c          | 12 +++++++-----
+ src/pkg/runtime/arm/asm.s | 13 +++++++------
+ src/pkg/runtime/proc.c    | 10 ++++++----
+ src/pkg/runtime/runtime.h |  2 +-
+ 4 files changed, 21 insertions(+), 16 deletions(-)

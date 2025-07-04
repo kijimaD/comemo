@@ -1,0 +1,25 @@
+commit 77b3269fb57d2f5c19a76a80f1d215dc801be3b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 8 17:16:13 2021 -0400
+
+    cmd/go: in TestScript, set GOTRACEBACK and use SIGQUIT to terminate hung subprocesses
+    
+    This should produce more useful outputs if a cmd/go invocation hangs
+    during a test.
+    
+    (In some cases the outputs will be very verbose, but verbose is still
+    better than uninformative.)
+    
+    For #36460
+    For #38768
+    
+    Change-Id: Ibaf2d0fbf7387dfab1aad8981140ecb11901fc4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308809
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/script_test.go     | 15 ++-------------
+ src/cmd/go/stop_other_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/go/stop_unix_test.go  | 17 +++++++++++++++++
+ 3 files changed, 52 insertions(+), 13 deletions(-)

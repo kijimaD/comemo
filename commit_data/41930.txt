@@ -1,0 +1,19 @@
+commit bd0623b4e7d7a2f24af59c06fb52a4dcdb752859
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 13 14:56:32 2020 +0000
+
+    Revert "cmd/internal/obj/ppc64: add support for pcalign 32 on ppc64x"
+    
+    This reverts CL 227775.
+    
+    Reason for revert: broke aix-ppc64 builder (https://build.golang.org/log/cf3b4f9fd09ee81f422a4b58488b9d0a2692c949).
+    
+    Change-Id: I2095bb2aadb5a4064eb89ad353012503faf15709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228143
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go     | 27 +++++++---------------
+ src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++----------------------------
+ 2 files changed, 15 insertions(+), 54 deletions(-)

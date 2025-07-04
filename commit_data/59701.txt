@@ -1,0 +1,16 @@
+commit aca9f4e484b529aeb15bf6f9633a5f07d9bab940
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 22:41:54 2025 +0200
+
+    crypto/tls: signature_algorithms in CertificateRequest can't be empty
+    
+    Change-Id: I6a6a4656ab97e1f247df35b2589cd73461b4ac76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675917
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/handshake_messages.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

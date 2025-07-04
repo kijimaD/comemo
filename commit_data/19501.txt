@@ -1,0 +1,13 @@
+commit 32a5c898e3bd7d3abf1b6f6dc5ef4a23c5d32d8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 5 16:40:09 2014 -0400
+
+    codereview: do not add defaultcc for private CLs
+    
+    LGTM=r
+    R=r, 0xjnml, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/103070046
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

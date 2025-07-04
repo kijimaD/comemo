@@ -1,0 +1,26 @@
+commit 2ba296da47fe4b3c70be0aea291e307cdb2c7dbe
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 19 14:55:23 2021 -0400
+
+    cmd/compile: update a few stale comments
+    
+    CL 64811 removed dcopy. Update the comment in types.Sym.
+    
+    The Russquake moved iexport.go. Update the path to it.
+    
+    WRAPPER is now also used by ABI wrappers, so update the comment since
+    it's now more general than method wrappers.
+    
+    Change-Id: Ie0df61dcef7168f6720838cd5c9a66adf546a44f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305269
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/importer/iimport.go | 2 +-
+ src/cmd/compile/internal/ir/func.go          | 2 +-
+ src/cmd/compile/internal/types/sym.go        | 2 +-
+ src/cmd/internal/obj/textflag.go             | 3 ++-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

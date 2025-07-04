@@ -1,0 +1,18 @@
+commit be3fcecd5256893230192310f3cfb5fca03af1c8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 13:33:01 2017 +0900
+
+    net: update documentation on methods of IPConn
+    
+    This change simplifies the documentation on methods of IPConn and adds
+    a reference to golang.org/x/net/ipv{4,6} packages to the documentation
+    on {Read,Write}MsgIP methods.
+    
+    Change-Id: Ie07a853288940e0fef6a417ffc8d0c3d444c21cd
+    Reviewed-on: https://go-review.googlesource.com/44911
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/iprawsock.go | 30 ++++++++++++------------------
+ 1 file changed, 12 insertions(+), 18 deletions(-)

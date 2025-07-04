@@ -1,0 +1,14 @@
+commit 1d61c9bb3e41947ab66732d0346b821d5062554c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 30 10:51:29 2012 +0100
+
+    io: add ByteWriter interface
+    
+    API change.
+    
+    R=golang-dev, dsymonds, nigeltao, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6760045
+
+ src/pkg/io/io.go | 5 +++++
+ 1 file changed, 5 insertions(+)

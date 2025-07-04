@@ -1,0 +1,16 @@
+commit abf4696ede52ebd980605b10034f39af32ac5d90
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jan 29 21:22:11 2016 +0100
+
+    unicode/utf16: add benchmarks
+    
+    For #6957
+    
+    Change-Id: Ic497c12f33efc933e9fe81f6cd1b2a0a01abbabf
+    Reviewed-on: https://go-review.googlesource.com/19820
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/utf16/utf16_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

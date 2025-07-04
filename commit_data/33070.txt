@@ -1,0 +1,18 @@
+commit a3e013b0824ba53168b5d91abdb6ce191510a89d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 11 14:41:25 2017 -0700
+
+    encoding/json: use Deprecated markers
+    
+    In #10909, it was decided that "Deprecated:" is a magic string for
+    tools (e.g., #17056 for godoc) to detect deprecated identifiers.
+    Use those convention instead of custom written prose.
+    
+    Change-Id: Ia514fc3c88fc502e86c6e3de361c435f4cb80b22
+    Reviewed-on: https://go-review.googlesource.com/70110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/encoding/json/decode.go | 3 ++-
+ src/encoding/json/encode.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

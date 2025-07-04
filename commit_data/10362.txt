@@ -1,0 +1,14 @@
+commit 59a92cde3dce85cc091c1134fae1bc08f056c445
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 13 20:57:15 2011 -0500
+
+    exp/ssh: use ClientConfig.rand() for publickey authentication
+    
+    Closes TODO from 5373055
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/5375081
+
+ src/pkg/exp/ssh/client_auth.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

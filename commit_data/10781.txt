@@ -1,0 +1,15 @@
+commit 576311d72b53c6cec3f11d2fcc0dfd0d0eb76b7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 10:24:17 2011 -0500
+
+    go/build: make compatible with go/build
+    
+    The irony!
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5482062
+
+ src/pkg/go/build/Makefile   | 2 +-
+ src/pkg/go/build/syslist.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

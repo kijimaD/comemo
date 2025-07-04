@@ -1,0 +1,98 @@
+commit 9d34fc5108d91bfcce3c465069dbb2c563af4229
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 3 10:19:07 2022 +0100
+
+    runtime: remove fallback to pipe on platforms with pipe2
+    
+    On Linux, the minimum required kernel version for Go 1.18 was be changed
+    to 2.6.32, see #45964. The pipe2 syscall was added in 2.6.27.
+    
+    All other platforms already provide the pipe2 syscall in the minimum
+    supported version:
+    - DragonFly BSD added it in version 4.2, see
+      https://www.dragonflybsd.org/release42/
+    - FreeBSD added it in version 10.0, see
+      https://www.freebsd.org/cgi/man.cgi?pipe(2)#end
+    - NetBSD added it in version 6.0, see
+      https://man.netbsd.org/pipe2.2#HISTORY
+    - OpenBSD added it in version 5.7, see
+      https://man.openbsd.org/pipe.2#HISTORY
+    - Illumos supports it since 2013, see
+      https://www.illumos.org/issues/3714
+    - Solaris supports it since 11.4
+    
+    This also allows to remove setNonblock which was only used in the pipe
+    fallback path on these platforms.
+    
+    Change-Id: I1f40d32fd3065d74e22af77b9ff2292b9cf66706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389354
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs1_netbsd_386.go     |  1 -
+ src/runtime/defs1_netbsd_amd64.go   |  1 -
+ src/runtime/defs1_netbsd_arm.go     |  1 -
+ src/runtime/defs1_netbsd_arm64.go   |  1 -
+ src/runtime/defs1_solaris_amd64.go  |  1 -
+ src/runtime/defs_dragonfly.go       |  1 -
+ src/runtime/defs_dragonfly_amd64.go |  1 -
+ src/runtime/defs_freebsd.go         |  1 -
+ src/runtime/defs_freebsd_386.go     |  1 -
+ src/runtime/defs_freebsd_amd64.go   |  1 -
+ src/runtime/defs_freebsd_arm.go     |  1 -
+ src/runtime/defs_freebsd_arm64.go   |  1 -
+ src/runtime/defs_linux.go           |  3 +--
+ src/runtime/defs_linux_386.go       |  1 -
+ src/runtime/defs_linux_amd64.go     |  1 -
+ src/runtime/defs_linux_arm.go       |  1 -
+ src/runtime/defs_linux_arm64.go     |  1 -
+ src/runtime/defs_linux_mips64x.go   |  1 -
+ src/runtime/defs_linux_mipsx.go     |  1 -
+ src/runtime/defs_linux_ppc64.go     |  1 -
+ src/runtime/defs_linux_ppc64le.go   |  1 -
+ src/runtime/defs_linux_riscv64.go   |  1 -
+ src/runtime/defs_linux_s390x.go     |  1 -
+ src/runtime/defs_netbsd.go          |  1 -
+ src/runtime/defs_openbsd.go         |  1 -
+ src/runtime/defs_openbsd_386.go     |  1 -
+ src/runtime/defs_openbsd_amd64.go   |  1 -
+ src/runtime/defs_openbsd_arm.go     |  1 -
+ src/runtime/defs_openbsd_arm64.go   |  1 -
+ src/runtime/defs_openbsd_mips64.go  |  1 -
+ src/runtime/defs_solaris.go         |  1 -
+ src/runtime/export_aix_test.go      |  1 +
+ src/runtime/export_darwin_test.go   |  2 ++
+ src/runtime/export_pipe2_test.go    |  6 +-----
+ src/runtime/export_unix_test.go     |  1 -
+ src/runtime/nbpipe_pipe2.go         | 13 +------------
+ src/runtime/nbpipe_pipe_test.go     | 38 +++++++++++++++++++++++++++++++++++++
+ src/runtime/nbpipe_test.go          | 25 ------------------------
+ src/runtime/os3_solaris.go          | 13 -------------
+ src/runtime/os_dragonfly.go         |  2 --
+ src/runtime/os_freebsd.go           |  2 --
+ src/runtime/os_linux.go             |  2 --
+ src/runtime/os_netbsd.go            |  2 --
+ src/runtime/os_openbsd_syscall2.go  |  2 --
+ src/runtime/sys_dragonfly_amd64.s   | 30 -----------------------------
+ src/runtime/sys_freebsd_386.s       | 32 -------------------------------
+ src/runtime/sys_freebsd_amd64.s     | 30 -----------------------------
+ src/runtime/sys_freebsd_arm.s       | 32 -------------------------------
+ src/runtime/sys_freebsd_arm64.s     | 26 -------------------------
+ src/runtime/sys_linux_386.s         | 24 -----------------------
+ src/runtime/sys_linux_amd64.s       | 24 -----------------------
+ src/runtime/sys_linux_arm.s         | 23 ----------------------
+ src/runtime/sys_linux_arm64.s       | 24 -----------------------
+ src/runtime/sys_linux_mips64x.s     | 26 -------------------------
+ src/runtime/sys_linux_mipsx.s       | 33 --------------------------------
+ src/runtime/sys_linux_ppc64x.s      | 20 -------------------
+ src/runtime/sys_linux_riscv64.s     | 24 -----------------------
+ src/runtime/sys_linux_s390x.s       | 24 -----------------------
+ src/runtime/sys_netbsd_386.s        | 32 -------------------------------
+ src/runtime/sys_netbsd_amd64.s      | 30 -----------------------------
+ src/runtime/sys_netbsd_arm.s        | 28 ---------------------------
+ src/runtime/sys_netbsd_arm64.s      | 24 -----------------------
+ src/runtime/sys_openbsd2.go         | 10 ----------
+ src/runtime/sys_openbsd_mips64.s    | 26 -------------------------
+ 64 files changed, 44 insertions(+), 620 deletions(-)

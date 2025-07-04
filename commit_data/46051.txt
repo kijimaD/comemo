@@ -1,0 +1,21 @@
+commit 2a193337164c8af8cba3d5c4ec0f36413c528bd8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 28 15:41:20 2021 -0700
+
+    net: reduce allocations for UDP send/recv on Windows
+    
+    This brings the optimizations added in CLs 331489 and 331490 to Windows.
+    
+    Updates #43451
+    
+    Change-Id: I75cf520050325d9eb5c2785d6d8677cc864fcac8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331511
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next.txt                    |  4 ++
+ src/internal/poll/fd_windows.go | 90 +++++++++++++++++++++++++++++++++++++++--
+ src/syscall/syscall_windows.go  | 32 +++++++++++++++
+ 3 files changed, 122 insertions(+), 4 deletions(-)

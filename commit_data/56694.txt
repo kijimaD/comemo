@@ -1,0 +1,24 @@
+commit 94aeedc33a4434f0d410be7c42e0bbcdaedd790f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 24 15:18:00 2024 -0400
+
+    cmd/go/internal/load: clone pgo variant's PackagePublic.Imports in split
+    
+    Before this change the pgo and non-pgo variants Imports slices pointed
+    to the same array, so modifying the pgo variant's Imports slice to add
+    the .ForMain suffix modified the non-pgo vairant's Imports slice too.
+    This change clones the imports slice to avoid that.
+    
+    Fixes #66218
+    
+    Change-Id: Ic936086f2c31f2056988d6546216142e4fce4d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588275
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    |  6 +++--
+ src/cmd/go/testdata/script/list_pgo_issue66218.txt | 28 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

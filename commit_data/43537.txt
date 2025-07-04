@@ -1,0 +1,23 @@
+commit 3a63d04d2edcbdb0937d775e852692279f73a2e2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 19 18:55:10 2020 +1000
+
+    cmd/link,cmd/internal/obj/riscv: add TLS support for linux/riscv64
+    
+    Add support for Thread Local Storage (TLS) for linux/riscv64 with external
+    linking, using the initial-exec model.
+    
+    Update #36641
+    
+    Change-Id: I3106ef9a29cde73215830b00deff43dbec1c76e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263478
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go           |  7 +++++++
+ src/cmd/internal/objabi/reloctype.go        |  8 ++++++++
+ src/cmd/internal/objabi/reloctype_string.go | 18 ++++++++++--------
+ src/cmd/link/internal/riscv64/asm.go        | 23 +++++++++++++++++++----
+ 4 files changed, 44 insertions(+), 12 deletions(-)

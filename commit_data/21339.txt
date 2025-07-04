@@ -1,0 +1,12 @@
+commit dfc4997ede7c4dc1f10263ab00e3f196dfb8c313
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Sat Jan 24 14:57:01 2015 -0800
+
+    image: fix typo in Alpha16 doc comment
+    
+    Change-Id: Ie7031ae37f52ea1f229bfb769daf306d537b3d3e
+    Reviewed-on: https://go-review.googlesource.com/3300
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/image/image.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

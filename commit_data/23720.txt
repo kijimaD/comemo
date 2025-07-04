@@ -1,0 +1,14 @@
+commit 19916e453e293b4d37e481f2b13246682d1667c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 22:08:27 2015 -0400
+
+    test/fixedbugs: disable issue11656.go on arm64
+    
+    For #11656.
+    
+    Change-Id: I8365d33a15419bd0e54f71182ad0994e41650264
+    Reviewed-on: https://go-review.googlesource.com/12248
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fixedbugs/issue11656.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

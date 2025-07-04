@@ -1,0 +1,15 @@
+commit 270f8447d6e4847db6e54f1f3befc8c70079fac7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 19 14:00:16 2015 +1100
+
+    image/jpeg: support 16-bit quantization tables and Extended Sequential
+    frames.
+    
+    Fixes #9888.
+    
+    Change-Id: I60f1d843e72e1b7bc77ab984f149c9ddb5258a06
+    Reviewed-on: https://go-review.googlesource.com/5251
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/jpeg/reader.go | 46 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 12 deletions(-)

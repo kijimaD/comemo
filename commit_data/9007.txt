@@ -1,0 +1,14 @@
+commit 2f69a7359159171c0fe2ddede22a1328f71bc4ef
+Author: Evan Martin <evan.martin@gmail.com>
+Date:   Mon Jul 11 07:31:08 2011 -0700
+
+    json: encode \r and \n in strings as e.g. "\n", not "\u000A"
+    
+    This is allowed by the JSON spec and is shorter/easier to read.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4678046
+
+ src/pkg/json/encode.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 03dd049d6efcbca6b829d7ed504ceea6318f2036
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 17:51:58 2021 -0800
+
+    go/types: make sure we are safe for nil in underIs
+    
+    This CL is a clean port CL 363658 from types2 to go/types.
+    
+    Change-Id: Ie2032f85a9cfca62161c2e629c78f1ecd8c6e4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364537
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/expr.go       | 3 +++
+ src/go/types/predicates.go | 4 +++-
+ src/go/types/type.go       | 3 +++
+ 3 files changed, 9 insertions(+), 1 deletion(-)

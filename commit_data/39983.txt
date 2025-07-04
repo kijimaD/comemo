@@ -1,0 +1,44 @@
+commit 870080752d175d5cede350486acf36213c64f35c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 19 15:31:03 2019 +0100
+
+    cmd/compile: reduce rulegen's output by 200 KiB
+    
+    First, renove unnecessary "// cond:" lines from the generated files.
+    This shaves off about ~7k lines.
+    
+    Second, join "if cond { break }" statements via "||", which allows us to
+    deduplicate a large number of them. This shaves off another ~25k lines.
+    
+    This change is not for readability or simplicity; but rather, to avoid
+    unnecessary verbosity that makes the generated files larger. All in all,
+    git reports that the generated files overall weigh ~200KiB less, or
+    about 2.7% less.
+    
+    While at it, add a -trace flag to rulegen.
+    
+    Updates #33644.
+    
+    Change-Id: I3fac0290a6066070cc62400bf970a4ae0929470a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196498
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go           |    19 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |    27 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |  3642 +------
+ .../compile/internal/ssa/rewrite386splitload.go    |     6 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 10396 +++----------------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |     8 -
+ src/cmd/compile/internal/ssa/rewriteARM.go         |  1360 +--
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |  6999 ++-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |   558 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   562 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  7317 +++----------
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  6745 ++----------
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |   342 +-
+ src/cmd/compile/internal/ssa/rewritedec.go         |    12 -
+ src/cmd/compile/internal/ssa/rewritedec64.go       |   114 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  5914 ++---------
+ 16 files changed, 6324 insertions(+), 37697 deletions(-)

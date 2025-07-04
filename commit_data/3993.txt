@@ -1,0 +1,14 @@
+commit 03435099152774905d2151e857b8e3d94c3d1323
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:51:53 2009 -0800
+
+    point at how to get easy_install on Ubuntu.
+    Fixes #59.
+    
+    Add note about export.
+    
+    R=r
+    https://golang.org/cl/152079
+
+ doc/install.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 9d6677ca7bd5de65b94046dbe90b4ef8418502b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 14:39:38 2016 -0700
+
+    cmd/compile: update and reenable Formats test
+    
+    Change-Id: I9c0da13d21551dbf766156472224370ab9badfe9
+    Reviewed-on: https://go-review.googlesource.com/28778
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt_test.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

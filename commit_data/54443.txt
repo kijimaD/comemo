@@ -1,0 +1,22 @@
+commit dc0d126e378d649976abd06497cea8c503ba3613
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 21:57:45 2023 -0700
+
+    cmd/compile/internal/abi: replace types.Object with *ir.Name
+    
+    types.Object only exists to avoid a circular dependency between
+    package types and ir.
+    
+    Change-Id: I35196aff765d6977ca1e69fe482edbc987c381c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527340
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go | 10 +++++++---
+ src/cmd/compile/internal/liveness/arg.go |  4 ++--
+ src/cmd/compile/internal/ssa/debug.go    |  6 +++---
+ src/cmd/compile/internal/ssa/op.go       |  6 +-----
+ src/cmd/compile/internal/ssagen/ssa.go   |  6 +++---
+ 5 files changed, 16 insertions(+), 16 deletions(-)

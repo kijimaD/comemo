@@ -1,0 +1,23 @@
+commit abda9e6f893d4ad7aa5dc79a4eadc7e235133ca9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 12 17:04:45 2010 -0800
+
+    Light-weight scanner for general use.
+    
+    Emphasis on minimal interface and fast scanning.
+    Recognizes all Go literals by default. Easily
+    configurable to recognize different whitespace
+    characters and tokens.
+    
+    Provides detailed position information for each
+    token.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/181160
+
+ src/pkg/Makefile                |   1 +
+ src/pkg/scanner/Makefile        |  11 +
+ src/pkg/scanner/scanner.go      | 626 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/scanner/scanner_test.go | 482 +++++++++++++++++++++++++++++++
+ 4 files changed, 1120 insertions(+)

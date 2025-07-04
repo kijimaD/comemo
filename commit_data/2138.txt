@@ -1,0 +1,17 @@
+commit eea33fc69cab59ed314eea799fda4562855619cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 5 12:00:52 2009 -0700
+
+    better io.ByteBuffer implementation:
+    - more light-weight
+    - better buffer management
+    - added test cases
+    
+    R=r
+    DELTA=227  (167 added, 35 deleted, 25 changed)
+    OCL=28252
+    CL=28289
+
+ src/lib/io/bytebuffer.go      | 104 +++++++++++++-----------------
+ src/lib/io/bytebuffer_test.go | 146 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 191 insertions(+), 59 deletions(-)

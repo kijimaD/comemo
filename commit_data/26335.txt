@@ -1,0 +1,14 @@
+commit 826831acf7426f4e5e27198f96dbb07f933551b8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 16 12:41:55 2016 -0700
+
+    cmd/compile: move LSym.RefIdx for better packing
+    
+    Change-Id: I0516d49ee8381c5e022d77c2fb41515c01c8a631
+    Reviewed-on: https://go-review.googlesource.com/20764
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/link.go        | 5 +++--
+ src/cmd/internal/obj/sizeof_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

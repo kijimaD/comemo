@@ -1,0 +1,12 @@
+commit bce8f51b2b4ddfc65c686fd950229615e4d542de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 13:59:45 2010 -0700
+
+    godoc: use correct delay time (bug fix)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2201041
+
+ src/cmd/godoc/godoc.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

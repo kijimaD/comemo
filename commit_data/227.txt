@@ -1,0 +1,14 @@
+commit c137d6b8e4fa0f117bf81c8ca5d3ab338f1f2cbe
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 15:22:27 2008 -0700
+
+    improve bug054.go
+    fix integer.ToString to return the proper, not-nul-terminated value
+    
+    SVN=124654
+
+ test/bugs/bug054.go  | 21 +++++++++++++++++++--
+ test/golden.out      | 30 +++++++++++++++++++++++++++---
+ test/integer.go      |  4 ++--
+ test/test_integer.go | 52 ++++++++++++++++++++++++++--------------------------
+ 4 files changed, 74 insertions(+), 33 deletions(-)

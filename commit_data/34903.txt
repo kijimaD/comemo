@@ -1,0 +1,15 @@
+commit 188e2bf89712fcb97bd5329f167fedc6dd90316b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Apr 10 11:20:20 2018 +0200
+
+    test/codegen: port arm64 BIC/EON/ORN and masking tests
+    
+    And delete them from asm_test.
+    
+    Change-Id: I24f421b87e8cb4770c887a6dfd58eacd0088947d
+    Reviewed-on: https://go-review.googlesource.com/106056
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 43 ---------------------------------
+ test/codegen/bits.go                    | 29 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 43 deletions(-)

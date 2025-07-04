@@ -1,0 +1,18 @@
+commit 83f95b85deb97b1f4643362bcd43bee62fd9cc76
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 10:17:52 2017 -0500
+
+    sync: deflake TestWaitGroupMisuse2
+    
+    Also runs 100X faster on average, because it takes so many
+    fewer attempts to trigger the failure.
+    
+    Fixes #11443.
+    
+    Change-Id: I8c39ee48bb3ff6c36fa63083e04076771b65a80d
+    Reviewed-on: https://go-review.googlesource.com/36841
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/waitgroup_test.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

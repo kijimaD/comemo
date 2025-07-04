@@ -1,0 +1,32 @@
+commit 0026cb788b54e3108534992d98b7fec0cf96de17
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 14:33:46 2016 +1100
+
+    net/http: validate transmitted header fields
+    
+    This makes sure the net/http package never attempts to transmit a
+    bogus header field key or value and instead fails fast with an error
+    to the user, rather than relying on the server to maybe return an
+    error.
+    
+    It's still possible to use x/net/http2.Transport directly to send
+    bogus stuff. This change only stops h1 & h2 usage via the net/http
+    package. A future change will update x/net/http2.
+    
+    This change also moves some code from request.go to lex.go, which in a
+    separate future change should be moved so it can be shared with http2
+    to reduce code bloat.
+    
+    Updates #14048
+    
+    Change-Id: I0a44ae1ab357fbfcbe037aa4b5d50669a87f2856
+    Reviewed-on: https://go-review.googlesource.com/21326
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 57 ++++++++++++++++++++++++
+ src/net/http/lex.go               | 94 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/request.go           | 89 ------------------------------------
+ src/net/http/transport.go         | 20 +++++++--
+ 4 files changed, 168 insertions(+), 92 deletions(-)

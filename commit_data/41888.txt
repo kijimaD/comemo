@@ -1,0 +1,16 @@
+commit 3c8101c7e4b80794c6c61acf7477fee136f8c79e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 28 14:29:28 2019 -0700
+
+    cmd/compile: use optimized slice zeroing in deadcode
+    
+    Minor cleanup. Passes toolstash-check.
+    
+    Change-Id: I97a027c4ca49ded593e9c7989e9e091ab9336fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227318
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/deadcode.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

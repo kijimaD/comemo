@@ -1,0 +1,12 @@
+commit 516306f67781279e175fe0697446ba087b8ac793
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 3 15:05:08 2012 +1000
+
+    godoc: move Examples above Index and make them both collapsable
+    
+    R=golang-dev, dsymonds, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6591066
+
+ lib/godoc/package.html | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 42f89db1538ce9c7e48b04615b0bc7ca098946c1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 19 20:55:47 2023 +0200
+
+    net: remove unused _C_FreeCString
+    
+    It's unused since CL 486015.
+    
+    Change-Id: Ic9397f5f84940a09f05499da2774b952fe6d1365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/cgo_unix_cgo.go     | 1 -
+ src/net/cgo_unix_syscall.go | 3 +--
+ 2 files changed, 1 insertion(+), 3 deletions(-)

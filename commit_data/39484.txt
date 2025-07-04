@@ -1,0 +1,32 @@
+commit a3a0cc2e1ae5eeafdffc8c6f1cc9ea9ea93937e3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jul 1 15:25:04 2019 -0400
+
+    cmd/go: restore @latest behavior and support @upgrade in 'go get'
+    
+    'go get path@latest' may now downgrade a module required at a
+    pre-release or pseudo-version newer than the latest released
+    version. This restores the 1.12 behavior and the ability to easily
+    roll back from a temporary development version.
+    
+    'go get path@upgrade' is like @latest but will not downgrade.
+    If no version suffix is specified ('go get path'), @upgrade is
+    implied.
+    
+    Fixes #32846
+    
+    Change-Id: Ibec0628292ab1c484716a5add0950d7a7ee45f47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184440
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              | 14 +++---
+ src/cmd/go/internal/modget/get.go                  | 56 ++++++++++++----------
+ src/cmd/go/internal/modload/build.go               |  2 +-
+ src/cmd/go/internal/modload/query.go               | 24 ++++++----
+ src/cmd/go/testdata/script/mod_get_main.txt        |  8 +++-
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |  4 +-
+ src/cmd/go/testdata/script/mod_get_svn.txt         |  2 +-
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 38 ++++++++++++---
+ 8 files changed, 95 insertions(+), 53 deletions(-)

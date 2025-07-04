@@ -1,0 +1,19 @@
+commit 27c5dcffef590ac9dbc31f3d513f1b7d058907f6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 7 08:33:00 2016 +1000
+
+    cmd/dist: use "set" instead of "export" in diagnostic message
+    
+    On Windows, "export" doesn't mean anything, but Windows users are the
+    most likely to see this message.
+    
+    Fixes #15977
+    
+    Change-Id: Ib09ca08a7580713cacb65d0cdc43730765c377a8
+    Reviewed-on: https://go-review.googlesource.com/23840
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

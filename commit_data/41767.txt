@@ -1,0 +1,16 @@
+commit 3840aced142aeeca6ddf54cb90c07b54e4cf814b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 11:26:37 2020 -0400
+
+    cmd/go/internal/modfetch/codehost: remove unused GitRepo function
+    
+    For #37943
+    
+    Change-Id: Ib8ba5d846f41afc0047c33b8145918d93326cdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225937
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 5 -----
+ 1 file changed, 5 deletions(-)

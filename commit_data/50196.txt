@@ -1,0 +1,23 @@
+commit 6b113c0fecd62b57ee88757c3ca80e9bdd11150d
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Mon Jul 11 15:56:37 2022 +0000
+
+    cmd/compile: avoid excessive libfuzzer instrumentation of int compares
+    
+    Do not intercept integer compares that are used to increment libFuzzer's
+    8-bit counters. This is unnecessary and has a negative impact on the
+    fuzzing performance. This fixes #53760.
+    
+    Change-Id: Id22efac968b18014eedabb6f0762e1456897024e
+    GitHub-Last-Rev: 52f69fd68c21001beb7b853d4f0343ece0d3f9d1
+    GitHub-Pull-Request: golang/go#53786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416796
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/walk/compare.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

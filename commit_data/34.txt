@@ -1,0 +1,10 @@
+commit 6caad961fe65bf5859ce9b1c6e25cc547ebb1070
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 19 21:20:25 2008 -0700
+
+    - added extra escaped chars
+    
+    SVN=113258
+
+ doc/go_lang.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

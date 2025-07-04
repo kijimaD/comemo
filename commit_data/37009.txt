@@ -1,0 +1,16 @@
+commit f2a676536f9aa4c230c90e48404e89f30477f243
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 16 21:37:44 2018 -0700
+
+    test: limit runoutput concurrency with -v
+    
+    This appears to have simply been an oversight.
+    
+    Change-Id: Ia5d1309b3ebc99c9abbf0282397693272d8178aa
+    Reviewed-on: https://go-review.googlesource.com/c/142885
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/run.go | 1 +
+ 1 file changed, 1 insertion(+)

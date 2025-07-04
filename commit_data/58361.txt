@@ -1,0 +1,16 @@
+commit 04cdaa9984682e36e7603dd7e40309fc916edb56
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 5 13:01:32 2024 -0500
+
+    cmd/go: document c-shared buildmode for building WASI library/reactor
+    
+    For #65199.
+    
+    Change-Id: Icd3ec7cf25c2d381401686333c8aeed8013b3fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633418
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go               | 5 ++++-
+ src/cmd/go/internal/help/helpdoc.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

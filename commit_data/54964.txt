@@ -1,0 +1,31 @@
+commit 42bd21be1cf54876ce24c489852721049ef293e2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 6 16:28:25 2023 -0500
+
+    cmd/compile: support lookup of functions from export data
+    
+    As of CL 539699, PGO-based devirtualization supports devirtualization of
+    function values in addition to interface method calls. As with CL
+    497175, we need to explicitly look up functions from export data that
+    may not be imported already.
+    
+    Symbol naming is ambiguous (`foo.Bar.func1` could be a closure or a
+    method), so we simply attempt to do both types of lookup. That said,
+    closures are defined in export data only as OCLOSURE nodes in the
+    enclosing function, which this CL does not yet attempt to expand.
+    
+    For #61577.
+    
+    Change-Id: Ic7205b046218a4dfb8c4162ece3620ed1c3cb40a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540258
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/unified.go          |  45 +++++++++++++++++++--
+ src/cmd/compile/internal/pgo/irgraph.go            |  12 +++---
+ .../compile/internal/test/pgo_devirtualize_test.go |  26 ++++++------
+ .../test/testdata/pgo/devirtualize/devirt.go       |  24 ++---------
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 1411 -> 1345 bytes
+ .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  12 ++++++
+ 6 files changed, 73 insertions(+), 46 deletions(-)

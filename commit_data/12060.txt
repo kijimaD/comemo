@@ -1,0 +1,13 @@
+commit c9b36a87eb1928f9e4fbdfff052b08b56dc1c000
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 07:44:24 2012 +1100
+
+    test/initcomma.go: restore what it's supposed to be testing
+    which is trailing commas in literals. They were gofmted away at some point.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5673103
+
+ test/initcomma.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

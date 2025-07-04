@@ -1,0 +1,29 @@
+commit f118d145a56be294e578fb20e0e2fdde2a92846d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 30 01:01:20 2021 -0700
+
+    cmd/compile: make unified IR more selective about method wrappers
+    
+    This CL makes two changes to how unified IR emits method wrappers:
+    
+    1. It no longer emits wrappers for defined types' underlying
+    types. Previously, a declaration like `type T struct { U }` would emit
+    wrappers for both `T` and `struct { U }`. Now they're only emitted for
+    `T`.
+    
+    2. It emits method value wrappers only when OMETHVALUE nodes are
+    actually created, like how -G=0 works. Method values are relatively
+    rare, aren't needed for runtime type descriptors (unlike method
+    expression wrappers), and large projects end up spending a non-trivial
+    amount of time compiling these unneeded wrappers.
+    
+    Change-Id: I21da97df3132ec12cc67debf62b5b2d282f481cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346230
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go | 149 +++++++++++++++++++------------
+ src/cmd/compile/internal/walk/closure.go |   4 +
+ 2 files changed, 98 insertions(+), 55 deletions(-)

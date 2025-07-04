@@ -1,0 +1,18 @@
+commit 5f9a9433ea5f3e933d9950994edaf45c36a92ffb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 26 23:35:42 2013 +0100
+
+    cmd/gc: enable racewalk of HMUL nodes.
+    
+    A HMUL node appears in some constant divisions, but
+    to observe a false negative in race detector the divisor must be
+    suitably chosen to make sure the only memory access is
+    done for HMUL.
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7935045
+
+ src/cmd/gc/racewalk.c                     | 18 +++++++++---------
+ src/pkg/runtime/race/testdata/mop_test.go |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

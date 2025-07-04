@@ -1,0 +1,12 @@
+commit 11a978adf5d7d854edda3d36f37b352929c97743
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 13:46:55 2008 -0700
+
+    shift bug in constant evaluator
+    
+    R=ken
+    OCL=18031
+    CL=18031
+
+ test/bugs/bug114.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

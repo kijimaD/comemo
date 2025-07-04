@@ -1,0 +1,17 @@
+commit 6bddb13bc4f315726aae22ac0342fb044440e8fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 25 11:44:08 2014 -0700
+
+    net/http: populate Request.Close in ReadRequest
+    
+    Fixes #8261
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/126620043
+
+ src/pkg/net/http/readrequest_test.go | 41 ++++++++++++++++++++++++++++++------
+ src/pkg/net/http/request.go          |  1 +
+ src/pkg/net/http/transfer.go         |  8 ++++---
+ 3 files changed, 40 insertions(+), 10 deletions(-)

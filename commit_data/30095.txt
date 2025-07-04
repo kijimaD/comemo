@@ -1,0 +1,14 @@
+commit 172311ce10c823c470d23060317f79c5059f041b
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Sun Feb 5 23:06:34 2017 +0300
+
+    time: Fix typo in Time.String() description.
+    
+    Refs #12914.
+    
+    Change-Id: Iadac4cbef70db6a95b47f86eaffcfc63bfdb8e90
+    Reviewed-on: https://go-review.googlesource.com/36334
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/format.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

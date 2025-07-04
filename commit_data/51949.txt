@@ -1,0 +1,23 @@
+commit 9d81ccbf51b08bb29efad5fa9acc8fa69bbd8f6b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Feb 2 19:33:01 2023 +0000
+
+    internal/xcoff: use unsigned integers in file structs to avoid negative values
+    
+    Fixes #58137
+    Updates #54584
+    
+    Change-Id: Ifeee1be22051b842e0707d1907dbfa58bfeb336b
+    GitHub-Last-Rev: 9768e7c4a4954824fa1a2c41c0ad72e496408f91
+    GitHub-Pull-Request: golang/go#58164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464336
+    Reviewed-by: Ayappan Perumal <ayappanec@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/xcoff/file.go  | 14 ++++--------
+ src/internal/xcoff/xcoff.go | 56 ++++++++++++++++++++++-----------------------
+ 2 files changed, 32 insertions(+), 38 deletions(-)

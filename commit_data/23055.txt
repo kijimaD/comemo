@@ -1,0 +1,33 @@
+commit ebe733cb40c49148b2fe53d27ce9b1f76993591e
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Thu May 14 16:44:58 2015 +0000
+
+    text/template: fix race condition on function maps
+    
+    The Template objects are supposed to be goroutine-safe once they
+    have been parsed. This includes the text and html ones.
+    
+    For html/template, the escape mechanism is triggered at execution
+    time. It may alter the internal structures of the template, so
+    a mutex protects them against concurrent accesses.
+    
+    The text/template package is free of any synchronization primitive.
+    
+    A race condition may occur when nested templates are escaped:
+    the escape algorithm alters the function maps of the associated
+    text templates, while a concurrent template execution may access
+    the function maps in read mode.
+    
+    The less invasive fix I have found is to introduce a RWMutex in
+    text/template to protect the function maps. This is unfortunate
+    but it should be effective.
+    
+    Fixes #9945
+    
+    Change-Id: I1edb73c0ed0f1fcddd2f1516230b548b92ab1269
+    Reviewed-on: https://go-review.googlesource.com/10101
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/funcs.go    |  2 ++
+ src/text/template/template.go | 12 ++++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

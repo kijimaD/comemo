@@ -1,0 +1,21 @@
+commit f388b58540c2cc401dfa79e3d7b6a1846ac9a59f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 09:53:27 2016 -0800
+
+    cmd/compile: reuseable cache of Prog structs
+    
+    Reuseable cache of Prog entries.
+    
+    Improves compiler speed by ~10%.
+    
+    Update #13646
+    
+    Change-Id: I01bd8606540d989ea8b8ba5131d1275ba380d976
+    Reviewed-on: https://go-review.googlesource.com/19868
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go    |  4 ++++
+ src/cmd/internal/obj/objfile.go |  1 +
+ src/cmd/internal/obj/util.go    | 15 ++++++++++++++-
+ 3 files changed, 19 insertions(+), 1 deletion(-)

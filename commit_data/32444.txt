@@ -1,0 +1,34 @@
+commit 6d7db25e5c311219b9c6d77f7d0dbc457aff30f7
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Aug 24 14:29:13 2017 -0400
+
+    cmd/link: don't create go.info symbols for non-Go functions
+    
+    In writelines the linker uses various auxiliary information about a
+    function to create its line table entries. (It also does some unrelated
+    stuff, but never mind.) There's no reason to do this for non-Go
+    functions, so it bails out if the symbol has no FuncInfo.
+    
+    However, it does so *after* it looks up (and implicitly creates!) the
+    go.info symbol for the function, which doesn't make sense and risks
+    creating duplicate symbols for static C functions. Move the check up so
+    that it doesn't do that.
+    
+    Since non-Go functions can't reference Go types, there shouldn't be any
+    relocations to type info DIEs that need to be built, so there should be
+    no harm not doing that.
+    
+    I wanted to change the Lookup to an ROLookup but that broke the
+    shared-mode tests with an inscrutable error.
+    
+    No test. It seems too specific to worry about, but if someone disagrees
+    I can figure something out.
+    
+    Fixes #21566
+    
+    Change-Id: I61f03b7c504a3bf1c4245a8811795b6303469e91
+    Reviewed-on: https://go-review.googlesource.com/58630
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,0 +1,11 @@
+commit 6301fb41347a5f159242efad2a4af8f1ac213d34
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 17:23:33 2009 -0800
+
+    faq: add question about translation
+    
+    R=jini, r
+    https://golang.org/cl/163092
+
+ doc/go_faq.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

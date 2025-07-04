@@ -1,0 +1,17 @@
+commit 15648d2e77fa8116edd51a13fb5233e8ce0e98b3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 21 22:10:09 2015 +0900
+
+    net: replace server tests
+    
+    This change replaces server tests with new ones that require features
+    introduced after go1 release, such as runtime-integrated network poller,
+    Dialer, etc.
+    
+    Change-Id: Icf1f94f08f33caacd499cfccbe74cda8d05eed30
+    Reviewed-on: https://go-review.googlesource.com/9195
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/server_test.go  | 577 +++++++++++++++++++++++++-----------------------
+ src/net/timeout_test.go |  42 ++--
+ 2 files changed, 327 insertions(+), 292 deletions(-)

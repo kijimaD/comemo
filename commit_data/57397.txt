@@ -1,0 +1,15 @@
+commit 2be9309983f3b8419d83581853657b377d368def
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:34:29 2024 -0700
+
+    cmd/addr2line: use t.TempDir
+    
+    Change-Id: I62f1c51be89e9c2f22cc7b0b2e554ffa3da907ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611038
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/addr2line/addr2line_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

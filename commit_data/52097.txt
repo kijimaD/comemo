@@ -1,0 +1,25 @@
+commit cb3e170ae764856a99160ee1a6cf8f04c8f51e5d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Feb 23 13:28:48 2023 -0800
+
+    encoding/json: rely on reflect.Value.SetZero
+    
+    v.SetZero() is faster than v.Set(reflect.Zero(v.Type()))
+    and was recently added in Go 1.20.
+    
+    Benchmark numbers are largely unchanged since this mainly
+    affects the unmarshaling of large numbers of JSON nulls,
+    which our benchmarks do not heavily exercise.
+    
+    Change-Id: I464f60f63c9027e63a99fd5da92e7ab782018329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471195
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/decode.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

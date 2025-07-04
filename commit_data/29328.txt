@@ -1,0 +1,26 @@
+commit 66504485ebd8d7a75b68c025cc15835b016a1ae4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 2 17:55:29 2016 -0700
+
+    cmd/compile/internal/gc: make tests run faster
+    
+    TestAssembly takes 20s on my machine,
+    which is too slow for normal operation.
+    Marking as -short has its dangers (#17472),
+    but hopefully we'll soon have a builder for that.
+    
+    All the SSA tests are hermetic and not time sensitive
+    and can thus be run in parallel.
+    Reduces the cmd/compile/internal/gc test time during
+    all.bash on my laptop from 42s to 7s.
+    
+    Updates #17751
+    
+    Change-Id: Idd876421db23b9fa3475e8a9b3355a5dc92a5a29
+    Reviewed-on: https://go-review.googlesource.com/32585
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 3 +++
+ src/cmd/compile/internal/gc/ssa_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

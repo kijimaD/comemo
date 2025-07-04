@@ -1,0 +1,15 @@
+commit 482ceeda6df719004f15068c93d4ed17a83f3869
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 13:51:21 2012 +1000
+
+    misc/dashboard/codereview: interpret zero reviewers as the CL being closed.
+    
+    This is the state when the CL has been submitted by someone other than
+    the CL author, but before the CL author has synched their client.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6458044
+
+ misc/dashboard/codereview/dashboard/cl.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

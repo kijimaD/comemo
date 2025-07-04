@@ -1,0 +1,12 @@
+commit 175c4015233272311d20dad8eb3e6f7d1acd941a
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 15 06:57:50 2013 +0100
+
+    cmd/gc: unroll small array types
+    
+    R=golang-dev, rsc
+    CC=golang-dev, nigeltao
+    https://golang.org/cl/7812044
+
+ src/cmd/gc/reflect.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

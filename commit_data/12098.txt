@@ -1,0 +1,13 @@
+commit c9bb042287c1e751865f6fa79503e800213d3514
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 15:49:08 2012 +1100
+
+    net: more selfConnect debugging: panic if ra == nil in internetSocket
+    TBR=dsymonds
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5687058
+
+ src/pkg/net/ipsock_posix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

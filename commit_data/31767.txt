@@ -1,0 +1,22 @@
+commit 760636d55a87fe7348e9e14ef1474df2a58439de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 22:38:15 2017 +0000
+
+    cmd/go: ignore dot and underscore files in fmt, fix, and get -fix
+    
+    No test because as far as I can tell, there aren't existing tests for
+    these.
+    
+    Fixes #18383
+    
+    Change-Id: I06eaef05777a1474886167e3797c5bcd93189d1b
+    Reviewed-on: https://go-review.googlesource.com/45156
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/base/path.go  | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/fix/fix.go    |  3 ++-
+ src/cmd/go/internal/fmtcmd/fmt.go |  3 ++-
+ src/cmd/go/internal/get/get.go    |  3 ++-
+ 4 files changed, 28 insertions(+), 3 deletions(-)

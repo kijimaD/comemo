@@ -1,0 +1,21 @@
+commit 7bdb4a28a87f24a6c00ae3194598934e0fa142f0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 19 23:49:24 2015 +0000
+
+    Revert "cmd/internal/ld: output dwarf in external link mode on darwin"
+    
+    This reverts commit 8b83306cf20abed54d7cb23a3f3091b7e6202056.
+    
+    Change-Id: I3fb998bdf11eceef13e3997e336d86e7c5d47a60
+    Reviewed-on: https://go-review.googlesource.com/10254
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/5l/asm.go                          |  14 +-
+ src/cmd/6l/asm.go                          |   2 +-
+ src/cmd/7l/asm.go                          |  14 +-
+ src/cmd/8l/asm.go                          |   2 +-
+ src/cmd/internal/ld/dwarf.go               | 155 +++---------
+ src/cmd/internal/ld/lib.go                 |  21 +-
+ src/cmd/internal/ld/macho.go               |   8 +-
+ src/cmd/internal/ld/macho_combine_dwarf.go | 369 -----------------------------
+ 8 files changed, 58 insertions(+), 527 deletions(-)

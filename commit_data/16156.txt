@@ -1,0 +1,16 @@
+commit 7ac20853fc3437647c4abfc3236e5c380bf5e68d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Apr 10 18:47:58 2013 -0700
+
+    cmd/ld: fix scope of static objects in symbol table
+    
+    All symbols are currently marked with global scope.
+    The correct behavior was lost when the symbol table
+    format was changed.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/8625043
+
+ src/cmd/ld/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

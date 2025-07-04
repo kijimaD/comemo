@@ -1,0 +1,22 @@
+commit 859cab099c5a9a9b4939960b630b78e468c8c39e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 03:40:51 2016 +0000
+
+    net/http: make DefaultTransport's Dialer enable DualStack ("Happy Eyeballs")
+    
+    As @pmarks-net said in the bug, this is something of a prisoner's
+    dilemma, but it does help people who occasionally report problems.
+    
+    This is temporary. IPv6 is happening regardless of our decision here,
+    so we'll do this for now.
+    
+    Fixes #15324
+    
+    Change-Id: I8cc29c6efa56222970996c71182fc9ee89d78539
+    Reviewed-on: https://go-review.googlesource.com/28077
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

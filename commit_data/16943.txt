@@ -1,0 +1,16 @@
+commit 53b61057b2ca71cc92ccdd6e7c91caf3fb00c3ef
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Jul 31 16:11:12 2013 +1000
+
+    fmt: make all errors begin with the string "%!", always.
+    
+    Fixes #5730.
+    
+    R=dsymonds, r, kamil.kisiel
+    CC=golang-dev
+    https://golang.org/cl/11998044
+
+ src/pkg/fmt/doc.go      |  8 ++++----
+ src/pkg/fmt/fmt_test.go | 30 +++++++++++++++---------------
+ src/pkg/fmt/print.go    | 35 ++++++++++++++++++-----------------
+ 3 files changed, 37 insertions(+), 36 deletions(-)

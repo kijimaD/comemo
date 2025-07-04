@@ -1,0 +1,17 @@
+commit 2c4b029b752a5aa8315e56b9563b2052fe8dd3fe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu May 30 08:32:00 2013 +0200
+
+    cmd/gc: use escape analysis result for make([]T, constant
+    
+    Escape analysis already gives that the underlying array
+    does not escape but the result was ignored.
+    
+    Fixes #5484.
+    
+    R=golang-dev, dave, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/9662046
+
+ src/cmd/gc/walk.c | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)

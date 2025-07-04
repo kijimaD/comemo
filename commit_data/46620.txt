@@ -1,0 +1,32 @@
+commit dfd875d015fb67671a2374c229e2159388d37693
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 22 20:20:09 2021 -0700
+
+    cmd/compile: allow methods on shape types (but no bodies)
+    
+    In a previous change, I was too aggressive in substInstType() in not
+    generating methods for shape types during import. We do actually want to
+    generate the method nodes - we just don't want to generate method bodies
+    (which we would never use). We may need the method nodes for checking
+    types later in the compile (especially with inlining).
+    
+    So, we do generate method nodes for shape types during import. In
+    order to avoid the name collision we previously had, we now add
+    ".nofunc." to the method nodes for shape types (during import and in the
+    type substituter). We do that by passing in a 'isMethodNode' arg to
+    MakeInstSym. We keep the normal name (without ".nofunc") for any other
+    method nodes, and for the instantiated functions that help with
+    implementing the methods of fully-instantiated types. The ".nofunc"
+    names will never appear in the executable, since we don't generate any
+    method bodies for the method nodes of shape types.
+    
+    Change-Id: I3e57e328691214140ca5f48d32011552d2a0d45d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352470
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go       |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |  7 +------
+ src/cmd/compile/internal/typecheck/subr.go      | 21 ++++++++++++++++-----
+ 4 files changed, 19 insertions(+), 13 deletions(-)

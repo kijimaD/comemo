@@ -1,0 +1,14 @@
+commit 88c448ba40a29ac96563e9945d2af17fba779d23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 17 11:57:48 2013 -0700
+
+    runtime: correct test for when to poll network
+    
+    Fixes #6610.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/14793043
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

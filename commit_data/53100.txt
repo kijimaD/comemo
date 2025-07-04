@@ -1,0 +1,19 @@
+commit 33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 18 00:13:11 2023 -0400
+
+    doc/go1.21: fix HTML formatting
+    
+    Fix formatting mistakes in my previous CLs -- a missing code tag
+    and a broken comment tag.
+    
+    Change-Id: I7f558f59b4e8fe9cb398d0093e5389b968d89eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496115
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit d090429ea9af7cc2958fd95460196b02212c2b62
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri Feb 22 15:53:52 2019 +0000
+
+    all: fix typos as reported by 'misspell'
+    
+    Change-Id: I904b8655f21743189814bccf24073b6fbb9fc56d
+    GitHub-Last-Rev: b032c14394c949f9ad7b18d019a3979d38d4e1fb
+    GitHub-Pull-Request: golang/go#29997
+    Reviewed-on: https://go-review.googlesource.com/c/160421
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 4 ++--
+ src/cmd/compile/internal/ssa/html.go    | 2 +-
+ src/cmd/trace/annotations.go            | 8 ++++----
+ src/cmd/trace/goroutines.go             | 8 ++++----
+ src/internal/xcoff/file.go              | 4 ++--
+ src/os/os_windows_test.go               | 2 +-
+ src/runtime/mem_bsd.go                  | 2 +-
+ src/runtime/mgcstack.go                 | 2 +-
+ src/runtime/symtab.go                   | 2 +-
+ src/syscall/syscall_aix.go              | 2 +-
+ src/testing/testing.go                  | 2 +-
+ 11 files changed, 19 insertions(+), 19 deletions(-)

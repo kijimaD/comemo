@@ -1,0 +1,14 @@
+commit 2bd1e5e50b677790a2f48127bf443b32ca8193db
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:38:46 2015 -0400
+
+    cmd/pprof: run $BROWSER and system browser before Chrome
+    
+    Fixes #10259.
+    
+    Change-Id: Ica6b8301cc8291785a3c496fb513050813b2d8df
+    Reviewed-on: https://go-review.googlesource.com/12201
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/pprof/internal/commands/commands.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

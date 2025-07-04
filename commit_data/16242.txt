@@ -1,0 +1,14 @@
+commit e2b2e0d8d19e747ffe2059ed8426f5b12b77ff0f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 30 09:47:23 2013 -0400
+
+    doc/go1.1: remove discussion of "go run" change
+    
+    Update #5164
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/9049043
+
+ doc/go1.1.html | 10 ----------
+ 1 file changed, 10 deletions(-)

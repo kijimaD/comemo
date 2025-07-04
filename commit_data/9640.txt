@@ -1,0 +1,40 @@
+commit 4670d9e6349119914c9a5a1b40ce32045f3c0061
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 9 07:18:20 2011 +1000
+
+    exp/template/html: autoescape actions in HTML style attributes.
+    
+    This does not wire up <style> elements as that is pending support
+    for raw text content in CL https://golang.org/cl/4964045/
+    
+    This CL allows actions to appear in contexts like
+    
+    selectors:        {{.Tag}}{{.Class}}{{.Id}}
+    property names:   border-{{.BidiLeadingEdge}}
+    property values:  color: {{.Color}}
+    strings:          font-family: "{{font-name}}"
+    URL strings:      background: "/foo?image={{.ImgQuery}}"
+    URL literals:     background: url("{{.Image}}")
+    
+    but disallows actions inside CSS comments and disallows
+    embedding of JS in CSS entirely.
+    
+    It is based on the CSS3 lexical grammar with affordances for
+    common browser extensions including line comments.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4968058
+
+ src/pkg/exp/template/html/Makefile       |   3 +
+ src/pkg/exp/template/html/context.go     |  50 ++++--
+ src/pkg/exp/template/html/css.go         | 255 ++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/css_test.go    | 277 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/escape.go      | 271 +++++++++++++++++++++++-------
+ src/pkg/exp/template/html/escape_test.go | 254 ++++++++++++++++++++++++++--
+ src/pkg/exp/template/html/html.go        | 101 +++++++++++
+ src/pkg/exp/template/html/html_test.go   |  57 +++++++
+ src/pkg/exp/template/html/js.go          |   2 +-
+ src/pkg/exp/template/html/url.go         | 104 ++++++++++++
+ src/pkg/exp/template/html/url_test.go    | 112 +++++++++++++
+ 11 files changed, 1400 insertions(+), 86 deletions(-)

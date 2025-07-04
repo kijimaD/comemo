@@ -1,0 +1,22 @@
+commit c45751e8a50d6050c6090d654364d69599b2e97a
+Author: Lee Packham <lpackham@gmail.com>
+Date:   Mon Mar 30 17:36:49 2015 +0100
+
+    runtime: allow pointers to strings to be printed
+    
+    Being able to printer pointers to strings means one will able to output
+    the result of things like the flag library and other components that use
+    string pointers.
+    
+    While here, adjusted the tests for gdb to test original string pretty
+    printing as well as pointers to them. It was doing it via the map before
+    but for completeness this ensures it's tested as a unit.
+    
+    Change-Id: I4926547ae4fa6c85ef74301e7d96d49ba4a7b0c6
+    Reviewed-on: https://go-review.googlesource.com/8217
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 22 ++++++++++++++++++++--
+ 2 files changed, 21 insertions(+), 3 deletions(-)

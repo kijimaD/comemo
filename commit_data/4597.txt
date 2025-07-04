@@ -1,0 +1,12 @@
+commit ae13f43810e8afe2b1c68a59b10d93e8522b90e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 13 12:50:45 2010 -0800
+
+    Clarify when expressions are evaluated for a range clause.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/189057
+
+ doc/go_spec.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

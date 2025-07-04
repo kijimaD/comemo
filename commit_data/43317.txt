@@ -1,0 +1,18 @@
+commit 59202c4204205ee019cf25efcb814b72c8703f4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 21:09:18 2020 -0400
+
+    net/http: deflake TestServerEmptyBodyRace_h1, or at least try
+    
+    Fixes #22540.
+    For #33585.
+    
+    Change-Id: I504b5a91ce1a39cd4ffd2380178a1b8f82f49dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261698
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/serve_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

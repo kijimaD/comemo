@@ -1,0 +1,24 @@
+commit 194fa2eb6cdeaddc4a89fae4610f99d8060d10a0
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Aug 13 17:17:06 2024 +0200
+
+    cmd/compile: compute Modu's maximum limits from argument's limits
+    
+    addLocalFacts loop already ft.update which sets up limits correctly, but doing this in flowLimit help us since other values might depend on this limit.
+    
+    Updates #68857
+    
+    We could improve this further:
+    - remove mod alltogheter when we can prove a < b.
+    - we could do more adhoc computation in flowLimit to set umax and umin tighter
+    
+    Change-Id: I5184913577b6a51a07cb53a6e6b73552a982de0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605156
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  7 +++++
+ test/prove.go                         | 52 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

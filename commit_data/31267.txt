@@ -1,0 +1,30 @@
+commit ee175afac237c9fcb54785eec2890dfb0dd6825f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 3 12:10:56 2017 -0400
+
+    runtime: consolidate all trigger-derived computations
+    
+    Currently, the computations that derive controls from the GC trigger
+    are spread across several parts of the mark termination code.
+    Consolidate computing the absolute trigger, the heap goal, and sweep
+    pacing into a single function called at the end of mark termination.
+    
+    Unlike the code being consolidated, this has to be more careful about
+    negative gcpercent. Many of the consolidated code paths simply didn't
+    execute if GC was off.
+    
+    This is a step toward being able to change the GC trigger ratio in the
+    middle of concurrent sweeping and marking. For this commit, we try to
+    stick close to the original structure of the code that's being
+    consolidated, so it doesn't yet support mid-cycle adjustments.
+    
+    For #19076.
+    
+    Change-Id: Ic5335be04b96ad20e70d53d67913a86bd6b31456
+    Reviewed-on: https://go-review.googlesource.com/39831
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 177 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 105 insertions(+), 72 deletions(-)

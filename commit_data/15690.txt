@@ -1,0 +1,24 @@
+commit 76374412c36ccbac91c86a033b37732661787246
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Mar 11 13:34:57 2013 -0700
+
+    lib9, cmd/dist, cmd/ld: Plan 9: fix build
+    
+    lib9: fix runcmd, removeall, and tempdir functions
+    
+    cmd/dist: Include run_plan9.c and tempdir_plan9.c
+            from lib9 for build, and in general consider
+            file names containing "plan9" for building.
+    
+    cmd/ld: provide function args for the new functions
+            from lib9.
+    
+    R=rsc, rminnich, ality, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7666043
+
+ src/cmd/dist/build.c     | 3 ++-
+ src/cmd/ld/lib.c         | 5 +++++
+ src/lib9/run_plan9.c     | 4 ++--
+ src/lib9/tempdir_plan9.c | 4 ++--
+ 4 files changed, 11 insertions(+), 5 deletions(-)

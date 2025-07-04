@@ -1,0 +1,12 @@
+commit 3e91e8aa356328c5a7c2ab0f6291f99c69145cdc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 30 21:50:07 2016 +0100
+
+    go/internal/gcimporter: add missing argument to error message
+    
+    Change-Id: I3071f0e876506c6dc283e97bc15f157bf2ff011e
+    Reviewed-on: https://go-review.googlesource.com/19641
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/gcimporter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit cca48f1a577bc5eb8363ef4ce63af6a9b30a164a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Sep 26 14:47:47 2012 -0400
+
+    crypto/x509: add Plan 9 root certificate location
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/6571056
+
+ src/pkg/crypto/x509/root_plan9.go | 31 +++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/root_stub.go  |  2 +-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

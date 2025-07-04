@@ -1,0 +1,21 @@
+commit 9c2037fbcf1a732f55e29062f3d30ddd21ca36d3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Nov 8 17:11:18 2016 -0500
+
+    runtime/pprof/internal/protopprof: skip TestTranslateCPUProfileWithSamples if < 2 mappings
+    
+    A Go binary may only have 1 executable memory region if it has been
+    linked using internal linking. This change means that the test will
+    be skipped if this is the case, rather than fail.
+    
+    Fixes #17852.
+    
+    Change-Id: I59459a0f90ae8963aeb9908e5cb9fb64d7d0e0f4
+    Reviewed-on: https://go-review.googlesource.com/32920
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/internal/protopprof/protopprof_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

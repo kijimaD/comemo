@@ -1,0 +1,15 @@
+commit daa2d547734a3e5693b06d7d09e38ff1e617c89f
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Sat Mar 31 15:45:35 2018 +0200
+
+    crypto/rsa: add PublicKey.Size accessor
+    
+    Provide the fixed size from the key pair.
+    
+    Change-Id: I365c8d0f7d915229ef089e46458d4c83273fc648
+    Reviewed-on: https://go-review.googlesource.com/103876
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rsa/pkcs1v15.go | 10 +++++-----
+ src/crypto/rsa/rsa.go      |  9 +++++++--
+ 2 files changed, 12 insertions(+), 7 deletions(-)

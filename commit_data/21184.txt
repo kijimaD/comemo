@@ -1,0 +1,12 @@
+commit ce36552083ef281d4c90b2396a56afa039e119b0
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Sun Dec 14 14:32:56 2014 +0800
+
+    doc/contribute: add necessary <code> tags, remove an extra close parenthesis.
+    
+    Change-Id: I7238ae84d637534a345e5d077b8c63466148bd75
+    Reviewed-on: https://go-review.googlesource.com/1521
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

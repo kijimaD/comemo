@@ -1,0 +1,23 @@
+commit c96fec9036e8b446b7ffefb59d2775b385ec6701
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 16:22:25 2021 -0700
+
+    runtime: use a single definition of time_now for faketime
+    
+    Build other definitions with the !faketime build tag.
+    
+    This makes it easy for us to add new assembly implementations of time.now.
+    
+    Change-Id: I4e48e41a4a04ab001030e6d1cdd9cebfa0161b0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314274
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time_fake.go         | 21 ++++++++++-----------
+ src/runtime/time_windows_386.s   |  3 +++
+ src/runtime/time_windows_amd64.s |  3 +++
+ src/runtime/time_windows_arm.s   |  3 +++
+ src/runtime/time_windows_arm64.s |  3 +++
+ src/runtime/timeasm.go           |  4 ++--
+ src/runtime/timestub.go          |  4 ++--
+ 7 files changed, 26 insertions(+), 15 deletions(-)

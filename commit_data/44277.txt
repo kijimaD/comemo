@@ -1,0 +1,31 @@
+commit a54f7fc0fde79e8edc696de002fe8a73604f077f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 29 09:55:03 2021 -0500
+
+    runtime: do not treat asmcgocall as a topofstack on g0
+    
+    This was added in 2018 to fix a runtime crash during unwind
+    during a unhandled-panic-induced crash.
+    (See https://golang.org/cl/90895 and #23576.)
+    Clearly we cannot unwind past this function, and the change
+    did stop the unwind. But it's not a top-of-stack function, and
+    the real issue is that SP is changed.
+    
+    The new SPWRITE bit takes care of this instead, so we can drop
+    it from the topofstack function.
+    
+    At this point the topofstack function is only checking the
+    TOPFRAME bit, so we can inline that into the one call site.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I856552298032770e48e06c95a20823a1dbd5e38c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288805
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/traceback.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

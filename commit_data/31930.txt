@@ -1,0 +1,20 @@
+commit e25fdb968c4ff93c6d41574f2220a11ee02b0914
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 27 22:17:21 2017 +0000
+
+    doc: mention testing/quick RNG seeding change in Go 1.9 notes
+    
+    Also reword the testing/quick.Config field docs to conform to the
+    normal subject-first style. Without that style, godoc links
+    /pkg/testing/quick/#Config.Rand to the wrong line, since it doesn't
+    recognize the preceding comment as necessarily being attached.
+    
+    Fixes #20809
+    
+    Change-Id: I9aebbf763eed9b1ab1a153fa11850d88a65571c6
+    Reviewed-on: https://go-review.googlesource.com/46910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html             | 16 ++++++++++++----
+ src/testing/quick/quick.go | 21 +++++++++++----------
+ 2 files changed, 23 insertions(+), 14 deletions(-)

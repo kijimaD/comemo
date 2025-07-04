@@ -1,0 +1,14 @@
+commit 11cc5a26d51bb707e6e40c796827f5b3a9b6be04
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 16 17:28:16 2012 +1100
+
+    reflect: panic if MakeSlice is given bad len/cap arguments.
+    
+    Fixes #3330.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5847043
+
+ src/pkg/reflect/value.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

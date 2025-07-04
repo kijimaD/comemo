@@ -1,0 +1,20 @@
+commit 2f07d4455636ece45ff843fe4d9298ea65f933c1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 22 13:38:15 2024 +0200
+
+    crypto/rsa: refactor PKCS#1 v1.5 signature and verification
+    
+    VerifyPKCS1v15 doesn't need to be constant time and can do the safer and
+    simpler construct-and-compare.
+    
+    Updates #67043
+    
+    Change-Id: I014cfd4485fad409c5f86be71488da63af25a584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587278
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/rsa/pkcs1v15.go | 88 ++++++++++++++++++----------------------------
+ 1 file changed, 35 insertions(+), 53 deletions(-)

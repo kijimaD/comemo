@@ -1,0 +1,14 @@
+commit bfe459adc98724354ffefa624b73815adaa711d8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 15:35:48 2014 -0700
+
+    doc/go1.4.html: final library changes
+    First draft now complete.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/170750043
+
+ doc/go1.4.html | 150 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 129 insertions(+), 21 deletions(-)

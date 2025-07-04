@@ -1,0 +1,20 @@
+commit 606f81eef37e5a232f43a208f6eeaddd82dadf34
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 15:01:30 2016 -0400
+
+    context: adjust tests to avoid importing "testing" in package context
+    
+    So that testing can use context in its public API.
+    
+    For #16221.
+    
+    Change-Id: I6263fa7266c336c9490f20164ce79336df44a57e
+    Reviewed-on: https://go-review.googlesource.com/32648
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/benchmark_test.go | 44 ++++++++++++++++++++
+ src/context/context_test.go   | 95 ++++++++++++++++++-------------------------
+ src/context/x_test.go         | 29 +++++++++++++
+ 3 files changed, 112 insertions(+), 56 deletions(-)

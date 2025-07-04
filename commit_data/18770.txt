@@ -1,0 +1,18 @@
+commit 8d77d2c8f0f31159025cd0ddfb4d92147d659ca4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 5 19:37:44 2014 -0800
+
+    spec: be more precise about underlying types of predeclared types
+    
+    The underlying type of the predeclared type error is not itself,
+    but the interface it is defined as.
+    
+    Fixes #7444.
+    
+    LGTM=r, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/71790044
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 27ed675b4bbb63b5b5d84a21be583ef6147a2084
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 20 21:42:02 2018 -0400
+
+    cmd/go: fix 'go help go.mod' example
+    
+    Dropped the example referred to in the text
+    when copying this text out of 'go help mod fix'.
+    
+    Fixes #27083.
+    
+    Change-Id: I63dfa3033fa2b2408019eef9d8b5a055aa803c57
+    Reviewed-on: https://go-review.googlesource.com/130140
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 30 ++++++++++++++++++++++--------
+ src/cmd/go/internal/modload/help.go | 14 +++++++++++++-
+ 2 files changed, 35 insertions(+), 9 deletions(-)

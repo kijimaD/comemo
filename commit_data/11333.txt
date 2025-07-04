@@ -1,0 +1,15 @@
+commit 93c4e29605ac67f3e288463027c35609ddccc253
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jan 23 16:57:12 2012 +0100
+
+    gc: missed typecheck in subscripting a const string.
+    
+    Fixes #2674.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5574045
+
+ src/cmd/gc/walk.c        |  1 +
+ test/fixedbugs/bug399.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

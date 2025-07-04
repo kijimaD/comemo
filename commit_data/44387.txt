@@ -1,0 +1,16 @@
+commit 084b07d6f6104bf9585ffe71fc2477046102c1da
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Wed Feb 10 22:34:09 2021 +0900
+
+    spec: improve sentence structure for passing a slice
+    
+    Change-Id: I453d06da2f596eb0b99905aec46a05547d73c62c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290872
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

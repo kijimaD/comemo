@@ -1,0 +1,14 @@
+commit 5f739d9dcd01730e10d829968755c7b1a7b5f2b7
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Mon Sep 22 09:19:27 2014 -0400
+
+    database/sql: Close per-tx prepared statements when the associated tx ends
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, mattn.jp
+    CC=golang-codereviews
+    https://golang.org/cl/131650043
+
+ src/database/sql/sql.go      | 41 ++++++++++++++++++++++++++++++++++++-----
+ src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 5 deletions(-)

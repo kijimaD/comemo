@@ -1,0 +1,31 @@
+commit 4f445d2744337bd0565c8e8eb1523f512a180d4e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Apr 20 21:24:07 2010 -0700
+
+    big: reduce the number of allocations
+    
+    There was a bug in makeN that caused lots of unnecessary
+    allocations.  Fixing this exposed a few bugs in other
+    functions which worked when makeN allocated a new slice, but
+    failed when it simply resized an existing slice.  The result
+    is a pretty big performance improvement.  When running
+    pidigits, here were the numbers I got on amd64:
+    
+    Before this change:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.09u 0.02s 2.11r
+            gc pidigits     12.68u 0.04s 12.72r
+            gc_B pidigits   12.71u 0.03s 12.75r
+    
+    After:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.09u 0.00s 2.10r
+            gc pidigits     6.82u 0.00s 6.85r
+            gc_B pidigits   6.55u 0.01s 6.59r
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/953042
+
+ src/pkg/big/nat.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

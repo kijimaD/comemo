@@ -1,0 +1,12 @@
+commit 226e1eac031c304c6fe271f46e21804c00794e57
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 10:28:37 2013 +1000
+
+    C: add Folke Behrens (Google CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12208043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

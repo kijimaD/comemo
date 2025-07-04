@@ -1,0 +1,13 @@
+commit 882eb608b1987e6a7b27256bd13d1c533798381d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Nov 7 05:07:46 2012 +0800
+
+    sort: fix comment for various Search routines
+    Fixes #4205 (again).
+    
+    R=r, 0xjnml
+    CC=golang-dev
+    https://golang.org/cl/6819082
+
+ src/pkg/sort/search.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

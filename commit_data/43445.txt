@@ -1,0 +1,25 @@
+commit 67bce7c1cf6540a853c6b8a9721e381c8258d7dc
+Author: Hana <hyangah@gmail.com>
+Date:   Wed Oct 7 17:27:42 2020 -0400
+
+    cmd/vendor: sync pprof@v0.0.0-20201007051231-1066cbb265c7
+    
+    This is a belated early sync for 1.16 dev cycle
+    
+    For #36905
+    
+    Change-Id: I387528ae897794841c0c78b0f0910fc5ce8599ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260538
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                         |  2 +-
+ src/cmd/go.sum                                         |  4 ++--
+ .../google/pprof/internal/driver/driver_focus.go       |  2 +-
+ .../google/pprof/internal/driver/tempfile.go           | 18 ++++++++++++------
+ .../github.com/google/pprof/internal/graph/dotgraph.go | 13 ++++++++++++-
+ .../github.com/google/pprof/internal/report/report.go  |  2 +-
+ src/cmd/vendor/modules.txt                             |  2 +-
+ 7 files changed, 30 insertions(+), 13 deletions(-)

@@ -1,0 +1,15 @@
+commit b39ec942d8f154add0af01ebf66d7524318470e2
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Feb 5 13:44:05 2024 -0500
+
+    doc/next: add release note file for api/next file
+    
+    Change-Id: I3003968d9d7e543c25d4b0ab1d1cd924a1efd3ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561456
+    Auto-Submit: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/sync/61696.md | 1 +
+ 1 file changed, 1 insertion(+)

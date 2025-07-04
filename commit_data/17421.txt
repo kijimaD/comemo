@@ -1,0 +1,16 @@
+commit a9e119ac7006c273d0045bcbc8c8d1a83f58f264
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 29 10:00:58 2013 +0200
+
+    cmd/gc: fix method values whose receiver is an unnamed interface.
+    
+    Fixes #6140.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13083043
+
+ src/cmd/gc/closure.c        | 14 ++++++++++++--
+ test/fixedbugs/issue6140.go | 31 +++++++++++++++++++++++++++++++
+ test/method2.go             |  5 +++--
+ 3 files changed, 46 insertions(+), 4 deletions(-)

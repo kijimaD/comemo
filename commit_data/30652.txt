@@ -1,0 +1,17 @@
+commit ccae744f8017971b59303f62702ecd5c269891ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 14 08:18:11 2017 -0700
+
+    cmd/compile/internal/gc: better loop var names in esc.go
+    
+    Used gorename.
+    
+    Change-Id: Ib33305dc95876ec18e2473ad2999788a32eb21c0
+    Reviewed-on: https://go-review.googlesource.com/38146
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 56 ++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 29 deletions(-)

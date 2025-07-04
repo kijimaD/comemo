@@ -1,0 +1,14 @@
+commit 3fb8d2ad843667e6d4f3a11e21910d82c8e17347
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Jun 3 15:04:22 2010 -0700
+
+    math: fix typo in Exp2 benchmark
+    
+    Was timing Exp, not Exp2.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1521042
+
+ src/pkg/math/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

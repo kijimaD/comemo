@@ -1,0 +1,15 @@
+commit 00812ee8c1d4ac89b2610931eb9662899db1a14c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 16:50:03 2014 -0700
+
+    net/http: clarify Response.Body Close responsibility
+    
+    Per TODO email in my inbox.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=adg, dsymonds, golang-codereviews, r
+    https://golang.org/cl/87550045
+
+ src/pkg/net/http/response.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

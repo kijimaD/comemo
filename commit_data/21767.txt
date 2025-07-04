@@ -1,0 +1,15 @@
+commit a5eda13d20405c659203db34f6d30942ca67fb96
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 26 14:30:40 2015 -0500
+
+    runtime: disable TestGdbPython on ppc64
+    
+    (issue #10017)
+    
+    Change-Id: Ia1267dfdb4474247926a998e32d9c6520015757d
+    Reviewed-on: https://go-review.googlesource.com/6130
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

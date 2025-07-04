@@ -1,0 +1,19 @@
+commit 647eaed93b2aba07d4d4d032d5f58bf6dbc06e5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 14:04:55 2013 -0400
+
+    cmd/cgo: allow C.malloc(0) always
+    
+    Because we can, and because it otherwise might crash
+    the program if we think we're out of memory.
+    
+    Fixes #6390.
+    
+    R=golang-dev, iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13345048
+
+ misc/cgo/test/cgo_test.go      | 1 +
+ src/cmd/cgo/out.go             | 2 ++
+ src/pkg/runtime/cgo/gcc_util.c | 2 ++
+ 3 files changed, 5 insertions(+)

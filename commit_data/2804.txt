@@ -1,0 +1,22 @@
+commit 709e75e3a1fa78d19102afb17edcb13e21efba56
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 28 14:37:06 2009 -0700
+
+    Implement if, for (modulo ranges), break, continue, increment,
+    and decrement.  blockCompilers now form a tree the mimics the
+    nesting of scopes and provide convenient ways to enter and
+    exit scopes.  blockCompilers also track the break and continue
+    PC for the current block.  The statement testing interface now
+    works in lists of statements, which simplifies a bunch of
+    things.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=401  (335 added, 44 deleted, 22 changed)
+    OCL=32308
+    CL=32317
+
+ usr/austin/eval/compiler.go |  18 ++-
+ usr/austin/eval/func.go     |   4 +
+ usr/austin/eval/stmt.go     | 331 ++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 322 insertions(+), 31 deletions(-)

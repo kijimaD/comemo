@@ -1,0 +1,26 @@
+commit 415f0a33750a7cb4ad282fc5aa664d3fde244f84
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Oct 6 12:39:41 2021 -0400
+
+    cmd/link: keep go.buildid alive on AIX external linking
+    
+    As we use relative addressing for text symbols in functab, it is
+    important that the offsets we computed stay unchanged by the
+    external linker, i.e. all symbols in Textp should not be removed
+    by the external linker. Most of them are actually referenced (our
+    deadcode pass ensures that), except go.buildid which is generated
+    late and not used by the program. Keep it alive.
+    
+    Should fix AIX builder.
+    
+    Change-Id: Ibc4a8951be997b9d8d870d75c54754977d9b8333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354369
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

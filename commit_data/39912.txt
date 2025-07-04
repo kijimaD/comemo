@@ -1,0 +1,17 @@
+commit c2facbe93705530a4b4aea70da544a7d645ea288
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Sep 16 16:31:32 2019 +0000
+
+    Revert "test/codegen: document -all_codegen option in README"
+    
+    This reverts CL 192101.
+    
+    Reason for revert: The same paragraph was added 2 weeks ago
+    (look a few lines above)
+    
+    Change-Id: I05efb2631d7b4966f66493f178f2a649c715a3cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195637
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/codegen/README | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 5b897ec0171ba92d01c63ed442fab733fe195775
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 23 13:07:06 2020 -0700
+
+    cmd/compile: disable addressingmodes pass for 386
+    
+    Update #37881
+    
+    Change-Id: I1f9a3f57f6215a19c31765c257ee78715eab36b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225057
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |  2 +-
+ test/codegen/memcombine.go                      |  5 -----
+ test/codegen/memops.go                          | 23 -----------------------
+ 3 files changed, 1 insertion(+), 29 deletions(-)

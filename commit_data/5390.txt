@@ -1,0 +1,16 @@
+commit 0485ba72c3810b9ab52209318c5dfa490c97f7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 28 19:29:20 2010 -0700
+
+    xml: allow text segments to end at EOF
+    
+    Fixes #674.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1018042
+
+ src/pkg/xml/read_test.go |  2 +-
+ src/pkg/xml/xml.go       | 10 ++++++++--
+ src/pkg/xml/xml_test.go  | 26 ++++++++++++++++++++++----
+ 3 files changed, 31 insertions(+), 7 deletions(-)

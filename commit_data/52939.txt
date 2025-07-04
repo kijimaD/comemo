@@ -1,0 +1,17 @@
+commit 841e99e2830bfdcfcf76accd2b02e0d5dc2ea3e1
+Author: David Chase <drchase@google.com>
+Date:   Tue May 9 15:03:48 2023 -0400
+
+    internal/bisect: adjust stack PCs relative to Callers[2]
+    
+    This is necessary to make hashes be consistent across runs,
+    otherwise ASLR messes up search.
+    
+    Change-Id: Icf668dfe4c2008709f7767397b6700d0d5439287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493857
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/internal/bisect/bisect.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

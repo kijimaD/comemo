@@ -1,0 +1,16 @@
+commit cf16443c69ff45db8b9493a92bec0812111b1c78
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 12 11:05:20 2009 -0800
+
+    fix a couple of typos.
+    add a mention of range to the tutorial.
+    change tutorial's title.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152098
+
+ doc/go_spec.html     |  2 +-
+ doc/go_tutorial.html | 22 ++++++++++++++++++++--
+ doc/go_tutorial.txt  | 18 ++++++++++++++++--
+ 3 files changed, 37 insertions(+), 5 deletions(-)

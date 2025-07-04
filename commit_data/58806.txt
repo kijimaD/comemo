@@ -1,0 +1,25 @@
+commit 04de448c6d9d0ceab7f04b1f3d44f91e8b129d58
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 01:29:32 2024 +1000
+
+    cmd/internal/obj/x86: add support for the endbr64 instruction on amd64
+    
+    Add support for endbr64, which terminates an indirect branch in 64-bit
+    mode. This is effectively used to mark locations where an indirect branch
+    is permitted to land, when Indirect Branch Tracking (IBT) is enforced on
+    Intel CPUs.
+    
+    Updates #66054
+    
+    Change-Id: Ib898031711cfaaa6e05c197bfe727ded0bce6f52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 ++
+ src/cmd/internal/obj/x86/aenum.go                  | 1 +
+ src/cmd/internal/obj/x86/anames.go                 | 1 +
+ src/cmd/internal/obj/x86/asm6.go                   | 1 +
+ 4 files changed, 5 insertions(+)

@@ -1,0 +1,39 @@
+commit 57d40f1b27c0e0a4ca491895a68efc40c7c7d435
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu May 31 18:51:00 2018 +0300
+
+    test: remove rundircmpout and cmpout actions
+    
+    This CL removes the rundircmpout action completely
+    because it is not used anywhere.
+    
+    The run case already looks for output files. Rename the cmpout action
+    mentioned in tests to the run action and remove "cmpout" from run.go.
+    
+    Change-Id: I835ceb70082927f8e9360e0ea0ba74f296363ab3
+    Reviewed-on: https://go-review.googlesource.com/115575
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/life/main.go        | 2 +-
+ misc/cgo/stdio/chain.go      | 2 +-
+ misc/cgo/stdio/fib.go        | 2 +-
+ misc/cgo/stdio/hello.go      | 2 +-
+ test/deferprint.go           | 2 +-
+ test/fixedbugs/bug206.go     | 2 +-
+ test/fixedbugs/bug328.go     | 2 +-
+ test/fixedbugs/bug409.go     | 2 +-
+ test/fixedbugs/issue21887.go | 2 +-
+ test/fixedbugs/issue22683.go | 2 +-
+ test/fixedbugs/issue25322.go | 2 +-
+ test/fixedbugs/issue6899.go  | 2 +-
+ test/goprint.go              | 2 +-
+ test/helloworld.go           | 2 +-
+ test/ken/cplx0.go            | 2 +-
+ test/ken/string.go           | 2 +-
+ test/print.go                | 2 +-
+ test/printbig.go             | 2 +-
+ test/run.go                  | 4 ----
+ test/sigchld.go              | 2 +-
+ 20 files changed, 19 insertions(+), 23 deletions(-)

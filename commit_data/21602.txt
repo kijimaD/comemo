@@ -1,0 +1,19 @@
+commit be4ecd9815e6bea0bdb9e900552ef901ff216baf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 11:54:15 2015 -0500
+
+    cmd/gc: avoid writing past end of region array
+    
+    Noticed last week.
+    Just saw a strange build failure in the revised rcmp (called by qsort on region)
+    and this fixed it.
+    
+    Submitting first to avoid finding out which of my pending CLs tickled the
+    problem.
+    
+    Change-Id: I4cafd611e2bf8e813e57ad0025e48bde5ae54359
+    Reviewed-on: https://go-review.googlesource.com/4830
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/reg.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

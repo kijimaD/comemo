@@ -1,0 +1,19 @@
+commit edce6349639e321c3b1a34036a8fbc08ad363cd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 23 23:04:28 2012 -0400
+
+    time: prepare for 64-bit ints
+    
+    The code was trying to interpret a uint32 n as a signed quantity
+    and then store it in an int. For this, int(n) currently works, but when
+    int becomes 64 bits one must write int(int32(n)) instead, to get
+    the 32-bit sign extension.
+    
+    Update #2188.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6551068
+
+ src/pkg/time/zoneinfo_read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9953c48dc4c15ee7f04a454d502b79e0204b8317
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 31 09:45:39 2009 -0700
+
+    missed in last checkin
+    
+    R=ken
+    OCL=32581
+    CL=32581
+
+ src/cmd/gc/mkopnames | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

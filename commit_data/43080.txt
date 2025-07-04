@@ -1,0 +1,19 @@
+commit 150bd4ffd4ea10ce18038c3efb2d792c73fd4b0c
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 4 11:29:40 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (4)
+    
+    "mul by constant" until "div by constant"
+    L547-L609
+    
+    Change-Id: I19ebb5694e383878f505d34df2591a51fe38431a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254662
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 118 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 464 ++++++++++++++---------------
+ 2 files changed, 291 insertions(+), 291 deletions(-)

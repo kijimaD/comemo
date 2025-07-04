@@ -1,0 +1,18 @@
+commit d4a623f99bd0dd60e00e3f6103e49f94d9451ce2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Apr 9 11:38:06 2017 +0900
+
+    cmd/cgo: remove unused enums
+    
+    Previously, int values of #define macro are retrieved from DWARF via enums.
+    Currently, those values are retrieved from symbol tables.
+    It seems that previous code is unused.
+    
+    Change-Id: Id76c54baa46d6196738ea35aebd5de99b05b9bf8
+    Reviewed-on: https://go-review.googlesource.com/40072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go | 46 +++-------------------------------------------
+ 1 file changed, 3 insertions(+), 43 deletions(-)

@@ -1,0 +1,24 @@
+commit a3156aaa121446c4136927f8c2139fefe05ba82c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 29 14:26:48 2015 -0700
+
+    net/http/httptest: change Server to use http.Server.ConnState for accounting
+    
+    With this CL, httptest.Server now uses connection-level accounting of
+    outstanding requests instead of ServeHTTP-level accounting. This is
+    more robust and results in a non-racy shutdown.
+    
+    This is much easier now that net/http.Server has the ConnState hook.
+    
+    Fixes #12789
+    Fixes #12781
+    
+    Change-Id: I098cf334a6494316acb66cd07df90766df41764b
+    Reviewed-on: https://go-review.googlesource.com/15151
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/server.go      | 190 ++++++++++++++++++++++++-----------
+ src/net/http/httptest/server_test.go |  27 +++++
+ 2 files changed, 158 insertions(+), 59 deletions(-)

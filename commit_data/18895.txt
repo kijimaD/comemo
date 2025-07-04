@@ -1,0 +1,15 @@
+commit 50f1e1a6b9317a975477bc89503e2e1c1fa6b1be
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Mar 18 21:01:23 2014 -0700
+
+    misc/bash/go: remove "doc" subcommand autocompletion
+    
+    "go doc" has been removed in CL 17799.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/77420045
+
+ misc/bash/go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

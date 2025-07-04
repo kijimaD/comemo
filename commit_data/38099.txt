@@ -1,0 +1,16 @@
+commit ec521467e33eee0a62ed426ca0c66b865baedfc7
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:38:18 2019 +0000
+
+    net: add missing error check in test
+    
+    Change-Id: Id2e57bc8e18e062f60c6ac8a58dc15e049352088
+    GitHub-Last-Rev: 6d33b809cf8a3b5412333b1c3cc237000be8101d
+    GitHub-Pull-Request: golang/go#30016
+    Reviewed-on: https://go-review.googlesource.com/c/160440
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+
+ src/net/dial_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

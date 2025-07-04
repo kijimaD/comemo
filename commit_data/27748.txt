@@ -1,0 +1,21 @@
+commit 069289180816e2f8b40ad6f9e167dc5071cefcdf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 28 18:09:56 2016 +1000
+
+    cmd/go: restore support for git submodules and update docs
+    
+    Fixes #16165
+    
+    Change-Id: Ic90e5873e0c8ee044f09543177192dcae1dcdbed
+    Reviewed-on: https://go-review.googlesource.com/24531
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go     | 10 ++++------
+ src/cmd/go/get.go         |  3 +--
+ src/cmd/go/go_test.go     | 10 ++++++++++
+ src/cmd/go/help.go        |  7 +++----
+ src/cmd/go/vcs.go         | 12 ------------
+ src/cmd/go/vendor_test.go |  1 +
+ 6 files changed, 19 insertions(+), 24 deletions(-)

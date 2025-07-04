@@ -1,0 +1,28 @@
+commit 2cd2ff6f564dce5be0c4fb7f06338ff7af3fc9a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 12:39:56 2020 -0400
+
+    all: avoid awkward wording from CL 236857
+    
+    CL 236857 removed all uses of whitelist/blacklist, which is great.
+    But it substituted awkward phrasing using allowlist/blocklist,
+    especially as verbs or participles. This CL uses more standard English,
+    like "allow the function" or "blocked functions" instead of
+    "allowlist the function" or "blocklisted functions".
+    
+    Change-Id: I9106a2fdbd62751c4cbda3a77181358a8a6d0f13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236917
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html                             |  2 +-
+ src/cmd/compile/fmt_test.go                 | 15 +++++++--------
+ src/cmd/go/internal/work/gc.go              |  2 +-
+ src/cmd/link/internal/loader/loader.go      |  6 +++---
+ src/cmd/oldlink/internal/objfile/objfile.go |  6 +++---
+ src/html/template/html.go                   |  3 +--
+ src/net/http/request.go                     |  2 +-
+ src/net/http/server.go                      |  6 +++---
+ src/runtime/cgo_sigaction.go                | 10 +++++-----
+ src/runtime/debugcall.go                    |  2 +-
+ 10 files changed, 26 insertions(+), 28 deletions(-)

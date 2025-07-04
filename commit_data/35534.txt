@@ -1,0 +1,12 @@
+commit b0ac2546b1851a4835ad687e649dead7f610f6a9
+Author: Carl Mastrangelo <notcarl@google.com>
+Date:   Thu Mar 15 14:15:54 2018 -0700
+
+    context: add benchmarks for context cancellation
+    
+    Change-Id: I539c9226eb7e493b52c50e1e431954567d43bcfb
+    Reviewed-on: https://go-review.googlesource.com/100847
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/benchmark_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

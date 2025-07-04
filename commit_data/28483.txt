@@ -1,0 +1,16 @@
+commit 35d22afb4b8e4f2c0ce06150727dc91a5c54378e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 20 18:12:27 2016 -0700
+
+    cmd/internal/obj: remove unused GOROOT-related fields
+    
+    Change-Id: I6634f70d6bd1a4eced47eda69a2d9b207d222a1b
+    Reviewed-on: https://go-review.googlesource.com/29470
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/link.go | 2 --
+ src/cmd/internal/obj/obj.go  | 1 -
+ src/cmd/internal/obj/sym.go  | 3 ---
+ 3 files changed, 6 deletions(-)

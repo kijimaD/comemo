@@ -1,0 +1,18 @@
+commit 2baf8ad8311a9eb2c7d0352f32c46fb0e8b4afbe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 17 09:20:30 2023 +0700
+
+    doc: do not use "==" in slice examples
+    
+    There's no slice comparison in Go.
+    
+    Change-Id: I5de1766c2adeb56ed12a577a4c46c12b2582b1c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469015
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit f034b62c85ebe17a3fc4ab54edc30994cc8c8b70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 12:10:01 2015 -0500
+
+    testing: move comment inside T.Parallel
+    
+    This was supposed to be in CL 18204 but I submitted from the web
+    instead of my computer and lost this final edit.
+    
+    Change-Id: I41598e936bb088d77f5e44752eda74222a4208c7
+    Reviewed-on: https://go-review.googlesource.com/18310
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

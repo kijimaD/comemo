@@ -1,0 +1,17 @@
+commit 9ec5f5b35fd19f42d066ce2bb2558ae89df40480
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 17:11:39 2017 +0200
+
+    runtime: delete unused function dumpbvtypes
+    
+    The function dumpbvtypes has no use case anymore, so we remove it with
+    this change.
+    
+    Change-Id: I1e0323542be2bcc683b75dffde76b222e087c285
+    Reviewed-on: https://go-review.googlesource.com/66370
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/heapdump.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

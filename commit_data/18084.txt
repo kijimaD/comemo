@@ -1,0 +1,12 @@
+commit 16dcef80d46d78cc198bfc680e9cf05cea9095cc
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Dec 19 21:20:03 2013 +0100
+
+    os: rename only works as part of the same directory on Plan 9
+    
+    R=golang-dev, lucio.dere, rsc
+    CC=golang-dev
+    https://golang.org/cl/44080046
+
+ src/pkg/os/file_plan9.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

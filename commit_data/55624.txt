@@ -1,0 +1,23 @@
+commit aaf8e844edaa7cbd09d0fdeb9bd0b7458cbfb466
+Author: kkhaike <kkhaike@gmail.com>
+Date:   Sat Dec 16 18:08:16 2023 +0800
+
+    net: prevent unintended retries upon receiving an empty answer response from the DNS server.
+    
+    CL https://golang.org/cl/37879 migrates DNS message parsing to the golang.org/x/net/dns/dnsmessage package. However, during the modification of the "lame referral" error check introduced by CL https://golang.org/cl/22428, a condition was overlooked. This omission results in unexpected retries when a DNS server returns an empty response (not an invalid response, but one that includes an additional section).
+    
+    Fixes #57697
+    Fixes #64783
+    
+    Change-Id: I203896aa2902c305569005c1712fd2f9f13a9b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
+
+ src/net/dnsclient_unix.go      | 13 ++++++++-----
+ src/net/dnsclient_unix_test.go | 23 ++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 6 deletions(-)

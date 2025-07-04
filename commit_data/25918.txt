@@ -1,0 +1,16 @@
+commit 90fea9d09ac9876147c7223884a09357c3418ed2
+Author: Derek Shockey <derek.shockey@gmail.com>
+Date:   Tue Feb 23 21:17:25 2016 -0800
+
+    misc/git: Fix non-literal period in pre-commit grep
+    
+    Looks like this was intended to match a literal period to restrict
+    this to `.go` files, but in POSIX grep, the unescaped period matches
+    any character.
+    
+    Change-Id: I20e00323baa9e9631792eff5035966297665bbee
+    Reviewed-on: https://go-review.googlesource.com/19880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/git/pre-commit | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

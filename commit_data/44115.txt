@@ -1,0 +1,21 @@
+commit c3b4c7093ac46431b6e15cf1979bd9a251a400da
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 23 17:33:18 2020 -0500
+
+    cmd/internal/objfile: don't require runtime.symtab symbol for XCOFF
+    
+    For some reason (that I didn't look into), externally linked
+    AIX binaries don't have runtime.symtab symbol. Since recent Go
+    releases (Go 1.3 maybe?), that symbol is empty and not necessary
+    anyway. Don't require it.
+    
+    Fixes #40972.
+    
+    Change-Id: I73a1f0142195ea6debdba8a4f6e12cadc3980dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279995
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/objfile/xcoff.go | 4 +---
+ src/cmd/objdump/objdump_test.go   | 5 -----
+ 2 files changed, 1 insertion(+), 8 deletions(-)

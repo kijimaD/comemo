@@ -1,0 +1,13 @@
+commit e9ad3bf0ff0ccfe8f766cca286ff9446b534b2ac
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 12 14:56:17 2014 +1000
+
+    doc/go1.3.html: windows NewCallbackCDecl
+    
+    LGTM=alex.brainman
+    R=alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/87250043
+
+ doc/go1.3.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

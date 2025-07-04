@@ -1,0 +1,15 @@
+commit 8b8a2bd94524b8b79af51c54ef2881e247149fc5
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 7 20:21:04 2009 -0700
+
+    more work on divide by constant.
+    no real change -- disabled because of bugs
+    
+    R=rsc
+    OCL=32923
+    CL=32923
+
+ src/cmd/6g/gg.h    |  19 +++++
+ src/cmd/6g/ggen.c  | 219 +++++++++++++++++++++++++++++++++++------------------
+ src/cmd/6g/gsubr.c | 195 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 360 insertions(+), 73 deletions(-)

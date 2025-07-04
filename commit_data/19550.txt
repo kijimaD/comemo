@@ -1,0 +1,16 @@
+commit e9da5fe2795335d11fa4da2e2a383ff4d9786d75
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Jun 17 02:05:27 2014 -0400
+
+    cmd/5c, cmd/6c, cmd/8c, cmd/cc: remove unused global variable retok.
+    
+    LGTM=bradfitz
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/107160046
+
+ src/cmd/5c/gc.h   | 1 -
+ src/cmd/6c/gc.h   | 1 -
+ src/cmd/8c/gc.h   | 1 -
+ src/cmd/cc/pgen.c | 2 --
+ 4 files changed, 5 deletions(-)

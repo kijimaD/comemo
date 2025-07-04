@@ -1,0 +1,22 @@
+commit c02aa463db0c5867a4ae1adfc2f98c436cb751b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 8 16:56:02 2016 -0800
+
+    runtime: fix arm/arm64/ppc64/mips64 to dropm when necessary
+    
+    Fixes #13881.
+    
+    Change-Id: Idff77db381640184ddd2b65022133bb226168800
+    Reviewed-on: https://go-review.googlesource.com/18449
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_arm.s                          | 10 +++--
+ src/runtime/asm_arm64.s                        | 10 +++--
+ src/runtime/asm_mips64x.s                      | 10 +++--
+ src/runtime/asm_ppc64x.s                       | 10 +++--
+ src/runtime/crash_cgo_test.go                  |  9 ++++
+ src/runtime/proc.go                            |  5 +++
+ src/runtime/testdata/testprogcgo/dropm.go      | 57 ++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/dropm_stub.go | 11 +++++
+ 8 files changed, 110 insertions(+), 12 deletions(-)

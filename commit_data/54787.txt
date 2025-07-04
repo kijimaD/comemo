@@ -1,0 +1,21 @@
+commit 57322b3cbf1ed26c3b19c6edcd5758c794a36467
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 18 17:30:31 2023 -0700
+
+    debug/elf: return error in DynString for invalid dynamic section size
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Fixes #63610
+    
+    Change-Id: I797b4d9bdb08286ad3e3a9a6f800ee8c90cb7261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536400
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/debug/elf/file.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

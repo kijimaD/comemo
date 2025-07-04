@@ -1,0 +1,12 @@
+commit 3c0fc400fb1f8f43b855cd663d87e5f091d90bbf
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Feb 17 13:10:57 2009 -0800
+
+    fix unsafe.Sizeof("abc")
+    
+    R=rsc
+    OCL=25105
+    CL=25105
+
+ src/cmd/gc/dcl.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

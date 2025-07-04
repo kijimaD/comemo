@@ -1,0 +1,16 @@
+commit 6c59cdcf34634309b2eb4f12ff3d6f14646f6545
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 22:20:01 2014 -0400
+
+    runtime: fix solaris build
+    
+    CL 144830043 changed LibCall for Windows.
+    I didn't realize Solaris used it too.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/142100043
+
+ src/runtime/os_solaris.c       | 12 +++---
+ src/runtime/syscall_solaris.go | 88 +++++++++++++++++++++---------------------
+ 2 files changed, 50 insertions(+), 50 deletions(-)

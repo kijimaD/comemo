@@ -1,0 +1,15 @@
+commit 3c6bf09539d787d635e332fd97d97998b4b9a3e1
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 28 11:40:01 2009 -0800
+
+    crypto/tls: make Listener a pointer.
+    
+    Listener contains private members and 6g now enforces that private
+    members cannot be assigned outside of their package.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183073
+
+ src/pkg/crypto/tls/tls.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

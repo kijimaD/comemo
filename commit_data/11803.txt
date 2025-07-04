@@ -1,0 +1,12 @@
+commit 2233942e3c030acffda5952ee3677bedaebf6079
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 21:47:18 2012 -0800
+
+    gofmt: fix error message in test
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5652066
+
+ src/cmd/gofmt/long_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

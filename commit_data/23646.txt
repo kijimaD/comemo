@@ -1,0 +1,14 @@
+commit 683311175c83dc013030e23c4826fa95b59048ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 15:23:59 2015 -0400
+
+    runtime: fix race in TestChanSendBarrier
+    
+    Fixes race detector build.
+    
+    Change-Id: I8bdc78d57487580e6b5b8c415df4653a1ba69e37
+    Reviewed-on: https://go-review.googlesource.com/12087
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/chanbarrier_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

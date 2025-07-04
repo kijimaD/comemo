@@ -1,0 +1,14 @@
+commit 5567592c07b5ef2c9563a511851c7792868f0312
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 17:30:45 2013 -0700
+
+    mime: add support for Plan 9
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10028043
+
+ src/pkg/mime/testdata/test.types.plan9 |  8 +++++
+ src/pkg/mime/type_plan9.go             | 53 ++++++++++++++++++++++++++++++++++
+ src/pkg/mime/type_unix.go              |  2 +-
+ 3 files changed, 62 insertions(+), 1 deletion(-)

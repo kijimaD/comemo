@@ -1,0 +1,28 @@
+commit 589ea93678850ad1e5c1192df5768177c3104937
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 16 15:28:14 2017 +0900
+
+    cmd/nm: handle cgo archive
+    
+    This CL also make cmd/nm accept PE object file.
+    
+    Fixes #21706
+    
+    Change-Id: I4a528b7d53da1082e61523ebeba02c4c514a43a7
+    Reviewed-on: https://go-review.googlesource.com/64890
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/goobj/read.go       | 24 +++++++----
+ src/cmd/internal/objfile/disasm.go   | 10 ++---
+ src/cmd/internal/objfile/elf.go      |  4 +-
+ src/cmd/internal/objfile/goobj.go    | 25 +++++++++++-
+ src/cmd/internal/objfile/macho.go    |  4 +-
+ src/cmd/internal/objfile/objfile.go  | 78 ++++++++++++++++++++++++++++--------
+ src/cmd/internal/objfile/pe.go       | 10 +----
+ src/cmd/internal/objfile/plan9obj.go |  4 +-
+ src/cmd/nm/nm.go                     | 71 ++++++++++++++++++--------------
+ src/cmd/nm/nm_cgo_test.go            | 11 +++++
+ src/cmd/nm/nm_test.go                | 55 ++++++++++++++++++++-----
+ 11 files changed, 211 insertions(+), 85 deletions(-)

@@ -1,0 +1,12 @@
+commit 10689cddba909df37de252fe2dd3d16799c73dc7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 13:59:51 2012 +1100
+
+    doc: link to self-hosted articles from docs.html
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5685061
+
+ doc/docs.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

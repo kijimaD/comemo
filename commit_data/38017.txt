@@ -1,0 +1,27 @@
+commit 3726d91d680b20d147f5b0b6222232d10930d121
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 12:00:12 2019 -0500
+
+    cmd/go/internal/imports: use the full path to resolve symlinks
+    
+    info.Name returns a name relative to the directory, so we need to
+    prefix that directory in the Stat call.
+    
+    (This was missed in CL 141097 due to the fact that the test only
+    happened to check symlinks in the current directory.)
+    
+    This allows the misc/ tests to work in module mode on platforms that
+    support symlinks.
+    
+    Updates #30228
+    Updates #28107
+    
+    Change-Id: Ie31836382df0cbd7d203b7a8b637c4743d68b6f3
+    Reviewed-on: https://go-review.googlesource.com/c/163517
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/imports/scan.go        |  2 +-
+ src/cmd/go/testdata/script/mod_symlink.txt | 29 ++++++++++++++++++++++++-----
+ 2 files changed, 25 insertions(+), 6 deletions(-)

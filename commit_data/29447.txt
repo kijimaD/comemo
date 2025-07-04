@@ -1,0 +1,18 @@
+commit ad020477f4dfe731450b6dd3dd15ea43aab0d0f1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 6 11:58:49 2016 -0800
+
+    cmd/cgo: delete unused variable in log statement
+    
+    visit is just a func, and there's no formatting
+    verb for it, and it's on an internal-error path.
+    It has been thus many years, unchanged and unexecuted.
+    
+    Change-Id: I4c2e2673ee9996218c24143bcc3be3eb4abdff25
+    Reviewed-on: https://go-review.googlesource.com/32970
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

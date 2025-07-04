@@ -1,0 +1,15 @@
+commit a78b0e67211034743a1f03645312aed35e5c5ba2
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Nov 19 17:30:27 2020 +0800
+
+    internal/poll: fix the verbose condition in splice
+    
+    Change-Id: I0b433ea1a78632de20ea58c48c9be0f1fb6eb083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271499
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/splice_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

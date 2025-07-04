@@ -1,0 +1,19 @@
+commit 970dfe0ff0ca8540c6dea2b1427f8a93fd43706c
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Oct 29 16:27:22 2024 +0800
+
+    internal/poll: fix the inaccurate comment and add a edge test case
+    
+    *BSD can also returns (>0, EAGAIN) with non-blocking socket,
+    it's therefore not macOS-specific.
+    
+    Change-Id: I57a393da31fab7788ad5779a038396be8236b0f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sendfile_unix.go |  6 +--
+ src/net/sendfile_test.go           | 76 ++++++++++++++++++++++++++------------
+ 2 files changed, 55 insertions(+), 27 deletions(-)

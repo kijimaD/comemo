@@ -1,0 +1,39 @@
+commit 336dad2a07b17e46e5e81eab8a3209dffbbb928d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 16 22:05:57 2016 -0400
+
+    runtime: fix check for vacuous page boundary rounding
+    
+    sysUnused (e.g., madvise MADV_FREE) is only sensible to call on
+    physical page boundaries, so scavengelist rounds in the bounds of the
+    region being released to the nearest physical page boundaries.
+    However, if the region is smaller than a physical page and neither the
+    start nor end fall on a boundary, then rounding the start up to a page
+    boundary and the end down to a page boundary will result in end < start.
+    Currently, we only give up on the region if start == end, so if we
+    encounter end < start, we'll call madvise with a negative length and
+    the madvise will fail.
+    
+    Issue #16644 gives a concrete example of this:
+    
+        start = 0x1285ac000
+        end   = 0x1285ae000 (1 8K page)
+    
+    This leads to the rounded values
+    
+        start = 0x1285b0000
+        end   = 0x1285a0000
+    
+    which leads to len = -65536.
+    
+    Fix this by giving up on the region if end <= start, not just if
+    end == start.
+    
+    Fixes #16644.
+    
+    Change-Id: I8300db492dbadc82ac1ad878318b36bcb7c39524
+    Reviewed-on: https://go-review.googlesource.com/27230
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

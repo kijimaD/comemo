@@ -1,0 +1,18 @@
+commit 917171f5645a70a65cab8cc5f901a905ef6df601
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 26 02:43:06 2023 -0400
+
+    cmd/go/internal/modload: fix sanity check in rawGoModSummary
+    
+    m.Path is never empty for a module in the build list; this fixes a
+    typo from CL 334932.
+    
+    Change-Id: I5328081ba3bcf5eeac9a1b21a03969ba82ab20ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489076
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/modfile.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

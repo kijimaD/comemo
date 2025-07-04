@@ -1,0 +1,33 @@
+commit f444b8a80ebe016254e3564526b05aa486c0a1bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 9 20:29:21 2016 -0800
+
+    cmd/compile: remove all remaining nodeSeq code
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I2ac5c595d7af7a8da1a7e3945e6a753299446250
+    Reviewed-on: https://go-review.googlesource.com/20497
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go |   2 +-
+ src/cmd/compile/internal/gc/closure.go |  12 +-
+ src/cmd/compile/internal/gc/dcl.go     | 111 +++++++-------
+ src/cmd/compile/internal/gc/esc.go     |  10 +-
+ src/cmd/compile/internal/gc/fmt.go     |   4 +-
+ src/cmd/compile/internal/gc/gen.go     |   4 +-
+ src/cmd/compile/internal/gc/go.go      |   4 +-
+ src/cmd/compile/internal/gc/init.go    |   4 +-
+ src/cmd/compile/internal/gc/inl.go     |  23 ++-
+ src/cmd/compile/internal/gc/lex.go     |  51 ++++---
+ src/cmd/compile/internal/gc/order.go   |  26 ++--
+ src/cmd/compile/internal/gc/parser.go  | 266 +++++++++++++++++----------------
+ src/cmd/compile/internal/gc/select.go  |   2 +-
+ src/cmd/compile/internal/gc/subr.go    |   8 +-
+ src/cmd/compile/internal/gc/syntax.go  | 265 --------------------------------
+ src/cmd/compile/internal/gc/walk.go    |  38 ++---
+ 16 files changed, 283 insertions(+), 547 deletions(-)

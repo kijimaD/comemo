@@ -1,0 +1,14 @@
+commit e33d6b3d4d0c224b8ff7ba039ec4e4bcec7d52cb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 17 09:49:33 2015 -0700
+
+    runtime: remove out-of-date comment
+    
+    An out-of-date comment snuck in to cc8f544. Remove it.
+    
+    Change-Id: I5bc7c17e737d1cabe57b88de06d7579c60ca28ff
+    Reviewed-on: https://go-review.googlesource.com/12328
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/mgcsweep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

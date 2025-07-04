@@ -1,0 +1,23 @@
+commit 67c15568156eb0c5607edc51a2b5d69876ba236d
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 22:23:24 2021 -0500
+
+    go/types: rename structure to structuralType
+    
+    This is a clean port of CL 362994 from types2 to go/types.
+    
+    Change-Id: I51b38c35ec3306274ef0355516e2d5557e7d8b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363988
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/builtins.go   | 22 +++++++++++-----------
+ src/go/types/call.go       |  2 +-
+ src/go/types/expr.go       |  2 +-
+ src/go/types/index.go      |  2 +-
+ src/go/types/infer.go      |  2 +-
+ src/go/types/predicates.go |  4 ++--
+ src/go/types/stmt.go       |  2 +-
+ 7 files changed, 18 insertions(+), 18 deletions(-)

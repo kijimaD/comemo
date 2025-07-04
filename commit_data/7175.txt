@@ -1,0 +1,22 @@
+commit a441037f3f7aedc419595c8a5e032723cedbdeb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 19 14:33:05 2011 -0800
+
+    godoc: enable fulltext index by default
+    
+    - added flag -maxresults (default: 10000) to limit the max.
+      number of full text results shown
+    - removed flag -fulltext; use -maxresults=0 to disable fulltext
+      index
+    - better indication on result page if not all results are shown
+      (... after line list)
+    
+    R=rsc, gri1
+    CC=golang-dev
+    https://golang.org/cl/4049042
+
+ lib/godoc/search.html  |  4 ++++
+ src/cmd/godoc/doc.go   |  5 +++--
+ src/cmd/godoc/godoc.go | 22 +++++++++++++---------
+ src/cmd/godoc/main.go  |  4 ++--
+ 4 files changed, 22 insertions(+), 13 deletions(-)

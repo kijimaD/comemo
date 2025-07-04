@@ -1,0 +1,16 @@
+commit 9955a7e9bb40d28502fbb8fd6ef1f2f10e18a519
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 31 13:11:35 2022 -0800
+
+    README.vendor: minor updates
+    
+    Change-Id: Iaacc96e6302833019ebf7a82d5a1ae49f6ff1955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460175
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/README.vendor | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 9fbfe7cca00a456541e9aa2b2cc1251d777f325b
+Author: David Lazar <lazard@golang.org>
+Date:   Wed Nov 30 17:09:07 2016 -0500
+
+    cmd/compile: do not inline functions marked cgo_unsafe_args
+    
+    Now the net tests pass with -gcflags '-l=4'.
+    
+    Fixes #18125.
+    
+    Change-Id: I4e3a46eb0cb3a93b203e74f5bc99c5822331f535
+    Reviewed-on: https://go-review.googlesource.com/33722
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

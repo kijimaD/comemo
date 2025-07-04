@@ -1,0 +1,18 @@
+commit 448e1db103df7a9b29aa360f42fdcdc9b89fa399
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Oct 22 08:56:07 2016 -0700
+
+    runtime: skip TestLldbPython
+    
+    The test is broken on macOS Sierra.
+    
+    Updates #17463.
+    
+    Change-Id: Ifbb2379c640b9353a01bc55a5cb26dfaad9b4bdc
+    Reviewed-on: https://go-review.googlesource.com/31725
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

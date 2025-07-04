@@ -1,0 +1,21 @@
+commit 1983121bbb5d8cb346c1baef18e3dc1a2cbfee10
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 11:27:50 2008 -0800
+
+    6g interface changes:
+            * allow conversion between nil interface and any type.
+            * mark signatures as DUPOK so that multiple .6 can
+              contain sigt.*[]byte and only one gets used.
+    
+    R=ken
+    OCL=18538
+    CL=18542
+
+ src/cmd/6g/obj.c    | 403 ++++++++++++++++++++++++----------------------------
+ src/cmd/6l/l.h      |   1 +
+ src/cmd/6l/obj.c    |   8 ++
+ src/cmd/gc/go.h     |   5 +-
+ src/cmd/gc/subr.c   | 135 ++++--------------
+ src/cmd/gc/walk.c   |  22 +--
+ src/runtime/iface.c |  28 +---
+ 7 files changed, 236 insertions(+), 366 deletions(-)

@@ -1,0 +1,23 @@
+commit 73a55c17049a2c12e5368790e178c32363743dd8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 13:48:42 2022 -0700
+
+    go/types: remove support for "ERROR HERE" error markers in tests
+    
+    There are only two tests that rely on the "ERROR HERE" markers;
+    yet those tests are trivialy adjustable (by adding an explicit
+    semicolon) such that they can just use the "ERROR" markers.
+    
+    For #54511.
+    
+    Change-Id: Idbb96ca8d35ae2584d195a4ac7c92640b8b492c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425674
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/types/check_test.go           | 24 +++++-------------------
+ src/go/types/testdata/check/stmt0.go |  4 ++--
+ 2 files changed, 7 insertions(+), 21 deletions(-)

@@ -1,0 +1,16 @@
+commit 993214a083d47afba7ba0ecf85ce5f35b1685358
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Nov 26 10:18:39 2016 -0800
+
+    net/http: document restrictions on ETag as expected by ServeContent
+    
+    Fixes #18054
+    
+    Change-Id: I6773943a95b92eebd7e347f8f7a80843b4827243
+    Reviewed-on: https://go-review.googlesource.com/33630
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

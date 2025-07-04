@@ -1,0 +1,16 @@
+commit d2b77bb194b8377c1b1ba5826960f1e63f13a51a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Dec 1 17:35:43 2011 -0200
+
+    os: add ModeType constant to mask file type bits
+    
+    This covers the lack of IsRegular comfortably:
+    
+        if stat.Mode()&os.ModeType == 0 { ... }
+    
+    R=golang-dev, r, rsc, r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5440075
+
+ src/pkg/os/types.go | 3 +++
+ 1 file changed, 3 insertions(+)

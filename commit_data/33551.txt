@@ -1,0 +1,27 @@
+commit f4f6018d382f7360114d376f70b5d220d4f10716
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Nov 14 21:54:06 2017 -0400
+
+    encoding/pem: add Encode, EncodeToMemory docs
+    
+    Included in a warning that EncodeToMemory may return an incomplete PEM
+    encoded structure if invalid headers are supplied. Example:
+    
+            pem.EncodeToMemory(&pem.Block{
+                    Headers: map[string]string{
+                            "a":   "test1",
+                            "b:c": "test2",
+                    },
+            })
+    
+    Returns:
+    
+            -----BEGIN -----
+            a: test1
+    
+    Change-Id: Ia9cf0202f985e3cf210aabb6f07667e581ff081f
+    Reviewed-on: https://go-review.googlesource.com/77790
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/pem.go | 5 +++++
+ 1 file changed, 5 insertions(+)

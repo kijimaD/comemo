@@ -1,0 +1,20 @@
+commit 7a0f4cac03e3aca9230b56ee6a01dcd3015d506a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 8 13:46:54 2009 -0700
+
+    pass Type* to makechan and makemap so that
+    they can get the official alignment out of there
+    instead of guessing.
+    
+    R=ken
+    OCL=34450
+    CL=34450
+
+ src/cmd/gc/builtin.c.boot   |  4 ++--
+ src/cmd/gc/sys.go           |  8 ++++----
+ src/cmd/gc/walk.c           | 11 ++++-------
+ src/pkg/runtime/chan.c      | 27 ++++++++++++++++-----------
+ src/pkg/runtime/hashmap.c   | 32 ++++++++++++++++----------------
+ src/pkg/runtime/reflect.cgo |  4 ++--
+ src/pkg/runtime/runtime.h   |  4 ++--
+ 7 files changed, 46 insertions(+), 44 deletions(-)

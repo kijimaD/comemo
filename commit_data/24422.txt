@@ -1,0 +1,12 @@
+commit 1b84bb8c7cefb29e8aa976504905a7bdc1c74e6f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 24 14:24:32 2015 -0400
+
+    runtime: fix out-of-date comment on gcWork usage
+    
+    Change-Id: I3c21ffa80a5c14911e07238b1f64bec686ed7b72
+    Reviewed-on: https://go-review.googlesource.com/14980
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/mgcwork.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit c95bd2e6a99ab06efadb265bf42bbaf8d964904f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 16 10:13:37 2020 -0700
+
+    cmd/compile: optimize generated struct/array equality code
+    
+    Use a standard "not-equal" label that we can jump to when we
+    detect that the arguments are not equal. This prevents the
+    recombination that was noticed in #39428.
+    
+    Fixes #39428
+    
+    Change-Id: Ib7c6b3539f4f6046043fd7148f940fcdcab70427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255317
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/alg.go | 144 +++++++++++++++++++++++++------------
+ 1 file changed, 99 insertions(+), 45 deletions(-)

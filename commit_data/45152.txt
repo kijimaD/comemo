@@ -1,0 +1,18 @@
+commit 567a9322ad1980d22896efc3b642eedf997eb6d9
+Author: Amit Kumar <mittalmailbox@gmail.com>
+Date:   Tue Sep 22 18:52:06 2020 +0530
+
+    mime: add mime type for avif image file format
+    
+    Fixes #44602
+    
+    Change-Id: I28b6df5e2523fc2ece6fd8251fcabc83c7c38d89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256478
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

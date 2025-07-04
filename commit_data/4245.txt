@@ -1,0 +1,19 @@
+commit 12206f64dd3db59b3e61779c3d1bd14373012d1f
+Author: Péter Szabó <pts@google.com>
+Date:   Mon Nov 30 12:10:56 2009 -0800
+
+    sync.RWMutex: rewritten to add support for concurrent readers.
+    
+    Also made sync.xadd public to help testing sync.RWMutex.
+    
+    Also added unit tests for sync.RWMutex.
+    
+    R=rsc
+    https://golang.org/cl/162044
+
+ src/pkg/sync/Makefile        |   1 +
+ src/pkg/sync/mutex.go        |  52 ++------------------
+ src/pkg/sync/rwmutex.go      |  75 ++++++++++++++++++++++++++++
+ src/pkg/sync/rwmutex_test.go | 114 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/xadd_test.go    |   9 ++++
+ 5 files changed, 202 insertions(+), 49 deletions(-)

@@ -1,0 +1,27 @@
+commit df81a15819d5b264e6451976a2884953e8d28b20
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 18 10:28:18 2020 +0800
+
+    runtime: check mips64 VDSO clock_gettime return code
+    
+    We introduced VDSO feature for mips64x in Go1.14, however Linux kernel
+    didn't ship VDSO safe fallback until 4.13.
+    
+    This CL checks vdso return code it may fix this issue.
+    
+    name         old time/op  new time/op  delta
+    Now           174ns ± 0%   176ns ± 0%  +1.20%  (p=0.000 n=8+9)
+    NowUnixNano   175ns ± 0%   177ns ± 0%  +1.13%  (p=0.000 n=9+7)
+    FormatNow    1.01µs ± 1%  1.02µs ± 3%    ~     (p=0.181 n=10+10)
+    
+    Fixes #39046
+    
+    Change-Id: Ibcefe4c8334f634c7ef18fa70f3c7dbe8306f224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270717
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+
+ src/runtime/sys_linux_mips64x.s | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

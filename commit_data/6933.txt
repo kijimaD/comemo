@@ -1,0 +1,15 @@
+commit 603f9feeecccd70886f6096d7427cfccf794d3de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 13:42:51 2010 -0500
+
+    gc: another shift bug
+    
+    Fixes #1316.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3575042
+
+ src/cmd/gc/const.c | 2 +-
+ test/const3.go     | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

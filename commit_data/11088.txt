@@ -1,0 +1,12 @@
+commit dcdc309c7cec0785cd83ddeb752ccebc29a1f83d
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Jan 10 12:56:25 2012 -0800
+
+    runtime: fix typo in comment
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5529059
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

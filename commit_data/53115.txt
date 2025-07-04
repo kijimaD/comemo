@@ -1,0 +1,22 @@
+commit 38ae922b9baca192bd750d0bc9089a9aecea7082
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu May 18 17:44:16 2023 -0400
+
+    doc: add TODOs to go1.21
+    
+    Generated with relnote. I did my best to put things where they made
+    sense, but some weren't obvious, like the Unicode upgrade and backward
+    compatibility stuff.
+    
+    For #58645.
+    
+    Change-Id: Ic3cd9ef32cec7591ace4d2df1da40e4afd97d083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496316
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.21.html | 602 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 601 insertions(+), 1 deletion(-)

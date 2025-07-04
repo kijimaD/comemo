@@ -1,0 +1,12 @@
+commit 5f94d44722c49db52700a9e100029394a97fd5a3
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 10 17:37:34 2019 -0400
+
+    doc: add release notes for os and os/exec
+    
+    Change-Id: I34fd45ee252474c12f2e9c8d9b1a75b9eabb57f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181549
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

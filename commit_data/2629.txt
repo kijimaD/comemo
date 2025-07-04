@@ -1,0 +1,13 @@
+commit e37f81b49cda47d30b47f0ed97c4a48f0ab6ba72
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:34 2009 -0700
+
+    template: use new reflect interface (CL 31107)
+    
+    R=r
+    DELTA=16  (3 added, 1 deleted, 12 changed)
+    OCL=31121
+    CL=31288
+
+ src/pkg/template/template.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

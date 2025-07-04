@@ -1,0 +1,12 @@
+commit 9cde36be54cb106d00cc6446117a2f2999d9928a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 13:39:16 2015 -0400
+
+    runtime/cgo: enable arm64 EXC_BAD_ACCESS handler
+    
+    Change-Id: I8e912ff9327a4163b63b8c628aa3546e86ddcc02
+    Reviewed-on: https://go-review.googlesource.com/8983
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/cgo/gcc_darwin_arm64.c | 5 +++++
+ 1 file changed, 5 insertions(+)

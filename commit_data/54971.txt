@@ -1,0 +1,25 @@
+commit acc8cb6a5f23d7fb57ea5825decd6bf0ae8723e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 14 10:33:25 2023 +0700
+
+    cmd/compile/internal/types2: mark gotypesalias as undocumented
+    
+    CL 541737 added gotypesalias to control whether Alias types are used.
+    This setting is meant to use by end users through go/types. However,
+    types2 also uses it, but it's an internal package, causing bootstrap
+    failed because of unknown setting.
+    
+    Marking the setting as undocumented in types2 fixes the problem.
+    
+    Fixes #64106
+    
+    Change-Id: If51a63cb7a21d9411cd9cf81bca2530c476d22f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/check.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

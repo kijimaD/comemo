@@ -1,0 +1,14 @@
+commit 7be15861f91e53b275b89faee16a315f0a88555d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 7 10:54:52 2017 +0200
+
+    doc: list testing package changes in 1.9 release notes
+    
+    Updates #20587
+    
+    Change-Id: I39f7c43a13c887d9d563c108d3575db7f2dffe0e
+    Reviewed-on: https://go-review.googlesource.com/45050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 47efdcbf4c40a718ba6e1c28b8bb7b73e729f2b0
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun Mar 20 02:10:17 2022 +0800
+
+    internal/reflectlite: fix name of type parameter
+    
+    CL 372774 is for reflect, this CL is for internal/reflectlite.
+    
+    Updates #50208
+    
+    Change-Id: Ib7e8b1bc031feab218d1addd78388fcfe9b675b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393918
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/internal/reflectlite/all_test.go | 5 +++++
+ src/internal/reflectlite/type.go     | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

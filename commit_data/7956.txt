@@ -1,0 +1,26 @@
+commit 1cc4a5cd94bd6c8fb5712defb344d81dd995f063
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Apr 2 14:24:03 2011 -0700
+
+    R=rsc, brainman, ality, r2, r
+    CC=golang-dev
+    https://golang.org/cl/3816043
+
+ src/pkg/syscall/Makefile              |   3 +
+ src/pkg/syscall/asm_plan9_386.s       | 151 ++++++++++
+ src/pkg/syscall/exec_plan9.go         | 521 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/mkall.sh              |   6 +
+ src/pkg/syscall/mksyscall.pl          |  18 +-
+ src/pkg/syscall/mksysnum_plan9.sh     |  25 ++
+ src/pkg/syscall/str.go                |   4 +-
+ src/pkg/syscall/syscall_linux.go      |   2 +-
+ src/pkg/syscall/syscall_plan9.go      | 343 ++++++++++++++++++++++
+ src/pkg/syscall/syscall_plan9_386.go  |   5 +
+ src/pkg/syscall/syscall_unix.go       |   2 +-
+ src/pkg/syscall/syscall_windows.go    |   2 +-
+ src/pkg/syscall/types_plan9.c         | 115 ++++++++
+ src/pkg/syscall/zerrors_plan9_386.go  |  25 ++
+ src/pkg/syscall/zsyscall_plan9_386.go | 267 +++++++++++++++++
+ src/pkg/syscall/zsysnum_plan9_386.go  |  47 +++
+ src/pkg/syscall/ztypes_plan9_386.go   |  74 +++++
+ 17 files changed, 1604 insertions(+), 6 deletions(-)

@@ -1,0 +1,24 @@
+commit af758177c06f24c870bb0b07c3f23da4943f12cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 27 22:13:16 2023 +0000
+
+    cmd/go: disable workspace mode in GOPATH mode
+    
+    Workspace mode is specifically for working with modules;
+    it doesn't make sense in GOPATH mode.
+    
+    This also fixes a panic in (*modload.MainModuleSet).GoVersion
+    when go.work is present in GOPATH mode.
+    
+    For #58767.
+    
+    Change-Id: Ic6924352afb486fecc18e009e6b517f078e81094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471600
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/modload/init.go                    |  7 +++++--
+ src/cmd/go/testdata/script/work_empty_panic_GOPATH.txt | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

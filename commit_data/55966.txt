@@ -1,0 +1,21 @@
+commit d25579293374bdc2d10864f7fa0ac9f89bb87fd9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 14 10:25:18 2024 -0700
+
+    cmd/compile: simplify algorithm kinds
+    
+    Add a ANOALG kind which is "ANOEQ, plus has a part that is marked Noalg".
+    That way, AlgType can return just a kind.
+    The field we used to return was used only to get this bit of information.
+    
+    Change-Id: Iaa409742825cc1f19ab414b1f5b74c1f112ed5f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572075
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/compare/compare.go      |  3 +-
+ src/cmd/compile/internal/reflectdata/alg.go      |  8 ++--
+ src/cmd/compile/internal/types/alg.go            | 61 +++++++++++-------------
+ src/cmd/compile/internal/types/algkind_string.go |  7 +--
+ 4 files changed, 37 insertions(+), 42 deletions(-)

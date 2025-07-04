@@ -1,0 +1,28 @@
+commit 3cca069220af044c1a36da3f588ffe3abbeab9c5
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 18 14:35:42 2016 +1000
+
+    time: allow long fractions in ParseDuration
+    
+    The code scanned for an integer after a decimal point, which
+    meant things could overflow if the number was very precise
+    (0.1234123412341234123412342134s). This fix changes the
+    parser to stop adding precision once we run out of bits, rather
+    than trigger an erroneous overflow.
+    
+    We could parse durations using floating-point arithmetic,
+    but since the type is int64 and float64 has only has 53 bits
+    of precision, that would be imprecise.
+    
+    Fixes #15011.
+    
+    Change-Id: If85e22b8f6cef12475e221169bb8f493bb9eb590
+    Reviewed-on: https://go-review.googlesource.com/29338
+    Reviewed-by: Costin Chirvasuta <costinc@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/format.go    | 39 ++++++++++++++++++++++++++++++++-------
+ src/time/time_test.go |  4 ++++
+ 2 files changed, 36 insertions(+), 7 deletions(-)

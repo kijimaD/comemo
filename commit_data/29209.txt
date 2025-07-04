@@ -1,0 +1,22 @@
+commit 9d1efba28db4c045356c92c20f98cf12b5f31d72
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 27 14:33:58 2016 -0400
+
+    cmd/link: put text at address 0x1000000 on darwin/amd64
+    
+    Apparently on macOS Sierra LLDB thinks /usr/lib/dyld is mapped
+    at address 0, even if Go code starts at 0x1000, and it looks up
+    addresses from dyld which shadows Go symbols. Move Go binary at
+    a higher address to avoid clash.
+    
+    Fixes #17463. Re-enable TestLldbPython.
+    
+    Change-Id: I89ca6f3ee48aa6da9862bfa0c2da91477cc93255
+    Reviewed-on: https://go-review.googlesource.com/32185
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go | 2 +-
+ src/runtime/runtime-lldb_test.go   | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

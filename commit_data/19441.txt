@@ -1,0 +1,15 @@
+commit 4b3019b17ce8fcf0b9fab916897aaee9b24ce7fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 23 17:39:58 2014 -0700
+
+    doc: mention that reflect.SetMapIndex no longer panics
+    when deleting from a nil map.  See issue 8051.
+    
+    LGTM=r
+    R=golang-codereviews, r, khr
+    CC=golang-codereviews
+    https://golang.org/cl/96540051
+
+ doc/go1.3.html           | 6 ++++++
+ src/pkg/reflect/value.go | 1 +
+ 2 files changed, 7 insertions(+)

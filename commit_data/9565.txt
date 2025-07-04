@@ -1,0 +1,12 @@
+commit 0c9ea63b3b3cc7bbbd7309cc8ca1751f3ea58ba0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 31 08:17:01 2011 -0400
+
+    cgo: explain how to free something
+    
+    R=golang-dev, n13m3y3r, r
+    CC=golang-dev
+    https://golang.org/cl/4958053
+
+ src/cmd/cgo/doc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 2a18cc10b1a8b1e19c3cc767d86d2804a8d58893
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Sat Apr 22 18:10:09 2017 +0100
+
+    cmd/objdump: remove two unused types
+    
+    The last mention of those types in this package are in:
+    
+      commit 6bd0d0542ee15fda0da545c16af43fcfd34d6334
+      Author: Russ Cox <rsc@golang.org>
+      Date:   Thu Nov 6 19:56:55 2014 -0500
+    
+          cmd/objdump, cmd/pprof: factor disassembly into cmd/internal/objfile
+    
+    Found with honnef.co/go/tools/cmd/unused.
+    
+    Change-Id: Iacc2902f7d0784ac0efdd92da239f3e97491469a
+    Reviewed-on: https://go-review.googlesource.com/41472
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/objdump/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

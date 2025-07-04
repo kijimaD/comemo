@@ -1,0 +1,16 @@
+commit a15648658f02fb17117a83f62c7d19822519b22d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 21:10:29 2009 -0700
+
+    bug196
+    
+    R=ken
+    OCL=35905
+    CL=35905
+
+ src/cmd/gc/go.h                    |  1 +
+ src/cmd/gc/subr.c                  | 29 ++++++++++++++++++++++++++++-
+ src/cmd/gc/walk.c                  | 13 +++----------
+ test/{bugs => fixedbugs}/bug196.go |  0
+ test/golden.out                    |  5 -----
+ 5 files changed, 32 insertions(+), 16 deletions(-)

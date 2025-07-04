@@ -1,0 +1,14 @@
+commit 26e0ddcf2a0de1fbbed87cfe1f33d18731813a0c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 2 16:49:45 2013 -0700
+
+    lib/time: update time zone to IANA version 2013b
+    Update #4553.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8293043
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 370359 -> 374065 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

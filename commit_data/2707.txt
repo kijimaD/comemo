@@ -1,0 +1,13 @@
+commit 59ee0373fc609f6986be0e21e60335d710b6a382
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 16:30:06 2009 -0700
+
+    - removed TODO, minor adjustments
+    
+    R=rsc
+    DELTA=16  (6 added, 1 deleted, 9 changed)
+    OCL=31638
+    CL=31641
+
+ src/cmd/godoc/godoc.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

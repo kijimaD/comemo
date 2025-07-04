@@ -1,0 +1,21 @@
+commit 463f478dbb2a502b265c08e0eff1b3334a1bfcf9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon May 30 22:28:59 2011 -0300
+
+    filepath: Abs must always return a clean path
+    
+    When I was first coding Abs, I wondered if people wouldn't
+    expect the path to be consistently clean, even if the path
+    passed in was already absolute.
+    
+    CL 4524078 has a potential problem based on exactly that
+    assumption, so it feels like this behavior is indeed the
+    most useful and least surprising.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4548074
+
+ src/pkg/path/filepath/path.go      | 2 +-
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

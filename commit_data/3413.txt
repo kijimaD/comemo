@@ -1,0 +1,17 @@
+commit 399d23d4f468bc3925629a82c0806858cd0523b8
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Sep 30 14:28:18 2009 -0700
+
+    load binary op arguments into registers
+    
+    go/test: passes 69% (237/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=12  (3 added, 9 deleted, 0 changed)
+    OCL=35178
+    CL=35180
+
+ src/cmd/5g/cgen.c | 10 +---------
+ test/arm-pass.txt |  2 ++
+ 2 files changed, 3 insertions(+), 9 deletions(-)

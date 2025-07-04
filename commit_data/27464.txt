@@ -1,0 +1,33 @@
+commit 0b80659832ec72532ee1210cdb51422ee6012c66
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 19 18:05:10 2016 +0000
+
+    net/http/httptest: restore historic ResponseRecorder.HeaderMap behavior
+    
+    In Go versions 1 up to and including Go 1.6,
+    ResponseRecorder.HeaderMap was both the map that handlers got access
+    to, and was the map tests checked their results against. That did not
+    mimic the behavior of the real HTTP server (Issue #8857), so HeaderMap
+    was changed to be a snapshot at the first write in
+    https://golang.org/cl/20047. But that broke cases where the Handler
+    never did a write (#15560), so revert the behavior.
+    
+    Instead, introduce the ResponseWriter.Result method, returning an
+    *http.Response. It subsumes ResponseWriter.Trailers which was added
+    for Go 1.7 in CL 20047. Result().Header now contains the correct
+    answer, and HeaderMap is unchanged in behavior from previous Go
+    releases, so we don't break people's tests. People wanting the correct
+    behavior can use ResponseWriter.Result.
+    
+    Fixes #15560
+    Updates #8857
+    
+    Change-Id: I7ea9b56a6b843103784553d67f67847b5315b3d2
+    Reviewed-on: https://go-review.googlesource.com/23257
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/recorder.go      | 101 ++++++++++++++++++++++-----------
+ src/net/http/httptest/recorder_test.go |  62 ++++++++++++++++++--
+ 2 files changed, 124 insertions(+), 39 deletions(-)

@@ -1,0 +1,15 @@
+commit 348300123f9fc78033892a017880782ca503c31a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 21 03:54:16 2014 +0400
+
+    runtime/race: update linux runtime
+    It was built on an old, bogus revision.
+    
+    LGTM=minux
+    TBR=iant
+    R=iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/101370052
+
+ src/pkg/runtime/race/race_linux_amd64.syso | Bin 267968 -> 265024 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

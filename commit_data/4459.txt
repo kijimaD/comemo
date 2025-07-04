@@ -1,0 +1,21 @@
+commit d85bb81878c06867e1bc7130ffa3db129b32f0f2
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Dec 17 16:08:42 2009 -0800
+
+            first stub for softfloats, intercepts float instructions and skips
+            them in the stream.
+    
+    R=rsc
+    https://golang.org/cl/174052
+
+ src/cmd/5l/Makefile             |  1 +
+ src/cmd/5l/l.h                  |  1 +
+ src/cmd/5l/obj.c                | 13 +++++++-
+ src/cmd/5l/softfloat.c          | 70 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/go.c                 |  3 +-
+ src/cmd/ld/lib.h                |  2 ++
+ src/pkg/runtime/Makefile        |  1 +
+ src/pkg/runtime/arm/asm.s       |  3 +-
+ src/pkg/runtime/arm/softfloat.c | 53 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/arm/vlop.s      | 17 ++++++++++
+ 10 files changed, 160 insertions(+), 4 deletions(-)

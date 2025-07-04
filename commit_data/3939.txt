@@ -1,0 +1,46 @@
+commit 1698934194f667c4752bb4dfa8615f146fff5154
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 21:09:34 2009 -0800
+
+    - replaced gofmt expression formatting algorithm with
+      rsc's algorithm
+    - applied gofmt -w misc src
+    - partial CL (remaining files in other CLs)
+    
+    R=rsc, r
+    http://go/go-review/1024040
+
+ misc/cgo/gmp/gmp.go                |   2 +-
+ src/cmd/cgo/gcc.go                 |  10 ++--
+ src/cmd/cgo/out.go                 |  20 +++----
+ src/cmd/ebnflint/ebnflint.go       |   2 +-
+ src/cmd/godoc/godoc.go             |  26 ++++-----
+ src/cmd/godoc/index.go             |  10 ++--
+ src/cmd/godoc/main.go              |   4 +-
+ src/cmd/godoc/spec.go              |  10 ++--
+ src/cmd/goyacc/goyacc.go           | 108 ++++++++++++++++++-------------------
+ src/cmd/hgpatch/main.go            |   4 +-
+ src/pkg/archive/tar/common.go      |   4 +-
+ src/pkg/archive/tar/reader.go      |   6 +--
+ src/pkg/archive/tar/writer.go      |   6 +--
+ src/pkg/archive/tar/writer_test.go |   2 +-
+ src/pkg/asn1/asn1.go               |  32 +++++------
+ src/pkg/big/arith.go               |  58 ++++++++++----------
+ src/pkg/big/arith_test.go          |  28 +++++-----
+ src/pkg/big/int.go                 |  10 ++--
+ src/pkg/big/int_test.go            |   8 +--
+ src/pkg/big/nat.go                 |  40 +++++++-------
+ src/pkg/big/nat_test.go            |  16 +++---
+ src/pkg/bignum/arith.go            |  34 ++++++------
+ src/pkg/bignum/bignum.go           | 100 +++++++++++++++++-----------------
+ src/pkg/bignum/bignum_test.go      |  54 +++++++++----------
+ src/pkg/bignum/integer.go          |   2 +-
+ src/pkg/bignum/nrdiv_test.go       |   6 +--
+ src/pkg/bignum/rational.go         |   2 +-
+ src/pkg/bufio/bufio.go             |  38 ++++++-------
+ src/pkg/bufio/bufio_test.go        |   4 +-
+ src/pkg/bytes/buffer.go            |  24 ++++-----
+ src/pkg/bytes/buffer_test.go       |  30 +++++------
+ src/pkg/bytes/bytes.go             |  24 ++++-----
+ src/pkg/bytes/bytes_test.go        |   4 +-
+ 33 files changed, 364 insertions(+), 364 deletions(-)

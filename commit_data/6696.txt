@@ -1,0 +1,12 @@
+commit 417e22b58484a93cc5cd8191af918cac52fd0d77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 16:01:07 2010 -0700
+
+    sync: fix typo in documentation
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2841041
+
+ src/pkg/sync/rwmutex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

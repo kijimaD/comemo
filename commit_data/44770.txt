@@ -1,0 +1,48 @@
+commit 0265b6475f08f2c23a742132db87c357fcbfa458
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 18 14:36:39 2021 -0700
+
+    cmd/compile: replace calls to typecheck with transform functions
+    
+    For additions, compares, and slices, create transform functions that do
+    just the transformations for those nodes by the typecheck package (given
+    that the code has been fully typechecked by types2). For nodes that have
+    no args with typeparams, we call these transform functions directly in
+    noder2. But for nodes that have args with typeparams, we have to delay
+    and call the tranform functions during stenciling, since we don't know
+    the specific types involved.
+    
+    We indicate that a node still needs transformation by setting Typecheck
+    to a new value 3. This value means the current type of the node has been
+    set (via types2), but the node may still need transformation.
+    
+    Had to export typcheck.IsCmp and typecheck.Assignop from the typecheck
+    package.
+    
+    Added new tests list2.go (required delaying compare typecheck/transform
+    because of != compare in checkList) and adder.go (requires delaying add
+    typecheck/transform, since it can do addition for numbers or strings).
+    
+    There are several more transformation functions needed for expressions
+    (indexing, calls, etc.) and several more complicated ones needed for
+    statements (mainly various kinds of assignments).
+    
+    Change-Id: I7d89d13a4108308ea0304a4b815ab60b40c59b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303091
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/ir/node.go             |   6 +
+ src/cmd/compile/internal/noder/expr.go          |   6 +-
+ src/cmd/compile/internal/noder/helpers.go       | 126 ++++-
+ src/cmd/compile/internal/noder/stencil.go       |  17 +
+ src/cmd/compile/internal/typecheck/expr.go      |   8 +-
+ src/cmd/compile/internal/typecheck/stmt.go      |   6 +-
+ src/cmd/compile/internal/typecheck/subr.go      |   6 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |   4 +-
+ test/typeparam/adder.go                         |  29 ++
+ test/typeparam/list2.go                         | 601 ++++++++++++++++++++++++
+ 10 files changed, 785 insertions(+), 24 deletions(-)

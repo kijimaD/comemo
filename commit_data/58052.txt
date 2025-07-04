@@ -1,0 +1,19 @@
+commit 50f1888814e2a72cb368c145a0d1c2f3af7a2f05
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 13 20:51:43 2024 +0000
+
+    sync: add HashTrieMap to Map tests and benchmarks
+    
+    Also, rename Map benchmarks to make them easier to single out via
+    regexp.
+    
+    Change-Id: I4dcb066745aba1c340f56050d08539ae2976274d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606461
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/sync/map_bench_test.go     | 56 ++++++++++++++++++++++--------------------
+ src/sync/map_reference_test.go |  2 ++
+ src/sync/map_test.go           | 11 +++++++++
+ 3 files changed, 42 insertions(+), 27 deletions(-)

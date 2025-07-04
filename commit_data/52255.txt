@@ -1,0 +1,18 @@
+commit b561ebab46124c3542ee2d67c68ca770b67cb8dc
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 3 17:45:02 2022 +0800
+
+    cmd/internal/obj/loong64: remove invalid branch delay slots
+    
+    Change-Id: I222717771019f7aefa547971b2d94ef4677a42c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420979
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+
+ src/cmd/internal/obj/loong64/asm.go | 3 ---
+ 1 file changed, 3 deletions(-)

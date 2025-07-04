@@ -1,0 +1,15 @@
+commit 1dc3b60bd6b33756779cb78bce28af4edd193a85
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:42:58 2017 -0700
+
+    cmd/compile: re-use Linksym lookup in dtypesym
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1a5809f15c84f9d26064a567b45468fa56e6d5e9
+    Reviewed-on: https://go-review.googlesource.com/41408
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 125 ++++++++++++++++-----------------
+ 1 file changed, 62 insertions(+), 63 deletions(-)

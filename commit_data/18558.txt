@@ -1,0 +1,13 @@
+commit 0d9b9aafd575099fcbd05e0c8f05f087d8d2b922
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Feb 18 21:51:47 2014 -0500
+
+    misc/emacs: actually use point argument that is passed to godef--call
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/62600043
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

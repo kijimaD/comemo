@@ -1,0 +1,12 @@
+commit c6669e7af58cb9406226c038b1cadef6e754dc74
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 22 15:24:30 2014 -0800
+
+    runtime: fix nacl build, hashmap overflow field offset was incorrect.
+    
+    Change-Id: Ieb305b2a4d4ef28d70a8b8ece703f495c5af0529
+    Reviewed-on: https://go-review.googlesource.com/2051
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

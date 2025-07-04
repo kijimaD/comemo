@@ -1,0 +1,17 @@
+commit 4f1ca8b6f92d69a889a6884d3b8393fdcf530e2b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 27 17:52:53 2016 -0400
+
+    cmd/internal/obj/mips: materialize float constant 0 from zero register
+    
+    Materialize float constant 0 from integer zero register, instead
+    of loading from constant pool.
+    
+    Change-Id: Ie4728895b9d617bec2a29d15729c0efaa10eedbb
+    Reviewed-on: https://go-review.googlesource.com/32109
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/mips/obj0.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

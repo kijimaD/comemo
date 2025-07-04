@@ -1,0 +1,24 @@
+commit 0a2a64d85d52ad51de34d39bc5685c39c0e1e32a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jul 17 14:22:15 2016 -0700
+
+    encoding/gob: error out instead of panicking on nil dereference
+    
+    Do not panic when we encounter nil interface values which are
+    invalid values for gob. Previously this wasn't caught yet
+    we were calling reflect.*.Type() on reflect.Invalid values
+    thereby causing panic:
+      `panic: reflect: call of reflect.Value.Type on zero Value.`
+    which is a panic not enforced by encoding/gob itself.
+    We can catch this and send back an error to the caller.
+    
+    Fixes #16204
+    
+    Change-Id: Ie646796db297759a74a02eee5267713adbe0c3a0
+    Reviewed-on: https://go-review.googlesource.com/24989
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encoder.go      |  3 +++
+ src/encoding/gob/encoder_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)

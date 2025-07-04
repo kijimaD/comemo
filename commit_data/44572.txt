@@ -1,0 +1,25 @@
+commit 382851c1fd135a99efbe128a3be0ce466d42506f
+Author: David Chase <drchase@google.com>
+Date:   Sun Mar 7 14:00:10 2021 -0500
+
+    cmd/compile: fix failure to communicate between ABIinfo producer&consumer
+    
+    ABI info producer and consumer had different ideas for register
+    order for parameters.
+    
+    Includes a test, includes improvements to debugging output.
+    
+    Updates #44816.
+    
+    Change-Id: I4812976f7a6c08d6fc02aac1ec0544b1f141cca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299570
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go       | 77 +++++++++++++++++-------
+ src/cmd/compile/internal/ssa/expand_calls.go   | 83 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/value.go          |  4 +-
+ src/cmd/compile/internal/test/abiutils_test.go |  6 +-
+ src/cmd/internal/obj/x86/asm6.go               |  2 +-
+ test/abi/s_sif_sif.go                          | 37 ++++++++++++
+ 6 files changed, 142 insertions(+), 67 deletions(-)

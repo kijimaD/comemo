@@ -1,0 +1,28 @@
+commit f4cbf3477f1456b4d28a7b74b31820ee60b7e6d1
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 31 14:29:58 2020 -0400
+
+    cmd/compile: allow directory specification for GOSSAFUNC output
+    
+    This was useful for debugging failures occurring during make.bash.
+    The added flush also ensures that any hints in the GOSSAFUNC output
+    are flushed before fatal exit.
+    
+    The environment variable GOSSADIR specifies where the SSA html debugging
+    files should be placed.  To avoid collisions, each one is written into
+    the [package].[functionOrMethod].html, where [package] is the filepath
+    separator separated package name, function is the function name, and method
+    is either (*Type).Method, or Type.Method, as appropriate.  Directories
+    are created as necessary to make this work.
+    
+    Change-Id: I420927426b618b633bb1ffc51cf0f223b8f6d49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252338
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go     |  1 +
+ src/cmd/compile/internal/gc/ssa.go      | 10 +++++++++-
+ src/cmd/compile/internal/ssa/compile.go | 10 ++++++++++
+ src/cmd/compile/internal/ssa/html.go    | 13 +++++++++----
+ 4 files changed, 29 insertions(+), 5 deletions(-)

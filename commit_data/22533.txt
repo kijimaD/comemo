@@ -1,0 +1,15 @@
+commit 110fa22c4562b0f9ada3c81b9bceeb76763f5608
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 11 05:57:15 2015 -0400
+
+    misc/cgo/test: skip issue3261 test on darwin/arm64
+    
+    Because there is no libgcc.
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f07
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8786
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/test/issue3261.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

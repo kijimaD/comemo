@@ -1,0 +1,25 @@
+commit f4750a6cfb8ae84acee56cca1a51c886fa16cc32
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 28 20:21:44 2025 +0100
+
+    cmd/go/internal/work: use par.Cache to cache tool IDs.
+    
+    The tool IDs can be calculated once and reused across multiple
+    threads. This is a small optimization that helps optimize system
+    resources.
+    
+    On a normal Windows machine with 12 virtual CPUs, the time to build
+    a hello world program is reduced from over 1 second, with spikes of 2
+    seconds, to a consistent 0.7 seconds.
+    
+    Updates #71981.
+    
+    Change-Id: I85f4a19f8ad4230afa32213780c761b7eb22fa29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653715
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/action.go  | 10 +++--
+ src/cmd/go/internal/work/buildid.go | 84 ++++++++++++++++---------------------
+ 2 files changed, 42 insertions(+), 52 deletions(-)

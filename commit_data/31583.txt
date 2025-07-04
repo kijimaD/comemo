@@ -1,0 +1,18 @@
+commit 46f4bfb2d17a3ccb4b3207d086a90cac3c00ea2f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Apr 28 13:37:52 2017 -0700
+
+    crypto/tls: pass argument to serverInit rather than using a field in Config.
+    
+    Updates #20164.
+    
+    Change-Id: Ib900095e7885f25cd779750674a712c770603ca8
+    Reviewed-on: https://go-review.googlesource.com/42137
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go           | 19 ++++++-------------
+ src/crypto/tls/handshake_server.go |  8 ++------
+ 2 files changed, 8 insertions(+), 19 deletions(-)

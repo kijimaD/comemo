@@ -1,0 +1,19 @@
+commit 11a1f37b076122ce6b669f1a5c7563a339087b17
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 20:38:37 2021 -0400
+
+    go/types: remove TestIncompleteInterfaces (cleanup)
+    
+    This is a straightforward port of CL 339832 to go/types.
+    
+    Change-Id: Ibcb1b130ea474bbbfe9cb5138170e27b466313cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342430
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go        |  7 ++++++
+ src/go/types/typestring.go      | 26 ++++++-------------
+ src/go/types/typestring_test.go | 56 -----------------------------------------
+ 3 files changed, 14 insertions(+), 75 deletions(-)

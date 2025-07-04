@@ -1,0 +1,122 @@
+commit 0556e26273f704db73df9e7c4c3d2e8434dec7be
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Dec 13 16:45:55 2016 +0100
+
+    sync: make Mutex more fair
+    
+    Add new starvation mode for Mutex.
+    In starvation mode ownership is directly handed off from
+    unlocking goroutine to the next waiter. New arriving goroutines
+    don't compete for ownership.
+    Unfair wait time is now limited to 1ms.
+    Also fix a long standing bug that goroutines were requeued
+    at the tail of the wait queue. That lead to even more unfair
+    acquisition times with multiple waiters.
+    
+    Performance of normal mode is not considerably affected.
+    
+    Fixes #13086
+    
+    On the provided in the issue lockskew program:
+    
+    done in 1.207853ms
+    done in 1.177451ms
+    done in 1.184168ms
+    done in 1.198633ms
+    done in 1.185797ms
+    done in 1.182502ms
+    done in 1.316485ms
+    done in 1.211611ms
+    done in 1.182418ms
+    
+    name                    old time/op  new time/op   delta
+    MutexUncontended-48     0.65ns ± 0%   0.65ns ± 1%     ~           (p=0.087 n=10+10)
+    Mutex-48                 112ns ± 1%    114ns ± 1%   +1.69%        (p=0.000 n=10+10)
+    MutexSlack-48            113ns ± 0%     87ns ± 1%  -22.65%         (p=0.000 n=8+10)
+    MutexWork-48             149ns ± 0%    145ns ± 0%   -2.48%         (p=0.000 n=9+10)
+    MutexWorkSlack-48        149ns ± 0%    122ns ± 3%  -18.26%         (p=0.000 n=6+10)
+    MutexNoSpin-48           103ns ± 4%    105ns ± 3%     ~           (p=0.089 n=10+10)
+    MutexSpin-48             490ns ± 4%    515ns ± 6%   +5.08%        (p=0.006 n=10+10)
+    Cond32-48               13.4µs ± 6%   13.1µs ± 5%   -2.75%        (p=0.023 n=10+10)
+    RWMutexWrite100-48      53.2ns ± 3%   41.2ns ± 3%  -22.57%        (p=0.000 n=10+10)
+    RWMutexWrite10-48       45.9ns ± 2%   43.9ns ± 2%   -4.38%        (p=0.000 n=10+10)
+    RWMutexWorkWrite100-48   122ns ± 2%    134ns ± 1%   +9.92%        (p=0.000 n=10+10)
+    RWMutexWorkWrite10-48    206ns ± 1%    188ns ± 1%   -8.52%         (p=0.000 n=8+10)
+    Cond32-24               12.1µs ± 3%   12.4µs ± 3%   +1.98%         (p=0.043 n=10+9)
+    MutexUncontended-24     0.74ns ± 1%   0.75ns ± 1%     ~           (p=0.650 n=10+10)
+    Mutex-24                 122ns ± 2%    124ns ± 1%   +1.31%        (p=0.007 n=10+10)
+    MutexSlack-24           96.9ns ± 2%  102.8ns ± 2%   +6.11%        (p=0.000 n=10+10)
+    MutexWork-24             146ns ± 1%    135ns ± 2%   -7.70%         (p=0.000 n=10+9)
+    MutexWorkSlack-24        135ns ± 1%    128ns ± 2%   -5.01%         (p=0.000 n=10+9)
+    MutexNoSpin-24           114ns ± 3%    110ns ± 4%   -3.84%        (p=0.000 n=10+10)
+    MutexSpin-24             482ns ± 4%    475ns ± 8%     ~           (p=0.286 n=10+10)
+    RWMutexWrite100-24      43.0ns ± 3%   43.1ns ± 2%     ~           (p=0.956 n=10+10)
+    RWMutexWrite10-24       43.4ns ± 1%   43.2ns ± 1%     ~            (p=0.085 n=10+9)
+    RWMutexWorkWrite100-24   130ns ± 3%    131ns ± 3%     ~           (p=0.747 n=10+10)
+    RWMutexWorkWrite10-24    191ns ± 1%    192ns ± 1%     ~           (p=0.210 n=10+10)
+    Cond32-12               11.5µs ± 2%   11.7µs ± 2%   +1.98%        (p=0.002 n=10+10)
+    MutexUncontended-12     1.48ns ± 0%   1.50ns ± 1%   +1.08%        (p=0.004 n=10+10)
+    Mutex-12                 141ns ± 1%    143ns ± 1%   +1.63%        (p=0.000 n=10+10)
+    MutexSlack-12            121ns ± 0%    119ns ± 0%   -1.65%          (p=0.001 n=8+9)
+    MutexWork-12             141ns ± 2%    150ns ± 3%   +6.36%         (p=0.000 n=9+10)
+    MutexWorkSlack-12        131ns ± 0%    138ns ± 0%   +5.73%         (p=0.000 n=9+10)
+    MutexNoSpin-12          87.0ns ± 1%   83.7ns ± 1%   -3.80%        (p=0.000 n=10+10)
+    MutexSpin-12             364ns ± 1%    377ns ± 1%   +3.77%        (p=0.000 n=10+10)
+    RWMutexWrite100-12      42.8ns ± 1%   43.9ns ± 1%   +2.41%         (p=0.000 n=8+10)
+    RWMutexWrite10-12       39.8ns ± 4%   39.3ns ± 1%     ~            (p=0.433 n=10+9)
+    RWMutexWorkWrite100-12   131ns ± 1%    131ns ± 0%     ~            (p=0.591 n=10+9)
+    RWMutexWorkWrite10-12    173ns ± 1%    174ns ± 0%     ~            (p=0.059 n=10+8)
+    Cond32-6                10.9µs ± 2%   10.9µs ± 2%     ~           (p=0.739 n=10+10)
+    MutexUncontended-6      2.97ns ± 0%   2.97ns ± 0%     ~     (all samples are equal)
+    Mutex-6                  122ns ± 6%    122ns ± 2%     ~           (p=0.668 n=10+10)
+    MutexSlack-6             149ns ± 3%    142ns ± 3%   -4.63%        (p=0.000 n=10+10)
+    MutexWork-6              136ns ± 3%    140ns ± 5%     ~           (p=0.077 n=10+10)
+    MutexWorkSlack-6         152ns ± 0%    138ns ± 2%   -9.21%         (p=0.000 n=6+10)
+    MutexNoSpin-6            150ns ± 1%    152ns ± 0%   +1.50%         (p=0.000 n=8+10)
+    MutexSpin-6              726ns ± 0%    730ns ± 1%     ~           (p=0.069 n=10+10)
+    RWMutexWrite100-6       40.6ns ± 1%   40.9ns ± 1%   +0.91%         (p=0.001 n=8+10)
+    RWMutexWrite10-6        37.1ns ± 0%   37.0ns ± 1%     ~            (p=0.386 n=9+10)
+    RWMutexWorkWrite100-6    133ns ± 1%    134ns ± 1%   +1.01%         (p=0.005 n=9+10)
+    RWMutexWorkWrite10-6     152ns ± 0%    152ns ± 0%     ~     (all samples are equal)
+    Cond32-2                7.86µs ± 2%   7.95µs ± 2%   +1.10%        (p=0.023 n=10+10)
+    MutexUncontended-2      8.10ns ± 0%   9.11ns ± 4%  +12.44%         (p=0.000 n=9+10)
+    Mutex-2                 32.9ns ± 9%   38.4ns ± 6%  +16.58%        (p=0.000 n=10+10)
+    MutexSlack-2            93.4ns ± 1%   98.5ns ± 2%   +5.39%         (p=0.000 n=10+9)
+    MutexWork-2             40.8ns ± 3%   43.8ns ± 7%   +7.38%         (p=0.000 n=10+9)
+    MutexWorkSlack-2        98.6ns ± 5%  108.2ns ± 2%   +9.80%         (p=0.000 n=10+8)
+    MutexNoSpin-2            399ns ± 1%    398ns ± 2%     ~             (p=0.463 n=8+9)
+    MutexSpin-2             1.99µs ± 3%   1.97µs ± 1%   -0.81%          (p=0.003 n=9+8)
+    RWMutexWrite100-2       37.6ns ± 5%   46.0ns ± 4%  +22.17%         (p=0.000 n=10+8)
+    RWMutexWrite10-2        50.1ns ± 6%   36.8ns ±12%  -26.46%         (p=0.000 n=9+10)
+    RWMutexWorkWrite100-2    136ns ± 0%    134ns ± 2%   -1.80%          (p=0.001 n=7+9)
+    RWMutexWorkWrite10-2     140ns ± 1%    138ns ± 1%   -1.50%        (p=0.000 n=10+10)
+    Cond32                  5.93µs ± 1%   5.91µs ± 0%     ~            (p=0.411 n=9+10)
+    MutexUncontended        15.9ns ± 0%   15.8ns ± 0%   -0.63%          (p=0.000 n=8+8)
+    Mutex                   15.9ns ± 0%   15.8ns ± 0%   -0.44%        (p=0.003 n=10+10)
+    MutexSlack              26.9ns ± 3%   26.7ns ± 2%     ~           (p=0.084 n=10+10)
+    MutexWork               47.8ns ± 0%   47.9ns ± 0%   +0.21%          (p=0.014 n=9+8)
+    MutexWorkSlack          54.9ns ± 3%   54.5ns ± 3%     ~           (p=0.254 n=10+10)
+    MutexNoSpin              786ns ± 2%    765ns ± 1%   -2.66%        (p=0.000 n=10+10)
+    MutexSpin               3.87µs ± 1%   3.83µs ± 0%   -0.85%          (p=0.005 n=9+8)
+    RWMutexWrite100         21.2ns ± 2%   21.0ns ± 1%   -0.88%         (p=0.018 n=10+9)
+    RWMutexWrite10          22.6ns ± 1%   22.6ns ± 0%     ~             (p=0.471 n=9+9)
+    RWMutexWorkWrite100      132ns ± 0%    132ns ± 0%     ~     (all samples are equal)
+    RWMutexWorkWrite10       124ns ± 0%    123ns ± 0%     ~           (p=0.656 n=10+10)
+    
+    Change-Id: I66412a3a0980df1233ad7a5a0cd9723b4274528b
+    Reviewed-on: https://go-review.googlesource.com/34310
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go            |   6 +-
+ src/runtime/proc.go           |   2 +-
+ src/runtime/sema.go           |  80 ++++++++++++++++++-----
+ src/runtime/trace.go          |   2 +-
+ src/sync/mutex.go             | 149 ++++++++++++++++++++++++++++++++----------
+ src/sync/mutex_test.go        |  35 +++++++++-
+ src/sync/runtime.go           |   8 ++-
+ src/sync/runtime_sema_test.go |   6 +-
+ src/sync/rwmutex.go           |   4 +-
+ src/sync/waitgroup.go         |   2 +-
+ 10 files changed, 231 insertions(+), 63 deletions(-)

@@ -1,0 +1,13 @@
+commit e8436689aded1c620fdbe76e7ad4d65c2f4e49fc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 1 14:23:07 2010 -0700
+
+    gotest: if the benchmark list is empty, print it in a way that
+    gofmt will leave alone.
+    
+    R=rsc, bradfitz, bradfitzpatrick
+    CC=golang-dev
+    https://golang.org/cl/2816041
+
+ src/cmd/gotest/gotest | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

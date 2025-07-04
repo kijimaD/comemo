@@ -1,0 +1,15 @@
+commit ac09eb4f49a409e4b99638cadac39bc13cf6816f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 11 12:59:49 2008 -0800
+
+    handle the nil interface better in reflect and print
+    
+    R=rsc
+    DELTA=25  (19 added, 0 deleted, 6 changed)
+    OCL=20985
+    CL=20985
+
+ src/lib/fmt/print.go     | 22 +++++++++++++++++-----
+ src/lib/reflect/type.go  |  6 ++++++
+ src/lib/reflect/value.go |  3 ++-
+ 3 files changed, 25 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit d4a5797b8863185230d0e89da9a00fd17f04152a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 9 12:44:07 2020 -0400
+
+    cmd/compile: drop SSA atomics TODO
+    
+    These ops have been used for sync/atomic since golang.org/cl/28076.
+    
+    Change-Id: Ic1445c073273f6b191b97018e8eb6f7ad9c48922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261077
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

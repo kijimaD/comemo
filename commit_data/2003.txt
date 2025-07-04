@@ -1,0 +1,24 @@
+commit 5eae3b21025169bfa39fc42d0dfcc997acab8e9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 16:50:42 2009 -0700
+
+    lib misc
+            * exec.LookPath
+            * flag.Args
+            * os.Remove
+            * strings.HasPrefix
+            * strings.HasSuffix
+            * syscall.Rmdir
+    
+    TBR=r
+    DELTA=100  (100 added, 0 deleted, 0 changed)
+    OCL=27373
+    CL=27392
+
+ src/lib/exec.go                | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/lib/flag.go                |  5 +++++
+ src/lib/os/file.go             | 30 +++++++++++++++++++++++++++++
+ src/lib/strings.go             | 10 ++++++++++
+ src/lib/syscall/file_darwin.go |  6 ++++++
+ src/lib/syscall/file_linux.go  |  6 ++++++
+ 6 files changed, 100 insertions(+)

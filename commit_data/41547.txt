@@ -1,0 +1,15 @@
+commit 5b15941c61f478b8ed08b76a27186527ba73d273
+Author: yuz <re.yuz77777@gmail.com>
+Date:   Sun Mar 1 21:35:56 2020 +0900
+
+    flag: changed flag variable name in package doc, for clarity
+    
+    Changed the flag variable name to nFlag instead of flagname,
+    because flagname was confusing.
+    
+    Change-Id: I20dd4c4b4f605395d427a125ba4fd14580e5d766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221678
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 0c64972dd1175a32d11793e5b7b6d455194db3d4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 7 11:45:30 2011 -0500
+
+    gc: more accurate description of -w and -W switches.
+    
+    The -w switch actually prints steps of the syntax tree walks
+    while -W prints a summary before and after the walk.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5444049
+
+ src/cmd/gc/lex.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

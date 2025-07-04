@@ -1,0 +1,19 @@
+commit 57aaa19aae32a6c75a07ea8e3006fdcda7583385
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 17 17:34:18 2021 -0700
+
+    runtime: disable CPU profiling before removing the SIGPROF handler
+    
+    Otherwise, in c-archive or c-shared mode, there is the chance of
+    getting a SIGPROF just after the signal handler is removed but before
+    profiling is disabled, in which case the program will die.
+    
+    Fixes #46498
+    
+    Change-Id: I5492beef45fec9fb9a7f58724356d6aedaf799ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329290
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/signal_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

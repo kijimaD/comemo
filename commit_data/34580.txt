@@ -1,0 +1,30 @@
+commit 6cb064c9c44fcd07bced22d2952a4856e5febc3e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 13 15:20:33 2018 +0000
+
+    Revert "runtime: convert g.waitreason from string to uint8"
+    
+    This reverts commit 4eea887fd477368653f6fcf8ad766030167936e5.
+    
+    Reason for revert: broke s390x build
+    
+    Change-Id: Id6c2b6a7319273c4d21f613d4cdd38b00d49f847
+    Reviewed-on: https://go-review.googlesource.com/100375
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/chan.go        |  8 ++---
+ src/runtime/heapdump.go    |  4 +--
+ src/runtime/mfinal.go      |  2 +-
+ src/runtime/mgc.go         | 10 +++---
+ src/runtime/mgcmark.go     |  6 ++--
+ src/runtime/mgcsweep.go    |  4 +--
+ src/runtime/netpoll.go     |  2 +-
+ src/runtime/proc.go        | 16 ++++-----
+ src/runtime/runtime2.go    | 89 +++++++---------------------------------------
+ src/runtime/select.go      |  4 +--
+ src/runtime/sema.go        |  4 +--
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/time.go        |  4 +--
+ src/runtime/trace.go       |  2 +-
+ src/runtime/traceback.go   |  4 +--
+ 15 files changed, 47 insertions(+), 114 deletions(-)

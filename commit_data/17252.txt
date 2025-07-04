@@ -1,0 +1,12 @@
+commit 3fe9b11cbb70b86951a5a73109df021ecb585939
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Aug 14 16:03:44 2013 -0700
+
+    misc/emacs: Allow go-coverage to work in existing coverage buffers by reusing previous arguments
+    
+    R=golang-dev, adonovan, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12721043
+
+ misc/emacs/go-mode.el | 46 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 12 deletions(-)

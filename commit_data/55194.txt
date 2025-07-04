@@ -1,0 +1,21 @@
+commit 16d3040a84be821d801b75bd1a3d8ab4cc89ee36
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 30 22:59:04 2023 -0800
+
+    maps: fix aliasing problems with Clone
+    
+    Make sure to alloc+copy large keys and values instead of aliasing them,
+    when they might be updated by a future assignment.
+    
+    Fixes #64474
+    
+    Change-Id: Ie2226a81cf3897e4e2ee24472f2966d397ace53f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546515
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/maps/maps_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/map.go    | 22 +++++++++++++++----
+ 2 files changed, 76 insertions(+), 4 deletions(-)

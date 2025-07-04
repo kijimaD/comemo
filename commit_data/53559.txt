@@ -1,0 +1,30 @@
+commit 0a48e5cbfabd679eecdec1efa731692cd6babf83
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 13 09:46:50 2023 -0700
+
+    slices: consistently use S ~[]E
+    
+    Make all functions use a constraint S ~[]E even if they don't return
+    the slice type. This makes explicitly instantiating the functions more
+    consistent: you don't have to remember which take ~[]E and which do not.
+    It also permits inferring the type when passing one of these functions
+    to some other function that is using a named slice type.
+    
+    Fixes #60546
+    
+    Change-Id: Ib3435255d0177fdbf03455ae527d08599b1ce012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502955
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Axel Wagner <axel.wagner.hh@googlemail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/go1.21.txt            | 40 ++++++++++++++++++++--------------------
+ src/slices/slices.go      | 28 ++++++++++++++--------------
+ src/slices/slices_test.go | 22 +++++++++++++++++++++-
+ src/slices/sort.go        | 22 +++++++++++-----------
+ 4 files changed, 66 insertions(+), 46 deletions(-)

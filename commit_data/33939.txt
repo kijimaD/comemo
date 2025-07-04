@@ -1,0 +1,15 @@
+commit 1f84cd9771c6aab344dc6f46b50838ff7d239e87
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jan 4 15:07:03 2018 +0530
+
+    cmd/go: add -v option in the usage section for get
+    
+    Updates #23332
+    
+    Change-Id: I964d36ed751ef1844ab6c40f61047297ff1443a3
+    Reviewed-on: https://go-review.googlesource.com/85797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go          | 2 +-
+ src/cmd/go/internal/get/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

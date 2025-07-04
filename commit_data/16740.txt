@@ -1,0 +1,17 @@
+commit 1d4ed0c86bd58b3ddfbeed831511e487e017dc1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 11 22:40:21 2013 -0400
+
+    cmd/gc: fix error message for import as 'init'
+    
+    Fixes #5853.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11104044
+
+ src/cmd/gc/go.y              |   4 +
+ src/cmd/gc/y.tab.c           | 635 ++++++++++++++++++++++---------------------
+ src/cmd/gc/y.tab.h           |   2 +-
+ test/fixedbugs/issue4517d.go |   9 +
+ 4 files changed, 338 insertions(+), 312 deletions(-)

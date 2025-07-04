@@ -1,0 +1,28 @@
+commit 00bee6d9a4c3ed6168350fc6551043ff7a1895f2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 16 10:41:15 2022 +0700
+
+    cmd/compile/internal/typebits: relax alignment check
+    
+    Now we have 8-byte alignment types on 32-bit system, so in some rare
+    case, e.g, generated wrapper for embedded interface, the function
+    argument may need more than 4 byte alignment. We could pad somehow, but
+    this is a rare case which makes it hard to ensure that we've got it right.
+    
+    So relaxing the check for argument and return value region of the stack.
+    
+    Fixes #54991
+    
+    Change-Id: I34986e17a920254392a39439ad3dcb323da2ea8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431098
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go    |  6 +++---
+ src/cmd/compile/internal/typebits/typebits.go | 15 +++++++++++---
+ test/fixedbugs/issue54991.go                  | 29 +++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

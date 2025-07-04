@@ -1,0 +1,13 @@
+commit 6d8b8101ea3d065c42f94c5a32713d259cbcbee7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 23 10:55:50 2010 -0400
+
+    gc: fix crash for nested complex division
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1720043
+
+ src/cmd/gc/cplx.c | 2 +-
+ test/ken/cplx4.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

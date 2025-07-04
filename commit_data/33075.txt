@@ -1,0 +1,22 @@
+commit 926373ea79cb590352c9acae96288935ec2c8f47
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 12 01:39:46 2017 +0200
+
+    runtime: fix crash on Plan 9
+    
+    Since CL 46037, the runtime is crashing after calling
+    exitThread on Plan 9.
+    
+    The exitThread function shouldn't be called on
+    Plan 9, because the system manages thread stacks.
+    
+    Fixes #22221.
+    
+    Change-Id: I5d61c9660a87dc27e4cfcb3ca3ddcb4b752f2397
+    Reviewed-on: https://go-review.googlesource.com/70190
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

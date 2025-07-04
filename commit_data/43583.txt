@@ -1,0 +1,26 @@
+commit 421d4e72de802ed65cb38317660654771cfb13e9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 28 13:44:53 2020 +0100
+
+    cmd/go/internal/modfetch: drop gopkg.in/russross/blackfriday.v2 from TestCodeRepoVersions
+    
+    Follow-up for CL 265819.
+    
+    Given the -pre tag added recently, a new stable version is likely
+    tagged soon. This would break TestCodeRepoVersions on the longtest
+    builders again. Since the other test cases in codeRepoVersionsTests
+    already provide enough coverage, drop gopkg.in/russross/blackfriday.v2
+    to avoid breaking TestCodeRepoVersions once the release happens.
+    
+    Updates #28856
+    
+    Change-Id: If86a637b5e47f59faf9048fc1cbbae6e8f1dcc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265917
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

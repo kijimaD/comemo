@@ -1,0 +1,21 @@
+commit 14a18b7d2538232c6cd6937297c421d5f6b7d92f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 21 18:24:15 2021 -0700
+
+    cmd/compile/internal/types2: move a handful of tests
+    
+    These tests belong into the fixedbugs directory.
+    This matches the go/types organization.
+    No changes to the code.
+    
+    Change-Id: I36bcf70672d9ea5a40175c445e1d036c603ae76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312570
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203a.src | 0
+ src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203b.src | 0
+ src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue26390.src  | 0
+ src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue28251.src  | 0
+ src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue6977.src   | 0
+ 5 files changed, 0 insertions(+), 0 deletions(-)

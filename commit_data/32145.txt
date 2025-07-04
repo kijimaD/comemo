@@ -1,0 +1,21 @@
+commit 6a7c4d69cb72f857b21c36ef077de0b97d9dbd50
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Aug 9 03:26:45 2017 +0100
+
+    net/http: check If-Range header when request method is HEAD
+    
+    When If-Range does not match and the requested resource is
+    available, server should return a "200 OK" response to client.
+    Currently server returns "200 OK" when the request method is
+    GET, but "206 Partial Content" when method is HEAD.
+    This change fixed this inconsistency.
+    
+    Change-Id: I5ad979919f4f089baba54a4445b70ca38471a906
+    Reviewed-on: https://go-review.googlesource.com/54110
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 81 ++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 50 insertions(+), 33 deletions(-)

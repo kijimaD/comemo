@@ -1,0 +1,12 @@
+commit cd016d7558d54ca685c2d605920388ec49add083
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 1 14:48:57 2010 -0700
+
+    gc: fix export of complex types
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1442042
+
+ src/cmd/gc/subr.c | 3 +++
+ 1 file changed, 3 insertions(+)

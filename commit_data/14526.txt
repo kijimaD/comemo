@@ -1,0 +1,15 @@
+commit 902af974cbdf3af5ae435e3d34f2ac16beb207d1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 30 16:10:45 2012 +1100
+
+    os: check only user attributes in TestStatDirModeExec
+    
+    Some have their system setup in a particular way,
+    see http://golang.org/issue/4444#c3.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6851129
+
+ src/pkg/os/os_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

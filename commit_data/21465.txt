@@ -1,0 +1,28 @@
+commit 71be0138421012d04e06991d37d19c9f5b1fa02b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 20:50:58 2015 +0300
+
+    cmd/gc: don't copy string in range []byte(str)
+    
+    Using benchmark from the issue:
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkRangeStringCast     2162          1152          -46.72%
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkRangeStringCast     1              0              -100.00%
+    
+    Fixes #2204
+    
+    Change-Id: I92c5edd2adca4a7b6fba00713a581bf49dc59afe
+    Reviewed-on: https://go-review.googlesource.com/3790
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/builtin.c       |  1 +
+ src/cmd/gc/go.h            |  1 +
+ src/cmd/gc/order.c         |  4 ++++
+ src/cmd/gc/runtime.go      |  1 +
+ src/cmd/gc/walk.c          |  5 +++++
+ src/runtime/string.go      | 12 ++++++++++++
+ src/runtime/string_test.go | 14 ++++++++++++++
+ 7 files changed, 38 insertions(+)

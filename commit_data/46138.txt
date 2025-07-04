@@ -1,0 +1,21 @@
+commit f98b6111eb8edda63a785db5678418b9eecbc5e9
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Tue Jul 20 17:17:14 2021 +0000
+
+    go/token: match the implementation of index selection with sort.Search
+    
+    name          old time/op    new time/op    delta
+    SearchInts-8    15.5ns ± 2%    13.7ns ± 4%  -11.87%  (p=0.008 n=5+5)
+    
+    (see CL 36332 for the original change to sort.Search)
+    
+    Change-Id: If452818185b92b8b3548b066f475e493d604ea29
+    GitHub-Last-Rev: 32dd3cffa6b54b332948ac6a2929458defd4838f
+    GitHub-Pull-Request: golang/go#47293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335809
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/go/token/position.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

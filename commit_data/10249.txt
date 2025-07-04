@@ -1,0 +1,12 @@
+commit 7f5ae484ebe667fbf9338752b81dc6d594a9c777
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 4 08:38:10 2011 -0400
+
+    runtime: fix linux/arm nanotime?
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5354041
+
+ src/pkg/runtime/linux/arm/sys.s | 37 +++++++++++++++++--------------------
+ 1 file changed, 17 insertions(+), 20 deletions(-)

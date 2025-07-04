@@ -1,0 +1,14 @@
+commit 25ac4d07a278cfcd1b387eb21da5b6e3b78a8f3f
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Jun 4 21:11:55 2009 -0700
+
+    Rolling galign back to 32 bit.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=29532
+    CL=29917
+
+ src/cmd/5g/galign.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

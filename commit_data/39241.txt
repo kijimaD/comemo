@@ -1,0 +1,20 @@
+commit ef2f41785ba21f0e37aa8a57cb520e9d83069637
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 23 19:06:16 2019 +0000
+
+    test: skip a test on failing test on nacl/386
+    
+    This test was designed for #15609 and didn't consider nacl. It's not
+    worth adding new +build-guarded assembly files in issue15609.dir for
+    nacl, especially as nacl is going away.
+    
+    Fixes #32206
+    
+    Change-Id: Ic5bd48b4f790a1f7019100b8a72d4688df75512f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178698
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue15609.go | 2 ++
+ 1 file changed, 2 insertions(+)

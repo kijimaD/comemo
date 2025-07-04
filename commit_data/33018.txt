@@ -1,0 +1,31 @@
+commit ae175f74cb4beb4a6695e185c77c7ed52ee2d1d7
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Oct 8 15:23:10 2017 +0200
+
+    runtime: fix cgo export of panicmem on ios
+    
+    CL 68490 reworked the way the panicmem function is exposed to the
+    C mach expection catcher. However, //go:cgo_export_static isn't enough:
+    the underlying assembly functions must not start with the middle dot.
+    
+    Without the middle dot, the panicmem function's exported name is
+    not prefixed with its package; rename it to xx_cgo_panicmem to decrease
+    the chance of a symbol name clash.
+    
+    Finally, mark the overridden C symbol weak to avoid duplicate symbol
+    errors from the host linker.
+    
+    For the ios builders.
+    
+    Change-Id: Ib87789fecec9314e398cf1bd8c04ba0b3a6642af
+    Reviewed-on: https://go-review.googlesource.com/69113
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/all/whitelist/darwin_arm64.txt | 6 ------
+ src/runtime/cgo/gcc_signal2_darwin_armx.c  | 2 +-
+ src/runtime/cgo/signal_darwin_arm.s        | 6 +++---
+ src/runtime/cgo/signal_darwin_arm64.s      | 6 +++---
+ src/runtime/cgo/signal_darwin_armx.go      | 4 ++--
+ 5 files changed, 9 insertions(+), 15 deletions(-)

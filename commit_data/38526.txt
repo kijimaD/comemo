@@ -1,0 +1,22 @@
+commit 7722f6d228da78a03ff233713cd5856db124ce3d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Mar 24 15:49:45 2019 +1100
+
+    cmd/go: keep WINDIR during TestScript
+    
+    TestScript executes PowerShell. And PowerShell appears to require
+    WINDIR environment variable to exists on windows-arm.
+    
+    So keep WINDIR environment variable when running PowerShell.
+    
+    Fixes #30711
+    
+    Change-Id: I14dde6614347325a8f3caf994ea8ab05294450a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168859
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/script_test.go                        | 1 +
+ src/cmd/go/testdata/script/build_acl_windows.txt | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)

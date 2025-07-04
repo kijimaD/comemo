@@ -1,0 +1,15 @@
+commit fceca2c0f1ff21e1b2b0bf9960b776bb08e58d86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 17:30:47 2021 -0800
+
+    cmd/compile/internal/types2: add a test for argument error unwrapping
+    
+    This CL is a clean port of CL 351338 from go/types to types2.
+    
+    Change-Id: I7fd0e5a447bf51cb359e71731c2f9b95e3960da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364536
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

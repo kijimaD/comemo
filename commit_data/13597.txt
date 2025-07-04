@@ -1,0 +1,21 @@
+commit 3601f27708e6c0d6f71e690139de46df19cedc38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 7 17:45:58 2012 -0700
+
+    godoc: make id attributes unique
+    
+    Some browsers (e.g. IE9) ignore the case of 'id' attributes
+    which can lead to conflicts. Prefix non-generated 'id's with
+    "pkg-" to make them different from any generated attribute.
+    
+    Also: Added missing entry for "Other packages" to top-level
+    index.
+    
+    Fixes #3851.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6449105
+
+ lib/godoc/package.html | 39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)

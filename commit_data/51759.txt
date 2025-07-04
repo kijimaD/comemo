@@ -1,0 +1,18 @@
+commit a11b8e37652ff60302b4a4a55a8a43db6a066ecf
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 24 09:49:36 2023 +1100
+
+    os: have RemoveAll loop on EINTR
+    
+    Fixes #57966
+    
+    Change-Id: Ia732d499ff9bd6e70030daab8fac42d1e204be37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463076
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+
+ src/os/removeall_at.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

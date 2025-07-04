@@ -1,0 +1,14 @@
+commit d83dc4f5c6f6c8a8dc6025e1b34857f99136bf9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 29 16:04:16 2009 -0700
+
+    unary ^ update.
+    
+    []int -> string is already in the document.
+    
+    DELTA=7  (1 added, 1 deleted, 5 changed)
+    OCL=29622
+    CL=29631
+
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

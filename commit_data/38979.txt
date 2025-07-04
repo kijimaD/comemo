@@ -1,0 +1,21 @@
+commit 70b890ce3b72fdab528ee1f93b1950173e9a0992
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 13:07:05 2019 -0400
+
+    cmd/go/internal/modfetch/codehost: disable fetch of server-resolved commit hash
+    
+    We cannot rely on the server to filter out the refs we don't want
+    (we only want refs/heads/* and refs/tags/*), so do not give it
+    the full hash.
+    
+    Fixes #31191.
+    
+    Change-Id: If1208c35954228aa6e8734f8d5f1725d0ec79c87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174517
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 12 +++++++++---
+ src/cmd/go/testdata/script/mod_get_hash.txt  | 19 +++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 6ecd5f9fe7e63ac4b748849293a9dbc1380e805b
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Aug 24 13:59:17 2011 -0400
+
+    cov: remove tautological #defines
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4941048
+
+ src/cmd/cov/tree.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,11 @@
+commit d9014dc98a8d490ad48d693c03b2dbe9f0acafaa
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 19 15:34:11 2009 -0800
+
+    put copy into goyacc
+    
+    R=rsc
+    https://golang.org/cl/156100
+
+ src/cmd/goyacc/goyacc.go | 56 ++++++++++++++----------------------------------
+ 1 file changed, 16 insertions(+), 40 deletions(-)

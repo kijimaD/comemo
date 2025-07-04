@@ -1,0 +1,20 @@
+commit c50e7ded1f058ff934dd6eec463a00e735b31c82
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Nov 11 01:33:17 2023 +0000
+
+    log/slog: make hex a const
+    
+    hex is in fact immutable, declare it as a const to avoid accidental
+    modification, also for consistency with other packages.
+    
+    Change-Id: I88a6fed34d27ac57a0332dc7a27d3bf2ba0d6272
+    GitHub-Last-Rev: 08712be2d4e3951e87b4a4f410ba424d12a320e3
+    GitHub-Pull-Request: golang/go#64069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541518
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/log/slog/json_handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

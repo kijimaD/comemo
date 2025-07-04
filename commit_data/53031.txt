@@ -1,0 +1,24 @@
+commit 994eca4883b613ee845abb101ed4c3ffef80e428
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 10 18:05:16 2022 -0400
+
+    test: add escape test for reflect.Value operations
+    
+    With CL 408826 reflect.Value does not always escape. We need to
+    make sure Value operations does (or does not) escape the Value
+    correctly. This CL adds a test.
+    
+    There are still a few unfortunate cases, where some Value
+    operations escape more than necessary (comparing to a non-reflect
+    version of the code), but hard to fix. These are mostly that a
+    Value would escape conditionally (mostly on the type of the Value),
+    but currently we don't have a good way to express that.
+    
+    Change-Id: I9fdfc7584670aa09c5a01f6b2803f2043aaddb65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441938
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/escape_reflect.go | 462 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 462 insertions(+)

@@ -1,0 +1,19 @@
+commit cec64a2dd5c10e733c3d6db6acc303dd5fa21ff1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 24 14:04:54 2008 -0700
+
+    - some factoring of scan/parse phase so we can attach other functionality
+      easily (for instance import dependency extraction)
+    - support for new "..." syntax
+    - minor cleanup
+    
+    R=r
+    OCL=17811
+    CL=17811
+
+ usr/gri/pretty/Makefile      |  4 +++-
+ usr/gri/pretty/Makefile.iant | 13 ++++++++---
+ usr/gri/pretty/parser.go     | 55 +++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/pretty.go     | 40 +++++++++++++++-----------------
+ usr/gri/pretty/printer.go    |  8 ++++---
+ 5 files changed, 70 insertions(+), 50 deletions(-)

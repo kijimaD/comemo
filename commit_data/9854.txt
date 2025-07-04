@@ -1,0 +1,12 @@
+commit 2cef85f8a11cb144ac68e8f946df638d9ad13818
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 3 17:25:55 2011 -0700
+
+    Fix build, disabling flaky registerization test.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5179045
+
+ test/fixedbugs/bug369.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

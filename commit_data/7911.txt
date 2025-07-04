@@ -1,0 +1,15 @@
+commit 469a747e02dae8c9457233be3d294aa6b93b7903
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 06:48:20 2011 -0700
+
+    test: avoid undefined error in syntax/if.go.
+    
+    Without this the gccgo version of errchk reports an unmatched
+    error.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4327041
+
+ test/syntax/if.go | 3 +++
+ 1 file changed, 3 insertions(+)

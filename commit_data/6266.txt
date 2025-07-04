@@ -1,0 +1,12 @@
+commit c5a51cc90f64951dc4c4e7007933567dd2799a48
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Sep 13 16:03:27 2010 +1000
+
+    json: Add package comment
+    
+    R=golang-dev, r2, r
+    CC=golang-dev
+    https://golang.org/cl/2149047
+
+ src/pkg/json/encode.go | 2 ++
+ 1 file changed, 2 insertions(+)

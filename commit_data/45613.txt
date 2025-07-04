@@ -1,0 +1,32 @@
+commit 326a7925179ea669aa9f947dda82e425673cb220
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon May 10 03:16:28 2021 +1000
+
+    runtime,syscall: simplify openbsd related build tags
+    
+    openbsd/mips64 is now the only openbsd port that uses non-libc syscall - revise
+    build tags to reflect this.
+    
+    Update #36435
+    
+    Change-Id: I357b2dd2926d058e25e618fcca42c388587598a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317919
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/os_openbsd_libc.go      | 4 ++--
+ src/runtime/os_openbsd_syscall.go   | 4 ++--
+ src/runtime/os_openbsd_syscall1.go  | 4 ++--
+ src/runtime/os_openbsd_syscall2.go  | 4 ++--
+ src/runtime/sys_libc.go             | 4 ++--
+ src/runtime/sys_openbsd.go          | 4 ++--
+ src/runtime/sys_openbsd1.go         | 4 ++--
+ src/runtime/sys_openbsd2.go         | 4 ++--
+ src/runtime/sys_openbsd3.go         | 4 ++--
+ src/syscall/exec_bsd.go             | 4 ++--
+ src/syscall/exec_libc2.go           | 4 ++--
+ src/syscall/syscall_openbsd1.go     | 4 ++--
+ src/syscall/syscall_openbsd_libc.go | 4 ++--
+ 13 files changed, 26 insertions(+), 26 deletions(-)

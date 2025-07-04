@@ -1,0 +1,14 @@
+commit 9ea306a10ca4d25672641ffbb628718a6665b4f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 04:29:12 2016 +0000
+
+    sort: add Slice example
+    
+    Change-Id: I34ba4eaf1d232b639998ad3bbb0d075dd097722b
+    Reviewed-on: https://go-review.googlesource.com/33763
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+
+ src/sort/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

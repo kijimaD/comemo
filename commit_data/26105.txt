@@ -1,0 +1,38 @@
+commit 133c26b158b7764dd128f02e2d64de798c198582
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Mar 5 15:57:17 2016 -0300
+
+    go/types: don't emit conversion error in non-numeric increment/decrement
+    
+    In increment and decrement statements, explicit check that the type
+    of operand is numeric. This avoids a related but less clear error
+    about converting "1" to be emitted.
+    
+    So, when checking
+    
+            package main
+    
+            func main() {
+                    var x bool
+                    x++
+            }
+    
+    instead of emitting the error
+    
+            prog.go:5:2: cannot convert 1 (untyped int constant) to bool
+    
+    emits
+    
+            prog.go:5:2: invalid operation: x++ (non-numeric type bool).
+    
+    Updates #12525.
+    
+    Change-Id: I00aa6bd0bb23267a2fe10ea3f5a0b20bbf3552bc
+    Reviewed-on: https://go-review.googlesource.com/20244
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/stmt.go            | 10 ++++++++++
+ src/go/types/testdata/stmt0.src |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

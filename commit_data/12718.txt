@@ -1,0 +1,13 @@
+commit 2795a15c0c460fac9a760557a8c18d79a857faab
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 22 19:20:03 2012 +1100
+
+    doc/articles/gobs_of_data.html: delete extra word
+    Putt putt putt our way towards felicity.
+    
+    R=golang-dev, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/5874048
+
+ doc/articles/gobs_of_data.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit cf2736c4c5bbb24b9a4ff9690887a0cb287ba34c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed May 27 12:04:25 2015 +1200
+
+    cmd/link: replace interface{} fields with concrete types
+    
+    The LSym.Section and Section.Elfsect fields were defined as interface{} but
+    always had the same concrete type (*Section and *ElfShdr respectively) so just
+    define them with that type. Reduces size of LSym from 328 to 320 bytes and
+    reduces best-of-10 maxresident size from 246028k to 238036k when linking
+    libstd.so.
+    
+    Change-Id: Ie7112c53e4c2c7ce5fe233b81372aa5633f572e8
+    Reviewed-on: https://go-review.googlesource.com/10410
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 4 ++--
+ src/cmd/link/internal/arm/asm.go   | 4 ++--
+ src/cmd/link/internal/arm64/asm.go | 4 ++--
+ src/cmd/link/internal/ld/data.go   | 6 +++---
+ src/cmd/link/internal/ld/elf.go    | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ src/cmd/link/internal/ld/link.go   | 2 +-
+ src/cmd/link/internal/ld/macho.go  | 2 +-
+ src/cmd/link/internal/ld/symtab.go | 6 +++---
+ src/cmd/link/internal/x86/asm.go   | 4 ++--
+ 10 files changed, 18 insertions(+), 18 deletions(-)

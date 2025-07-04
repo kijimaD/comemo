@@ -1,0 +1,12 @@
+commit 32734f46641fff28ec6de34e759c650438fc76a1
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Dec 16 14:24:37 2011 -0800
+
+    websocket: fix a trivial example server
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5491063
+
+ src/pkg/websocket/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

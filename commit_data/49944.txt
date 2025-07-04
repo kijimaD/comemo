@@ -1,0 +1,18 @@
+commit 9b988c9094df18a75537f5c4ae12449062550290
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:21:00 2022 +0700
+
+    runtime: convert windows netpollWakeSig to atomic type
+    
+    Updates #53821
+    
+    Change-Id: Ifc5bc551a4bcf82bf10d2e670ad2644eb9c6b334
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423879
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/netpoll_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 4a7cdc794452ce31432b881af99ec994887d07ee
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jan 18 23:00:19 2011 -0800
+
+    syscall: fix build. WUNTRACED isn't defined for win32.
+    For Windows, the options for syscall.Wait4() aren't used.
+    Then this will be dummy value like WNOHANG, WSTOPPED.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4075041
+
+ src/pkg/syscall/syscall_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

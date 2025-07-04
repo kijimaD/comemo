@@ -1,0 +1,17 @@
+commit 4c8e8fc301c798c7150d41e96213a17534092ca0
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Jan 7 23:42:23 2017 -0800
+
+    cmd/compile: fix segfault in race instrumentation
+    
+    Fixes #13265.
+    
+    Change-Id: I792eb4ee26bef8a56e279e23f9802cb39019e0d0
+    Reviewed-on: https://go-review.googlesource.com/34929
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ test/fixedbugs/issue13265.go        | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

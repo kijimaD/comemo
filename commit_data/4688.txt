@@ -1,0 +1,20 @@
+commit 062fee0536b77ba8edc7ebfdffc6349d95b424c2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 26 12:56:29 2010 -0800
+
+    dashboard: add benchmarking support.
+    
+    This has actually been running for a while and gathering benchmark
+    data. I haven't had a chance to add a UI for it yet however.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194082
+
+ misc/dashboard/README                 |   9 ++-
+ misc/dashboard/buildcontrol.py        |  51 ++++++++++++-
+ misc/dashboard/builder.sh             |  17 +++--
+ misc/dashboard/godashboard/gobuild.py | 140 +++++++++++++++++++++++++++++++++-
+ misc/dashboard/godashboard/index.yaml |   6 ++
+ misc/dashboard/godashboard/key.py     |   1 -
+ 6 files changed, 212 insertions(+), 12 deletions(-)

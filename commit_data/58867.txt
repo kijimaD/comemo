@@ -1,0 +1,31 @@
+commit 8203265d5eef37bf41d7d2df126f77ebd5abc999
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Feb 25 23:59:14 2025 +0700
+
+    cmd/compile, runtime: optimize concatbytes
+    
+    CL 527935 optimized []byte(string1 + string2) to use runtime.concatbytes
+    to prevent concatenating of strings before converting to slices.
+    However, the optimization is implemented without allowing temporary
+    buffer for slice on stack, causing un-necessary allocations.
+    
+    To fix this, optimize concatbytes to use temporary buffer if the result
+    string length fit to the buffer size.
+    
+    Fixes #71943
+    
+    Change-Id: I1d3c374cd46aad8f83a271b8a5ca79094f9fd8db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652395
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/test/issue71943_test.go   | 23 +++++++++++++++
+ .../compile/internal/typecheck/_builtin/runtime.go | 10 +++----
+ src/cmd/compile/internal/typecheck/builtin.go      | 10 +++----
+ src/cmd/compile/internal/walk/convert.go           |  2 +-
+ src/cmd/compile/internal/walk/expr.go              | 34 ++++++++++++++--------
+ src/runtime/string.go                              | 26 ++++++++++-------
+ 6 files changed, 72 insertions(+), 33 deletions(-)

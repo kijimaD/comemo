@@ -1,0 +1,20 @@
+commit 7bf631e1fc55839a6bff404a91597326e1addc10
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Mar 28 13:45:26 2018 +0530
+
+    os: keep the $ if a variable is not detected
+    
+    If the character after $ cannot be detected as a valid
+    variable declaration, do not gobble the $.
+    
+    Fixes #24345
+    
+    Change-Id: Iec47be1f2e4f8147b8ceb64c30778eae8045b58f
+    Reviewed-on: https://go-review.googlesource.com/103055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env.go      | 7 ++++++-
+ src/os/env_test.go | 2 ++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

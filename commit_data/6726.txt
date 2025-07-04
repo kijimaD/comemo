@@ -1,0 +1,21 @@
+commit fa7341aafdce72b90bc42c0f7d3ddb70a3a5deb7
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Fri Nov 5 16:41:23 2010 -0400
+
+    syscall: use 64-bit file size for truncation on Linux
+    
+    Truncate and Ftruncate for 32-bit Linux should use 64-bit
+    offset system calls.
+    
+    R=rsc
+    CC=golang-dev, royger
+    https://golang.org/cl/2943041
+
+ src/pkg/syscall/syscall_linux.go        |  2 --
+ src/pkg/syscall/syscall_linux_386.go    |  2 ++
+ src/pkg/syscall/syscall_linux_amd64.go  |  2 ++
+ src/pkg/syscall/syscall_linux_arm.go    |  2 ++
+ src/pkg/syscall/zsyscall_linux_386.go   | 32 ++++++++++++++++----------------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 32 ++++++++++++++++----------------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 32 ++++++++++++++++----------------
+ 7 files changed, 54 insertions(+), 50 deletions(-)

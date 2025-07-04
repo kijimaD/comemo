@@ -1,0 +1,31 @@
+commit dcc905ecf9f00c55fbc9848c45f62d677cb9bf29
+Author: Paul Marks <pmarks@google.com>
+Date:   Mon Jul 20 16:04:25 2015 -0700
+
+    net: compute the Dialer deadline exactly once.
+    
+    When dialing with a relative Timeout instead of an absolute Deadline,
+    the deadline function only makes sense if called before doing any
+    time-consuming work.
+    
+    This change calls deadline exactly once, storing the result until the
+    Dial operation completes.  The partialDeadline implementation is
+    reverted to the following patch set 3:
+    https://go-review.googlesource.com/#/c/8768/3..4/src/net/dial.go
+    
+    Otherwise, when dialing a name with multiple IP addresses, or when DNS
+    is slow, the recomputed deadline causes the total Timeout to exceed that
+    requested by the user.
+    
+    Fixes #11796
+    
+    Change-Id: I5e1f0d545f9e86a4e0e2ac31a9bd108849cf0fdf
+    Reviewed-on: https://go-review.googlesource.com/12442
+    Run-TryBot: Paul Marks <pmarks@google.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go      | 16 +++++++++-------
+ src/net/dial_test.go | 40 ++++++++++++++++++++++------------------
+ 2 files changed, 31 insertions(+), 25 deletions(-)

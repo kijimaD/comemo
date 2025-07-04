@@ -1,0 +1,17 @@
+commit 6bdd791dec9de4f8e8c9e1d70cb0609177459f7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:20:49 2012 +1100
+
+    database/sql: remove Into from ScannerInto/ScanInto
+    
+    Also fix a doc error.
+    
+    Fixes #2843
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5653050
+
+ src/pkg/database/sql/convert.go |  4 ++--
+ src/pkg/database/sql/sql.go     | 38 ++++++++++++++++++++------------------
+ 2 files changed, 22 insertions(+), 20 deletions(-)

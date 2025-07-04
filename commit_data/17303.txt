@@ -1,0 +1,29 @@
+commit c4cdd35e6ef3f01ddace59630b9077d2048cdd94
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 17 12:11:29 2013 +0900
+
+    runtime: integrated network pollster for netbsd/amd64,386,arm
+    
+    Original CL by minux (9545044).
+    
+    Update #6146
+    
+    R=golang-dev, rsc
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/12949045
+
+ src/pkg/runtime/defs_netbsd.go      | 16 ++++++++++++++--
+ src/pkg/runtime/defs_netbsd_386.h   | 23 +++++++++++++++++++++--
+ src/pkg/runtime/defs_netbsd_amd64.h | 24 ++++++++++++++++++++++--
+ src/pkg/runtime/defs_netbsd_arm.h   | 24 ++++++++++++++++++++++--
+ src/pkg/runtime/netpoll.goc         |  2 +-
+ src/pkg/runtime/netpoll_kqueue.c    |  5 +++--
+ src/pkg/runtime/netpoll_stub.c      |  2 +-
+ src/pkg/runtime/os_darwin.h         |  2 ++
+ src/pkg/runtime/os_freebsd.h        |  2 ++
+ src/pkg/runtime/os_netbsd.h         |  2 ++
+ src/pkg/runtime/os_openbsd.h        |  2 ++
+ src/pkg/runtime/sys_netbsd_386.s    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_netbsd_amd64.s  | 31 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_netbsd_arm.s    | 30 ++++++++++++++++++++++++++++++
+ 14 files changed, 182 insertions(+), 12 deletions(-)

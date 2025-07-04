@@ -1,0 +1,11 @@
+commit 9188b1f000f638060eb4495d25dc7f1c7c46cd34
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 13:30:47 2009 -0800
+
+    Revert make.bash which slipped into the previous revision.
+    
+    R=rsc
+    http://codereview.prom.corp.google.com/1024051
+
+ src/make.bash | 13 -------------
+ 1 file changed, 13 deletions(-)

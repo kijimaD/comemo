@@ -1,0 +1,15 @@
+commit fb4e185a99f3e93bc1bbe08a09ebfd5419409d48
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 12:42:47 2014 -0700
+
+    src: pass GO_GCFLAGS down to go test std
+    
+    Update #8725
+    
+    LGTM=rsc, josharian
+    R=rsc, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/149000043
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 9f68d2fa2234859dc1e8cc577efaeb381268af24
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 19 11:41:54 2019 -0400
+
+    cmd/link: fix stale link to MachO file format reference in comment
+    
+    Fix a stale reference to Apple's Mach-O file format reference in the
+    header comment.
+    
+    Change-Id: I5f120fd5bf31ee0b8b29a33879305abb31a7913d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182957
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/macho/macho.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

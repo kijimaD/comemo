@@ -1,0 +1,18 @@
+commit 21e49cbb2dc0d9557b78c8c3c7d46ffc1c6705ca
+Author: Ziad Hatahet <hatahet@gmail.com>
+Date:   Wed Sep 7 13:54:33 2011 -0400
+
+    sort: use heapsort to bail out quicksort
+    
+    See http://research.swtch.com/2008/01/killing-quicksort.html for more
+    info.
+    Fixes #467.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4591051
+
+ src/pkg/sort/export_test.go |  9 ++++++
+ src/pkg/sort/sort.go        | 61 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/sort/sort_test.go   | 68 +++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 127 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 88ba64582703cea0d66a098730215554537572de
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Wed Jan 10 10:50:19 2018 +0000
+
+    sync: enable profiling of RWMutex
+    
+    Include reader / writer interactions of RWMutex in the mutex profile.
+    Writer contention is already included in the profile, since a plain Mutex
+    is used to control exclusion.
+    
+    Fixes #18496
+    
+    Change-Id: Ib0dc1ffa0fd5e6d964a6f7764d7f09556eb63f00
+    Reviewed-on: https://go-review.googlesource.com/87095
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/sync/rwmutex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

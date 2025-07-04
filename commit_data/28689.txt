@@ -1,0 +1,51 @@
+commit 6abc4a7c3eb7b7ed35e7d14e9afb18900367b58a
+Author: Dmitriy Dudkin <dudkin.dmitriy@gmail.com>
+Date:   Thu Feb 25 04:00:01 2016 +0200
+
+    cmd/go: fix go get -u wildcard corner case
+    
+    Suppose you have already downloaded "foo.bar/baz", where the repo
+    is for all of foo.bar/, and you then "go get -u foo.bar/...".
+    The command-line wildcard expands to foo.bar/baz,
+    and go get updates the foo.bar/ repo.
+    Suppose that the repo update brought in foo.bar/quux,
+    though, which depends on other.site/bar.
+    Download does not consider foo.bar/quux, since it's
+    only looking at foo.bar/baz, so it didn't download other.site/bar.
+    After the download, we call importPaths(args) to decide what to install.
+    That call was reevaluating the original wildcard with the new repo
+    and matching foo.bar/quux, which was missing its dependency
+    other.site/bar, causing a build failure.
+    
+    The fix in this CL is to remember the pre-download expansion
+    of the argument list and pass it to the installer. Then only the things
+    we tried to download get installed.
+    
+    The case where foo.bar/ is not even checked out yet continues to work,
+    because in that case we leave the wildcard in place, and download
+    reevaluates it during the download.
+    
+    The fix in this CL may not be the right long-term fix, but it is at least a fix.
+    It may be that download should be passed all the original wildcards
+    so that it can reexpand them as new code is downloaded, ideally reaching
+    a fixed point. That can be left for another day.
+    
+    In short:
+    
+    - The problem is that the "install" half of "go get" was trying to install
+      more than the "download" half was properly downloading.
+    - The fix in this CL is to install just what was downloaded (install less).
+    - It may be that a future CL should instead download what will be installed (download more).
+    
+    Fixes #14450.
+    
+    Change-Id: Ia1984761d24439549b7cff322bc0dbc262c1a653
+    Reviewed-on: https://go-review.googlesource.com/19892
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/get.go     |  3 ++-
+ src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

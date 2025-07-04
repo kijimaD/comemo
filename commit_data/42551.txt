@@ -1,0 +1,14 @@
+commit 968e18eebd736870a1e3bf06d941dc06e7b20688
+Author: Macks <macksme@outlook.com>
+Date:   Tue Jun 23 00:09:26 2020 +0000
+
+    text/template: fix lint typo in VariableNode doc
+    
+    Change-Id: I68b8c782478aa3e7adbd36a2de1c20b04e8c395b
+    GitHub-Last-Rev: 50f27197837e57e1d68b8905eaa66ea142bd45fc
+    GitHub-Pull-Request: golang/go#39622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239383
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/parse/node.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

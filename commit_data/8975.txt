@@ -1,0 +1,32 @@
+commit 5bcbcab3118368e87cd676722db711d54d590403
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 8 10:52:50 2011 +1000
+
+    sort: rename helpers: s/Sort// in sort.Sort[Float64s|Ints|Strings]
+    
+    Includes 'sorthelpers' gofix and updates to tree.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4631098
+
+ src/cmd/godoc/codewalk.go                     |  2 +-
+ src/cmd/godoc/index.go                        |  2 +-
+ src/cmd/godoc/mapping.go                      |  2 +-
+ src/cmd/godoc/utils.go                        |  2 +-
+ src/cmd/gofix/Makefile                        |  1 +
+ src/cmd/gofix/sorthelpers.go                  | 47 +++++++++++++++++++++++++++
+ src/cmd/gofix/sorthelpers_test.go             | 45 +++++++++++++++++++++++++
+ src/cmd/hgpatch/main.go                       |  2 +-
+ src/pkg/exp/template/exec_test.go             |  2 +-
+ src/pkg/go/doc/doc.go                         |  2 +-
+ src/pkg/http/header.go                        |  2 +-
+ src/pkg/index/suffixarray/suffixarray.go      |  4 +--
+ src/pkg/index/suffixarray/suffixarray_test.go |  2 +-
+ src/pkg/net/hosts_test.go                     |  2 +-
+ src/pkg/path/filepath/match.go                |  2 +-
+ src/pkg/sort/sort.go                          | 12 +++----
+ src/pkg/sort/sort_test.go                     | 24 +++++++-------
+ src/pkg/time/sleep_test.go                    |  2 +-
+ src/pkg/unicode/maketables.go                 |  2 +-
+ 19 files changed, 126 insertions(+), 33 deletions(-)

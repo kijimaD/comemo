@@ -1,0 +1,25 @@
+commit 0aa13c999b9c419d1d857db0f08e77c4a5d26a4a
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Dec 2 13:02:42 2009 -0800
+
+    gofmt: race condition in error reporting and setting exit code
+    
+    How to reproduce:
+    
+            $ mkdir /tmp/foo
+            $ cp /dev/null /tmp/foo/bar.go
+            $ chmod -r /tmp/foo/bar.go
+            $ gofmt /tmp/foo
+            open /tmp/foo/bar.go: permission denied
+            $ echo $?               # should echo 2
+            0
+            $
+    
+    Maybe you need to put a call to time.Sleep at the beginning of report().
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/164073
+
+ src/cmd/gofmt/gofmt.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

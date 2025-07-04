@@ -1,0 +1,12 @@
+commit 1e9e7ec4b3e4c7bb9b014398ea07b7c3f3ae0f21
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 17:21:01 2009 -0800
+
+    math: faster, easier to inline IsNaN, IsInf
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/180046
+
+ src/pkg/math/bits.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

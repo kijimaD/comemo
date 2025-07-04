@@ -1,0 +1,21 @@
+commit 7764c502e28e42279d033719b058690ca8fbaa44
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 10 00:06:43 2025 +0100
+
+    crypto/internal/sysrand: skip TestNoGetrandom without cgo
+    
+    crypto/internal/sysrand/internal/seccomp needs cgo to disable getrandom.
+    Before this change, "CGO_ENABLED=0 go test crypto/internal/sysrand"
+    would fail on Linux.
+    
+    Change-Id: I6a6a465685b480c846e5479da0659e90ab7f3a65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642737
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/sysrand/rand_linux_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit 266c6223df73c5f90d2da6e271c8a415392e066c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:19:50 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for Nodes formats %s, %v
+    
+    Change-Id: Iac3a72cb6c5394f3c1a49f39125b0256d570e006
+    Reviewed-on: https://go-review.googlesource.com/28339
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go |  2 +-
+ src/cmd/compile/internal/gc/fmt.go     | 57 +++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/inl.go     |  8 ++---
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ 4 files changed, 35 insertions(+), 34 deletions(-)

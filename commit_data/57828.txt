@@ -1,0 +1,26 @@
+commit d51f92e73751fd8fb7455927ecabd85becd13f06
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 14 15:08:27 2024 -0400
+
+    internal/runtime/maps: optimize small map lookups with int keys
+    
+    Load the field we need from the type once outside the search loop.
+    Get rid of the multiply to compute the slot position. Instead compute
+    the slot position incrementally using addition.
+    Move the hashing later in access2.
+    
+    Based on khr@'s CL 618959.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Id11b5479fa5bc0130a1d8d9e664d0206d24942ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620217
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/runtime_fast32_swiss.go | 64 +++++++++-------------
+ src/internal/runtime/maps/runtime_fast64_swiss.go | 65 +++++++++--------------
+ 2 files changed, 52 insertions(+), 77 deletions(-)

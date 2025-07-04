@@ -1,0 +1,19 @@
+commit 2e1b42a81437ff589775d15228c5f9732b2df1e5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 5 18:52:33 2017 -0700
+
+    cmd/compile/internal/gc: remove a bunch of uses of typenod
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ic9eb0c52bedac185ab86cc62207f199d93700344
+    Reviewed-on: https://go-review.googlesource.com/39795
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  8 ++++----
+ src/cmd/compile/internal/gc/bimport.go | 24 +++++++++++++-----------
+ src/cmd/compile/internal/gc/closure.go |  6 +++---
+ src/cmd/compile/internal/gc/swt.go     |  4 ++--
+ 4 files changed, 22 insertions(+), 20 deletions(-)

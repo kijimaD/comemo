@@ -1,0 +1,32 @@
+commit ba0c142d32eecde6165db764ba8dc925b8d93c4d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 13:06:28 2015 +1000
+
+    cmd: delete old[5689]a
+    
+    These are the old assemblers written in C, and now they are
+    not needed.
+    
+    Fixes #10510.
+    
+    Change-Id: Id9337ffc8eccfd93c84b2e23f427fb1a576b543d
+    Reviewed-on: https://go-review.googlesource.com/12784
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/buildtool.go |    5 -
+ src/cmd/go/build.go       |   26 +-
+ src/cmd/go/pkg.go         |    4 -
+ src/cmd/old5a/a.y         |  804 ------------------
+ src/cmd/old5a/lex.go      |  373 ---------
+ src/cmd/old5a/y.go        | 1547 ----------------------------------
+ src/cmd/old6a/a.y         |  730 ----------------
+ src/cmd/old6a/lex.go      |  983 ----------------------
+ src/cmd/old6a/y.go        | 1530 ----------------------------------
+ src/cmd/old8a/a.y         |  722 ----------------
+ src/cmd/old8a/lex.go      |  771 -----------------
+ src/cmd/old8a/y.go        | 1509 ---------------------------------
+ src/cmd/old9a/a.y         | 1066 ------------------------
+ src/cmd/old9a/lex.go      |  560 -------------
+ src/cmd/old9a/y.go        | 2028 ---------------------------------------------
+ 15 files changed, 1 insertion(+), 12657 deletions(-)

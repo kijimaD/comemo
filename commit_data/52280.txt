@@ -1,0 +1,24 @@
+commit ebf8e26d03d3c01bf1611b1189e0af64c3698557
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 14 08:51:02 2023 +0100
+
+    cmd/go/internal/modfetch: use errors.ErrUnsupported
+    
+    CL 473935 added errors.ErrUnsupported, let's use it.
+    
+    Updates #41198
+    
+    Change-Id: If6534d19cb31ca979ff00d529bd6bdfc964a616d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476135
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 13 -------------
+ src/cmd/go/internal/modfetch/codehost/vcs.go      |  8 ++++----
+ src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
+ 3 files changed, 5 insertions(+), 18 deletions(-)

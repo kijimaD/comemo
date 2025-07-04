@@ -1,0 +1,19 @@
+commit fe9fc408f4a523567405b25d7c45feeac4ec2f6e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 16:57:29 2023 -0700
+
+    doc/go1.21: run relnotes again
+    
+    Fill in some of the simpler entries, leave some more TODO entries.
+    
+    For #58645
+    
+    Change-Id: I20eb09ba709520ab27301c568d777184a405ffdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501695
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 136 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 115 insertions(+), 21 deletions(-)

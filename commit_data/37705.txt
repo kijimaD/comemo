@@ -1,0 +1,23 @@
+commit 976bab6003bdc72ca25954d048f340a34d8e717a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Dec 13 13:37:57 2018 +0100
+
+    syscall: remove linknames to runtime symbols for aix/ppc64
+    
+    Replaces //go:linkname by assembly functions for syscall
+    functions on aix/ppc64.
+    Since the new runtime internal ABI, this was triggering an error if
+    syscall.Syscall6 was called by others packages like x/sys/unix.
+    This commit should remove every future occurences of this problem.
+    
+    Fixes #28769
+    
+    Change-Id: I6a4bf77472ee1e974bdb76b27e74275e568f5a76
+    Reviewed-on: https://go-review.googlesource.com/c/153997
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/syscall_aix.go  |  4 ----
+ src/syscall/asm_aix_ppc64.s | 21 +++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

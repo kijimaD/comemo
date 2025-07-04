@@ -1,0 +1,14 @@
+commit 2c029dedfc2c07ea2250c492a186e1cb8cfa6533
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 16:51:53 2009 -0700
+
+    more explanatory text
+    
+    R=r
+    DELTA=11  (8 added, 0 deleted, 3 changed)
+    OCL=35797
+    CL=35804
+
+ AUTHORS      | 7 +++++--
+ CONTRIBUTORS | 7 ++++++-
+ 2 files changed, 11 insertions(+), 3 deletions(-)

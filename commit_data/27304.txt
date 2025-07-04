@@ -1,0 +1,18 @@
+commit d68f800620b4295039912066970fb2be914f1d1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 5 17:46:58 2016 -0700
+
+    test: update test for issue 15548
+    
+    Accidentally checked in the version of file c.go that doesn't
+    exhibit the bug - hence the test was not testing the bug fix.
+    Double-checked that this version exposes the bug w/o the fix.
+    
+    Change-Id: Ie4dc455229d1ac802a80164b5d549c2ad4d971f5
+    Reviewed-on: https://go-review.googlesource.com/22837
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/issue15548.dir/c.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

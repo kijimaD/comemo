@@ -1,0 +1,24 @@
+commit 9872428a715a907a122ad705b5fa42f11a385664
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 14 11:50:30 2023 -0500
+
+    runtime: move cgo traceback into unwinder
+    
+    Currently, gentraceback's loop ends with a call to tracebackCgoContext
+    to process cgo frames. This requires spreading various parts of the
+    printing and pcbuf logic across these two functions.
+    
+    Clean this up by moving cgo unwinding into unwinder and then lifting
+    the printing and pcbuf logic from tracebackCgoContext into
+    gentraceback along with the other printing and pcbuf logic.
+    
+    Updates #54466.
+    
+    Change-Id: Ic71afaa5ae110c0ea5be9409e267e4284e36a8c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468299
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 98 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 55 insertions(+), 43 deletions(-)

@@ -1,0 +1,15 @@
+commit 3cfc757c625d8f9fabf2c52e2ae3a8eab3fbdf61
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 26 15:52:56 2016 -0700
+
+    go/scanner: recognize invalid floating-point constant exponent
+    
+    Fixes #17621.
+    
+    Change-Id: Id3e75c9b7fba2cf8e791c8817f890556ca238e9d
+    Reviewed-on: https://go-review.googlesource.com/32096
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/go/scanner/scanner.go      | 6 +++++-
+ src/go/scanner/scanner_test.go | 1 +
+ 2 files changed, 6 insertions(+), 1 deletion(-)

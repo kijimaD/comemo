@@ -1,0 +1,21 @@
+commit 6f47fa2d6c6b2d4fdfc5b3a98fa8e3cd8469ca16
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Mar 23 17:53:26 2018 +0300
+
+    runtime: fix AT_HWCAP auxv parsing on freebsd
+    
+    AT_HWCAP is not available on FreeBSD-11.1-RELEASE or earlier and the wrong const was used.
+    Use the correct value, and initialize hwcap with ^uint32(0) inorder not to fail the VFP tests.
+    
+    Fixes #24507.
+    
+    Change-Id: I5c3eed57bb53bf992b7de0eec88ea959806306b9
+    Reviewed-on: https://go-review.googlesource.com/102355
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_freebsd.go     | 2 +-
+ src/runtime/os_freebsd_arm.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

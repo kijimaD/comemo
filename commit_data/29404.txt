@@ -1,0 +1,15 @@
+commit f9d406ebeaa0af42d2a88bab498a44a91c6c03ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 5 00:25:38 2016 +0000
+
+    net/http: deflake TestLinuxSendfile
+    
+    Fixes #17805
+    
+    Change-Id: I30d3e63a82b3690a76f2bb33d59ae34c62a7fa59
+    Reviewed-on: https://go-review.googlesource.com/32759
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/fs_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

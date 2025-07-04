@@ -1,0 +1,18 @@
+commit 41d6687084f1837311021a134968479cb40f9021
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 22 15:46:01 2024 -0800
+
+    spec: clarify iteration variable type for range over integer
+    
+    Also: report language version (plus date) in spec header.
+    
+    Fixes #65137.
+    
+    Change-Id: I4f1d220d5922c40a36264df2d0a7bb7cd0756bac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557596
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 38 +++++++++++++++++++++++++-------------
+ 1 file changed, 25 insertions(+), 13 deletions(-)

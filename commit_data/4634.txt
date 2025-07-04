@@ -1,0 +1,13 @@
+commit 539ff7b0c4d95871fbab49dff3a0b578345225d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 21:14:59 2010 -0800
+
+    A+C: add Petar Maymounkov (individual CLA)
+    
+    R=iant
+    CC=golang-dev, petar-m
+    https://golang.org/cl/189095
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

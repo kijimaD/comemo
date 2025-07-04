@@ -1,0 +1,20 @@
+commit 39208939c66a375a01a6b464b13e5b2d8bf86998
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 15 21:35:34 2011 +1000
+
+    go/build: better, self-contained tests
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4576063
+
+ src/pkg/go/build/Makefile             |  2 +-
+ src/pkg/go/build/build_test.go        | 67 ++++++++++++++++++++---------------
+ src/pkg/go/build/cgotest/cgotest.go   | 12 +++++++
+ src/pkg/go/build/cgotest/file.go      | 45 -----------------------
+ src/pkg/go/build/cmdtest/main.go      | 12 +++++++
+ src/pkg/go/build/pkgtest/pkgtest.go   |  9 +++++
+ src/pkg/go/build/pkgtest/sqrt_386.s   | 10 ++++++
+ src/pkg/go/build/pkgtest/sqrt_amd64.s |  9 +++++
+ src/pkg/go/build/pkgtest/sqrt_arm.s   | 10 ++++++
+ 9 files changed, 102 insertions(+), 74 deletions(-)

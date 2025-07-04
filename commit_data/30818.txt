@@ -1,0 +1,17 @@
+commit 536a2257fba6dd18c74506988bdf3d6a15e52831
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 19:40:16 2017 +0000
+
+    Revert "cmd/compile: strengthen SetFields/Width safety guarantee"
+    
+    This reverts commit b1b4f67169c5ceb3c81ba900c5022722d28755ab.
+    
+    Reason for revert: Broke the build.
+    
+    Change-Id: I5c99779896e39137c93c77d016ce683c872a69d7
+    Reviewed-on: https://go-review.googlesource.com/38532
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go | 4 ++++
+ src/cmd/compile/internal/gc/type.go    | 9 ---------
+ 2 files changed, 4 insertions(+), 9 deletions(-)

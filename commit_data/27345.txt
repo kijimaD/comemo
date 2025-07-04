@@ -1,0 +1,22 @@
+commit 3d82432288885696b01357e921ec00116291a790
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Apr 19 20:59:03 2016 +0200
+
+    os: add TestReadAtOffset
+    
+    In the Plan 9 kernel, there used to be a bug in the implementation of
+    the pread syscall, where the channel offset was erroneously updated after
+    calling pread on a file.
+    
+    This test verifies that ReadAt is behaving as expected.
+    
+    Fixes #14534.
+    
+    Change-Id: Ifc9fd40a1f94879ee7eb09b2ffc369aa2bec2926
+    Reviewed-on: https://go-review.googlesource.com/22244
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

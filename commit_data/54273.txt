@@ -1,0 +1,19 @@
+commit dffc47e75aaa61eb460cf474a7fe8de46c83c445
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Aug 30 05:51:23 2023 +0000
+
+    encoding/asn1: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: I4b2a5c6c59ef26361f343052a4ddaabde5d3bc94
+    GitHub-Last-Rev: d519835ad592efab031917c83483e5dcbeff1c3a
+    GitHub-Pull-Request: golang/go#62370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524259
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/asn1/asn1.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,18 @@
+commit 9dbba36a979323357f7f0e68664b522c67c30ecf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 13 01:24:10 2017 +0000
+
+    cmd/dist: don't compile unneeded GOARCH SSA rewrite rules during bootstrap
+    
+    Speeds up build (the bootstrap phase) by ~6 seconds.
+    
+    Bootstrap goes from ~18 seconds to ~12 seconds.
+    
+    Change-Id: I7e2ec8f5fc668bf6168d90098eaf70390b16e479
+    Reviewed-on: https://go-review.googlesource.com/40503
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/dist/buildtool.go | 68 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 65 insertions(+), 3 deletions(-)

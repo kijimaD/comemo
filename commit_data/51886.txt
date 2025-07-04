@@ -1,0 +1,21 @@
+commit 756a8ac91a7d26becb8f3c5c8e8fbdbae0eb77e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 20:13:03 2023 -0800
+
+    go/types, types2: remove (internal) exactUnification flag
+    
+    Neither infer nor infer2 will correctly work if we require
+    exact unification. Remove the flag and simplify the respective
+    code.
+    
+    Change-Id: I329f207f72b6d97fa076f27275481b754e55fecf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464346
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/unify.go | 43 +++++++++++++-------------------
+ src/go/types/unify.go                    | 43 +++++++++++++-------------------
+ 2 files changed, 36 insertions(+), 50 deletions(-)

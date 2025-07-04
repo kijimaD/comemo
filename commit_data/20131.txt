@@ -1,0 +1,16 @@
+commit dff17f4617843bc4c7cbfcdb265cc0fb265c8252
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 25 14:56:35 2014 -0700
+
+    unicode/maketables: add -output flag, buffer output, use gofmt
+    Simplify the invocation (and speed it up substantially) in preparation
+    for move to go generate.
+    
+    LGTM=bradfitz, mpvl
+    R=mpvl, bradfitz, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/135790043
+
+ src/pkg/unicode/Makefile      |   3 +-
+ src/pkg/unicode/maketables.go | 176 ++++++++++++++++++++++++++++--------------
+ 2 files changed, 117 insertions(+), 62 deletions(-)

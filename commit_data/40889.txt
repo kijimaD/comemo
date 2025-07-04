@@ -1,0 +1,20 @@
+commit 6f7b96f6cb5f5c156cf4e69b1fa1ec0e57b01677
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 21 14:39:24 2019 +0100
+
+    syscall: follow convention for generated code comments in linux/riscv64 files
+    
+    Use generated code comments following the convention
+    https://golang.org/s/generatedcode.
+    
+    Follow-up for CL 204659
+    
+    Change-Id: I7a3467ff9477488616b17f059245368d3d82d7a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208417
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/zerrors_linux_riscv64.go | 2 +-
+ src/syscall/zsysnum_linux_riscv64.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

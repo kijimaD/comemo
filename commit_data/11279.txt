@@ -1,0 +1,12 @@
+commit 7f4936a1c5d828b39efea48787bb266f4666d95c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 20 08:33:37 2012 +0900
+
+    net: fix windows build
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5532102
+
+ src/pkg/net/fd_windows.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

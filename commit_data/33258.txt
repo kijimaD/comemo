@@ -1,0 +1,15 @@
+commit 150a46c0cb23ffea34089e69949731f2aaebdbe8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 26 10:10:25 2017 +0200
+
+    syscall: document Time{spec,val} methods
+    
+    Add godoc comments for Time{spec,val} methods Unix and Nano.
+    
+    Change-Id: I285bbd236af588b30140db7182b05f8b202b5b0b
+    Reviewed-on: https://go-review.googlesource.com/73271
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

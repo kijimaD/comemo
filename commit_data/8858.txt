@@ -1,0 +1,12 @@
+commit 5f84559e3a3e8c6ce4d6d3e6617b55522b1976a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 14:30:02 2011 -0400
+
+    build: use correct list of required programs
+    
+    R=golang-dev, bradfitz, go.peter.90
+    CC=golang-dev
+    https://golang.org/cl/4627068
+
+ src/env.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

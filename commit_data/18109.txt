@@ -1,0 +1,16 @@
+commit 699dbb60b7274a525f53797aa1d145cc762cf953
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 24 08:08:15 2013 -0800
+
+    runtime/cgo: always set signal mask before calling pthread_create
+    
+    This was done correctly for most targets but was missing from
+    FreeBSD/ARM and Linux/ARM.
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/45180043
+
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 7 +++++++
+ src/pkg/runtime/cgo/gcc_linux_arm.c   | 7 +++++++
+ 2 files changed, 14 insertions(+)

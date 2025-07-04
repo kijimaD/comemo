@@ -1,0 +1,28 @@
+commit d1be0fd910758852584ab53d2c92c4caac3f5b7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 4 23:10:56 2017 -0800
+
+    cmd/link: with -importcfg don't strip trailing ".a"
+    
+    When using -importcfg, the import paths recorded by the compiler in
+    the object file are simply the import paths. When not using -importcfg,
+    the import paths have a trailing ".a". Assume that if we are using
+    -importcfg with the compiler, we are using it with the linker,
+    and so if the linker sees an -importcfg option it should not
+    strip ".a" from the import path read from the object files.
+    
+    This was mostly working because the linker only strips a trailing
+    ".x" for a literal dot and any single character 'x'. Since few import
+    paths end with ".x", most programs worked fine.
+    
+    Fixes #22986
+    
+    Change-Id: I6c10a160b97dd63fff3931f27a1514c856e8cd52
+    Reviewed-on: https://go-review.googlesource.com/81878
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go          | 47 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/ld.go | 12 ++++++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

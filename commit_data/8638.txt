@@ -1,0 +1,12 @@
+commit 4881e7744ab3f125a60fda1d32583dcb59f9d817
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 7 16:59:35 2011 +1000
+
+    cgo: support non intel gcc machine flags
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4528124
+
+ src/cmd/cgo/gcc.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

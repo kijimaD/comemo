@@ -1,0 +1,12 @@
+commit 32c39fa1b7dd8601addc0e7e80ce6004703834c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 23 16:56:48 2010 -0700
+
+    go/printer: avoid reflect in print
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/704041
+
+ src/pkg/go/printer/printer.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

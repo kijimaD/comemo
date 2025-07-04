@@ -1,0 +1,22 @@
+commit 07a2989d17d6a5ad9c46e3213f66d01761cf5cd3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 14 13:51:38 2012 +1100
+
+    runtime, syscall, os/signal: fix windows build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5656048
+
+ src/pkg/net/dial_test.go                 |  5 ++++
+ src/pkg/os/signal/signal_unix.go         |  2 +-
+ src/pkg/os/signal/signal_windows_test.go | 51 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_windows.h             |  3 ++
+ src/pkg/runtime/runtime.h                |  1 -
+ src/pkg/runtime/signal_windows_386.c     |  6 ----
+ src/pkg/runtime/signal_windows_amd64.c   | 12 --------
+ src/pkg/runtime/sigqueue.goc             |  2 +-
+ src/pkg/runtime/thread_windows.c         | 11 +++++++
+ src/pkg/syscall/syscall_windows.go       | 18 +++++++++--
+ src/pkg/syscall/ztypes_windows.go        | 44 +++++++++++++++++++--------
+ 11 files changed, 119 insertions(+), 36 deletions(-)

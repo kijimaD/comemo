@@ -1,0 +1,18 @@
+commit e63ae242e6961da099e838dc9412a9d515a628f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 20:53:49 2010 -0700
+
+    runtime: split extern.go into debug.go, extern.go, sig.go.
+    move mal next to the other malloc functions.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1701045
+
+ src/pkg/runtime/Makefile     |   2 +
+ src/pkg/runtime/debug.go     | 142 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/extern.go    | 148 -------------------------------------------
+ src/pkg/runtime/malloc.goc   |   4 ++
+ src/pkg/runtime/runtime1.goc |   4 --
+ src/pkg/runtime/sig.go       |  16 +++++
+ 6 files changed, 164 insertions(+), 152 deletions(-)

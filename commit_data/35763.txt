@@ -1,0 +1,14 @@
+commit 578e0668627229ad0b9a3c88b61b3489cedb9074
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 20 11:22:37 2018 +0700
+
+    make.bash: don't pass GOOS and GOARCH to cmd/go when finding GOROOT_BOOTSTRAP
+    
+    Fixes #25962
+    
+    Change-Id: I10d41713f6aef100d7b2c8c976f22d1c8ac376d5
+    Reviewed-on: https://go-review.googlesource.com/119937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

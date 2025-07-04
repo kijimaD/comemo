@@ -1,0 +1,23 @@
+commit a72d1e5bf4eedec97dbc79bce3b5dc8a76c1b2ac
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Sep 16 00:07:59 2023 +0000
+
+    runtime: unify the method signature for *sigctxt.fault
+    
+    Currently, *sigctxt.fault of freebsd-arm64 and openbsd-arm64 return
+    uint64 which is different from other arches (return uintptr). Change
+    the method signature for consistency.
+    
+    Change-Id: I81185123c1ea40e456075fd86b931aa860c38a42
+    GitHub-Last-Rev: 82934ecd3d2c712c2f47378e5b2c802427874d4d
+    GitHub-Pull-Request: golang/go#62672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528817
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/signal_freebsd_arm64.go | 2 +-
+ src/runtime/signal_openbsd_arm64.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

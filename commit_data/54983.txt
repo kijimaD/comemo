@@ -1,0 +1,17 @@
+commit b7cdc277e15eb2fc63f8377fd5a8e0b922db8532
+Author: Park Zhou <ideapark@139.com>
+Date:   Tue Nov 14 16:17:05 2023 +0800
+
+    cmd/compile/internal/ir: fix doc
+    
+    Signed-off-by: Park Zhou <ideapark@139.com>
+    Change-Id: I5e42ca6c714b9c1b50241c9d738db366bf1ca1fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542175
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ src/cmd/compile/internal/ir/func.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

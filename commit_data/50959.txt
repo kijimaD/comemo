@@ -1,0 +1,16 @@
+commit 2b21a27f82cdda5b0339a4b0693c760c69b0c80a
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Fri May 13 09:36:52 2022 +0800
+
+    go/scanner: use constant name rather than its value (cleanup)
+    
+    Change-Id: I3fcd1683870f66a1d65e2acf0beaf1046e7f5446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407535
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,38 @@
+commit 04e2472895e7021f632cf76a89872a011c519cef
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 15 14:53:45 2023 -0400
+
+    cmd/dist: introduce test variants
+    
+    This introduces the concept of test variants in dist, which are
+    different configurations of the same package. The variant of a test is
+    a short string summarizing the configuration.
+    
+    The "variant name" of a test is either the package name if the variant
+    is empty, or package:variant if not. Currently this isn't used for
+    anything, but soon we'll use this as the Package field of the test
+    JSON output so that we can disambiguate output from differently
+    configured runs of the same test package, and naturally flow this
+    through to any test result viewer.
+    
+    The long-term plan is to use variant names as dist's own test names
+    and eliminate the ad hoc names it has right now. Unfortunately, the
+    build coordinator is aware of many of the ad hoc dist test names, so
+    some more work is needed to get to that point. This CL keeps almost
+    all test names the same, with the exception of tests registered by
+    registerCgoTests, where we regularize test names a bit using variants
+    to avoid some unnecessary complexity (I believe nothing depends on the
+    names of these tests).
+    
+    For #37486.
+    
+    Change-Id: I119fec2872e40b12c1973cf2cddc7f413d62a48c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495016
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 112 ++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 79 insertions(+), 33 deletions(-)

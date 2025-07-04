@@ -1,0 +1,35 @@
+commit d0d251f858efa75fc67ab8804413edfec57cc2db
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 15:28:36 2012 -0500
+
+    gc: disallow absolute import paths
+    
+    They are broken and hard to make work.
+    
+    They have never worked: if you import "/tmp/x"
+    from "/home/rsc/p.c" then the compiler rewrites
+    this into import "/home/rsc/tmp/x", which is
+    clearly wrong.
+    
+    Also we just disallowed the : character in import
+    paths, so import "c:/foo" is already not allowed.
+    
+    Finally, in order to support absolute paths well in
+    a build tool we'd have to provide a mechanism to
+    instruct the compiler to resolve absolute imports
+    by looking in some other tree (where the binaries live)
+    and provide a mapping from absolute path to location
+    in that tree.  This CL avoids adding that complexity.
+    
+    This is not part of the language spec (and should not be),
+    so no spec change is needed.
+    
+    If we need to make them work later, we can.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5712043
+
+ src/cmd/gc/lex.c | 5 +++++
+ test/import5.go  | 4 ++++
+ 2 files changed, 9 insertions(+)

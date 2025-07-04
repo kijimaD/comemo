@@ -1,0 +1,19 @@
+commit 44320594855185b00af3abe038e52f7a00751d51
+Author: Changkun Ou <hi@changkun.de>
+Date:   Fri Nov 26 10:12:39 2021 +0100
+
+    A+C: update Changkun Ou's email
+    
+    Add my current public email in both A+C, but keep old one too.
+    Add my @changkun.de email to CONTRIBUTORS.
+    
+    Change-Id: Ic5a585582a5f5142fbdd0a132235c19f05d9e680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367116
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

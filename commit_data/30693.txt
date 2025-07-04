@@ -1,0 +1,15 @@
+commit 604e4841d6bd0a2c207444481928053d1ad3b822
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 16 00:24:51 2017 -0700
+
+    cmd/internal/obj/ppc64: remove stackbarrier function check
+    
+    Stack barriers were removed in CL 36620.
+    
+    Change-Id: If124d65a73a7b344a42be2a4b386a14d7a0a428b
+    Reviewed-on: https://go-review.googlesource.com/38169
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 270ab18666350fdd40bd88ddc1bb7dece5c77fce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 10 12:42:53 2010 -0800
+
+    fix amd64 build (golden.out)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/417042
+
+ test/golden.out | 9 +++++++++
+ 1 file changed, 9 insertions(+)

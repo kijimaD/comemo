@@ -1,0 +1,18 @@
+commit 9c402305179e4d59bcbefe01629d38fc26808c43
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 13 10:54:11 2022 -0400
+
+    cmd/dist: add doc comments to some functions
+    
+    I keep having to reconstruct how dist test's command system works.
+    This CL documents the main functions to help with this.
+    
+    Change-Id: Ic1102496d3c7f356e73f3fa2ea76498251f525d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448799
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,16 @@
+commit 9cddb60d251fbd3b5a391b87fa76c20378296f92
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 21 13:07:51 2014 -0700
+
+    net: extend TestVariousDeadlines1Proc timeout
+    
+    TestVariousDeadlines1Proc was flaky on my system,
+    failing on about 5% of runs.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/89830045
+
+ src/pkg/net/timeout_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

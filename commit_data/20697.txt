@@ -1,0 +1,13 @@
+commit d83e43ccc6bd453cb1c85b83e37560c7bc420963
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Oct 13 12:33:45 2014 -0700
+
+    test: add test for gccgo-specific issue 8079
+    
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews, iant
+    https://golang.org/cl/159850044
+
+ test/fixedbugs/issue8079.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

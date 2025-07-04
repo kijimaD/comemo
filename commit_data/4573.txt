@@ -1,0 +1,32 @@
+commit 5dee91001b1dff7a20adb8062da991a7e225b6bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 11 12:58:13 2010 -0800
+
+    Remove -oldprinter flag from gofmt; all code is
+    now printed using the semicolon-free style.
+    
+    Removed NoSemis flag and mechanism dealing with
+    optional semicolons from go/printer.
+    
+    Updated all go/printer output files using the
+    semi-colon free style.
+    
+    Changes have no formatting impact on checked in
+    go code under src and misc.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/184068
+
+ src/cmd/godoc/godoc.go                          |   2 +-
+ src/cmd/gofmt/gofmt.go                          |   6 +-
+ src/pkg/go/printer/nodes.go                     |  78 ++---
+ src/pkg/go/printer/printer.go                   |   1 -
+ src/pkg/go/printer/testdata/comments.golden     |  62 ++--
+ src/pkg/go/printer/testdata/comments.x          |  20 +-
+ src/pkg/go/printer/testdata/declarations.golden | 368 +++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.golden  | 392 ++++++++++++------------
+ src/pkg/go/printer/testdata/expressions.raw     | 392 ++++++++++++------------
+ src/pkg/go/printer/testdata/linebreaks.golden   |  52 ++--
+ src/pkg/go/printer/testdata/statements.golden   |  38 +--
+ 11 files changed, 684 insertions(+), 727 deletions(-)

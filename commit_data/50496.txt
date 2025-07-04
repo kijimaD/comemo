@@ -1,0 +1,24 @@
+commit c075c21ba532bd4d00158708e8c2981b8fdc19ca
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Sep 12 12:13:12 2022 -0500
+
+    cmd/asm, cmd/internal/obj/ppc64: increase asm test coverage for PPC64
+    
+    This CL adds tests for some of the instructions that were
+    missing. A minor change was made to asm9.go to ensure EXTSWSLICC
+    test works.
+    
+    Change-Id: I95cd096c85778fc93856d213aa4fb14c35228cec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430376
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 88 +++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go        |  2 +-
+ 2 files changed, 89 insertions(+), 1 deletion(-)

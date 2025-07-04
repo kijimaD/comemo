@@ -1,0 +1,17 @@
+commit afde71cfbdb1032cce8fefc6bc665b816b3276e6
+Author: Olivier Saingre <osaingre@gmail.com>
+Date:   Wed Feb 20 14:41:23 2013 -0800
+
+    encoding/xml: make sure Encoder.Encode reports Write errors.
+    
+    Fixes #4112.
+    
+    R=remyoudompheng, daniel.morsing, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7085053
+
+ src/pkg/encoding/xml/marshal.go      | 27 ++++++++++++++++++---------
+ src/pkg/encoding/xml/marshal_test.go | 10 ++++++++++
+ src/pkg/encoding/xml/xml.go          | 24 +++++++++++++++++++-----
+ src/pkg/encoding/xml/xml_test.go     | 14 ++++++++++++++
+ 4 files changed, 61 insertions(+), 14 deletions(-)

@@ -1,0 +1,16 @@
+commit b744a11a966ad3999c190fea9909ec8df0570b87
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 17 15:05:53 2017 +0000
+
+    go/types: enforce Check path restrictions via panics
+    
+    Its godoc says that path must not be empty or dot, while the existing
+    implementation happily accepts both.
+    
+    Change-Id: I64766271c35152dc7adb21ff60eb05c52237e6b6
+    Reviewed-on: https://go-review.googlesource.com/38262
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go | 3 +++
+ 1 file changed, 3 insertions(+)

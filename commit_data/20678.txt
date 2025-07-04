@@ -1,0 +1,20 @@
+commit 9ca836844496fe8723d8fe215d78530d1bba032e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 9 16:10:51 2014 +1100
+
+    misc/cgo/test: add Test8517
+    
+    CL 145890044 did not provide test. Rectify that.
+    
+    Update #8517
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/148790043
+
+ misc/cgo/test/cgo_test.go          |  1 +
+ misc/cgo/test/issue8517.go         | 13 +++++++++++
+ misc/cgo/test/issue8517_windows.c  | 24 ++++++++++++++++++++
+ misc/cgo/test/issue8517_windows.go | 45 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 83 insertions(+)

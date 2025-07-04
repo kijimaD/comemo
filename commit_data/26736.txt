@@ -1,0 +1,29 @@
+commit 7f39f21c7be83b9ff59089b29fa9e723c13cafa9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 16:54:54 2016 +0000
+
+    io: add ReadAtSizer interface
+    
+    ReadAtSizer is a common abstraction for a stateless,
+    concurrently-readable fixed number of bytes.
+    
+    This interface has existed in various codebases for over 3 years (previously
+    usually named SizeReaderAt). It is used inside Google in dl.google.com
+    (mentioned in https://talks.golang.org/2013/oscon-dl.slide) and other
+    packages. It is used in Camlistore, in Juju, in the Google API Go client, in
+    github.com/nightlyone/views, and 33 other pages of Github search results.
+    
+    It is implemented by io.SectionReader, bytes.Reader, strings.Reader, etc.
+    
+    Time to finally promote this interface to the standard library and give it a
+    standard name, blessing it as best practice.
+    
+    Updates #7263
+    Updates #14889
+    
+    Change-Id: Id28c0cafa7d2d37e8887c54708b5daf1b11c83ea
+    Reviewed-on: https://go-review.googlesource.com/21492
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

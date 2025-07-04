@@ -1,0 +1,17 @@
+commit 605e751b53a8bec7d1f51b2ccc0093e063358dc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 11:05:14 2016 -0400
+
+    net/http: change Transport.Dialer to Transport.DialContext
+    
+    New in Go 1.7 so still possible to change.
+    This allows implementations not tied to *net.Dialer.
+    
+    Fixes #15748.
+    
+    Change-Id: I5fabbf13c7f1951c06587a4ccd120def488267ce
+    Reviewed-on: https://go-review.googlesource.com/23489
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

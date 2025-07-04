@@ -1,0 +1,14 @@
+commit 36713a2a53b91e6fbf08af9ee583f49449857a33
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 10:41:55 2011 -0400
+
+    compress/flate: dictionary support
+    
+    R=bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4397043
+
+ src/pkg/compress/flate/deflate.go      | 27 ++++++++++++++++++++
+ src/pkg/compress/flate/deflate_test.go | 46 ++++++++++++++++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go      | 27 ++++++++++++++++++++
+ 3 files changed, 100 insertions(+)

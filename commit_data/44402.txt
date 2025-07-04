@@ -1,0 +1,20 @@
+commit b7f62daa59ea5983d5825e166abc527d4ea69777
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 15 16:01:34 2020 -0500
+
+    cmd/internal/goobj: add test case for object file reader
+    
+    Add test in which a input Go object file contains a very large number
+    of relocations (more than 1<<20).
+    
+    Updates #41621.
+    
+    Change-Id: If1ebf3c4fefbf55ddec4e05c5299e7c48fc697d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278493
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/goobj/objfile_test.go | 62 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

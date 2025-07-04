@@ -1,0 +1,20 @@
+commit ea537cca314d9da5365eeefcc375410c76e93b36
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 27 11:16:30 2024 -0400
+
+    cmd/go/internal/help: add documentation for language version downgrading
+    
+    This change adds documentation for language version downgrading using
+    build constraints.
+    
+    Fixes #68161
+    For #61894
+    
+    Change-Id: I283a51afd7020c9fd1f5469a6a93fd814ba32f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595475
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go               | 7 +++++++
+ src/cmd/go/internal/help/helpdoc.go | 7 +++++++
+ 2 files changed, 14 insertions(+)

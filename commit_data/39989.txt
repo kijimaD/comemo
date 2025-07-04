@@ -1,0 +1,19 @@
+commit 55924135eed3b607ccbe4725900de797b51757f9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 23 16:16:04 2019 -0400
+
+    cmd/compile: fix register masks of ANDCC et al. on PPC64
+    
+    PPC64's ANDCC, ORCC, XORCC SSA ops produce a flags value, which
+    should not have register mask of an integer register.
+    
+    Fixes #34468.
+    
+    Change-Id: Ic762e423b20275fd9f8118dae7951c258d59738c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196960
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 42 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/opGen.go        |  9 ------
+ 3 files changed, 32 insertions(+), 31 deletions(-)

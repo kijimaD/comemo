@@ -1,0 +1,13 @@
+commit a0a14b98faf07d87a52c13b5ff08547703598972
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 4 16:05:40 2008 -0800
+
+    empty switches -- bug128
+    
+    R=r
+    OCL=20520
+    CL=20522
+
+ src/cmd/6g/gen.c  | 2 ++
+ src/cmd/gc/walk.c | 4 +---
+ 2 files changed, 3 insertions(+), 3 deletions(-)

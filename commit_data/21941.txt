@@ -1,0 +1,13 @@
+commit 4084b280f5081d4ed652f4f7a44992b0f7d672de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 9 13:33:58 2015 -0800
+
+    cmd/go: for gccgo run the located binary rather than using PATH
+    
+    Change-Id: I308588db2942e7110a2be22257843931941d92f1
+    Reviewed-on: https://go-review.googlesource.com/2622
+    Reviewed-by: Peter Collingbourne <pcc@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/build.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 41c0b9eb88fa0e161d7564539a8beb3f79247f44
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 18 16:39:49 2018 -0700
+
+    cmd/compile: remove compiling_wrappers
+    
+    It's no longer needed after removing safemode.
+    
+    Change-Id: I7581d77a86342e3b6d7c632839f5eb7a5c20902e
+    Reviewed-on: https://go-review.googlesource.com/c/143397
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go      | 2 --
+ src/cmd/compile/internal/gc/reflect.go | 4 ----
+ 2 files changed, 6 deletions(-)

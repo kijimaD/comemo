@@ -1,0 +1,18 @@
+commit 57e32c4fbd4f20d567d1767dfc2d94bec828a8dc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 31 02:04:45 2020 +1100
+
+    cmd/compile: optimise branchs on riscv64
+    
+    Make use of multi-control values and branch pseudo-instructions to optimise
+    compiler generated branches.
+    
+    Change-Id: I7a8bf754db3c2082a390bf6a662ccf18cbcbee39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226400
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  32 ++++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 125 +++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+), 11 deletions(-)

@@ -1,0 +1,46 @@
+commit 92bda33d2771a9b12868d9025f113538fa7a84de
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 31 15:58:00 2020 -0400
+
+    runtime: revert signal stack mlocking
+    
+    Go 1.14 included a (rather awful) workaround for a Linux kernel bug
+    that corrupted vector registers on x86 CPUs during signal delivery
+    (https://bugzilla.kernel.org/show_bug.cgi?id=205663). This bug was
+    introduced in Linux 5.2 and fixed in 5.3.15, 5.4.2 and all 5.5 and
+    later kernels. The fix was also back-ported by major distros. This
+    workaround was necessary, but had unfortunate downsides, including
+    causing Go programs to exceed the mlock ulimit in many configurations
+    (#37436).
+    
+    We're reasonably confident that by the Go 1.16 release, the number of
+    systems running affected kernels will be vanishingly small. Hence,
+    this CL removes this workaround.
+    
+    This effectively reverts CLs 209597 (version parser), 209899 (mlock
+    top of signal stack), 210299 (better failure message), 223121 (soft
+    mlock failure handling), and 244059 (special-case patched Ubuntu
+    kernels). The one thing we keep is the osArchInit function. It's empty
+    everywhere now, but is a reasonable hook to have.
+    
+    Updates #35326, #35777 (the original register corruption bugs).
+    Updates #40184 (request to revert in 1.15).
+    Fixes #35979.
+    
+    Change-Id: Ie213270837095576f1f3ef46bf3de187dc486c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246200
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_linux_386.go   |  11 ----
+ src/runtime/defs_linux_amd64.go |  11 ----
+ src/runtime/export_test.go      |   2 -
+ src/runtime/os_linux.go         |   9 ---
+ src/runtime/os_linux_x86.go     | 118 +---------------------------------------
+ src/runtime/panic.go            |  10 ----
+ src/runtime/string.go           |  34 ------------
+ src/runtime/string_test.go      |  31 -----------
+ src/runtime/sys_linux_386.s     |  19 -------
+ src/runtime/sys_linux_amd64.s   |  19 -------
+ 10 files changed, 1 insertion(+), 263 deletions(-)

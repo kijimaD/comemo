@@ -1,0 +1,17 @@
+commit 493538adbfc5a580f9c5c92e2789769a7237e19a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 2 08:44:25 2013 +1000
+
+    cmd/godoc: set up playground for examples that are already visible
+    
+    This fixes an issue where linking directly to an example makes it not
+    runnable and visible only in a tiny window. To see the bug in action,
+    visit this link: http://golang.org/pkg/strings/#example_Map
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10679050
+
+ doc/godocs.js          |  2 +-
+ lib/godoc/package.html | 27 ++++++++++++++++++---------
+ 2 files changed, 19 insertions(+), 10 deletions(-)

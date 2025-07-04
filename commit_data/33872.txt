@@ -1,0 +1,21 @@
+commit 8776be153540cf450eafd847cf8efde0a01774dc
+Author: Hanjun Kim <hallazzang@gmail.com>
+Date:   Mon Nov 20 14:23:06 2017 +0900
+
+    time: add space padding layout strings(using underscore) for not only day but others
+    
+    As mentioned in #22802, only day component of layout string has space
+    padding(represented by one underscore before its placeholder). This
+    commit expands the rule for month, hour, minute and second.
+    
+    Updates #22802 (maybe fixes it)
+    
+    Change-Id: I886998380489862ab9a324a6774f2e4cf7124122
+    Reviewed-on: https://go-review.googlesource.com/78735
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/format.go      | 72 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/time/format_test.go | 34 +++++++++++++++++++++++
+ 2 files changed, 96 insertions(+), 10 deletions(-)

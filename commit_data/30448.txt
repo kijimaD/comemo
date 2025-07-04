@@ -1,0 +1,26 @@
+commit ac7761e1a4c04154b557fa2294e0778bbf9373f9
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Feb 17 16:52:16 2017 -0500
+
+    cmd/compile, cmd/asm: remove Link.Plists
+    
+    Link.Plists never contained more than one Plist, and sometimes none.
+    Passing around the Plist being worked on is straightforward and makes
+    the data flow easier to follow.
+    
+    Change-Id: I79cb30cb2bd3d319fdbb1dfa5d35b27fcb748e5c
+    Reviewed-on: https://go-review.googlesource.com/37169
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |   8 +-
+ src/cmd/asm/main.go                       |   7 +-
+ src/cmd/compile/internal/gc/dcl.go        |   6 --
+ src/cmd/compile/internal/gc/gsubr.go      |  10 ---
+ src/cmd/compile/internal/gc/obj.go        |   2 +-
+ src/cmd/compile/internal/gc/pgen.go       |   6 +-
+ src/cmd/internal/obj/link.go              |   1 -
+ src/cmd/internal/obj/objfile.go           |   8 --
+ src/cmd/internal/obj/plist.go             | 134 +++++++++++++-----------------
+ 9 files changed, 74 insertions(+), 108 deletions(-)

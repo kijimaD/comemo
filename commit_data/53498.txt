@@ -1,0 +1,17 @@
+commit 34c0714bf27bdcc174d67e1243f6e8fd6bb802be
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 6 21:27:20 2023 +0000
+
+    doc/go1.21: add release notes for parent goroutine in stack traces
+    
+    For #38651.
+    
+    Change-Id: Ie73c1da0629287efda7f0c617e94a7f3a881eee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501336
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.21.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 41d1bf0efc121c451f497ceae8df366622efd821
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 25 11:59:32 2019 -0400
+
+    cmd/go/internal/modfetch: workaround file URL parsing on Windows
+    
+    Remove the leading slash from GOPROXY file:// URLs.
+    
+    Updates #31675
+    
+    Change-Id: Id45af2a806afc3c216181c13f6bc73713b925693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173499
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/proxy.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

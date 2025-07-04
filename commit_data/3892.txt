@@ -1,0 +1,15 @@
+commit 9bebe741d269d10282308e0354eb624febeef54e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 7 23:42:58 2009 -0800
+
+    Adjust gccgo license references.
+    
+    gccgo will be distributed under the same license as the rest
+    of the Go code.
+    
+    R=r, rsc
+    http://go/go-review/1024019
+
+ doc/gccgo_contribute.html | 7 ++-----
+ doc/gccgo_install.html    | 6 +++---
+ 2 files changed, 5 insertions(+), 8 deletions(-)

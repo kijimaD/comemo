@@ -1,0 +1,14 @@
+commit 19c239c9afc6c33d8e1a8eca0ecf3cc1a3642a45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 4 15:04:32 2009 -0700
+
+    - remove wrong fix
+      (this corresponds to the currently running version of godoc)
+    
+    R=r
+    DELTA=11  (0 added, 10 deleted, 1 changed)
+    OCL=28238
+    CL=28238
+
+ usr/gri/pretty/godoc.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

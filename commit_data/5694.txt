@@ -1,0 +1,12 @@
+commit 8bd99ebff53032fb50aab3a8b7154cfd07d949e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 16:34:55 2010 -0700
+
+    test: another listen on ":0" -> "127.0.0.1:0"
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1664043
+
+ test/fixedbugs/bug243.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 91a1b55489dfdc720ee4043390777e903c69222a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:47:17 2022 +0800
+
+    flag: use strings.Builder
+    
+    Change-Id: Iee846c4ac0f111ff97aa618dd42f6b2d14aa4342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428259
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/flag/flag_test.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

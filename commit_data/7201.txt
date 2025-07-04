@@ -1,0 +1,15 @@
+commit 50fe459ce2726952964e8d2093b589680614f5e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 12:50:35 2011 -0500
+
+    6g: fix uint64(uintptr(unsafe.Pointer(&x)))
+    
+    Fixes #1417.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4079042
+
+ src/cmd/6g/cgen.c        |  3 ---
+ test/fixedbugs/bug319.go | 22 ++++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 3 deletions(-)

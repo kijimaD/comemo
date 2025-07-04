@@ -1,0 +1,19 @@
+commit 408b31dcc5d888fe7599e703bb05f50d4a378d4f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 12:31:55 2023 -0400
+
+    cmd/go: rename ld, ldShared "out" argument to "targetPath"
+    
+    "out" is often used for stdout or stderr. Rename it to targetPath to
+    clarify its meaning.
+    
+    Change-Id: I95823e9119843a7026dc26c192497776ee4219e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/go/internal/work/exec.go  |  8 ++++----
+ src/cmd/go/internal/work/gc.go    | 10 +++++-----
+ src/cmd/go/internal/work/gccgo.go |  8 ++++----
+ 3 files changed, 13 insertions(+), 13 deletions(-)

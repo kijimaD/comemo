@@ -1,0 +1,15 @@
+commit 84f53339befccbb4c3449955e205a6a727282f10
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 09:52:41 2015 -0500
+
+    runtime: apply comments from CL 3742
+    
+    I asked for this in CL 3742 and it was ignored.
+    
+    Change-Id: I30ad05f87c7d9eccb11df7e19288e3ed2c7e2e3f
+    Reviewed-on: https://go-review.googlesource.com/6930
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/panic.go | 16 ++++++++--------
+ src/runtime/proc.go  | 16 ++++++++--------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

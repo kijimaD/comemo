@@ -1,0 +1,25 @@
+commit 4dc2564933146efc411efad16b662589306744d1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 22 17:33:50 2023 -0400
+
+    cmd/go: retry ETXTBSY errors when running test binaries
+    
+    An ETXTBSY error when starting a test binary is almost certainly
+    caused by the race reported in #22315. That race will resolve quickly
+    on its own, so we should just retry the command instead of reporting a
+    spurious failure.
+    
+    Fixes #62221.
+    
+    Change-Id: I408f3eaa7ab5d7efbc7a2b1c8bea3dbc459fc794
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/test/test.go                   | 114 ++++++++++++---------
+ src/cmd/go/internal/test/test_nonunix.go           |  12 +++
+ src/cmd/go/internal/test/test_unix.go              |  16 +++
+ .../go/testdata/script/test_compile_multi_pkg.txt  |   6 +-
+ 4 files changed, 101 insertions(+), 47 deletions(-)

@@ -1,0 +1,35 @@
+commit 54245cba1f5f3971c82be6d2b3e658f968f08e7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 20:35:36 2014 -0400
+
+    runtime: show frames for exported runtime functions
+    
+    The current Windows build failure happens because by
+    default runtime frames are excluded from stack traces.
+    Apparently the Windows breakpoint path dies with an
+    ordinary panic, while the Unix path dies with a throw.
+    Breakpoint is a strange function and I don't mind that it's
+    a little different on the two operating systems.
+    
+    The panic squelches runtime frames but the throw shows them,
+    because throw is considered something that shouldn't have
+    happened at all, so as much detail as possible is wanted.
+    
+    The runtime exclusion is meant to prevents printing too much noise
+    about internal runtime details. But exported functions are
+    not internal details, so show exported functions.
+    If the program dies because you called runtime.Breakpoint,
+    it's okay to see that frame.
+    This makes the Breakpoint test show Breakpoint in the
+    stack trace no matter how it is handled.
+    
+    Should fix Windows build.
+    Tested on Unix by changing Breakpoint to fault instead
+    of doing a breakpoint.
+    
+    TBR=brainman
+    CC=golang-codereviews
+    https://golang.org/cl/143300043
+
+ src/runtime/traceback.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit fb7f217fe76f46aedb9cd017c79412600c11f959
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 22 17:32:04 2013 -0700
+
+    runtime: correct misplaced right brace in Linux SIGBUS handling
+    
+    I'm not sure how to write a test for this.  The change in
+    behaviour is that if you somehow get a SIGBUS signal for an
+    address >= 0x1000, the program will now crash rather than
+    calling panic.  As far as I know, on x86 GNU/Linux, the only
+    way to get a SIGBUS (rather than a SIGSEGV) is to set the
+    stack pointer to an invalid value.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7906045
+
+ src/pkg/runtime/os_linux.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

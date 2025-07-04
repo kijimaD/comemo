@@ -1,0 +1,22 @@
+commit ef3c0e7e61ba1a670d69144b5ad8318166490ae8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 27 14:05:14 2014 -0400
+
+    regexp/syntax: remove InstLast
+    
+    This was added by the one-pass CL (post Go 1.2)
+    so it can still be removed.
+    
+    Removing because surely there will be new operations
+    added later, and we can't change the constant value
+    once we define it, so "last" is a bad concept to expose.
+    
+    Nothing uses it.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/81160043
+
+ src/pkg/regexp/syntax/prog.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

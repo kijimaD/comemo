@@ -1,0 +1,18 @@
+commit f63ee8b2c79e1941161bf1b49f800100c9e34415
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Feb 7 08:21:05 2023 +0000
+
+    doc: fix spec typo
+    
+    Change-Id: I5e3aca2b8fc78f38c9e2cdc67adf86d57ac85b1c
+    GitHub-Last-Rev: 0e5ddffe33f5677449d24e09bdb332e3d5c08aa3
+    GitHub-Pull-Request: golang/go#58353
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

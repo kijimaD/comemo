@@ -1,0 +1,18 @@
+commit ce645534e481368b4ec6141d48eb361422e423b8
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Oct 5 18:04:54 2016 -0400
+
+    crypto/x509: support RHEL 7 cert bundle
+    
+    RHEL 7 introduces a new tool, update-ca-trust(8), which places the
+    certificate bundle in a new location. Add this path to the list of
+    locations that are searched for the certificate bundle.
+    
+    Fixes #15749
+    
+    Change-Id: Idc97f885ee48ef085f1eb4dacbd1c2cf55f94ff5
+    Reviewed-on: https://go-review.googlesource.com/30375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_linux.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

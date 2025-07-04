@@ -1,0 +1,46 @@
+commit 483533df9e35eea46747c5545307b230eca997b6
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Sep 14 10:48:18 2021 +0800
+
+    runtime: using wyrand for fastrand
+    
+    For modern 64-bit CPU architecture multiplier is faster than xorshift
+    
+    darwin/amd64
+    name              old time/op  new time/op  delta
+    Fastrand          2.13ns ± 1%  1.78ns ± 1%  -16.47%  (p=0.000 n=9+10)
+    FastrandHashiter  32.5ns ± 4%  32.1ns ± 3%     ~     (p=0.277 n=8+9)
+    Fastrandn/2       2.16ns ± 1%  1.99ns ± 1%   -7.53%  (p=0.000 n=10+10)
+    Fastrandn/3       2.13ns ± 3%  2.00ns ± 1%   -5.88%  (p=0.000 n=10+10)
+    Fastrandn/4       2.08ns ± 2%  1.98ns ± 2%   -4.71%  (p=0.000 n=10+10)
+    Fastrandn/5       2.08ns ± 2%  1.98ns ± 1%   -4.90%  (p=0.000 n=10+9)
+    
+    linux/mips64le
+    name              old time/op  new time/op  delta
+    Fastrand          12.1ns ± 0%  10.8ns ± 1%  -10.58%  (p=0.000 n=8+10)
+    FastrandHashiter   105ns ± 1%   105ns ± 1%     ~     (p=0.138 n=10+10)
+    Fastrandn/2       16.9ns ± 0%  16.4ns ± 4%   -2.84%  (p=0.020 n=10+10)
+    Fastrandn/3       16.9ns ± 0%  16.4ns ± 3%   -3.03%  (p=0.000 n=10+10)
+    Fastrandn/4       16.9ns ± 0%  16.5ns ± 2%   -2.01%  (p=0.002 n=8+10)
+    Fastrandn/5       16.9ns ± 0%  16.4ns ± 3%   -2.70%  (p=0.000 n=8+10)
+    
+    linux/riscv64
+    name              old time/op  new time/op  delta
+    Fastrand          22.7ns ± 0%  12.7ns ±19%  -44.09%  (p=0.000 n=9+10)
+    FastrandHashiter   255ns ± 4%   250ns ± 7%     ~     (p=0.363 n=10+10)
+    Fastrandn/2       31.8ns ± 2%  28.5ns ±13%  -10.45%  (p=0.000 n=10+10)
+    Fastrandn/3       33.0ns ± 2%  27.4ns ± 8%  -17.16%  (p=0.000 n=9+10)
+    Fastrandn/4       29.6ns ± 3%  28.2ns ± 5%   -4.81%  (p=0.000 n=8+9)
+    Fastrandn/5       33.4ns ± 3%  26.5ns ± 9%  -20.49%  (p=0.000 n=8+10)
+    
+    Change-Id: I88ac69625ef923f8be66647e3361e3be986de002
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337350
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go     | 11 ++++-------
+ src/runtime/runtime2.go |  2 +-
+ src/runtime/stubs.go    | 17 +++++++++++++++--
+ 3 files changed, 20 insertions(+), 10 deletions(-)

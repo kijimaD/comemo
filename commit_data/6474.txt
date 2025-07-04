@@ -1,0 +1,16 @@
+commit 2408a4bbbd8db78c890b9911868fb4face7558d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 06:45:50 2010 -0400
+
+    net: allow _ in names
+    
+    Enables lookup of _jabber._tcp.gmail.com's SRV record.
+    
+    Fixes #1167.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2353043
+
+ src/pkg/net/dnsclient.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

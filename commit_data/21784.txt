@@ -1,0 +1,13 @@
+commit b1517c39fbde96508b93588ae66b02a09915590b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 09:08:35 2015 -0500
+
+    crypto/x509: skip tests not made for darwin/arm
+    
+    Change-Id: I8b18dc840425b72d7172a35cb0ba004bd156492d
+    Reviewed-on: https://go-review.googlesource.com/6252
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/crypto/x509/root_darwin_test.go | 9 ++++++++-
+ src/crypto/x509/x509_test.go        | 4 ++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

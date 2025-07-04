@@ -1,0 +1,16 @@
+commit 8a323542190ec3ba8f0ff0ec057e75e25ad1f408
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:02:51 2022 +0800
+
+    internal/trace: use strings.Builder
+    
+    Change-Id: Ic7f827b8ee758c991ed76be65026b0330207deea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428262
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

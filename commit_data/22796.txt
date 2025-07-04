@@ -1,0 +1,25 @@
+commit 89454b1c390ce0659a4311f4a23642f952d9f574
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 23 15:04:35 2015 +1000
+
+    mime, time, internal/syscall/windows/registry: use new registry package to simplify code
+    
+    This CL copies golang.org/x/sys/windows/registry into
+    internal/syscall/windows/registry (minus KeyInfo.ModTime to prevent
+    dependency cycles). New registry package is used in mime and time
+    packages instead of calling Windows API directly.
+    
+    Change-Id: I965a5a41d4739b3ba38e539a7b8d96d3223e3d56
+    Reviewed-on: https://go-review.googlesource.com/9271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go                              |   1 +
+ src/go/build/deps_test.go                          |  41 +-
+ src/internal/syscall/windows/registry/key.go       | 175 ++++++
+ .../syscall/windows/registry/registry_test.go      | 613 +++++++++++++++++++++
+ src/internal/syscall/windows/registry/syscall.go   |  28 +
+ src/internal/syscall/windows/registry/value.go     | 316 +++++++++++
+ .../syscall/windows/registry/zsyscall_windows.go   |  73 +++
+ src/mime/type_windows.go                           |  48 +-
+ src/time/zoneinfo_windows.go                       |  54 +-
+ 9 files changed, 1253 insertions(+), 96 deletions(-)

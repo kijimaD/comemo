@@ -1,0 +1,13 @@
+commit 54414ad8666233ccc56d0fd66f5c7d5ef5740300
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 8 14:40:27 2009 -0700
+
+    add -S flag to print size of symbol
+    
+    R=r
+    DELTA=24  (15 added, 0 deleted, 9 changed)
+    OCL=34447
+    CL=34458
+
+ src/cmd/nm/nm.c | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)

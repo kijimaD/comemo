@@ -1,0 +1,34 @@
+commit e6fbce3596c1200825db78d338b98cbc80dc5665
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 6 11:44:09 2015 +1100
+
+    cmd/dist: reactivate vfp detection on linux/arm
+    
+    Fixes #9732
+    Fixes #9819
+    
+    Rather than detecting vfp support via catching SIGILL signals,
+    parse the contents of /proc/cpuinfo.
+    
+    As the GOARM values for NaCl and freebsd are hard coded, this parsing
+    logic only needs to support linux/arm.
+    
+    This change also fixes the nacl/arm build which is broken because the
+    first stage of nacltest.bash is executed with GOARM=5, embedding that
+    into 5g.
+    
+    The second stage of nacltest.bash correctly detects GOARM=7, but this is
+    ignored as we pass --no-clean at that point, and thus do not replace
+    the compiler.
+    
+    Lastyly, include a fix to error message in nacltest.bash
+    
+    Change-Id: I13f306ff07a99b44b493fade72ac00d0d5097e1c
+    Reviewed-on: https://go-review.googlesource.com/3981
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go       | 48 ++++++++++++++++++++++++++++++----------------
+ src/cmd/dist/vfp_arm.s     | 15 ---------------
+ src/cmd/dist/vfp_default.s | 14 --------------
+ src/nacltest.bash          |  2 +-
+ 4 files changed, 32 insertions(+), 47 deletions(-)

@@ -1,0 +1,14 @@
+commit e17a6d4b9d613918004991ee74ea95a29fc291e7
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 22 12:45:52 2013 -0700
+
+    log/syslog: report errors from write
+    Fixes #5541.
+    This time for sure.
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/9668043
+
+ src/pkg/log/syslog/syslog.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

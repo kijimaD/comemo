@@ -1,0 +1,20 @@
+commit ecee4a32918c5e575303530abb9a504a235a1c71
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Mar 31 07:34:01 2022 +0000
+
+    cmd/internal/obj/arm64: fix encoding error for SYS instruction
+    
+    Currently using the SYS instruction will report the "illegal combination"
+    error. This is because the assembler parser treats the register operand
+    as p.To, while optab defines it as p.Reg. This CL fixes this bug.
+    
+    Change-Id: I57799a7c19934b0c62278948f4efaa41001593a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396796
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 2 ++
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

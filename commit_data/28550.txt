@@ -1,0 +1,21 @@
+commit 9d4b40f55d2298fcb69e049b031e2e3ce8a1de8c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 27 08:57:02 2016 -0400
+
+    runtime, cmd/compile: implement and use DUFFCOPY on ARM64
+    
+    Change-Id: I8984eac30e5df78d4b94f19412135d3cc36969f8
+    Reviewed-on: https://go-review.googlesource.com/29910
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        |   6 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  19 ++
+ src/cmd/compile/internal/ssa/opGen.go        |  15 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go |  18 ++
+ src/cmd/internal/obj/arm64/asm7.go           |   3 +-
+ src/runtime/duff_arm64.s                     | 387 ++++++++++++++++++++++++++-
+ src/runtime/mkduff.go                        |  12 +-
+ 8 files changed, 463 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit e4b5cbde463646475b160141e733e84174b79168
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 11 09:01:27 2013 -0700
+
+    cmd/cc: emit size of locals.  Will be used for stack copying.
+    
+    R=cshapiro, dvyukov, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/10005044
+
+ src/cmd/cc/pgen.c | 1 +
+ 1 file changed, 1 insertion(+)

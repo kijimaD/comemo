@@ -1,0 +1,13 @@
+commit 6dc4c58f87c68b88a2ac3d1ff7d99722eb5ff032
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 31 17:48:19 2010 -0700
+
+    gob: documentation. this time for sure.
+    if the interface value is nil, it sends no value,
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2801042
+
+ src/pkg/gob/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

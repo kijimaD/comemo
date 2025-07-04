@@ -1,0 +1,13 @@
+commit bf0c190343c094d80e4f675863ab506c3456962f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 15:10:53 2012 -0500
+
+    gc: avoid DOT in error messages
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5573047
+
+ src/cmd/gc/subr.c      | 2 +-
+ src/cmd/gc/typecheck.c | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

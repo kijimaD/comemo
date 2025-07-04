@@ -1,0 +1,26 @@
+commit 3f0f76734e981bf62322f9ecd738839c0f7c54b3
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 30 13:41:59 2023 -0400
+
+    cmd/compile/internal/inline: analyze function result properties
+    
+    Add code to analyze properties of function result values, specifically
+    heuristics for cases where we always return allocated memory, always
+    return the same constant, or always return the same function.
+    
+    Updates #61502.
+    
+    Change-Id: I8b0a3295b5be7f7ad4c2d5b9803925aea0639376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511559
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inl.go             |   7 +-
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  20 +-
+ .../inline/inlheur/analyze_func_returns.go         | 260 ++++++++++++++++
+ .../internal/inline/inlheur/funcprops_test.go      |   2 +-
+ .../inline/inlheur/testdata/props/funcflags.go     |  42 +--
+ .../inline/inlheur/testdata/props/returns.go       | 332 +++++++++++++++++++++
+ .../compile/internal/inline/inlheur/trace_off.go   |   3 +
+ .../compile/internal/inline/inlheur/trace_on.go    |  23 ++
+ 8 files changed, 659 insertions(+), 30 deletions(-)

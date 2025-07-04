@@ -1,0 +1,16 @@
+commit da022da900e3c52750894458067136ec799d5c12
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 11 16:50:09 2018 -0500
+
+    cmd/compile: simplify OpSlicemask optimization
+    
+    The previous CL introduced isConstDelta. Use it to simplify the
+    OpSlicemask optimization in the prove pass. This passes toolstash
+    -cmp.
+    
+    Change-Id: If2aa762db4cdc0cd1c581a536340530a9831081b
+    Reviewed-on: https://go-review.googlesource.com/87481
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

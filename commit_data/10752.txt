@@ -1,0 +1,12 @@
+commit 0e9ee93cea231186c565ab10e3e5f3161cd4c769
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Dec 14 08:08:49 2011 +1100
+
+    archive/tar: (test) structure comparison not reflect.DeepEqual
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5487064
+
+ src/pkg/archive/tar/reader_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

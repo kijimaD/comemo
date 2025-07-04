@@ -1,0 +1,12 @@
+commit e6d0a6c9c159d6a192ae4e599ab07f5c6db93fa5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 11:12:54 2010 -0700
+
+    nacl: another attempt at fixing build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1077041
+
+ src/all-nacl.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

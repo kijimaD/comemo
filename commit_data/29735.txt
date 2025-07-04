@@ -1,0 +1,17 @@
+commit af67f7de3f7b0d26f95d813022f876eef1fa3889
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Fri Dec 2 21:17:29 2016 -0800
+
+    cmd/go: give useful error when msan isn't supported
+    
+    Fixes #18180.
+    
+    Change-Id: I7006fe6cf08139e5aaaf35412b962a4e82109f59
+    Reviewed-on: https://go-review.googlesource.com/33898
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 4 ++++
+ 1 file changed, 4 insertions(+)

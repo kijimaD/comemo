@@ -1,0 +1,29 @@
+commit 9ebd254b8ec772ac1e78582e71073b05764f09ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 12:05:30 2019 -0500
+
+    cmd/go: ignore irrelevant 'go test' failure in TestGoTestRaceInstallCgo
+    
+    This test runs 'go test -race -i runtime/race' and checks that it did
+    not overwrite cmd/cgo.
+    
+    If GOROOT/pkg is read-only and GOROOT/pkg/$GOOS_$GOARCH_race is not
+    already populated, as are the conditions if the Go toolchain was
+    installed from source as root using 'make.bash', then 'go test -race
+    -i' itself will fail because it cannot install packages to GOROOT/pkg.
+    
+    However, such a failure is not relevant to the test: even if 'go test
+    -race -i' fails, we can still verify that it did not incidentally
+    overwrite cmd/cgo.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: Iff2f75a0aeb4c926290ac3062c83695604522078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207959
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

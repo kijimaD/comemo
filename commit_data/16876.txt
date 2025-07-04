@@ -1,0 +1,15 @@
+commit 4a695d2c18713ea85029922c0e0758423dcd99ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 25 09:36:22 2013 -0700
+
+    go/parser: restrict ParseDir to files with suffix ".go"
+    
+    Fixes #5956.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/11813043
+
+ src/pkg/go/parser/interface.go   | 15 +++++++++------
+ src/pkg/go/parser/parser_test.go | 18 ++++++++++--------
+ 2 files changed, 19 insertions(+), 14 deletions(-)

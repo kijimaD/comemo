@@ -1,0 +1,28 @@
+commit 07e706f8ce98e3701998afdc18bb62dac324fb2a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 20 08:26:24 2012 +1100
+
+    go/token: fix data race on FileSet.last
+    
+    Fixes #4345.
+    
+    Benchmarks are promising,
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkPrint     14716391     14747131   +0.21%
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkParse      8846219      8809343   -0.42%
+    
+    benchmark          old MB/s     new MB/s  speedup
+    BenchmarkParse         6.61         6.64    1.00x
+    
+    Also includes additional tests to improve token.FileSet coverage.
+    
+    R=dvyukov, gri
+    CC=golang-dev
+    https://golang.org/cl/6968044
+
+ src/pkg/go/token/position.go      | 18 ++++++++++--------
+ src/pkg/go/token/position_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 8 deletions(-)

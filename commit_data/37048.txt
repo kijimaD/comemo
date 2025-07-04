@@ -1,0 +1,19 @@
+commit 3bf9b77c0c8f123728fcfc802599232e9bd95476
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 22 14:17:06 2018 +1100
+
+    encoding/gob: increase "tooBig" from 1GB to 8GB on 64-bit machines
+    
+    A little shift magic makes it easy to adjust the maximum buffer
+    size on machines with larger integers.
+    
+    Fixes #27635
+    
+    Change-Id: I1f26b07a363fbb9730df2377052475fa88bbb781
+    Reviewed-on: https://go-review.googlesource.com/c/143678
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/gob/decoder.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

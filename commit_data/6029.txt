@@ -1,0 +1,28 @@
+commit c47123d07badbbc7699cd58f112e6449f1cbf343
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Aug 16 11:22:22 2010 -0400
+
+    crypto/tls: client certificate support.
+    
+    This changeset implements client certificate support in crypto/tls
+    for both handshake_server.go and handshake_client.go
+    
+    The updated server implementation sends an empty CertificateAuthorities
+    field in the CertificateRequest, thus allowing clients to send any
+    certificates they wish. Likewise, the client code will only respond
+    with its certificate when the server requests a certificate with this
+    field empty.
+    
+    R=agl, rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/1975042
+
+ src/pkg/crypto/rsa/pkcs1v15.go                |   7 +-
+ src/pkg/crypto/tls/common.go                  |  37 +++++--
+ src/pkg/crypto/tls/conn.go                    |   4 +
+ src/pkg/crypto/tls/handshake_client.go        |  67 ++++++++++++
+ src/pkg/crypto/tls/handshake_messages.go      | 150 ++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_messages_test.go |  19 ++++
+ src/pkg/crypto/tls/handshake_server.go        |  80 ++++++++++++++
+ src/pkg/http/server.go                        |   2 +-
+ 8 files changed, 355 insertions(+), 11 deletions(-)

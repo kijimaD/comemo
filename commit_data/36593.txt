@@ -1,0 +1,20 @@
+commit 4cf33e361ada37d8fee9443a258abd167e31d033
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Tue Sep 4 17:17:32 2018 +0300
+
+    cmd/compile/internal/gc: fix mayAffectMemory in esc.go
+    
+    For OINDEX and other Left+Right nodes, we want the whole
+    node to be considered as "may affect memory" if either
+    of Left or Right affect memory. Initial implementation
+    only considered node as such if both Left and Right were non-safe.
+    
+    Change-Id: Icfb965a0b4c24d8f83f3722216db068dad2eba95
+    Reviewed-on: https://go-review.googlesource.com/133275
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 4 ++--
+ test/escape_param.go               | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

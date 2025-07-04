@@ -1,0 +1,13 @@
+commit 2fd2991eac8866fa72b6f160d3425727de6f200d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 6 15:34:23 2010 -0800
+
+    godoc: don't call flush if position is not valid
+    (fixes new godoc crash when looking at spec)
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/3488041
+
+ src/cmd/godoc/spec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

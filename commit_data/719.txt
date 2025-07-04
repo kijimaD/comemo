@@ -1,0 +1,13 @@
+commit 3f106f976a369188350351345f9879f61cce48a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 11:07:21 2008 -0700
+
+    make prof work on linux
+    
+    R=r
+    DELTA=18  (11 added, 1 deleted, 6 changed)
+    OCL=15752
+    CL=15755
+
+ src/cmd/prof/main.c | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

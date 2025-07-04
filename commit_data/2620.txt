@@ -1,0 +1,17 @@
+commit c7513eac88d96b3005e08cc7e378a35ab93cad5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:02:54 2009 -0700
+
+    runtime: use new reflect data structures (CL 31107)
+    in place of sigi, sigt.
+    
+    R=ken
+    OCL=31118
+    CL=31277
+
+ src/cmd/gc/sys.go         |  22 +-
+ src/pkg/runtime/Makefile  |   1 +
+ src/pkg/runtime/iface.c   | 743 ++++++++++++++--------------------------------
+ src/pkg/runtime/print.c   |   4 +-
+ src/pkg/runtime/runtime.h |   8 +-
+ 5 files changed, 247 insertions(+), 531 deletions(-)

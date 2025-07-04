@@ -1,0 +1,13 @@
+commit 91b7619310cc05c2ffa3fa558f041a3b3cf6e948
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 21:09:57 2020 -0400
+
+    cmd/compile: remove go115flagallocdeadcode
+    
+    Change-Id: Iafd72fb06a491075f7f996a6684e0d495c96aee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264342
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/flagalloc.go | 5 -----
+ 1 file changed, 5 deletions(-)

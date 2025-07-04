@@ -1,0 +1,28 @@
+commit 93ec88160ecd6da1d2bf5b9c029abf0e256484e9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jul 26 05:59:50 2023 +0000
+
+    reflect: deprecate PtrTo
+    
+    Replace reflect.PtrTo with reflect.PointerTo.
+    
+    Fixes #59599
+    
+    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
+    
+    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
+    GitHub-Last-Rev: 7bc9ccf1dcb4b444406430b451ad4c47c6ec1be2
+    GitHub-Pull-Request: golang/go#61440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/59599.txt                              | 1 +
+ src/cmd/compile/internal/reflectdata/reflect.go | 2 +-
+ src/encoding/gob/decode.go                      | 2 +-
+ src/reflect/type.go                             | 2 ++
+ 4 files changed, 5 insertions(+), 2 deletions(-)

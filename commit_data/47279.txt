@@ -1,0 +1,22 @@
+commit c58417b97f2b8d16176ddd294ae4471f834ab4d6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 4 16:53:30 2021 -0400
+
+    runtime: mark TestTracebackArgs test functions nosplit
+    
+    The argument liveness tests expect outputs where a dead stack slot
+    has a poisoned value. If the test function is preempted at the
+    prologue, it will go with the morestack code path which will spill
+    all the argument registers. Mark them nosplit to avoid that.
+    
+    Should fix #49354.
+    
+    Change-Id: I3b13e72e925748687a53c494bfaa70f07d9496fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361211
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/traceback_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

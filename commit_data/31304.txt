@@ -1,0 +1,17 @@
+commit 90bd5eccb9ed0964ee9739b6da077a8b1470198b
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Sat Apr 22 21:02:53 2017 +0100
+
+    encoding/base64: Rename rawUrlRef to rawURLRef
+    
+    This commit fixes an issue reported by golint.  The code was modified by running
+    
+    gorename -from '"encoding/base64".rawUrlRef' -to rawURLRef
+    
+    Change-Id: I428167e0808e85b2dc6b516298ff5c090dfe3430
+    Reviewed-on: https://go-review.googlesource.com/41474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base64/base64_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

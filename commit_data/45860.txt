@@ -1,0 +1,24 @@
+commit 73496e0df0ba4284f460d1955ddf6bb096957c9f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 22 21:24:57 2021 -0400
+
+    net: use absDomainName in the Windows lookupPTR test helper
+    
+    The real net code uses subtle heuristics to transform a domain name
+    to its absolute form. Since lookupPTR isn't checking that
+    transformation specifically, it should use the real code instead of
+    using a different heuristic.
+    
+    Fixes #46882
+    
+    Change-Id: I503357e0f62059c37c359cd54b44d343c7d5ab2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330249
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

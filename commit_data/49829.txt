@@ -1,0 +1,25 @@
+commit 2340d371796f95acdcc399e60f9ecefec2add8df
+Author: Jeremy Quirke <qjeremy@uber.com>
+Date:   Tue Aug 9 17:20:33 2022 +0000
+
+    cmd/link: fix trampolines breaking DWARF line info
+    
+    When trampolines are needed (e.g. Darwin ARM64), the DWARF LPT (Line
+    Program Table - see DWARF section 6.1) generation fails because the
+    replacement symbols are marked as external symbols and skipped during
+    the DWARF LPT generation phase.
+    
+    Fixes #54320
+    
+    Change-Id: I6c93f5378f50e5edf30d5121402a48214abb1ce2
+    GitHub-Last-Rev: 085bbc55dbc95d55456cc2acc46a0d02416c2848
+    GitHub-Pull-Request: golang/go#54321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422154
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 79 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/loader.go |  9 +---
+ 2 files changed, 81 insertions(+), 7 deletions(-)

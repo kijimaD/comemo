@@ -1,0 +1,13 @@
+commit b0589864dc4e267b75c2ec609985b01f4ec372eb
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 17:04:18 2014 -0400
+
+    go/build: add android to the flock
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/108450044
+
+ src/pkg/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

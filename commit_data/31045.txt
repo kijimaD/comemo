@@ -1,0 +1,18 @@
+commit f96abb40b62ef8b9c782cb115cdc7743dba707bb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 7 20:07:54 2017 +1000
+
+    cmd/compile/internal/gc: remove queuemethod
+    
+    queuemethod was unused. As queuemethod is unused, nothing appends to the
+    methodqueue global. As methodqueue is always nil or empty, there are no
+    live callers of domethod, so it can be removed.
+    
+    Change-Id: Ic7427ac4621bbf403947815e3988c3a1113487f2
+    Reviewed-on: https://go-review.googlesource.com/39931
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 54 +-------------------------------
+ 1 file changed, 1 insertion(+), 53 deletions(-)

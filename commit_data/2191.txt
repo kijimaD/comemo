@@ -1,0 +1,12 @@
+commit daf44e2fa528b6f5a0829dd6addbb68ae4478e40
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 12 15:47:55 2009 -0700
+
+    fix build: proto depends on fmt now
+    
+    TBR=r,dsymonds
+    OCL=28711
+    CL=28711
+
+ src/lib/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

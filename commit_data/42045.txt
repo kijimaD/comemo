@@ -1,0 +1,14 @@
+commit 05db7de1c1a27b75df1f11990a6e3e00f7e991cd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 21 13:57:41 2020 +0700
+
+    cmd/compile: remove unused nlo function
+    
+    Change-Id: I858d666d491f649f78581a43437408ffab33863b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229139
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 5 -----
+ 1 file changed, 5 deletions(-)

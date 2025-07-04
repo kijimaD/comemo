@@ -1,0 +1,22 @@
+commit 90614ff46236e970acbcb3645edd03186718667a
+Author: Jeff Widman <jeff@jeffwidman.com>
+Date:   Wed Apr 28 17:21:43 2021 +0000
+
+    cmd/go/internal/modfetch: fix comment that mentions no-longer returned error
+    
+    In c9211577eb77df9c51f0565f1da7d20ff91d59df @bcmills removed the returned error from
+    `Lookup`. However, the function docstring still mentions that this can return an error.
+    
+    So this corrects the docs.
+    
+    Change-Id: Idca74a200dfdb024e3d7ff6c439c70632cfec11a
+    GitHub-Last-Rev: 62eaacf70c3886d8aba25b79212c61485a89fde0
+    GitHub-Pull-Request: golang/go#45822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314572
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/repo.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

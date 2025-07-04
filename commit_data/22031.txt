@@ -1,0 +1,16 @@
+commit 25e213752b22cf5d9298c03bc5c1d1ac8bf4b1b1
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 13:56:41 2015 +0100
+
+    cmd/go: disable verifyAsm for arm64
+    
+    ARM64 doesn't have the old assembler.
+    
+    Change-Id: I9253271029440e2b7f2813d3e98a7d2e7a65bfbc
+    Reviewed-on: https://go-review.googlesource.com/7045
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

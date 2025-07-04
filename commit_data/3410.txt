@@ -1,0 +1,17 @@
+commit 164a7bceeb67af9490d970e3c6e665198c6e1c9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 30 12:00:25 2009 -0700
+
+    - completed section on built-in functions
+    - moved Conversions section out of built-in functions and into expressions
+    - fixed syntax of conversions (parens are not mandatory if the type is not a TypeName)
+      (this is the only change to the Conversions section; the rest of the text is just moved;
+      old line: 4043, new line: 3078)
+    - fixed syntax of composite literals (parens are allowed around LiteralType)
+    
+    DELTA=239  (115 added, 98 deleted, 26 changed)
+    OCL=35118
+    CL=35159
+
+ doc/go_spec.html | 261 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 139 insertions(+), 122 deletions(-)

@@ -1,0 +1,13 @@
+commit 45ea58746bf7010d7d993e942d136394b780325c
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 9 06:38:04 2011 -0700
+
+    gif: fix build
+    Had bit test wrong on transparency; no excuses.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4526044
+
+ src/pkg/image/gif/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

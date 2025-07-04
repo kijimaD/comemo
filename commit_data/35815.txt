@@ -1,0 +1,18 @@
+commit f03ee913e210e1b09bd33ed35c03ec8e4fc270be
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 17:23:07 2018 -0700
+
+    misc/cgo/test: add retry loop around pthread_create in TestSigprocmask
+    
+    This is the same retry loop we use in _cgo_try_pthread_create in runtime/cgo.
+    
+    Fixes #25078
+    
+    Change-Id: I7ef4d4fc7fb89cbfb674c4f93cbdd7a033dd8983
+    Reviewed-on: https://go-review.googlesource.com/121096
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/sigprocmask.c | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

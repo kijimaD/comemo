@@ -1,0 +1,22 @@
+commit f278f756bdd1613fdedc74a8b59ccf048afab979
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 14:57:02 2024 -0800
+
+    go/types: : generate operand.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 400 LOC.
+    
+    Change-Id: I03f77c8067aebfdb2a1cce6827ded733ff55e1cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565837
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/operand.go | 42 ++++++++++----------
+ src/cmd/compile/internal/types2/util.go    | 19 ++++++++-
+ src/go/types/generate_test.go              | 64 ++++++++++++++++++++----------
+ src/go/types/operand.go                    | 37 ++++++++++++++---
+ src/go/types/util.go                       |  6 +++
+ 5 files changed, 120 insertions(+), 48 deletions(-)

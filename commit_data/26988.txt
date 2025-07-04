@@ -1,0 +1,22 @@
+commit a3c92c9db137413b17447a72c334c3e560bace06
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 18 07:24:48 2016 -0400
+
+    cmd/link: use gold when dynamic linking on arm64
+    
+    The GNU linker follows the letter of -znocopyreloc by refusing to
+    generate COPY relocations on arm64. Unfortunately it generates an
+    error instead of finding another way. The gold linker works, so
+    switch to it.
+    
+    Fixes linux/arm64 build.
+    
+    Change-Id: I1f7119d999c8f9f1f2d0c1e06b6462cea9c02a71
+    Reviewed-on: https://go-review.googlesource.com/22185
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 10 +++++-----
+ src/cmd/link/internal/ld/lib.go    | 11 ++++++++---
+ 2 files changed, 13 insertions(+), 8 deletions(-)

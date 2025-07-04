@@ -1,0 +1,30 @@
+commit 4e5a313524da62600eb59dbf98624cfe946456f8
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Oct 20 04:11:12 2020 -0700
+
+    net/http: test that ParseMultipartForm catches overflows
+    
+    Tests that if the combination of:
+    * HTTP multipart file payload size
+    * ParseMultipartForm's maxMemory parameter
+    * the internal leeway buffer size of 10MiB
+    
+    overflows, then we'll report an overflow instead of silently
+    passing.
+    
+    Reapplies and fixes CL 254977, which was reverted in CL 263658.
+    
+    The prior test lacked a res.Body.Close(), so fixed that and
+    added a leaked Transport check to verify correctness.
+    
+    Updates 40430.
+    
+    Change-Id: I3c0f7ef43d621f6eb00f07755f04f9f36c51f98f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263817
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/request_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

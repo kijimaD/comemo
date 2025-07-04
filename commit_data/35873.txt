@@ -1,0 +1,14 @@
+commit 0e0cd70ecf6b5f0d9c8271f68b8fcc9f85cd6598
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Mon Jul 2 11:29:11 2018 -0400
+
+    runtime: document when cgo traceback function is called
+    
+    Fixes #24518.
+    
+    Change-Id: I99c79c5a2ab9dbe7f0d257c263da9d2b5d1d55c4
+    Reviewed-on: https://go-review.googlesource.com/121917
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/traceback.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

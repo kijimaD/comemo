@@ -1,0 +1,12 @@
+commit 67941bf644f0604a96ea351afd099d737119478b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 11:28:57 2010 -0400
+
+    gc: say that shift must be unsigned integer
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2519044
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

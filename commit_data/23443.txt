@@ -1,0 +1,15 @@
+commit 1eb8c4aa44889d597dd71ebb1093d2d9a966ba37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 19 12:50:38 2015 -0700
+
+    math/big: fix GCD in presence of aliasing
+    
+    Fixes #11284.
+    
+    Change-Id: I4ecc4e4cd3c1b3467b43e4ba9666ea6db5fb61a5
+    Reviewed-on: https://go-review.googlesource.com/11268
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go      |  8 +++++---
+ src/math/big/int_test.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

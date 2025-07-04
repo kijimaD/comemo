@@ -1,0 +1,43 @@
+commit 9b89c380208ea2e85985ee6bf2b1d684274dfa1d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 22 23:57:06 2022 +0100
+
+    cmd/gofmt: use SkipObjectResolution with -s as well
+    
+    The "simplify" feature used go/ast's object tracking in only one place -
+    to replace s[a:len(s)] with s[a:].
+    Using go/ast.Object did allow us to not simplify code like:
+    
+            len := func(s []int) int { ... }
+            s = s[a:len(s)]
+    
+    The existing code already noted the limitation with that approach,
+    such as "len" being redeclared in a different file in the same package.
+    Since go/ast's object tracking is file-based and very basic,
+    it wouldn't work with edge cases like those.
+    
+    The reasoning is that redeclaring len and abusing it that way is
+    extremely unlikely, and hasn't been a problem in about a decade now.
+    I reason that the same applies to len being redeclared in the same file,
+    so we should be able to safely remove the use of go/ast.Object here.
+    
+    Per https://go.dev/cl/401454, this makes "gofmt -s" about 5% faster.
+    If we ever wanted to truly get rid of false positive simplifications,
+    I imagine we'd want to reimplement the feature under go/analysis,
+    which is able to fully typecheck packages and suggest edits.
+    That seems unnecessary at this point, but we can always course correct
+    in the presumably unlikely scenario that users start reporting bugs.
+    
+    See #46485.
+    For #52463.
+    
+    Change-Id: I77fc97adceafde8f0fe6887ace83ae325bfa7416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/gofmt/gofmt.go    |  6 +++---
+ src/cmd/gofmt/simplify.go | 22 +++++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

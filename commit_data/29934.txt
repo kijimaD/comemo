@@ -1,0 +1,19 @@
+commit 0724aa813fe485684e5eac15c2a317d9d8482f82
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 11 11:36:07 2017 -0500
+
+    crypto/dsa: gofmt
+    
+    Somehow this file didn't get gofmted after the last change, which
+    interferes with merges.
+    
+    Change-Id: I965cfdbf27a01124a6ed300be9687ff84f68f9a1
+    Reviewed-on: https://go-review.googlesource.com/35064
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Adam Langley <agl@chromium.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/dsa/dsa_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

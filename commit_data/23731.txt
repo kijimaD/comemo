@@ -1,0 +1,14 @@
+commit 2899be812046515c7d9d9d3f925c7bcfca093e8a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 17 10:16:45 2015 +0900
+
+    net: avoid unnecessary conversion in address selection
+    
+    Change-Id: I0d940810b493249bc092cd38bdb434f7fa67cafb
+    Reviewed-on: https://go-review.googlesource.com/12341
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/addrselect.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,27 @@
+commit 765cea2b26b1f65b1865185526065db893feb346
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 13:52:04 2015 -0400
+
+    encoding/xml: fix race using finfo.parents in s.trim
+    
+    This race was identified in #9796, but a sequence of fixes
+    proposed in golang.org/cl/4152 were rolled into
+    golang.org/cl/5910 which both fixed the race and
+    modified the name space behavior.
+    
+    We rolled back the name space changes and lost the race fix.
+    
+    Fix the race separate from the name space changes,
+    following the suggestion made by Roger Peppe in
+    https://go-review.googlesource.com/#/c/4152/7/src/encoding/xml/marshal.go@897
+    
+    Fixes #9796.
+    Fixes #11885.
+    
+    Change-Id: Ib2b68982da83dee9e04db8b8465a8295259bba46
+    Reviewed-on: https://go-review.googlesource.com/12687
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

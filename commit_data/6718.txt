@@ -1,0 +1,22 @@
+commit a4f3d647d4d38939dccf456fe9e3155c42b74f7f
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Nov 5 10:47:56 2010 -0700
+
+    path: add Glob
+    
+    As discussed in http://groups.google.com/group/golang-dev/browse_thread/thread/926b7d550d98ec9e,
+    add a simple "path expander" function, which returns all the
+    files matching the given pattern. This function is called Glob
+    after glob(3) in libc.
+    
+    Also add a convenience function, hasMeta, that checks whether
+    a string contains one of the characters which are specially handled
+    by Match.
+    
+    R=rsc, r, r2
+    CC=golang-dev
+    https://golang.org/cl/2476041
+
+ src/pkg/path/match.go      | 70 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/path/match_test.go | 28 +++++++++++++++++++
+ 2 files changed, 98 insertions(+)

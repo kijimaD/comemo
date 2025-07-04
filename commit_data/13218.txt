@@ -1,0 +1,14 @@
+commit 3806cc7b05bfa99605d5f8559c4263066a3d8a85
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed May 30 14:38:40 2012 -0400
+
+    A+C: add Mats Lidell.  He signed the agreement with the Sweden email
+    address, but his changelist is under the Gmail address.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6248069
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

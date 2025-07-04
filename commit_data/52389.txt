@@ -1,0 +1,29 @@
+commit 7b887158825720134181b6fe403066eee0cccee3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 23 15:17:50 2023 -0400
+
+    testing: quote -test.v=test2json output when logging it
+    
+    The -test.v=test2json flag causes the testing package to inject extra
+    control characters in the output to allow the JSON parser to more
+    gracefully handle extraneous writes to os.Stdout and/or os.Stderr in
+    the package under test (see CL 443596). However, it doesn't filter out
+    those control characters because almost no real-world tests will
+    output them.
+    
+    It turns out that testing.TestFlag is one of the rare tests that does
+    output those control characters, because it tests the
+    -test.v=test2json flag itself.
+    
+    Fixes #59181.
+    
+    Change-Id: I35ca6748afcd3d4333563028817caac946f5e86a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/testing/flag_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

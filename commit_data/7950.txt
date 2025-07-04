@@ -1,0 +1,14 @@
+commit 731786439cd0c36a8eee721cc44ec26795609e00
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Fri Apr 1 14:44:57 2011 +1100
+
+    misc/notepadplus: add syntax and completion support for notepad++
+    
+    R=golang-dev, adg, peterGo
+    CC=golang-dev
+    https://golang.org/cl/4274072
+
+ misc/notepadplus/README             |  8 +++++
+ misc/notepadplus/go.xml             | 66 +++++++++++++++++++++++++++++++++++++
+ misc/notepadplus/userDefineLang.xml | 36 ++++++++++++++++++++
+ 3 files changed, 110 insertions(+)

@@ -1,0 +1,19 @@
+commit 9cceaf87361d0b797dd23ec7467d9adb62910fc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 21:44:25 2025 -0800
+
+    cmd/link: require cgo for -linkmode=external test
+    
+    For #71416
+    Fixes #71957
+    
+    Change-Id: I2180dada34d9dd2d3f5b0aaf8525951fd2e86a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652277
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/macho_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

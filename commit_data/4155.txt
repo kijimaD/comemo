@@ -1,0 +1,16 @@
+commit 69039e5a5acc8415c05cf57eead75bb7a90bafdd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 16:27:13 2009 -0800
+
+    build Make.deps during make.bash instead
+    of keeping a checked-in copy.  doesn't
+    slow down make.bash appreciably.
+    
+    R=r
+    https://golang.org/cl/156099
+
+ .hgignore           |  1 +
+ doc/contribute.html |  2 ++
+ src/make.bash       |  4 +++
+ src/pkg/Make.deps   | 85 -----------------------------------------------------
+ 4 files changed, 7 insertions(+), 85 deletions(-)

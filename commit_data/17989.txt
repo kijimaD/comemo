@@ -1,0 +1,16 @@
+commit fb31a0b1d010da48e53cce16e16c36aed58ab6cb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Dec 16 11:15:23 2013 +1100
+
+    unicode/utf16: add explicit tests for IsSurrogate
+    
+    Update #6956
+    
+    Add tests for IsSurrogate.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/42570043
+
+ src/pkg/unicode/utf16/utf16_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

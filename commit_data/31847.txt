@@ -1,0 +1,24 @@
+commit 6ce5067117268eff1c9ca6077371d7c8f4d749e3
+Author: Marko Mudrinic <mudrinic.mare@gmail.com>
+Date:   Thu Jun 15 19:15:47 2017 +0200
+
+    cmd/go: improve documentation on defaults for get
+    
+    The existing docs states that, get looks for a branch or tag
+    that matches the locally installed version of Go.
+    First, this is only working for "go1", so it could be confusing.
+    Second, "If no such version exists it retrieves the most recent
+    version of the package". It's more the default branch, by git defaults,
+    rather than most recent version.
+    
+    This should address the potential unclear parts.
+    
+    Fixes #20320
+    
+    Change-Id: Id7d727d88dc350c9902974b64fa28c3766f7e245
+    Reviewed-on: https://go-review.googlesource.com/45890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go          | 4 ++--
+ src/cmd/go/internal/get/get.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

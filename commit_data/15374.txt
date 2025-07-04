@@ -1,0 +1,13 @@
+commit ec892be1af5c2341c07fa77399a7f177b24e0f16
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 13:06:43 2013 -0500
+
+    runtime: preserve DX during racefuncenter
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7382049
+
+ src/pkg/runtime/race.c       |  4 ++--
+ src/pkg/runtime/race_amd64.s | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

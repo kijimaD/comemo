@@ -1,0 +1,13 @@
+commit 43b18f42410f427dbfa5b33cae88f6ef574bd547
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue May 1 20:01:00 2018 -0400
+
+    cmd/trace: handle invalid goid para in /trace
+    
+    Change-Id: I1cb7c8b70a5ae16386f6abb577c23d821f7ff7f0
+    Reviewed-on: https://go-review.googlesource.com/112197
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/trace.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

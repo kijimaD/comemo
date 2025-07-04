@@ -1,0 +1,18 @@
+commit 3fa46106017b0eed128e83d4ce084c43efc14d5f
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Dec 1 17:22:05 2008 -0800
+
+    multi precision floating point
+    
+    R=r
+    OCL=20185
+    CL=20185
+
+ src/cmd/gc/Makefile   |   1 +
+ src/cmd/gc/const.c    |  22 ++++-
+ src/cmd/gc/go.h       |  22 +++--
+ src/cmd/gc/lex.c      |   3 +-
+ src/cmd/gc/mparith1.c |  88 ++++++++++---------
+ src/cmd/gc/mparith2.c | 125 ++++++++++++++++++++------
+ src/cmd/gc/mparith3.c | 238 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 7 files changed, 406 insertions(+), 93 deletions(-)

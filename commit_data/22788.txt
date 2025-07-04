@@ -1,0 +1,17 @@
+commit ae080c1aecb129a3230e7afecdb4a16ad3da9b3c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 28 13:10:25 2015 -0700
+
+    net/http: handle "close" amongst multiple Connection tokens
+    
+    Fixes #8840
+    
+    Change-Id: I194d0248734c15336f91a6bcf57ffcc9c0a3a435
+    Reviewed-on: https://go-review.googlesource.com/9434
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/net/http/lex.go           | 73 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/lex_test.go      | 70 +++++++++++++++++++++++++++++++++++++++++
+ src/net/http/response_test.go | 51 ++++++++++++++++++++++++++++++
+ src/net/http/transfer.go      |  7 ++---
+ 4 files changed, 197 insertions(+), 4 deletions(-)

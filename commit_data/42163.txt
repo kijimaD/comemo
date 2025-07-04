@@ -1,0 +1,19 @@
+commit d2f5e4e38c8f3d847a1925344dadbf8fb8cdb180
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 12:02:52 2020 -0700
+
+    math: simplify hasVX checking on s390x
+    
+    Originally, we use an assembly function that returns a boolean result to
+    tell whether the machine has vector facility or not. It is now no longer
+    needed when we can directly use cpu.S390X.HasVX variable.
+    
+    Change-Id: Ic3ffeb9e63238ef41406d97cdc42502145ddb454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230319
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/arith_s390x.go |  8 ++++----
+ src/math/stubs_s390x.s  | 23 -----------------------
+ 2 files changed, 4 insertions(+), 27 deletions(-)

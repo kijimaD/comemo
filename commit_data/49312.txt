@@ -1,0 +1,23 @@
+commit 3fa5ab0d83e1a27628dd997f3883eadd399679e1
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon May 23 11:02:57 2022 +0800
+
+    runtime: fix the vDSO symbol version on loong64
+    
+    The current value is appropriate for an early in-house version of
+    Linux/LoongArch, but for the upstream version it is very likely
+    "LINUX_5.10" instead, per the latest upstream submission [1].
+    
+    [1]: https://lore.kernel.org/all/20220518095709.1313120-3-chenhuacai@loongson.cn/
+    
+    Change-Id: Ia97e5cae82a5b306bd3eea86b9e442441da07973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/runtime/vdso_linux_loong64.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

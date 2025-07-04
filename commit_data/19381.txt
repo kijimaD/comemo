@@ -1,0 +1,15 @@
+commit 2a627da326089dcbe9e77cdc30a3a823a1c6689a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 16 12:20:03 2014 -0700
+
+    spec: clarify that newlines are kept in raw string literals
+    
+    Fixes #8007.
+    
+    LGTM=r
+    R=gri, r
+    CC=golang-codereviews
+    https://golang.org/cl/91510044
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

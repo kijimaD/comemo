@@ -1,0 +1,14 @@
+commit e5c114eff84f559a4a8f38cdf8fa86ccdf123c9c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 16 11:12:02 2008 -0700
+
+    convert print to ToString.
+    file name change in next round.
+    
+    R=rsc
+    DELTA=71  (18 added, 19 deleted, 34 changed)
+    OCL=17291
+    CL=17293
+
+ usr/r/reflect/print.go | 105 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 52 insertions(+), 53 deletions(-)

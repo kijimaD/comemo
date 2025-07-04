@@ -1,0 +1,18 @@
+commit e80fccb441ac73a206bd99fb7f0dbea3eb9cc149
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Sep 27 00:00:50 2012 +1000
+
+    cmd/go: assume that code in $GOROOT is up to date
+    
+    Do not check compiler/linker timestamps for packages that are in the
+    $GOROOT. Avoids trying to rebuild non-writable standard packages when
+    timestamps have not been retained on the Go binaries.
+    
+    Fixes #4106.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6533053
+
+ src/cmd/go/pkg.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

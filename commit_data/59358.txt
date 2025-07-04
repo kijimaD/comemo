@@ -1,0 +1,33 @@
+commit 9d0320de2574586f3b0610c1b5fd15b8f9c85dec
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 15 14:55:06 2025 -0700
+
+    runtime: align taggable pointers more so we can use low bits for tag
+    
+    Currently we assume alignment to 8 bytes, so we can steal the low 3 bits.
+    This CL assumes alignment to 512 bytes, so we can steal the low 9 bits.
+    
+    That's 6 extra bits!
+    
+    Aligning to 512 bytes wastes a bit of space but it is not egregious.
+    Most of the objects that we make tagged pointers to are pretty big.
+    
+    Update #49405
+    
+    Change-Id: I66fc7784ac1be5f12f285de1d7851d5a6871fb75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665815
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go  |  6 ++++--
+ src/runtime/lfstack.go      | 12 ++----------
+ src/runtime/lfstack_test.go |  2 +-
+ src/runtime/mgc.go          |  8 +++++++-
+ src/runtime/mspanset.go     | 13 +++++++++++--
+ src/runtime/netpoll.go      |  8 ++++++--
+ src/runtime/tagptr.go       | 13 +++++++++++--
+ src/runtime/tagptr_32bit.go |  3 +++
+ src/runtime/tagptr_64bit.go | 34 ++++++++++++++++++++--------------
+ 9 files changed, 65 insertions(+), 34 deletions(-)

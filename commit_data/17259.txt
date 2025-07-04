@@ -1,0 +1,13 @@
+commit 35d8bb39bd7953dddead3d97db32af77d8941563
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 14 23:21:32 2013 -0700
+
+    testing: add TB, an interface common to T and B
+    
+    R=golang-dev, kevlar, rsc, adg, r
+    CC=golang-dev
+    https://golang.org/cl/12962043
+
+ src/pkg/database/sql/sql_test.go | 16 ++++------------
+ src/pkg/testing/testing.go       | 27 +++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 12 deletions(-)

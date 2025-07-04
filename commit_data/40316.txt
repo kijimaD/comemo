@@ -1,0 +1,21 @@
+commit e01e9176870d74a564cb69a70303c1c5e55c965f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 21 02:04:14 2019 -0700
+
+    runtime: use correct pipe call for mips/mips64 GNU/Linux
+    
+    On MIPS, pipe returns two values rather than taking a pointer.
+    
+    On MIPS64, call pipe2 rather than pipe.
+    
+    Also, use the correct system call number for fcntl on mips64.
+    
+    Change-Id: Ie72acdefeb593f44cb98735fc40eac99cf73509e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_mips64x.s |  6 +++---
+ src/runtime/sys_linux_mipsx.s   | 10 +++++++++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

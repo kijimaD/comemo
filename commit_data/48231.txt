@@ -1,0 +1,15 @@
+commit d9fd9201ad214e8da769a9338b9d3a5f3e1bc980
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Wed Jan 26 20:23:11 2022 +0800
+
+    cmd/compile: avoid generating unreachable branch for select cases
+    
+    Fixes #50823
+    
+    Change-Id: I1c12e875b840eecadefb0d9e044ff2a268ccfbaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380894
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/walk/select.go | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)

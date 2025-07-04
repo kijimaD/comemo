@@ -1,0 +1,12 @@
+commit d86213c3718c300bf1638ab15b0b361212fe68a8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 21 16:10:48 2012 -0500
+
+    codereview: add submit message support for newer clone URL and subrepos
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5689063
+
+ lib/codereview/codereview.py | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit c7c16175e028fdd3e03ff1aea41cbc965428d19e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 10:05:07 2010 -0500
+
+    ld: allow .o files with no symbols
+    Don't crash in dwarf for foreign functions.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3576043
+
+ src/cmd/ld/dwarf.c   | 2 ++
+ src/cmd/ld/ldelf.c   | 2 +-
+ src/cmd/ld/ldmacho.c | 5 ++---
+ 3 files changed, 5 insertions(+), 4 deletions(-)

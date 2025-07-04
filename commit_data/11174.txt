@@ -1,0 +1,12 @@
+commit a33b76081b1c66eb1c3c171853782de5dcff8456
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jan 15 10:08:48 2012 -0500
+
+    exp/ssh: patching in the last change lost that a file was deleted.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5541060
+
+ src/pkg/exp/ssh/server_shell_test.go | 134 -----------------------------------
+ 1 file changed, 134 deletions(-)

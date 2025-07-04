@@ -1,0 +1,20 @@
+commit 33b3260c1e765ef66500ce155c6d5a526d8852e9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Oct 14 10:48:08 2021 -0500
+
+    cmd/compile/internal/ssagen: set BitLen32 as intrinsic on PPC64
+    
+    It was noticed through some other investigation that BitLen32
+    was not generating the best code and found that it wasn't recognized
+    as an intrinsic. This corrects that and enables the test for PPC64.
+    
+    Change-Id: Iab496a8830c8552f507b7292649b1b660f3848b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355872
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 4 ++--
+ test/codegen/mathbits.go               | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 9c721aedd572c00d1a91549dda910ce74fe17d44
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 15:27:52 2014 -0400
+
+    cmd/yacc: move cmd/yacc/expr to cmd/yacc/testdata/expr
+    
+    This will keep the go command from trying to build it
+    when the cmd/ tree is no longer a special case.
+    
+    Also update doc.go to refer to the correct location.
+    (It was incorrect even before this CL.)
+    
+    LGTM=r
+    R=iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/134560043
+
+ src/cmd/yacc/doc.go                      | 5 +++--
+ src/cmd/yacc/{ => testdata}/expr/README  | 0
+ src/cmd/yacc/{ => testdata}/expr/expr.y  | 0
+ src/cmd/yacc/{ => testdata}/expr/main.go | 0
+ 4 files changed, 3 insertions(+), 2 deletions(-)

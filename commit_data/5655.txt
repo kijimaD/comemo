@@ -1,0 +1,20 @@
+commit 6672b40c099c6c55d000324b873fecb4d9880563
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 14 11:23:11 2010 -0700
+
+    remove uses of ... from tree, add one test
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1662041
+
+ src/pkg/exp/datafmt/datafmt.go      | 17 ++++++++++-------
+ src/pkg/exp/datafmt/datafmt_test.go | 14 ++------------
+ src/pkg/reflect/all_test.go         | 28 ++++++++++++++++++++++++++--
+ src/pkg/reflect/type.go             |  4 ++--
+ src/pkg/testing/script/script.go    | 10 +++++++---
+ test/fixedbugs/bug153.go            | 14 --------------
+ test/fixedbugs/bug228.go            | 10 +++++-----
+ test/fixedbugs/bug232.go            |  2 +-
+ test/fixedbugs/bug252.go            |  2 +-
+ 9 files changed, 54 insertions(+), 47 deletions(-)

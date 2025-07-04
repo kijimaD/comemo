@@ -1,0 +1,12 @@
+commit 3230fd1469faa93fc3414ec7ee7cbc809daccd8f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sat May 21 07:38:01 2011 +1000
+
+    fmt: scanning doc fix
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4539073
+
+ src/pkg/fmt/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

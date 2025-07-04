@@ -1,0 +1,17 @@
+commit 12aec551c4a3dbd0cabc5ec735ffaa43e3bd2659
+Author: Tyler Bui-Palsulich <tbp@google.com>
+Date:   Fri Apr 26 14:49:41 2019 -0400
+
+    cmd/go: say to confirm import path when it's not found
+    
+    Fixes #31366.
+    
+    Change-Id: Ief26f53e7fe94bedb7db79d3d7130c4cdcec4281
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174179
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go       | 2 +-
+ src/cmd/go/testdata/script/mod_get_private_vcs.txt | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

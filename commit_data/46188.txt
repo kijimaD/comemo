@@ -1,0 +1,97 @@
+commit acdea4f9f792339ee27fb1f67539a7ca2e3af99a
+Merge: 67f7e16bcc 220bc44a4c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 27 08:24:11 2021 -0400
+
+    all: REVERSE MERGE dev.cmdgo (220bc44) into master
+    
+    This commit is a REVERSE MERGE.
+    It merges dev.cmdgo back into its parent branch, master.
+    This marks the end of development on dev.cmdgo.
+    
+    Merge List:
+    
+    + 2021-08-27 220bc44a4c [dev.cmdgo] all: merge master (67f7e16) into dev.cmdgo
+    + 2021-08-26 de83ef67ac [dev.cmdgo] all: merge master (5e6a7e9) into dev.cmdgo
+    + 2021-08-25 de23549a39 [dev.cmdgo] cmd/go: fix calls to modFileGoVersion to pass in modFile
+    + 2021-08-25 3b523caf41 [dev.cmdgo] cmd/go: clean up TODOWorkspaces instances
+    + 2021-08-25 109c13b64f [dev.cmdgo] all: merge master (c2f96e6) into dev.cmdgo
+    + 2021-08-12 e2e1987b31 [dev.cmdgo] cmd/link: fix TestBuildForTvOS
+    + 2021-08-12 d397fc1169 [dev.cmdgo] don't give command-line-arguments a module
+    + 2021-08-11 aaf914d0e6 [dev.cmdgo] cmd/go: remove modload.ModRoot function
+    + 2021-08-06 3025ce2fa8 [dev.cmdgo] cmd/go: address code review comments in test cgo_path_space_quote
+    + 2021-08-06 fc8e0cbbba [dev.cmdgo] cmd: update x/tools and remove copy of txtar
+    + 2021-07-31 3799012990 [dev.cmdgo] cmd/go: add go mod editwork command
+    + 2021-07-30 b3b53e1dad [dev.cmdgo] cmd/go: thread through modroots providing replacements
+    + 2021-07-30 47694b59eb [dev.cmdgo] cmd/go: provide a more helpful missing required module error in workspaces
+    + 2021-07-30 90830699ae [dev.cmdgo] cmd/go: allow expliticly setting -mod=readonly in workspace mode
+    + 2021-07-30 8e2ab05dd3 Merge "[dev.cmdgo] all: merge master (9eee0ed) into dev.cmdgo" into dev.cmdgo
+    + 2021-07-30 52e970b1c8 [dev.cmdgo] cmd: support space and quotes in CC and CXX
+    + 2021-07-30 3a69cef65a [dev.cmdgo] cmd/internal/str: add utilities for quoting and splitting args
+    + 2021-07-30 137089ffb9 [dev.cmdgo] cmd/internal/str: move package from cmd/go/internal/str
+    + 2021-07-28 47cdfa95ae [dev.cmdgo] all: merge master (9eee0ed) into dev.cmdgo
+    + 2021-07-28 176baafd5b [dev.cmdgo] cmd/go: sort roots when joining multiple main module roots
+    + 2021-07-28 288a83dcff [dev.cmdgo] cmd/go: maintain a go.work.sum file
+    + 2021-07-27 2c8acf63c2 [dev.cmdgo] cmd/go: make fewer 'go mod' commands update go.mod
+    + 2021-07-27 72233d27c4 [dev.cmdgo] cmd/go: add -testsum flag to update go.sum in script tests
+    + 2021-07-27 b2205eab0e [dev.cmdgo] cmd/go: add go mod initwork command
+    + 2021-07-27 f05f5ceffa [dev.cmdgo] cmd/go: fold index and modFile into MainModules
+    + 2021-07-26 7ce257147f [dev.cmdgo] cmd/go: add the workspace mode
+    + 2021-07-26 3cd15e02ed [dev.cmdgo] cmd: pull in x/mod on the dev.cmdgo branch
+    + 2021-07-22 a627fcd3c4 [dev.cmdgo] cmd/go: replace Target with MainModules, allowing for multiple targets
+    + 2021-07-20 ab361499ef [dev.cmdgo] cmd/go/testdata/script: fix a small typo in modfile_flag
+    + 2021-07-06 aa4da4f189 [dev.cmdgo] all: merge master (912f075) into dev.cmdgo
+    + 2020-12-22 6dc2c16f95 [dev.cmdgo] codereview.cfg: add config for dev.cmdgo
+    
+    Change-Id: Ic42f1273e42c90954bd61a6e4d6ca193c97bf04c
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |  98 +++
+ src/cmd/go/internal/base/flag.go                   |   7 +
+ src/cmd/go/internal/cfg/cfg.go                     |   6 +-
+ src/cmd/go/internal/envcmd/env.go                  |   3 +-
+ src/cmd/go/internal/get/get.go                     |   6 +-
+ src/cmd/go/internal/list/list.go                   |   3 +
+ src/cmd/go/internal/load/pkg.go                    |   7 +-
+ src/cmd/go/internal/modcmd/download.go             |  17 +-
+ src/cmd/go/internal/modcmd/editwork.go             | 282 +++++++++
+ src/cmd/go/internal/modcmd/graph.go                |   3 +
+ src/cmd/go/internal/modcmd/initwork.go             |  54 ++
+ src/cmd/go/internal/modcmd/mod.go                  |   2 +
+ src/cmd/go/internal/modcmd/vendor.go               |   7 +-
+ src/cmd/go/internal/modcmd/verify.go               |   3 +
+ src/cmd/go/internal/modcmd/why.go                  |   2 +
+ src/cmd/go/internal/modfetch/fetch.go              |  15 +-
+ src/cmd/go/internal/modget/get.go                  |  72 ++-
+ src/cmd/go/internal/modget/query.go                |   6 +-
+ src/cmd/go/internal/modload/build.go               |  66 +-
+ src/cmd/go/internal/modload/buildlist.go           |  92 ++-
+ src/cmd/go/internal/modload/edit.go                |  20 +-
+ src/cmd/go/internal/modload/import.go              | 152 ++---
+ src/cmd/go/internal/modload/init.go                | 661 ++++++++++++++++-----
+ src/cmd/go/internal/modload/list.go                |   8 +-
+ src/cmd/go/internal/modload/load.go                | 189 ++++--
+ src/cmd/go/internal/modload/modfile.go             | 169 +++---
+ src/cmd/go/internal/modload/mvs.go                 |   4 +-
+ src/cmd/go/internal/modload/query.go               | 230 ++++---
+ src/cmd/go/internal/modload/search.go              |  15 +-
+ src/cmd/go/internal/modload/vendor.go              |  12 +-
+ src/cmd/go/internal/mvs/mvs.go                     |  34 +-
+ src/cmd/go/internal/mvs/mvs_test.go                |   2 +-
+ src/cmd/go/internal/run/run.go                     |   3 +
+ src/cmd/go/internal/search/search.go               |  33 +-
+ src/cmd/go/internal/test/test.go                   |   2 +
+ src/cmd/go/internal/test/testflag.go               |   1 +
+ src/cmd/go/internal/work/build.go                  |  10 +
+ .../script/mod_list_command_line_arguments.txt     |  35 ++
+ src/cmd/go/testdata/script/mod_outside.txt         |   2 +-
+ src/cmd/go/testdata/script/modfile_flag.txt        |   2 +-
+ src/cmd/go/testdata/script/version.txt             |   7 +
+ src/cmd/go/testdata/script/work.txt                | 140 +++++
+ src/cmd/go/testdata/script/work_edit.txt           | 157 +++++
+ src/cmd/go/testdata/script/work_sum.txt            |  33 +
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 250 +++++---
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go    | 234 ++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 49 files changed, 2458 insertions(+), 706 deletions(-)

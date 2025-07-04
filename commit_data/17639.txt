@@ -1,0 +1,12 @@
+commit e903f5b26a34a38a1d91677958b2d0545d71e4f2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 18 10:48:11 2013 +1000
+
+    C: add Thomas Habets (Google CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13501050
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

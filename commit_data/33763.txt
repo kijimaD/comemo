@@ -1,0 +1,51 @@
+commit 292558be025fb0a959f7d594771c2833149521db
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 30 22:09:35 2017 -0500
+
+    runtime: restore the Go-allocated signal stack in unminit
+    
+    Currently, when we minit on a thread that already has an alternate
+    signal stack (e.g., because the M was an extram being used for a cgo
+    callback, or to handle a signal on a C thread, or because the
+    platform's libc always allocates a signal stack like on Android), we
+    simply drop the Go-allocated gsignal stack on the floor.
+    
+    This is a problem for Ms on the extram list because those Ms may later
+    be reused for a different thread that may not have its own alternate
+    signal stack. On tip, this manifests as a crash in sigaltstack because
+    we clear the gsignal stack bounds in unminit and later try to use
+    those cleared bounds when we re-minit that M. On 1.9 and earlier, we
+    didn't clear the bounds, so this manifests as running more than one
+    signal handler on the same signal stack, which could lead to arbitrary
+    memory corruption.
+    
+    This CL fixes this problem by saving the Go-allocated gsignal stack in
+    a new field in the m struct when overwriting it with a system-provided
+    signal stack, and then restoring the original gsignal stack in
+    unminit.
+    
+    This CL is designed to be easy to back-port to 1.9. It won't quite
+    cherry-pick cleanly, but it should be sufficient to simply ignore the
+    change in mexit (which didn't exist in 1.9).
+    
+    Now that we always have a place to stash the original signal stack in
+    the m struct, there are some simplifications we can make to the signal
+    stack handling. We'll do those in a later CL.
+    
+    Fixes #22930.
+    
+    Change-Id: I55c5a6dd9d97532f131146afdef0b216e1433054
+    Reviewed-on: https://go-review.googlesource.com/81476
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go                | 13 ++++
+ src/runtime/os3_plan9.go                     |  3 +
+ src/runtime/os_nacl.go                       |  3 +
+ src/runtime/proc.go                          |  8 +--
+ src/runtime/runtime2.go                      |  9 +--
+ src/runtime/signal_unix.go                   | 12 ++--
+ src/runtime/signal_windows.go                |  3 +
+ src/runtime/testdata/testprogcgo/sigstack.go | 95 ++++++++++++++++++++++++++++
+ 8 files changed, 131 insertions(+), 15 deletions(-)

@@ -1,0 +1,16 @@
+commit 5c1a15df4141f77ba7c42c2c7c06d6eb22bcda63
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Jun 25 11:20:35 2023 +0800
+
+    test/codegen: enable Mul2 DivPow2 test for riscv64
+    
+    Change-Id: Ice0bb7a665599b334e927a1b00d1a5b400c15e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ test/codegen/floats.go | 4 ++++
+ 1 file changed, 4 insertions(+)

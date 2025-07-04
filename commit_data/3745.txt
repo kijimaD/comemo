@@ -1,0 +1,21 @@
+commit 93253a870c55b981dedef2119ab7d70a42127e24
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 3 17:32:08 2009 -0800
+
+    encoding/*: reverse the order of src, dst so that dst is first.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017021
+
+ src/pkg/crypto/rsa/pkcs1v15_test.go      |  2 +-
+ src/pkg/encoding/ascii85/ascii85.go      | 14 +++++++-------
+ src/pkg/encoding/ascii85/ascii85_test.go |  6 +++---
+ src/pkg/encoding/base64/base64.go        | 18 +++++++++---------
+ src/pkg/encoding/base64/base64_test.go   |  6 +++---
+ src/pkg/encoding/git85/git.go            | 12 ++++++------
+ src/pkg/encoding/git85/git_test.go       |  6 +++---
+ src/pkg/encoding/hex/hex.go              |  8 ++++----
+ src/pkg/encoding/hex/hex_test.go         |  4 ++--
+ src/pkg/encoding/pem/pem.go              |  2 +-
+ 10 files changed, 39 insertions(+), 39 deletions(-)

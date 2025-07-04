@@ -1,0 +1,13 @@
+commit 2ca1f7d588e67fe82f1ca375241059c61a6ded1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 23 14:33:33 2014 +0900
+
+    syscall: don't display syscall prototype lines on godoc
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/110020050
+
+ src/pkg/syscall/syscall_bsd.go | 2 ++
+ 1 file changed, 2 insertions(+)

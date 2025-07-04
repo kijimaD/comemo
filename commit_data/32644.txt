@@ -1,0 +1,14 @@
+commit 9dba7335c041677c18eaa245a106f9865b651d84
+Author: Elbert Fliek <efliek@gmail.com>
+Date:   Tue Sep 5 20:21:41 2017 +0200
+
+    time: add an example to the NewTicker function
+    
+    Change-Id: Idad9cdee36679373ee223ff2bd4c021ea0afcce1
+    Reviewed-on: https://go-review.googlesource.com/61710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

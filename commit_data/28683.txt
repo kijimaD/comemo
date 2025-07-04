@@ -1,0 +1,21 @@
+commit b9fd510cd00b6aa26e2ea7001a07b90ebf97d2ed
+Author: Jirka Daněk <dnk@mail.muni.cz>
+Date:   Mon Jan 18 16:26:05 2016 +0100
+
+    encoding/json: add struct and field name to UnmarshalTypeError message
+    
+    The UnmarshalTypeError has two new fields Struct and Field,
+    used when constructing the error message.
+    
+    Fixes #6716.
+    
+    Change-Id: I67da171480a9491960b3ae81893770644180f848
+    Reviewed-on: https://go-review.googlesource.com/18692
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      | 82 +++++++++++++++++++++++++++-------------
+ src/encoding/json/decode_test.go | 42 ++++++++++++++++----
+ 2 files changed, 90 insertions(+), 34 deletions(-)

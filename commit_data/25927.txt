@@ -1,0 +1,37 @@
+commit 67dbde0d7197b2fe6c9e08bda9fa4656c1f75ce4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 14:58:03 2016 -0800
+
+    cmd: stop looking for __.(GO)?SYMDEF entries in archives
+    
+    The Go toolchain stopped creating them before Go 1.3, so no point in
+    worrying about them today.
+    
+    History:
+    
+    - Git commit 250a091 added cmd/ar, which wrote Plan 9 __.SYMDEF
+    entries into archive files.
+    
+    - golang.org/cl/6500117 renamed __.SYMDEF to __.GOSYMDEF.  (Notably,
+    the commit message suggests users need to use Go nm to read symbols,
+    but even back then the toolchain did nothing with __.(GO)?SYMDEF files
+    except skip over them.)
+    
+    - golang.org/cl/42880043 added the -pack flag to cmd/gc to directly
+    produce archives by the Go compiler, and did not write __.GOSYMDEF
+    entries.
+    
+    - golang.org/cl/52310044 rewrote cmd/pack in Go, and removed support
+    for producing __.GOSYMDEF entries.
+    
+    Change-Id: I255edf40d0d3690e3447e488039fcdef73c6d6b1
+    Reviewed-on: https://go-review.googlesource.com/19924
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go       | 19 +++----------------
+ src/cmd/internal/goobj/read.go           |  2 +-
+ src/cmd/link/internal/ld/lib.go          | 18 +++---------------
+ src/go/internal/gcimporter/exportdata.go | 26 ++------------------------
+ 4 files changed, 9 insertions(+), 56 deletions(-)

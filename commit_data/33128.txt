@@ -1,0 +1,23 @@
+commit 47f4e7a9768a613371ccd4a94a6b325fd603727e
+Author: Tom Bergan <tombergan@google.com>
+Date:   Fri Oct 13 15:56:37 2017 -0700
+
+    net/http: preserve Host header following a relative redirect
+    
+    If the client sends a request with a custom Host header and receives
+    a relative redirect in response, the second request should use the
+    same Host header as the first request. However, if the response is
+    an abolute redirect, the Host header should not be preserved. See
+    further discussion on the issue tracker.
+    
+    Fixes #22233
+    
+    Change-Id: I8796e2fbc1c89b3445e651f739d5d0c82e727c14
+    Reviewed-on: https://go-review.googlesource.com/70792
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      | 10 +++++++
+ src/net/http/client_test.go | 72 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 81 insertions(+), 1 deletion(-)

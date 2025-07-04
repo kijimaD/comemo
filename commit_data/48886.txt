@@ -1,0 +1,23 @@
+commit 0bf545e51f5303ddedb0ea60f02ff221ac088fc7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 14:41:57 2022 -0700
+
+    regexp/syntax: rename ErrInvalidDepth to ErrNestingDepth
+    
+    The proposal accepted the name ErrNestingDepth.
+    
+    For #51684
+    
+    Change-Id: I702365f19e5e1889dbcc3c971eecff68e0b08727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401854
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/51684.txt         | 4 ++--
+ src/regexp/syntax/parse.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

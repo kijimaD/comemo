@@ -1,0 +1,23 @@
+commit 33405ecc869ca70b1dcddb4112bee8e21e375470
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 15 17:20:26 2010 -0500
+
+    fix freebsd build
+    
+    R=iant, r
+    CC=dho, golang-dev
+    https://golang.org/cl/3687041
+
+ src/cmd/6l/asm.c                    |  3 +--
+ src/cmd/6l/obj.c                    |  1 +
+ src/cmd/8l/asm.c                    |  3 +--
+ src/cmd/8l/obj.c                    |  1 +
+ src/cmd/ld/data.c                   |  4 ++--
+ src/cmd/ld/go.c                     |  9 +++++++++
+ src/cmd/ld/lib.h                    |  2 ++
+ src/pkg/deps.bash                   |  2 +-
+ src/pkg/runtime/cgo/Makefile        |  6 ++++++
+ src/pkg/runtime/cgo/freebsd.c       | 13 +++++++++++++
+ src/pkg/runtime/cgo/freebsd_386.c   |  3 ---
+ src/pkg/runtime/cgo/freebsd_amd64.c |  3 ---
+ 12 files changed, 37 insertions(+), 13 deletions(-)

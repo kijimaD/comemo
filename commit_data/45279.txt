@@ -1,0 +1,20 @@
+commit 5daefc5363080acd631ae97a84faf651a70d9888
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Apr 15 03:27:55 2021 +0000
+
+    cmd/internal/obj/arm64: fix the wrong ROR operator of some instructions
+    
+    Instructions such as ADD, SUB, CMP do not support ROR shift operations,
+    but we have not checked this at present. This CL adds this check.
+    
+    Change-Id: Icac461f61ad6ddb60886a59ba34dddd29df1cc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310035
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 18 +++++
+ src/cmd/internal/obj/arm64/asm7.go             | 93 ++++++++++++++------------
+ 2 files changed, 67 insertions(+), 44 deletions(-)

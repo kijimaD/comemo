@@ -1,0 +1,18 @@
+commit c622d1d3f68369ec5f8ce9694fa27e7acb025004
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 20:28:45 2021 -0800
+
+    go/build: skip rune literals when looking for go:embed
+    
+    Fixes #49514
+    
+    Change-Id: Id687eead731ba49974f11d2e5b489f11eff7d07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/embed/internal/embedtest/embed_test.go |  5 +++++
+ src/go/build/read.go                       | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

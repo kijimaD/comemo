@@ -1,0 +1,19 @@
+commit 914a25c0eb8aacdbb5cddd3e7d5e6ee7b019f88f
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Nov 1 11:20:11 2018 +0100
+
+    runtime: only check the existence of variables in gdb info locals test
+    
+    As discussed in golang.org/cl/28499:
+    Only test that all expected variables are listed in 'info locals' since
+    different versions of gdb print variables in different order and with
+    differing amount of information and formats.
+    
+    Fixes #28499
+    
+    Change-Id: I76627351170b5fdf2bf8cbf143e54f628b45dc4e
+    Reviewed-on: https://go-review.googlesource.com/c/146598
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/runtime-gdb_test.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

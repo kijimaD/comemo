@@ -1,0 +1,15 @@
+commit be587a4d5366ea1d53967dfdbd7539b6168c6af2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 8 10:31:06 2011 +1100
+
+    gobuilder: goinstall packages after building go tree
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5450100
+
+ misc/dashboard/builder/exec.go    |  2 +-
+ misc/dashboard/builder/http.go    | 26 +++++++++------
+ misc/dashboard/builder/main.go    | 70 +++++++++++++++++++++++++++++++++++----
+ misc/dashboard/builder/package.go |  2 +-
+ 4 files changed, 82 insertions(+), 18 deletions(-)

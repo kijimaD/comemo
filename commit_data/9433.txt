@@ -1,0 +1,12 @@
+commit 8bf2ad757b1ba5ddb714a9ecfedac6dfa71f86af
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 14:02:36 2011 +1000
+
+    cmd/hgpatch: remove container/vector
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4921044
+
+ src/cmd/hgpatch/main.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

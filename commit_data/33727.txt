@@ -1,0 +1,31 @@
+commit bbd15ff7c1a8f6ab9a4710519b1a8f7d345c51e8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 28 17:17:33 2017 -0800
+
+    go/types: report error when recognizing issue #18395.
+    
+    The fix (CL 79575) for #18395 is too risky at this stage of the Go 1.10
+    release process.
+    
+    Since issue #18395 is easily recognized (but not easily fixed), report
+    an error instead of silently continuing. This avoids inscrutable follow
+    on errors.
+    
+    Also, make sure all empty interfaces are "completed", and adjust
+    printing code to report incomplete interfaces.
+    
+    For #18395.
+    
+    Change-Id: I7fa5f97ff31ac9775c9a6d318fce9f526b0350cd
+    Reviewed-on: https://go-review.googlesource.com/80455
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gccgoimporter/parser_test.go |  5 +++++
+ src/go/types/builtins.go                     |  7 +++----
+ src/go/types/object_test.go                  | 12 ++++++------
+ src/go/types/testdata/cycles4.src            | 12 ++++++++++++
+ src/go/types/type.go                         | 14 +++++++++++++-
+ src/go/types/typestring.go                   | 10 ++++++++++
+ src/go/types/typestring_test.go              | 20 ++++++++++++++++++++
+ src/go/types/typexpr.go                      |  5 ++---
+ 8 files changed, 71 insertions(+), 14 deletions(-)

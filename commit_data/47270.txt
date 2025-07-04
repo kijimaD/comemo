@@ -1,0 +1,38 @@
+commit 3839b6001470f7bc73c9a80f6458f7111ae3d9cc
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 20 17:39:09 2019 -0400
+
+    cmd/{asm,compile,internal/obj}: add "maymorestack" support
+    
+    This adds a debugging hook for optionally calling a "maymorestack"
+    function in the prologue of any function that might call morestack
+    (whether it does at run time or not). The maymorestack function will
+    let us improve lock checking and add debugging modes that stress
+    function preemption and stack growth.
+    
+    Passes toolstash-check -all (except on js/wasm, where toolstash
+    appears to be broken)
+    
+    Fixes #48297.
+    
+    Change-Id: I27197947482b329af75dafb9971fc0d3a52eaf31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359795
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/flags/flags.go    |  5 ++
+ src/cmd/asm/main.go                    |  1 +
+ src/cmd/compile/internal/base/debug.go |  1 +
+ src/cmd/compile/internal/base/flag.go  |  1 +
+ src/cmd/internal/obj/arm/obj5.go       | 57 +++++++++++++++++++-
+ src/cmd/internal/obj/arm64/obj7.go     | 87 +++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/link.go           |  3 +-
+ src/cmd/internal/obj/mips/obj0.go      | 79 ++++++++++++++++++++++++++-
+ src/cmd/internal/obj/ppc64/obj9.go     | 93 +++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/riscv/obj.go      | 58 +++++++++++++++++++-
+ src/cmd/internal/obj/s390x/objz.go     | 81 ++++++++++++++++++++++++----
+ src/cmd/internal/obj/wasm/wasmobj.go   | 56 +++++++++++++++++++-
+ src/cmd/internal/obj/x86/obj6.go       | 97 ++++++++++++++++++++++++----------
+ test/maymorestack.go                   | 47 ++++++++++++++++
+ 14 files changed, 620 insertions(+), 46 deletions(-)

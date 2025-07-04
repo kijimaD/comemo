@@ -1,0 +1,19 @@
+commit 51104cd4d2dab6bdd8bda694c0a9a5613cec3b84
+Author: Andrew Poydence <apoydence@pivotal.io>
+Date:   Thu Oct 25 23:14:15 2018 +0000
+
+    log: add Logger.Writer method
+    
+    Writer method returns the underlying io.Writer used by the given Logger
+    object.
+    
+    Fixes #28327
+    
+    Change-Id: I6347913d8be8d3222b98967b136cf03d00f446d1
+    GitHub-Last-Rev: 2db0c5c7416436f99852592d2f258ca93da96712
+    GitHub-Pull-Request: golang/go#28399
+    Reviewed-on: https://go-review.googlesource.com/c/144757
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/log/log.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

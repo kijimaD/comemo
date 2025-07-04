@@ -1,0 +1,30 @@
+commit 786a2ef380f662ecdd7e089b59f9ce075a24ef42
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 20:11:28 2015 -0700
+
+    cmd/compile: use a uint8-sized named type for Addr.Type
+    
+    No immediate reduction in the size of Addr.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I78ea4c6e181b6e571ce70a5f1ae8158844eb197d
+    Reviewed-on: https://go-review.googlesource.com/20276
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/amd64/gsubr.go |  2 +-
+ src/cmd/compile/internal/arm/ggen.go    |  6 +++---
+ src/cmd/compile/internal/arm64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/mips64/ggen.go |  6 +++---
+ src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/x86/ggen.go    |  6 +++---
+ src/cmd/compile/internal/x86/peep.go    |  2 +-
+ src/cmd/internal/obj/arm/asm5.go        |  4 ++--
+ src/cmd/internal/obj/arm64/asm7.go      | 13 +++++--------
+ src/cmd/internal/obj/data.go            |  4 ++--
+ src/cmd/internal/obj/link.go            | 12 ++++++------
+ src/cmd/internal/obj/ppc64/asm9.go      |  2 +-
+ src/cmd/internal/obj/util.go            |  2 +-
+ src/cmd/internal/obj/x86/asm6.go        |  4 ++--
+ 15 files changed, 39 insertions(+), 42 deletions(-)

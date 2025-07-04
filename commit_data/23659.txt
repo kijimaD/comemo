@@ -1,0 +1,16 @@
+commit a6dc5414361b70d0190d65d43afbaba6fb707328
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 11 06:42:48 2015 -0700
+
+    cmd/go: warn on get from code.google.com that it is shutting down
+    
+    Fixes #10193.
+    
+    Change-Id: Ibbb747babb697a66b943e5da76b0ada41f1fb14f
+    Reviewed-on: https://go-review.googlesource.com/12070
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/get.go     | 10 ++++++++++
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+)

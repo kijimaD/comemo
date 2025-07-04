@@ -1,0 +1,24 @@
+commit 5f1a013ea7e755e963518cc6c17a17a270041864
+Author: Quentin Renard <contact@asticode.com>
+Date:   Thu Oct 6 22:47:53 2016 +0200
+
+    net/http: Add missing tests for parsePostForm
+    
+    Renamed TestPOSTQuery to TestParseFormQuery and added testing
+    for the ";" delimiter, an empty key, an empty value and an
+    empty key + value.
+    
+    Also added TestParseFormQueryMethods to make sure forms sent in
+    PATCH and PUT (and no others) request  are parsed correctly in
+    ParseForm.
+    
+    Fixes #17368
+    
+    Change-Id: I445aad324ffc7b38d179ea41953bffbac0cddffe
+    Reviewed-on: https://go-review.googlesource.com/30555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request_test.go | 55 ++++++++++++++++++--------------------------
+ 1 file changed, 23 insertions(+), 32 deletions(-)

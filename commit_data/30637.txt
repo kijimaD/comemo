@@ -1,0 +1,28 @@
+commit c694f6f3a80bcb42960e021b279eb6d23baf2c50
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 9 13:30:20 2017 -0800
+
+    cmd/compile: eliminate more nil checks of phis
+    
+    The existing implementation started by eliminating
+    nil checks for OpAddr, OpAddPtr, and OpPhis with
+    all non-nil args.
+    
+    However, some OpPhis had all non-nil args,
+    but their args had not been processed yet.
+    
+    Pull the OpPhi checks into their own loop,
+    and repeat until stabilization.
+    
+    Eliminates a dozen additional nilchecks during make.bash.
+    
+    Negligible compiler performance impact.
+    
+    Change-Id: If7b803c3ad7582af7d9867d05ca13e03e109d864
+    Reviewed-on: https://go-review.googlesource.com/37999
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 35 ++++++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 11 deletions(-)

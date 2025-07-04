@@ -1,0 +1,35 @@
+commit ef8e85e8b8176fb096683dac00cf536fd7d228bc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 18 16:38:54 2016 -0700
+
+    archive/tar: fix parsePAXTime
+    
+    Issues fixed:
+    * Could not handle quantity of seconds greater than 1<<31 on
+    32bit machines since strconv.ParseInt did not treat integers as 64b.
+    * Did not handle negative timestamps properly if nanoseconds were used.
+    Note that "-123.456" should result in a call to time.Unix(-123, -456000000).
+    * Incorrectly allowed a '-' right after the '.' (e.g., -123.-456)
+    * Did not detect invalid input after the truncation point (e.g., 123.123456789badbadbad).
+    
+    Note that negative timestamps are allowed by PAX, but are not guaranteed
+    to be portable. See the relevant specification:
+    <<<
+    If pax encounters a file with a negative timestamp in copy or write mode,
+    it can reject the file, substitute a non-negative timestamp, or generate
+    a non-portable timestamp with a leading '-'.
+    >>>
+    
+    Since the previous behavior already partially supported negative timestamps,
+    we are bound by Go's compatibility rules to keep support for them.
+    However, we should at least make sure we handle them properly.
+    
+    Change-Id: I5686997708bfb59110ea7981175427290be737d1
+    Reviewed-on: https://go-review.googlesource.com/31441
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/strconv.go      | 67 ++++++++++++++++----------------
+ src/archive/tar/strconv_test.go | 84 +++++++++++++++++++++++++++++++++++------
+ 2 files changed, 106 insertions(+), 45 deletions(-)

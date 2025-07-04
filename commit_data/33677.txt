@@ -1,0 +1,12 @@
+commit 8a092b74fce0d6cf20be1e9d8855beace7db03cd
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Thu Nov 23 14:32:03 2017 +1300
+
+    doc: fix typo in Effective Go: s/ReaderWriter/ReadWriter/
+    
+    Change-Id: I3bfe1b11265f0def4701faf2cfc1ad10a666a473
+    Reviewed-on: https://go-review.googlesource.com/79596
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

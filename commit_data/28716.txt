@@ -1,0 +1,16 @@
+commit f8a0c15e902cc6555610a32a6dbf36f4ff2c2682
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 7 10:10:55 2016 -0700
+
+    test: re-enable live2 test on amd64
+    
+    Not sure why it was ever disabled (early SSA work?) but it passes now.
+    
+    Change-Id: I76439cacdbd286ce077f7e08c4d0663396a0cd8f
+    Reviewed-on: https://go-review.googlesource.com/30672
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/live2.go | 1 -
+ 1 file changed, 1 deletion(-)

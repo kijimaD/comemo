@@ -1,0 +1,12 @@
+commit 12d27d8ea5a6980b741564e2229c281dedb547d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 29 19:11:55 2018 +0000
+
+    doc/go1.11: note that godoc now shows the Go version that added features
+    
+    Change-Id: Ie613a707dad1ac69627e1d7584d7d4e311db22f7
+    Reviewed-on: https://go-review.googlesource.com/126622
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

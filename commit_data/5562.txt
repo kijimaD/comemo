@@ -1,0 +1,16 @@
+commit 0580deafafef1d4f30a9a23b82f3378bf69f8c34
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 28 11:29:27 2010 -0700
+
+    fmt.Scan: add Fscan and Fscanln and make Scan and Scanln
+    read from standard input.  Add description of scanning to
+    the package comment.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1390041
+
+ src/pkg/fmt/print.go     | 18 +++++++++++++++++-
+ src/pkg/fmt/scan.go      | 28 ++++++++++++++++++++++++----
+ src/pkg/fmt/scan_test.go | 14 +++++++-------
+ 3 files changed, 48 insertions(+), 12 deletions(-)

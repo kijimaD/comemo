@@ -1,0 +1,24 @@
+commit 8afa8a3374a926eda39e1449842a1c70b1fac37f
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Mar 26 17:00:29 2018 +0100
+
+    cmd/compile: use 32-bit comparisons where possible on s390x
+    
+    We use 32-bit operations for 8- and 16-bit arithmetic, so use them
+    for comparisons too. This won't change performance but it is more
+    consistent and makes testing 8- and 16-bit comparison codegen
+    slightly more straightforward (for follow up CL).
+    
+    Also fix a typo and add some additional double sign and zero
+    extension rules to remove the operations inserted by the comparison
+    rules.
+    
+    Change-Id: I89ec1b0e09cb8be8090cf007be283ad88bba75a4
+    Reviewed-on: https://go-review.googlesource.com/102556
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  93 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 197 +++++++++++++++++++--------
+ 2 files changed, 183 insertions(+), 107 deletions(-)

@@ -1,0 +1,41 @@
+commit cf93b25366aa418dea3eea49a7b85447631c2a1d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 17 14:41:18 2022 -0500
+
+    cmd/link: revise DLL import symbol handling
+    
+    This patch reworks the handling of DLL import symbols in the PE host
+    object loader to ensure that the Go linker can deal with them properly
+    during internal linking.
+    
+    Prior to this point the strategy was to immediately treat an import
+    symbol reference of the form "__imp__XXX" as if it were a reference to
+    the corresponding DYNIMPORT symbol XXX, except for certain special
+    cases. This worked for the most part, but ran into problems in
+    situations where the target ("XXX") wasn't a previously created
+    DYNIMPORT symbol (and when these problems happened, the root cause was
+    not always easy to see).
+    
+    The new strategy is to not do any renaming or forwarding immediately,
+    but to delay handling until host object loading is complete. At that
+    point we make a scan through the newly introduced text+data sections
+    looking at the relocations that target import symbols, forwarding
+    the references to the corresponding DYNIMPORT sym where appropriate
+    and where there are direct refs to the DYNIMPORT syms, tagging them
+    for stub generation later on.
+    
+    Updates #35006.
+    Updates #53540.
+    
+    Change-Id: I2d42b39141ae150a9f82ecc334001749ae8a3b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451738
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/ar.go       |  37 +++++++
+ src/cmd/link/internal/ld/data.go     |  78 +++++++++++++--
+ src/cmd/link/internal/ld/lib.go      |   7 ++
+ src/cmd/link/internal/loadpe/ldpe.go | 187 +++++++++++++++++++++++++++--------
+ 4 files changed, 263 insertions(+), 46 deletions(-)

@@ -1,0 +1,27 @@
+commit 83348f956ec9eeb1a9202d135c680f36d1f39a9c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 15:42:39 2008 -0800
+
+    host and port name lookup
+    
+    R=r,presotto
+    DELTA=1239  (935 added, 281 deleted, 23 changed)
+    OCL=21041
+    CL=21539
+
+ src/lib/net/Makefile                               |  35 +++-
+ src/lib/net/dialgoogle_test.go                     |  89 +++++++++
+ src/lib/net/dnsclient.go                           | 215 +++++++++++++++++++++
+ src/lib/net/dnsconfig.go                           | 109 +++++++++++
+ src/lib/net/dnsmsg.go                              |   8 +
+ src/lib/net/ip.go                                  |  60 +-----
+ src/lib/net/ip_test.go                             |  53 +++++
+ src/lib/net/net.go                                 |  71 +++----
+ src/lib/net/parse.go                               | 156 +++++++++++++++
+ src/lib/net/parse_test.go                          |  46 +++++
+ src/lib/net/port.go                                |  68 +++++++
+ src/lib/net/port_test.go                           |  59 ++++++
+ test/tcpserver.go => src/lib/net/tcpserver_test.go |  49 ++---
+ src/run.bash                                       |   1 +
+ test/dialgoogle.go                                 | 111 -----------
+ 15 files changed, 886 insertions(+), 244 deletions(-)

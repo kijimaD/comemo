@@ -1,0 +1,10 @@
+commit f4f588372d7dd9d3d7e2027e47bc8b55cf06f0d2
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 8 20:23:01 2008 -0700
+
+    Clarify conversions, include making them constructors for arrays etc.
+    
+    SVN=118194
+
+ doc/go_lang.txt | 174 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 87 insertions(+), 87 deletions(-)

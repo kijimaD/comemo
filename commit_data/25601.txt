@@ -1,0 +1,14 @@
+commit 14aacc2fd8abe054ca7e63a141e87b2844623303
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 18 17:55:06 2016 -0500
+
+    runtime: print address as hex in messages
+    
+    Change-Id: I7ccf1b5001d77c4390479f53c0137ab02f98595b
+    Reviewed-on: https://go-review.googlesource.com/18685
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

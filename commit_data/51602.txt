@@ -1,0 +1,22 @@
+commit 0bbd67e52f98ce45e39e9a43e3c87a8c32aabbd2
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 5 09:08:25 2023 -0500
+
+    runtime/pprof: document possibility of empty stacks
+    
+    I spent quite a while determining the cause of empty stacks in
+    profiles and reasoning out why this is okay. There isn't a great place
+    to record this knowledge, but a documentation comment on
+    appendLocsForStack is better than nothing.
+    
+    Updates #51550.
+    
+    Change-Id: I2eefc6ea31f1af885885c3d96199319f45edb4ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460695
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/proto.go | 4 ++++
+ 1 file changed, 4 insertions(+)

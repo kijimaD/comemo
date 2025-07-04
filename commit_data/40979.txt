@@ -1,0 +1,16 @@
+commit a1a67e6312e4639ba9cd5263e7fbabbacd190a5f
+Author: Andrew Stormont <astormont@racktopsystems.com>
+Date:   Wed Dec 11 00:31:44 2019 +0000
+
+    runtime: syscall_forkx on Solaris can return error on success
+    
+    The syscall_forkx function returns the value of errno even on success.  This can be a problem when using cgo where an atfork handler might be registered; if the atfork handler does something which causes errno to be set the caller of syscall_forkx can be misled into thinking the fork has failed.  This causes the various exec functions in the runtime package to hang.
+    
+    Change-Id: Ia1842179226078a0cbbea33d541aa1187dc47f68
+    GitHub-Last-Rev: 4dc4db75c82a826da9a50c323b7e3ddfe46ed6c0
+    GitHub-Pull-Request: golang/go#36076
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210742
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/syscall_solaris.go | 3 +++
+ 1 file changed, 3 insertions(+)

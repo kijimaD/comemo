@@ -1,0 +1,14 @@
+commit 1670da9ee4aabe3a9e35703d5ca34265d2294e99
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 15:58:15 2019 -0500
+
+    test: add a go.mod file in the working directory of nosplit.go
+    
+    Updates #30228
+    
+    Change-Id: I41bbedf15fa51242f69a3b1ecafd0d3191271799
+    Reviewed-on: https://go-review.googlesource.com/c/163518
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ test/nosplit.go | 4 ++++
+ 1 file changed, 4 insertions(+)

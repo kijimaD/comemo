@@ -1,0 +1,31 @@
+commit 4c5a6f9555558cd2809270c907ffb52a698a6a3b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 22 17:38:17 2022 -0700
+
+    go/types, types2: provide error codes where they were missing
+    
+    We need a better approach eventually, but this is ok for now.
+    In go/types, always use _UnsupportedFeature for unavailable
+    version-specific features.
+    
+    Change-Id: I15b47e34eda167db3133bd481aa2f55cf3662c31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433195
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 1 +
+ src/cmd/compile/internal/types2/call.go        | 1 +
+ src/cmd/compile/internal/types2/conversions.go | 1 +
+ src/cmd/compile/internal/types2/decl.go        | 1 +
+ src/cmd/compile/internal/types2/initorder.go   | 1 +
+ src/cmd/compile/internal/types2/labels.go      | 1 +
+ src/cmd/compile/internal/types2/mono.go        | 1 +
+ src/cmd/compile/internal/types2/resolver.go    | 1 +
+ src/cmd/compile/internal/types2/signature.go   | 1 +
+ src/cmd/compile/internal/types2/stmt.go        | 4 ++++
+ src/cmd/compile/internal/types2/struct.go      | 1 +
+ src/cmd/compile/internal/types2/typeset.go     | 2 ++
+ src/go/types/errors.go                         | 4 ++--
+ src/go/types/stmt.go                           | 1 +
+ src/go/types/typexpr.go                        | 2 +-
+ 15 files changed, 20 insertions(+), 3 deletions(-)

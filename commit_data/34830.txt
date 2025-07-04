@@ -1,0 +1,29 @@
+commit 804d03281c04096fca7f73dc33d1d62e09a86892
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Tue Apr 3 00:35:46 2018 -0400
+
+    cmd/go: rebuild as needed when vetting test packages
+    
+    If A's external test package imports B, which imports A, and A's
+    internal test code adds something to A that invalidates anything in A's
+    export data, then we need to build B against the test-augmented version
+    of A before using it to build A's external test package.
+    
+    https://golang.org/cl/92215 taught 'go test' to do this rebuilding
+    properly, but 'go vet' was not taught the same trick when it learned to
+    vet test packages in https://golang.org/cl/87636. This commit moves the
+    necessary logic into the load.TestPackagesFor function so it can be
+    shared by 'go test' and 'go vet'.
+    
+    Fixes #23701.
+    
+    Change-Id: I1086d447eca02933af53de693384eac99a08d9bd
+    Reviewed-on: https://go-review.googlesource.com/104315
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go            |  3 ++-
+ src/cmd/go/internal/load/pkg.go  | 53 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 50 -------------------------------------
+ 3 files changed, 55 insertions(+), 51 deletions(-)

@@ -1,0 +1,19 @@
+commit e7537157a53de8683167a512a67218bd3ea44e39
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 19 02:47:04 2013 +0800
+
+    runtime: fix build for NetBSD/ARM
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/7597046
+
+ src/pkg/runtime/defs_netbsd.go       |  1 +
+ src/pkg/runtime/defs_netbsd_386.go   |  1 -
+ src/pkg/runtime/defs_netbsd_amd64.go |  1 -
+ src/pkg/runtime/defs_netbsd_arm.go   | 39 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/defs_netbsd_arm.h    | 26 +++++++++++++++++++++++-
+ src/pkg/runtime/os_netbsd_arm.c      | 11 +++++-----
+ src/pkg/runtime/signal_netbsd_arm.h  | 37 ++++++++++++++++++----------------
+ src/pkg/runtime/sys_netbsd_arm.s     | 19 ++++++++++++++++++
+ 8 files changed, 110 insertions(+), 25 deletions(-)

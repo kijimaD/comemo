@@ -1,0 +1,19 @@
+commit af12dc5cd5bd0f81f4473207343771ed61b0bcb0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Aug 28 08:22:54 2014 -0700
+
+    mime: Make filename extensions case-insensitive
+    
+    Fixes #8350.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/127380043
+
+ src/pkg/mime/type.go         | 52 ++++++++++++++++++++++++++++++--------------
+ src/pkg/mime/type_plan9.go   |  2 +-
+ src/pkg/mime/type_test.go    | 16 +++++++++-----
+ src/pkg/mime/type_unix.go    |  2 +-
+ src/pkg/mime/type_windows.go |  2 +-
+ 5 files changed, 50 insertions(+), 24 deletions(-)

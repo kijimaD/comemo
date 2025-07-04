@@ -1,0 +1,16 @@
+commit 3928e847bdb9eb04b1fe6f914fff79c5c167b83a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 17 13:34:56 2017 -0700
+
+    net: fix tests for /etc/hosts with entries named "test"
+    
+    Fixes #19592.
+    
+    Change-Id: I8946b33fd36ae1f39bdcc4bf0bd4b5b99618efe8
+    Reviewed-on: https://go-review.googlesource.com/38300
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit db80edde7ddd144388e367c9a8328121c98330ce
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 01:10:55 2012 +0800
+
+    time: during short test, do not bother tickers take longer than expected
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5752058
+
+ src/pkg/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

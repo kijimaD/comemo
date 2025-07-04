@@ -1,0 +1,12 @@
+commit b39487b68d8fcdaac0b83ec606ef7f176f9aabff
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jun 5 15:13:57 2015 -0400
+
+    go/build: add big endian variant of arm and arm64 to goarch list
+    
+    Change-Id: Icda8475a7879d49e3b8b873303eb0bed5dd5a238
+    Reviewed-on: https://go-review.googlesource.com/10792
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/syslist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

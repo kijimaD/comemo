@@ -1,0 +1,34 @@
+commit 26040b1dd7e4e8f7957b2a918c01f3343249c289
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 11:30:07 2025 -0500
+
+    cmd/compile: remove noDuffDevice
+    
+    noDuffDevice was for Plan 9, but Plan 9 doesn't need it anymore.
+    It was also being set in s390x, mips, mipsle, and wasm, but
+    on those systems it had no effect since the SSA rules for those
+    architectures don't refer to it at all.
+    
+    Change-Id: Ib85c0832674c714f3ad5091f0a022eb7cd3ebcdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655878
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules     |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     |  8 ++++----
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  5 ++---
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  6 +++---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/config.go          |  4 ----
+ src/cmd/compile/internal/ssa/rewrite386.go      | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 10 ++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 12 ++++++------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  |  8 ++++----
+ 15 files changed, 69 insertions(+), 85 deletions(-)

@@ -1,0 +1,27 @@
+commit 4469f5446ad754d87afb340f59c213aec2dc4fb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 16 16:56:53 2020 -0400
+
+    compress/flate: fix another deflate Reset inconsistency
+    
+    While investigating #34121, fixed by CL 193605,
+    I discovered another case where Reset was not quite
+    resetting enough.
+    
+    This specific case is not a problem in Reset itself but
+    rather that the Huffman bit writer in one code path
+    is using uninitialized memory left over from a previous
+    block, making the compression not choose the optimal
+    compression method.
+    
+    Fixes #34121.
+    
+    Change-Id: I29245b28214d924e382f91e2c56b4b8a9b7da13d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243140
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/compress/flate/deflate_test.go       | 56 +++++++++++++++++++++++---------
+ src/compress/flate/huffman_bit_writer.go |  1 +
+ 2 files changed, 41 insertions(+), 16 deletions(-)

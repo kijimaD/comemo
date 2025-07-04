@@ -1,0 +1,23 @@
+commit d0964e172b83db45d167b21e93b79fe86b158760
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 15 09:14:12 2023 -0700
+
+    cmd/compile: optimize s==s for strings
+    
+    s==s is always true for strings. This comes up in NaN testing in
+    generic code, where we want x==x to compile completely away except for
+    float types.
+    
+    Fixes #60777
+    
+    Change-Id: I3ce054b5121354de2f9751b010fb409f148cb637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503795
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 47 +++++++++++++++++++++++++
+ test/codegen/strings.go                         | 10 ++++++
+ 3 files changed, 62 insertions(+)

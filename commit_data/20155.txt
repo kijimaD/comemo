@@ -1,0 +1,50 @@
+commit 2c110a11e046920d98fb8b2cb41bfb99a524450b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 27 20:15:05 2014 -0400
+
+    cmd/{ld,link,objdump}, runtime, debug/gosym: move linker-defined symbols into runtime package
+    
+    Fixes #8092.
+    
+    LGTM=rsc
+    R=iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/126790043
+
+ misc/cgo/test/cgo_test.go           |   1 +
+ misc/cgo/test/issue8092.go          |  36 +++++++++++++
+ src/cmd/ld/data.c                   |  98 ++++++++++++++++++------------------
+ src/cmd/ld/lib.c                    |   4 +-
+ src/cmd/ld/pcln.c                   |   2 +-
+ src/cmd/ld/symtab.c                 |  46 ++++++++---------
+ src/cmd/link/auto.go                |  40 +++++++--------
+ src/cmd/link/layout.go              |   6 +--
+ src/cmd/link/pclntab.go             |   2 +-
+ src/cmd/link/pclntab_test.go        |   2 +-
+ src/cmd/link/runtime.go             |   4 +-
+ src/cmd/link/testdata/autosection.6 | Bin 850 -> 942 bytes
+ src/cmd/link/testdata/autosection.s |  22 ++++----
+ src/cmd/link/testdata/dead.6        | Bin 836 -> 854 bytes
+ src/cmd/link/testdata/dead.s        |   3 +-
+ src/cmd/link/testdata/genpcln.go    |   2 +-
+ src/cmd/link/testdata/pclntab.6     | Bin 3799 -> 3809 bytes
+ src/cmd/link/testdata/pclntab.s     |   2 +-
+ src/cmd/objdump/main.go             |   4 +-
+ src/pkg/debug/gosym/symtab.go       |   2 +-
+ src/pkg/runtime/heapdump.c          |  16 +++---
+ src/pkg/runtime/malloc.c            |   4 +-
+ src/pkg/runtime/mem_plan9.c         |   4 +-
+ src/pkg/runtime/mgc0.c              |  28 +++++------
+ src/pkg/runtime/os_dragonfly.c      |   4 +-
+ src/pkg/runtime/os_freebsd.c        |   4 +-
+ src/pkg/runtime/os_linux.c          |   4 +-
+ src/pkg/runtime/os_solaris.c        |  10 ++--
+ src/pkg/runtime/os_windows_386.c    |   4 +-
+ src/pkg/runtime/os_windows_amd64.c  |   4 +-
+ src/pkg/runtime/proc.c              |   4 +-
+ src/pkg/runtime/race.c              |  10 ++--
+ src/pkg/runtime/race_amd64.s        |   4 +-
+ src/pkg/runtime/stubs.goc           |   6 +--
+ src/pkg/runtime/symtab.c            |  36 ++++++-------
+ src/pkg/runtime/symtab.go           |  10 ++--
+ 36 files changed, 232 insertions(+), 196 deletions(-)

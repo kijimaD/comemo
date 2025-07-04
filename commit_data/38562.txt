@@ -1,0 +1,27 @@
+commit f24e1099cb28d5ab793e5259c6ee2733227eb2f2
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Wed Mar 27 07:36:27 2019 -0400
+
+    bytes: make TrimSpace return nil on all-space input
+    
+    Issue #29122 introduced a subtle regression due to the way that
+    TrimFuncLeft is written: previously TrimSpace returned nil when given
+    an input of all whitespace, but with the #29122 changes it returned an
+    empty slice on all-space input.
+    
+    This change adds a special case to the new, optimized TrimSpace to go
+    back to that behavior. While it is odd behavior and people shouldn't be
+    relying on these functions returning a nil slice in practice, it's not
+    worth the breakage of code that does.
+    
+    This tweak doesn't change the TrimSpace benchmarks significantly.
+    
+    Fixes #31038
+    
+    Change-Id: Idb495d02b474054d2b2f593c2e318a7a6625688a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169518
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go      |  5 ++++
+ src/bytes/bytes_test.go | 71 ++++++++++++++++++++++++++++---------------------
+ 2 files changed, 46 insertions(+), 30 deletions(-)

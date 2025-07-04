@@ -1,0 +1,18 @@
+commit fcb75c8695f13d66be0865bf1bc62c12a15788b3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 29 12:15:23 2023 -0400
+
+    runtime: log stderr in TestLockRankGenerated on failure
+    
+    For #62334.
+    
+    Change-Id: I6d93dacc914590ef9c5a034dd4633466ec0bde8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524056
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/lockrank_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

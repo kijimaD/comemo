@@ -1,0 +1,16 @@
+commit 442322276067073a83b944340e82feb300561a15
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 18 12:39:00 2014 +0400
+
+    encoding/gob: remove unnecessary receivers
+    Encoder compilation must be enc-independent,
+    because the resulting program is reused across
+    different encoders.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/115860043
+
+ src/pkg/encoding/gob/encode.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit 0ed4576c6ac4faab53221b5690b124a2fb35b39f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 28 20:20:55 2008 -0700
+
+    - update test.sh (caused an error since src/pkg dir is empty now)
+    
+    R=r
+    OCL=17987
+    CL=17987
+
+ usr/gri/pretty/test.sh | 1 -
+ 1 file changed, 1 deletion(-)

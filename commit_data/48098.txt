@@ -1,0 +1,18 @@
+commit 8f374aa27f887d78ef709115c140fd5862691df0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 6 19:33:03 2022 -0800
+
+    runtime: don't assume that 0.25 * 100 is representable as int
+    
+    For the gofrontend, it's not; there are some trailing one bits,
+    which is permitted by the spec.
+    
+    Change-Id: I58f5a5347068bb488306ec8e73da7c59376f1ae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383635
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcpacer.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

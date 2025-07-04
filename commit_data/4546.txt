@@ -1,0 +1,12 @@
+commit ee7c64efe50830eac7ec441ef457e7e8c88e7613
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 18:18:07 2010 -0800
+
+    8c: only refer to extern register variables in MOVL instructions
+    
+    R=ken2
+    https://golang.org/cl/183136
+
+ src/cmd/8c/cgen.c | 6 ++++++
+ src/cmd/8c/sgen.c | 3 ++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

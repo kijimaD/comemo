@@ -1,0 +1,24 @@
+commit 0681b13437e36de582521d5b9f1b4664400312a9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 25 13:18:31 2012 +1000
+
+    bytes: add assembly version of IndexByte for ARM
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkIndexByte32                   459          126  -72.55%
+    BenchmarkIndexByte4K                 52404        10939  -79.13%
+    BenchmarkIndexByte4M              54470800     11177370  -79.48%
+    BenchmarkIndexByte64M           1010803000    178860500  -82.31%
+    
+    benchmark                         old MB/s     new MB/s  speedup
+    BenchmarkIndexByte32                 69.58       252.63    3.63x
+    BenchmarkIndexByte4K                 78.16       374.42    4.79x
+    BenchmarkIndexByte4M                 77.00       375.25    4.87x
+    BenchmarkIndexByte64M                66.39       375.20    5.65x
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6106044
+
+ src/pkg/bytes/asm_arm.s | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

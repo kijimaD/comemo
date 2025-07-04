@@ -1,0 +1,12 @@
+commit 00dd2b4ab92b4491466196d69942ccb9eb5b4721
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 16 16:03:30 2011 +1000
+
+    builtin: correct description of a closed channel.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4896046
+
+ src/pkg/builtin/builtin.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

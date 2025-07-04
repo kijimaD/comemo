@@ -1,0 +1,26 @@
+commit d6b2925923debdf96fa641308e90065686e18e56
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed May 11 16:35:11 2011 +0200
+
+    gc: inline append when len<cap
+    
+    issue 1604
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4313062
+
+ src/cmd/6g/cgen.c              |  38 +++++++++---
+ src/cmd/6g/ggen.c              |  34 +++++++----
+ src/cmd/6g/gsubr.c             |  41 ++++++++++---
+ src/cmd/6g/reg.c               |   5 +-
+ src/cmd/8g/cgen.c              |  40 ++++++++----
+ src/cmd/8g/ggen.c              |  29 ++++++---
+ src/cmd/8g/gsubr.c             |  64 +++++++++++++++----
+ src/cmd/gc/builtin.c.boot      |   3 +
+ src/cmd/gc/runtime.go          |   1 +
+ src/cmd/gc/subr.c              |  12 ++--
+ src/cmd/gc/walk.c              | 136 +++++++++++++++++++++++++++++++++--------
+ src/pkg/runtime/append_test.go |  51 ++++++++++++++++
+ src/pkg/runtime/slice.c        |  77 ++++++++++++++++-------
+ 13 files changed, 419 insertions(+), 112 deletions(-)

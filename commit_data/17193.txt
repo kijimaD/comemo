@@ -1,0 +1,12 @@
+commit d3f36dbfc7dbed2fe93746a563dd253a98547a6b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 21:18:33 2013 +0400
+
+    sync/atomic: add Swap to nil deref test
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12870043
+
+ src/pkg/sync/atomic/atomic_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,12 @@
+commit 8b0fad11e5494a6cb6b474fe2f6d658b71c380de
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 29 15:56:38 2013 +0900
+
+    doc: update front page summary text
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/18080045
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

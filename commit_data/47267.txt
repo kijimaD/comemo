@@ -1,0 +1,27 @@
+commit 256a8fc6ef297f2a2cec0cb7c918f61706b6f9a3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 4 23:13:12 2021 +0000
+
+    sync/atomic: disable GC during TestHammerStoreLoad
+    
+    TestHammerStoreLoad involves a stress test of StorePointer, which has a
+    write barrier. The "pointer" that is being written is not a real value,
+    which is generally fine (though not *really* safe) on 64-bit systems
+    because they never point to an actual object.
+    
+    On 32-bit systems, however, this is much more likely. Because I can't
+    figure out how to rewrite the test such that it still is testing the
+    same conditions but is also using real pointers, just disable the GC
+    during the test, and make sure there isn't one currently in progress.
+    
+    Fixes #49362.
+    
+    Change-Id: If81883fedf06568132e6484f40c820aa69027a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361455
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/sync/atomic/atomic_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

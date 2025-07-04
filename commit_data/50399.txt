@@ -1,0 +1,19 @@
+commit 2c45feb4d7b8d214d10ca7a34f0986b4e3d00ca1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 7 02:04:13 2022 -0700
+
+    test: fix typo in escape_unsafe.go
+    
+    The toStringData test was meant to test reflect.StringHeader, not
+    reflect.SliceHeader. It's not supported to convert *string to
+    *reflect.SliceHeader anyway.
+    
+    Change-Id: Iaa4912eafd241886c6337bd7607cdf2412a15ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428995
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ test/escape_unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

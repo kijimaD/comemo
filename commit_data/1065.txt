@@ -1,0 +1,12 @@
+commit 11a3f759fd2ac22c991e3a90efd02cd36d4875ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 5 15:55:51 2008 -0800
+
+    - temporarily excluding bug118.go, causing pretty trouble
+    
+    R=r
+    OCL=18602
+    CL=18602
+
+ usr/gri/pretty/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

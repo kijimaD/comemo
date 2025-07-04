@@ -1,0 +1,23 @@
+commit 1e12c63aacce3749c4fb649477f9b44f74ebf550
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 27 15:43:52 2023 -0800
+
+    cmd/compile: fix -m=2 output for recursive function with closures
+    
+    ir.VisitFuncsBottomUp returns recursive==true for functions which
+    call themselves. It also returns any closures inside that function.
+    We don't want to report the closures as recursive, as they really
+    aren't. Only the containing function is recursive.
+    
+    Fixes #54159
+    
+    Change-Id: I3b4d6710a389ec1d6b250ba8a7065f2e985bdbe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463233
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go |  2 +-
+ test/fixedbugs/issue54159.go           | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

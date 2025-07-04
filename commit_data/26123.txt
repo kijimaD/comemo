@@ -1,0 +1,23 @@
+commit e28a890d5e91dfa5d0eaeed6bb1b18d9398dfe2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 22:54:46 2016 -0800
+
+    cmd/compile: remove nodesOrNodeListPtr outside of syntax.go
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I2620374b79c61b1e48467b98afe2d7d3beef878b
+    Reviewed-on: https://go-review.googlesource.com/20354
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go  |   6 +-
+ src/cmd/compile/internal/gc/racewalk.go |  26 +--
+ src/cmd/compile/internal/gc/select.go   |   9 +-
+ src/cmd/compile/internal/gc/sinit.go    |  60 +++----
+ src/cmd/compile/internal/gc/subr.go     |  17 +-
+ src/cmd/compile/internal/gc/swt.go      |   4 +-
+ src/cmd/compile/internal/gc/syntax.go   |  12 ++
+ src/cmd/compile/internal/gc/walk.go     | 292 +++++++++++++++-----------------
+ 8 files changed, 214 insertions(+), 212 deletions(-)

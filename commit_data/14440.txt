@@ -1,0 +1,19 @@
+commit aeca7a7cd21cb512ac19fa2f8d0555fb13bdd8f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 13:50:20 2012 -0800
+
+    cmd/api: speed up API check by 2x, caching parser.ParseFile calls
+    
+    Saves 5 seconds on my machine. If Issue 4380 is fixed this
+    clone can be removed.
+    
+    Update #4380
+    
+    R=golang-dev, remyoudompheng, minux.ma, gri
+    CC=golang-dev
+    https://golang.org/cl/6845058
+
+ src/cmd/api/clone.go                  | 251 ++++++++++++++++++++++++++++++++++
+ src/cmd/api/goapi.go                  |  17 ++-
+ src/cmd/api/testdata/src/pkg/p1/p1.go |  22 +++
+ 3 files changed, 289 insertions(+), 1 deletion(-)

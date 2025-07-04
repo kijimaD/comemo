@@ -1,0 +1,18 @@
+commit 2a808826012ecc2165733de186f5e0a569e41619
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 27 23:17:00 2011 +1000
+
+    runtime: use cgo runtime functions to call windows syscalls
+    
+    R=rsc
+    CC=golang-dev, jp, vcc.163
+    https://golang.org/cl/4926042
+
+ src/pkg/runtime/cgocall.c           |  2 +-
+ src/pkg/runtime/mkasmh.sh           |  1 +
+ src/pkg/runtime/runtime.h           | 15 ++++---
+ src/pkg/runtime/windows/386/sys.s   | 42 ++++++++-----------
+ src/pkg/runtime/windows/amd64/sys.s | 81 +++++++++++++++++++++----------------
+ src/pkg/runtime/windows/os.h        |  2 +-
+ src/pkg/runtime/windows/thread.c    | 38 ++++++++---------
+ 7 files changed, 91 insertions(+), 90 deletions(-)

@@ -1,0 +1,12 @@
+commit 15da069a3755d45847dbf9567c75c0165d6ac373
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Feb 4 00:23:01 2010 -0800
+
+    http: use ChunkWriter in Request.Write
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/196079
+
+ src/pkg/http/request.go | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)

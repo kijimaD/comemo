@@ -1,0 +1,15 @@
+commit 8dc0444a04a8a43887b4ca3753ee63b430cf2602
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:17:44 2016 -0400
+
+    cmd/asm, cmd/internal/obj/mips: add an alias of RSB on mips64x
+    
+    Change-Id: I724ce0a48c1aeed14267c049fa415a6fa2fffbcf
+    Reviewed-on: https://go-review.googlesource.com/19864
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go        | 3 +++
+ src/cmd/asm/internal/asm/operand_test.go | 2 +-
+ src/cmd/internal/obj/mips/a.out.go       | 2 +-
+ src/cmd/internal/obj/mips/list0.go       | 4 ++++
+ 4 files changed, 9 insertions(+), 2 deletions(-)

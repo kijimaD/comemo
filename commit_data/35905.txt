@@ -1,0 +1,17 @@
+commit d82256ac11762f9e5069d84065de89919c337d58
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 8 15:28:21 2018 -0400
+
+    runtime: skip TestG0StackOverflow on Android
+    
+    This test is skipped on Linux and should be skipped on Android for the
+    same reason.
+    
+    Change-Id: I753c4788d935bd58874554b455c0d5be2315b794
+    Reviewed-on: https://go-review.googlesource.com/122585
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

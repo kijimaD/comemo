@@ -1,0 +1,19 @@
+commit 9c075b7c71703f6c4d815c5f7d5177476412c2ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 4 17:00:19 2018 -0500
+
+    cmd/go/internal/get: relax pathOK check to allow any letter
+    
+    This fixes a regression of #18660 with the new path checks.
+    
+    Updates #29230
+    
+    Change-Id: I2dd9adab999e7f810e0e746ad8b75ea9622f56e7
+    Reviewed-on: https://team-review.git.corp.google.com/c/370578
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154104
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/get/path.go            | 13 +++++++------
+ src/cmd/go/testdata/script/get_unicode.txt | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 6 deletions(-)

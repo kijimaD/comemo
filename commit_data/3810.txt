@@ -1,0 +1,15 @@
+commit 77334b988c2e3326e652493b3b39e4bcb28142e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:23:20 2009 -0800
+
+    gofmt-ify reflect
+    - the single line structs can be fixed in another round
+    
+    R=rsc
+    http://go/go-review/1016052
+
+ src/pkg/reflect/all_test.go      | 565 +++++++++++++++++++++++++--------------
+ src/pkg/reflect/tostring_test.go |   4 +-
+ src/pkg/reflect/type.go          |   2 +-
+ src/pkg/reflect/value.go         |  87 +++---
+ 4 files changed, 417 insertions(+), 241 deletions(-)

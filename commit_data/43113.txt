@@ -1,0 +1,22 @@
+commit 6f02578f9cff92e6c0fae4d86df01dcf99673c61
+Author: David Chase <drchase@google.com>
+Date:   Fri Sep 25 13:30:51 2020 -0400
+
+    cmd/compile: fix logopt log directory naming for windows
+    
+    Allow Windows absolute paths, also fixed URI decoding on Windows.
+    Added a test, reorganized to make the test cleaner.
+    Also put some doc comments on exported functions that did not have them.
+    
+    Fixes #41614.
+    
+    Change-Id: I2871be0e5183fbd53ffb309896d6fe56c15a7727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257677
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
+
+ src/cmd/compile/internal/logopt/log_opts.go    | 89 ++++++++++++++++++--------
+ src/cmd/compile/internal/logopt/logopt_test.go | 28 ++++++++
+ 2 files changed, 89 insertions(+), 28 deletions(-)

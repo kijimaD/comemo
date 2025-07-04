@@ -1,0 +1,14 @@
+commit 7a4ce23d655fdc6eb8b971b11fb01e1dafd02db6
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 15 12:00:43 2010 +0100
+
+    [68]l and runtime: GDB support for interfaces and goroutines.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3477041
+
+ src/cmd/ld/dwarf.c              |  30 ++++-
+ src/pkg/runtime/runtime-gdb.py  | 250 +++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/runtime_defs.go |  34 +++---
+ 3 files changed, 280 insertions(+), 34 deletions(-)

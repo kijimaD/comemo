@@ -1,0 +1,19 @@
+commit a2381f59662f8118c5cd78baaa90e8b186947e8f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 17 22:32:27 2018 +1100
+
+    cmd/doc: fix repeated header bug added in previous CL
+    
+    One too many lines was deleted, and it would print a header multiple times.
+    Add a test.
+    
+    Change-Id: I4906b454dbb66193d515ffacf43849ffdc2dede6
+    Reviewed-on: https://go-review.googlesource.com/c/142937
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go | 3 +++
+ src/cmd/doc/pkg.go      | 1 +
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,35 @@
+commit c468ad04177c422534ad1ed4547295935f84743d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu May 16 01:03:10 2019 +0200
+
+    syscall/js: replace TypedArrayOf with CopyBytesToGo/CopyBytesToJS
+    
+    The typed arrays returned by TypedArrayOf were backed by WebAssembly
+    memory. They became invalid each time we grow the WebAssembly memory.
+    This made them very error prone and hard to use correctly.
+    
+    This change removes TypedArrayOf completely and instead introduces
+    CopyBytesToGo and CopyBytesToJS for copying bytes between a byte
+    slice and an Uint8Array. This breaking change is still allowed for
+    the syscall/js package.
+    
+    Fixes #31980.
+    Fixes #31812.
+    
+    Change-Id: I14c76fdd60b48dd517c1593972a56d04965cb272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177537
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js        |  29 ++++++++++-
+ src/crypto/cipher/xor_test.go |   5 --
+ src/crypto/rand/rand_js.go    |   5 +-
+ src/net/http/roundtrip_js.go  |  18 ++++---
+ src/syscall/fs_js.go          |  22 ++-------
+ src/syscall/js/js.go          |  29 ++++++++++-
+ src/syscall/js/js_js.s        |   8 ++++
+ src/syscall/js/js_test.go     |  74 +++++++++++++++++++---------
+ src/syscall/js/typedarray.go  | 109 ------------------------------------------
+ 9 files changed, 131 insertions(+), 168 deletions(-)

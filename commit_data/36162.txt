@@ -1,0 +1,22 @@
+commit d3c3aaa61f7598f275f30fabd3749379fe0f2720
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 31 17:09:49 2018 +0000
+
+    net/http: revert CL 89275 (don't sniff Content-Type when nosniff set)
+    
+    Also updates the bundled http2 to x/net/http2 git rev 49c15d80 for:
+    
+       http2: revert CL 107295 (don't sniff Content-type in Server when nosniff)
+       https://golang.org/cl/126895
+    
+    Fixes #24795
+    
+    Change-Id: I6ae1a21c919947089274e816eb628d20490f83ce
+    Reviewed-on: https://go-review.googlesource.com/126896
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/go1.11.html            |  5 +----
+ src/net/http/h2_bundle.go  | 10 +---------
+ src/net/http/serve_test.go | 20 --------------------
+ src/net/http/server.go     | 10 +---------
+ 4 files changed, 3 insertions(+), 42 deletions(-)

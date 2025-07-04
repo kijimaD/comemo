@@ -1,0 +1,26 @@
+commit c16c2c49e2fa98ae551fc6335215fadd62d33542
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 10 15:59:12 2023 -0500
+
+    cmd/go: shorten TestScript/test_shuffle and skip it in short mode
+    
+    test_shuffle was added in CL 310033. It takes about 4½ seconds on my
+    workstation prior to this CL, most of which is spent linking and
+    running test binaries in 'go test'.
+    
+    We can reduce that time somewhat (to 3¾ seconds) by simply running the
+    test fewer times (cases of 'off', 'on', positive, zero, and negative
+    values seem sufficient), but we should also avoid that linking
+    overhead at all in short mode.
+    
+    Fixes #57709.
+    
+    Change-Id: I908a70435ccfb1ca16ed23aec17512bf2b267b21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/go/testdata/script/test_shuffle.txt | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

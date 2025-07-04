@@ -1,0 +1,24 @@
+commit 4832bf8bde9df6695f6f4e15a7885a1609bb579f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Feb 14 23:42:24 2019 +0100
+
+    debug/elf: perform stricter section header table checks in NewFile
+    
+    If an ELF file has no section header table (shoff = 0), shnum must be
+    zero as well according to elf(5).
+    
+    So far, when only shnum was zero but shoff was non-zero (i.e. in an
+    invalid ELF file) shstrndx wasn't properly checked and could result in
+    an 'index out of range' later on.
+    
+    Fixes #10996
+    
+    Change-Id: Ic248d2d77099b0036458e2a844b086a5f463c844
+    Reviewed-on: https://go-review.googlesource.com/c/162857
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/file.go      |  7 +++++--
+ src/debug/elf/file_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

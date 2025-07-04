@@ -1,0 +1,21 @@
+commit f3ce054a44a84795bec8a8155c8997226b113f76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 12 21:24:49 2016 -0800
+
+    cmd/go: fixes for -compiler=gccgo -buildmode=c-shared
+    
+    Install pkg.h rather than libpkg.h.
+    
+    Link against -lc.
+    
+    Fixes #13860.
+    
+    Change-Id: I4e429426f8363712a5dbbd2655b9aab802ab2888
+    Reviewed-on: https://go-review.googlesource.com/18592
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

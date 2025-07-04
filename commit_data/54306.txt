@@ -1,0 +1,23 @@
+commit c56f463412428f8a4d06bf67da9059b389c8d526
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue May 9 11:29:51 2023 +0300
+
+    runtime: optimize growslice
+    
+    This is tiny optimization for growslice, which is probably too small to
+    measure easily.
+    
+    Move the for loop to avoid multiple checks inside the loop.
+    Also, use >> 2 instead of /4, which generates fewer instructions.
+    
+    Change-Id: I9ab09bdccb56f98ab22073f23d9e102c252238c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493795
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Egon Elbre <egonelbre@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/slice.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

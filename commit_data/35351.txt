@@ -1,0 +1,23 @@
+commit 0f2d4d00088486297d013fce6235ad0ac01f033e
+Author: Gustav Westling <zegl@westling.xyz>
+Date:   Wed May 9 21:02:14 2018 +0000
+
+    encoding/base32: handle surplus padding consistently
+    
+    This changes decoder.Read to always return io.ErrUnexpectedEOF if the input
+    contains surplus padding or unexpected content. Previously the error could
+    be io.EOF or io.ErrUnexpectedEOF depending on how the input was chunked.
+    
+    Fixes #25296
+    
+    Change-Id: I07c36c35e6c83e795c3991bfe45647a35aa58aa4
+    GitHub-Last-Rev: 818dfda90b0edf9fc415da4579c5810268c1cdba
+    GitHub-Pull-Request: golang/go#25319
+    Reviewed-on: https://go-review.googlesource.com/112516
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/base32/base32.go      |  5 +++
+ src/encoding/base32/base32_test.go | 80 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

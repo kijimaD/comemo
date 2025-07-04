@@ -1,0 +1,19 @@
+commit ddc64def0f3e8cfdd5e6705e5f1c454a8d5e24d4
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 17 13:38:10 2017 -0700
+
+    spec: explicitly state the import path for package unsafe
+    
+    Nowhere in the spec did we mention the import path for package
+    unsafe. Now we do.
+    
+    Fixes #22308.
+    
+    Change-Id: Ifd42c873188e898c597cdee4284e7a9d234a9282
+    Reviewed-on: https://go-review.googlesource.com/71373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

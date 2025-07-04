@@ -1,0 +1,13 @@
+commit 12d4847263ffb016371f4b03f91be5f0caad1ad2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 3 14:10:12 2012 +1100
+
+    A+C: add Sanjay Menakuru
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5504110
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

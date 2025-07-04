@@ -1,0 +1,12 @@
+commit f083a0e364445a9d841ccae732a0391a9e4ddd09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 17:17:38 2015 -0800
+
+    math/big: add "smoke test" for big.Float division
+    
+    Change-Id: Ica419a1215ca33dc1cff1e9e4137f204591e3cee
+    Reviewed-on: https://go-review.googlesource.com/3942
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

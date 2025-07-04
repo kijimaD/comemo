@@ -1,0 +1,17 @@
+commit 41ff456f69218787606d374b01071168f27ebdf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 12:33:51 2014 -0400
+
+    cmd/dist: mark cmd/link and debug/goobj as unreleased
+    
+    These are not ready and will not be in Go 1.3.
+    
+    Fixes #6932.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, minux.ma
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/87630043
+
+ src/cmd/dist/build.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,20 @@
+commit 4cff104771fb6bffcf4d2bb9937aea3ff95be593
+Author: Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+Date:   Thu Sep 14 23:06:20 2017 -0700
+
+    cmd/compile: fix print/println when input is uint
+    
+    Fixes #21887
+    
+    Change-Id: I30e8e03ecfb67a2c4deedc2c8436da4c4782136d
+    Reviewed-on: https://go-review.googlesource.com/63971
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  4 ++--
+ test/fixedbugs/issue21887.go        | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue21887.out       |  2 ++
+ test/print.go                       | 14 +++++++++++++-
+ test/print.out                      | 10 ++++++++++
+ 5 files changed, 52 insertions(+), 3 deletions(-)

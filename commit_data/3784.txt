@@ -1,0 +1,11 @@
+commit 398f220d5b11c95278ef50f49ccc97da57ffd277
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 20:42:40 2009 -0800
+
+    gofmt-ify os
+    
+    R=r
+    http://go/go-review/1017034
+
+ src/pkg/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

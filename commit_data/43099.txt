@@ -1,0 +1,18 @@
+commit 23cc16cdd2fbda37dd54de944462f57795da7bd2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 12:44:19 2020 -0700
+
+    spec: better variable name for operator example
+    
+    Suggested by @yaxinlx.
+    
+    Fixes #41612.
+    
+    Change-Id: I98b9968a95d090ee3c67ff02678e1874e6d98c33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257159
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

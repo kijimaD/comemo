@@ -1,0 +1,35 @@
+commit 5b765ce310c594276ea919a9cb455cc894fee999
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 14:08:10 2016 -0500
+
+    runtime: don't clear gcscanvalid in casfrom_Gscanstatus
+    
+    Currently we clear gcscanvalid in both casgstatus and
+    casfrom_Gscanstatus if the new status is _Grunning. This is very
+    important to do in casgstatus. However, this is potentially wrong in
+    casfrom_Gscanstatus because in this case the caller doesn't own gp and
+    hence the write is racy. Unlike the other _Gscan statuses, during
+    _Gscanrunning, the G is still running. This does not indicate that
+    it's transitioning into a running state. The scan simply hasn't
+    happened yet, so it's neither valid nor invalid.
+    
+    Conveniently, this also means clearing gcscanvalid is unnecessary in
+    this case because the G was already in _Grunning, so we can simply
+    remove this code. What will happen instead is that the G will be
+    preempted to scan itself, that scan will set gcscanvalid to true, and
+    then the G will return to _Grunning via casgstatus, clearing
+    gcscanvalid.
+    
+    This fix will become necessary shortly when we start keeping track of
+    the set of G's with dirty stacks, since it will no longer be
+    idempotent to simply set gcscanvalid to false.
+    
+    Change-Id: I688c82e6fbf00d5dbbbff49efa66acb99ee86785
+    Reviewed-on: https://go-review.googlesource.com/20669
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go  | 3 ---
+ src/runtime/stack.go | 1 +
+ 2 files changed, 1 insertion(+), 3 deletions(-)

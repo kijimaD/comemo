@@ -1,0 +1,16 @@
+commit dec248c6654cde9f556780c64769628920827e92
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 6 16:58:52 2010 -0700
+
+    change channel read to clear
+    data just read from the channel.
+    this will make it easier to
+    recognize when to garbage
+    collect and finalize.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/882043
+
+ src/pkg/runtime/chan.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 2463a49ebb5e3b065609555ca81757b30062d912
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Mon Apr 17 16:13:59 2017 -0500
+
+    cmd/cgo: reject references to builtin functions other than calls
+    
+    Here we restrict using cgo builtin references because internally they're go functions
+    as opposed to C usafe.Pointer values.
+    
+    Fixes #18889
+    
+    Change-Id: I1e4332e4884063ccbaf9772c172d4462ec8f3d13
+    Reviewed-on: https://go-review.googlesource.com/40934
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/errors/issue18889.go | 7 +++++++
+ misc/cgo/errors/test.bash     | 1 +
+ src/cmd/cgo/gcc.go            | 4 ++++
+ 3 files changed, 12 insertions(+)

@@ -1,0 +1,20 @@
+commit 2a01b9d46e2e9f9f1fd8e326fc34f08176d03f6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 15:20:15 2009 -0700
+
+    - improved formatting of declarations
+    - improved formatting of struct and interface types
+    
+    R=rsc
+    DELTA=471  (364 added, 47 deleted, 60 changed)
+    OCL=34747
+    CL=34751
+
+ src/pkg/go/printer/printer.go                   | 151 +++++++++++-----------
+ src/pkg/go/printer/testdata/comments.golden     |  16 +--
+ src/pkg/go/printer/testdata/comments.x          |   6 +-
+ src/pkg/go/printer/testdata/declarations.go     | 160 +++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/declarations.golden | 158 ++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/expressions.golden  |  10 +-
+ src/pkg/go/printer/testdata/linebreaks.golden   |   4 +-
+ 7 files changed, 411 insertions(+), 94 deletions(-)

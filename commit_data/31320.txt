@@ -1,0 +1,13 @@
+commit 3fd976deca62debf355656772d3e9246102f5ad3
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Feb 17 11:57:46 2017 -0500
+
+    net/http: document Shutdown/Serve return behavior
+    
+    Change-Id: I9cdf6e7da0fb2d5194426eafa61812ea7a85f52f
+    Reviewed-on: https://go-review.googlesource.com/37161
+    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

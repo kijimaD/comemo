@@ -1,0 +1,17 @@
+commit 87056756141798b4dfd51dcaaa3e4ce63633a884
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Mar 21 08:50:04 2024 -0700
+
+    runtime/cgo: fix clang mach_port_t cast warning
+    
+    Converting *void directly to mach_port_t causes newer clang to throw a
+    void-pointer-to-int-cast warning/error.
+    
+    Change-Id: I709955d4678bed3f690a8337ce85fd8678d217bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573415
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgo/gcc_signal_ios_arm64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit c3e0dc23fbca3ad168502f688e7c3f1882f62b73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 14:46:59 2016 -0700
+
+    go/importer: handle multiple imports of the same object
+    
+    Before aliases, and because we chose a simple export format for them,
+    a package may now export the same object more than once if there are
+    multiple exported aliases referring to that object. The go/importer
+    made the assumption this couldn't happen. Adjust it.
+    
+    Fixes #17726.
+    
+    Change-Id: Ibb9fc669a8748200b45ad78934d7453e5a5aad82
+    Reviewed-on: https://go-review.googlesource.com/32538
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/bimport.go | 62 ++++++++++++++++++++++++++---------
+ src/go/types/api_test.go              | 11 ++++---
+ src/go/types/testdata/alias.go        |  3 +-
+ 3 files changed, 56 insertions(+), 20 deletions(-)

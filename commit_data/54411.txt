@@ -1,0 +1,34 @@
+commit 70fc87ee24d9220031b31b6f81a0e1e1758e8b8f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 14:31:55 2023 -0700
+
+    cmd/compile: rename OEFACE to OMAKEFACE and remove OCONVIDATA
+    
+    The "eface" in OEFACE suggests it's only for empty interfaces, and the
+    documentation suggests that too. But it's actually used for both empty
+    and non-empty interfaces, so rename to OMAKEFACE and adjust docs
+    accordingly.
+    
+    Also, remove OCONVIDATA. This was used by the 1.18 frontend for
+    constructing interfaces containing derived types, but the unified
+    frontend always uses OCONVIFACE instead, so this is unused now.
+    
+    Change-Id: I6ec5c62f909b26027f2804e5b3373b7a00029246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527336
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/escape/expr.go         |   4 +-
+ src/cmd/compile/internal/ir/expr.go             |   4 +-
+ src/cmd/compile/internal/ir/fmt.go              |   4 +-
+ src/cmd/compile/internal/ir/node.go             |   7 +-
+ src/cmd/compile/internal/ir/op_string.go        | 217 ++++++++++++------------
+ src/cmd/compile/internal/reflectdata/helpers.go |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go          |   2 +-
+ src/cmd/compile/internal/walk/assign.go         |   1 -
+ src/cmd/compile/internal/walk/convert.go        |  10 +-
+ src/cmd/compile/internal/walk/expr.go           |   6 +-
+ src/cmd/compile/internal/walk/order.go          |   4 +-
+ src/cmd/compile/internal/walk/walk.go           |   2 +-
+ 12 files changed, 125 insertions(+), 140 deletions(-)

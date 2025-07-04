@@ -1,0 +1,15 @@
+commit 466a8915e3274c8b33d82c68c187bd6c5653d80e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 1 13:40:24 2017 -0800
+
+    net/smtp: skip flaky TestTLSClient on freebsd/amd64
+    
+    Updates #19229
+    
+    Change-Id: Ibe1ea090ac064c7eb5abd225214ab43744bafbc4
+    Reviewed-on: https://go-review.googlesource.com/37653
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/smtp/smtp_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

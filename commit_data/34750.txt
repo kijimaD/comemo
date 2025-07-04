@@ -1,0 +1,17 @@
+commit c53ff2818a453bd47c937c78e37c6e057bb653c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 28 14:42:05 2018 -0700
+
+    bufio: document ReadFrom/WriteTo calls to underlying methods
+    
+    In general use of these magic methods must be documented so that
+    users understand what will happen.
+    
+    Fixes #23289
+    
+    Change-Id: Ic46915eee1d3b7e57d8d1886834ddfb2e8e66e62
+    Reviewed-on: https://go-review.googlesource.com/103238
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/bufio.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit bac1cc0d1675a0e958b366837e6230f4f09c2a5b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 14 19:39:17 2017 +0900
+
+    debug/macho: add relocation types
+    
+    Fixes #21435
+    
+    Change-Id: I5f8d93a45b84a871ceea881ecb1a38a37e96006c
+    Reviewed-on: https://go-review.googlesource.com/55263
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/file_test.go        |  9 +++++
+ src/debug/macho/reloctype.go        | 72 +++++++++++++++++++++++++++++++++++++
+ src/debug/macho/reloctype_string.go | 49 +++++++++++++++++++++++++
+ 3 files changed, 130 insertions(+)

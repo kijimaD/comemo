@@ -1,0 +1,14 @@
+commit 0f5d78f6784a728c3544282faebdcf5689d478ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 21 15:49:52 2016 -0800
+
+    cmd/compile: factor shared code from geneq and genhash
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ifae69e5ba673f01da3dfc1fd30cdc51873481623
+    Reviewed-on: https://go-review.googlesource.com/19840
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 77 +++++++++++++++++--------------------
+ 1 file changed, 36 insertions(+), 41 deletions(-)

@@ -1,0 +1,14 @@
+commit c1ed7d7d25afa04f1de71ffb3ea49cd488e947b2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 13 20:37:24 2009 -0700
+
+    enable test and fix bug in white space before {
+    
+    R=rsc
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=27404
+    CL=27404
+
+ src/lib/template/template.go      |  2 +-
+ src/lib/template/template_test.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

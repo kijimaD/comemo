@@ -1,0 +1,13 @@
+commit 391355011052768ca574693632f93c5779add280
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 13:37:35 2009 -0700
+
+    fix memset in fmtnull.
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31863
+    CL=31870
+
+ src/lib9/fmt/fmtnull.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

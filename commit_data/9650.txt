@@ -1,0 +1,14 @@
+commit 3e42de29c98016ce277f7382cc3434f5e4a8f57f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 12 10:21:35 2011 +0200
+
+    exp/norm: fixed typo. Bug exposed by gomake testtables. Changes did not affect other tests
+    as this part of Hangul is handled algorithmically.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4951074
+
+ src/pkg/exp/norm/maketables.go |  2 +-
+ src/pkg/exp/norm/tables.go     | 20 ++++++--------------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

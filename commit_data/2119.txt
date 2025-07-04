@@ -1,0 +1,13 @@
+commit 10817ab9d28ea73d7560e2d7dc7bb23c2a9ea81c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 30 13:40:55 2009 -0700
+
+    better error messages, not that anyone ever sees them
+    
+    R=r
+    DELTA=30  (9 added, 1 deleted, 20 changed)
+    OCL=28104
+    CL=28117
+
+ src/lib/time/zoneinfo.go | 48 ++++++++++++++++++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)

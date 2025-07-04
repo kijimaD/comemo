@@ -1,0 +1,20 @@
+commit 0915a19a115ba6bd2a5a95178bfaa076041d270b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 5 14:49:25 2019 -0800
+
+    sync: deflake TestWaitGroupMisuse3
+    
+    If one of the helper goroutine panics, the main goroutine call to Wait
+    may hang forever waiting for something to call Done. Put that call in
+    a goroutine like the others.
+    
+    Fixes #35774
+    
+    Change-Id: I8d2b58d8f473644a49a95338f70111d4e6ed4e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210218
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/sync/waitgroup_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

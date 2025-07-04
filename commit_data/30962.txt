@@ -1,0 +1,21 @@
+commit 8ab71304d4f02e4280eb5c04422cdec5feb27c11
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 12:16:29 2017 -0700
+
+    cmd/compile: use newnamel in typenamesym
+    
+    The node in typenamesym requires neither
+    a position nor a curfn.
+    
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I6d39a8961e5578fe5924aaceb29045b6de2699df
+    Reviewed-on: https://go-review.googlesource.com/39194
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 3f8b04bfb541127704ec5c33a52294fe3c6ebea4
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Jul 6 13:06:44 2023 -0400
+
+    log/slog: change XXXCtx functions to XXXContext
+    
+    Fixes #61200.
+    
+    Change-Id: I3071dbf673bcd2d24e62644b40d481c953703978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508195
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/go1.21.txt              | 16 ++++++++--------
+ src/log/slog/doc.go         |  4 ++--
+ src/log/slog/logger.go      | 32 ++++++++++++++++----------------
+ src/log/slog/logger_test.go | 16 ++++++++--------
+ 4 files changed, 34 insertions(+), 34 deletions(-)

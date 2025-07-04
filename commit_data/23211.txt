@@ -1,0 +1,17 @@
+commit 6298bbec7068ff6ad013782d2a5b8a2f7e50ad81
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 28 09:57:57 2015 -0700
+
+    cmd/go: convert one test from test.bash to Go
+    
+    Sending out the conversion of a single test to get comments on the
+    overall approach.  Converting more tests will follow.
+    
+    Change-Id: I4755442d08aeb6f74c46856ae406fec41cf8d5dc
+    Reviewed-on: https://go-review.googlesource.com/10464
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 156 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/test.bash  |  15 -----
+ 2 files changed, 156 insertions(+), 15 deletions(-)

@@ -1,0 +1,22 @@
+commit a776087ee3b5780975b51db6a5d66cb7be7c50d4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jun 30 15:44:25 2017 -0700
+
+    runtime: allow calling Func.Name on nil pointer
+    
+    The Func type has allowed calling the Func.Name method on a nil pointer
+    since Go1.2, where it returned an empty string. A regression caused by
+    CL/37331 caused this behavior to change. This breaks code that lazily
+    does runtime.FuncForPC(myPtr).Name() without first checking that myPtr
+    is actually non-nil.
+    
+    Fixes #20872
+    
+    Change-Id: Iae9a2ebabca5e9d1f5a2cdaf2f30e9c6198fec4f
+    Reviewed-on: https://go-review.googlesource.com/47354
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/symtab.go      |  3 +++
+ src/runtime/symtab_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

@@ -1,0 +1,19 @@
+commit 4b76a31c6d9fd9dd0c58b46a71c10d5061ed39eb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 14:18:58 2013 -0800
+
+    runtime: don't crash in SetFinalizer if sizeof *x is zero
+    
+    And document it explicitly, even though it already said
+    it wasn't guaranteed.
+    
+    Fixes #6857
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/43580043
+
+ src/pkg/runtime/extern.go      | 3 +++
+ src/pkg/runtime/malloc.goc     | 5 ++++-
+ src/pkg/runtime/mfinal_test.go | 7 +++++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

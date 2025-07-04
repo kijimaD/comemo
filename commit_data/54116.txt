@@ -1,0 +1,27 @@
+commit 9ac6b00e79312e5ad4665acc063ac7b77becddf8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 19:40:33 2023 -0700
+
+    cmd/compile/internal/typecheck: add selector helpers
+    
+    This CL refactors common patterns for constructing field and method
+    selector expressions. Notably, XDotField and XDotMethod are now the
+    only two functions where a SelecterExpr with OXDOT is constructed.
+    
+    Change-Id: I4c087225d8b295c4a6a92281ffcbcabafe2dc94d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520979
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/compare/compare.go        | 28 +++++------
+ .../compile/internal/devirtualize/devirtualize.go  |  4 +-
+ src/cmd/compile/internal/devirtualize/pgo.go       |  2 +-
+ src/cmd/compile/internal/noder/helpers.go          | 24 ----------
+ src/cmd/compile/internal/noder/reader.go           | 12 ++---
+ src/cmd/compile/internal/reflectdata/alg.go        |  6 +--
+ src/cmd/compile/internal/typecheck/expr.go         | 55 ++++++++++++++++++++++
+ src/cmd/compile/internal/walk/convert.go           |  2 +-
+ 8 files changed, 79 insertions(+), 54 deletions(-)

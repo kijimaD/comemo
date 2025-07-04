@@ -1,0 +1,19 @@
+commit b72a4a07c257f394f5a96dff29a4fc862601a41f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Sep 30 13:35:03 2015 -0700
+
+    encoding/binary: document that Read returns io.EOF iff zero bytes are read
+    
+    Also add a unit test to lock this behavior into the API.
+    
+    Fixes #12016
+    
+    Change-Id: Ib6ec6e7948f0705f3504ede9143b5dc4e790fc44
+    Reviewed-on: https://go-review.googlesource.com/15171
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/binary/binary.go      |  4 ++++
+ src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

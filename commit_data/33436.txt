@@ -1,0 +1,20 @@
+commit 03ed6ac2dc62d160ea8be18927433380483c055c
+Author: Anmol Sethi <anmol@aubble.com>
+Date:   Thu Oct 19 18:29:43 2017 -0400
+
+    crypto/x509/pkix: consider now==NextUpdate to be expired.
+    
+    If the current time is equal to the NextUpdate time, then the CRL
+    should be considered expired.
+    
+    Fixes #22568.
+    
+    Change-Id: I55bcc95c881097e826d43eb816a43b9b377b0265
+    Reviewed-on: https://go-review.googlesource.com/71972
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/pkix/pkix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit bdbea6e41029bd4d4efd2265710c70ccfe36239a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 21:10:02 2011 -0500
+
+    arm: fix build
+    
+    Changes on laptop were not sync'ed to machine
+    where I ran hg submit.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4195048
+
+ src/cmd/5l/noop.c      |  2 +-
+ src/pkg/runtime/chan.c | 23 ++++++++++++-----------
+ 2 files changed, 13 insertions(+), 12 deletions(-)

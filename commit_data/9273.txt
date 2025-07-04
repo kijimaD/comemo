@@ -1,0 +1,13 @@
+commit 6ed27d4770c8141e31c665089772090117c32b97
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Aug 1 09:03:35 2011 -0700
+
+    exp/template: make index function on maps return zero value when key not present.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4808065
+
+ src/pkg/exp/template/exec_test.go | 2 +-
+ src/pkg/exp/template/funcs.go     | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

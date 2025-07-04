@@ -1,0 +1,15 @@
+commit 73374c93a694dd04b5d77142d068076b5a241cab
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Apr 19 19:07:22 2010 -0700
+
+    big: Get rid of function pointers and init function
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/929041
+
+ src/pkg/big/arith.go      | 60 ++++++-----------------------------------------
+ src/pkg/big/arith_386.s   | 30 ++++++++++++------------
+ src/pkg/big/arith_amd64.s | 28 +++++++++++-----------
+ src/pkg/big/arith_arm.s   | 14 +++++------
+ 4 files changed, 43 insertions(+), 89 deletions(-)

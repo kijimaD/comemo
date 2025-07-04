@@ -1,0 +1,16 @@
+commit 9be36ba7b46c71e9b58c71cfb75a890c3ed4e8a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 08:34:09 2019 -0700
+
+    go.sum: add golang.org/x/tools sum
+    
+    The go.mod sum was present, but not the module sum.
+    
+    Change-Id: I7def303bf4507a88dfa1bb0502116efde4d64b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203882
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go.sum | 1 +
+ 1 file changed, 1 insertion(+)

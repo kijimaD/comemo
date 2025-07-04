@@ -1,0 +1,19 @@
+commit 20a71c9a1d7e0d246dfad2c2a2057c954324217d
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Sep 6 15:17:11 2021 +0800
+
+    cmd/internal/sys: fix placement of loong64 definition
+    
+    In rebasing the patch series up to CL 339015, the branches were messed
+    up by me, and changes from v3 to v4 of CL 339009 was lost. Fix the
+    ordering to restore alphabetical order per original review.
+    
+    Change-Id: I8e57c96e996c4f962cab684a9d305a8dbdeea43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347731
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/internal/sys/arch.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

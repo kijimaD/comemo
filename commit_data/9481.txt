@@ -1,0 +1,14 @@
+commit 297a08ea661ee747e105dd6350ac5262be2168df
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 25 10:16:11 2011 +1000
+
+    gofix: forgot to rename the URL type
+    Fixes #2182
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4952041
+
+ src/cmd/gofix/url.go      | 1 +
+ src/cmd/gofix/url_test.go | 2 ++
+ 2 files changed, 3 insertions(+)

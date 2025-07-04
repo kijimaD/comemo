@@ -1,0 +1,14 @@
+commit 2b7a08c3c79030b07290f2f71033443273f8a5f0
+Author: André Carvalho <asantostc@gmail.com>
+Date:   Sat Jul 15 14:42:31 2017 -0300
+
+    os/exec: add example for Cmd.Run
+    
+    Change-Id: Ic47198bc8bf5baabfcf4d0599825eab30d7b126c
+    Reviewed-on: https://go-review.googlesource.com/48853
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

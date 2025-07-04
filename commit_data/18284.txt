@@ -1,0 +1,14 @@
+commit 98178b345ac7c4fb711e3327b16b1230cdab9d25
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 17:42:24 2014 -0500
+
+    runtime: fix TestLFStackStress
+    
+    Fixes #7138.
+    
+    R=r, bradfitz, dave
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/53910043
+
+ src/pkg/runtime/lfstack_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

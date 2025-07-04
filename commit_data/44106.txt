@@ -1,0 +1,22 @@
+commit 6728118e0ae2658e758a64fe86e2e1a3aa55268c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 11:21:37 2021 -0500
+
+    cmd/go: pass signals forward during "go tool"
+    
+    This way, if a SIGINT is sent to the go command,
+    it is forwarded on to the underlying tool.
+    
+    Otherwise trying to use os.Process.Signal to kill
+    "go tool compile" only kills the "go tool" not the "compile".
+    
+    Change-Id: Iac7cd4f06096469f5e76164df813a379c0da3822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282312
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/tool/tool.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

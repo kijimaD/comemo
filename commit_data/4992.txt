@@ -1,0 +1,22 @@
+commit 3e4e4ec70455ed2122377be894acde07cbc46934
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 4 17:04:50 2010 -0800
+
+    goinstall: an experiment in (external) package installation
+    
+    R=adg, r
+    CC=cw, golang-dev
+    https://golang.org/cl/224043
+
+ misc/dashboard/godashboard/app.yaml   |   3 +
+ misc/dashboard/godashboard/package.py | 132 +++++++++++++++++++++
+ src/cmd/clean.bash                    |   2 +-
+ src/cmd/goinstall/Makefile            |  14 +++
+ src/cmd/goinstall/doc.go              |  75 ++++++++++++
+ src/cmd/goinstall/download.go         | 163 ++++++++++++++++++++++++++
+ src/cmd/goinstall/main.go             | 213 ++++++++++++++++++++++++++++++++++
+ src/cmd/goinstall/make.go             |  67 +++++++++++
+ src/cmd/goinstall/parse.go            |  72 ++++++++++++
+ src/cmd/make.bash                     |   5 +-
+ src/make.bash                         |   2 +-
+ 11 files changed, 745 insertions(+), 3 deletions(-)

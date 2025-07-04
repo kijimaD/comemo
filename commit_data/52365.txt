@@ -1,0 +1,20 @@
+commit acce3abb7e1c39bc867d6e6dd2277451bd41d53a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 14:29:05 2023 -0700
+
+    cmd/compile/internal/types2: avoid unpacking single-value LHS
+    
+    For ++/-- statements, we know that syntax.AssignStmt.Lhs is a
+    single expression. Avoid unpacking (and allocating a slice) in
+    that case. Minor optimization.
+    
+    Change-Id: I6615fd12277b1cd7d4f8b86e0b9d39f27708c13e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477915
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

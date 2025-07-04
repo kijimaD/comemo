@@ -1,0 +1,12 @@
+commit ce06f5a222b48fd16461730c4b0dcb75b005609f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 17:00:40 2018 +0000
+
+    doc/go1.11: mention ReverseProxy passing TE: trailers headers to backend
+    
+    Change-Id: Idbc507ae3df791a759b967bcbe833b8e08bd9611
+    Reviewed-on: https://go-review.googlesource.com/125817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,26 @@
+commit a4d5fbc3a48b63f19fcd2a4d040a85c75a2709b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 09:23:41 2023 -0800
+
+    go/types, types2: remove need to store type parameter list in unifier
+    
+    For unification we only need the handles map.
+    The type parameter list was stored for reproducible printing only,
+    but we can achieve the same effect with sorting.
+    
+    This opens the door to adding type parameters from different
+    types/functions that we may want to infer together. They may
+    be added through separate "addTypeParams" calls in the future.
+    Printing (which is used for debugging only) will remain reproducible.
+    
+    Change-Id: I23b56c63fa45a7d687761f2efcf558e61b004584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466955
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 25 +++++++++++++++++++------
+ src/go/types/unify.go                    | 25 +++++++++++++++++++------
+ 2 files changed, 38 insertions(+), 12 deletions(-)

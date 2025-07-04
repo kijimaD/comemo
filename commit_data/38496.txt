@@ -1,0 +1,30 @@
+commit 277609f844ed9254d25e975f7cf202d042beecc6
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 19 13:19:48 2019 +0200
+
+    cmd/link/internal/ld: copy Mach-O platform version commands to go.o
+    
+    To build for watchOS and tvOS the Apple toolchain requires a Mach-O
+    load command that matches the platform for all object files in a build.
+    The go.o object file produced by the Go linker contains no such command.
+    
+    The loader commands are mutually exclusive so we need to pick the
+    right one. Fortunately, cgo must be enabled for watchOS and tvOS to
+    be useful, so we can copy the first loader command we find in the object
+    files produced by the host compiler.
+    
+    Add a test that builds a small program for tvOS to test both this CL
+    and the previous CL that added bitcode support.
+    
+    Updates #22395
+    
+    Change-Id: I7a47d19be9d80f0459dc358c600cddd9f236c444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168321
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/dwarf_test.go        | 51 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go | 39 ++++++++++++++++++++++++++++--
+ src/cmd/link/testdata/lib.go      |  8 ++++++
+ src/cmd/link/testdata/main.m      |  5 ++++
+ 4 files changed, 101 insertions(+), 2 deletions(-)

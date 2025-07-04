@@ -1,0 +1,14 @@
+commit c2723c23d6571ad4bb18632a033d238d515b3024
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 10 15:23:28 2008 -0700
+
+    make FD a struct with Read, Write, etc.
+    as methods
+    
+    R=gri,rsc
+    DELTA=99  (56 added, 31 deleted, 12 changed)
+    OCL=15103
+    CL=15103
+
+ src/lib/os/os.go | 101 ++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 63 insertions(+), 38 deletions(-)

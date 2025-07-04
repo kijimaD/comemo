@@ -1,0 +1,19 @@
+commit da95254d1aee5b2497b784b7bfd9d0972505a48d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 25 18:36:12 2017 -0400
+
+    runtime: "fix" non-preemptible loop in TestParallelRWMutexReaders
+    
+    TestParallelRWMutexReaders has a non-preemptible loop in it that can
+    deadlock if GC triggers. "Fix" it like we've fixed similar tests.
+    
+    Updates #10958.
+    
+    Change-Id: I13618f522f5ef0c864e7171ad2f655edececacd7
+    Reviewed-on: https://go-review.googlesource.com/73710
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rwmutex_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

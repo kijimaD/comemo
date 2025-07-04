@@ -1,0 +1,20 @@
+commit c61d86af72e2323c32ba2c12528866ecc2264bb3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 10 17:26:26 2015 +0300
+
+    os: give race detector chance to override Exit(0)
+    
+    Racy tests do not fail currently, they do os.Exit(0).
+    So if you run go test without -v, you won't even notice.
+    This was probably introduced with testing.TestMain.
+    
+    Racy programs do not have the right to finish successfully.
+    
+    Change-Id: Id133d7424f03d90d438bc3478528683dd02b8846
+    Reviewed-on: https://go-review.googlesource.com/4371
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/proc.go                  | 14 +++++++++++---
+ src/runtime/proc.go             |  8 ++++++++
+ src/runtime/race/output_test.go | 36 ++++++++++++++++++++++++++++++------
+ 3 files changed, 49 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit 8f1d5d0a41840c1e6b36c94d493af8aae1302fd0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 29 08:51:16 2022 +0200
+
+    cmd/go/internal/modload: remove aix from stat_openfile.go comment
+    
+    syscall.Access is supported and used on aix since CL 263540.
+    
+    Change-Id: Ie50cc3da68b49b22d622d94faec0231c52502037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396374
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/stat_openfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

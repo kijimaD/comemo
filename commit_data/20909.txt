@@ -1,0 +1,19 @@
+commit e538770d4b58eef23bcac62324c42a0972a4e035
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 20 09:35:22 2014 -0800
+
+    go/parser: Use test-specific filesets to avoid races.
+    
+    Only affects test code.
+    
+    Fixes #9025.
+    Fixes #9130.
+    
+    LGTM=r, adonovan
+    R=adonovan, r
+    CC=golang-codereviews
+    https://golang.org/cl/180920043
+
+ src/go/parser/error_test.go  | 27 +++++++++++++--------------
+ src/go/parser/parser_test.go | 20 +++++++++-----------
+ 2 files changed, 22 insertions(+), 25 deletions(-)

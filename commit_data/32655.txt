@@ -1,0 +1,36 @@
+commit 4e2ef7f7f9a3351c3774148c40fe0d7f12403da5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 2 10:31:52 2017 -0400
+
+    cmd/go: add source file contents to plugin hash
+    
+    It is common to have multiple plugins built from ephemeral
+    source files all with the same name:
+    
+            # generate main.go
+            go build -buildmode=plugin -o=p1.so main.go
+            # rm main.go, generate new main.go
+            go build -buildmode=plugin -o=p2.so main.go
+            ...
+    
+    These different plugins currently have the same build ID,
+    and hence the same package path. This means only one can be
+    loaded.
+    
+    To remove this restriction, this commit adds the contents of the
+    main package source files to the plugin hash.
+    
+    Fixes #19358
+    
+    Change-Id: Icd42024b085feb29c09c2771aaecb85f8b528dd3
+    Reviewed-on: https://go-review.googlesource.com/61170
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/test.bash                      |  4 +-
+ .../testplugin/{unnamed1.go => unnamed1/main.go}   |  0
+ .../testplugin/{unnamed2.go => unnamed2/main.go}   |  0
+ src/cmd/go/internal/load/pkg.go                    | 45 +++++++++++++++++-----
+ src/cmd/go/internal/work/build.go                  | 10 +----
+ 5 files changed, 40 insertions(+), 19 deletions(-)

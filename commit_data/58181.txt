@@ -1,0 +1,17 @@
+commit e0b569842d0ef5deed5c455eef001b02aec27934
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 18 20:06:13 2024 -0800
+
+    spec: document restrictions for method receivers that are aliases
+    
+    For #70417.
+    
+    Change-Id: I5e6b3011f356c7ecd8f64f5dcf0a6a77dcb21bbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629577
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

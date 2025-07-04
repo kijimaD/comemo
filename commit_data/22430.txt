@@ -1,0 +1,12 @@
+commit c3ddb970223cd7c8fa86a4ada31f6e00ebde71da
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 20:03:28 2015 -0400
+
+    api: update next.txt
+    
+    Change-Id: Ibfb5a96995a954c8c1dc563c33bdddbdb4866425
+    Reviewed-on: https://go-review.googlesource.com/8765
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next.txt | 696 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 696 insertions(+)

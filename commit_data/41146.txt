@@ -1,0 +1,34 @@
+commit f9fe783c6c71d236a94ca674a8be61c7b5198fdb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 22 01:06:37 2020 +0000
+
+    Revert "net/http: support gzip, x-gzip Transfer-Encodings"
+    
+    This reverts commit e6c12c3d0296251f1d5a96ebde811dbfd4a914fe.
+    
+    Reason for revert: the assumption that a T-E of "gzip" implies
+    "chunked" seems incorrect. The RFC does state that one "MUST apply
+    chunked as the final transfer coding" but that should be interpreted to
+    mean that a "chunked" encoding must be listed as the last one, not that
+    one should be assumed to be there if not. This is confirmed by the
+    alternative option to chunking on the server side being to "terminate
+    the message by closing the connection".
+    
+    The issue seems confirmed by the fact that the code in the body of
+    #29162 fails with the following error:
+    
+        net/http: HTTP/1.x transport connection broken: http: failed to gunzip body: unexpected EOF
+    
+    This late in the cycle, revert rather than fix, also because we don't
+    apparently have tests for the correct behavior.
+    
+    Change-Id: I920ec928754cd8e96a06fb7ff8a53316c0f959e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215757
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/transfer.go      | 125 ++-----------------
+ src/net/http/transfer_test.go | 284 +-----------------------------------------
+ 2 files changed, 15 insertions(+), 394 deletions(-)

@@ -1,0 +1,27 @@
+commit 34cb7c299eb151f8d316b48f63e5d5cafcbee2e0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 14:15:06 2008 -0700
+
+    export sys.exit
+    update tests to use exit rather than return
+    ignore return value from main (actually done in prior CL)
+    
+    SVN=125173
+
+ src/cmd/gc/mksys.bash          |   2 +
+ src/cmd/gc/sys.go              |   4 ++
+ src/cmd/gc/sysimport.c         | 151 +++++++++++++++++++++--------------------
+ src/runtime/rt0_amd64_darwin.s |   3 +-
+ test/bugs/bug006.go            |   5 +-
+ test/char_lit.go               |   6 +-
+ test/golden.out                |   2 -
+ test/helloworld.go             |   3 +-
+ test/if1.go                    |   5 +-
+ test/int_lit.go                |   4 +-
+ test/ken/rob1.go               |   3 +-
+ test/ken/rob2.go               |   4 +-
+ test/ken/robliteral.go         |   4 +-
+ test/readfile.go               |   6 +-
+ test/string_lit.go             |   4 +-
+ test/switch1.go                |   6 +-
+ 16 files changed, 107 insertions(+), 105 deletions(-)

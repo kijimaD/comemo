@@ -1,0 +1,20 @@
+commit e18a8b4fb27df3ee04f7eb00c4f1ed77e5486ce8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 17:05:51 2021 -0400
+
+    go/build: avoid duplicates in InvalidGoFiles
+    
+    For #45827
+    For #39986
+    Updates #45999
+    
+    Change-Id: I0c919b6a2e56e7003b90425487eafe0f0eadc609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317299
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go      | 36 +++++++++++++++++++++---------------
+ src/go/build/build_test.go | 18 ++++++++++++++++--
+ 2 files changed, 37 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit 49b70d01c07be39ede5f4431d0f36415d01f676d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 14:36:21 2011 -0400
+
+    gc: echo literal in error message
+    
+    Fixes #1192.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4794062
+
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/lex.c         | 14 ++++++++++++++
+ test/fixedbugs/bug349.go | 13 +++++++++++++
+ 3 files changed, 28 insertions(+)

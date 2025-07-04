@@ -1,0 +1,22 @@
+commit 0e15b03f9347bc285ce266a966b8672acb1f7194
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 15:26:48 2013 +0400
+
+    sync/atomic: add Swap functions
+    Fixes #5722.
+    
+    R=golang-dev, khr, cshapiro, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/12670045
+
+ src/pkg/sync/atomic/64bit_arm.go      |  10 +
+ src/pkg/sync/atomic/asm_386.s         |  47 +++++
+ src/pkg/sync/atomic/asm_amd64.s       |  26 +++
+ src/pkg/sync/atomic/asm_arm.s         |  31 +++
+ src/pkg/sync/atomic/asm_freebsd_arm.s |  18 ++
+ src/pkg/sync/atomic/asm_linux_arm.s   |  26 +++
+ src/pkg/sync/atomic/asm_netbsd_arm.s  |  18 ++
+ src/pkg/sync/atomic/atomic_test.go    | 344 +++++++++++++++++++++++++++++-----
+ src/pkg/sync/atomic/doc.go            |  25 +++
+ src/pkg/sync/atomic/race.go           |  48 +++++
+ 10 files changed, 548 insertions(+), 45 deletions(-)

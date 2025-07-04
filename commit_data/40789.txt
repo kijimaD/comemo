@@ -1,0 +1,22 @@
+commit 7ad27481f84dbf325ee348831ed0f95dbf04094e
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Wed Nov 13 06:53:22 2019 +0100
+
+    math/big: fix out-of-bounds panic in divRecursive
+    
+    The bounds in the last carry branch were wrong as there
+    is no reason for len(u) >= n+n/2 to always hold true.
+    
+    We also adjust test to avoid using a remainder of 1
+    (in which case, the last step of the algorithm computes
+    (qhatv+1) - qhatv which rarely produces a carry).
+    
+    Change-Id: I69fbab9c5e19d0db1c087fbfcd5b89352c2d26fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206839
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go      |  2 +-
+ src/math/big/nat_test.go | 13 ++++++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

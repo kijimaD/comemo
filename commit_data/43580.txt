@@ -1,0 +1,19 @@
+commit 7c8d82e92be894fe02b1a0bee775cf803c6849c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 16:34:12 2020 -0400
+
+    runtime: always enable async preemption on darwin/arm64
+    
+    Now that we have the G register saved, we can enable asynchronous
+    preemption for pure Go programs on darwin/arm64.
+    
+    Updates #38485, #36365.
+    
+    Change-Id: Ic654fa4dce369efe289b38d59cf1a184b358fe9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265120
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 11 -----------
+ 1 file changed, 11 deletions(-)

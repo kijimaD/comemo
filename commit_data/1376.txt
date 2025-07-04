@@ -1,0 +1,18 @@
+commit dc7b2e98d2dabd8b862476f0ca25c7c4e1423f38
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 03:05:54 2008 -0800
+
+    compiler changes for *chan -> chan; *map -> map; new(T) -> new(*T)
+    mainly a syntactic change: the compiler representations don't change
+    (chan and map are now hidden pointers like string).
+    
+    R=ken
+    OCL=21578
+    CL=21582
+
+ src/cmd/gc/go.y        | 13 +++++++
+ src/cmd/gc/subr.c      | 36 +++++++++++++-----
+ src/cmd/gc/sys.go      | 28 +++++++-------
+ src/cmd/gc/sysimport.c | 30 +++++++--------
+ src/cmd/gc/walk.c      | 99 ++++++++++++++++++++------------------------------
+ 5 files changed, 107 insertions(+), 99 deletions(-)

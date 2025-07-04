@@ -1,0 +1,23 @@
+commit 97e5ca6d4eed7b14a4dbdd52aa4e934028284993
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:12:25 2023 -0400
+
+    Revert "runtime: correct GoCheckBindM's C declaration in EnsureBindM test"
+    
+    This reverts CL 482975.
+    
+    Reason for revert: CL 481061 causes C TSAN failures and must be
+    reverted. See CL 485275. This CL depends on CL 481061.
+    
+    For #59678.
+    
+    Change-Id: I4599e93d536149bcec94a5a1542533107699514f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485317
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/testdata/testprogcgo/bindm.c  | 34 -------------------------------
+ src/runtime/testdata/testprogcgo/bindm.go | 30 ++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 35 deletions(-)

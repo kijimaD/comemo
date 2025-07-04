@@ -1,0 +1,42 @@
+commit 5d9064697b81fa6e6c23d5566e1d5e456f295777
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 22 11:17:40 2010 -0700
+
+    gob: allow exchange of interface values
+    
+    The implemetation describes each value as a string identifying the
+    concrete type of the value, followed by the usual encoding of that
+    value.  All types to be exchanged as contents of interface values
+    must be registered ahead of time with the new Register function.
+    Although this would not seem strictly necessary, the linker garbage
+    collects unused types so without some mechanism to guarantee
+    the type exists in the binary, there could be unpleasant surprises.
+    Moreover, the receiver needs a reflect.Type of the value to be
+    written in order to be able to save the data. A Register function
+    seems necessary.
+    
+    The implementation may require defining types in the middle of
+    of sending a value.  The old code never did this. Therefore there
+    has been some refactoring to make the encoder and decoder
+    work recursively.
+    
+    This change changes the internal type IDs. Existing gob archives
+    will break with this change.  Apologies for that. If this is a deal
+    breaker it should be possible to create a conversion tool.
+    
+    Error handling is too complicated in this code. A subsequent
+    change should clean it up.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2618042
+
+ src/pkg/gob/codec_test.go   | 155 ++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/gob/decode.go       | 133 ++++++++++++++++++++++++++++++-------
+ src/pkg/gob/decoder.go      |  84 +++++++++++++++---------
+ src/pkg/gob/doc.go          |  57 ++++++++++++----
+ src/pkg/gob/encode.go       |  89 +++++++++++++++++++------
+ src/pkg/gob/encoder.go      |  64 ++++++++++--------
+ src/pkg/gob/encoder_test.go |   1 -
+ src/pkg/gob/type.go         | 106 ++++++++++++++++++++++--------
+ 8 files changed, 531 insertions(+), 158 deletions(-)

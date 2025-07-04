@@ -1,0 +1,19 @@
+commit 6e11f45ebdbc7b0ee1367c80ea0a0c0ec52d6db5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 18:51:12 2015 +0000
+
+    net/http: make Server validate Host headers
+    
+    Fixes #11206 (that we accept invalid bytes)
+    Fixes #13624 (that we don't require a Host header in HTTP/1.1 per spec)
+    
+    Change-Id: I4138281d513998789163237e83bb893aeda43336
+    Reviewed-on: https://go-review.googlesource.com/17892
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request.go    | 63 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++----
+ src/net/http/server.go     | 27 ++++++++++++++++++--
+ 3 files changed, 139 insertions(+), 9 deletions(-)

@@ -1,0 +1,14 @@
+commit 12bdb29bdf080af43ba7688ae5af4053eb4f7288
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 10 15:39:08 2011 -0500
+
+    runtime: complete windows SysReserve
+    
+    Should fix windows/386 build.
+    
+    R=brainman
+    CC=golang-dev
+    https://golang.org/cl/4170041
+
+ src/pkg/runtime/windows/mem.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 39fcf8bf0e3a3b447780983c1f88df5bb9f5bc98
+Author: Erik Dubbelboer <erik@dubbelboer.com>
+Date:   Thu Feb 9 12:54:25 2017 +0800
+
+    net: use bytes.Equal instead of bytesEqual
+    
+    bytes.Equal is written in assembly and is slightly faster than the
+    current Go bytesEqual from the net package.
+    
+    benchcmp:
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkIPCompare4-8     7.74          7.01          -9.43%
+    BenchmarkIPCompare6-8     8.47          6.86          -19.01%
+    
+    Change-Id: I2a7ad35867489b46f0943aef5776a2fe1b46e2df
+    Reviewed-on: https://go-review.googlesource.com/36850
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ip.go      | 16 +++++-----------
+ src/net/ip_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 11 deletions(-)

@@ -1,0 +1,20 @@
+commit b98803e8e5e4e3077207d5c473f1938dfd9dcff2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Fri Jun 21 16:59:21 2024 -0700
+
+    os: TestChtimes: separate hasNoatime
+    
+    Move the noatime check to a separate function (to be used by CL 91535),
+    adding some documentation along the way.
+    
+    Unify the atime error message.
+    
+    Change-Id: I5f75a4399f6e1b16ae20438003de5460f3eeb5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594075
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

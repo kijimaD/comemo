@@ -1,0 +1,25 @@
+commit 7719016ee297dd4960bb66ed265038f2d75b3c56
+Author: Sergey Zagursky <gvozdoder@gmail.com>
+Date:   Thu Nov 14 23:07:01 2019 +0300
+
+    net: fix improper Context.Deadline usage in DialContext
+    
+    The existing implementation is erroneously assume that having no
+    deadline in context.Context means that time returned from Deadline
+    method will have IsZero() == true. But technically speaking this is an
+    invalid assumption. The context.Context interface specification doesn't
+    specify what time should be returned from Deadline method when there is
+    no deadline set. It only specifies that second result of Deadline should
+    be false.
+    
+    Fixes #35594
+    
+    Change-Id: Ife00aad77ab3585e469f15017550ac6c0431b140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go      | 27 ++++++++++++++-------------
+ src/net/dial_test.go | 29 +++++++++++++++++++++++++++++
+ src/net/fd_unix.go   |  2 +-
+ 3 files changed, 44 insertions(+), 14 deletions(-)

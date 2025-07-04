@@ -1,0 +1,23 @@
+commit 08362246b6a1dd7bffeb68f1d5116b9b2fe6209a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 13 09:28:15 2017 -0400
+
+    cmd/go/internal/work: factor build.go into multiple files
+    
+    build.go - commands and misc helpers
+    action.go - action graph construction
+    exec.go - action graph execution
+    gc.go - gc toolchain
+    gccgo.go - gccgo toolchain
+    
+    Change-Id: I39b6e2490ac05334c2321e9ad88df694a6efa82f
+    Reviewed-on: https://go-review.googlesource.com/70671
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/work/action.go |  691 +++++++
+ src/cmd/go/internal/work/build.go  | 3485 ------------------------------------
+ src/cmd/go/internal/work/exec.go   | 1904 ++++++++++++++++++++
+ src/cmd/go/internal/work/gc.go     |  481 +++++
+ src/cmd/go/internal/work/gccgo.go  |  497 +++++
+ 5 files changed, 3573 insertions(+), 3485 deletions(-)

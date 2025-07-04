@@ -1,0 +1,24 @@
+commit 276fb279d1703451e5b962350727f84e4e8e9814
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 11:50:46 2021 -0700
+
+    cmd/compile/internal/syntax: remove AllowTypeSets mode
+    
+    The respective issue has been accepted, so we can always
+    accept constraint literals with omitted interfaces.
+    
+    For #48424.
+    
+    Change-Id: Ia3d325401252a5a22d5ffa98d2ae6af73178dec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355709
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/noder.go         | 2 +-
+ src/cmd/compile/internal/syntax/error_test.go   | 2 +-
+ src/cmd/compile/internal/syntax/parser.go       | 2 +-
+ src/cmd/compile/internal/syntax/parser_test.go  | 6 +++---
+ src/cmd/compile/internal/syntax/printer_test.go | 4 ++--
+ src/cmd/compile/internal/syntax/syntax.go       | 1 -
+ src/cmd/compile/internal/types2/check_test.go   | 2 +-
+ 7 files changed, 9 insertions(+), 10 deletions(-)

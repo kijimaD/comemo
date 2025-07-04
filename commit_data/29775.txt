@@ -1,0 +1,22 @@
+commit 4bf7d1e722e852f4a28d1898cbe5d0a0d505763b
+Author: Joe Tsai <thebrokentoaster@gmail.com>
+Date:   Thu Dec 8 07:13:50 2016 +0000
+
+    Revert "testing: add T.Context method"
+    
+    This reverts commit 26827bc2fe4c80dc68b3793631d24975425c9467.
+    
+    Fixes #18199
+    
+    Change-Id: I42e292cb4e3d740a4fbb5d0380c6ee15ac742092
+    Reviewed-on: https://go-review.googlesource.com/34141
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go   |  2 +-
+ src/testing/benchmark.go    |  4 ----
+ src/testing/sub_test.go     | 51 +++++++++++++++++++--------------------------
+ src/testing/testing.go      | 35 ++++++-------------------------
+ src/testing/testing_test.go | 38 +++++----------------------------
+ 5 files changed, 34 insertions(+), 96 deletions(-)

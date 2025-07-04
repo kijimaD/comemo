@@ -1,0 +1,12 @@
+commit a70caf4463f1b41709a73a56724119dd23cccdda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 15:31:02 2009 -0800
+
+    implemented InsertSemis mode for go/scanner
+    
+    R=rsc
+    https://golang.org/cl/175047
+
+ src/pkg/go/scanner/scanner.go      |  96 ++++++++++++++++++----
+ src/pkg/go/scanner/scanner_test.go | 160 ++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 236 insertions(+), 20 deletions(-)

@@ -1,0 +1,13 @@
+commit 316d377ac29b450fe17046d3a7abe7d954d8a996
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 13:50:58 2009 -0800
+
+    now that TCHAN, TMAP, and TSTRING are real types,
+    can do methods on them without pointer worries.
+    
+    R=ken
+    OCL=22434
+    CL=22436
+
+ src/cmd/gc/subr.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

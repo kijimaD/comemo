@@ -1,0 +1,33 @@
+commit 5ff7a634e19a3e8e8a24bbdb948de19695234943
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 13 14:38:09 2025 -0800
+
+    net/http, net/http/internal/httpcommon: add httpcommon package
+    
+    The golang.org/x/net/internal/httpcommon package is
+    a new package containing internal functions common to the
+    HTTP/2 and HTTP/3 implementations.
+    
+    Update to golang.org/x/net@v0.35.1-0.20250213222735-884432780bfd,
+    which includes the httpcommon package.
+    
+    Since net/http can't depend on a x/net/internal package,
+    add net/http/internal/httpcommon which bundles the x/net
+    package.
+    
+    Change-Id: Iba6c4be7b3e2d9a9d79c4b5153497b0e04b4497b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649296
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go.mod                                     |   2 +-
+ src/go.sum                                     |   4 +-
+ src/go/build/deps_test.go                      |   1 +
+ src/net/http/h2_bundle.go                      | 453 ++-------------------
+ src/net/http/http.go                           |   2 +-
+ src/net/http/http_test.go                      |   4 +-
+ src/net/http/internal/httpcommon/httpcommon.go | 532 +++++++++++++++++++++++++
+ src/vendor/modules.txt                         |   2 +-
+ 8 files changed, 574 insertions(+), 426 deletions(-)

@@ -1,0 +1,17 @@
+commit 95b40f6ca16d0fefc0996060fd91acdd34aba317
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Nov 2 14:04:56 2010 -0700
+
+    Fix a deadlock bug in the rpc client. The panic will trigger
+    regularly when client connections are flaky (probably another
+    issue).
+    
+    (credits to jussi@tinkercad.com for finding the issue)
+    
+    R=rsc, r
+    CC=golang-dev, jussi
+    https://golang.org/cl/2831042
+
+ src/pkg/rpc/client.go      |  2 +-
+ src/pkg/rpc/server_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

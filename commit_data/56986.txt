@@ -1,0 +1,27 @@
+commit 1d542efe234792c515b3c60ec76f15d11f83aba1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 26 15:20:41 2024 -0700
+
+    go/types, types2: adjust Checker.unpackRecv signature slightly
+    
+    Instead of returning the receiver type name (rname), return the
+    receiver type base expression (base), with pointer indirections
+    stripped. The type base may or may not not be a type name. This
+    is needed for further rewrites of the signature type-checking code.
+    Adjust call sites accordingly to preserve existing behavior.
+    
+    For #51343.
+    
+    Change-Id: Ib472ca25d43ec340762d0a8dd1ad038568c2b2bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595335
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/resolver.go  | 39 +++++++++++++++-------------
+ src/cmd/compile/internal/types2/signature.go |  4 +--
+ src/go/types/resolver.go                     | 39 +++++++++++++++-------------
+ src/go/types/signature.go                    |  4 +--
+ 4 files changed, 46 insertions(+), 40 deletions(-)

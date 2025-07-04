@@ -1,0 +1,14 @@
+commit 997b6f9d89067c5d48c072ebcdcf288ba4f9e1d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 14:22:46 2009 -0700
+
+    don't need two names for the same function (vputl and llputl).
+    also use thechar, to make copy/paste easier.
+    
+    R=ken
+    OCL=26583
+    CL=26588
+
+ src/cmd/6l/asm.c | 45 +++++++++++++++++++--------------------------
+ src/cmd/6l/obj.c |  2 +-
+ 2 files changed, 20 insertions(+), 27 deletions(-)

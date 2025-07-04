@@ -1,0 +1,12 @@
+commit 48b42d29dc1fb8b4f71b1352c7237ca304a5473a
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 19:29:34 2016 +0100
+
+    test/bench/go1: reduce fasta data size for mips{,64}
+    
+    Change-Id: I15887ee454acfdb36334dd9f0b59cc520b2b0286
+    Reviewed-on: https://go-review.googlesource.com/34311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/bench/go1/fasta_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

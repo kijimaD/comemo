@@ -1,0 +1,15 @@
+commit 877839333ec2e83019bfc3016e569d8200af8cdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:42 2009 -0700
+
+    gob: use new reflect
+    
+    R=r
+    DELTA=242  (68 added, 69 deleted, 105 changed)
+    OCL=31239
+    CL=31289
+
+ src/pkg/gob/decode.go | 113 ++++++++++++++++++++----------------------
+ src/pkg/gob/encode.go | 133 ++++++++++++++++++++------------------------------
+ src/pkg/gob/type.go   |  93 +++++++++++++++++++++++------------
+ 3 files changed, 169 insertions(+), 170 deletions(-)

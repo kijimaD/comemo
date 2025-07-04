@@ -1,0 +1,14 @@
+commit 42af80348cf152ac269615145d70901d2142a7f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 16:05:55 2009 -0700
+
+    method expansion bugs
+    
+    R=ken
+    OCL=31310
+    CL=31310
+
+ src/cmd/gc/go.h      | 1 +
+ src/cmd/gc/reflect.c | 6 ++++--
+ src/cmd/gc/subr.c    | 7 ++++---
+ 3 files changed, 9 insertions(+), 5 deletions(-)

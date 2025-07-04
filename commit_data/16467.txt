@@ -1,0 +1,15 @@
+commit 0d0d57ccfe95e679005542c2dd572fc549256079
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 23:54:34 2013 +0200
+
+    cmd/gc: do not corrupt init() with initializers of _ in closures.
+    
+    Fixes #5607.
+    
+    R=golang-dev, daniel.morsing, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9952043
+
+ src/cmd/gc/sinit.c          | 10 +++++++---
+ test/fixedbugs/issue5607.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 3 deletions(-)

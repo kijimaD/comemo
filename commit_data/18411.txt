@@ -1,0 +1,18 @@
+commit 57bc80b5e8631637f0e756afa1872933ca9db231
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 4 11:53:13 2014 -0800
+
+    cmd/go, doc/go1.3.txt: misc/benchcmp has been replaced by go tool benchcmp
+    
+    Fixes #7016.
+    
+    LGTM=r
+    R=r
+    CC=adg, bradfitz, dave, golang-codereviews
+    https://golang.org/cl/60100043
+
+ doc/go1.3.txt      |   1 +
+ misc/benchcmp      | 124 -----------------------------------------------------
+ src/cmd/go/pkg.go  |  21 ++++-----
+ src/cmd/go/tool.go |   2 +-
+ 4 files changed, 13 insertions(+), 135 deletions(-)

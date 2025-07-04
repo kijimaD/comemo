@@ -1,0 +1,32 @@
+commit 45ffeab549fa4b03b231a0872025364e13c7f7f0
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 18 20:35:34 2017 -0800
+
+    runtime: eliminate most uses of mheap_.arena_*
+    
+    This replaces all uses of the mheap_.arena_* fields outside of
+    mallocinit and sysAlloc. These fields fundamentally assume a
+    contiguous heap between two bounds, so eliminating these is necessary
+    for a sparse heap.
+    
+    Many of these are replaced with checks for non-nil spans at the test
+    address (which in turn checks for a non-nil entry in the heap arena
+    array). Some of them are just for debugging and somewhat meaningless
+    with a sparse heap, so those we just delete.
+    
+    Updates #10460.
+    
+    Change-Id: I8345b95ffc610aed694f08f74633b3c63506a41f
+    Reviewed-on: https://go-review.googlesource.com/85886
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/cgocall.go  | 12 +-----------
+ src/runtime/heapdump.go | 13 +++++++++++--
+ src/runtime/malloc.go   |  2 +-
+ src/runtime/mbitmap.go  | 12 ------------
+ src/runtime/mcentral.go |  2 +-
+ src/runtime/mgcmark.go  | 39 ++++++++++++++-------------------------
+ src/runtime/mwbbuf.go   |  3 +--
+ 7 files changed, 29 insertions(+), 54 deletions(-)

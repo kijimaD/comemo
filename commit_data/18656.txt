@@ -1,0 +1,21 @@
+commit 373466380586b04b8a9163938a8daf3f5cb9dd45
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Feb 26 13:20:36 2014 +1100
+
+    runtime: use monotonic clock for openbsd/386 and openbsd/amd64 timers
+    
+    Switch nanotime to a monotonic clock on openbsd/386 and openbsd/amd64.
+    Also use a monotonic clock when for thrsleep, since the sleep duration
+    is based on the value returned from nanotime.
+    
+    Update #6007
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68460044
+
+ src/pkg/runtime/os_openbsd.c        | 2 +-
+ src/pkg/runtime/sys_openbsd_386.s   | 4 +++-
+ src/pkg/runtime/sys_openbsd_amd64.s | 4 +++-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

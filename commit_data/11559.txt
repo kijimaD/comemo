@@ -1,0 +1,14 @@
+commit cdabb3d315691187f2f3c2ce74e8adee2c544002
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 2 11:04:09 2012 -0800
+
+    test: add import test that caused an incorrect gccgo error
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5622048
+
+ test/fixedbugs/bug404.dir/one.go | 19 +++++++++++++++++++
+ test/fixedbugs/bug404.dir/two.go | 12 ++++++++++++
+ test/fixedbugs/bug404.go         |  7 +++++++
+ 3 files changed, 38 insertions(+)

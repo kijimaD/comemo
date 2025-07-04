@@ -1,0 +1,25 @@
+commit 6aa48a9a0b8a7789c5ee4019d3eb50089c611f33
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 9 17:30:00 2015 +0900
+
+    net: don't return DNS query results including the second best records unconditionally
+    
+    This change prevents DNS query results using domain search list
+    overtaking results not using the list unconditionally, which only
+    happens when using builtin DNS stub resolver.
+    
+    The previous internal lookup function lookup is split into lookup and
+    goLookupIPOrder for iteration over a set of names: FQDN or absolute
+    FQDN, with domain label suffixes in search list, without domain label
+    suffixes, and for concurrent A and AAAA record queries.
+    
+    Fixes #11081.
+    
+    Change-Id: I9ff0640f69276e372d97e709b149ed5b153e8601
+    Reviewed-on: https://go-review.googlesource.com/10836
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dnsclient.go           |   2 +-
+ src/net/dnsclient_unix.go      | 125 ++++++++++++++++++---------------
+ src/net/dnsclient_unix_test.go | 154 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 224 insertions(+), 57 deletions(-)

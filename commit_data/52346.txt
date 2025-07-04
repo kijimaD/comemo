@@ -1,0 +1,16 @@
+commit bf1814bc9e4bcda4706627f64391947147b37954
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:30:09 2023 -0700
+
+    cmd/go: rewrite externalLinkingForced slightly for clarity
+    
+    Change-Id: I8f8d38c48d4ffe70d15330ea0d4794f264c88f25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477918
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

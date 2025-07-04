@@ -1,0 +1,13 @@
+commit 7be32d038a62c463d6808bee98e31bf51059435a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 08:58:03 2015 -0800
+
+    math/big: reenable TestFloatAdd32 (used to fail on 32bit platforms)
+    
+    Change-Id: I932c2f1b1d27c437722cd27d2001b085a655c572
+    Reviewed-on: https://go-review.googlesource.com/6722
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 12 ++++++------
+ src/math/big/float_test.go |  5 -----
+ 2 files changed, 6 insertions(+), 11 deletions(-)

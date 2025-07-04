@@ -1,0 +1,15 @@
+commit 27a56171c9ff76e8410c5e9c9e86225df8f33708
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 10 17:11:04 2008 -0700
+
+    growing the tutorial
+    
+    R=gri
+    OCL=15115
+    CL=15115
+
+ doc/go_tutorial.txt      | 124 +++++++++++++++++++++++++++++++++++++++++++++--
+ doc/progs/echo.go        |  32 ++++++++++++
+ doc/progs/helloworld.go  |   9 ++++
+ doc/progs/helloworld2.go |  11 +++++
+ 4 files changed, 171 insertions(+), 5 deletions(-)

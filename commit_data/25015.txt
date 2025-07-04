@@ -1,0 +1,17 @@
+commit 041787280976d0bad15c646fc7c7bbfef76d7ee5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 20 13:53:18 2015 -0800
+
+    cmd/cgo: ignore vars with no name or type if they have a AttrSpecification
+    
+    Fixes #13344.
+    
+    Change-Id: I33c6721fd33d144c85c87840ddf27ce15aa72328
+    Reviewed-on: https://go-review.googlesource.com/17151
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/test/issue1635.go | 5 +++++
+ src/cmd/cgo/gcc.go         | 5 +++++
+ 2 files changed, 10 insertions(+)

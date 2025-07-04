@@ -1,0 +1,21 @@
+commit 85fdd68bd963406a90ec68e1532bc6495e88e40b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Dec 15 10:45:19 2011 +1100
+
+    html: don't leave "in column group" mode when ignoring a token
+    
+    Pass tests6.dat, test 26:
+    foo<col>
+    
+    | <col>
+    
+    Also pass tests through test 35:
+    <table><tr><div><td>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5482074
+
+ src/pkg/html/parse.go      | 7 ++++---
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

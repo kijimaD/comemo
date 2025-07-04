@@ -1,0 +1,17 @@
+commit 1b1039a1c1fba650023431696dc02d3f8343ad27
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 16:03:32 2012 -0800
+
+    net/http/httputil: fix DumpRequestOut on https URLs
+    
+    Don't try to do an SSL negotiation with a *bytes.Buffer.
+    
+    Fixes #3135
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5709050
+
+ src/pkg/net/http/httputil/dump.go      |  9 +++++++++
+ src/pkg/net/http/httputil/dump_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)

@@ -1,0 +1,15 @@
+commit a9c14d1ab5573557a0e5f871791791b4943a3ce8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 10:35:29 2015 -0700
+
+    go/types: remove MethodSetCache - not needed
+    
+    In x/tools, MethodSetCache was moved from x/tools/go/types to
+    x/tools/go/types/typeutil. Mirror that change.
+    
+    Change-Id: Ib838a9518371473c83fa4abc2778d42f33947c98
+    Reviewed-on: https://go-review.googlesource.com/10771
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/methodsetcache.go | 69 ------------------------------------------
+ 1 file changed, 69 deletions(-)

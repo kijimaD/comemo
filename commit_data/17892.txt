@@ -1,0 +1,15 @@
+commit 624f9da38669d7fa1975a1230c571913daacbd95
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 20 13:47:37 2013 -0800
+
+    README: Fix installation instructions
+    They were out of date and should refer to the source installation instructions.
+    
+    Fixes #6783.
+    
+    R=golang-dev, rsc, adg, dave
+    CC=golang-dev
+    https://golang.org/cl/28500043
+
+ README | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

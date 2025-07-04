@@ -1,0 +1,17 @@
+commit 975f1afd85bd1de6037e1ba30af0c7ec598f689c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 28 14:22:37 2018 +0200
+
+    internal/syscall/unix: remove unnecessary empty.s
+    
+    After CL 130736 there are no empty function declarations this package
+    anymore, so empty.s is no longer needed.
+    
+    Change-Id: Ic4306f10ad8a31777a3337870ce19e14c1510f3b
+    Reviewed-on: https://go-review.googlesource.com/131835
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/unix/empty.s | 7 -------
+ 1 file changed, 7 deletions(-)

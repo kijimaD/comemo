@@ -1,0 +1,13 @@
+commit 8b8a862da8e402febf27980b4dae8789d58dfb5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 17:38:24 2009 -0800
+
+    - removed temporary work-arounds from bignum_test, not needed anymore
+    
+    R=r
+    DELTA=93  (0 added, 61 deleted, 32 changed)
+    OCL=22348
+    CL=22366
+
+ src/lib/bignum_test.go | 117 ++++++++++++-------------------------------------
+ 1 file changed, 28 insertions(+), 89 deletions(-)

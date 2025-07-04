@@ -1,0 +1,17 @@
+commit c274a7c03be7b69d54d3307b954f6a0eb298c860
+Author: hqpko <whaibin01@hotmail.com>
+Date:   Tue Mar 30 14:53:24 2021 +0000
+
+    cmd/compile/internal/noder: limit the number of goroutine
+    
+    Change-Id: I7f05108fea351a4895dde6090bf86beb822f2c28
+    GitHub-Last-Rev: e4a2d3a11aa258f2ddf5e39ab4769883f94e3dab
+    GitHub-Pull-Request: golang/go#45289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305869
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/noder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

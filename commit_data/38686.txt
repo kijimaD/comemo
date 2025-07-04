@@ -1,0 +1,25 @@
+commit c46ebec322b4f61a219f73f3f0f590cf001a074d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Apr 2 15:00:54 2019 -0700
+
+    cmd/compile: get rid of unnecessary inline marks
+    
+    If no other instruction mentions an inline mark, we can get rid of it.
+    This normally happens when the inlined function is empty, or when all
+    of its code is folded into other instructions.
+    
+    Also use consistent statement-ness for inline mark positions, so that
+    more of them can be removed in favor of existing instructions.
+    
+    Update #29571
+    Fixes #31172
+    
+    Change-Id: I71f84d355101f37a27960d9e8528f42f92767496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170445
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/ssa/deadcode.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

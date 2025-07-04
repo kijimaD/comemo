@@ -1,0 +1,33 @@
+commit 2a3e2e9b297955d811f62b1861906a831951ef0e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 24 12:19:00 2024 -0400
+
+    runtime: allow experimental trace batches to be reused
+    
+    Currently, we can only cache regular trace event buffers on each M. As
+    a result, calling unsafeTraceExpWriter will, in effect, always return
+    a new trace batch, with all of the overhead that entails.
+    
+    This extends that cache to support buffers for experimental trace
+    data. This way, unsafeTraceExpWriter can return a partially used
+    buffer, which the caller can continue to extend. This gives the caller
+    control over when these buffers get flushed and reuses all of the
+    existing trace buffering mechanism.
+    
+    This also has the consequence of simplifying the experimental batch
+    infrastructure a bit. Now, traceWriter needs to know the experiment ID
+    anyway, which means there's no need for a separate traceExpWriter
+    type.
+    
+    Change-Id: Idc2100176c5d02e0fbb229dc8aa4aea2b1cf5231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594595
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/trace.go        |  9 +++++----
+ src/runtime/tracebuf.go     | 20 +++++++-------------
+ src/runtime/traceexp.go     | 33 +++++++++++++--------------------
+ src/runtime/traceruntime.go | 22 ++++++++++++----------
+ src/runtime/tracetype.go    |  2 +-
+ 5 files changed, 38 insertions(+), 48 deletions(-)

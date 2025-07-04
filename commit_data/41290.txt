@@ -1,0 +1,19 @@
+commit 0119933477e51f8ece875aca9419cace74b5fe9d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:45:04 2020 -0500
+
+    cmd/go: convert TestGoGetNonPkg to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ieaddc20aebd0b71189f2ebc8f8e2758f1117bbed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213826
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                      | 17 -----------------
+ src/cmd/go/testdata/script/get_non_pkg.txt | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 17 deletions(-)

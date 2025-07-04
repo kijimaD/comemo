@@ -1,0 +1,21 @@
+commit a35decf5a7a722acb32642b6a096271d10545376
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:18:54 2016 -0400
+
+    cmd/go: fix TestIssue11457
+    
+    The goal of the test is to provoke a custom import path check error,
+    which will contain the current repo path, to see that it says ssh:// in it.
+    
+    But the fix to #16471 made the test no longer provoke that error.
+    Provoke the error by checking out from rsc.io instead of github.com/rsc.
+    
+    Fixes #17701.
+    
+    Change-Id: I750ffda2ff59c2be8e111d26160997214a73fd9a
+    Reviewed-on: https://go-review.googlesource.com/32641
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

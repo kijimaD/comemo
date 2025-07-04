@@ -1,0 +1,30 @@
+commit bedde1bee0ce16b46549d182375f4feb3b137f46
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 9 19:16:13 2024 +0100
+
+    crypto: check all cpu.X86 flags for features used in assembly
+    
+    These are most likely redundant, but cmd/compile/internal/amd64's
+    TestGoAMD64v1 turns them off when clobbering those instructions, so we
+    need to know to skip the assembly in those cases.
+    
+    Thankfully we have Avo now that adds a helpful comment with the list of
+    features used by each generated function!
+    
+    Also improve the error output of TestGoAMD64v1. It had broken before in
+    #49402 and had required the exact same patch.
+    
+    Change-Id: I7fab8f36042cdff630f806723aa1d8124c294f60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626876
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go      | 2 +-
+ src/crypto/internal/fips/sha256/sha256block_amd64.go | 4 ++--
+ src/crypto/internal/fips/sha512/sha512block_amd64.go | 2 +-
+ src/crypto/sha1/sha1block_amd64.go                   | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

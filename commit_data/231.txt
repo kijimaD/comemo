@@ -1,0 +1,18 @@
+commit c87597de2c785245398b4be7a7075d555d032248
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 21:19:05 2008 -0700
+
+    put a makefile into runtime
+    make the runtime library an archive (rt0 is still separate)
+    update 6l to use the archive
+    add fakeobj.c, missing from prior change
+    
+    SVN=124762
+
+ src/cmd/6l/obj.c            |  6 +-----
+ src/cmd/ar/Makefile         |  2 +-
+ src/libmach_amd64/fakeobj.c | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/Makefile        | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/clean.bash      |  8 +++++++-
+ src/runtime/make.bash       | 20 ++++----------------
+ 6 files changed, 86 insertions(+), 23 deletions(-)

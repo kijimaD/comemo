@@ -1,0 +1,23 @@
+commit 02298ae11a0d63afe42431791dad92dcf9714c3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 17:53:30 2017 +0000
+
+    Revert "time: enable ZONEINFO tzdata file support and error reporting"
+    
+    This reverts commit 630d176e7d5e42e21d176d1b9d48de0e03e7cec8.
+    
+    Reason for revert: the CL moves a parser for what appears to be an
+    Android-specific file format into the main code and makes it available
+    on all platforms. Android-specific file formats should be limited to
+    Android.
+    
+    Change-Id: I3f19fe03673d65ed1446a0dcf95e5986053e10c0
+    Reviewed-on: https://go-review.googlesource.com/77950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/zoneinfo.go         | 13 ++++----
+ src/time/zoneinfo_android.go | 55 ++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_read.go    | 71 ++++++++++----------------------------------
+ 3 files changed, 77 insertions(+), 62 deletions(-)

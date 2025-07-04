@@ -1,0 +1,16 @@
+commit e1364a6d0ecd5ba50845f416bb3c016bc54a3648
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 28 23:52:08 2014 -0700
+
+    runtime: fix cgo_topofstack to save clobbered registers
+    
+    Fixes #8816
+    
+    At least, I hope it does.
+    
+    TBR=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/153730043
+
+ src/runtime/asm_arm.s | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

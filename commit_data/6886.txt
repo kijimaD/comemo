@@ -1,0 +1,20 @@
+commit 14d677ecba6247591a05306454c6b187bcbcb47d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:56:51 2010 -0500
+
+    cgo: new cgo
+    
+    Very few changes here: the subtle ones are in Make.pkg.
+    
+    Note that incredibly (and importantly) there are
+    no changes necessary to the test programs in misc/cgo.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3504041
+
+ src/Make.pkg        | 50 ++++++++++++++++++++++--------------------
+ src/cmd/cgo/main.go | 41 ++++++++++++++++++++++-------------
+ src/cmd/cgo/out.go  | 62 +++++++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/cgo/util.go |  4 +---
+ 4 files changed, 105 insertions(+), 52 deletions(-)

@@ -1,0 +1,32 @@
+commit 747c8498339b799eb613db1701a927a3549d389a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 12:41:47 2015 -0800
+
+    cmd/6g, cmd/8g: make 2/3 word sgen more efficient
+    
+    When compiling the stdlib most of the calls
+    to sgen are for exactly 2 or 3 words:
+    85% for 6g and 70% for 8g.
+    Special case them for performance.
+    This optimization is not relevant to 5g and 9g.
+    
+    6g
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkCopyFat16       3.25          0.82          -74.77%
+    BenchmarkCopyFat24       5.47          0.95          -82.63%
+    
+    8g
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkCopyFat8       3.84          2.42          -36.98%
+    BenchmarkCopyFat12      4.94          2.15          -56.48%
+    
+    Change-Id: I8bc60b453f12597dfd916df2d072a7d5fc33ab85
+    Reviewed-on: https://go-review.googlesource.com/2607
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/6g/cgen.c | 12 ++++++++++++
+ src/cmd/8g/cgen.c | 15 ++++++++++++++-
+ 2 files changed, 26 insertions(+), 1 deletion(-)

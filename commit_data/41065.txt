@@ -1,0 +1,23 @@
+commit a5cff1e5a51587bc53a49c8311ab6dcd3db89578
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 13:28:43 2019 -0500
+
+    cmd/go: convert TestIssue17119 to the script test framework
+    
+    It's already parallel, but we might as well convert it and
+    get rid of the testdata/src dircetory completely.
+    
+    Updates #36320
+    
+    Change-Id: I75e335b32d64a8ddedd65e4337949b729c9e0fbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212877
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 12 -----------
+ .../go/testdata/script/gopath_vendor_dup_err.txt   | 24 ++++++++++++++++++++++
+ src/cmd/go/testdata/src/dupload/dupload.go         |  8 --------
+ src/cmd/go/testdata/src/dupload/p/p.go             |  1 -
+ src/cmd/go/testdata/src/dupload/p2/p2.go           |  3 ---
+ src/cmd/go/testdata/src/dupload/vendor/p/p.go      |  1 -
+ 6 files changed, 24 insertions(+), 25 deletions(-)

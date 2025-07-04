@@ -1,0 +1,12 @@
+commit 50edddb7383a0e4aef990a085777f958c5d8a2b8
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue Aug 2 14:30:06 2016 -0700
+
+    VERSION: remove erroneously committed VERSION file
+    
+    Change-Id: I1134a4758b7e1a7da243c56f12ad9d2200c8ba41
+    Reviewed-on: https://go-review.googlesource.com/25414
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ VERSION | 1 -
+ 1 file changed, 1 deletion(-)

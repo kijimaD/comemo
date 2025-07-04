@@ -1,0 +1,25 @@
+commit 65f863529ce2d66a63d8be0f62b128feb736a575
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 20 17:01:01 2022 -0500
+
+    runtime: fix usleep on linux/PPC64
+    
+    The existing implementation fails to convert the remainder
+    microseconds to nanoseconds. This causes sysmon to consume
+    much more cpu, and generate lots of context switches.
+    
+    We can also do a little better here to avoid division by a
+    constant. I used go to determine the magic numbers.
+    
+    Fixes #56374
+    
+    Change-Id: I2e37ec218b9027efab6db4634eed1504c0c1b3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444735
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

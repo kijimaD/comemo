@@ -1,0 +1,16 @@
+commit 77bd0da688bf9d53db6ad34a1b17df0cab0b2105
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 10:51:53 2021 -0700
+
+    cmd/link,runtime: remove unnecessary funcdata alignment
+    
+    Change-Id: I2777feaae4f266de99b56b444045370c82447cff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354011
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 8 +-------
+ src/runtime/symtab.go            | 6 ------
+ 2 files changed, 1 insertion(+), 13 deletions(-)

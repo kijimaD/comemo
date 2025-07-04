@@ -1,0 +1,14 @@
+commit a84ac5b507f5d895ca2ee300275beb73d2327f99
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 12 21:11:34 2015 -0700
+
+    go/types: exclude some example tests for arm64, nacl (fix build)
+    
+    TBR: bradfitz, adonovan
+    
+    Change-Id: Ifc8574494848503c979d11e2766ba8da0f374068
+    Reviewed-on: https://go-review.googlesource.com/11043
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

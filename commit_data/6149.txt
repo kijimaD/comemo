@@ -1,0 +1,16 @@
+commit 426275d70236be0ac817ae8185c215e9fc4eb681
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 1 13:40:20 2010 -0700
+
+    test: Use global variables to defeat gccgo optimizer.
+    
+    The gccgo compiler is smart enough to not make something which
+    is not used.  Use global variables to defeat this
+    optimization.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2129041
+
+ test/fixedbugs/bug273.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

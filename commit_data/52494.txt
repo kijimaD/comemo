@@ -1,0 +1,20 @@
+commit 012297a862627e236e4d693476a97ffbbf5e27dc
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 30 10:28:32 2023 +0200
+
+    cmd/gofmt: set backup file permissions on Windows
+    
+    File.Chmod is supported on Windows since CL 250077, there is no need
+    to skip the call anymore.
+    
+    Updates #18026
+    
+    Change-Id: Ie03cf016e651b93241f73067614fc4cb341504ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480416
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/gofmt/gofmt.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

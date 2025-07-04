@@ -1,0 +1,23 @@
+commit 1b2d794ca3ba60c2dbc958a271662784a7122739
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 20 09:57:04 2021 -0700
+
+    reflect: allocate hiter as part of MapIter
+    
+    This reduces the number of allocations per
+    reflect map iteration from two to one.
+    
+    For #46293
+    
+    Change-Id: Ibcff5f42fc512e637b6e460bad4518e7ac83d4c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321889
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go |  7 ++---
+ src/reflect/value.go    | 73 +++++++++++++++++++++++++++++++++----------------
+ src/runtime/map.go      | 10 +++----
+ 3 files changed, 56 insertions(+), 34 deletions(-)

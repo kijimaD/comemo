@@ -1,0 +1,15 @@
+commit cf13bd3fab523931c3555c82c3d2fe896d2935c9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 27 12:56:56 2012 +1100
+
+    path/filepath: convert drive letter to upper case in windows EvalSymlinks
+    
+    Fixes #3347.
+    
+    R=golang-dev, aram, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5918043
+
+ src/pkg/path/filepath/path_test.go       | 23 +++++++++++++++++++++++
+ src/pkg/path/filepath/symlink_windows.go | 10 +++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

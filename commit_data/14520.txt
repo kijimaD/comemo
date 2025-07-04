@@ -1,0 +1,20 @@
+commit 521f11de6b2b4a5d1c443cc88547e4d9ec4731ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 29 09:57:37 2012 -0800
+
+    exp/types: various missing checks for array/slice composite literals
+    
+    - check indices of array/slice composite literals
+    - handle [...]T
+    - also: go/defer statements
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6856107
+
+ src/pkg/exp/types/expr.go             | 178 ++++++++++++++++++++--------------
+ src/pkg/exp/types/stmt.go             |  19 +++-
+ src/pkg/exp/types/testdata/decls0.src |   9 ++
+ src/pkg/exp/types/testdata/expr3.src  | 143 ++++++++++++++++++---------
+ src/pkg/exp/types/testdata/stmt0.src  |  18 +++-
+ 5 files changed, 249 insertions(+), 118 deletions(-)

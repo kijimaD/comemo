@@ -1,0 +1,15 @@
+commit b4150f76144808bf0015fe23be0e2ade32a14599
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 12 14:55:17 2018 -0700
+
+    cmd/compile: remove ineffectual -i flag
+    
+    This flag lost its usefulness in CL 34273.
+    
+    Change-Id: I033c29f105937139b4e359a340906be439f1ed07
+    Reviewed-on: https://go-review.googlesource.com/c/141646
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 1 -
+ 1 file changed, 1 deletion(-)

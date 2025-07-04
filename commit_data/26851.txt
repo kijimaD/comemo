@@ -1,0 +1,25 @@
+commit 1f54410a61e2242285e366a5580943f78fbff741
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 7 17:19:29 2016 +0900
+
+    net: make IP.{String,MarshalText} return helpful information on address error
+    
+    This change makes String and MarshalText methods of IP return a
+    hexadecial form of IP with no punctuation as part of error
+    notification. It doesn't affect the existing behavior of ParseIP.
+    
+    Also fixes bad shadowing in ipToSockaddr and makes use of reserved
+    IP address blocks for documnetation.
+    
+    Fixes #15052.
+    Updates #15228.
+    
+    Change-Id: I9e9ecce308952ed5683066c3d1bb6a7b36458c65
+    Reviewed-on: https://go-review.googlesource.com/21642
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/error_test.go   |  49 +++++++++++++++++++
+ src/net/ip.go           |  24 +++++----
+ src/net/ip_test.go      | 126 +++++++++++++++++++++++++++++++++++++++++-------
+ src/net/ipsock_posix.go |  36 ++++++++------
+ 4 files changed, 192 insertions(+), 43 deletions(-)

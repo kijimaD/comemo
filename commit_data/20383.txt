@@ -1,0 +1,17 @@
+commit b78d7b75c793ee676d4d7700610bd5030c5fea2f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 10 12:37:28 2014 -0700
+
+    reflect: use runtime's memmove instead of its own
+    
+    They will both need write barriers at some point.
+    But until then, no reason why we shouldn't share.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/141330043
+
+ src/reflect/value.go | 29 +++--------------------------
+ src/runtime/thunk.s  |  3 +++
+ 2 files changed, 6 insertions(+), 26 deletions(-)

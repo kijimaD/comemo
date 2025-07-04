@@ -1,0 +1,49 @@
+commit e6d351126475dd55d9f2094c22a11c63919ab106
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 5 16:29:21 2015 +0000
+
+    Revert "liblink, cmd/ld, runtime: remove stackguard1"
+    
+    This reverts commit ab0535ae3fb45ba734d47542cc4845f27f708d1b.
+    
+    I think it will remain useful to distinguish code that must
+    run on a system stack from code that can run on either stack,
+    even if that distinction is no
+    longer based on the implementation language.
+    
+    That is, I expect to add a //go:systemstack comment that,
+    in terms of the old implementation, tells the compiler,
+    to pretend this function was written in C.
+    
+    Change-Id: I33d2ebb2f99ae12496484c6ec8ed07233d693275
+    Reviewed-on: https://go-review.googlesource.com/2275
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ include/link.h                  |  1 +
+ src/cmd/ld/lib.c                | 53 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.h                |  1 +
+ src/cmd/ld/pobj.c               |  1 +
+ src/liblink/obj5.c              | 11 ++++++---
+ src/liblink/obj6.c              | 19 +++++++++++----
+ src/liblink/obj8.c              | 19 +++++++++++----
+ src/liblink/obj9.c              | 11 ++++++---
+ src/liblink/objfile.c           |  7 +++++-
+ src/runtime/asm_386.s           |  6 +++--
+ src/runtime/asm_amd64.s         |  6 +++--
+ src/runtime/asm_amd64p32.s      |  3 ++-
+ src/runtime/asm_arm.s           |  6 +++--
+ src/runtime/asm_ppc64x.s        |  3 ++-
+ src/runtime/lock_futex.go       |  2 +-
+ src/runtime/lock_sema.go        |  2 +-
+ src/runtime/malloc.go           |  6 ++---
+ src/runtime/proc1.go            | 49 ++++++++++++++++++++-----------------
+ src/runtime/runtime1.go         |  2 +-
+ src/runtime/runtime2.go         | 12 ++++++----
+ src/runtime/stack1.go           | 21 ++++++++++------
+ src/runtime/stack2.go           |  2 +-
+ src/runtime/sys_plan9_386.s     |  3 ++-
+ src/runtime/sys_plan9_amd64.s   |  3 ++-
+ src/runtime/sys_solaris_amd64.s |  3 ++-
+ src/runtime/sys_windows_386.s   |  6 +++--
+ src/runtime/sys_windows_amd64.s |  6 +++--
+ 27 files changed, 192 insertions(+), 72 deletions(-)

@@ -1,0 +1,27 @@
+commit 864c757a1cff01f57ff415229674bcf8f701836c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 21:44:05 2009 -0800
+
+    gc/runtime: pass type structure to makeslice.
+      * inform garbage collector about memory with no pointers in it
+    
+    1.9s    gcc reverse-complement.c
+    
+    reverse-complement.go
+    4.5s / 3.5s     original, with/without bounds checks
+    3.5s / 3.3s     bounds check reduction
+    3.3s / 2.8s     smarter garbage collector
+    2.6s / 2.3s             assembler bytes.IndexByte
+    2.5s / 2.1s     even smarter garbage collector (this CL)
+    
+    R=r
+    https://golang.org/cl/165064
+
+ src/cmd/gc/builtin.c.boot |   2 +-
+ src/cmd/gc/reflect.c      | 111 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/walk.c         |   4 +-
+ src/pkg/runtime/slice.c   |  26 +++++------
+ src/pkg/runtime/type.go   |  33 ++++++++++++++
+ src/pkg/runtime/type.h    |  40 +++++++++++++++++
+ 7 files changed, 201 insertions(+), 17 deletions(-)

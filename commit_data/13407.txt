@@ -1,0 +1,19 @@
+commit 5a5e698c8fceec38c34f86375dcd44fb1a7a8939
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jun 27 21:57:49 2012 +0400
+
+    runtime: add goroutine creation benchmark
+    Current results on 2 core darwin/amd64:
+    BenchmarkGoroutineChain         351 ns/op
+    BenchmarkGoroutineChain-2       3840 ns/op
+    BenchmarkGoroutineChain-4       4040 ns/op
+    BenchmarkConcGoroutineChain     350 ns/op
+    BenchmarkConcGoroutineChain-2   875 ns/op
+    BenchmarkConcGoroutineChain-4   2027 ns/op
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6332054
+
+ src/pkg/runtime/proc_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

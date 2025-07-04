@@ -1,0 +1,29 @@
+commit 3e887ff7ea4f1e0d17a7a67e906bef9eec00ed1d
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat Oct 28 23:03:15 2017 +0100
+
+    time: document that valid layouts are not valid Parse values
+    
+    For #9346 #22135 explicitly state under layout constants
+    that they are not valid time values for Parse. Also add
+    examples of parsing valid RFC3339 values and the layout
+    to the example for time.Parse.
+    
+    Fix capitalisation of time.Parse and Time.Format.
+    
+    For #20869 include RFC3339 in the list of layouts that do
+    not accept all the time formats allowed by RFCs (lowercase z).
+    This does not fully address #20869.
+    
+    Fixes #9346
+    Fixes #22135
+    
+    Change-Id: Ia4c13e5745de583db5ef7d5b1688d7768bc42c1b
+    Reviewed-on: https://go-review.googlesource.com/74231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/example_test.go | 18 +++++++++++++++++-
+ src/time/format.go       | 11 +++++++----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

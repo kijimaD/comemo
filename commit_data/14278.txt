@@ -1,0 +1,15 @@
+commit 76500b14a1b578aec2ad9b374c055ce2c047bcb5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 18:59:32 2012 +0100
+
+    cmd/gc: fix inlining bug with local variables.
+    
+    Fixes #4323.
+    
+    R=rsc, lvd, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6815061
+
+ src/cmd/gc/inl.c            |  2 ++
+ test/fixedbugs/issue4323.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

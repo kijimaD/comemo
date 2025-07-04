@@ -1,0 +1,13 @@
+commit be15a8f2dc319d08d20f769af86b6a8d1443aa33
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun May 13 21:20:39 2012 +1000
+
+    A+C: Jan Ziak (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6120047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit a4031ea1f5e0c40717c6f9d608e51ff3cef1a6eb
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Apr 25 08:42:27 2024 +0000
+
+    all: fix typos in comments
+    
+    Change-Id: Ib2e77cff4c10f66316295cbd67f52606cbf9972b
+    GitHub-Last-Rev: 088c033b2d5b743ca7739300ad3e9fdf69846669
+    GitHub-Pull-Request: golang/go#67032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581675
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/liveness/mergelocals.go | 2 +-
+ src/cmd/compile/internal/types2/api.go           | 2 +-
+ src/unique/handle.go                             | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

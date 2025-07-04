@@ -1,0 +1,24 @@
+commit 9ff4565e2b300c0fc6fdf9bcaa45f0baa789bf36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 27 15:03:15 2010 -0700
+
+    gofmt: stability improvement
+    
+    There are a variety of token pairs that if printed
+    without separating blank may combine into a different
+    token sequence. Most of these (except for INT + .)
+    don't happen at the moment due to the spacing
+    introduced between expression operands. However, this
+    will prevent errors should the expression spacing
+    change.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2207044
+
+ src/pkg/go/printer/nodes.go                    |  7 +++++--
+ src/pkg/go/printer/printer.go                  | 29 ++++++++++++++++++++++++--
+ src/pkg/go/printer/testdata/expressions.golden | 11 ++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 11 ++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 11 ++++++++++
+ 5 files changed, 65 insertions(+), 4 deletions(-)

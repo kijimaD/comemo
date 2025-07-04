@@ -1,0 +1,40 @@
+commit 6eceabf11936638c7000a7a12b4c285ffe9b58f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:30:08 2022 -0400
+
+    go/doc/comment: parse and print headings
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement both old-style and new-style headings, like:
+    
+            Text here.
+    
+            Old Style Heading
+    
+            More text here.
+    
+            # New Style Heading
+    
+            More text here.
+    
+    For #51082.
+    
+    Change-Id: I0d735782d0d345794fc2d4e1bdaa0251b8d4bba2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397284
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ api/next/51082.txt                    |  1 +
+ src/go/doc/comment/html.go            | 16 ++++++
+ src/go/doc/comment/markdown.go        | 18 ++++++-
+ src/go/doc/comment/parse.go           | 49 ++++++++++++++++---
+ src/go/doc/comment/print.go           | 48 ++++++++++++++++++
+ src/go/doc/comment/testdata/head.txt  | 92 +++++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/head2.txt | 36 ++++++++++++++
+ src/go/doc/comment/testdata/head3.txt |  7 +++
+ src/go/doc/comment/text.go            |  9 +++-
+ 9 files changed, 266 insertions(+), 10 deletions(-)

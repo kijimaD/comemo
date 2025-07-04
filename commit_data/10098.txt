@@ -1,0 +1,21 @@
+commit 4e4eca261817c80c77ebe0b8522df8b0746cf10b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:21:33 2011 -0700
+
+    fmt: use rune
+    
+    Lots of internal edits.
+    
+    Formatter and Scanner interfaces change
+    (clients to be checked by govet).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5305045
+
+ src/pkg/fmt/fmt_test.go  |   6 +--
+ src/pkg/fmt/format.go    |  10 ++--
+ src/pkg/fmt/print.go     |  44 ++++++++--------
+ src/pkg/fmt/scan.go      | 131 ++++++++++++++++++++++++-----------------------
+ src/pkg/fmt/scan_test.go |  15 +++---
+ 5 files changed, 103 insertions(+), 103 deletions(-)

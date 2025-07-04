@@ -1,0 +1,12 @@
+commit 3f216c1b5d4a612f31098d23f4e47e37de8ae7a0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 19 12:37:39 2011 +1100
+
+    dashboard: hide build status column (package builder is out of action)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5489080
+
+ misc/dashboard/godashboard/package.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

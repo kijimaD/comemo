@@ -1,0 +1,16 @@
+commit 4e18bfb9306e80fd16522bfb6a4a98c3f2b42c0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 16:35:15 2012 -0400
+
+    cmd/go: make go get new.code/... work
+    
+    Fixes #2909.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5796072
+
+ src/cmd/go/get.go  | 121 +++++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/http.go |   1 -
+ src/cmd/go/vcs.go  |  17 ++++++++
+ 3 files changed, 112 insertions(+), 27 deletions(-)

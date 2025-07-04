@@ -1,0 +1,23 @@
+commit a35bb44adcc56e4ea8594e34723b7182ffa0035c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Aug 15 02:13:47 2023 +0000
+
+    sync: deemphasize goroutines in RWMutex documentation
+    
+    Fixes #41555
+    
+    Change-Id: I46b9535b1687d481d2ac76296e8ba7de26d6e2e2
+    
+    Change-Id: I46b9535b1687d481d2ac76296e8ba7de26d6e2e2
+    GitHub-Last-Rev: 38af46c18922eea80e05c8ed9f5e10002ab7244d
+    GitHub-Pull-Request: golang/go#61977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518859
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/sync/rwmutex.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

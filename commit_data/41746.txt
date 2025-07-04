@@ -1,0 +1,26 @@
+commit 91b8b130dda2c3a5933baee439e3fed1098e8318
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 24 16:18:02 2020 -0400
+
+    test: make runindir tests pass regardless of whether module mode is in use
+    
+    The "runindir" tests used "go run", but relied on relative imports
+    (which are not supported by "go run" in module mode). Instead, such
+    tests must use fully-qualified imports, which require either a go.mod
+    file (in module mode) or that the package be in an appropriate
+    subdirectory of GOPATH/src (in GOPATH mode).
+    
+    To set up such a directory, we use yet another copy of the same
+    overlayDir function currently found in the misc subdirectory of this
+    repository.
+    
+    Fixes #33912
+    Updates #30228
+    
+    Change-Id: If3d7ea2f7942ba496d98aaaf24a90bcdcf4df9f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225205
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue29612.dir/main.go |   4 +-
+ test/run.go                           | 137 +++++++++++++++++++++++++---------
+ 2 files changed, 104 insertions(+), 37 deletions(-)

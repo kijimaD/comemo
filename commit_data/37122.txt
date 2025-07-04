@@ -1,0 +1,18 @@
+commit eecb5fd10e519e7ed498bf652d2289047369f7b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 24 14:43:52 2018 -0700
+
+    go/types: automatically ignore $GOROOT/test files that contain build tags
+    
+    These files were already ignored via a hard-coded list of excluded files.
+    Instead of trying to interpret the build tags for these (few) files,
+    recognize the tags automatically and continue to exclude them.
+    
+    Fixes #10370.
+    
+    Change-Id: If7a112ede02e3fa90afe303473d9ea51c5c6609d
+    Reviewed-on: https://go-review.googlesource.com/c/144457
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/stdlib_test.go | 34 +++++++++++++++++++---------------
+ 1 file changed, 19 insertions(+), 15 deletions(-)

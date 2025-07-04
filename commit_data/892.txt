@@ -1,0 +1,21 @@
+commit 4bcfffb761eea545fd4a5befe2fdb9688c490038
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 11:48:51 2008 -0700
+
+    update fixed bugs (and delete an irrelevant one)
+    
+    R=rsc
+    DELTA=328  (158 added, 170 deleted, 0 changed)
+    OCL=17353
+    CL=17359
+
+ test/bugs/bug079.go                         | 12 --------
+ test/{bugs => fixedbugs}/bug074.go          |  0
+ test/{bugs => fixedbugs}/bug090.go          |  0
+ test/{bugs => fixedbugs}/bug093.go          |  0
+ test/{bugs => fixedbugs}/bug096.go          |  0
+ test/{bugs => fixedbugs}/bug106.dir/bug0.go |  0
+ test/{bugs => fixedbugs}/bug106.dir/bug1.go |  0
+ test/{bugs => fixedbugs}/bug106.go          |  0
+ test/golden.out                             | 44 +++++++++++++----------------
+ 9 files changed, 20 insertions(+), 36 deletions(-)

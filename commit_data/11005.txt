@@ -1,0 +1,15 @@
+commit 57c9bb4a07b0ac483935e321ef760c0c52f8efd4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Dec 25 16:07:05 2011 +1100
+
+    testing: use flag.Duration for -timeout flag.
+    
+    R=golang-dev, gustavo, r
+    CC=golang-dev
+    https://golang.org/cl/5498077
+
+ src/Make.pkg               | 2 +-
+ src/cmd/go/test.go         | 4 ++--
+ src/cmd/gotest/doc.go      | 4 ++--
+ src/pkg/testing/testing.go | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

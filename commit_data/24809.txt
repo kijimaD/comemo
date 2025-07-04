@@ -1,0 +1,12 @@
+commit a9bebd91c986b3bcd96fae02e54357365b0097d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 19:31:42 2015 -0800
+
+    runtime: update comment that was missed in CL 6584
+    
+    Change-Id: Ie5f70af7e673bb2c691a45c28db2c017e6cddd4f
+    Reviewed-on: https://go-review.googlesource.com/16833
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/sys_openbsd_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

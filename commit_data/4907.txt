@@ -1,0 +1,20 @@
+commit 989ef60509e13234a10f75ad8e61ce7f76307176
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 17:03:09 2010 -0800
+
+    go/ast: use a slice instead of a linked list for the list of comments
+            (this will simplify some further changes)
+    removed several TODOs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/216059
+
+ src/pkg/go/ast/ast.go         | 15 +++++++++------
+ src/pkg/go/ast/filter.go      | 11 ++---------
+ src/pkg/go/ast/walk.go        |  9 +++------
+ src/pkg/go/doc/doc.go         |  4 ++--
+ src/pkg/go/parser/parser.go   | 18 ++++++++++--------
+ src/pkg/go/printer/nodes.go   | 10 +++++-----
+ src/pkg/go/printer/printer.go | 13 +++++++------
+ 7 files changed, 38 insertions(+), 42 deletions(-)

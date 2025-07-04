@@ -1,0 +1,14 @@
+commit 6fceadbba30ca4b503243794a7461592c029a871
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 30 14:43:33 2009 -0700
+
+    cleanup getting ready for static init
+    
+    R=rsc
+    OCL=34090
+    CL=34090
+
+ src/cmd/gc/init.c  |  15 +-
+ src/cmd/gc/sinit.c | 486 ++---------------------------------------------------
+ src/cmd/gc/subr.c  |   2 +-
+ 3 files changed, 21 insertions(+), 482 deletions(-)

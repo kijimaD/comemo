@@ -1,0 +1,24 @@
+commit 2de786647019d8a48bb776660f861995721c88c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 14:57:20 2020 -0800
+
+    os: remove dependency on strings package
+    
+    Historically the os package has not imported the strings package.
+    That was enforced by go/build.TestDependencies, but that test
+    was accidentally broken (#43249). A dependency of os on strings
+    was accidentally added by CL 266364; remove it.
+    
+    For #42026
+    For #43249
+    
+    Change-Id: If932308f30561fdcc5c608d7563e849c0d2870d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279072
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file_plan9.go | 10 ----------
+ src/os/tempfile.go   | 17 ++++++++++++-----
+ 2 files changed, 12 insertions(+), 15 deletions(-)

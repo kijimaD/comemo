@@ -1,0 +1,12 @@
+commit 4328d44254787c30a32cdb7d93b2c6253ae3b5da
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 7 16:17:42 2008 -0800
+
+    wrong system call number for stat
+    
+    TBR=rsc
+    OCL=18833
+    CL=18833
+
+ src/lib/syscall/file_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

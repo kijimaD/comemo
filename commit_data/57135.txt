@@ -1,0 +1,23 @@
+commit 3de175f38348f82f6cc7bfb49c3609e72a5f8f41
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 9 13:11:03 2024 -0700
+
+    cmd/compile: in prove pass, check for unsat before adding local facts
+    
+    Local facts can get us to unsatisfiable because there is an
+    unconditional panic in the block. That shouldn't declare the whole
+    block as unreachable, because we do still need to enter it to get
+    that panic.
+    
+    Fixes #68816
+    
+    Change-Id: I9220edb46089690702d2eb61d112815c7ac91f16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604118
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go |  6 ++---
+ test/fixedbugs/issue68816.go          | 41 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 3 deletions(-)

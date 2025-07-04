@@ -1,0 +1,15 @@
+commit 032ffb2e90b71b340684fe2b75abbd23f04352f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 20:41:18 2011 -0400
+
+    gc: more graceful errors during struct definition
+    
+    Fixes #2110.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4823060
+
+ src/cmd/gc/dcl.c         |  6 ++----
+ test/fixedbugs/bug365.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 4 deletions(-)

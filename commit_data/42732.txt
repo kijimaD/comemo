@@ -1,0 +1,17 @@
+commit 77a11c05d6a6f766c75f804ea9b8796f9a9f85a3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 17 18:22:38 2020 -0700
+
+    reflect: remove depth from deepequal recursion
+    
+    We aren't using it for anything. The visited map will terminate
+    any recursion for us.
+    
+    Change-Id: I36e6bd8e34952123c2ed46323067e42928ec7168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238759
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/reflect/deepequal.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

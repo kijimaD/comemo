@@ -1,0 +1,14 @@
+commit 77c13021dd401945711ff40f16a5040a075fcef9
+Author: Luka Zitnik <luka.zitnik@gmail.com>
+Date:   Tue Dec 24 01:08:11 2019 +0100
+
+    net/http: document that ParseForm consumes Request.Body
+    
+    Fixes #35620
+    
+    Change-Id: I71bc56ec7a7507d14b4f013177b4b816bb1a2094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212458
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

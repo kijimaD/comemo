@@ -1,0 +1,12 @@
+commit 35eebcacc8b85208bc84867f73cb2fb30ba9b6bc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 17:59:27 2008 -0700
+
+    fix typo causing infinite recursion
+    
+    R=rsc
+    OCL=17398
+    CL=17398
+
+ src/lib/strings.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

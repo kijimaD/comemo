@@ -1,0 +1,19 @@
+commit a294e4e798d75ee9cf167a75189b1b0dff3664f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 15 12:46:11 2021 -0400
+
+    math/rand: mention half-open intervals explicitly
+    
+    If someone sees "in [0,n)" it might look like a typo.
+    Saying "in the half-open interval [0,n)" will give people
+    something to search the web for (half-open interval).
+    
+    Change-Id: I3c343f0a7171891e106e709ca77ab9db5daa5c84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328210
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/math/rand/rand.go | 32 +++++++++++++++-----------------
+ 1 file changed, 15 insertions(+), 17 deletions(-)

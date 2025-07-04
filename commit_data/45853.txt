@@ -1,0 +1,31 @@
+commit 9afd158eb228fbe191ffa27b1a334a8837c45ef7
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 16:10:14 2021 -0400
+
+    go/parser: parse an ast.IndexExpr for a[]
+    
+    To be consistent with Go 1.16, and to preserve as much information in
+    the AST as possible, parse an ast.IndexExpr with BadExpr Index for the
+    invalid expression a[].
+    
+    A go/types test had to be adjusted to account for an additional error
+    resulting from this change.
+    
+    We don't have a lot of test coverage for parser error recovery, so
+    rather than write an ad-hoc test for this issue, add a new go/types test
+    that checks that the indexed operand is used.
+    
+    Updates #46403
+    
+    Change-Id: I21e6ff4179746aaa50e530d4091fded450e69824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329791
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/parser.go                        |  7 ++++++-
+ src/go/types/testdata/examples/functions.go2   |  2 +-
+ src/go/types/testdata/fixedbugs/issue46403.src | 11 +++++++++++
+ 3 files changed, 18 insertions(+), 2 deletions(-)

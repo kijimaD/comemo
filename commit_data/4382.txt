@@ -1,0 +1,15 @@
+commit 02d41ec7dff8c2e5d936c6cbd88680a50040fbf7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 18:27:48 2009 -0800
+
+    rename exp/parser package to oldParser
+    to allow simultaneous import with the
+    current go/parser
+    
+    R=rsc
+    https://golang.org/cl/174053
+
+ src/pkg/exp/parser/interface.go   |  2 +-
+ src/pkg/exp/parser/parser.go      | 15 ++++++++++-----
+ src/pkg/exp/parser/parser_test.go |  4 ++--
+ 3 files changed, 13 insertions(+), 8 deletions(-)

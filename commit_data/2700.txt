@@ -1,0 +1,17 @@
+commit 9df528740a8cf566005a7e40f5ed49ddc9d8c0d8
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 10:53:04 2009 -0700
+
+    Syscall wrappers for ptrace and supporting wait-related flags.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=311  (308 added, 3 deleted, 0 changed)
+    OCL=31569
+    CL=31606
+
+ src/pkg/syscall/syscall_linux.go        | 158 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/types_linux.c           |  67 +++++++++++++-
+ src/pkg/syscall/zsyscall_linux_amd64.go |   6 ++
+ src/pkg/syscall/ztypes_linux_amd64.go   |  80 +++++++++++++++-
+ 4 files changed, 308 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 282bf8cc8c36ebbf02c1ee524daff2ef12b531f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 28 16:42:26 2009 -0800
+
+    fix possible infinite recursion in eqtype.
+    
+    don't use intermediate register to move
+    32-or-fewer-bit immediate constants
+    into memory.
+    
+    R=ken
+    OCL=23726
+    CL=23726
+
+ src/cmd/6g/gsubr.c | 4 +++-
+ src/cmd/gc/subr.c  | 4 ++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

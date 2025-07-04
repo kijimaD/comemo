@@ -1,0 +1,23 @@
+commit aa161e799df7e1eba99d2be10271e76b6f758142
+Author: Obeyda Djeffal <djefobey@gmail.com>
+Date:   Thu Apr 16 12:45:37 2020 +0100
+
+    cmd/go: make sure CC and CXX are absolute
+    
+    Add check in cmd/go/internal/work.BuildInit and
+    cmd/go/internal/envcmd.checkEnvWrite.
+    
+    Fixes #38372
+    
+    Change-Id: I196ea93a0469e4667ef785f7c1dc4574bdf7ff78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228517
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go        |  5 +++++
+ src/cmd/go/internal/work/init.go         |  7 +++++++
+ src/cmd/go/testdata/script/env_write.txt | 24 ++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+)

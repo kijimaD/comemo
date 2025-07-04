@@ -1,0 +1,18 @@
+commit 710b9ad61709043d55d94a0ca28f14cb5739a171
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 25 11:26:40 2015 +1200
+
+    cmd/compile/internal/ppc64: fix the epilogue for non-leaf generated methods
+    
+    This lets us re-enable duffzero.
+    
+    Fixes #12108
+    
+    Change-Id: Iefd24d26eaa56067caa2c29ff99cd20a42d8714a
+    Reviewed-on: https://go-review.googlesource.com/14937
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ppc64/ggen.go | 10 ++-------
+ src/cmd/internal/obj/ppc64/obj9.go     | 25 ++++++++++++++---------
+ test/fixedbugs/issue12108.go           | 37 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 18 deletions(-)

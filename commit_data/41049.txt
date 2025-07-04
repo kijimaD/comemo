@@ -1,0 +1,20 @@
+commit 24902c5be6ba2eac6919879d2e5cb0a7bdadf91c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 1 01:28:22 2020 +1100
+
+    cmd/internal/obj/riscv: handle MOV rewrites in separate pass
+    
+    Handle the rewriting of MOV pseudo-instructions in a separate pass. This allows
+    AMOV to be more readily used by other code, including AGETCALLERPC and ARET
+    implementations.
+    
+    Updates #27532
+    
+    Change-Id: Iea794121210048ed23ed0fb8f3c5e3cd5354a311
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212758
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

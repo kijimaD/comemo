@@ -1,0 +1,31 @@
+commit 237410547bb81ae3c58e9c5bf0cf59edc989e243
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 14 12:53:36 2020 -0700
+
+    cmd/compile: better dclcontext handling in func{hdr,body}
+    
+    funchdr and funcbody currently assume that either (1) Curfn == nil &&
+    dclcontext == PEXTERN, or (2) Curfn != nil && dclcontext == PAUTO.
+    This is a reasonable assumption during parsing. However, these
+    functions end up getting used in other contexts, and not all callers
+    are so disciplined about Curfn/dclcontext handling.
+    
+    This CL changes them to save/restore arbitrary Curfn/dclcontext pairs
+    instead. This is necessary for the followup CL, which pushes fninit
+    earlier. Otherwise, Curfn/dclcontext fall out of sync, and funchdr
+    panics.
+    
+    Passes toolstash-check.
+    
+    Updates #33485.
+    
+    Change-Id: I19b1be23db1bad6475345ae5c81bbdc66291a3a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254838
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go  | 28 +++++++++++++---------------
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ 2 files changed, 16 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 315033368e3bd533e81578cf1787b74b2c94d209
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 6 13:44:44 2009 -0800
+
+    bug020 is fixed
+    
+    R=rsc
+    DELTA=40  (18 added, 22 deleted, 0 changed)
+    OCL=22134
+    CL=22139
+
+ test/{bugs => fixedbugs}/bug020.go | 0
+ test/golden.out                    | 4 ----
+ 2 files changed, 4 deletions(-)

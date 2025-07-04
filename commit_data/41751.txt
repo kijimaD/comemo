@@ -1,0 +1,33 @@
+commit e8be350d78f3fd21b0fab4cc6909c03fe21f1640
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 25 16:41:20 2020 +0000
+
+    runtime: prevent preemption while timer is in timerModifying
+    
+    Currently if a goroutine is preempted while owning a timer in the
+    timerModifying state, it could self-deadlock. When the goroutine is
+    preempted and calls into the scheduler, it could call checkTimers. If
+    checkTimers encounters the timerModifying timer and calls runtimer on
+    it, then runtimer will spin, waiting for that timer to leave the
+    timerModifying state, which it never will.
+    
+    So far we got lucky that for the most part that there were no preemption
+    points while timerModifying is happening, however CL 221077 seems to
+    have introduced one, leading to sporadic self-deadlocks.
+    
+    This change disables preemption explicitly while a goroutines holds a
+    timer in timerModifying. Since only checkTimers (and thus runtimer) is
+    called from the scheduler, this is sufficient to prevent
+    preemption-based self-deadlocks.
+    
+    Fixes #38070.
+    Updates #37894.
+    
+    Change-Id: Idbfac310889c92773023733ff7e2ff87e9896f0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225497
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/time.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

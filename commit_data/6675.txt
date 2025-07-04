@@ -1,0 +1,15 @@
+commit 68ac0c1d9477ea66940c41fd6d702f4730bf86a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 12:50:21 2010 -0700
+
+    go/scanner: don't accept '\x0g' character escape (bug fix)
+    
+    Added more test cases.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2804041
+
+ src/pkg/go/scanner/scanner.go      | 10 +++++++---
+ src/pkg/go/scanner/scanner_test.go | 14 ++++++++++++--
+ 2 files changed, 19 insertions(+), 5 deletions(-)

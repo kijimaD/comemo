@@ -1,0 +1,35 @@
+commit a0624701865261a43ee87d31b15271365a94f47b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 6 12:36:58 2024 -0500
+
+    cmd: update to golang.org/x/sys@v0.18.0
+    
+    This is a requirement of x/telemetry so update it before updating
+    telemetry.
+    
+    Commands run (in both std and cmd):
+            go get golang.org/x/sys@v0.18.0
+            go mod tidy
+            go mod vendor
+    
+    For #66099
+    
+    Change-Id: I636f0c0be89c05b9213c461b1a2eb2a4afb8a84b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569420
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/aliases.go    |  2 +-
+ .../x/sys/unix/syscall_darwin_libSystem.go         |  2 +-
+ .../golang.org/x/sys/unix/syscall_freebsd.go       | 12 +--
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 99 ++++++++++++++++++++++
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go | 10 +++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 60 +++++++++++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/vendor/modules.txt                             |  2 +-
+ 12 files changed, 186 insertions(+), 15 deletions(-)

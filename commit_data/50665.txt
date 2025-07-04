@@ -1,0 +1,22 @@
+commit 6e1b769377245f706c9c1471fa95276762e8edbf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 12 17:07:00 2022 -0500
+
+    cmd/compile: remove some lines from PPC64.rules
+    
+    In CL 429035 Keith suggested removing some
+    rules that were covered by generic rules. This
+    follows up on that comment.
+    
+    Change-Id: I57b6c9ae0cd85f33a0eb2fef8356575d3d7820fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430417
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   34 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1208 +-------------------------
+ 2 files changed, 30 insertions(+), 1212 deletions(-)

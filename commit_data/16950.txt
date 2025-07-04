@@ -1,0 +1,17 @@
+commit 98d94b589cfb03104c0bfd7d4e89b23b1d3ddf73
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 31 22:03:59 2013 +0400
+
+    runtime: better debug output for inconsistent Note
+    Update #5139.
+    Double wakeup on Note was reported several times,
+    but no reliable reproducer.
+    There also was a strange report about weird value of epoll fd.
+    Maybe it's corruption of global data...
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12182043
+
+ src/pkg/runtime/lock_futex.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

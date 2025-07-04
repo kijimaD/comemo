@@ -1,0 +1,12 @@
+commit d1fa58719e171afedfbcdf3646ee574afc08086c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 8 14:43:40 2017 +0100
+
+    doc/go1.10: fix HTML start tag
+    
+    Change-Id: I33f14ea1d58e18081bae3f16c87d11312249c842
+    Reviewed-on: https://go-review.googlesource.com/82835
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

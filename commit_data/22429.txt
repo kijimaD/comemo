@@ -1,0 +1,36 @@
+commit 92eb9aea474742fb0509ade5041a8be703484106
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 10 16:45:10 2015 -0700
+
+    go/types: move go/types/internal/gcimport => go/internal/gcimporter
+    
+    This will make it possible to access the gcimporter (and gccgoimporter,
+    eventually) from the forthcoming gc/importer package, without exposing
+    compiler names in package names.
+    
+    This change was created by manually adjusting the gcimporter paths in
+    go/types.bash and then running sh go/types.bash (i.e., by revendoring
+    gcimporter). The only manual changes are in go/types.bash.
+    
+    Change-Id: Idc282439742288c09caa58b3a66d77aec0325faf
+    Reviewed-on: https://go-review.googlesource.com/8764
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/go/{types => }/internal/gcimporter/exportdata.go       | 0
+ src/go/{types => }/internal/gcimporter/gcimporter.go       | 2 +-
+ src/go/{types => }/internal/gcimporter/gcimporter_test.go  | 0
+ src/go/{types => }/internal/gcimporter/testdata/exports.go | 0
+ src/go/types.bash                                          | 8 ++++----
+ src/go/types/api.go                                        | 2 +-
+ src/go/types/api_test.go                                   | 2 +-
+ src/go/types/builtins_test.go                              | 2 +-
+ src/go/types/check_test.go                                 | 2 +-
+ src/go/types/eval_test.go                                  | 2 +-
+ src/go/types/issues_test.go                                | 2 +-
+ src/go/types/resolver.go                                   | 2 +-
+ src/go/types/resolver_test.go                              | 2 +-
+ src/go/types/self_test.go                                  | 2 +-
+ src/go/types/stdlib_test.go                                | 2 +-
+ src/go/types/typestring_test.go                            | 2 +-
+ 16 files changed, 16 insertions(+), 16 deletions(-)

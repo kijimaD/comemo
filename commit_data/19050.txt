@@ -1,0 +1,20 @@
+commit 3f5288cb0845a8e9d5c3e6ec73141876d4179f9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 8 06:14:19 2014 +0900
+
+    net: remove "net:" prefix from error messages
+    
+    The prefix was not uniformly applied and is probably better
+    left off for using with OpError.
+    
+    Update #4856
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84660046
+
+ src/pkg/net/interface.go    | 10 +++++-----
+ src/pkg/net/ipsock_plan9.go |  4 ++--
+ src/pkg/net/lookup_plan9.go |  4 ++--
+ 3 files changed, 9 insertions(+), 9 deletions(-)

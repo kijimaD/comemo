@@ -1,0 +1,16 @@
+commit df74d8df09f071550610e592ac6db0a18d90cb47
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Oct 13 22:07:28 2010 -0400
+
+    smtp: new package
+    
+    R=rsc, iant, agl
+    CC=golang-dev
+    https://golang.org/cl/2052042
+
+ src/pkg/Makefile          |   1 +
+ src/pkg/smtp/Makefile     |  12 ++
+ src/pkg/smtp/auth.go      |  69 +++++++++++
+ src/pkg/smtp/smtp.go      | 295 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/smtp/smtp_test.go | 182 ++++++++++++++++++++++++++++
+ 5 files changed, 559 insertions(+)

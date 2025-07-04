@@ -1,0 +1,17 @@
+commit 2f08bd96a0f291450c0f8cd41741fa475309cfc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:37:09 2015 -0500
+
+    cmd/go: for go get -insecure, do not fall back to HTTP for non-200 responses
+    
+    Since we allow non-200 responses from HTTPS in normal operation,
+    it seems odd to reject them in -insecure operation.
+    
+    Fixes #13037 (again).
+    
+    Change-Id: Ie232f7544ab192addfad407525888db6b967befe
+    Reviewed-on: https://go-review.googlesource.com/17945
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/http.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

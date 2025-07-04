@@ -1,0 +1,23 @@
+commit 73f11171b4965af85d9c410bb34a2940f798a7ed
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 17 11:19:26 2012 -0400
+
+    math/big: add 4-bit, fixed window exponentiation.
+    
+    A 4-bit window is convenient because 4 divides both 32 and 64,
+    therefore we never have a window spanning words of the exponent.
+    Additionaly, the benefit of a 5-bit window is only 2.6% at 1024-bits
+    and 3.3% at 2048-bits.
+    
+    This code is still not constant time, however.
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkRSA2048Decrypt           17108590     11180370  -34.65%
+    Benchmark3PrimeRSA2048Decrypt     13003720      7680390  -40.94%
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6716048
+
+ src/pkg/math/big/nat.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 72 insertions(+)

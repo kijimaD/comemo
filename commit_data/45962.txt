@@ -1,0 +1,17 @@
+commit 507cc341ec2cb96b0199800245f222146f799266
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 9 00:52:21 2021 +0700
+
+    doc: add example for conversion from slice expressions to array ptr
+    
+    Fixes #47599
+    
+    Change-Id: I8f4ccd3b0c2bcdb057ee853163b4421229141333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340351
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

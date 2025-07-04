@@ -1,0 +1,23 @@
+commit f098ccf04a33e2e4d2dffa2e90fe77ca8a0fcbb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:26:26 2020 -0400
+
+    io/fs: add ReadFile and ReadFileFS
+    
+    Add ReadFile helper function, ReadFileFS interface, and test.
+    Add ReadFile method to fstest.MapFS.
+    Add testing of ReadFile method to fstest.TestFS.
+    
+    For #41190.
+    
+    Change-Id: I5b6a41e2e582824e570463b698b635abaa436c32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243912
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go    |  4 ++-
+ src/io/fs/readfile.go        | 63 ++++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/readfile_test.go   | 43 ++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  | 12 +++++++++
+ src/testing/fstest/testfs.go | 39 ++++++++++++++++++++++++---
+ 5 files changed, 156 insertions(+), 5 deletions(-)

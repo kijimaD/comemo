@@ -1,0 +1,25 @@
+commit b74136984dc04d3f0025f3eaf55c0ecdf3c38857
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 28 20:07:21 2011 -0400
+
+    go: skeleton implementation
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5141051
+
+ src/cmd/go/Makefile   |  21 ++++++
+ src/cmd/go/build.go   |  57 ++++++++++++++++
+ src/cmd/go/clean.go   |  31 +++++++++
+ src/cmd/go/doc.go     |  33 ++++++++++
+ src/cmd/go/fix.go     |  27 ++++++++
+ src/cmd/go/fmt.go     |  27 ++++++++
+ src/cmd/go/get.go     |  39 +++++++++++
+ src/cmd/go/help.go    | 178 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/list.go    |  49 ++++++++++++++
+ src/cmd/go/main.go    | 174 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/script     |  23 +++++++
+ src/cmd/go/test.go    |  32 +++++++++
+ src/cmd/go/version.go |  25 +++++++
+ src/cmd/go/vet.go     |  27 ++++++++
+ 14 files changed, 743 insertions(+)

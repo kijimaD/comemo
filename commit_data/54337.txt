@@ -1,0 +1,31 @@
+commit d9a4b24a1775c4c5baa4ce3005cb5af61346198e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 3 20:53:52 2023 +0000
+
+    runtime: always lock OS thread in debugcall
+    
+    Right now debuggers like Delve rely on the new goroutine created to run
+    a debugcall function to run on the same thread it started on, up until
+    it hits itself with a SIGINT as part of the debugcall protocol.
+    
+    That's all well and good, except debugCallWrap1 isn't particularly
+    careful about not growing the stack. For example, if the new goroutine
+    happens to have a stale preempt flag, then it's possible a stack growth
+    will cause a roundtrip into the scheduler, possibly causing the
+    goroutine to switch to another thread.
+    
+    Previous attempts to just be more careful around debugCallWrap1 were
+    helpful, but insufficient. This change takes everything a step further
+    and always locks the debug call goroutine and the new goroutine it
+    creates to the OS thread.
+    
+    For #61732.
+    
+    Change-Id: I038f3a4df30072833e27e6a5a1ec01806a32891f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515637
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/debugcall.go | 58 +++++++++++++++++++++++++-----------------------
+ 1 file changed, 30 insertions(+), 28 deletions(-)

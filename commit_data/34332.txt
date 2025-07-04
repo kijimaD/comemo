@@ -1,0 +1,23 @@
+commit 0681c7c31b5922f08f31404023e6b295f35812fe
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 22 12:30:44 2018 -0800
+
+    crypto/x509: tighten EKU checking for requested EKUs.
+    
+    There are, sadly, many exceptions to EKU checking to reflect mistakes
+    that CAs have made in practice. However, the requirements for checking
+    requested EKUs against the leaf should be tighter than for checking leaf
+    EKUs against a CA.
+    
+    Fixes #23884
+    
+    Change-Id: I05ea874c4ada0696d8bb18cac4377c0b398fcb5e
+    Reviewed-on: https://go-review.googlesource.com/96379
+    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/name_constraints_test.go | 39 ++++++++++++++++++++++++++++++++
+ src/crypto/x509/verify.go                | 32 +++++++++++++++++---------
+ 2 files changed, 60 insertions(+), 11 deletions(-)

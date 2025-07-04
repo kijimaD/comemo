@@ -1,0 +1,14 @@
+commit a9a675ec354694feef81e8862e34bad1ea72f00e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 12 21:47:05 2012 +1000
+
+    cmd/6g, cmd/8g: clean up unnecessary switch code in componentgen.
+    Code higher up in the function already catches these cases.
+    
+    R=remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/6496106
+
+ src/cmd/6g/cgen.c | 6 ------
+ src/cmd/8g/cgen.c | 6 ------
+ 2 files changed, 12 deletions(-)

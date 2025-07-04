@@ -1,0 +1,22 @@
+commit 3a76627df4f6bd38a3cfa21aeddcb871f6df1881
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 15:28:21 2020 -0500
+
+    cmd/link: use internal linking for -race mode on darwin/arm64
+    
+    The code I wrote in ldmacho.go in CL 266373 was plainly wrong. It
+    didn't carry rAdd over correctly. Fixed. Also added sign extension
+    (as ld64 does).
+    
+    Internal linking with -race mode now works. Enable it.
+    
+    Updates #38485.
+    
+    Change-Id: I78aa949687bf6a0987913059059160b018c7560e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267097
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/config.go         | 2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit f0ff63ea64c878ebe67db70be8f41f73f21bbaff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 9 12:50:49 2013 -0700
+
+    cmd/go: if there are C++ sources, use g++ as default external linker
+    
+    This will bring in the C++ standard library without requiring
+    any special #cgo LDFLAGS options.
+    
+    When using gccgo, just add -lstdc++ to link line; this should
+    do no harm if it is not needed.
+    
+    No tests, since we don't want to assume a C++ compiler.
+    
+    Update #5629
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/13394045
+
+ src/cmd/go/build.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)

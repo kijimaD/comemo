@@ -1,0 +1,17 @@
+commit 148ee9c0092cc6bde1fd7e40f5d7fd6f05897847
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 23 07:34:17 2009 +1100
+
+    fix up %p
+    - use an interface {Get()}
+    - implement Get for maps, slices
+    - for slices, retrieves the address of the end of the array, which will give the
+            same value for every slice of the same array.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179129
+
+ src/pkg/fmt/print.go     | 11 +++++++----
+ src/pkg/reflect/value.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

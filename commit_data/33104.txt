@@ -1,0 +1,21 @@
+commit f5cd3868d52babd106e0509a67295690246a5252
+Author: Ben Schwartz <bemasc@google.com>
+Date:   Thu Oct 5 14:07:55 2017 -0400
+
+    net/http: HTTPS proxies support
+    
+    net/http already supports http proxies. This CL allows it to establish
+    a connection to the http proxy over https. See more at:
+    https://www.chromium.org/developers/design-documents/secure-web-proxy
+    
+    Fixes golang/go#11332
+    
+    Change-Id: If0e017df0e8f8c2c499a2ddcbbeb625c8fa2bb6b
+    Reviewed-on: https://go-review.googlesource.com/68550
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/transport.go      | 160 +++++++++++++++++----------
+ src/net/http/transport_test.go | 243 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 283 insertions(+), 120 deletions(-)

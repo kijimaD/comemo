@@ -1,0 +1,12 @@
+commit c8941bb85ce434eccf5066f22dd3c161e6afc4e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 06:14:31 2016 -0700
+
+    doc: add note about CL 24180 to go1.8.txt
+    
+    Change-Id: Ie2bef1c181a49d7a02ed8068894d2bd81fc5bafa
+    Reviewed-on: https://go-review.googlesource.com/27566
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

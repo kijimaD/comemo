@@ -1,0 +1,22 @@
+commit 94f24fd054a9263174774b91268aab8da23d5d48
+Author: David Anderson <danderson@tailscale.com>
+Date:   Thu Aug 31 22:46:45 2023 +0000
+
+    net/netip: add AddrPort.Compare and Prefix.Compare
+    
+    Fixes #61642
+    
+    Change-Id: I2262855dbe75135f70008e5df4634d2cfff76550
+    GitHub-Last-Rev: 949685a9e426f50f37753045d7527ebcccb082e7
+    GitHub-Pull-Request: golang/go#62387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524616
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ api/next/61642.txt          |   2 +
+ src/net/netip/netip.go      |  26 +++++++++++
+ src/net/netip/netip_test.go | 106 +++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 133 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit f39dc9fff28749da312d711f0256fc8dfd9f9246
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 27 09:44:28 2010 -0800
+
+    More steps towards tracking of identifier scopes.
+    - provide scope to parse functions; if non-nil, parser uses the scope
+      to declare and lookup identifiers
+    - resolve forward references where possible
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194098
+
+ src/cmd/cgo/ast.go                 |  2 +-
+ src/cmd/cgo/gcc.go                 |  2 +-
+ src/cmd/godoc/godoc.go             |  6 ++--
+ src/cmd/godoc/index.go             |  2 +-
+ src/cmd/gofmt/gofmt.go             | 11 ++++----
+ src/cmd/gofmt/rewrite.go           |  2 +-
+ src/pkg/exp/parser/interface.go    |  2 +-
+ src/pkg/go/ast/ast.go              |  1 +
+ src/pkg/go/ast/scope.go            | 25 ++++++++---------
+ src/pkg/go/parser/interface.go     | 55 ++++++++++++++++++-------------------
+ src/pkg/go/parser/parser.go        | 56 ++++++++++++++++++++++++++++++--------
+ src/pkg/go/parser/parser_test.go   |  7 +++--
+ src/pkg/go/printer/printer_test.go |  2 +-
+ 13 files changed, 103 insertions(+), 70 deletions(-)

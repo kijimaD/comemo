@@ -1,0 +1,23 @@
+commit cc1b20e8adf83865a1dbffa259c7a04ef0699b43
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Sep 17 02:21:12 2022 +0000
+
+    runtime/internal/sys: make Len64 nosplit
+    
+    CL 427615 causes failures when Len64 can't be inlined. It's unclear to
+    me why this wasn't a problem before, but it is used in sensitive
+    contexts and therefore really should be marked. Confirmed that the
+    failures in question reproduce without this change, and don't reproduce
+    with it.
+    
+    Fixes #55117.
+    
+    Change-Id: Ic3aa96af1420cc0c39551908d83f954725c712f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431058
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/sys/intrinsics_common.go | 4 ++++
+ 1 file changed, 4 insertions(+)

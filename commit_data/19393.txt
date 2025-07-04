@@ -1,0 +1,39 @@
+commit 5aca0514941ce7dd0f3cea8d8ffe627dbcd542ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 19 12:30:25 2014 -0400
+
+    math/rand: restore Go 1.2 value stream for Float32, Float64
+    
+    CL 22730043 fixed a bug in these functions: they could
+    return 1.0 despite documentation saying otherwise.
+    But the fix changed the values returned in the non-buggy case too,
+    which might invalidate programs depending on a particular
+    stream when using rand.Seed(0) or when passing their own
+    Source to rand.New.
+    
+    The example test says:
+            // These tests serve as an example but also make sure we don't change
+            // the output of the random number generator when given a fixed seed.
+    so I think there is some justification for thinking we have
+    promised not to change the values. In any case, there's no point in
+    changing the values gratuitously: we can easily fix this bug without
+    changing the values, and so we should.
+    
+    That CL just changed the test values too, which defeats the
+    stated purpose, but it was just a comment.
+    Add an explicit regression test, which might be
+    a clearer signal next time that we don't want to change
+    the values.
+    
+    Fixes #6721. (again)
+    Fixes #8013.
+    
+    LGTM=r
+    R=iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/95460049
+
+ src/pkg/math/rand/example_test.go |   4 +-
+ src/pkg/math/rand/rand.go         |  40 ++++-
+ src/pkg/math/rand/regress_test.go | 355 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 395 insertions(+), 4 deletions(-)

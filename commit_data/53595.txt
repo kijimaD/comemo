@@ -1,0 +1,42 @@
+commit a7b179370124c0114036b98a14f3f17cf76c122d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 16 16:30:52 2023 -0400
+
+    cmd/go: do not index std as a module in modcache
+    
+    We do not index std as a whole module ever.
+    
+    When working in the main Go repo, files in package change often,
+    so we don't want to pay the cost of reindexing all of std when what
+    we really need is just to reindex strings. Per-package indexing
+    works better for that case.
+    
+    When using a released Go toolchain, we don't have to worry about
+    the whole module changing, but if we switch to whole-module indexing
+    at that point, we have the potential for bugs that only happen in
+    released toolchains. Probably not worth the risk.
+    
+    For similar reasons, we don't index the current work module as
+    a whole module (individual packages are changing), so we use the heuristic
+    that we only do whole-module indexing in the module cache.
+    
+    The new toolchain modules live in the module cache, though, and
+    our heuristic was causing whole-module indexing for them.
+    As predicted, enabling whole-module indexing for std when it's
+    completely untested does in fact lead to bugs (a very minor one).
+    
+    This CL turns off whole-module indexing for std even when it is
+    in the module cache, to bring toolchain module behavior back in
+    line with the other ways to run toolchains.
+    
+    For #57001.
+    
+    Change-Id: I5012dc713f566846eb4b2848facc7f75bc956eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504119
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modindex/read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

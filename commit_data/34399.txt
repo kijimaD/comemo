@@ -1,0 +1,19 @@
+commit e2b5e6038ba35b964edae155bd74764fd4d9ade5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 27 14:02:09 2018 -0800
+
+    go/types: fix incorrect context when type-checking interfaces
+    
+    Regression, introduced by https://go-review.googlesource.com/c/go/+/79575
+    which meant to be more conservative but ended up destroying an important
+    context.
+    
+    Fixes #24140.
+    
+    Change-Id: Id428dbb295ce9f11ab7cd54ec5ab51ef4291ac3f
+    Reviewed-on: https://go-review.googlesource.com/97535
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/testdata/issues.src | 11 +++++++++++
+ src/go/types/typexpr.go          | 15 +++++++++++++--
+ 2 files changed, 24 insertions(+), 2 deletions(-)

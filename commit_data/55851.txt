@@ -1,0 +1,25 @@
+commit ef4f2a05972f9b729f5edb897d581f496675f588
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 7 21:36:47 2024 +0800
+
+    unicode/utf16: add func RuneLen
+    
+    This CL adds func RuneLen, while here, also uses RuneLen to simplify
+    code in Encode.
+    
+    Fixes #44940
+    
+    Change-Id: Ifd3b537f69880dfd32a69a6733d8d3c2b5d4ecba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/44940.txt                                |  1 +
+ doc/next/6-stdlib/99-minor/unicode/utf16/44940.md |  3 +++
+ src/unicode/utf16/export_test.go                  |  3 +++
+ src/unicode/utf16/utf16.go                        | 21 ++++++++++++++++-----
+ src/unicode/utf16/utf16_test.go                   | 20 ++++++++++++++++++++
+ 5 files changed, 43 insertions(+), 5 deletions(-)

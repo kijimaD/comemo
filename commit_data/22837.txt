@@ -1,0 +1,15 @@
+commit d5ff441d9a27ea9173c0334f74591f2184931eee
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 1 16:14:50 2015 -0700
+
+    cmd/internal/gc,ld: use new flag syntax
+    
+    Followup to CL 9505
+    
+    Change-Id: I1817b672723bd3d853283f388bc7cbaae2765acc
+    Reviewed-on: https://go-review.googlesource.com/9652
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/lex.go  | 22 +++++++++++-----------
+ src/cmd/internal/ld/pobj.go | 40 ++++++++++++++++++++--------------------
+ 2 files changed, 31 insertions(+), 31 deletions(-)

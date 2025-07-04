@@ -1,0 +1,17 @@
+commit 19b264e7bfb47526607d68dd5e1adc2b9f7d058f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 16 18:18:40 2018 -0700
+
+    cmd/cgo: mangle names before rewriting calls
+    
+    Move name mangling before rewriting calls rather than after.
+    This is in preparation for later changes.
+    
+    Change-Id: I74bc351f4290dad7ebf6d0d361bb684087786053
+    Reviewed-on: https://go-review.googlesource.com/c/142881
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/gcc.go | 39 ++++++++++++++++++++++-----------------
+ 1 file changed, 22 insertions(+), 17 deletions(-)

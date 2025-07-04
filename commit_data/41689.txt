@@ -1,0 +1,18 @@
+commit 7f3ca5dfebbf292580d292461815ee184fb32385
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 13:58:48 2020 -0700
+
+    os: merge common Unix/Windows methods
+    
+    Several method implementations were identical in file_unix.go and
+    file_windows.go. Merge them into file_posix.go.
+    
+    Change-Id: I8bcfad468829530f81f52fe426b3a8c042e7bbd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/os/file_posix.go   | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go    | 44 --------------------------------------------
+ src/os/file_windows.go | 44 --------------------------------------------
+ 3 files changed, 45 insertions(+), 88 deletions(-)

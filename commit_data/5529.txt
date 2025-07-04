@@ -1,0 +1,12 @@
+commit 21518ea2af400995475ea627b2c56421ca91777b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 14:31:10 2010 -0700
+
+    runtime: free old hashmap pieces during resizing
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1254044
+
+ src/pkg/runtime/hashmap.h | 1 -
+ 1 file changed, 1 deletion(-)

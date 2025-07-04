@@ -1,0 +1,25 @@
+commit 88076ebc92e793fa95db314c0defed5571d8ce99
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 11 15:51:28 2019 +0700
+
+    go/types: fix iota undefined after ConstDecl inside function in ConstSpec
+    
+    When reaching const declaration, Checker override context iota to use
+    correct iota value, but does not restore the old value when exit, and
+    always set context iota to nil. It ends up with undefined iota after
+    const declaration.
+    
+    To fix it, preserve the original iota value and restore it after const
+    declaration.
+    
+    Fixes #34228
+    
+    Change-Id: I42d5efb55a57e5ddc369bb72d31f1f039c92361c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194737
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go             |  2 +-
+ src/go/types/testdata/const0.src | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 321f0c7fe2078b244a7c11e1bde79b2d348b120f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 19 20:39:29 2010 -0700
+
+    gob: break documentation into a separate doc.go file
+    
+    R=adg, r2
+    CC=golang-dev
+    https://golang.org/cl/2596041
+
+ src/pkg/gob/Makefile  |   1 +
+ src/pkg/gob/doc.go    | 267 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/encode.go | 262 -------------------------------------------------
+ 3 files changed, 268 insertions(+), 262 deletions(-)

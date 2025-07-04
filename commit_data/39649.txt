@@ -1,0 +1,96 @@
+commit 79dee788ec0bf2c943348088e7e6e471f6617c37
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Aug 10 19:27:45 2019 +0200
+
+    cmd/compile: teach rulegen to remove unused decls
+    
+    First, add cpu and memory profiling flags, as these are useful to see
+    where rulegen is spending its time. It now takes many seconds to run on
+    a recent laptop, so we have to keep an eye on what it's doing.
+    
+    Second, stop writing '_ = var' lines to keep imports and variables used
+    at all times. Now that rulegen removes all such unused names, they're
+    unnecessary.
+    
+    To perform the removal, lean on go/types to first detect what names are
+    unused. We can configure it to give us all the type-checking errors in a
+    file, so we can collect all "declared but not used" errors in a single
+    pass.
+    
+    We then use astutil.Apply to remove the relevant nodes based on the line
+    information from each unused error. This allows us to apply the changes
+    without having to do extra parser+printer roundtrips to plaintext, which
+    are far too expensive.
+    
+    We need to do multiple such passes, as removing an unused variable
+    declaration might then make another declaration unused. Two passes are
+    enough to clean every file at the moment, so add a limit of three passes
+    for now to avoid eating cpu uncontrollably by accident.
+    
+    The resulting performance of the changes above is a ~30% loss across the
+    table, since go/types is fairly expensive. The numbers were obtained
+    with 'benchcmd Rulegen go run *.go', which involves compiling rulegen
+    itself, but that seems reflective of how the program is used.
+    
+            name     old time/op         new time/op         delta
+            Rulegen          5.61s ± 0%          7.36s ± 0%  +31.17%  (p=0.016 n=5+4)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          7.20s ± 1%          9.92s ± 1%  +37.76%  (p=0.016 n=5+4)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          135ms ±19%          169ms ±17%  +25.66%  (p=0.032 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen         71.0MB ± 2%         85.6MB ± 2%  +20.56%  (p=0.008 n=5+5)
+    
+    We can live with a bit more resource usage, but the time/op getting
+    close to 10s isn't good. To win that back, introduce concurrency in
+    main.go. This further increases resource usage a bit, but the real time
+    on this quad-core laptop is greatly reduced. The final benchstat is as
+    follows:
+    
+            name     old time/op         new time/op         delta
+            Rulegen          5.61s ± 0%          3.97s ± 1%   -29.26%  (p=0.008 n=5+5)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          7.20s ± 1%         13.91s ± 1%   +93.09%  (p=0.008 n=5+5)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          135ms ±19%          269ms ± 9%   +99.17%  (p=0.008 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen         71.0MB ± 2%        226.3MB ± 1%  +218.72%  (p=0.008 n=5+5)
+    
+    It might be possible to reduce the cpu or memory usage in the future,
+    such as configuring go/types to do less work, or taking shortcuts to
+    avoid having to run it many times. For now, ~2x cpu and ~4x memory usage
+    seems like a fair trade for a faster and better rulegen.
+    
+    Finally, we can remove the old code that tried to remove some unused
+    variables in a hacky and unmaintainable way.
+    
+    Change-Id: Iff9e83e3f253babf5a1bd48cc993033b8550cee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189798
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go           |  48 ++++++-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        | 159 ++++++++++-----------
+ src/cmd/compile/internal/ssa/rewrite386.go         |  13 --
+ .../compile/internal/ssa/rewrite386splitload.go    |  17 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  12 --
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |  17 ---
+ src/cmd/compile/internal/ssa/rewriteARM.go         |  13 --
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |  14 --
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |  14 --
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |  14 --
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  12 --
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  12 --
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |  14 --
+ src/cmd/compile/internal/ssa/rewritedec.go         |  15 --
+ src/cmd/compile/internal/ssa/rewritedec64.go       |  15 --
+ src/cmd/compile/internal/ssa/rewritedecArgs.go     |  17 ---
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  13 --
+ 17 files changed, 119 insertions(+), 300 deletions(-)

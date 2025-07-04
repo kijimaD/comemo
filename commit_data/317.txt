@@ -1,0 +1,12 @@
+commit 7b454bb1d92fcc70f7cc60454e74e7c62547462c
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 9 11:35:26 2008 -0700
+
+    defined external registers g and m
+    
+    SVN=126521
+
+ src/runtime/rt2_amd64.c | 10 +++++-----
+ src/runtime/runtime.c   |  5 +++++
+ src/runtime/runtime.h   | 19 ++++++++++---------
+ 3 files changed, 20 insertions(+), 14 deletions(-)

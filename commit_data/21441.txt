@@ -1,0 +1,19 @@
+commit fc5baec37f65baf33a8b6777e576b85de62654ec
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 09:18:15 2015 -0500
+
+    runtime: rearrange framepointer check condition
+    
+    The test for the framepointer experiment flag is cheaper and more
+    branch-predictable than the other parts of this conditional, so move
+    it first.  This is also more readable.
+    
+    (Originally, the flag check required parsing the experiments string,
+    which is why it was done last.  Now that flag is cached.)
+    
+    Change-Id: I84e00fa7e939e9064f0fa0a4a6fe00576dd61457
+    Reviewed-on: https://go-review.googlesource.com/3782
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

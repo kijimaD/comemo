@@ -1,0 +1,28 @@
+commit ab5a2173f91c1e2779cdf49a2fc8a7abafecd5f1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Dec 9 12:38:34 2016 -0500
+
+    cmd/link: limit darwin dynlink symbol exports
+    
+    The pclntable contains pointers to functions. If the function symbol
+    is exported in a plugin, and there is a matching symbol in the host
+    binary, then the pclntable of a plugin ends up pointing at the
+    function in the host module.
+    
+    This doesn't work because the traceback code expects the pointer to
+    be in the same module space as the PC value.
+    
+    So don't export functions that might overlap with the host binary.
+    This way the pointer stays in its module.
+    
+    Updates #18190
+    
+    Change-Id: Ifb77605b35fb0a1e7edeecfd22b1e335ed4bb392
+    Reviewed-on: https://go-review.googlesource.com/34196
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/plugin1/plugin1.go |  5 ++++-
+ src/cmd/link/internal/ld/macho.go          | 24 ++++++++++++++++++------
+ 2 files changed, 22 insertions(+), 7 deletions(-)

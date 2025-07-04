@@ -1,0 +1,18 @@
+commit aa8c8e770e6db895405b66d38867c2368d94024a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 2 18:25:57 2016 -0700
+
+    cmd/vet: teach vet about ast.AliasSpec
+    
+    Fixes #17755
+    
+    Change-Id: I1ad1edc382b1312d992963054eb82648cb5112d2
+    Reviewed-on: https://go-review.googlesource.com/32588
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/copylock.go          | 5 ++++-
+ src/cmd/vet/shadow.go            | 3 +--
+ src/cmd/vet/testdata/copylock.go | 9 +++++++++
+ 3 files changed, 14 insertions(+), 3 deletions(-)

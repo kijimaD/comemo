@@ -1,0 +1,17 @@
+commit 1bf18b42f8475db2af1618d798285ed84a8dd521
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 15:15:48 2014 -0400
+
+    cmd/go: fix -a
+    
+    The one line that you can't test easily was broken.
+    This manifested as a failure of a pre-existing test
+    in test.bash but I didn't notice it (there are a few other
+    long-standing failures that need to be fixed).
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/146340044
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

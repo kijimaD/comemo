@@ -1,0 +1,13 @@
+commit e31ee76dcb5aded375ffd09b1f908bf659dc4095
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 12 13:12:40 2008 -0700
+
+    - fixed typo in go_lang.txt
+    - changed go.atg to make optional semicolons work for statements
+    - expanded a test case
+    
+    SVN=112242
+
+ doc/go_lang.txt |  2 +-
+ tests/test0.go  | 27 +++++++++++++++++++++------
+ 2 files changed, 22 insertions(+), 7 deletions(-)

@@ -1,0 +1,25 @@
+commit 6ad76718cfdd59977b0008c1e774150a7e39fbd8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 17:40:37 2016 -0700
+
+    cmd/vet: don't treat trailing % as possible formatting directive
+    
+    Eliminates the following false positive:
+    
+    cmd/go/go_test.go:1916: possible formatting directive in Error call
+    
+    The line in question:
+    
+    tg.t.Error("some coverage results are 0.0%")
+    
+    Updates #11041
+    
+    Change-Id: I3b7611fa3e0245714a19bd5388f21e39944f5296
+    Reviewed-on: https://go-review.googlesource.com/27128
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 5 ++++-
+ src/cmd/vet/testdata/print.go | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)

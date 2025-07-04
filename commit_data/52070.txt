@@ -1,0 +1,22 @@
+commit 52fea4b3d97f741162a38e007aa7cdb5aaf52722
+Author: Adin Scannell <ascannell@google.com>
+Date:   Thu Feb 23 22:22:29 2023 +0000
+
+    runtime: fix linkname signature for godebug
+    
+    This signature uses the wrong type for the passed function, which
+    will be saved in the internal runtime map. Since the functions are
+    likely compatible (uint64 return versus int64), this may work but
+    should generally be fixed.
+    
+    This is other instance of #58440.
+    
+    Change-Id: Ied82e554745ef72eefeb5be540605809ffa06533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/godebug/godebug.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 6fe8981620aa61cb43476538f8230231623f9e13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 13:58:45 2021 -0500
+
+    cmd/internal/obj/riscv: fix JMP name<>(SB)
+    
+    It was being rejected. Now it isn't and can be used in the runtime.
+    
+    Change-Id: I4626bf9fc2e0bc26fffb87d11bede459964324b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292129
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 8c4fecdcb9abdd7cc6b4b0e97fad936c87ddb4c0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 14 14:57:57 2012 +0900
+
+    net: fix windows build
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5661055
+
+ src/pkg/net/fd.go               | 8 ++++----
+ src/pkg/net/fd_windows.go       | 3 ++-
+ src/pkg/net/sendfile_windows.go | 2 +-
+ 3 files changed, 7 insertions(+), 6 deletions(-)

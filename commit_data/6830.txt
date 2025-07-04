@@ -1,0 +1,15 @@
+commit e2d1595c819ea6baeec42bae2107c141eb935b9e
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Dec 6 14:19:30 2010 -0500
+
+    time: make After use fewer goroutines and host processes.
+    With credit to Gustavo Niemeyer, who hinted at this approach
+    in #go-nuts.
+    
+    R=adg, rsc, niemeyer, r
+    CC=golang-dev
+    https://golang.org/cl/3416043
+
+ src/pkg/time/sleep.go      | 114 ++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/time/sleep_test.go |  58 +++++++++++++++++++++++
+ 2 files changed, 160 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 016625c26591d375a4bfcf83532ff8407860612a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 9 08:32:22 2019 +0200
+
+    strings: add TestIndexByte
+    
+    Add TestIndexByte to package strings similar to the already existing
+    TestIndexByte in package bytes.
+    
+    Change-Id: Ib60695cb326156a4fe48138c66393ebbd11e4a25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171197
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

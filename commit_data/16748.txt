@@ -1,0 +1,13 @@
+commit 39b5f3a4515e04ec2a7b3054e3357c5c5af102ef
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 12 14:13:59 2013 +0800
+
+    misc/cgo/test: relax the threshold in test3250.
+    Fixes build for some slow FreeBSD/NetBSD/Darwin builder.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/11207043
+
+ misc/cgo/test/issue3250.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 9fa9f966e99eb514f9b6f61821f83d5f9178a4a2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 7 15:30:27 2015 +1000
+
+    misc/cgo/testso: add test for fixed issue 4339
+    
+    Update #4339.
+    
+    Change-Id: Ic1a7535562b8b824ba166777725f7ba5b9623d77
+    Reviewed-on: https://go-review.googlesource.com/8523
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testso/cgoso.c   |  5 +++++
+ misc/cgo/testso/cgoso.go  | 19 +++++++++++++++++++
+ misc/cgo/testso/cgoso_c.c |  4 ++++
+ misc/cgo/testso/cgoso_c.h | 17 +++++++++++++++++
+ misc/cgo/testso/test.bat  |  2 +-
+ 5 files changed, 46 insertions(+), 1 deletion(-)

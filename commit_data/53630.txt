@@ -1,0 +1,24 @@
+commit 4ad4128d3c09e24f1e901635bd81ba2db7c46764
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 26 11:30:48 2023 +0700
+
+    cmd/compile: fix bad order of evaluation for min/max builtin
+    
+    For float or string, min/max builtin performs a runtime call, so we need
+    to save its result to temporary variable. Otherwise, the runtime call
+    will clobber closure's arguments currently on the stack when passing
+    min/max as argument to closures.
+    
+    Fixes #60990
+    
+    Change-Id: I1397800f815ec7853182868678d0f760b22afff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/walk/order.go |  4 +++-
+ test/fixedbugs/issue60990.go           | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

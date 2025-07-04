@@ -1,0 +1,18 @@
+commit bf44c4c889935b3ef1db9b7fd0a14ce4e5508cab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 22:10:28 2016 +0000
+
+    crypto/tls: test for timeout error using the net.Error interface
+    
+    Don't do a substring search to test for a timeout error.
+    
+    Fixes #14722 (maybe)
+    
+    Change-Id: I4e18c749d6fd92c084a1b0b83a805119e1ae5ff2
+    Reviewed-on: https://go-review.googlesource.com/20403
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/tls_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

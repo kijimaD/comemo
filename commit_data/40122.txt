@@ -1,0 +1,22 @@
+commit 6139019efaa3faa9ec94a57ab8c15b726d516664
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 25 15:20:10 2019 -0400
+
+    cmd/compile: pick position of implicit break statements more carefully
+    
+    The previous version used the position of the switch statement,
+    which makes for potentially jumpy stepping and introduces a large
+    number of statements repeating the line (tricky for inserting
+    breaks).  It also shared a single OBREAK node and this was not
+    really a syntax "tree".
+    
+    This improves both the nostmt test (by 6 lines) and
+    reduces the total badness score from dwarf-goodness (by about 200).
+    
+    Change-Id: I1f71b231a26f152bdb6ce9bc8f95828bb222f665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188218
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

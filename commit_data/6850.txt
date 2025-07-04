@@ -1,0 +1,12 @@
+commit 24a78a026d0efd181f5b645dfb4622c826d9207a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Dec 7 14:54:15 2010 -0500
+
+    bufio: make Reader.Read implement io.Reader semantics
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3395042
+
+ src/pkg/bufio/bufio.go | 67 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 33 deletions(-)

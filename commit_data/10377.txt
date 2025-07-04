@@ -1,0 +1,14 @@
+commit 6687e52ab16a5af31f4e861e4f43773a534e04d4
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Nov 14 07:52:36 2011 -0800
+
+    doc/install: add openbsd
+    
+    Add openbsd to the $GOOS list.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4964053
+
+ doc/install.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

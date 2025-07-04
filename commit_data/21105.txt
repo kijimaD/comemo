@@ -1,0 +1,15 @@
+commit 26d5573949843e5504c79b1d32440918ee5e9181
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Sun Dec 28 11:18:59 2014 -0800
+
+    net/smtp: add TLSConnectionState accessor
+    
+    Fixes #9451
+    
+    Change-Id: I0540e398b30c10779ac9d5a67a01d44bb6054a92
+    Reviewed-on: https://go-review.googlesource.com/2151
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/net/smtp/smtp.go      | 11 +++++++++++
+ src/net/smtp/smtp_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

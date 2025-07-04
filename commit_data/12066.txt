@@ -1,0 +1,15 @@
+commit 72f5a91aa3c040d48ba85fbc86f05d84400af114
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 18:04:38 2012 -0500
+
+    doc/go1: update for runtime, unsafe API changes
+    
+    Fixes #2890.
+    
+    R=golang-dev, r, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5683044
+
+ doc/go1.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ doc/go1.tmpl | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 94 insertions(+), 4 deletions(-)

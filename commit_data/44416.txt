@@ -1,0 +1,22 @@
+commit 37ca84a9cd6a8a76dfe91263a17d2b92b17a24b3
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 25 02:58:04 2021 +0100
+
+    syscall: return error if GetQueuedCompletionStatus truncates key
+    
+    This function has the wrong signature, so return an error when that
+    actually might lead to unexpected results. Users should switch to
+    x/sys/windows for the real version of this function.
+    
+    Updates #44538.
+    
+    Change-Id: I4d1f3d1e380815733ecfea683f939b1d25dcc32a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296154
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

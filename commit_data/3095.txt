@@ -1,0 +1,20 @@
+commit 24dfb749c48588a43c393d7861527bd38b69b42a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 26 16:53:07 2009 -0700
+
+    change IsDecimalDigit to IsDigit because Decimal is redundant
+    
+    R=rsc
+    DELTA=792  (398 added, 383 deleted, 11 changed)
+    OCL=33919
+    CL=33921
+
+ src/pkg/go/scanner/scanner.go                           |  2 +-
+ src/pkg/unicode/Makefile                                |  2 +-
+ src/pkg/unicode/decimaldigit.go                         | 10 ----------
+ src/pkg/unicode/digit.go                                | 13 +++++++++++++
+ src/pkg/unicode/{decimaldigit_test.go => digit_test.go} | 14 +++++++-------
+ src/pkg/unicode/digittables.go                          |  8 ++++----
+ src/pkg/unicode/letter.go                               | 16 ++++++++++++++--
+ src/pkg/unicode/maketables.go                           |  8 ++++----
+ 8 files changed, 44 insertions(+), 29 deletions(-)

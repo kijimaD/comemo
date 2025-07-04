@@ -1,0 +1,14 @@
+commit f027d1a8782387fb7e354054a669a202524335e4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Jun 12 11:10:49 2018 +0200
+
+    runtime: convert a darwin/arm64 syscall to libc
+    
+    Change-Id: I5704a07375fc672ac70c1f4e8df6f4fff760b4bf
+    Reviewed-on: https://go-review.googlesource.com/118117
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/rt0_darwin_arm64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

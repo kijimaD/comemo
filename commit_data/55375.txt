@@ -1,0 +1,18 @@
+commit f2794207adabc3130e79aa6e701782b8aed69e25
+Author: lxl-renren <gnnu_d13@163.com>
+Date:   Fri Jan 12 15:09:17 2024 +0000
+
+    cmp: add test case for uinitptr
+    
+    Change-Id: Iebe79be01eb5208e9b9dea9297c464fe2b2dd3dd
+    GitHub-Last-Rev: 875ab08627b1fb0db3dc2a14ac332fdbc9af8b4b
+    GitHub-Pull-Request: golang/go#65017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554595
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmp/cmp_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

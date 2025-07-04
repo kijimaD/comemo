@@ -1,0 +1,23 @@
+commit 4123be4cf66bc478cbed1058d362678ade73fb0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 5 10:28:28 2015 +0100
+
+    net/http: enable HTTP/2 support in DefaultTransport
+    
+    The GODEBUG option remains, for now, but only for turning it off.
+    We'll decide what to do with it before release.
+    
+    This CL includes the dependent http2 change (https://golang.org/cl/16692)
+    in the http2 bundle (h2_bundle.go).
+    
+    Updates golang/go#6891
+    
+    Change-Id: If9723ef627c7ba4f7343dc8cb89ca88ef0fbcb10
+    Reviewed-on: https://go-review.googlesource.com/16693
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 23 +++++++++++++++++++++--
+ src/net/http/transport.go | 27 +++++++++++----------------
+ 2 files changed, 32 insertions(+), 18 deletions(-)

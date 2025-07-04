@@ -1,0 +1,22 @@
+commit 1e66a21348e51cebf877005de0eaaef60a5bb01c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 11 13:45:26 2010 +1100
+
+    time: add After
+    
+    Permits one to easily put a timeout in a select:
+    
+    select {
+    case <-ch:
+            // foo
+    case <-time.After(1e6):
+            // bar
+    }
+    
+    R=r, rog, rsc, sameer1, PeterGo, iant, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/2321043
+
+ src/pkg/time/sleep.go      | 30 +++++++++++++++++++++++++-----
+ src/pkg/time/sleep_test.go | 12 ++++++++++++
+ 2 files changed, 37 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit 9903ab546938639c93a616c00b80cd94683e2779
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Aug 8 16:48:55 2022 +0000
+
+    encoding/binary: ReadUvarint return io.ErrUnexpectedEOF when read at least 1 byte
+    
+    Fixes #54139
+    
+    Change-Id: Ifc73bd7f181b13970ee6a08968f9d8f6e55d7ff3
+    GitHub-Last-Rev: 1e0a79bd3eb3e4dfcbfd7e9f94e849b3248ffac1
+    GitHub-Pull-Request: golang/go#54143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420274
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/encoding/binary/varint.go      | 9 +++++++++
+ src/encoding/binary/varint_test.go | 6 +++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

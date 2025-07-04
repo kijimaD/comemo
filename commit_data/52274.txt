@@ -1,0 +1,19 @@
+commit dd009b2f1a3a781c9c23c852402deb1039513d04
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Mar 12 16:02:19 2023 +0800
+
+    runtime/internal/sys: remove 386 assembly code
+    
+    Change-Id: Ia4f8638d626c30b91729caa0c58a96451c627f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475736
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/sys/intrinsics.go        | 138 ++++++++++++++++++++++++-
+ src/runtime/internal/sys/intrinsics_386.s     |  43 --------
+ src/runtime/internal/sys/intrinsics_common.go | 141 --------------------------
+ src/runtime/internal/sys/intrinsics_stubs.go  |  11 --
+ 4 files changed, 134 insertions(+), 199 deletions(-)

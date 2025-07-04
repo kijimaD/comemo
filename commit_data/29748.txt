@@ -1,0 +1,21 @@
+commit 348a7c5397f996a333f88cf9f0c912b282368f32
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Dec 5 23:20:20 2016 -0500
+
+    cmd/link: hash packages after loading all symbols
+    
+    Conditioning on the plugin.Open symbol existing before loading all
+    symbols means sometimes some packages don't have a hash value.
+    
+    Fixes #17928
+    
+    Change-Id: I2722449aa58eca08a25117d3ce976f11f805b5ac
+    Reviewed-on: https://go-review.googlesource.com/33925
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go  |  3 ++-
+ src/cmd/link/internal/ld/lib.go  | 45 ++++++++++++++++++++++++++++++----------
+ src/cmd/link/internal/ld/link.go |  2 +-
+ 3 files changed, 37 insertions(+), 13 deletions(-)

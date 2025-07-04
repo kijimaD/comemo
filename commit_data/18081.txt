@@ -1,0 +1,18 @@
+commit 0b26ba8af340c1ef5de8622c067b31b0d3fc4f1f
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Dec 19 12:14:07 2013 -0500
+
+    cmd/yacc: expr example support windows
+    
+    1. expr append executable extension.
+    2. support '\r' character.
+    
+    Fixes #6851.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/35330043
+
+ src/cmd/yacc/Makefile | 8 +++++---
+ src/cmd/yacc/expr.y   | 2 +-
+ 2 files changed, 6 insertions(+), 4 deletions(-)

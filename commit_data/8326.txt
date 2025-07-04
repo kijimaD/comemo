@@ -1,0 +1,12 @@
+commit 606e12f9bfb1b2a6d6f5e7da73bc69c9569329e2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 6 10:00:50 2011 -0700
+
+    http: fix typo in URL.String doc comment.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4485046
+
+ src/pkg/http/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 11b49ff1243749a6684f8e5882a0b42641309f26
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Dec 14 12:22:08 2010 -0500
+
+    smtp: add *tls.Config argument to StartTLS
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/3573044
+
+ src/pkg/smtp/smtp.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit d78c84c419b0ecdd70e85aad22951798c1707f50
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 25 15:59:42 2016 -0700
+
+    cmd/compile: sort import strings for canonical obj files
+    
+    This is not necessary for reproduceability but it removes
+    differences due to imported package order between compiles
+    using textual vs binary export format. The packages list
+    tends to be very short, so it's ok doing it always for now.
+    
+    Guarded with a documented (const) flag so it's trivial to
+    disable and remove eventually.
+    
+    Also, use the same flag now to enforce parameter numbering.
+    
+    Change-Id: Ie05d2490df770239696ecbecc07532ed62ccd5c0
+    Reviewed-on: https://go-review.googlesource.com/22445
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 13 ++++++-------
+ src/cmd/compile/internal/gc/reflect.go | 11 +++++++++++
+ 2 files changed, 17 insertions(+), 7 deletions(-)

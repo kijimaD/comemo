@@ -1,0 +1,12 @@
+commit 42a691b8778becb7d2ee78ac171e26e03dbbf30a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 22:32:04 2010 -0700
+
+    fix build: invalid character literals
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1631041
+
+ test/char_lit.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 52961b902fa89e89eff318e907e7f331bcf09736
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri May 9 12:19:00 2014 -0400
+
+    cmd/go: mark regexp as dependency of testmain
+    
+    Fixes #6844.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/97840043
+
+ src/cmd/go/test.bash            | 17 +++++++++++++++++
+ src/cmd/go/test.go              |  3 ++-
+ src/cmd/go/testdata/dep_test.go |  7 +++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

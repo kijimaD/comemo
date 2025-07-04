@@ -1,0 +1,30 @@
+commit f3758443424dd6e411e2ac0108efdefd2ad7b294
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 4 17:54:51 2021 -0700
+
+    cmd/compile: fix -W=3 output after the # line
+    
+    I've noticed for a while that there is some duplicated and some useful
+    information being put out in -W=3 mode after the comment marker (besides
+    the position).
+    
+    dumpNodeHeader puts out a comment marker '#' before putting out the
+    position of a node (which is for almost all nodes). Therefore, we shouldn't
+    print out anything on the same line after calling dumpNodeHeader().
+    
+    But we happen to be putting out a duplicate type of the node in some
+    cases. Also, we put out the Sym() associate with the node after
+    dumpNodeHeader(). So, I got rid of the duplicate type print-out, and moved
+    the print-out of n.Sym() to be inside dumpNodeHeader() before the
+    position information. Also, moved the tc flag to be right after the type
+    information, which seems like it makes more sense.
+    
+    Change-Id: I05210fbf9f3b2d8e3b73fc0ceab26a7bce5dc104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354355
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/fmt.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

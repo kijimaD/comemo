@@ -1,0 +1,22 @@
+commit c8f1436948ca267dc904cf04c67bab7367503107
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 23 03:23:10 2016 -0800
+
+    test: lock in test for _ assignment evaluation/zerodivide panic
+    
+    Fixes #5790.
+    Fixes #18421.
+    
+    * Lock in _ = x1/x2 divide by zero runtime panics since
+    it is actually evaluated and not discarded as in previous
+    versions before Go1.8.
+    * Update a test that was skipping over zerodivide tests
+    that expected runtime panics, enabling us to check for
+    the expected panics.
+    
+    Change-Id: I0af0a6ecc19345fa9763ab2e35b275fb2d9d0194
+    Reviewed-on: https://go-review.googlesource.com/34712
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/zerodivide.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

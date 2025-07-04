@@ -1,0 +1,27 @@
+commit 229695a2833ead7bbee53071f52f34e2ce1c2802
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 09:32:55 2021 -0500
+
+    runtime: clean up funcID assignment
+    
+    Large enum sets should be sorted by name when the
+    values don't matter, as they don't here. Do that.
+    
+    Also replace the large switch with a map lookup.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ibe727b5d8866bf4c40c96020e1f4632bde7efd59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288798
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objabi/funcid.go | 113 ++++++++++++++++----------------------
+ src/runtime/symtab.go             |  26 ++++-----
+ 2 files changed, 61 insertions(+), 78 deletions(-)

@@ -1,0 +1,20 @@
+commit 643be70045e413943cae9d73687beaa4db47f909
+Author: David Chase <drchase@google.com>
+Date:   Wed May 10 13:50:19 2017 -0400
+
+    cmd/compile: repair copy-pasted method comment
+    
+    Inadvertent copy-pasta in CL
+    https://go-review.googlesource.com/c/36207/
+    
+    Is this allowed for 1.9 post-freeze?
+    
+    Change-Id: I00dd27f9f53babeded3695346986a7a491f8a771
+    Reviewed-on: https://go-review.googlesource.com/43092
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/value.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

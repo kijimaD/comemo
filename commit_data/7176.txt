@@ -1,0 +1,14 @@
+commit 1e0efcd5790be98f72c53bfd6c4061bafaafdafc
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Wed Jan 19 19:02:47 2011 -0500
+
+    codereview: fix hg change on Windows
+    
+    hg change fails on Windows with 'No valid patches found in output from hg diff'.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4006043
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

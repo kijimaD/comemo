@@ -1,0 +1,12 @@
+commit 5cc64141e738b008b62d0698cdbadf2b9aead72d
+Author: Javier <javism@gmail.com>
+Date:   Sun Sep 15 12:20:58 2019 +0800
+
+    math: Add examples for Copysign, Dim, Exp* and Trunc
+    
+    Change-Id: I95921a8a55b243600aaec24ddca74b7040107dca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195203
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/example_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

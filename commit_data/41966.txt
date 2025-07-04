@@ -1,0 +1,20 @@
+commit e4e192484b1fd28ba2e77e52004d924b24f1bb19
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 13 12:49:59 2020 -0400
+
+    cmd/compile: split up the addressing mode on OpAMD64CMP*loadidx* always
+    
+    Benchmarking suggests that the combo instruction is notably slower,
+    at least in the places where we measure.
+    
+    Updates #37955
+    
+    Change-Id: I829f1975dd6edf38163128ba51d84604055512f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228157
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go    | 29 ++++++++++++++++++++++
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  9 +++++--
+ test/codegen/memops.go                             | 28 ++++++++++-----------
+ 3 files changed, 50 insertions(+), 16 deletions(-)

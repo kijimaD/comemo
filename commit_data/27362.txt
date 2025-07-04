@@ -1,0 +1,17 @@
+commit 80423f1e64f1e939cddc455a29e5111527cd16f8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Dec 26 16:50:01 2015 +0900
+
+    os/exec: cleanup and remove duplicated code
+    
+    Change-Id: Ia2f61427b1cc09064ac4c0563bccbd9b98767a0e
+    Reviewed-on: https://go-review.googlesource.com/18118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/lp_plan9.go        |  8 +++--
+ src/os/exec/lp_unix.go         | 10 +++---
+ src/os/exec/lp_windows.go      | 69 ++++++++++++------------------------------
+ src/os/exec/lp_windows_test.go |  2 +-
+ 4 files changed, 29 insertions(+), 60 deletions(-)

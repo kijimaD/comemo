@@ -1,0 +1,14 @@
+commit 04d71354eb54b62e9fc520a2fbff8dd76a5782d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 4 06:43:48 2016 -0700
+
+    runtime: remove useless assignment in test code
+    
+    Change-Id: I5fecdf52e9e3035ea8feb5768985ed5200dbd6af
+    Reviewed-on: https://go-review.googlesource.com/32752
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/runtime/crash_test.go | 1 -
+ 1 file changed, 1 deletion(-)

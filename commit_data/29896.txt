@@ -1,0 +1,15 @@
+commit 20cdb62c499140bcd3c42f89be0d5b4ede683f42
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 13:37:33 2017 -0500
+
+    doc: in Go 1.8 notes, mention lack of RWMutex in contention profile
+    
+    For #18496.
+    
+    Change-Id: I50ced7c9f0fe5d9c627eef1f59a7f73be742e04c
+    Reviewed-on: https://go-review.googlesource.com/34831
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

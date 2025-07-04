@@ -1,0 +1,17 @@
+commit 91934ff5d83807228d021925ed9d9d78d2b777e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 19 15:39:19 2012 -0800
+
+    net/http: fix server connection leak on Handler's panic(nil)
+    
+    If a handler did a panic(nil), the connection was never closed.
+    
+    Fixes #4050
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6971049
+
+ src/pkg/net/http/serve_test.go | 18 +++++++++++++-----
+ src/pkg/net/http/server.go     |  2 +-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

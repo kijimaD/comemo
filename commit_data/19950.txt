@@ -1,0 +1,11 @@
+commit 12666cb91d619d85c32a4fb2308ba4c1dd235741
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 7 14:22:15 2014 -0700
+
+    doc: add note about crypto/tls cert selection callback.
+    
+    CC=golang-codereviews
+    https://golang.org/cl/123950043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

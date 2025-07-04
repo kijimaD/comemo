@@ -1,0 +1,30 @@
+commit 20ac64a2dd1f7993101d7e069eab3b84ab2c0bd2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Jan 9 14:05:17 2019 +0100
+
+    cmd/dist, cmd/link, runtime: fix stack size when cross-compiling aix/ppc64
+    
+    This commit allows to cross-compiling aix/ppc64. The nosplit limit must
+    twice as large as on others platforms because of AIX syscalls.
+    The stack limit, especially stackGuardMultiplier, was set by cmd/dist
+    during the bootstrap and doesn't depend on GOOS/GOARCH target.
+    
+    Fixes #29572
+    
+    Change-Id: Id51e38885e1978d981aa9e14972eaec17294322e
+    Reviewed-on: https://go-review.googlesource.com/c/157117
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildruntime.go       | 14 +++++---------
+ src/cmd/internal/obj/arm/obj5.go   |  4 ++--
+ src/cmd/internal/obj/arm64/obj7.go |  4 ++--
+ src/cmd/internal/obj/mips/obj0.go  |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go |  4 ++--
+ src/cmd/internal/obj/s390x/objz.go |  4 ++--
+ src/cmd/internal/obj/x86/obj6.go   |  4 ++--
+ src/cmd/internal/objabi/stack.go   | 17 +++++++++++++++--
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/runtime/internal/sys/stubs.go  |  3 +++
+ 10 files changed, 36 insertions(+), 24 deletions(-)

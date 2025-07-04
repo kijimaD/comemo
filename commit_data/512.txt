@@ -1,0 +1,17 @@
+commit 1f41ed375bc4835dc9abda2cb5bda424d01c8445
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 10:10:48 2008 -0700
+
+    update tests.
+    fixedbugs/bug012.go is broken again but i left it where it is, with
+    the golden file not reflecting the breakage so it will be noticed
+    
+    R=ken,gri
+    OCL=14073
+    CL=14073
+
+ test/{bugs => fixedbugs}/bug015.go |  0
+ test/{bugs => fixedbugs}/bug046.go |  0
+ test/{bugs => fixedbugs}/bug082.go |  1 +
+ test/golden.out                    | 14 +++-----------
+ 4 files changed, 4 insertions(+), 11 deletions(-)

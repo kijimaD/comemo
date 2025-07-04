@@ -1,0 +1,22 @@
+commit 4fb429138881e3fe171e4c2e958ed0da26ddfd9c
+Author: Branden J Brown <zephyrtronium@gmail.com>
+Date:   Sun Oct 25 14:26:19 2020 -0400
+
+    cmd/compile: inline functions evaluated in go and defer statements
+    
+    The inlining pass previously bailed upon encountering a go or defer statement, so it would not inline functions e.g. used to provide arguments to the deferred function. This change preserves the behavior of not inlining the
+    deferred function itself, but it allows the inlining walk to proceed into its arguments.
+    
+    Fixes #42194
+    
+    Change-Id: I4e82029d8dcbe69019cc83ae63a4b29af45ec777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264997
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/inl.go |  2 --
+ test/inline.go                     | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

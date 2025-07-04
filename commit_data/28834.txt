@@ -1,0 +1,18 @@
+commit 1bcfca0563ce21dce69b2652859d6f0f800c39af
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 15 15:52:57 2016 +0100
+
+    net: enable a test on nacl
+    
+    No need to skip it. It passes.
+    
+    Maybe it was fixed at some point.
+    
+    Change-Id: I9848924aefda44f9b3a574a8705fa549d657f28d
+    Reviewed-on: https://go-review.googlesource.com/31177
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

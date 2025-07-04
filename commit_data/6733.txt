@@ -1,0 +1,16 @@
+commit 26cda27b0fc5179891a847fc870817272873cb5b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 8 13:25:01 2010 -0800
+
+    os: add Expand function to evaluate environment variables.
+    
+    Fixes #1258.
+    
+    R=gri, msolo, bradfitzpatrick, r2
+    CC=golang-dev
+    https://golang.org/cl/2988041
+
+ src/pkg/os/Makefile    |  1 +
+ src/pkg/os/env.go      | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/env_test.go | 59 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 133 insertions(+)

@@ -1,0 +1,13 @@
+commit 34bac8bcd464af1aca6fb032d912e7f2fd58d22e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Jul 11 20:02:32 2011 -0400
+
+    doc: don't specify make target for working on windwos.
+    makehtml does not work on windows.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4675041
+
+ doc/makehtml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

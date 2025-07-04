@@ -1,0 +1,133 @@
+commit 9675f819288ae27ed4b95521303ec7ceb16686ab
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat May 4 16:56:08 2019 -0700
+
+    cmd/compile: add more Neg/Com optimizations
+    
+    This is a grab-bag of minor optimizations.
+    
+    While we're here, document the c != -(1<<31)
+    constraints better (#31888).
+    
+    file    before    after     Δ       %
+    go      14669924  14665828  -4096   -0.028%
+    asm     4867088   4858896   -8192   -0.168%
+    compile 23988320  23984224  -4096   -0.017%
+    cover   5210856   5206760   -4096   -0.079%
+    link    6084376   6080280   -4096   -0.067%
+    total   132181084 132156508 -24576  -0.019%
+    
+    file                                                      before    after     Δ       %
+    archive/tar.a                                             516708    516702    -6      -0.001%
+    bufio.a                                                   182200    181974    -226    -0.124%
+    bytes.a                                                   217624    216890    -734    -0.337%
+    cmd/compile/internal/gc.a                                 8865412   8865228   -184    -0.002%
+    cmd/compile/internal/ssa.a                                29921002  29933976  +12974  +0.043%
+    cmd/go/internal/modfetch/codehost.a                       530602    530430    -172    -0.032%
+    cmd/go/internal/modfetch.a                                679664    679578    -86     -0.013%
+    cmd/go/internal/modfile.a                                 411102    410928    -174    -0.042%
+    cmd/go/internal/test.a                                    315218    315126    -92     -0.029%
+    cmd/go/internal/tlog.a                                    183242    183256    +14     +0.008%
+    cmd/go/internal/txtar.a                                   23148     23060     -88     -0.380%
+    cmd/internal/bio.a                                        132064    132060    -4      -0.003%
+    cmd/internal/buildid.a                                    107174    107172    -2      -0.002%
+    cmd/internal/edit.a                                       33208     33354     +146    +0.440%
+    cmd/internal/obj/arm.a                                    416488    416432    -56     -0.013%
+    cmd/internal/obj/arm64.a                                  2772626   2772622   -4      -0.000%
+    cmd/internal/obj/x86.a                                    923186    923114    -72     -0.008%
+    cmd/internal/obj.a                                        679834    679836    +2      +0.000%
+    cmd/internal/objfile.a                                    358374    358372    -2      -0.001%
+    cmd/internal/test2json.a                                  67482     67434     -48     -0.071%
+    cmd/link/internal/ld.a                                    2836280   2836110   -170    -0.006%
+    cmd/link/internal/loadpe.a                                148234    147736    -498    -0.336%
+    cmd/link/internal/objfile.a                               144534    144434    -100    -0.069%
+    cmd/link/internal/ppc64.a                                 170876    170382    -494    -0.289%
+    cmd/vendor/github.com/google/pprof/internal/elfexec.a     49896     49892     -4      -0.008%
+    cmd/vendor/github.com/google/pprof/internal/graph.a       437478    437404    -74     -0.017%
+    cmd/vendor/github.com/google/pprof/profile.a              902040    902044    +4      +0.000%
+    cmd/vendor/github.com/ianlancetaylor/demangle.a           1217856   1217854   -2      -0.000%
+    cmd/vendor/golang.org/x/arch/x86/x86asm.a                 561332    560684    -648    -0.115%
+    cmd/vendor/golang.org/x/crypto/ssh/terminal.a             153788    153784    -4      -0.003%
+    cmd/vendor/golang.org/x/sys/unix.a                        1043894   1043814   -80     -0.008%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/printf.a 288458    288414    -44     -0.015%
+    compress/flate.a                                          369024    368132    -892    -0.242%
+    crypto/aes.a                                              109058    108968    -90     -0.083%
+    crypto/cipher.a                                           150410    150544    +134    +0.089%
+    crypto/elliptic.a                                         323572    323758    +186    +0.057%
+    crypto/md5.a                                              50868     50788     -80     -0.157%
+    crypto/rsa.a                                              195292    195214    -78     -0.040%
+    crypto/sha1.a                                             70936     70858     -78     -0.110%
+    crypto/sha256.a                                           75316     75236     -80     -0.106%
+    crypto/sha512.a                                           84846     84768     -78     -0.092%
+    crypto/subtle.a                                           6520      6514      -6      -0.092%
+    crypto/tls.a                                              1654916   1654852   -64     -0.004%
+    crypto/x509.a                                             888674    888638    -36     -0.004%
+    database/sql.a                                            730280    730198    -82     -0.011%
+    debug/gosym.a                                             184936    184862    -74     -0.040%
+    debug/macho.a                                             272138    272136    -2      -0.001%
+    debug/plan9obj.a                                          78444     78368     -76     -0.097%
+    encoding/base64.a                                         82126     81882     -244    -0.297%
+    encoding/binary.a                                         187196    187150    -46     -0.025%
+    encoding/gob.a                                            897868    897870    +2      +0.000%
+    encoding/json.a                                           659934    659832    -102    -0.015%
+    encoding/pem.a                                            59138     58870     -268    -0.453%
+    encoding/xml.a                                            694054    693300    -754    -0.109%
+    fmt.a                                                     484518    484196    -322    -0.066%
+    go/format.a                                               33962     33994     +32     +0.094%
+    go/printer.a                                              437132    437134    +2      +0.000%
+    go/scanner.a                                              141774    141772    -2      -0.001%
+    go/token.a                                                125130    125126    -4      -0.003%
+    go/types.a                                                2192086   2191994   -92     -0.004%
+    html/template.a                                           599038    598770    -268    -0.045%
+    html.a                                                    184842    184710    -132    -0.071%
+    image/draw.a                                              129592    129238    -354    -0.273%
+    image/gif.a                                               171824    171716    -108    -0.063%
+    image/internal/imageutil.a                                20282     19272     -1010   -4.980%
+    image/jpeg.a                                              275608    275114    -494    -0.179%
+    image/png.a                                               343416    343620    +204    +0.059%
+    image.a                                                   362244    362210    -34     -0.009%
+    index/suffixarray.a                                       113040    112954    -86     -0.076%
+    internal/trace.a                                          518972    518838    -134    -0.026%
+    math/big.a                                                1012670   1012354   -316    -0.031%
+    math.a                                                    219338    219334    -4      -0.002%
+    mime/multipart.a                                          178854    178502    -352    -0.197%
+    mime/quotedprintable.a                                    49226     48936     -290    -0.589%
+    net/http/cgi.a                                            172328    172324    -4      -0.002%
+    net/http.a                                                4000180   3999732   -448    -0.011%
+    net.a                                                     1858330   1858252   -78     -0.004%
+    path/filepath.a                                           107496    107498    +2      +0.002%
+    reflect.a                                                 1439776   1439994   +218    +0.015%
+    regexp/syntax.a                                           459430    459432    +2      +0.000%
+    regexp.a                                                  416394    416400    +6      +0.001%
+    runtime/debug.a                                           42106     42100     -6      -0.014%
+    runtime/pprof/internal/profile.a                          608718    608720    +2      +0.000%
+    runtime/pprof.a                                           355474    355476    +2      +0.001%
+    runtime.a                                                 3555748   3555796   +48     +0.001%
+    strconv.a                                                 294432    294410    -22     -0.007%
+    strings.a                                                 292148    292090    -58     -0.020%
+    syscall.a                                                 859682    859470    -212    -0.025%
+    text/tabwriter.a                                          65614     65148     -466    -0.710%
+    vendor/golang.org/x/crypto/chacha20poly1305.a             126736    126728    -8      -0.006%
+    vendor/golang.org/x/crypto/cryptobyte.a                   269112    269114    +2      +0.001%
+    vendor/golang.org/x/crypto/internal/chacha20.a            61842     61262     -580    -0.938%
+    vendor/golang.org/x/crypto/poly1305.a                     47410     47404     -6      -0.013%
+    vendor/golang.org/x/net/dns/dnsmessage.a                  628700    628012    -688    -0.109%
+    vendor/golang.org/x/net/idna.a                            237678    237826    +148    +0.062%
+    vendor/golang.org/x/net/route.a                           187852    187458    -394    -0.210%
+    vendor/golang.org/x/sys/unix.a                            1022426   1022348   -78     -0.008%
+    vendor/golang.org/x/text/transform.a                      117954    118104    +150    +0.127%
+    vendor/golang.org/x/text/unicode/bidi.a                   291398    291404    +6      +0.002%
+    vendor/golang.org/x/text/unicode/norm.a                   534640    534540    -100    -0.019%
+    total                                                     128945190 128945128 -62     -0.000%
+    
+    Change-Id: I346dc31356d5ef7774b824cf202169610bd26432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175778
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  54 +++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 292 +++++++++++++++++++++++++
+ 4 files changed, 358 insertions(+)

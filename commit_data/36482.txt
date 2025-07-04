@@ -1,0 +1,25 @@
+commit 25ea4e579f44fa28189422b9951c375a5ff36a4e
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 15:26:58 2018 -0700
+
+    cmd/compile: move more compiler tests to new test infrastructure
+    
+    Update #26469
+    
+    Change-Id: I1188e49cde1bda11506afef6b6e3f34c6ff45ea5
+    Reviewed-on: https://go-review.googlesource.com/127115
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa_test.go            |  20 ----
+ .../internal/gc/testdata/{chan.go => chan_test.go} |  40 +++-----
+ .../gc/testdata/{compound.go => compound_test.go}  |  63 +++++--------
+ .../internal/gc/testdata/{ctl.go => ctl_test.go}   |  47 ++++------
+ .../{deferNoReturn.go => deferNoReturn_test.go}    |  10 +-
+ .../testdata/{loadstore.go => loadstore_test.go}   |  63 +++++--------
+ .../internal/gc/testdata/{map.go => map_test.go}   |  26 ++----
+ src/cmd/compile/internal/gc/testdata/novet.go      |   9 ++
+ .../gc/testdata/{regalloc.go => regalloc_test.go}  |  25 ++---
+ .../gc/testdata/{string.go => string_test.go}      | 101 +++++++++------------
+ 10 files changed, 155 insertions(+), 249 deletions(-)

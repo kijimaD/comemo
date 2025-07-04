@@ -1,0 +1,15 @@
+commit 5e253645d27dc3ef369a84cb7e9833daa31f1876
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 14:22:54 2010 -0700
+
+    gc: bug278
+    
+    Fixes #804.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1224045
+
+ src/cmd/gc/typecheck.c   |  3 +++
+ test/fixedbugs/bug278.go | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

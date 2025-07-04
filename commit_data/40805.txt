@@ -1,0 +1,16 @@
+commit 5e52ca067a98d43ca3f2fc6d0f4116475dcac9ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 09:05:41 2019 -0500
+
+    cmd/go: fix typo'd argument in build_trimpath.txt
+    
+    Fixes #35617
+    
+    Change-Id: I514f4e5f80ba9866c5cad3eb1fecd6f346c82f14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/build_trimpath.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

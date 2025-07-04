@@ -1,0 +1,22 @@
+commit b4fa5b163df118b35a836bbe5706ac268b4cc14b
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 29 16:23:18 2023 +0000
+
+    debug/elf: return error in DynValue for invalid dynamic section size
+    
+    This is a follow-up to CL 536400.
+    
+    Fixes #64446
+    
+    Change-Id: I35646732f62cb1937fd448f94ea518544d4295d4
+    GitHub-Last-Rev: 55db18a909fd44e6b2f2b98fd1a44ad01bb37932
+    GitHub-Pull-Request: golang/go#64448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/elf/file.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

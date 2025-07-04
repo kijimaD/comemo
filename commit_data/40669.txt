@@ -1,0 +1,22 @@
+commit 52d5e76b39a80a7e39754ff9564a7471551b3cdd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 7 17:02:56 2019 -0500
+
+    runtime: disable async preemption on darwin/arm(64) for now
+    
+    Enabling async preemption on darwin/arm and darwin/arm64 causes
+    the builder to fail, e.g.
+    https://build.golang.org/log/03f727b8f91b0c75bf54ff508d7d2f00b5cad4bf
+    
+    Due to the limited resource, I haven't been able to get access on
+    those devices to debug. Disable async preemption for now.
+    
+    Updates #35439.
+    
+    Change-Id: I5a31ad6962c2bae8e6e9b8303c494610a8a4e50a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205842
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal_arm.go   | 4 +++-
+ src/runtime/signal_arm64.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

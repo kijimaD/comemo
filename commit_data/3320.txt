@@ -1,0 +1,24 @@
+commit 46e392e01c630dee41a67e01223b538aae9dc9b5
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Sep 18 16:45:41 2009 -0700
+
+    changed 5c calling convention to use stack exclusively for in
+    params. a number of fixes to assembly routines that assumed R0
+    had the first arg. one stack offset fix, arm pushes the link
+    register on stack top.
+    
+    go/test: passes 65% (235/364) tests
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=20  (11 added, 0 deleted, 9 changed)
+    OCL=34809
+    CL=34812
+
+ src/cmd/5g/ggen.c               |  4 ++--
+ src/cmd/5g/gobj.c               |  4 ++++
+ src/cmd/5l/5.out.h              |  3 ++-
+ src/pkg/runtime/arm/asm.s       | 11 +++++++----
+ src/pkg/runtime/arm/vlop.s      |  1 +
+ src/pkg/runtime/linux/arm/sys.s |  6 ++++--
+ 6 files changed, 20 insertions(+), 9 deletions(-)

@@ -1,0 +1,22 @@
+commit 2f1ef6be000fdf4ab74cb306e448c9e0e49bf148
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Oct 3 18:41:18 2018 -0700
+
+    crypto/x509: fix getting user home dir on darwin
+    
+    As pointed out in https://github.com/golang/go/issues/26463,
+    HOME (or equivalent) environment variable (rather than the
+    value obtained by parsing /etc/passwd or the like) should be
+    used to obtain user's home directory.
+    
+    Since commit fa1a49aa556d8 there's a method to obtain
+    user's home directory -- use it here.
+    
+    Change-Id: I852fbb24249bcfe08f3874fae6e7b9d01d869190
+    Reviewed-on: https://go-review.googlesource.com/c/139426
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/root_darwin.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

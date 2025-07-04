@@ -1,0 +1,16 @@
+commit a501fef3455a8e0ff0424bb29a9403d7539c6164
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 23:03:06 2016 +0000
+
+    net/http: deflake TestClientTimeout
+    
+    This test was only enabled by default today so it hasn't been hardened
+    by build.golang.org. Welcome to the ring, TestClientTimeout.
+    
+    Change-Id: I1967f6c825699f13f6c659dc14d3c3c22b965272
+    Reviewed-on: https://go-review.googlesource.com/33101
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

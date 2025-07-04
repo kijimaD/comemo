@@ -1,0 +1,17 @@
+commit edbe4742a296239c06cd99721bb0dbc5008d35a1
+Author: pierwill <pierwill@users.noreply.github.com>
+Date:   Wed Feb 2 18:21:04 2022 +0000
+
+    cmd/compile: edit README
+    
+    Make some small edits for clarification of important concepts.
+    
+    Change-Id: I1f78f2a59489ac71e3948dc924641540508613ce
+    GitHub-Last-Rev: 1819140ee607edf8be3ed35f846848178065391a
+    GitHub-Pull-Request: golang/go#50980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382458
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/README.md | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

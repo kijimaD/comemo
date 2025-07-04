@@ -1,0 +1,22 @@
+commit ff00fdfdbeeb72ca8981a04290765452d6a31b26
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 26 08:08:30 2023 +0700
+
+    Revert "net/http/cgi: workaround for closure inlining issue"
+    
+    This reverts CL 522935.
+    
+    Issue #62277 is fixed, the workaround can be dropped.
+    
+    Updates #62277
+    
+    Change-Id: I7c69e35248942b4d4fcdd81121051cca9b098980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523175
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/cgi/host.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

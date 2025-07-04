@@ -1,0 +1,29 @@
+commit 073247f11fa0202e916820aa71044dcca11f4c7c
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat Mar 18 15:09:40 2017 +0100
+
+    cmd/link: export specialized variants of runtime._type to debug_info
+    
+    The reflect package can be used to create new types at runtime, these
+    types will have runtime._type entries describing them but no entry in
+    debug_info (obviously).
+    
+    A debugger that wanted to print the value of variables with such types
+    will have to read the runtime._type directly, however the
+    "specializations" of runtime._type (runtime.slicetype, runtime.maptype,
+    etc) are not exported to debug_info, besides runtime.interfacetype.
+    
+    All those types (i.e. runtime.slicetype, runtime.maptype, etc) should
+    be exported to debug_info so that debuggers don't have to hard-code
+    their description.
+    
+    Fixes #19602
+    
+    Change-Id: I086d523a4421a4ed964e16bc3c2274319a98b45b
+    Reviewed-on: https://go-review.googlesource.com/38350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go      | 18 +++++--
+ src/cmd/link/internal/ld/dwarf_test.go | 90 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+), 4 deletions(-)

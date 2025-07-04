@@ -1,0 +1,21 @@
+commit 9ba8ac253ef366c708b06c66c8e20cbb1572de2f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 3 19:46:46 2024 -0700
+
+    cmd/link/internal/ld: rm os.Getwd from dwarf_test
+    
+    Calls to os.Getwd were needed to set the cwd for go build to an absolute
+    path. Since CL 401340 os/exec takes care of setting PWD to a
+    filepath.Abs(cmd.Dir), so it looks like an absolute path is not
+    really required.
+    
+    Change-Id: Ib3abffc9087a3329d8f40f81eb65f1b2c1a03a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610038
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 50 +++++-----------------------------
+ 1 file changed, 7 insertions(+), 43 deletions(-)

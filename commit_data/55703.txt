@@ -1,0 +1,42 @@
+commit 73847aa41b9299a39e596651ccdd9c0dcb511d5d
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 19:08:59 2023 +0800
+
+    os: add available godoc link
+    
+    Change-Id: I430c9a7c4936d7a8c8c787aa63de9a796d20fdf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539597
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/dir.go             | 14 ++++++-------
+ src/os/env.go             |  4 ++--
+ src/os/error.go           | 20 +++++++++----------
+ src/os/exec.go            | 30 ++++++++++++++--------------
+ src/os/exec/exec.go       | 50 +++++++++++++++++++++++------------------------
+ src/os/exec/lp_plan9.go   |  2 +-
+ src/os/exec/lp_unix.go    |  2 +-
+ src/os/exec/lp_windows.go |  2 +-
+ src/os/exec_plan9.go      |  2 +-
+ src/os/executable.go      |  2 +-
+ src/os/file.go            |  4 ++--
+ src/os/file_plan9.go      |  4 ++--
+ src/os/file_posix.go      | 26 ++++++++++++------------
+ src/os/file_unix.go       |  6 +++---
+ src/os/file_windows.go    |  4 ++--
+ src/os/path.go            |  2 +-
+ src/os/proc.go            |  2 +-
+ src/os/signal/doc.go      |  6 +++---
+ src/os/signal/signal.go   | 12 ++++++------
+ src/os/stat.go            |  8 ++++----
+ src/os/stat_unix.go       |  4 ++--
+ src/os/stat_windows.go    |  4 ++--
+ src/os/tempfile.go        |  3 ++-
+ src/os/types.go           |  8 ++++----
+ src/os/user/lookup.go     |  8 ++++----
+ src/os/user/user.go       |  8 ++++----
+ 26 files changed, 119 insertions(+), 118 deletions(-)

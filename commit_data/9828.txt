@@ -1,0 +1,13 @@
+commit 61cc8728fbf52dbe5e76cea19aac8b87d2173174
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 29 09:40:59 2011 -0700
+
+    encoding/binary: PutX functions require buffer of sufficient size.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5163041
+
+ src/pkg/encoding/binary/varint.go      | 24 +++++-------------------
+ src/pkg/encoding/binary/varint_test.go | 15 ++-------------
+ 2 files changed, 7 insertions(+), 32 deletions(-)

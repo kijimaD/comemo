@@ -1,0 +1,168 @@
+commit a987aaf5f7a5f64215ff75ac93a2c1b39967a8c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 8 18:16:35 2022 -0500
+
+    cmd/compile: require -p flag
+    
+    The -p flag specifies the import path of the package being compiled.
+    This CL makes it required when invoking the compiler and
+    adjusts tests that invoke the compiler directly to conform to this
+    new requirement. The go command already passes the flag, so it
+    is unmodified in this CL. It is expected that any other Go build systems
+    also already pass -p, or else they will need to arrange to do so before
+    updating to Go 1.19. Of particular note, Bazel already does for rules
+    with an importpath= attribute, which includes all Gazelle-generated rules.
+    
+    There is more cleanup possible now in cmd/compile, cmd/link,
+    and other consumers of Go object files, but that is left to future CLs.
+    
+    Additional historical background follows but can be ignored.
+    
+    Long ago, before the go command, or modules, or any kind of
+    versioning, symbols in Go archive files were named using just the
+    package name, so that for example func F in math/rand and func F in
+    crypto/rand would both be the object file symbol 'rand.F'. This led to
+    collisions even in small source trees, which made certain packages
+    unusable in the presence of other packages and generally was a problem
+    for Go's goal of scaling to very large source trees.
+    
+    Fixing this problem required changing from package names to import
+    paths in symbol names, which was mostly straightforward. One wrinkle,
+    though, is that the compiler did not know the import path of the
+    package being compiled; it only knew the package name. At the time,
+    there was no go command, just Makefiles that people had invoking 6g
+    (now “go tool compile”) and then copying the resulting object file to
+    an importable location. That is, everyone had a custom build setup for
+    Go, because there was no standard one. So it was not particularly
+    attractive to change how the compiler was invoked, since that would
+    break approximately every Go user at the time. Instead, we arranged
+    for the compiler to emit, and other tools reading object files to
+    recognize, a special import path (the empty string, it turned out)
+    denoting “the import path of this object file”. This worked well
+    enough at the time and maintained complete command-line compatibility
+    with existing Go usage.
+    
+    The changes implementing this transition can be found by searching
+    the Git history for “package global name space”, which is what they
+    eliminated. In particular, CL 190076 (a6736fa4), CL 186263 (758f2bc5),
+    CL 193080 (1cecac81), CL 194053 (19126320), and CL 194071 (531e6b77)
+    did the bulk of this transformation in January 2010.
+    
+    Later, in September 2011, we added the -p flag to the compiler for
+    diagnostic purposes. The problem was that it was easy to create import
+    cycles, especially in tests, and these could not be diagnosed until
+    link time. You'd really want the compiler to diagnose these, for
+    example if the compilation of package sort noticed it was importing a
+    package that itself imported "sort". But the compilation of package
+    sort didn't know its own import path, and so it could not tell whether
+    it had found itself as a transitive dependency. Adding the -p flag
+    solved this problem, and its use was optional, since the linker would
+    still diagnose the import cycle in builds that had not updated to
+    start passing -p. This was CL 4972057 (1e480cd1).
+    
+    There was still no go command at this point, but when we introduced
+    the go command we made it pass -p, which it has for many years at this
+    point.
+    
+    Over time, parts of the compiler began to depend on the presence of
+    the -p flag for various reasonable purposes. For example:
+    
+    In CL 6497074 (041fc8bf; Oct 2012), the race detector used -p to
+    detect packages that should not have race annotations, such as
+    runtime/race and sync/atomic.
+    
+    In CL 13367052 (7276c02b; Sep 2013), a bug fix used -p to detect the
+    compilation of package reflect.
+    
+    In CL 30539 (8aadcc55; Oct 2016), the compiler started using -p to
+    identify package math, to be able to intrinsify calls to Sqrt inside
+    that package.
+    
+    In CL 61019 (9daee931; Sep 2017), CL 71430 (2c1d2e06; Oct 2017), and
+    later related CLs, the compiler started using the -p value when
+    creating various DWARF debugging information.
+    
+    In CL 174657 (cc5eaf93; May 2019), the compiler started writing
+    symbols without the magic empty string whenever -p was used, to reduce
+    the amount of work required in the linker.
+    
+    In CL 179861 (dde7c770; Jun 2019), the compiler made the second
+    argument to //go:linkname optional when -p is used, because in that
+    case the compiler can derive an appropriate default.
+    
+    There are more examples. Today it is impossible to compile the Go
+    standard library without using -p, and DWARF debug information is
+    incomplete without using -p.
+    
+    All known Go build systems pass -p. In particular, the go command
+    does, which is what nearly all Go developers invoke to build Go code.
+    And Bazel does, for go_library rules that set the importpath
+    attribute, which is all rules generated by Gazelle.
+    
+    Gccgo has an equivalent of -p and has required its use in order to
+    disambiguate packages with the same name but different import paths
+    since 2010.
+    
+    On top of all this, various parts of code generation for generics
+    are made more complicated by needing to cope with the case where -p
+    is not specified, even though it's essentially always specified.
+    
+    In summary, the current state is:
+    
+     - Use of the -p flag with cmd/compile is required for building
+       the standard library, and for complete DWARF information,
+       and to enable certain linker speedups.
+    
+     - The go command and Bazel, which we expect account for just
+       about 100% of Go builds, both invoke cmd/compile with -p.
+    
+     - The code in cmd/compile to support builds without -p is
+       complex and has become more complex with generics, but it is
+       almost always dead code and therefore not worth maintaining.
+    
+     - Gccgo already requires its equivalent of -p in any build
+       where two packages have the same name.
+    
+    All this supports the change in this CL, which makes -p required
+    and adjusts tests that invoke cmd/compile to add -p appropriately.
+    
+    Future CLs will be able to remove all the code dealing with the
+    possibility of -p not having been specified.
+    
+    Change-Id: I6b95b9d4cffe59c7bac82eb273ef6c4a67bb0e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391014
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/base/flag.go              |  4 ++
+ .../compile/internal/importer/gcimporter_test.go   |  2 +-
+ src/cmd/compile/internal/logopt/logopt_test.go     |  6 +-
+ src/cmd/compile/internal/test/fixedbugs_test.go    |  2 +-
+ src/cmd/compile/internal/test/lang_test.go         |  2 +-
+ .../internal/test/reproduciblebuilds_test.go       |  4 +-
+ src/cmd/internal/archive/archive_test.go           |  4 +-
+ src/cmd/internal/obj/objfile_test.go               |  2 +-
+ src/cmd/link/link_test.go                          | 14 ++---
+ src/cmd/objdump/objdump_test.go                    |  2 +-
+ src/cmd/pack/pack_test.go                          | 16 ++---
+ src/go/internal/gcimporter/gcimporter_test.go      |  2 +-
+ src/internal/abi/abi_test.go                       |  2 +-
+ test/const7.go                                     |  2 +-
+ test/fixedbugs/bug302.go                           |  4 +-
+ test/fixedbugs/bug369.go                           |  6 +-
+ test/fixedbugs/issue11771.go                       |  2 +-
+ test/fixedbugs/issue21317.go                       |  2 +-
+ test/fixedbugs/issue22660.go                       |  2 +-
+ test/fixedbugs/issue22662b.go                      |  2 +-
+ test/fixedbugs/issue26411.go                       |  2 +-
+ test/fixedbugs/issue30908.go                       |  3 +-
+ test/fixedbugs/issue9355.go                        |  2 +-
+ test/interface/embed1.dir/embed0.go                |  5 +-
+ test/linkmain_run.go                               |  8 +--
+ test/linkname2.go                                  | 21 -------
+ test/linkobj.go                                    | 14 ++---
+ test/run.go                                        | 69 ++++++++++------------
+ test/sinit_run.go                                  |  2 +-
+ 29 files changed, 94 insertions(+), 114 deletions(-)

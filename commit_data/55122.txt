@@ -1,0 +1,22 @@
+commit ef7b713fefdcfef83101eda880015dded5fadb98
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Oct 26 22:18:33 2023 +0200
+
+    errors: clarify references to Unwrap in doc
+    
+    CL 535080 incorrectly links the unclear mention of Unwrap to the func
+    Unwrap in doc for errors.Is and errors.As
+    
+    Instead we clarify that "Unwrap" is a reference
+    to the "Unwrap() error" or "Unwrap() []error" methods, not to the
+    "Unwrap(error) error" function which is also available in the package.
+    
+    Change-Id: I8314993932e1e7a2dc77400f74d81f3a8aa891de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538155
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/errors/wrap.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

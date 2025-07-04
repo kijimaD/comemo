@@ -1,0 +1,20 @@
+commit 50c59194758999487f577030ca11d91c65530559
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 1 16:14:06 2022 -0400
+
+    cmd/dist: fix a variable scope bug:
+    
+    We reused p so we were deleting the same directory twice instead of two
+    different directories. Fix that.
+    
+    For #47257
+    
+    Change-Id: I315ad87d0a9182e00ae4c11b82986227e2b02e17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

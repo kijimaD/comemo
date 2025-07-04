@@ -1,0 +1,14 @@
+commit 3377b4673d6e0ca1a9bba1c7196d7e673ddb8108
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 21:41:41 2018 -0700
+
+    cmd/compile: encapsulate and document two types.Type internal fields
+    
+    Change-Id: I5f7d2155c2c3a47dabdf16fe46b122ede81de4fc
+    Reviewed-on: https://go-review.googlesource.com/c/147284
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++----
+ src/cmd/compile/internal/types/type.go   | 20 ++++++++++++++------
+ 3 files changed, 17 insertions(+), 11 deletions(-)

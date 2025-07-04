@@ -1,0 +1,28 @@
+commit a7e76b8e809ccbd1ceef207a83f8303edb707867
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 19:38:00 2022 -0700
+
+    cmd/compile/internal/syntax: remove code dealing with multiple method names
+    
+    When parsing method declarations in an interface, the parser has
+    for historic reasons gracefully handled a list of method names with
+    a single (common) signature, and then reported an error. For example
+    
+            interface {
+                    m1, m2, m3 (x int)
+            }
+    
+    This code originally came from the very first parser for Go which
+    initially permitted such declarations (or at least assumed that
+    people would write such declarations). Nobody is doing this at this
+    point, so there's no need for being extra careful here. Remove the
+    respective code and adjust the corresponding test.
+    
+    Change-Id: If6f9b398bbc9e425dcd4328a80d8bf77c37fe8b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396654
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go | 14 --------------
+ test/fixedbugs/bug121.go                  |  2 +-
+ 2 files changed, 1 insertion(+), 15 deletions(-)

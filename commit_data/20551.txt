@@ -1,0 +1,20 @@
+commit 7fa96f08a4b11d710c8b1cb0d8f29e131e1793db
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 12:09:27 2014 -0400
+
+    cmd/go: fix 'go get vanity/repo/...' in clean GOPATH
+    
+    The pattern was only working if the checkout had
+    already been done, but the code was trying to make
+    it work even the first time. Test and fix.
+    
+    Fixes #8335.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/146310043
+
+ src/cmd/go/test.bash | 12 ++++++++++++
+ src/cmd/go/vcs.go    |  9 ++++++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

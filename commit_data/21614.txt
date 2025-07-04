@@ -1,0 +1,16 @@
+commit ad73dc349bcb796ec99e1adb25973671d2204fba
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 13 22:24:41 2015 +0100
+
+    cmd/gc: replace NULL by nil
+    
+    In CL 4050, NULL was used instead of nil.
+    However, Plan 9 doesn't declare NULL.
+    
+    Change-Id: I8295a3102509a1ce417278f23a37cbf65938cce1
+    Reviewed-on: https://go-review.googlesource.com/4814
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

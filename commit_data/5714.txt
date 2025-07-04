@@ -1,0 +1,16 @@
+commit 5245ea771d21fe33cbb07ec43deb6e6c28610174
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 28 14:11:38 2010 -0700
+
+    fmt.Printf: fix bug in handling of %#v.
+    nice side effect: slices now obey their format verb. example:
+            fmt.Printf("%q\n", []string{"a"})
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1729045
+
+ src/pkg/fmt/fmt_test.go |  8 ++++
+ src/pkg/fmt/format.go   | 25 ++++---------
+ src/pkg/fmt/print.go    | 98 ++++++++++++++++++++++++++-----------------------
+ 3 files changed, 68 insertions(+), 63 deletions(-)

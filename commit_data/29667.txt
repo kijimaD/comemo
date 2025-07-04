@@ -1,0 +1,16 @@
+commit c77e80df6c759a9a8e3a09f86f1ec5d6e560bb0e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 14:20:58 2016 -0800
+
+    doc: add note about gccgo go go1.8.html
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I28559724322007d4259810c209a92ec1cc10f338
+    Reviewed-on: https://go-review.googlesource.com/33668
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 91139b87f776a553524b022753981e7909386777
+Author: John R. Lenton <jlenton@gmail.com>
+Date:   Sat May 20 17:22:36 2017 +0100
+
+    runtime, syscall: workaround for bug in Linux's execve
+    
+    Linux's execve has (at the time of writing, and since v2.6.30) a bug when it ran
+    concurrently with clone, in that it would fail to set up some datastructures if
+    the thread count before and after some steps differed. This is described better
+    and in more detail by Colin King in Launchpad¹ and kernel² bugs. When a program
+    written in Go runtime.Exec's a setuid binary, this issue may cause the resulting
+    process to not have the expected uid. This patch works around the issue by using
+    a mutex to serialize exec and clone.
+    
+    1. https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1672819
+    2. https://bugzilla.kernel.org/show_bug.cgi?id=195453
+    
+    Fixes #19546
+    
+    Change-Id: I126e87d1d9ce3be5ea4ec9c7ffe13f92e087903d
+    Reviewed-on: https://go-review.googlesource.com/43713
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go      | 22 ++++++++++++++++++++++
+ src/syscall/exec_unix.go |  6 ++++++
+ 2 files changed, 28 insertions(+)

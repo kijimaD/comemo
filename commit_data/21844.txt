@@ -1,0 +1,19 @@
+commit d460b6e5c6c998ebc862e541a1779b8d6595d127
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Mar 1 13:47:54 2015 -0500
+
+    misc/ios: add go_darwin_arm_exec script
+    
+    This script is getting very close to complete, and is complex enough
+    that I'd like to get what's there so far reviewed. With it the builder
+    is left failing on eight packages. Two of those involve correcting
+    GOROOT which may need modifications to this script, the others are
+    either a unix sockets bug I have to hunt down or are caused by lldb
+    getting stuck on SIGSEGV, a TODO.
+    
+    Change-Id: I5ff933800167b6764b51ad195da7dcda61d59ff8
+    Reviewed-on: https://go-review.googlesource.com/6404
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 505 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 505 insertions(+)

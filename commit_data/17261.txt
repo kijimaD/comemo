@@ -1,0 +1,25 @@
+commit a454d2fd2e6a60648728ca6c959a7c0b24119fec
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 15 16:42:54 2013 +1000
+
+    time: expand acceptance of time zones when parsing
+    I tried to make it absolutely correct but there are too many
+    conflicting definitions for the official list of time zones.
+    Since when we're parsing we know when to expect
+    a time zone and we know what they look like if not exactly
+    what the definitive set is, we compromise. We accept any
+    three-character sequence of upper case letters, possibly
+    followed by a capital T (all four-letter zones end in T).
+    
+    There is one crazy special case (ChST) and the possibility
+    of a signed hour offset for GMT.
+    
+    Fixes #3790
+    I hope forever, but I doubt that very much.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12969043
+
+ src/pkg/time/format.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

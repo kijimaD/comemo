@@ -1,0 +1,30 @@
+commit 778880b00888066212864f95877c0febbebf7e69
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 5 11:11:51 2023 +0700
+
+    cmd/compile: fix typecheck range over negative integer
+    
+    Before range over integer, types2 leaves constant expression in RHS of
+    non-constant shift untyped, so idealType do the validation to ensure
+    that constant value must be an int >= 0.
+    
+    With range over int, the range expression can also be left untyped, and
+    can be an negative integer, causing the validation false.
+    
+    Fixing this by relaxing the validation in idealType, and moving the
+    check to Unified IR reader.
+    
+    Fixes #63378
+    
+    Change-Id: I43042536c09afd98d52c5981adff5dbc5e7d882a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532835
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/helpers.go | 9 +++++----
+ src/cmd/compile/internal/noder/reader.go  | 7 +++++++
+ test/range3.go                            | 9 +++++++++
+ 3 files changed, 21 insertions(+), 4 deletions(-)

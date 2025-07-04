@@ -1,0 +1,22 @@
+commit be0cd9e5ec01141def07412b0ef3fa0d3f8cba9d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 2 11:59:56 2021 -0700
+
+    syscall: unify unix Sendmsg prologues
+    
+    These were identical. This is a preliminary step
+    towards remove allocs per UDP send.
+    
+    Change-Id: I21e1264c7d4747baa626ddb93afff4c1cf225d13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361256
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_aix.go     | 15 +--------------
+ src/syscall/syscall_bsd.go     | 15 +--------------
+ src/syscall/syscall_linux.go   | 16 +---------------
+ src/syscall/syscall_solaris.go | 15 +--------------
+ src/syscall/syscall_unix.go    | 17 +++++++++++++++++
+ 5 files changed, 21 insertions(+), 57 deletions(-)

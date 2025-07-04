@@ -1,0 +1,24 @@
+commit 937fa5000a7bb07ed62d35a1aea9ea0819659084
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Wed Jun 8 15:08:33 2022 +0530
+
+    net/netip: add missing ) in ParsePrefix errors
+    
+    The existing error messages didn't add right parenthesis ')' properly
+    leading to improper formation of error messages.
+    
+    Fixes #53283
+    
+    Change-Id: Iadf9b8059403efa07e39716a81fab68cd10b7f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411015
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/netip/netip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit c2fa45b9738e79608165f5e8c2b81c08bc158a0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 16:31:10 2009 -0700
+
+    allow type name as key to accomodate anonymous fields.
+    update tests.
+    
+    R=ken
+    OCL=29207
+    CL=29207
+
+ src/cmd/gc/go.y      | 5 +++++
+ test/golden.out      | 4 ++++
+ test/initialize.go   | 6 +++---
+ test/initializerr.go | 2 +-
+ 4 files changed, 13 insertions(+), 4 deletions(-)

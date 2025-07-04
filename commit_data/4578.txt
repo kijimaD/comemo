@@ -1,0 +1,14 @@
+commit 937caef8faaf358ccc92ba91238d1fb4ffc19fa7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 11 16:53:45 2010 -0800
+
+    add pprof output format to prof.
+    amd64 linux only.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186077
+
+ src/cmd/prof/doc.go |   9 +-
+ src/cmd/prof/main.c | 290 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 280 insertions(+), 19 deletions(-)

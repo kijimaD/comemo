@@ -1,0 +1,27 @@
+commit 0f4510b3707bc1b8cfbcdfeed609524d00f5c1ca
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Sun May 29 13:03:49 2011 +1000
+
+    os: fix os.MkdirAll with backslash path separator.
+    MkdirAll() need to use isSeparator().
+    Move primary defines of filepath.Separator/filepath.ListSeparator
+     to os.PathSeparator/os.PathListSeparator.
+    Move filepath.isSeparator() to os.IsPathSeparator().
+    filepath package refer them from os package.
+    Fixes #1831.
+    
+    R=rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4535100
+
+ src/pkg/os/Makefile                   |  5 +++++
+ src/pkg/os/path.go                    |  6 +++---
+ src/pkg/os/path_plan9.go              | 15 +++++++++++++++
+ src/pkg/os/path_test.go               | 17 +++++++++++++----
+ src/pkg/os/path_unix.go               | 15 +++++++++++++++
+ src/pkg/os/path_windows.go            | 16 ++++++++++++++++
+ src/pkg/path/filepath/path.go         | 20 +++++++++++---------
+ src/pkg/path/filepath/path_plan9.go   | 10 ----------
+ src/pkg/path/filepath/path_unix.go    | 10 ----------
+ src/pkg/path/filepath/path_windows.go | 15 +++------------
+ 10 files changed, 81 insertions(+), 48 deletions(-)

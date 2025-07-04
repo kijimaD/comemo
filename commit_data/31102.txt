@@ -1,0 +1,46 @@
+commit 10a200e56000c03fc820d6d43853b43b9e1c8a8c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 7 11:54:29 2017 +0100
+
+    cmd/compile: diagnose constant division by complex zero
+    
+    When casting an ideal to complex{64,128}, for example during the
+    evaluation of
+    
+      var a = complex64(0) / 1e-50
+    
+    we want the compiler to report a division-by-zero error if a divisor
+    would be zero after the cast.
+    
+    We already do this for floats; for example
+    
+      var b = float32(0) / 1e-50
+    
+    generates a 'division by zero' error at compile time (because
+    float32(1e-50) is zero, and the cast is done before performing the
+    division).
+    
+    There's no such check in the path for complex{64,128} expressions, and
+    no cast is performed before the division in the evaluation of
+    
+      var a = complex64(0) / 1e-50
+    
+    which compiles just fine.
+    
+    This patch changes the convlit1 function so that complex ideals
+    components (real and imag) are correctly truncated to float{32,64}
+    when doing an ideal -> complex{64, 128} cast.
+    
+    Fixes #11674
+    
+    Change-Id: Ic5f8ee3c8cfe4c3bb0621481792c96511723d151
+    Reviewed-on: https://go-review.googlesource.com/37891
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go           | 43 ++++++++++++++++--
+ src/cmd/compile/internal/gc/mpfloat.go         |  7 +++
+ src/cmd/compile/internal/gc/truncconst_test.go | 63 ++++++++++++++++++++++++++
+ test/fixedbugs/issue11674.go                   | 40 ++++++++++++++++
+ 4 files changed, 149 insertions(+), 4 deletions(-)

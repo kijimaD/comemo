@@ -1,0 +1,14 @@
+commit 08347648a6261fddc259fd846cf565a03875416a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 8 11:11:19 2017 -0400
+
+    test: add test that caused gccgo incorrect compilation
+    
+    Updates #21770
+    
+    Change-Id: Ic31c3bdae30797f406f25c737b83bbe2de1ed1da
+    Reviewed-on: https://go-review.googlesource.com/62331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue21770.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

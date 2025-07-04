@@ -1,0 +1,18 @@
+commit 0458d8c9830f80e8063c384bf4282843ed36a946
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 12:47:08 2021 -0800
+
+    go/types, types2: constraints may be parenthesized and that includes "any"
+    
+    Change-Id: I9a234cc1f04ca762375b51ec8ef009fb264c7ed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295689
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go                 | 2 +-
+ src/cmd/compile/internal/types2/testdata/typeparams.go2 | 4 ++++
+ src/go/types/decl.go                                    | 2 +-
+ src/go/types/testdata/typeparams.go2                    | 4 ++++
+ 4 files changed, 10 insertions(+), 2 deletions(-)

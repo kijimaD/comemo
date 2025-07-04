@@ -1,0 +1,12 @@
+commit 1da382c871fbbe096f9eaf5a19a499fb83bf4dc5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 22 02:04:59 2011 -0400
+
+    gopprof: fix bug: do not rotate 180 degrees for large scrolls
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4273088
+
+ src/cmd/prof/gopprof | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

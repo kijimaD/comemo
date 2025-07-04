@@ -1,0 +1,20 @@
+commit 605c9feeb15d4e7c5a07d1170c1b8c38e9a265fe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 30 23:06:49 2017 -0700
+
+    runtime: speed up stack copying a little
+    
+    Remove a branch and a stack spill.
+    
+    name                old time/op  new time/op  delta
+    StackCopy-8         79.2ms ± 1%  79.1ms ± 2%    ~     (p=0.063 n=96+95)
+    StackCopyNoCache-8   121ms ± 1%   120ms ± 2%  -0.46%  (p=0.000 n=97+88)
+    
+    Change-Id: Ifcbbb05d773178fad84cb11a9a6768ace69fcf24
+    Reviewed-on: https://go-review.googlesource.com/94029
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/symtab.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

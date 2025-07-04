@@ -1,0 +1,17 @@
+commit 98b6410f1368567b9177d168c823296fd7b648b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 2 11:45:00 2014 +0900
+
+    api: add go1.3.txt
+    
+    Update #8112
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/104790045
+
+ api/go1.3.txt      | 2053 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 2053 ----------------------------------------------------
+ src/cmd/api/run.go |    2 +-
+ 3 files changed, 2054 insertions(+), 2054 deletions(-)

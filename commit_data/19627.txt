@@ -1,0 +1,17 @@
+commit dd3856e1b0d9250f4625108b9979d09ab48175e4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Jun 28 20:47:06 2014 +1000
+
+    flag: add a little more doc comment to Duration.
+    
+    The only text that describes the accepted format is in the package doc,
+    which is far away from these functions. The other flag types don't need
+    this explicitness because they are more obvious.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/101550043
+
+ src/pkg/flag/flag.go | 4 ++++
+ 1 file changed, 4 insertions(+)

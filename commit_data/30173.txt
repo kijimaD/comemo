@@ -1,0 +1,27 @@
+commit 85ecc51c4852c49b5e5bc4a52067210c58e266e0
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Feb 2 17:59:18 2017 -0200
+
+    cmd/asm, cmd/internal/obj/ppc64: Add ISA 2.05, 2.06 and 2.07 instructions.
+    
+    This change adds instructions from ISA 2.05, 2.06 and 2.07 that are frequently
+    used in assembly optimizations for ppc64.
+    
+    It also fixes two problems:
+    
+      * the implementation of RLDICR[CC]/RLDICL[CC] did not consider all possible
+      cases for the bit mask.
+      * removed two non-existing instructions that were added by mistake in the VMX
+      implementation (VORL/VANDL).
+    
+    Change-Id: Iaef4e5c6a5240c2156c6c0f28ad3bcd8780e9830
+    Reviewed-on: https://go-review.googlesource.com/36230
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  31 +++++-
+ src/cmd/internal/obj/ppc64/a.out.go       |  17 +++-
+ src/cmd/internal/obj/ppc64/anames.go      |  17 +++-
+ src/cmd/internal/obj/ppc64/asm9.go        | 150 ++++++++++++++++++++++++++----
+ 4 files changed, 191 insertions(+), 24 deletions(-)

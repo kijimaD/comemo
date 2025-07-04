@@ -1,0 +1,27 @@
+commit ffd9810e5966c8ad972f429866808b73bbefd8bc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 00:03:26 2017 -0700
+
+    archive/tar: implement specialized logic for GNU format
+    
+    Rather than going through writeHeader, which attempts to handle all formats,
+    implement writeGNUHeader, which only has an understanding of the GNU format.
+    
+    Currently, the implementation is nearly identical to writeUSTARHeader, except:
+    * formatNumeric is used instead of formatOctal
+    * the GNU magic value is used
+    
+    This is kept as a separate method since it makes more logical sense
+    when we add support for sparse files, long filenames, and atime/ctime fields,
+    which do not affect USTAR.
+    
+    Updates #12594
+    
+    Change-Id: I76efc0b39dc649efc22646dfc9867a7c165f34a8
+    Reviewed-on: https://go-review.googlesource.com/55237
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/archive/tar/writer.go | 59 ++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 41 insertions(+), 18 deletions(-)

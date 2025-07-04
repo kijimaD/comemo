@@ -1,0 +1,12 @@
+commit 0f800505424a9c347c50446ffa0767c224cd7aab
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 24 23:19:44 2012 +0800
+
+    runtime: fix runtime.Breakpoint for ARM
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6100053
+
+ src/pkg/runtime/asm_arm.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

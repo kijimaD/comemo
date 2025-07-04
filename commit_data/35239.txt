@@ -1,0 +1,19 @@
+commit fc9c69a693fb3defcb95a16549bddcf3cac1421e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 2 12:15:54 2018 +0200
+
+    os: remove superfluous comments
+    
+    It's apparent from the file names or build tags to which OS the code in
+    question applies.
+    
+    Change-Id: I628ee2bf1d29a6bc30ca5fa6f9eecf809e78a182
+    Reviewed-on: https://go-review.googlesource.com/110815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/sys_bsd.go   | 3 ---
+ src/os/sys_linux.go | 2 --
+ src/os/sys_plan9.go | 2 --
+ 3 files changed, 7 deletions(-)

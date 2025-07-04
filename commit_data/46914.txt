@@ -1,0 +1,19 @@
+commit ed1c8db308029bd82e6de4d547196f7f841236bb
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Oct 15 12:31:39 2021 -0700
+
+    cmd/compile: cleanup code in getInstInfo to use switch statement
+    
+    Simple cleanup: convert a bunch of if's to a switch statement in
+    getInstInfo. Also, use a few extra variables to avoid repeated node
+    conversions (such as n.(*ir.CallExpr))
+    
+    Change-Id: I7a2a4efb569415256a8bc9350fb100bd2d8cfb39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356311
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 115 ++++++++++++++++--------------
+ 1 file changed, 62 insertions(+), 53 deletions(-)

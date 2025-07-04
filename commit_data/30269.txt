@@ -1,0 +1,16 @@
+commit eebd8f51e8f358575bb5fe2867c96a8fe4605ca7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 14 17:06:57 2017 -0500
+
+    mime: add benchmarks for TypeByExtension and ExtensionsByType
+    
+    These are possible use-cases for sync.Map.
+    
+    Updates golang/go#18177
+    
+    Change-Id: I5e2a3d1249967c37d3f89a41122bf4a90522db11
+    Reviewed-on: https://go-review.googlesource.com/36964
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/type_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

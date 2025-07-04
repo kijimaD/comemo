@@ -1,0 +1,23 @@
+commit 6305d7fdd3a5c9d50010c04f4c418444517082ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 5 12:12:35 2023 -0400
+
+    cmd/go: pass GoVersion in vet config
+    
+    When invoking a vet tool with -vettool (or vet itself),
+    we need to pass the package's GoVersion to use when
+    analyzing the package.
+    
+    The test of this behavior is in the x/tools/go/analysis CL 507880.
+    
+    For #61176.
+    
+    Change-Id: I3b5a90fcd19a0adc7fb29366e106e18f722fc061
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507976
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/work/exec.go |  8 ++++++++
+ src/cmd/go/internal/work/gc.go   | 14 +-------------
+ 2 files changed, 9 insertions(+), 13 deletions(-)

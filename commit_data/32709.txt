@@ -1,0 +1,32 @@
+commit 701d49245fcbe9cf095be2afadab0a68986acb72
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Mon Sep 11 07:59:30 2017 +0000
+
+    cmd/vet: fix go vet on parentheses of assembly function flag
+    
+    Current implementation doesn't recognize parentheses that may appear in flags
+    of assembly function as shown below:
+    
+            TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$24
+    
+    It results in vet reporting false positives and a lot of whitelists are added
+    for suppressing the false alarms.
+    
+    This CL fixes the issue and eliminates the redundant whitelists.
+    
+    Change-Id: Idbc1b42965b31cea8ee7c23d1a6f62feb68e844c
+    Reviewed-on: https://go-review.googlesource.com/62850
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/386.txt           | 2 --
+ src/cmd/vet/all/whitelist/amd64.txt         | 2 --
+ src/cmd/vet/all/whitelist/arm.txt           | 2 --
+ src/cmd/vet/all/whitelist/arm64.txt         | 6 ------
+ src/cmd/vet/all/whitelist/mips64x.txt       | 2 --
+ src/cmd/vet/all/whitelist/mipsx.txt         | 2 --
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt | 2 --
+ src/cmd/vet/all/whitelist/s390x.txt         | 2 --
+ src/cmd/vet/asmdecl.go                      | 2 +-
+ 9 files changed, 1 insertion(+), 21 deletions(-)

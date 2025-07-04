@@ -1,0 +1,19 @@
+commit 4a09a9b054bf9ffe7bcd1ecb90837ff5dc04aea6
+Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
+Date:   Thu Oct 31 23:24:26 2019 +0000
+
+    os: allow case only renames on case-insensitive filesystems
+    
+    Fixes #35222
+    
+    Change-Id: I8be45092ac4079d21ff54661637a3aa8ec4eb9bc
+    GitHub-Last-Rev: 954a016c9bb749268e97489911ea577a6df9fb4c
+    GitHub-Pull-Request: golang/go#35298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204601
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_unix.go |  8 +++++--
+ src/os/os_test.go   | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 2 deletions(-)

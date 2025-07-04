@@ -1,0 +1,19 @@
+commit add8028eb9925db0ec9d3d0f95dec65c8cab1d96
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 16:11:50 2016 -0800
+
+    go/types: remove unused alias-related testdata files
+    
+    They interfere with gofmt -w across this directory.
+    
+    Follow-up on https://go-review.googlesource.com/32819.
+    
+    For #16339 (comment).
+    
+    Change-Id: I4298b6117d89517d4fe6addce3942d950d821817
+    Reviewed-on: https://go-review.googlesource.com/33019
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/testdata/alias.go      |  21 -------
+ src/go/types/testdata/aliasdecl.src | 111 ------------------------------------
+ 2 files changed, 132 deletions(-)

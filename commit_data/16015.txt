@@ -1,0 +1,12 @@
+commit 06ed730d87be6575b456cb2baeed75190424d1a4
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Sat Mar 30 19:02:14 2013 +0800
+
+    misc/cgo/gmp: fix typo.
+    
+    R=golang-dev, minux
+    CC=golang-dev
+    https://golang.org/cl/8174045
+
+ misc/cgo/gmp/gmp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

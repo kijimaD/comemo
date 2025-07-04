@@ -1,0 +1,20 @@
+commit 4fb0af5d5391e5e5f8b47f425b5ceb17c3521a72
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 10:45:49 2017 -0500
+
+    cmd/go: fix -x output for test build failure
+    
+    If the build of the test binary failed, the go command correctly
+    avoided running the binary, but the -x output indicated otherwise.
+    
+    Fixes #22659.
+    
+    Change-Id: Ib4d262bf1735f057c994a45fc23c499d4ebe3246
+    Reviewed-on: https://go-review.googlesource.com/81495
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 11 +++++++++++
+ src/cmd/go/internal/test/test.go | 17 +++++++++--------
+ 2 files changed, 20 insertions(+), 8 deletions(-)

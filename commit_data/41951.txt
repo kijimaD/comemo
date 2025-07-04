@@ -1,0 +1,17 @@
+commit 02ab2c040e20dac433a2a7e1bfca29d3071733ae
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 23:29:17 2020 -0700
+
+    cmd/compile: make ifaceData accept a position
+    
+    This lets us provide a better position in its use in swt.go.
+    
+    Change-Id: I7c0da6bd0adea81acfc9a591e6a01b241a5e0942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228219
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/subr.go | 14 ++++++++++----
+ src/cmd/compile/internal/gc/swt.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go |  4 ++--
+ 3 files changed, 13 insertions(+), 7 deletions(-)

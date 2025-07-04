@@ -1,0 +1,22 @@
+commit af0ebdd4c1ab7c58bcb131d51571ef6bc7250fed
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 18 08:56:12 2024 +0000
+
+    compress/bzip2,lzw: use built-in clear to simplify code
+    
+    Change-Id: I16c17e322c757c8c657364065948d7cec66a8346
+    GitHub-Last-Rev: 9a5104fe9874dd7c604c526be3f082487f2aaf01
+    GitHub-Pull-Request: golang/go#66377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572199
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/compress/bzip2/bzip2.go     | 4 +---
+ src/compress/lzw/reader_test.go | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)

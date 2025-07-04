@@ -1,0 +1,14 @@
+commit a576e9883cd1a79ddcf1c258b4e72ef164e9a1c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 11:43:52 2016 -0800
+
+    text/scanner: mention package when reporting errors to stderr
+    
+    Fixes #14166.
+    
+    Change-Id: I325b283a1d53e73a6d862611c446820ab94a161c
+    Reviewed-on: https://go-review.googlesource.com/19622
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/text/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

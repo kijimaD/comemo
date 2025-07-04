@@ -1,0 +1,16 @@
+commit bc588d4d921ba85affbdab5eafddd840d2ea84b5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 8 09:21:06 2019 +0200
+
+    cmd/link/internal/ld: add missing Close
+    
+    Noticed while working on issue 30488.
+    
+    Change-Id: Ia3655e07c939d03925b3560eeba24c60e24c136c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175917
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
+ 1 file changed, 1 insertion(+)

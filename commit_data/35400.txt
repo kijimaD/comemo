@@ -1,0 +1,14 @@
+commit a0b70517729f6860ee1d6ef484575f8f298c4487
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 16 14:10:02 2018 +0200
+
+    doc/contribute.html: remove superfluous article
+    
+    After CL 113016 the "a" article is no longer necessary.
+    
+    Change-Id: I5a80a210bd2b9eedd73d5f9f3f338d7f22c29ea6
+    Reviewed-on: https://go-review.googlesource.com/113355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

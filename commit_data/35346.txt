@@ -1,0 +1,21 @@
+commit d540da105c799a8fa010ee83419d6cb24d6627b4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 15:15:47 2018 -0700
+
+    go/build, cmd/go: don't expect gccgo to have GOROOT packages
+    
+    When using gccgo the standard library sources are not available in
+    GOROOT. Don't expect them to be there. In the gccgo build, use a set
+    of standard library packages generated at build time.
+    
+    Change-Id: Id133022604d9b7e778e73e8512f9080c61462fba
+    Reviewed-on: https://go-review.googlesource.com/111595
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/test/test.go |   5 ++
+ src/go/build/build.go            |  35 ++++++++----
+ src/go/build/gc.go               | 120 +++++++++++++++++++++++++++++++++++++++
+ src/go/build/gccgo.go            |   6 ++
+ 4 files changed, 155 insertions(+), 11 deletions(-)

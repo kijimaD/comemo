@@ -1,0 +1,53 @@
+commit af09ff1981063b28705726a86b913dfa98d70942
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon May 25 10:30:23 2020 +0100
+
+    runtime, syscall: use local cache for Setenv/Getenv in Plan 9
+    
+    In os.Getenv and os.Setenv, instead of directly reading and writing the
+    Plan 9 environment device (which may be shared with other processes),
+    use a local copy of environment variables cached at the start of
+    execution. This gives the same semantics for Getenv and Setenv as on
+    other operating systems which don't share the environment, making it
+    more likely that Go programs (for example the build tests) will be
+    portable to Plan 9.
+    
+    This doesn't preclude writing non-portable Plan 9 Go programs which make
+    use of the shared environment semantics (for example to have a command
+    which exports variable definitions to the parent shell). To do this, use
+      ioutil.ReadFile("/env/"+key) and
+      ioutil.WriteFile("/env/"+key, value, 0666)
+    in place of os.Getenv(key) and os.Setenv(key, value) respectively.
+    
+    Note that CL 5599054 previously added env cacheing, citing efficiency
+    as the reason. However it made the cache write-through, with Setenv
+    changing the shared environment as well as the cache (so not consistent
+    with Posix semantics), and Clearenv breaking the sharing of the
+    environment between the calling thread and other threads (leading to
+    unpredictable behaviour). Because of these inconsistencies (#8849),
+    CL 158970045 removed the cacheing again.
+    
+    This CL restores cacheing but without write-through. The local cache is
+    initialised at start of execution, manipulated by the standard functions
+    in syscall/env_unix.go to ensure the same semantics, and exported only
+    when exec'ing a new program.
+    
+    Fixes #34971
+    Fixes #25234
+    Fixes #19388
+    Updates #38772
+    
+    Change-Id: I2dd15516d27414afaf99ea382f0e00be37a570c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236520
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Fazlul Shahriar <fshahriar@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/env_plan9.go | 136 ++++++++++++++++++++++++++++++++++++-----------
+ src/runtime/env_posix.go |   2 +-
+ src/runtime/env_test.go  |   4 --
+ src/runtime/os_plan9.go  |   3 --
+ src/syscall/env_plan9.go | 122 ------------------------------------------
+ src/syscall/env_unix.go  |  16 ++++--
+ 6 files changed, 116 insertions(+), 167 deletions(-)

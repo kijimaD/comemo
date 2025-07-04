@@ -1,0 +1,30 @@
+commit 1652a2c316ff81a8b3c0363db92aaecdf2273540
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 15:59:49 2015 -0700
+
+    runtime: add mSpanList type to represent lists of mspans
+    
+    This CL introduces a new mSpanList type to replace the empty mspan
+    variables that were previously used as list heads.
+    
+    To be type safe, the previous circular linked list data structure is
+    now a tail queue instead.  One complication of this is
+    mSpanList_Remove needs to know the list a span is being removed from,
+    but this appears to be computable in all circumstances.
+    
+    As a temporary sanity check, mSpanList_Insert and mSpanList_InsertBack
+    record the list that an mspan has been inserted into so that
+    mSpanList_Remove can verify that the correct list was specified.
+    
+    Whereas mspan is 112 bytes on amd64, mSpanList is only 16 bytes.  This
+    shrinks the size of mheap from 50216 bytes to 12584 bytes.
+    
+    Change-Id: I8146364753dbc3b4ab120afbb9c7b8740653c216
+    Reviewed-on: https://go-review.googlesource.com/15906
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mcentral.go |  22 +++----
+ src/runtime/mheap.go    | 157 ++++++++++++++++++++++++++++++------------------
+ src/runtime/stack.go    |  22 +++----
+ 3 files changed, 122 insertions(+), 79 deletions(-)

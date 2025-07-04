@@ -1,0 +1,12 @@
+commit 211589a9edf433019e8ad5937afe3bb98ebebc35
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 1 14:19:56 2013 +1100
+
+    run.bat: disable race detector test
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7439048
+
+ src/run.bat | 2 ++
+ 1 file changed, 2 insertions(+)

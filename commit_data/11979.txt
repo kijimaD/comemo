@@ -1,0 +1,14 @@
+commit f43d2b7fa89e148b1570551d5a27e0c155a03cb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 14:13:31 2012 -0800
+
+    go/parser: imaginary constants and ! may start an expression
+    
+    Complete list of tokens that can start a top-level expression.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5671074
+
+ src/pkg/go/parser/parser.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

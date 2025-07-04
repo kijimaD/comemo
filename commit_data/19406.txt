@@ -1,0 +1,16 @@
+commit 82854d7b398ff49896c6b10e954891aa36fb1ade
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 11:38:34 2014 -0400
+
+    syscall: fix Write(nil) on NaCl
+    
+    Fixes #7050.
+    
+    LGTM=crawshaw, r
+    R=golang-codereviews, crawshaw, r
+    CC=golang-codereviews
+    https://golang.org/cl/91590043
+
+ src/pkg/syscall/fd_nacl.go  |  6 ++++++
+ test/fixedbugs/issue7050.go | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+)

@@ -1,0 +1,16 @@
+commit 26b07c43a3b160d06ed48657aeea40c84f21078d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 16 16:13:28 2017 -0700
+
+    cmd/gofmt, go/printer: fix mis-alignment of comment on one-line function
+    
+    Fixes #19544.
+    
+    Change-Id: I5df67383e9471f030ddafabadf2bc19ce6816f0f
+    Reviewed-on: https://go-review.googlesource.com/46002
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/printer/nodes.go                     | 14 +++++++++++++-
+ src/go/printer/testdata/declarations.golden |  6 ++++++
+ src/go/printer/testdata/declarations.input  |  5 +++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

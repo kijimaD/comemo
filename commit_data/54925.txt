@@ -1,0 +1,22 @@
+commit 0891b17ce53de8350689a89e55583794a12d302e
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Nov 6 08:00:31 2023 +0700
+
+    cmd/go/internal/modload: ignore $GOPATH/go.mod
+    
+    The existing implementation returns a fatal error if $GOPATH/go.mod exists.
+    We couldn't figure out what directory the go tool was treating as $GOPATH
+    in the error message.
+    
+    Fixes #46807
+    
+    Change-Id: If9db4c0377f7c36af9c367398d3da494be04cd41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/go/internal/modload/init.go           |  8 +++++++-
+ src/cmd/go/testdata/script/env_issue46807.txt | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

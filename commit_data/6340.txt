@@ -1,0 +1,12 @@
+commit d093bdbe7e10eb8b613b346ae5acba7569c97f7e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 22 16:25:26 2010 +1000
+
+    http: escape _all_ reserved characters as per the RFC
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2199043
+
+ src/pkg/http/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

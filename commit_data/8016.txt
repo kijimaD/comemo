@@ -1,0 +1,12 @@
+commit 2683c76d9588f018458e8e0c38dc4ed85ffc970d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 8 10:35:35 2011 +1000
+
+    misc/cgo/life: enable build and test on Windows
+    
+    R=golang-dev, rsc1
+    CC=golang-dev, vcc
+    https://golang.org/cl/4374044
+
+ src/run.bash | 1 -
+ 1 file changed, 1 deletion(-)

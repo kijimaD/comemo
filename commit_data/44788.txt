@@ -1,0 +1,24 @@
+commit 747f426944b1c0c3a26537ef78cb6c5bd4d05cde
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:04 2021 -0600
+
+    cmd/internal/obj: remove bogus load/store optab entries from ppc64
+    
+    No valid operation should match those removed by this patch. They
+    kind of look as if they match X-form load/stores on ppc64, but the
+    second argument is always ignored when translating to machine code.
+    
+    Similarly, it should be noted an X-form memory access encodes into
+    an Addr which is a classified as a ZOREG argument with a non-zero
+    index, and a register type Addr.
+    
+    Change-Id: I1adbb020d1b2612b18949d0e7eda05dbb3e8a25c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303329
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

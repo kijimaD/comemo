@@ -1,0 +1,19 @@
+commit 78c0e1f81d4052f8ca5a50e4e7c5bb35ddec6519
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 9 11:45:04 2018 -0800
+
+    cmd/compile: eliminate dead code
+    
+    During walkexpr, we were assessing whether shifts were bounded.
+    However, that information was dropped on the floor during SSA conversion.
+    The SSA backend already finds all bounded shifts that walkexpr could have,
+    and at negligible extra cost (0.02% in alloc, CPU undetectable).
+    
+    Change-Id: Ieda1af1a2a3ec99bfdc2b0b704c9b80ce8a34486
+    Reviewed-on: https://go-review.googlesource.com/c/148897
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

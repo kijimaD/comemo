@@ -1,0 +1,25 @@
+commit 8841699160946263859ea492779bea4aa909f1de
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 20 12:48:17 2022 -0700
+
+    internal/pkgbits: finish documentation
+    
+    This CL adds documentation for all exported pkgbits APIs, and removes
+    its UNREVIEWED comments.
+    
+    Updates #48194.
+    
+    Change-Id: Ifff548cd9f31a5c5cc5f400a6dae5c98c46ec4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407614
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/pkgbits/codes.go       | 21 +++++++++-
+ src/internal/pkgbits/decoder.go     | 48 +++++++++++++++++++++--
+ src/internal/pkgbits/encoder.go     | 77 ++++++++++++++++++++++++++++++-------
+ src/internal/pkgbits/frames_go17.go |  3 ++
+ src/internal/pkgbits/reloc.go       |  2 -
+ src/internal/pkgbits/sync.go        |  3 --
+ 6 files changed, 130 insertions(+), 24 deletions(-)

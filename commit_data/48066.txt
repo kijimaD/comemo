@@ -1,0 +1,23 @@
+commit 475ce826b75f113aff2810f3d27cb861adee0caa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 2 17:09:28 2022 -0500
+
+    net: remove an arbitrary timeout in TestUDPReadSizeError
+    
+    Looking at the condition actually exercised by the test it seems
+    unnecessary: assuming that the Write succeeds (checked earlier in the
+    test), the Read must have a nonzero number of bytes available to read
+    immediately. (That is not the case in TestUDPZeroByteBuffer, from
+    which this test appears to have been derived.)
+    
+    Fixes #50870
+    
+    Change-Id: Ia6040a2d5dc320f0b86ec9d6f6b91dc72e8f3b84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382537
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/udpsock_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

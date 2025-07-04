@@ -1,0 +1,19 @@
+commit bccd686f9dac534d50ad420f7cfad22c4f43e352
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 6 21:13:44 2024 -0500
+
+    runtime/cgo: use pthread_getattr_np on Android
+    
+    It is defined in bionic libc since at least API level 3. Use it.
+    
+    Updates #68285.
+    
+    Change-Id: I215c2d61d5612e7c0298b2cb69875690f8fbea66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_stack_unix.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit e2160cc5713e4954b67ec4eabdb893d2880e10a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 06:16:49 2017 +0000
+
+    sync: make another attempt at clarifying RWMutex double RLock rules
+    
+    Updates #15418 (the original bug, fixed by https://golang.org/cl/23570)
+    Fixes #19460 (round two)
+    
+    Change-Id: Iac4447daabb56e3b470046c489c22d588c20163e
+    Reviewed-on: https://go-review.googlesource.com/45697
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sync/rwmutex.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

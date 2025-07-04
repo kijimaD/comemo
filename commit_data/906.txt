@@ -1,0 +1,14 @@
+commit a6b546fe3116095761b35976a231f64d28082934
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 11:46:40 2008 -0700
+
+    - be even more explicit about ideal number conversion in expressions
+    - added a note with respect the difference of semantics of *p++ in Go vs C
+    
+    R=r
+    DELTA=14  (6 added, 2 deleted, 6 changed)
+    OCL=17455
+    CL=17457
+
+ doc/go_spec.txt | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

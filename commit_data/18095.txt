@@ -1,0 +1,17 @@
+commit 568a449bd1992133d8fa444cafefa688dd423d42
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 20 09:38:35 2013 -0800
+
+    io/ioutil: use sync.Pool in Discard
+    
+    And merge the blackhole.go file back into ioutil,
+    where it once was. It was only in a separate file
+    because it used to have race-vs-!race versions.
+    
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/44060044
+
+ src/pkg/io/ioutil/blackhole.go | 23 -----------------------
+ src/pkg/io/ioutil/ioutil.go    | 14 +++++++++++---
+ 2 files changed, 11 insertions(+), 26 deletions(-)

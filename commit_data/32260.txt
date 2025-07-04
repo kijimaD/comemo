@@ -1,0 +1,22 @@
+commit fcf445dce22f96f874932b37962acba40d51e000
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 31 11:57:07 2017 -0700
+
+    runtime: initialize itab.hash always
+    
+    We weren't initializing this field for dynamically-generated itabs.
+    Turns out it doesn't matter, as any time we use this field we also
+    generate a static itab for the interface type / concrete type pair.
+    But we should initialize it anyway, just to be safe.
+    
+    Performance on the benchmarks in CL 44339:
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkItabFew-12     1040585       26466         -97.46%
+    BenchmarkItabAll-12     228873499     4287696       -98.13%
+    
+    Change-Id: I58ed2b31e6c98b584122bdaf844fee7268b58295
+    Reviewed-on: https://go-review.googlesource.com/44475
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/iface.go | 1 +
+ 1 file changed, 1 insertion(+)

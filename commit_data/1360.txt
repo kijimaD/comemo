@@ -1,0 +1,14 @@
+commit 61e0fcce8ae1642c661c2bc900d18c42af209c2e
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 17 12:13:19 2008 -0800
+
+    small bug
+    new printarray
+    
+    R=r
+    OCL=21429
+    CL=21429
+
+ src/runtime/array.c   | 31 ++++++++++++++++++++-----------
+ src/runtime/runtime.h |  1 +
+ 2 files changed, 21 insertions(+), 11 deletions(-)

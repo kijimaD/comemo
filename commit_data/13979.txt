@@ -1,0 +1,29 @@
+commit 631a0e71c1eb1e85c3e745153a6575a82189ef3e
+Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+Date:   Fri Sep 28 12:34:18 2012 +1000
+
+    strings: implement a faster single-string Replacer
+    
+    The string searching is implemented separately so other functions
+    may make use of it in the future.
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkSingleMaxSkipping          125889         2474  -98.03%
+    BenchmarkSingleLongSuffixFail        16252         1996  -87.72%
+    BenchmarkSingleMatch                260793       136266  -47.75%
+    
+    benchmark                         old MB/s     new MB/s  speedup
+    BenchmarkSingleMaxSkipping           79.43      4041.57   50.88x
+    BenchmarkSingleLongSuffixFail        61.65       501.81    8.14x
+    BenchmarkSingleMatch                 57.52       110.08    1.91x
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6545049
+
+ src/pkg/strings/export_test.go  |   9 +++
+ src/pkg/strings/replace.go      |  80 +++++++++++++++++++++++---
+ src/pkg/strings/replace_test.go |  35 +++++++++++-
+ src/pkg/strings/search.go       | 124 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/search_test.go  |  90 +++++++++++++++++++++++++++++
+ 5 files changed, 330 insertions(+), 8 deletions(-)

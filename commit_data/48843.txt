@@ -1,0 +1,16 @@
+commit 01b8f5e8821eac0e3456d6200b351629fd3752f4
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Apr 19 16:38:04 2022 +0800
+
+    runtime: use fastrand64 in mapiterinit
+    
+    Change-Id: I5698c7576a0f39ae62de7bea64286ac8e578d421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400916
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/map.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

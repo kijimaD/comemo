@@ -1,0 +1,17 @@
+commit 09762ccff79ebf08839f8954ab99c17d41f071e2
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 30 08:33:17 2016 -0800
+
+    crypto/dsa: also use fromHex in TestSignAndVerify.
+    
+    This change contains a very minor tidy-up to a test.
+    
+    Change-Id: I3a8c0168bcdcbf90cacbbac2566c8423c92129f8
+    Reviewed-on: https://go-review.googlesource.com/33726
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/dsa/dsa_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

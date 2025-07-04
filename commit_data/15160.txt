@@ -1,0 +1,12 @@
+commit 3c1dfb2b9a3fb169545bfb40f3febad22063831f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 8 12:00:35 2013 +1100
+
+    cmd/godoc: fix format strings.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7309061
+
+ src/cmd/godoc/play-appengine.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

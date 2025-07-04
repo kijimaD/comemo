@@ -1,0 +1,19 @@
+commit b48f71213ac4fd7950edbf7aa7e6a5da7b640111
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 16:42:05 2009 -0800
+
+    Permit omission of hi bound in slices.
+    
+    R=r, rsc
+    https://golang.org/cl/157082
+
+ src/cmd/cgo/ast.go                             |  3 +++
+ src/pkg/exp/eval/expr.go                       | 23 ++++++++++++++---------
+ src/pkg/go/ast/ast.go                          | 12 ++++++++++--
+ src/pkg/go/ast/walk.go                         |  4 ++++
+ src/pkg/go/parser/parser.go                    | 20 +++++++++++++-------
+ src/pkg/go/printer/nodes.go                    | 22 +++++++++++++++-------
+ src/pkg/go/printer/testdata/expressions.golden |  5 +++++
+ src/pkg/go/printer/testdata/expressions.input  |  5 +++++
+ src/pkg/go/printer/testdata/expressions.raw    |  5 +++++
+ 9 files changed, 74 insertions(+), 25 deletions(-)

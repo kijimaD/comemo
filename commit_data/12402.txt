@@ -1,0 +1,12 @@
+commit 195ccd5dacad9604e0630d3aa160ecd496dce6db
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 6 10:07:08 2012 +0900
+
+    net: fix windows build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5755045
+
+ src/pkg/net/file_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

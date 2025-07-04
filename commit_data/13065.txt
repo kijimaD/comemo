@@ -1,0 +1,19 @@
+commit b42ebb6fbfc564e7a89e67ac1b9575b49b580bbb
+Author: Joel Sing <jsing@google.com>
+Date:   Tue May 15 11:26:05 2012 +1000
+
+    runtime: fix TLS handling for netbsd
+    
+    Set the TLS base using the _lwp_setprivate() syscall, instead of via
+    sysarch(). NetBSD tracks the pointer passed to _lwp_setprivate() and
+    restores this value when restoring mcontext. If sysarch() is used
+    directly, restoring an mcontext trashes the FS/GS value, resulting
+    in a segfault when we next try to access the TLS.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6206062
+
+ src/pkg/runtime/sys_netbsd_386.s   | 20 +++++++++-----------
+ src/pkg/runtime/sys_netbsd_amd64.s | 20 ++++++++------------
+ 2 files changed, 17 insertions(+), 23 deletions(-)

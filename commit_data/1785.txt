@@ -1,0 +1,18 @@
+commit dc5ddd7d84f46e898246e54ab417de90f33be41b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 9 12:41:53 2009 -0700
+
+    - directory rename lang -> go
+    
+    R=rsc
+    DELTA=2070  (1035 added, 1035 deleted, 0 changed)
+    OCL=25939
+    CL=25939
+
+ src/lib/Makefile                     | 4 ++--
+ src/lib/{lang => go}/Makefile        | 0
+ src/lib/{lang => go}/scanner.go      | 0
+ src/lib/{lang => go}/scanner_test.go | 0
+ src/lib/{lang => go}/token.go        | 0
+ src/run.bash                         | 2 +-
+ 6 files changed, 3 insertions(+), 3 deletions(-)

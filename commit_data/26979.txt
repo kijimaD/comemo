@@ -1,0 +1,14 @@
+commit 5c434e93a16fae3edc4f0494bc796eb80bfbd0b2
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Apr 17 11:24:57 2016 -0700
+
+    fmt: remove extra space in doc for compound objects
+    
+    Fixes #15339
+    
+    Change-Id: I0b006deefb58ccfc47beae4e1b8da3d77fafda6b
+    Reviewed-on: https://go-review.googlesource.com/22148
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

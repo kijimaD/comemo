@@ -1,0 +1,23 @@
+commit 2aac5a5cbacdaaefb518be7ea8ddc2a455ae35f2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 19 17:28:45 2025 -0400
+
+    runtime: skip testprogcgo tests in race mode on freebsd
+    
+    These were just enabled by https://go.dev/cl/643897, but freebsd
+    unfortunately doesn't seem to support cgo + race mode by default.
+    
+    For #73788.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-freebsd-amd64-race
+    Change-Id: I6a6a636c06176ca746548d0588283b1429d7c6d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674160
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/coro_test.go      |   4 ++
+ src/runtime/crash_cgo_test.go | 124 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/crash_test.go     |   3 +
+ src/runtime/trace_cgo_test.go |   4 ++
+ 4 files changed, 135 insertions(+)

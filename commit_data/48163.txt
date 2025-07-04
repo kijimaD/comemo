@@ -1,0 +1,37 @@
+commit ada95e2807abbbab990c5c13a271e823e4e0a5cc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 11 16:49:51 2022 -0500
+
+    net: in TestNotTemporaryRead, do not assume that a dialed connection has been accepted
+    
+    Previously, TestNotTemporaryRead issued the Read on the Accept side of
+    the connection, and Closed the Dial side. It appears that on some
+    platforms, Dial may return before the connection has been Accepted,
+    and if that connection is immediately closed with no bytes written and
+    SO_LINGER set to 0, the connection may no longer even exist by the
+    time Accept returns, causing Accept to block indefinitely until the
+    Listener is closed.
+    
+    If we were to just swap the directions, we would have an analogous
+    problem: Accept could accept the connection and close it before the
+    client even finishes dialing, causing Dial (instead of Read) to return
+    the ECONNRESET error.
+    
+    Here, we take a middle path: we Accept and Dial the connection
+    concurrently, but wait until both the Accept and the Dial have
+    returned (indicating that the connection is completely established and
+    won't vanish from the accept queue) before resetting the connection.
+    
+    Fixes #29685
+    Updates #25289
+    
+    Change-Id: Ida06f70f7205fffcdafa3df78bd56184e6cec760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385314
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/net_test.go | 64 ++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 39 insertions(+), 25 deletions(-)

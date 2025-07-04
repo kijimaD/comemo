@@ -1,0 +1,18 @@
+commit e8afb2911125ad65ddc02f7b83ab78a3e2f573b7
+Author: David Chase <drchase@google.com>
+Date:   Thu Sep 22 22:27:33 2022 -0400
+
+    cmd/compile: introduce "temporary" readers for more storage reuse
+    
+    Change-Id: Id05d6099624284a9c1583b066d1a703e806b1e22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433037
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/importer/ureader.go |  89 ++++++++++++++---------
+ src/go/internal/gcimporter/ureader.go        | 101 +++++++++++++++++----------
+ src/internal/pkgbits/decoder.go              |  70 ++++++++++++++++---
+ 3 files changed, 183 insertions(+), 77 deletions(-)

@@ -1,0 +1,16 @@
+commit f95becaddb539a45cc9bedbbbc9ee4a2433c1ab5
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 11:51:04 2015 -0500
+
+    runtime: update a few "onM"s in comments to say "systemstack"
+    
+    Commit 656be31 replaced onM with systemstack, but missed updating a
+    few comments that still referred to onM.  Update these.
+    
+    Change-Id: I0efb017e9a66ea0adebb6e1da6e518ee11263f69
+    Reviewed-on: https://go-review.googlesource.com/3664
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 5984ea71977d8436436a096902a32974b958c0bb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Dec 1 22:23:42 2020 +0700
+
+    doc: update signal.Notify example to use buffered channel
+    
+    This if follow up of CL 274332.
+    
+    Updates #9399.
+    
+    Change-Id: Ic6dd534dc18227a799cbb9577979f2285596b825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274393
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit 5f45a3337ec78f303fbbcadd89d459af56183724
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 14 09:50:51 2019 -0400
+
+    reflect: align first argument in callMethod
+    
+    When calling a function obtained from reflect.Value.Method (or
+    MethodByName), we copy the arguments from the caller frame, which
+    does not include the receiver, to a new frame to call the actual
+    method, which does include the receiver. Here we need to align
+    the first (non-receiver) argument. As the receiver is pointer
+    sized, it is generally naturally aligned, except on amd64p32,
+    where the argument can have larger alignment, and this aligning
+    becomes necessary.
+    
+    Fixes #33628.
+    
+    Change-Id: I5bea0e20173f06d1602c5666d4f334e3d0de5c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190297
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 21 +++++++++++++++++++++
+ src/reflect/value.go    | 16 +++++++++++-----
+ 2 files changed, 32 insertions(+), 5 deletions(-)

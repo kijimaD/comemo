@@ -1,0 +1,13 @@
+commit 2fed8c7667a1411a4415d5a28672836e9b31fd07
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 20 11:21:19 2014 -0700
+
+    src: make nacltest.bash executable
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/98480043
+
+ src/nacltest.bash | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

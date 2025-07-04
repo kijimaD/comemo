@@ -1,0 +1,20 @@
+commit bb6e685b7b7cc2a9ba7f81b98fa29bfdbf5cff7b
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 09:08:04 2012 +1100
+
+    godoc: fix codewalk handler
+    
+    For URLs ending with /, the handler did not work, trying to append
+    ".xml" to the path.
+    
+    For instance, the "Share Memory by Communicating" returned the
+    following error:
+    
+            open /Users/francisco.souza/lib/go/doc/codewalk/sharemem/.xml: no such file or directory
+    
+    R=adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5797065
+
+ src/cmd/godoc/codewalk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

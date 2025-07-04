@@ -1,0 +1,26 @@
+commit c3b3e7b4ef9dff1fc0cc504f81465ded5663b4e4
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 8 13:33:43 2016 -0400
+
+    cmd/compile: insert instrumentation more carefully in racewalk
+    
+    Be more careful about inserting instrumentation in racewalk.
+    If the node being instrumented is an OAS, and it has a non-
+    empty Ninit, then append instrumentation to the Ninit list
+    rather than letting it be inserted before the OAS (and the
+    compilation of its init list).  This deals with the case that
+    the Ninit list defines a variable used in the RHS of the OAS.
+    
+    Fixes #15091.
+    
+    Change-Id: Iac91696d9104d07f0bf1bd3499bbf56b2e1ef073
+    Reviewed-on: https://go-review.googlesource.com/21771
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go       |  3 +++
+ src/cmd/compile/internal/gc/racewalk.go  |  8 +++++++-
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++++
+ src/cmd/compile/internal/ssa/regalloc.go |  4 ++--
+ test/fixedbugs/issue15091.go             | 25 +++++++++++++++++++++++++
+ 5 files changed, 41 insertions(+), 3 deletions(-)

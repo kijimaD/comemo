@@ -1,0 +1,23 @@
+commit 7afd58d4581925788e1ef28ff817784d2585b92f
+Author: Peter Waller <p@pwaller.net>
+Date:   Mon Feb 18 11:09:03 2019 +0000
+
+    cmd/compile/internal/ssa: set OFOR bBody.Pos to AST Pos
+    
+    Assign SSA OFOR's bBody.Pos to AST (*Node).Pos as it is created.
+    
+    An empty for loop has no other information which may be used to give
+    correct position information in the resulting executable. Such a for
+    loop may compile to a single `JMP *self` and it is important that the
+    location of this is in the right place.
+    
+    Fixes #30167.
+    
+    Change-Id: Iec44f0281c462c33fac6b7b8ccfc2ef37434c247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163019
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 3 +++
+ 1 file changed, 3 insertions(+)

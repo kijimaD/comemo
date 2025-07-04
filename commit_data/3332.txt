@@ -1,0 +1,13 @@
+commit 27969e87cfd66ed96e9add7acfab767594535a21
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 15:44:10 2009 -0700
+
+    add required conversions; bug in compiler let it slip through
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=34860
+    CL=34864
+
+ src/pkg/image/png/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

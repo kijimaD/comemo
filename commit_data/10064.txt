@@ -1,0 +1,12 @@
+commit 9e1a2adf07cb58a0244d1aebf11da368750cd698
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Oct 20 08:10:58 2011 +0100
+
+    exp/winfsnotify: fix test
+    
+    R=alex.brainman, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/5311047
+
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

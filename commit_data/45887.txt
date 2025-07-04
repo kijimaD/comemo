@@ -1,0 +1,19 @@
+commit 0fa3265fe14c775668fc8272f47adf4fbaa60bac
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Jun 29 16:31:18 2021 -0700
+
+    os: change example to avoid deprecated function
+    
+    The IsNotExist function is deprecated; change package example to avoid
+    it and use the recommended way instead.
+    
+    Fixes #46976
+    
+    Change-Id: I3c301d0a89b6bda42184df314ba8418062ca39ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331692
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/os/example_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit d367b2a475e79cdd1f39ccf376098d0566b7dffa
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 15 17:39:28 2024 -0400
+
+    cmd/vendor/golang.org/x/telemetry: update to 9ff3ad9
+    
+    Updates #67182
+    
+    Change-Id: I76b312ccbd1ea98eb2f4e3beec9e8b42e633ea5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585819
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.mod                                                        | 2 +-
+ src/cmd/go.sum                                                        | 4 ++--
+ .../golang.org/x/telemetry/internal/crashmonitor/crash_go123.go       | 2 +-
+ src/cmd/vendor/modules.txt                                            | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

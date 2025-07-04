@@ -1,0 +1,23 @@
+commit 870e12d7bfaea70fb0d743842f5864eb059cb939
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Jul 31 01:11:32 2018 +0700
+
+    cmd/go: fix go get fail when GIT_TRACE set
+    
+    GIT_TRACE write message to stderr, while run1 merge both stdout and
+    stderr. So function which call run1 and rely on its output will failed
+    to parse the result when run1 success.
+    
+    By using cmd.Output(), we ensure only cmd standard out is returned.
+    
+    Fixes #19682
+    
+    Change-Id: I7002df17fe68aea1860ddc7382c68cc23548bd90
+    Reviewed-on: https://go-review.googlesource.com/126735
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/vcs.go                    | 16 +++++++---------
+ src/cmd/go/testdata/script/get_with_git_trace.txt |  7 +++++++
+ 2 files changed, 14 insertions(+), 9 deletions(-)

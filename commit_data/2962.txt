@@ -1,0 +1,12 @@
+commit d594639087812a57de3c9fc4a9ec73a04f1454c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 17:58:53 2009 -0700
+
+    rm outfile if 6g exits with an error
+    
+    R=ken
+    OCL=33134
+    CL=33141
+
+ src/cmd/gc/subr.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

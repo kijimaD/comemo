@@ -1,0 +1,25 @@
+commit f777726ff073f8066c017649b572bd8c40940a42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 21:50:51 2023 -0700
+
+    os: if descriptor is non-blocking, retain that in Fd method
+    
+    For #58408
+    Fixes #60211
+    
+    Change-Id: I30f5678b46e15121865b19d1c0f82698493fad4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495079
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/nonblocking.go        |  4 ++
+ src/internal/syscall/unix/nonblocking_js.go     |  4 ++
+ src/internal/syscall/unix/nonblocking_libc.go   |  4 ++
+ src/internal/syscall/unix/nonblocking_wasip1.go |  4 ++
+ src/os/fifo_test.go                             | 50 +++++++++++++++++++++++++
+ src/os/file_unix.go                             | 17 ++++++---
+ 6 files changed, 78 insertions(+), 5 deletions(-)

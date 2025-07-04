@@ -1,0 +1,12 @@
+commit 2917ed40d0afdb7910b74c205d6498b6c173a5e0
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Dec 8 16:15:22 2014 -0800
+
+    doc: Fix the canonical location
+    
+    Change-Id: I3030d678c4eee85970826c86332a2b818cf7f5b6
+    Reviewed-on: https://go-review.googlesource.com/1217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

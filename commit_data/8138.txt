@@ -1,0 +1,14 @@
+commit e3634aad9dcf3bc3736fc18a4918fa6573ccc778
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 18 09:50:20 2011 -0700
+
+    test/bench: update timings; moving to new machine.
+    Interesting comparisons between old and new machine,
+    and relationship between gccgo and gc.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4430045
+
+ test/bench/timing.log | 170 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 170 insertions(+)

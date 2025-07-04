@@ -1,0 +1,19 @@
+commit 002283eaca8335c4c1fb209f267bacf5afe6cf2c
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Fri Dec 17 11:03:21 2021 +0100
+
+    runtime: ensure that asmsyscall6 follow AIX stack convention
+    
+    The function asmsyscall6 must follow AIX stack layout. It means
+    that its first local variable must be stored after its arguments
+    area, ie after offset 112.
+    
+    Fixes #50185
+    
+    Change-Id: I897731ddd2a9faad8218443a4c2f4b204ad7e173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373074
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_aix_ppc64.s | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

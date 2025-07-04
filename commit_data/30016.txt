@@ -1,0 +1,13 @@
+commit de479267ef9db0911dac68e94d75186313bae11d
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Feb 1 19:57:11 2017 +0000
+
+    doc: mention SHA-256 CBC suites are off by default
+    
+    Change-Id: I82c41bd1d82adda457ddb5dd08caf0647905da22
+    Reviewed-on: https://go-review.googlesource.com/36091
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

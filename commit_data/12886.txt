@@ -1,0 +1,15 @@
+commit 55af51d5c0f5e2bbe80ae6dd0df6aed48e6ebd09
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 12 12:33:52 2012 -0400
+
+    encoding/pem: ignore spaces and tabs at the end of header lines.
+    
+    Fixes #3502.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6011046
+
+ src/pkg/encoding/pem/pem.go      |  9 +++++----
+ src/pkg/encoding/pem/pem_test.go | 22 +++++++++++-----------
+ 2 files changed, 16 insertions(+), 15 deletions(-)

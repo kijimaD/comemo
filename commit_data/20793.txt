@@ -1,0 +1,37 @@
+commit ccc713c7caa8900facc99bffaad4ee4a22013b01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 27 16:31:15 2014 -0700
+
+    spec: permit parentheses around builtin function names
+    
+    Not a language change.
+    
+    This is simply documenting the status quo which permits
+    builtin function names to be parenthesized in calls; e.g.,
+    both
+    
+            len(s)
+    and
+            (((len)))(s)
+    
+    are accepted by all compilers and go/types.
+    
+    Changed the grammar by merging the details of BuiltinCall
+    with ordinary Calls. Also renamed the Call production to
+    Arguments which more clearly identifies that part of the
+    grammar and also matches better with its counterpart on
+    the declaration side (Parameters).
+    
+    The fact that the first argument can be a type (for builtins)
+    or cannot be a type (for regular function calls) is expressed
+    in the prose, no need to make the grammar more complicated.
+    
+    Fixes #9001.
+    
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken, dave
+    CC=golang-codereviews
+    https://golang.org/cl/160570043
+
+ doc/go_spec.html | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

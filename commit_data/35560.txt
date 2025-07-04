@@ -1,0 +1,22 @@
+commit bfdf74be12e2527d797968870564e8dafc2aacb5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu May 31 12:04:07 2018 +0000
+
+    Revert "testing: only compute b.N once when passed -count > 1"
+    
+    This reverts golang.org/cl/110775
+    
+    Reason for revert: this is causing huge slow-dows on every run after
+    the 1st, on various benchmarks, on multiple architectures (see Issue
+    25622 for details). It's just a nice-to-have little optimization, and
+    we're near the 1st go1.11 beta release, so I'm reverting it.
+    
+    Fixes #25622
+    
+    Change-Id: I758ade4af4abf764abd8336d404396992d11a0c6
+    Reviewed-on: https://go-review.googlesource.com/115535
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/go/go_test.go    |  4 ++++
+ src/testing/benchmark.go | 47 +++++++++++++++--------------------------------
+ 2 files changed, 19 insertions(+), 32 deletions(-)

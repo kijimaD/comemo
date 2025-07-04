@@ -1,0 +1,26 @@
+commit 0487ba08a681c9e4414195c3a0f0ed16e93ada4f
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Sun Feb 12 12:21:26 2023 +0000
+
+    archive/zip: make receiver names consistent
+    
+    Fixes revive linter receiver-naming warnings:
+    
+    - receiver name f should be consistent with previous receiver name e for fileListEntry
+    - receiver name r should be consistent with previous receiver name z for Reader
+    - receiver name f should be consistent with previous receiver name h for FileHeader
+    
+    Change-Id: Ibfa14b97f6ca7adc86e3a1df919c5bb5de9716dc
+    GitHub-Last-Rev: dd7315b09d224bb2953b82cc6bd97d81c9eaca0a
+    GitHub-Pull-Request: golang/go#58477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467519
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+
+ src/archive/zip/reader.go | 50 +++++++++++++++++++++++------------------------
+ src/archive/zip/struct.go |  4 ++--
+ 2 files changed, 27 insertions(+), 27 deletions(-)

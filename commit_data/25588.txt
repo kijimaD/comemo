@@ -1,0 +1,12 @@
+commit 28f9d96c750af2155a167641c785d3c94effea38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 14 09:10:57 2016 -0800
+
+    runtime: remove erroneous go:noescape declaration
+    
+    Change-Id: I6b1dc789e54a385c958961e7ba16bfd9d0f3b313
+    Reviewed-on: https://go-review.googlesource.com/18629
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os3_solaris.go | 1 -
+ 1 file changed, 1 deletion(-)

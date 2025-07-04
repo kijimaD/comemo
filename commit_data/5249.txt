@@ -1,0 +1,17 @@
+commit 72157c300b458ea5a48333e8fa427f0a8e247dbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 8 13:24:53 2010 -0700
+
+    runtime: fix bad status throw
+    when garbage collector sees recovering goroutine
+    
+    Fixes #711.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/869045
+
+ src/pkg/runtime/mgc0.c    | 1 +
+ src/pkg/runtime/proc.c    | 9 ++++++---
+ src/pkg/runtime/runtime.h | 4 ++++
+ 3 files changed, 11 insertions(+), 3 deletions(-)

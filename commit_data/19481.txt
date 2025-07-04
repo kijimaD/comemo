@@ -1,0 +1,18 @@
+commit 9f2dfb856e89a8847ff2b1fc6ad95917093f3e28
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 1 18:53:59 2014 -0400
+
+    cmd/objdump: add arm disassembler
+    
+    Fixes #7452.
+    
+    LGTM=minux, iant
+    R=minux, iant
+    CC=golang-codereviews
+    https://golang.org/cl/104770046
+
+ src/cmd/objdump/Makefile        |     5 +
+ src/cmd/objdump/armasm.go       | 10821 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/main.go         |    56 +-
+ src/cmd/objdump/objdump_test.go |     3 +-
+ 4 files changed, 10868 insertions(+), 17 deletions(-)

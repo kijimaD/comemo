@@ -1,0 +1,23 @@
+commit d3c0af7a0a57480391dcd3a63e2c9450399d2628
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 31 11:38:13 2017 +0200
+
+    cmd/compile: fix ADDSDmem comment and order in list
+    
+    ADDSDmem comment said f32 (likely a copy-paste mistake).
+    
+    Also swap ADDSSmem and ADDSDmem positions in the list to uniform the
+    list order.
+    
+    Fixes #21225
+    
+    Change-Id: I26bb116900c1cf4c4e6faeef613d7318c9c85b98
+    Reviewed-on: https://go-review.googlesource.com/52071
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

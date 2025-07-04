@@ -1,0 +1,19 @@
+commit ffa9000b7568763e3ae721053446871d26b5ff4e
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 11 15:50:40 2010 -0500
+
+            crypto/x509: policy OID support and fixes.
+    
+            * Add support for certificate policy identifiers
+            * Fix the version number of generated certificates
+            * Fix the parsing of version numbers
+            * Fix the case of multiple name entries (it should have been a list of
+              tagged values, not a tagged list of values).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3044041
+
+ src/pkg/crypto/x509/x509.go      | 113 +++++++++++++++++++++++----------------
+ src/pkg/crypto/x509/x509_test.go |   8 +++
+ 2 files changed, 76 insertions(+), 45 deletions(-)

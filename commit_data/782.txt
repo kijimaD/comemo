@@ -1,0 +1,14 @@
+commit 5ed04d71fbad8534666513e8606488fae91a370e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 14:08:43 2008 -0700
+
+    tests of new func arg code
+    
+    R=r
+    DELTA=41  (41 added, 0 deleted, 0 changed)
+    OCL=16212
+    CL=16223
+
+ test/func2.go | 31 +++++++++++++++++++++++++++++++
+ test/func3.go | 17 +++++++++++++++++
+ 2 files changed, 48 insertions(+)

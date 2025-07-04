@@ -1,0 +1,30 @@
+commit 04164e5f5a82eeaf09fedda14c90af5bb65a1627
+Author: Prabhav Dogra <prabhavdogra1@gmail.com>
+Date:   Fri Mar 7 09:32:20 2025 +0000
+
+    internal/runtime/atomic: updated go assembler comments
+    
+    Updated comments in go assembler package
+    
+    Change-Id: I174e344ca45fae6ef70af2e0b29cd783b003b4c2
+    GitHub-Last-Rev: 8ab37208891e795561a943269ca82b1ce6e7eef5
+    GitHub-Pull-Request: golang/go#72048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654478
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: PRABHAV DOGRA <prabhavdogra1@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/atomic/atomic_386.s       | 36 ++++++++++++++------------
+ src/internal/runtime/atomic/atomic_amd64.s     | 36 ++++++++++++++------------
+ src/internal/runtime/atomic/atomic_arm.s       | 13 +++++-----
+ src/internal/runtime/atomic/atomic_arm64.s     | 27 +++++++++----------
+ src/internal/runtime/atomic/atomic_loong64.s   | 36 ++++++++++++++------------
+ src/internal/runtime/atomic/atomic_mips64x.s   | 36 ++++++++++++++------------
+ src/internal/runtime/atomic/atomic_mipsx.s     | 13 +++++-----
+ src/internal/runtime/atomic/atomic_ppc64x.s    | 36 ++++++++++++++------------
+ src/internal/runtime/atomic/atomic_riscv64.s   | 12 ++++-----
+ src/internal/runtime/atomic/sys_nonlinux_arm.s | 13 +++++-----
+ 10 files changed, 136 insertions(+), 122 deletions(-)

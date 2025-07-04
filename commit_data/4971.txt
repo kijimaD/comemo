@@ -1,0 +1,85 @@
+commit f44fa9b4c711748820875ac40cb0c31d5dc97a42
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 2 13:46:51 2010 -0800
+
+    gofmt: experiment: align values in map composites where possible
+    - gofmt -w src misc
+    - looking for feedback
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/223076
+
+ src/cmd/cgo/ast.go                              |   4 +-
+ src/cmd/cgo/gcc.go                              |  24 +-
+ src/cmd/cgo/main.go                             |  16 +-
+ src/cmd/godoc/godoc.go                          |  52 +--
+ src/cmd/godoc/index.go                          |   2 +-
+ src/pkg/archive/tar/reader_test.go              |  96 ++---
+ src/pkg/archive/tar/writer_test.go              |  48 +--
+ src/pkg/asn1/marshal.go                         |   6 +-
+ src/pkg/big/int_test.go                         |   6 +-
+ src/pkg/compress/flate/huffman_bit_writer.go    |  12 +-
+ src/pkg/compress/flate/huffman_code.go          |   6 +-
+ src/pkg/crypto/tls/handshake_client.go          |   8 +-
+ src/pkg/crypto/x509/x509.go                     |  16 +-
+ src/pkg/crypto/x509/x509_test.go                |  10 +-
+ src/pkg/debug/dwarf/const.go                    | 248 ++++++------
+ src/pkg/debug/dwarf/entry.go                    |   6 +-
+ src/pkg/debug/dwarf/open.go                     |  18 +-
+ src/pkg/debug/dwarf/type_test.go                |  14 +-
+ src/pkg/debug/elf/file.go                       |  32 +-
+ src/pkg/debug/proc/proc_linux.go                |  14 +-
+ src/pkg/encoding/pem/pem.go                     |   2 +-
+ src/pkg/exp/eval/compiler.go                    |   4 +-
+ src/pkg/exp/eval/expr.go                        |   8 +-
+ src/pkg/exp/eval/gen.go                         |   8 +-
+ src/pkg/exp/eval/scope.go                       |   6 +-
+ src/pkg/exp/eval/stmt.go                        |  22 +-
+ src/pkg/exp/eval/world.go                       |  12 +-
+ src/pkg/exp/nacl/srpc/client.go                 |   6 +-
+ src/pkg/exp/nacl/srpc/msg.go                    |  24 +-
+ src/pkg/exp/ogle/process.go                     |  14 +-
+ src/pkg/exp/ogle/rruntime.go                    |  10 +-
+ src/pkg/exp/spacewar/spacewar.go                |  14 +-
+ src/pkg/go/printer/nodes.go                     |  16 +-
+ src/pkg/go/printer/testdata/declarations.golden |  70 ++--
+ src/pkg/go/printer/testdata/declarations.input  |  12 +
+ src/pkg/go/printer/testdata/linebreaks.golden   | 186 ++++-----
+ src/pkg/go/token/token.go                       | 102 ++---
+ src/pkg/gob/codec_test.go                       |  16 +-
+ src/pkg/gob/decode.go                           |  30 +-
+ src/pkg/gob/encode.go                           |  26 +-
+ src/pkg/http/lex_test.go                        |  10 +-
+ src/pkg/http/readrequest_test.go                |  38 +-
+ src/pkg/http/request.go                         |  10 +-
+ src/pkg/http/request_test.go                    |   8 +-
+ src/pkg/http/requestwrite_test.go               |  64 +--
+ src/pkg/http/response.go                        |   4 +-
+ src/pkg/http/response_test.go                   |  64 +--
+ src/pkg/http/responsewrite_test.go              |  26 +-
+ src/pkg/http/status.go                          |  66 +--
+ src/pkg/mime/mime_test.go                       |   4 +-
+ src/pkg/mime/type.go                            |  16 +-
+ src/pkg/net/dnsmsg.go                           |  18 +-
+ src/pkg/net/fd.go                               |  10 +-
+ src/pkg/netchan/export.go                       |   2 +-
+ src/pkg/reflect/value.go                        |   4 +-
+ src/pkg/scanner/scanner.go                      |  14 +-
+ src/pkg/syscall/zerrors_darwin_386.go           | 198 ++++-----
+ src/pkg/syscall/zerrors_darwin_amd64.go         | 198 ++++-----
+ src/pkg/syscall/zerrors_freebsd_386.go          |  18 +-
+ src/pkg/syscall/zerrors_freebsd_amd64.go        |  18 +-
+ src/pkg/syscall/zerrors_linux_386.go            | 194 ++++-----
+ src/pkg/syscall/zerrors_linux_amd64.go          | 194 ++++-----
+ src/pkg/syscall/zerrors_linux_arm.go            | 194 ++++-----
+ src/pkg/syscall/zerrors_nacl_386.go             | 218 +++++-----
+ src/pkg/template/template.go                    |   4 +-
+ src/pkg/template/template_test.go               |   2 +-
+ src/pkg/unicode/tables.go                       | 296 +++++++-------
+ src/pkg/xgb/xgb.go                              |   6 +-
+ src/pkg/xgb/xproto.go                           |  32 +-
+ src/pkg/xml/read_test.go                        |   4 +-
+ src/pkg/xml/xml.go                              | 514 ++++++++++++------------
+ src/pkg/xml/xml_test.go                         |  32 +-
+ 72 files changed, 1870 insertions(+), 1836 deletions(-)

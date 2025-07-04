@@ -1,0 +1,19 @@
+commit 83632c7359e12779f134c88594779f1808b90172
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jun 8 20:20:35 2009 -0700
+
+    initial morestack support for 5l. still disabled, doesn't work.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=245  (167 added, 63 deleted, 15 changed)
+    OCL=30039
+    CL=30081
+
+ src/cmd/5l/5.out.h |   3 +
+ src/cmd/5l/go.c    |  12 ++++
+ src/cmd/5l/l.h     |  13 +++-
+ src/cmd/5l/noop.c  | 170 ++++++++++++++++++++++++++++++-----------------------
+ src/cmd/5l/obj.c   |  65 +++++++++++++++++++-
+ src/cmd/5l/optab.c |   2 +-
+ 6 files changed, 187 insertions(+), 78 deletions(-)

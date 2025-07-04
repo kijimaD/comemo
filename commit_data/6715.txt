@@ -1,0 +1,40 @@
+commit 836529a63ccd8fcc15eeae32d8efb041fc218eef
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 5 09:54:56 2010 -0400
+
+    crypto/tls: use pool building for certificate checking
+    
+    Previously we checked the certificate chain from the leaf
+    upwards and expected to jump from the last cert in the chain to
+    a root certificate.
+    
+    Although technically correct, there are a number of sites with
+    problems including out-of-order certs, superfluous certs and
+    missing certs.
+    
+    The last of these requires AIA chasing, which is a lot of
+    complexity. However, we can address the more common cases by
+    using a pool building algorithm, as browsers do.
+    
+    We build a pool of root certificates and a pool from the
+    server's chain. We then try to build a path to a root
+    certificate, using either of these pools.
+    
+    This differs from the behaviour of, say, Firefox in that Firefox
+    will accumulate intermedite certificate in a persistent pool in
+    the hope that it can use them to fill in gaps in future chains.
+    
+    We don't do that because it leads to confusing errors which only
+    occur based on the order to sites visited.
+    
+    This change also enabled SNI for tls.Dial so that sites will return
+    the correct certificate chain.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2916041
+
+ src/pkg/crypto/tls/ca_set.go           | 46 ++++++++++++++++-------
+ src/pkg/crypto/tls/handshake_client.go | 68 +++++++++++++++++-----------------
+ src/pkg/crypto/tls/tls.go              | 18 +++++++--
+ 3 files changed, 80 insertions(+), 52 deletions(-)

@@ -1,0 +1,12 @@
+commit 065ebe8bd4832ba28592369ae938b949d905185e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 6 18:30:36 2010 -0700
+
+    arm: fix build, attempt #2
+    
+    TBR=kaib
+    CC=golang-dev
+    https://golang.org/cl/897041
+
+ test/arm-pass.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

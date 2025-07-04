@@ -1,0 +1,21 @@
+commit c840657fe140478f4f74b1678d367fe93f005ac3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 11:04:44 2009 -0800
+
+    casify DNS
+    
+    R=r
+    DELTA=221  (0 added, 0 deleted, 221 changed)
+    OCL=22946
+    CL=22948
+
+ src/lib/net/dnsclient.go  |  24 ++++----
+ src/lib/net/dnsconfig.go  |  10 ++--
+ src/lib/net/dnsmsg.go     | 136 +++++++++++++++++++++++-----------------------
+ src/lib/net/fd.go         |  56 +++++++++----------
+ src/lib/net/ip.go         |  44 +++++++--------
+ src/lib/net/net.go        |  96 ++++++++++++++++----------------
+ src/lib/net/parse.go      |  38 ++++++-------
+ src/lib/net/parse_test.go |   6 +-
+ src/lib/net/port.go       |  12 ++--
+ 9 files changed, 211 insertions(+), 211 deletions(-)

@@ -1,0 +1,30 @@
+commit 25db5d1a872ed73c6c1d067c0023512732a1eab4
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Wed May 3 01:08:31 2017 +0200
+
+    crypto: document insecure algorithms
+    
+    This change explicitly documents that DES, MD5, RC4 and SHA-1 are
+    insecure / broken - at all or at least within a commonly used scenario.
+    
+    Fixes #14395
+    
+    Change-Id: Id1d543c85d67968ba64ed7495313501953c3ef3a
+    Reviewed-on: https://go-review.googlesource.com/42511
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/des/const.go              |  2 ++
+ src/crypto/md5/md5.go                |  2 ++
+ src/crypto/rc4/rc4.go                |  5 ++---
+ src/crypto/sha1/sha1.go              | 10 ++++++----
+ src/crypto/sha1/sha1_test.go         |  2 +-
+ src/crypto/sha1/sha1block.go         |  2 +-
+ src/crypto/sha1/sha1block_386.s      |  2 +-
+ src/crypto/sha1/sha1block_amd64.s    |  2 +-
+ src/crypto/sha1/sha1block_amd64p32.s |  2 +-
+ src/crypto/sha1/sha1block_arm.s      | 16 ++++++++--------
+ src/crypto/sha1/sha1block_s390x.go   |  2 +-
+ src/crypto/sha1/sha1block_s390x.s    |  4 ++--
+ 12 files changed, 28 insertions(+), 23 deletions(-)

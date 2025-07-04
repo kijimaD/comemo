@@ -1,0 +1,14 @@
+commit a238973949287d6d00a5b014135032dd4e0012fb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 31 02:30:01 2014 -0700
+
+    runtime/debug: skip TestWriteHeapDumpNonempty on NaCl.
+    TestWriteHeap is useless on NaCl anyway.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/101980048
+
+ src/pkg/runtime/debug/heapdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

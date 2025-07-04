@@ -1,0 +1,26 @@
+commit 4f51db24f4b80770000b28073a8bde57d021b4e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 30 15:13:53 2023 -0700
+
+    doc/go1.21: document type inference changes
+    
+    For #39661.
+    For #41176.
+    For #51593.
+    For #52397.
+    For #57192.
+    For #58645.
+    For #58650.
+    For #58671.
+    For #59338.
+    For #59750.
+    For #60353.
+    
+    Change-Id: Ib731c9f2879beb541f44cb10e40c36a8677d3ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499282
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go1.21.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 51 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 1b86ef47de13622f48f76765403f065222d8f584
+Author: Jinzhu <wosmvp@gmail.com>
+Date:   Sat May 7 13:04:41 2022 +0000
+
+    A+C: add Jinzhu Zhang
+    
+    Change-Id: I655095874a90fc3e390df5609e68f0e48a042fea
+    GitHub-Last-Rev: 6d3199b4cfedf744f1485b119c8b40252031232b
+    GitHub-Pull-Request: golang/go#52759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404814
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

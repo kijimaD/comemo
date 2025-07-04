@@ -1,0 +1,30 @@
+commit 72e3b204e4f535a40f8465b8fc2434330496885e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 11:55:46 2008 -0700
+
+    add gobuild.
+    use gobuild-generated Makefile for math and os.
+    other makefile tweaks.
+    move math/main.go to test/math.go
+    
+    R=r
+    OCL=15529
+    CL=15537
+
+ src/clean.bash                       |  17 +-
+ src/cmd/gobuild/Makefile             |  20 +++
+ src/cmd/gobuild/gobuild.c            | 340 +++++++++++++++++++++++++++++++++++
+ src/lib/clean.bash                   |   2 +-
+ src/lib/make.bash                    |   2 -
+ src/lib/math/Makefile                |  83 +++++----
+ src/lib/math/clean.bash              |   7 -
+ src/lib/math/make.bash               |  11 --
+ src/lib/math/math.go                 |  48 -----
+ src/lib/os/Makefile                  |  46 +++--
+ src/libbio/Makefile                  |   2 +
+ src/libmach_amd64/Makefile           |   6 +-
+ src/make.bash                        |  31 +---
+ src/runtime/clean.bash               |  11 --
+ src/runtime/make.bash                |   9 -
+ src/lib/math/main.go => test/math.go |   6 +-
+ 16 files changed, 468 insertions(+), 173 deletions(-)

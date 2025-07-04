@@ -1,0 +1,14 @@
+commit 1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
+Author: Brian Ketelsen <bketelsen@gmail.com>
+Date:   Tue Dec 11 12:02:14 2012 -0500
+
+    regexp/syntax: export ErrUnexpectedParen
+    
+    Fixes #3712
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6902069
+
+ src/pkg/regexp/syntax/parse.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

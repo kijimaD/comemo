@@ -1,0 +1,12 @@
+commit 5f07125cb9333e002a7ddd99a37c1db7645ebd9b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 10:08:48 2013 -0800
+
+    effective_go.html: round 3 of minor edits.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7489044
+
+ doc/effective_go.html | 96 ++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 61 insertions(+), 35 deletions(-)

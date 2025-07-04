@@ -1,0 +1,39 @@
+commit f9640b88c7e5f4df3350643f3ec6c30c30e8678d
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Apr 15 12:35:24 2020 -0700
+
+    runtime:  incorporate Gscan acquire/release into lock ranking order
+    
+    I added routines that can acquire/release a particular rank without
+    acquiring/releasing an associated lock. I added lockRankGscan as a rank
+    for acquiring/releasing the Gscan bit.
+    
+    castogscanstatus() and casGtoPreemptScan() are acquires of the Gscan
+    bit. casfrom_Gscanstatus() is a release of the Gscan bit. casgstatus()
+    is like an acquire and release of the Gscan bit, since it will wait if
+    Gscan bit is currently set.
+    
+    We have a cycle between hchan and Gscan. The acquisition of Gscan and
+    then hchan only happens in syncadjustsudogs() when the G is suspended,
+    so the main normal ordering (get hchan, then get Gscan) can't be
+    happening. So, I added a new rank lockRankHchanLeaf that is used when
+    acquiring hchan locks in syncadjustsudogs. This ranking is set so no
+    other locks can be acquired except other hchan locks.
+    
+    Fixes #38922
+    
+    Change-Id: I58ce526a74ba856cb42078f7b9901f2832e1d45c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228417
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/lock_futex.go   |   2 +-
+ src/runtime/lock_js.go      |   2 +-
+ src/runtime/lock_sema.go    |   2 +-
+ src/runtime/lockrank.go     |  25 ++++++++---
+ src/runtime/lockrank_off.go |  12 +++--
+ src/runtime/lockrank_on.go  | 104 ++++++++++++++++++++++++++++++++------------
+ src/runtime/proc.go         |  12 ++++-
+ src/runtime/stack.go        |  11 ++++-
+ 8 files changed, 129 insertions(+), 41 deletions(-)

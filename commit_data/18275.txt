@@ -1,0 +1,39 @@
+commit a46b43493154bf3c59ce634ee9557a0b273de5ce
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Jan 17 17:58:10 2014 +1300
+
+    runtime: add support for GOOS=solaris
+    
+    R=alex.brainman, dave, jsing, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/35990043
+
+ src/cmd/dist/buildruntime.c            |  11 +-
+ src/pkg/runtime/arch_amd64.h           |   4 +
+ src/pkg/runtime/asm_amd64.s            |  11 +-
+ src/pkg/runtime/cgocall.c              |   2 +-
+ src/pkg/runtime/defs_solaris.go        | 156 +++++++++
+ src/pkg/runtime/defs_solaris_amd64.go  |  48 +++
+ src/pkg/runtime/defs_solaris_amd64.h   | 254 +++++++++++++++
+ src/pkg/runtime/env_posix.c            |   2 +-
+ src/pkg/runtime/lfstack.c              |  14 +
+ src/pkg/runtime/lock_sema.c            |   2 +-
+ src/pkg/runtime/mem_solaris.c          |  90 +++++
+ src/pkg/runtime/netpoll.goc            |  14 +-
+ src/pkg/runtime/os_solaris.c           | 579 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_solaris.h           |  51 +++
+ src/pkg/runtime/os_windows.c           |  10 +-
+ src/pkg/runtime/proc.c                 |   4 +-
+ src/pkg/runtime/rt0_solaris_amd64.s    |  18 +
+ src/pkg/runtime/runtime.c              |   1 +
+ src/pkg/runtime/runtime.h              |  32 +-
+ src/pkg/runtime/signal_amd64.c         |   2 +-
+ src/pkg/runtime/signal_solaris_amd64.h |  31 ++
+ src/pkg/runtime/signal_unix.c          |   2 +-
+ src/pkg/runtime/signals_solaris.h      |  94 ++++++
+ src/pkg/runtime/sys_solaris_amd64.s    | 267 +++++++++++++++
+ src/pkg/runtime/sys_windows_386.s      |  12 +-
+ src/pkg/runtime/sys_windows_amd64.s    |  10 +-
+ src/pkg/runtime/syscall_solaris.goc    | 374 +++++++++++++++++++++
+ src/pkg/runtime/syscall_windows.goc    |  14 +-
+ 28 files changed, 2071 insertions(+), 38 deletions(-)

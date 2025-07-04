@@ -1,0 +1,16 @@
+commit fc360f238137717e7246cc0fde908b71a3f1e5c7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 19 11:58:14 2012 -0700
+
+    unicode/utf8: reject out-of-range runes.
+    Surrogates are still admitted, but I have sent mail to golang-dev on that topic.
+    
+    Fixes #3785.
+    
+    R=golang-dev, rogpeppe, iant
+    CC=golang-dev
+    https://golang.org/cl/6398049
+
+ src/pkg/unicode/utf8/utf8.go      | 16 ++++++++++++++--
+ src/pkg/unicode/utf8/utf8_test.go |  5 +++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

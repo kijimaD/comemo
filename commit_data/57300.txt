@@ -1,0 +1,16 @@
+commit 0c7523ff599b56e455eee9a89cd1da9b2b2515f1
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Aug 7 20:20:21 2024 +0200
+
+    cmd/compile: compute bits.Len*'s limits from argument's limits
+    
+    Change-Id: Ie3c7e5eaba6a9a29389018625c4b784d07c6f173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603537
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  21 +++++++
+ test/prove.go                         | 102 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 122 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 4f6fb1b7753d84fb45f4cc44589ffffdc6fcfc52
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Oct 21 08:17:24 2010 -0400
+
+    net: fix comment on Dial to mention unix/unixgram.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2639041
+
+ src/pkg/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

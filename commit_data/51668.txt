@@ -1,0 +1,26 @@
+commit f2884bf42317011371440d90805e63248d94c45d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 13 14:19:59 2022 -0500
+
+    os: deflake TestPipeEOF and TestFifoEOF
+    
+    - Consolidate the two test bodies as one helper function.
+    - Eliminate arbitrary timeout.
+    - Shorten arbitrary sleeps in short mode.
+    - Simplify goroutines.
+    - Mark the tests as parallel.
+    
+    Fixes #36107.
+    Updates #24164.
+    
+    Change-Id: I14fe4395963a7256cb6d2d743d348a1ade077d5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457336
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/fifo_test.go | 96 +++++++++++++++--------------------------------------
+ src/os/pipe_test.go | 92 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 75 insertions(+), 113 deletions(-)

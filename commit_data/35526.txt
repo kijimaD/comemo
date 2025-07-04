@@ -1,0 +1,21 @@
+commit ef53de8ba4d774e4eedb04192a9f03f28a9652e8
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 26 11:29:55 2018 -0700
+
+    runtime: wrap darwin libc calls to keep profiler happy
+    
+    The profiler reports "ExternalCode" when a profiler interrupt happens
+    while in libc code. Instead, keep track of the most recent Go frame
+    for the profiler to use.
+    
+    There is a test for this using time.Now (runtime.TestTimePprof),
+    which will work once time.Now is moved to using libc (my next CL).
+    
+    Change-Id: I940ea83edada482a482e2ab103d3a65589979464
+    Reviewed-on: https://go-review.googlesource.com/114798
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin.go | 58 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 42 insertions(+), 16 deletions(-)

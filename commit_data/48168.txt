@@ -1,0 +1,23 @@
+commit 7a132d6f4e319b307f185c73a8492bfa706fe678
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Feb 7 17:02:57 2022 -0500
+
+    runtime: move doAllThreadsSyscall to os_linux.go
+    
+    syscall_runtime_doAllThreadsSyscall is only used on Linux. In
+    preparation of a follow-up CL that will modify the function to use other
+    Linux-only functions, move it to os_linux.go with no changes.
+    
+    For #50113.
+    
+    Change-Id: I348b6130038603aa0a917be1f1debbca5a5a073f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383996
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Andrew G. Morgan <agm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/os_linux.go | 139 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go     | 139 ------------------------------------------------
+ 2 files changed, 139 insertions(+), 139 deletions(-)

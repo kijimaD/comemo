@@ -1,0 +1,24 @@
+commit a633d766d1763f4f4648e423c4e8a8635b183d03
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 6 08:51:16 2016 +0900
+
+    Revert "net: add support for Zone of IPNet"
+    
+    Updates #14518.
+    
+    This reverts commit 3e9264c9ae781a2cd28127deaed6ae26f84b4b15.
+    
+    Change-Id: I2531b04efc735b5b51ef675541172f2f5ae747d9
+    Reviewed-on: https://go-review.googlesource.com/22836
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_bsd.go     |  1 -
+ src/net/interface_linux.go   |  3 ---
+ src/net/interface_test.go    |  6 +-----
+ src/net/interface_windows.go |  3 ---
+ src/net/ip.go                | 14 ++++----------
+ src/net/ip_test.go           |  8 --------
+ 6 files changed, 5 insertions(+), 30 deletions(-)

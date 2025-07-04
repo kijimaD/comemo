@@ -1,0 +1,54 @@
+commit da19a0cff4312bf880363d16d28cffb31defcaa2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 19:10:13 2016 -0700
+
+    cmd/compile: fix plan9-amd64 build
+    
+    The previous rules to combine indexed loads produced addresses like:
+    
+        From: obj.Addr{
+            Type:   TYPE_MEM,
+            Reg:    REG_CX,
+            Name:   NAME_AUTO,
+            Offset: 121,
+            ...
+        }
+    
+    which are erroneous because NAME_AUTO implies a base register of
+    REG_SP, and cmd/internal/obj/x86 makes many assumptions to this
+    effect.  Note that previously we were also producing an extra "ADDQ
+    SP, CX" instruction, so indexing off of SP was already handled.
+    
+    The approach taken by this CL to address the problem is to instead
+    produce addresses like:
+    
+        From: obj.Addr{
+            Type:   TYPE_MEM,
+            Reg:    REG_SP,
+            Name:   NAME_AUTO,
+            Offset: 121,
+            Index:  REG_CX,
+            Scale:  1,
+        }
+    
+    and to omit the "ADDQ SP, CX" instruction.
+    
+    Downside to this approach is it requires adding a lot of new
+    MOV[WLQ]loadidx1 instructions that nearly duplicate functionality of
+    the existing MOV[WLQ]loadidx[248] instructions, but with a different
+    Scale.
+    
+    Fixes #15001.
+    
+    Change-Id: Iad9a1a41e5e2552f8d22e3ba975e4ea0862dffd2
+    Reviewed-on: https://go-review.googlesource.com/21245
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 27 ++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 48 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 30 +++++++----------
+ 5 files changed, 93 insertions(+), 21 deletions(-)

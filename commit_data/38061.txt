@@ -1,0 +1,25 @@
+commit 675503c507194a48c01a39a0f25a6d0c9d772477
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 00:49:33 2019 -0500
+
+    math/big: add %x float format
+    
+    big.Float already had %p for printing hex format,
+    but that format normalizes differently from fmt's %x
+    and ignores precision entirely.
+    
+    This CL adds %x to big.Float, matching fmt's behavior:
+    the verb is spelled 'x' not 'p', the mantissa is normalized
+    to [1, 2), and precision is respected.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #29008.
+    
+    Change-Id: I9c1b9612107094856797e5b0b584c556c1914895
+    Reviewed-on: https://go-review.googlesource.com/c/160249
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/floatconv_test.go | 229 +++++++++++++++++++++++++----------------
+ src/math/big/ftoa.go           | 102 +++++++++++++++---
+ 2 files changed, 229 insertions(+), 102 deletions(-)

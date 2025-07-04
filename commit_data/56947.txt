@@ -1,0 +1,22 @@
+commit 864aa8644879983d903e59995e6a31c95c50e8ff
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jul 16 23:56:56 2024 +0700
+
+    cmd/compile: run checkbce after fuseLate pass
+    
+    So the bounds check which are eliminated during late fuse pass could be
+    detected correctly.
+    
+    Fixes #67329
+    
+    Change-Id: Id7992fbb8c26e0d43e7db66a0a3a2c0d9ed937a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598635
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/checkbce.go |  3 +++
+ src/cmd/compile/internal/ssa/compile.go  |  2 +-
+ test/fixedbugs/issue67329.go             | 27 +++++++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

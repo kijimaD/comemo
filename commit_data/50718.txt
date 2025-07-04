@@ -1,0 +1,28 @@
+commit c69d6d8b3e787e6cd87e0a8a3c726720296462b1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 29 12:46:10 2022 +0000
+
+    cmd: fix a few function names on comments
+    
+    Change-Id: Ia0896bd1edf2558821244fecd1c297b599472f47
+    GitHub-Last-Rev: cfd1e1091a064cdc38469c02c6c013635d7d437b
+    GitHub-Pull-Request: golang/go#55944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436637
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/util.go                 | 2 +-
+ src/cmd/fix/typecheck.go             | 2 +-
+ src/cmd/go/internal/fsys/fsys.go     | 4 ++--
+ src/cmd/go/internal/modindex/scan.go | 4 ++--
+ src/cmd/go/internal/modload/init.go  | 2 +-
+ src/cmd/go/internal/workcmd/edit.go  | 4 ++--
+ src/cmd/internal/dwarf/dwarf.go      | 4 ++--
+ src/cmd/internal/goobj/mkbuiltin.go  | 2 +-
+ src/cmd/internal/obj/pcln.go         | 2 +-
+ src/cmd/internal/obj/util.go         | 2 +-
+ src/cmd/link/internal/wasm/asm.go    | 2 +-
+ 11 files changed, 15 insertions(+), 15 deletions(-)

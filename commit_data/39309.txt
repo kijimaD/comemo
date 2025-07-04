@@ -1,0 +1,15 @@
+commit e9a136d185af8dcdb270096af520087c92c8b4af
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 3 15:20:30 2019 -0400
+
+    cmd/link: regenerate symkind_string.go
+    
+    Change-Id: Ibe514058770bd5342e1f344c5b8a9ab1427d5dfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180297
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/sym/symkind_string.go | 62 ++++++++++++++++++++++++++++-
+ 1 file changed, 60 insertions(+), 2 deletions(-)

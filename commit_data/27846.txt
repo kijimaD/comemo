@@ -1,0 +1,30 @@
+commit 562d06fc23261b21d12fbcbd407aadee9cb428cb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 6 08:29:52 2016 -0700
+
+    cmd/compile: inline _, ok = i.(T)
+    
+    We already inlined
+    
+    _, ok = e.(T)
+    _, ok = i.(E)
+    _, ok = e.(E)
+    
+    The only ok-only variants not inlined are now
+    
+    _, ok = i.(I)
+    _, ok = e.(I)
+    
+    These call getitab, so are non-trivial.
+    
+    Change-Id: Ie45fd8933ee179a679b92ce925079b94cff0ee12
+    Reviewed-on: https://go-review.googlesource.com/26658
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 10 ++++++++++
+ src/cmd/compile/internal/gc/swt.go  |  6 +-----
+ src/cmd/compile/internal/gc/walk.go | 30 +++++++++++++++++++-----------
+ src/runtime/iface.go                | 15 ++++++---------
+ 4 files changed, 36 insertions(+), 25 deletions(-)

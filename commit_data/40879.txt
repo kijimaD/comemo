@@ -1,0 +1,21 @@
+commit c931f1b6e69492a19b935dc0812499a55d634403
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 21 15:03:24 2019 -0500
+
+    misc/cgo/testshared: make -v output less verbose
+    
+    Previously, 'go test -v' in this directory would result in a massive
+    dump of go command output, because the test plumbed -v to 'build -x'.
+    This change separates them into distinct flags, so that '-v' only
+    implies the display of default 'go' command output.
+    
+    Updates #30316
+    
+    Change-Id: Ifb125f35ec6a0bebe7e8286e7c546d132fb213df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208232
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

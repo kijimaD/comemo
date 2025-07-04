@@ -1,0 +1,19 @@
+commit cf73bbfa259afe29962a5ca5e207441f63c9bcf2
+Author: Tom Bergan <tombergan@google.com>
+Date:   Tue Oct 25 12:18:59 2016 -0700
+
+    net/http: add an interface for server push
+    
+    This interface will be implemented by golang.org/x/net/http2 in
+    https://go-review.googlesource.com/c/29439/.
+    
+    Updates golang/go#13443
+    
+    Change-Id: Ib6bdd403b0878cfe36fa9875c07c2c7239232556
+    Reviewed-on: https://go-review.googlesource.com/32012
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/http.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

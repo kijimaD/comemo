@@ -1,0 +1,14 @@
+commit 8ca564fb3fe0b8d6f4d7c660f9df9c1bbcc0539e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 11:56:25 2014 +0400
+
+    runtime: fix block profile for sync semaphores
+    And add a test.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/128670043
+
+ src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

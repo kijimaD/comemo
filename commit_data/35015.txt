@@ -1,0 +1,19 @@
+commit aba0775ad8a9b76df34df44d102526efc8a93493
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 17 07:16:40 2018 +1000
+
+    doc/contribute.html: adjust wording from previous CL
+    
+    The previous CL, 107197, overclarified the need for short subject
+    lines. Tweak the wording to be a guideline (keep it short) rather
+    than a limit (76 characters), which is more the Go way.
+    
+    Also be strict about avoiding markup language.
+    
+    Change-Id: I0da1132db8d86052647d96f1caac60289f2209ce
+    Reviewed-on: https://go-review.googlesource.com/107378
+    Reviewed-by: Mohit Bajoria <mohitbajo36@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

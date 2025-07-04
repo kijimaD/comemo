@@ -1,0 +1,18 @@
+commit f074565158ed611d7324de8e1297b103b5ed23f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 28 12:23:51 2014 -0700
+
+    bytes, strings: allow Reader.Seek past 1<<31
+    
+    Fixes #7654
+    
+    LGTM=rsc
+    R=rsc, dan.kortschak
+    CC=golang-codereviews
+    https://golang.org/cl/81530043
+
+ src/pkg/bytes/reader.go        | 33 +++++++++++++++------------------
+ src/pkg/bytes/reader_test.go   | 14 ++++++++++++--
+ src/pkg/strings/reader.go      | 33 +++++++++++++++------------------
+ src/pkg/strings/reader_test.go | 14 ++++++++++++--
+ 4 files changed, 54 insertions(+), 40 deletions(-)

@@ -1,0 +1,32 @@
+commit 6300161d40e50902e16b3144c36aaf9279ab6208
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 30 09:03:38 2016 -0700
+
+    cmd/compile: force folding of MOVDaddr into storezero
+    
+    Fold MOVDaddr ops into MOVXstorezero ops.
+    Also fold ADDconst into MOVDaddr so we're sure there isn't
+    (MOVDstorezero (ADDconst (MOVDaddr ..)))
+    
+    Without this CL, we get:
+    
+    v1 = MOVDaddr {s}
+    v2 = VARDEF {s}
+    v3 = MOVDstorezero v1 v2
+    
+    The liveness pass thinks the MOVDaddr is a read of s, so s is
+    incorrectly thought to be live at the start of the function.
+    
+    Fixes #17194
+    
+    Change-Id: I2b4a2f13b12aa5b072941ee1c7b89f3793650cdc
+    Reviewed-on: https://go-review.googlesource.com/30086
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 114 +++++++++++++++++++++++++++
+ test/fixedbugs/issue17194.go                 |  17 ++++
+ 3 files changed, 142 insertions(+)

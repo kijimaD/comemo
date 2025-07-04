@@ -1,0 +1,13 @@
+commit 2a5dcfafec11744d55692838912901c58ba43bd2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 17 07:41:45 2013 +1000
+
+    effective_go: add a discussion of labeled break and continue
+    Fixes #5725.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13705044
+
+ doc/effective_go.html | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 42 insertions(+), 1 deletion(-)

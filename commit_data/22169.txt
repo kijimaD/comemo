@@ -1,0 +1,24 @@
+commit 8fc73a39efe152f45cdc377351547279d9e11a5b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 24 22:16:48 2015 +1100
+
+    cmd/8g, cmd/internal/gc: fix GO386=387 build
+    
+    Adjust Thearch.FREG_MIN/MAX when using non sse2 mode in 8g.
+    
+    Also, gc.Use_sse is treated as a bool, so make it a bool.
+    
+    Change-Id: I840411605344bb31c32f492b3e6729166c084f0c
+    Reviewed-on: https://go-review.googlesource.com/7993
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/cmd/8g/galign.go         | 12 ++++++++++--
+ src/cmd/8g/ggen.go           |  4 ++--
+ src/cmd/8g/gsubr.go          |  4 ++--
+ src/cmd/internal/gc/go.go    |  2 +-
+ src/cmd/internal/gc/gsubr.go |  4 ++++
+ src/cmd/internal/gc/lex.go   | 14 +++++++-------
+ 6 files changed, 26 insertions(+), 14 deletions(-)

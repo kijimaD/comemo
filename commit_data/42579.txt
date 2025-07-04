@@ -1,0 +1,18 @@
+commit 8c521739f27bd745bde0dcb3d5c9a332b06a6a42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 26 11:31:02 2020 -0700
+
+    doc/go1.15: remove encoding/xml doc
+    
+    The change is rolled back in CL 240179.
+    
+    For #35151
+    For #39876
+    
+    Change-Id: Id26ccbdb482772ac31c642156a9900102397b043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240012
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.15.html | 14 --------------
+ 1 file changed, 14 deletions(-)

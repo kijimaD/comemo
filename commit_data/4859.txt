@@ -1,0 +1,17 @@
+commit 5aa3a8de6d16404e26438fec7a386a93bedd0297
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Tue Feb 16 11:43:25 2010 -0800
+
+    syscall: make signature of Umask on OS X, FreeBSD match Linux.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/207071
+
+ src/pkg/syscall/syscall_darwin.go         | 2 +-
+ src/pkg/syscall/syscall_freebsd.go        | 2 +-
+ src/pkg/syscall/zsyscall_darwin_386.go    | 6 +++---
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 6 +++---
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 6 +++---
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 6 +++---
+ 6 files changed, 14 insertions(+), 14 deletions(-)

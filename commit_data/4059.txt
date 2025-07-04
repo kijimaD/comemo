@@ -1,0 +1,42 @@
+commit a3382315269db849edd2df068f78b59168c3b32f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:57:09 2009 -0800
+
+    gc: five bug fixes, one better error.
+    
+    * check for struct literal assignment to private fields.
+    * record, fix crash involving parallel map assignment.
+    * avoid infinite recursion in exportassignok.
+    * make floating point bounds check precise.
+    * avoid crash on invalid receiver.
+    
+    * add context to error about implicit assignment.
+    
+    Fixes #86.
+    Fixes #88.
+    Fixes #158.
+    Fixes #174.
+    Fixes #201.
+    Fixes #204.
+    
+    R=ken2
+    https://golang.org/cl/154144
+
+ src/cmd/gc/align.c       |   9 ++--
+ src/cmd/gc/const.c       |   4 +-
+ src/cmd/gc/dcl.c         |  18 +++++++-
+ src/cmd/gc/go.h          |   4 +-
+ src/cmd/gc/go.y          |  15 ++++++-
+ src/cmd/gc/obj.c         |  12 ++++-
+ src/cmd/gc/range.c       |   4 +-
+ src/cmd/gc/sinit.c       |   6 +++
+ src/cmd/gc/typecheck.c   | 115 +++++++++++++++++++++++++++++------------------
+ src/cmd/gc/walk.c        |   2 +-
+ src/cmd/ld/lib.c         |  19 +++++---
+ src/pkg/math/all_test.go |  27 +++++++++++
+ test/assign.go           |  10 ++++-
+ test/fixedbugs/bug214.go |  15 +++++++
+ test/fixedbugs/bug215.go |  16 +++++++
+ test/fixedbugs/bug216.go |  20 +++++++++
+ test/fixedbugs/bug217.go |  15 +++++++
+ 17 files changed, 246 insertions(+), 65 deletions(-)

@@ -1,0 +1,13 @@
+commit 61f4ec132b424f2a7e30d70260dea7b440d7e9f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 17 17:07:21 2011 -0400
+
+    syscall: fix build for Sizeof change
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4635051
+
+ src/pkg/syscall/route_bsd.go   | 2 +-
+ src/pkg/syscall/syscall_bsd.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

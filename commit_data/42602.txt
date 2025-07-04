@@ -1,0 +1,14 @@
+commit cd10f5f632983e63b156478abdfa0bd57e93898c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 14:31:49 2020 -0400
+
+    crypto/tls: relax the docs of InsecureSkipVerify
+    
+    Fixes #39074
+    
+    Change-Id: I72ec95f4b190253bb82d52a03a769b0399170b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239746
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

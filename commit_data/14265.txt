@@ -1,0 +1,14 @@
+commit 15e50d7c7a8d77b8c852e5bcd4829b791ab1dfa1
+Author: Dan Callahan <dan.callahan@gmail.com>
+Date:   Wed Oct 31 15:52:27 2012 -0700
+
+    encoding/json: clarify correct usage of struct tags in associated article.
+    
+    Fixes #4297.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/6817045
+
+ doc/articles/json_and_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

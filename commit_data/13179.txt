@@ -1,0 +1,14 @@
+commit ac486ab15c47edc31a5b2898bf79d26b9a9c939a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 29 06:12:06 2012 +0900
+
+    net: make parsePort as a function
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6256059
+
+ src/pkg/net/ipsock.go    | 13 ++-------
+ src/pkg/net/port.go      | 73 ++++++++++--------------------------------------
+ src/pkg/net/port_unix.go | 69 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+), 69 deletions(-)

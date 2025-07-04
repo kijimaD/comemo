@@ -1,0 +1,14 @@
+commit fb1bcd47c6c172d93d2ed1f320baf49d96a88975
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 16:45:20 2009 -0700
+
+    acid bug fix.
+    lock printf output to avoid interlacing debug prints.
+    
+    R=r
+    DELTA=10  (7 added, 0 deleted, 3 changed)
+    OCL=35539
+    CL=35561
+
+ src/pkg/runtime/print.c | 5 +++++
+ 1 file changed, 5 insertions(+)

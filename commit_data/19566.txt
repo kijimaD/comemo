@@ -1,0 +1,16 @@
+commit 0e92b538a9f6e337b8e48f47f38803e8245c03cc
+Author: Robert Dinu <r@varp.se>
+Date:   Wed Jun 18 10:59:25 2014 -0700
+
+    testing: fix timing format inconsistency
+    
+    Fixes #8175.
+    
+    LGTM=r
+    R=golang-codereviews, r, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/103320043
+
+ src/pkg/testing/example.go |  6 +++---
+ src/pkg/testing/testing.go | 15 ++++++++++-----
+ 2 files changed, 13 insertions(+), 8 deletions(-)

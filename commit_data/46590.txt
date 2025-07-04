@@ -1,0 +1,27 @@
+commit 812c99f86a1b38d50c5c0b501d10b72c3b7dfb95
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Sep 24 09:13:32 2021 -0700
+
+    cmd/compile: fix case in dictPass where OMETHVALUE should become ODOTMETH
+    
+    When I separate out the dictionary transformations to dictPass, I missed
+    duplicating a conditional that deals with OMETHVALUE nodes that are
+    actually called. We create the OMETHVALUE when transforming bounds
+    function reference (before we know whether that reference will be
+    called), and we need to call transformDot() again to convert the
+    OMETHVALUE to ODOTMETH if the reference is actually called (the usual
+    case). Without this change, we leave the OMETHVALUE in, and extra *-fm
+    are created and used unncessarily.
+    
+    Also, fixed a few places where we were missing ir.MarkFunc(), which sets
+    the class of a function node properly.
+    
+    Change-Id: I6b02613039b16b507b44525faa2cd7031afb6982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352069
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go     | 6 ++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 1 +
+ src/cmd/compile/internal/typecheck/subr.go    | 1 +
+ 3 files changed, 8 insertions(+)

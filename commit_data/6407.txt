@@ -1,0 +1,22 @@
+commit 00ffd59c1a5a76bb4016b2ddd6fb78831eba8037
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 13:43:50 2010 -0400
+
+    gc: fix reflect table method receiver
+    
+    Fixes #451.
+    Fixes #770.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2207045
+
+ doc/go_spec.html             |   2 +-
+ src/cmd/gc/go.h              |   2 +-
+ src/cmd/gc/reflect.c         |  59 ++++++++++++++++++++----
+ src/cmd/gc/typecheck.c       | 107 +++++++++++++++++++++++++++++++++----------
+ src/pkg/reflect/all_test.go  |  49 +++++++++++++++++++-
+ src/pkg/template/template.go |   5 +-
+ test/method.go               |  29 ++++++++++--
+ test/method2.go              |  14 ++++--
+ 8 files changed, 219 insertions(+), 48 deletions(-)

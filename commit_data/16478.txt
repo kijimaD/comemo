@@ -1,0 +1,17 @@
+commit 9bc0eaf60e7d04d5c3fd24ad7e89fdae6615be82
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 4 12:50:40 2013 +1000
+
+    runtime: update defs_windows_*.h files
+    
+    New version of cmd/cgo from
+    https://golang.org/cl/9574043/
+    is used to regenerate these.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9679046
+
+ src/pkg/runtime/defs_windows_386.h   | 170 ++++++++++++++---------------
+ src/pkg/runtime/defs_windows_amd64.h | 200 ++++++++++++++++++-----------------
+ 2 files changed, 189 insertions(+), 181 deletions(-)

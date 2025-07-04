@@ -1,0 +1,14 @@
+commit 64b3e590c00b9c1e532dd0014b16174c9397664c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Nov 8 10:36:29 2012 +1100
+
+    image/jpeg: handle fill bytes.
+    
+    Fixes #4337.
+    
+    R=r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6814098
+
+ src/pkg/image/jpeg/reader.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

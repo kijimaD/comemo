@@ -1,0 +1,20 @@
+commit 6ee832438830678ed14d535f47bcef0403a35fb4
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 28 09:05:16 2019 +0200
+
+    runtime/cgo: ignore missing Info.plist files on iOS
+    
+    When running Go programs on Corellium virtual iPhones, the Info.plist
+    files might not exist. Ignore the error.
+    
+    Updates #31722
+    
+    Change-Id: Id2e315c09346b69dda9e10cf29fb5dba6743aac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174202
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cgo/gcc_darwin_arm.c   | 2 +-
+ src/runtime/cgo/gcc_darwin_arm64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

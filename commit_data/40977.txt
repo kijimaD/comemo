@@ -1,0 +1,25 @@
+commit 9c8c27a318459e76970a8ac0f171a8fc1a6ef5b9
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Tue Dec 10 15:58:24 2019 +0000
+
+    syscall: use SOCK_CLOEXEC when creating sockets
+    
+    LsfSocket, SetLsfPromisc and NetlinkRIB currently don't force the CLOEXEC
+    flag on the sockets they create. While the former two functions are
+    deprecated, NetlinkRIB is called by various functions related to
+    net.Interface.
+    
+    Add a helper to create CLOEXEC sockets, and use it from SetLsfPromisc and
+    NetlinkRIB. LsfSocket is unchanged since we don't want to break callers.
+    
+    Fixes #36053
+    
+    Change-Id: I72fe2b167996797698d8a44b0d28165045c42d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210517
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/lsf_linux.go          |  4 +++-
+ src/syscall/netlink_linux.go      |  2 +-
+ src/syscall/sock_cloexec_linux.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

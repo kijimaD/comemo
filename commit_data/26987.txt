@@ -1,0 +1,15 @@
+commit 0db2bf2313cdd7711c2215fab2ae234a0f591fe8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 21:56:30 2016 +0000
+
+    net/http: document Hijacker and Flusher more
+    
+    Fixes #15312
+    
+    Change-Id: I4fabef3f21081bc4b020069851b5c2504bc6b4d8
+    Reviewed-on: https://go-review.googlesource.com/22122
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

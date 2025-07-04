@@ -1,0 +1,26 @@
+commit f39cca94af880253be22cdbb30d0a7d385f6b516
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 2 10:14:36 2016 -0800
+
+    cmd/compile: bring vendored copy of math/big up-to-date
+    
+    These files were not added to the repo. They contain conversion
+    routines and corresponding tests not used by the compiler and
+    thus are technically not needed.
+    
+    However, future changes to math/big (and corresponding updates
+    of this vendored version) may require these files to exist.
+    Add them to avoid unnecessary confusion.
+    
+    Change-Id: Ie390fb54f499463b2bba2fdc084967539afbeeb3
+    Reviewed-on: https://go-review.googlesource.com/19730
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/big/example_rat_test.go |  65 ++++++++++++
+ src/cmd/compile/internal/big/floatmarsh.go       |  33 ++++++
+ src/cmd/compile/internal/big/floatmarsh_test.go  |  54 ++++++++++
+ src/cmd/compile/internal/big/intmarsh.go         |  74 ++++++++++++++
+ src/cmd/compile/internal/big/intmarsh_test.go    | 121 ++++++++++++++++++++++
+ src/cmd/compile/internal/big/ratmarsh.go         |  73 +++++++++++++
+ src/cmd/compile/internal/big/ratmarsh_test.go    | 125 +++++++++++++++++++++++
+ 7 files changed, 545 insertions(+)

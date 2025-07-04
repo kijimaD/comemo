@@ -1,0 +1,35 @@
+commit dab671b660b6411fb314997af29da2048eb88c46
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 5 11:36:44 2014 -0700
+
+    undo CL 95760043 / b2131d729e52
+    
+    Breaks Camlistore by introducing a datarace. See comments on
+    https://golang.org/cl/95760043/ for details.
+    
+    I'll add a new test to lock-in the current behavior in a
+    subsequent CL.
+    
+    I don't think Camlistore is particularly unique here: it's doing
+    the obvious thing to stream a multipart body to a server
+    using a goroutine feeding the multipart writer.
+    
+    ««« original CL description
+    mime/multipart: delay reading random source
+    
+    If a user sets his/her own boundary string with SetBoundary,
+    we don't need to call randomBoundary at all.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/95760043
+    »»»
+    
+    LGTM=ruiu
+    R=ruiu
+    CC=golang-codereviews, mathieu.lonjaret
+    https://golang.org/cl/117600043
+
+ src/pkg/mime/multipart/writer.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 1b112c2297e0ddb0432b1d2a718383ce4959d995
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 10:59:54 2011 -0800
+
+    godoc: bring back "indexing in progress" message
+    
+    A wrongly nested if prevented the message from appearing.
+    
+    Fixes #1420.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3987043
+
+ src/cmd/godoc/godoc.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

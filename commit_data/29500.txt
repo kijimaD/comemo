@@ -1,0 +1,20 @@
+commit 9f9d83404f938a0dfb98d3f4a4d420261606069a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 18:43:39 2016 +0000
+
+    net/http: make Server respect shutdown state after handler finishes
+    
+    If the Server's Shutdown (or SetKeepAlivesEnabled) method was called
+    while a connection was in a Handler, but after the headers had been
+    written, the connection was not later closed.
+    
+    Fixes #9478
+    Updates #17754 (reverts that workaround)
+    
+    Change-Id: I65324ab8217373fbb38e12e2b8bffd0a91806072
+    Reviewed-on: https://go-review.googlesource.com/33141
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 3 ---
+ src/net/http/server.go     | 8 ++++++++
+ 2 files changed, 8 insertions(+), 3 deletions(-)

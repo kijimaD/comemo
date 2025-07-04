@@ -1,0 +1,17 @@
+commit 04fc88776187a3c9c35a575eef65a7e9b9276e6d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 06:30:26 2017 -0800
+
+    runtime: delay marking maps as writing until after first alg call
+    
+    Fixes #19359
+    
+    Change-Id: I196b47cf0471915b6dc63785e8542aa1876ff695
+    Reviewed-on: https://go-review.googlesource.com/37665
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go       | 12 +++++++++---
+ test/fixedbugs/issue19359.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

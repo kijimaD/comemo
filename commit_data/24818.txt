@@ -1,0 +1,16 @@
+commit a36dda7880179c09361cd7ec26f11dbb73dc2b78
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:21:57 2015 -0400
+
+    runtime: added go files for linux/mips64{,le} support
+    
+    Change-Id: I14b537922b97d4bce9e0523d98a822da906348f1
+    Reviewed-on: https://go-review.googlesource.com/14447
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/defs_linux_mips64x.go    | 183 +++++++++++++++++++++++++++++++++++
+ src/runtime/lfstack_linux_mips64x.go |  32 ++++++
+ src/runtime/os_linux_mips64x.go      |  18 ++++
+ src/runtime/signal_linux_mips64x.go  |  67 +++++++++++++
+ src/runtime/signal_mips64x.go        | 180 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 480 insertions(+)

@@ -1,0 +1,18 @@
+commit 96d35c6984fe932fba22ab56116d9d547a4fc188
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 13:05:38 2010 -0700
+
+    pkg/Makefile: allow DISABLE_NET_TESTS=1 to disable network tests
+    
+    netchan, rpc, websocket: run test servers on 127.0.0.1,
+    to avoid conflict with OS X firewall.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1689046
+
+ src/pkg/Makefile                    | 15 ++++++++++-----
+ src/pkg/netchan/netchan_test.go     |  6 +++---
+ src/pkg/rpc/server_test.go          |  4 ++--
+ src/pkg/websocket/websocket_test.go |  2 +-
+ 4 files changed, 16 insertions(+), 11 deletions(-)

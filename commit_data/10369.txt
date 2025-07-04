@@ -1,0 +1,12 @@
+commit efb74460c366286cf17225874c7d6333542647bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 13 22:57:45 2011 -0500
+
+    spec: disallow general func, map comparisons
+    
+    R=golang-dev, gri, r, r
+    CC=golang-dev
+    https://golang.org/cl/5369090
+
+ doc/go_spec.html | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

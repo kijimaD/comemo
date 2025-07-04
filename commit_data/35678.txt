@@ -1,0 +1,19 @@
+commit be36bd996eb120741ed866396e607fcd5e0b702a
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Jun 12 23:22:03 2018 +0200
+
+    runtime/internal/sys: rename Wasm to WASM
+    
+    This commit changes sys.Wasm to sys.WASM, as requested on
+    https://groups.google.com/forum/#!topic/golang-dev/VquDxlhjPkg
+    
+    Change-Id: I30a208c34576a8bb49b9beb524203d71df8fdf1c
+    Reviewed-on: https://go-review.googlesource.com/118395
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/sys/arch.go      | 2 +-
+ src/runtime/internal/sys/arch_wasm.go | 2 +-
+ src/runtime/stack.go                  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

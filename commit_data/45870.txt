@@ -1,0 +1,46 @@
+commit d1916e5e843d0341c2d82edf08335ac181c41bd8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 23 22:06:50 2021 -0400
+
+    go/types: in TestCheck/issues.src, import regexp/syntax instead of cmd/compile/internal/syntax
+    
+    TestCheck/issues.src was failing after running
+            rm -r $(go env GOROOT)/pkg/*/cmd
+    as the builders do when building binary releases.
+    
+    For users who write programs that depend on go/types, it should be
+    reasonable for end users to run the tests for go/types as part of 'go
+    test all', and those tests should pass even if they installed Go from
+    a binary release.
+    
+    The test case in issues.src was importing cmd/compile/internal/syntax
+    in order to check the reported package name.
+    
+    I tried to fix the problem by having the test import from source
+    instead of from export data. Unfortunately, that changed the behavior
+    under test: the go/types.Package.Imports reports (and is documented to
+    report) a different set of imported packages when loading from source
+    as compared to when loading from export data.
+    
+    For this particular test, after CL 313035 that difference resulted in
+    go/types treating the "syntax" name as ambiguous when importing from
+    source, because a transitive dependency on "regexp/syntax" is found
+    when loading from source but omitted when loading from export data.
+    
+    The simple fix to make the package unambiguous again is to adapt the
+    test to import regexp/syntax directly. That not only makes the package
+    unambiguous with all importers, but also avoids depending on a
+    cmd-internal package that cannot be loaded from export data in binary
+    distributions of the Go toolchain.
+    
+    For #43232
+    
+    Change-Id: Iba45a680ea20d26daa86ac538fd8f1938e8b73ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330431
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/testdata/check/issues.src | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit ad3742f4acbf20c681c9f6f6775ea7ece85e5881
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 2 19:17:13 2017 +0000
+
+    net/http: remove some log spam in test, add missing error detail
+    
+    Updates #22540
+    
+    Change-Id: I26e79c25652976fac6f2e5a7afb4fd1240996d74
+    Reviewed-on: https://go-review.googlesource.com/75531
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit e7a3d87ddae6aa720e104213bd2cf98e3e743c9a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:00:00 2022 +0800
+
+    cmd/compile/internal/ir: delete unused code
+    
+    Change-Id: I4f7581d1f4cd8a305acc02454e032c0788d39283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436646
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/ir/bitset.go | 34 ----------------------------------
+ 1 file changed, 34 deletions(-)

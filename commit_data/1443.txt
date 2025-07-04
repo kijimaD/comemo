@@ -1,0 +1,16 @@
+commit d54abad06f7f024c7a0d76dd4603638db381d0b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 14:43:56 2009 -0800
+
+    - first (global) idents with proper links to declarations in html output
+    (e.g. pretty -html source.go > source.html; then look at the html.file in a browser)
+    
+    R=r
+    OCL=22331
+    CL=22331
+
+ usr/gri/pretty/Makefile   |  2 +-
+ usr/gri/pretty/globals.go | 15 +++++++++++++++
+ usr/gri/pretty/parser.go  | 48 ++++++++++++++++++++++++++++-------------------
+ usr/gri/pretty/printer.go | 32 ++++++++++++++++++++++---------
+ 4 files changed, 68 insertions(+), 29 deletions(-)

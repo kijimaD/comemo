@@ -1,0 +1,24 @@
+commit 6bc593805f2c2b0ef8b194cc186b804237744cb4
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Wed Mar 8 11:36:30 2017 +0200
+
+    cmd/vet: eliminate "might be too small for shift" warnings
+    
+    Determine int, uint and uintptr bit sizes from GOARCH environment
+    variable if it is set. Otherwise use host-specific sizes.
+    
+    Fixes #19321
+    
+    Change-Id: I494b8e4b49b59d32794f50ff2ce06ba040cb8460
+    Reviewed-on: https://go-review.googlesource.com/37950
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/vet/all/whitelist/32bit.txt |  16 ++++++
+ src/cmd/vet/all/whitelist/64bit.txt |  26 ---------
+ src/cmd/vet/all/whitelist/all.txt   |  18 ------
+ src/cmd/vet/shift.go                |  16 ++++--
+ src/cmd/vet/testdata/shift.go       | 111 +++++++++++++++++++++---------------
+ src/cmd/vet/types.go                |   5 ++
+ src/go/types/sizes.go               |   6 +-
+ 7 files changed, 102 insertions(+), 96 deletions(-)

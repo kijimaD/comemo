@@ -1,0 +1,15 @@
+commit 56e6a02490d27d5e4a98ba3c7f61f09b31a16aa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 23:17:11 2012 -0500
+
+    runtime: fix mkasmh.sh for arm?
+    
+    The builder is Debian, so maybe running dash,
+    the shell that time forgot.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5600053
+
+ src/pkg/runtime/mkasmh.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

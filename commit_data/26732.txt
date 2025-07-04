@@ -1,0 +1,15 @@
+commit 870d997ab47fe88c33f4dadef38d7e85eeabf17c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 17:24:23 2016 +0000
+
+    net/http: keep request context during Client redirects
+    
+    Change-Id: I25c51280ba55120ffeaf08222f5ac5d471632d89
+    Reviewed-on: https://go-review.googlesource.com/21535
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      |  1 +
+ src/net/http/client_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

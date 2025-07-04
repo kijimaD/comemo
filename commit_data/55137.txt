@@ -1,0 +1,29 @@
+commit 5abae02d273d586b13975bca0e5fda67f4f51e2f
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Nov 21 19:34:36 2023 +0000
+
+    runtime/internal/atomic: deduplicate And/Or code on wasm
+    
+    When I initially added the wasm code for these ops I did not saw that
+    wasm actually has the Cas operations implemented, although they are
+    merely pointer assignments since wasm is single threaded.
+    
+    Now with a generic implementation for And/Or we can add wasm to the
+    build tags.
+    
+    For #61395
+    
+    Change-Id: I997dc90477c772882d6703df1b795dfc0d90a699
+    GitHub-Last-Rev: 92736a6e34104a9d234c791673fe0bb79fc97b0b
+    GitHub-Pull-Request: golang/go#64300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544116
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../internal/atomic/atomic_andor_generic.go        |  2 +-
+ src/runtime/internal/atomic/atomic_wasm.go         | 48 ----------------------
+ 2 files changed, 1 insertion(+), 49 deletions(-)

@@ -1,0 +1,18 @@
+commit 007e8a2fbda83e8863f7dda5632a100928318019
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 25 17:41:11 2018 -0400
+
+    runtime: rename gosweepdone to isSweepDone and document better
+    
+    gosweepdone is another anachronism from the time when the sweeper was
+    implemented in C. Rename it to "isSweepDone" for the modern era.
+    
+    Change-Id: I8472aa6f52478459c3f2edc8a4b2761e73c4c2dd
+    Reviewed-on: https://go-review.googlesource.com/c/138658
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcsweep.go | 11 ++++++++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)

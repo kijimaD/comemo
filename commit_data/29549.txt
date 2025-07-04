@@ -1,0 +1,12 @@
+commit c69233be84eee26d1ea15869b86d76aad602d693
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 16 13:51:45 2016 +0900
+
+    net/http: fix a typo in test
+    
+    Change-Id: I897237667ffe9e9b2a5f92251a6f665d29479fd2
+    Reviewed-on: https://go-review.googlesource.com/33255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

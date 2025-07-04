@@ -1,0 +1,21 @@
+commit 82bc0d4e80870f25805029ef0e1e844ace7bf068
+Author: David Glasser <glasser@meteor.com>
+Date:   Thu Aug 4 16:49:05 2016 -0700
+
+    math/rand: document that NewSource sources race
+    
+    While it was previously explicitly documented that "the default Source"
+    is safe for concurrent use, a careless reader can interpret that as
+    meaning "the implementation of the Source interface created by functions
+    in this package" rather than "the default shared Source used by
+    top-level functions". Be explicit that the Source returned by NewSource
+    is not safe for use by multiple goroutines.
+    
+    Fixes #3611.
+    
+    Change-Id: Iae4bc04c3887ad6e2491e36e38feda40324022c5
+    Reviewed-on: https://go-review.googlesource.com/25501
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/rand/rand.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,17 @@
+commit 82a761b656704c07a94c12b10141a0cdba1a4534
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 5 08:23:14 2015 -0800
+
+    runtime: speed up eqstring
+    
+    eqstring does not need to check the length of the strings.
+    Other architectures were done in a separate commit.
+    
+    While we're here, add a pointer equality check.
+    
+    Change-Id: Id2c8616a03a7da7037c1e9ccd56a549fc952bd98
+    Reviewed-on: https://go-review.googlesource.com/3956
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_ppc64x.s | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

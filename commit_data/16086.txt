@@ -1,0 +1,12 @@
+commit 72d99aec8836e3a44aff06dd787c051e9cf9eff2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Apr 3 17:03:42 2013 -0700
+
+    doc: fix typos in go1.1
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8342044
+
+ doc/go1.1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

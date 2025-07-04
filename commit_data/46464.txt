@@ -1,0 +1,18 @@
+commit 5402b4376c0c51a31ea9c5ccf16b449a6ab3e79f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 15:00:47 2021 -0700
+
+    spec: fix incorrect type in a shift example
+    
+    Thanks to @bodar (Github) for finding this.
+    
+    Fixes #48422.
+    
+    Change-Id: I031c3d82a02db1d204e2b86b494d89784d37f073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350409
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

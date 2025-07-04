@@ -1,0 +1,24 @@
+commit 61ef6a39dd75032a3ab7eff1f0cf1181e4ee98d0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 6 23:18:28 2019 +0000
+
+    runtime: remove MAP_FIXED in sysReserve for raceenabled on darwin
+    
+    This change removes a hack which was added to deal with Darwin 10.10's
+    weird ignorance of mapping hints which would cause race mode to fail
+    since it requires the heap to live within a certain address range.
+    
+    We no longer support 10.10, and this is potentially causing problems
+    related to the page allocator, so drop this code.
+    
+    Updates #26475.
+    Updates #35112.
+    
+    Change-Id: I0e1c6f8c924afe715a2aceb659a969d7c7b6f749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205757
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mem_darwin.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

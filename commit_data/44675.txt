@@ -1,0 +1,21 @@
+commit d7cc2f1d7c60b51c600c7d0c808610985dcd9b0c
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Fri Jan 15 17:40:20 2021 +0200
+
+    reflect: panic if ArrayOf is called with negative length
+    
+    Since we cannot change the signature of reflect.ArrayOf to return an
+    error, we panic instead of producing a wrong result.
+    
+    Fixes #43603
+    
+    Change-Id: I23915df8d190f35af4d00ab86768868cd621e839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284136
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/all_test.go |  8 ++++++++
+ src/reflect/type.go     | 40 ++++++++++++++++++++++------------------
+ 2 files changed, 30 insertions(+), 18 deletions(-)

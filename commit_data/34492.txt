@@ -1,0 +1,20 @@
+commit b75e8a2a3baf71ab39bd584c4c0c24edbaf91e3e
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Mar 4 06:14:42 2018 +0900
+
+    cmd/compile: prevent detection of wrong duplicates
+    
+    by including *types.Type in typeVal.
+    
+    Updates #21866
+    Fixes #24159
+    
+    Change-Id: I2f8cac252d88d43e723124f2867b1410b7abab7b
+    Reviewed-on: https://go-review.googlesource.com/98476
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 27 +++++++++++++++++++++++----
+ test/fixedbugs/issue24159.go       | 20 ++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 4 deletions(-)

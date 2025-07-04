@@ -1,0 +1,12 @@
+commit 28138f1364939992e5466bff72b3574079dcc577
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 30 16:31:57 2013 +0900
+
+    net: fix comment on SetKeepAlivePeriod
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12091043
+
+ src/pkg/net/tcpsock_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

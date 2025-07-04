@@ -1,0 +1,29 @@
+commit 19ca2337c57a944ccce7298f7c9b71c95408a987
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 12 16:13:39 2023 -0400
+
+    cmd/compile/internal/inline: build call site table
+    
+    Build up a table of (potentially) inlinable call sites during inline
+    heuristic analysis, and introduce a framework for analyzing each call
+    site to collect applicable flags (for example, is call nested in
+    loop). This patch doesn't include any of the flag analysis, just the
+    machinery to collect the callsites and a regression test harness.
+    
+    Updates #61502.
+    
+    Change-Id: Ieaf4a008ac9868e9762c63f5b59bd264dc71ab30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511564
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++--
+ .../inline/inlheur/analyze_func_callsites.go       | 154 +++++++++++++++++++++
+ .../compile/internal/inline/inlheur/callsite.go    | 115 +++++++++++++++
+ .../internal/inline/inlheur/cspropbits_string.go   |  56 ++++++++
+ .../internal/inline/inlheur/funcprops_test.go      | 103 ++++++++++----
+ .../inline/inlheur/testdata/props/acrosscall.go    |  51 +++++--
+ .../inline/inlheur/testdata/props/funcflags.go     |  65 ++++++---
+ .../inline/inlheur/testdata/props/params.go        |  69 ++++++---
+ .../inline/inlheur/testdata/props/returns.go       |  75 ++++++----
+ 9 files changed, 609 insertions(+), 114 deletions(-)

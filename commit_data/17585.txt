@@ -1,0 +1,15 @@
+commit 3c11dd8ebc46a306c7fb196da63328426160cd6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 12 16:54:01 2013 -0400
+
+    encoding/xml: add Encoder.Flush
+    
+    Fixes #6365.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13627046
+
+ src/pkg/encoding/xml/marshal.go      | 18 ++++++++++++++++++
+ src/pkg/encoding/xml/marshal_test.go | 17 +++++++++++++++++
+ 2 files changed, 35 insertions(+)

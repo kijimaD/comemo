@@ -1,0 +1,13 @@
+commit be60bd090ec8447d2a50b652ae50b3a7df675a38
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 17 15:46:31 2014 -0700
+
+    C: add Catalin Patulea (Google CLA)
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/76400044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

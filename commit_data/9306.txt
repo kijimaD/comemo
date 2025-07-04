@@ -1,0 +1,12 @@
+commit 9c2ebab82686e31ec09b87a6cdb946a2ef2e1e2e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 8 23:42:49 2011 +1000
+
+    exp/template: document that comments may span newlines.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4855045
+
+ src/pkg/exp/template/doc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

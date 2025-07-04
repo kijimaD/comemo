@@ -1,0 +1,16 @@
+commit 89ccd5795c5e41ef478eab3d4a292a836a7fe3ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 09:13:16 2016 -0400
+
+    cmd/pprof: use correct default handler for Go programs
+    
+    The original go tool pprof (written in Perl) got this right.
+    The Go rewrite never has, but should.
+    
+    Change-Id: Ie1fc571214c61b1b5654a0bc90e15eb889adf059
+    Reviewed-on: https://go-review.googlesource.com/32617
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

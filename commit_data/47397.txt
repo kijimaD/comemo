@@ -1,0 +1,21 @@
+commit 23f653df963ddf3ae618290edbb0c55530fcf483
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 13:36:23 2021 -0800
+
+    cmd/compile/internal/types2: remove structuralString in favor of inlined code
+    
+    structuralString was used only in one place (for built-in copy).
+    Remove it in favor of custom and more efficient inlined code.
+    
+    Follow-up on feedback received for CL 363075.
+    
+    Change-Id: Ic5857c47255c5c712be7971aae4542fef9960fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363154
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go | 21 ++++++++++++++++++++-
+ src/cmd/compile/internal/types2/type.go     | 24 ------------------------
+ 2 files changed, 20 insertions(+), 25 deletions(-)

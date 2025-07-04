@@ -1,0 +1,12 @@
+commit 247bc7213170feb4706de889fc71ac8f8cc3ac92
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 15 14:45:00 2013 +1100
+
+    misc/dashboard/codereview: better debugging when some fetches fail.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7836045
+
+ misc/dashboard/codereview/dashboard/cl.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

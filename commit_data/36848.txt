@@ -1,0 +1,20 @@
+commit 0e4c013b6743507ebce2c08991cf1e3ab49cf7ac
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Sep 25 13:45:08 2018 +0200
+
+    syscall: use asynchronous operations on js/wasm
+    
+    This commit makes syscall on js/wasm use the asynchronous variants
+    of functions in Node.js' fs module. This enables concurrency
+    and allows the API of the fs module to be implemented with an
+    alternative backend that only supports asynchronous operations.
+    
+    Updates #26051.
+    
+    Change-Id: Ibe1dcc988469fc11c3b8d8d49de439c12ddaafce
+    Reviewed-on: https://go-review.googlesource.com/c/137236
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/fs_js.go | 94 +++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 60 insertions(+), 34 deletions(-)

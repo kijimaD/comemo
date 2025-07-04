@@ -1,0 +1,14 @@
+commit e38c5fb23da137c822455126628a5b2bb68fc440
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 08:36:40 2012 -0500
+
+    net: document ReadMsgUnix, WriteMsgUnix
+    
+    Fixes #3247.
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/5784051
+
+ src/pkg/net/unixsock_posix.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

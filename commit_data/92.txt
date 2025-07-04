@@ -1,0 +1,15 @@
+commit bbb207322311939e9312b5912ba77bf5231b051d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 5 19:38:39 2008 -0700
+
+    goos garch
+    
+    SVN=121367
+
+ src/cmd/6l/obj.c      |  27 ++-
+ src/cmd/gc/go.h       |   1 +
+ src/cmd/gc/lex.c      |  15 +-
+ src/runtime/make.bash |  14 ++
+ src/runtime/runtime.c | 595 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.h | 107 +++++++++
+ 6 files changed, 746 insertions(+), 13 deletions(-)

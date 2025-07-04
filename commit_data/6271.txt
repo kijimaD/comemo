@@ -1,0 +1,12 @@
+commit 34fc24f4e53048f88df5e2048b06b36d81e66280
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 14 13:33:27 2010 +1000
+
+    doc: fix typo in Programming FAQ
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2186041
+
+ doc/go_programming_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

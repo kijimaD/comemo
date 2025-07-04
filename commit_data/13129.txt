@@ -1,0 +1,13 @@
+commit fb3a1b6821d35e13ec9631ecbff0d013022f2374
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 23 02:00:40 2012 +0800
+
+    runtime: support conditional execution in ARM softfloat
+            Fixes #3638.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6213057
+
+ src/pkg/runtime/softfloat_arm.c | 65 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 59 insertions(+), 6 deletions(-)

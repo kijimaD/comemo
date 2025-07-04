@@ -1,0 +1,19 @@
+commit 11d7775c9f6e3166bf8f58c37d0edcb0ffc720a3
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 14 07:33:54 2019 +0000
+
+    cmd/compile: remove some nacl SSA rules
+    
+    Updates golang/go#30439
+    
+    Change-Id: I7ef5301fbd650d26a37a1241ddf7ca1ccd58b89d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200941
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  7 ---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 ---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  7 ---
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 39 -----------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 65 ----------------------------
+ 6 files changed, 1 insertion(+), 124 deletions(-)

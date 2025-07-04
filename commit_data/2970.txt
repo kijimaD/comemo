@@ -1,0 +1,15 @@
+commit 02cb81ad31440bd5920006a9dc31619086c0def5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 13:06:48 2009 -0700
+
+    tests, .proto, .cgo
+    
+    R=rsc
+    DELTA=38  (21 added, 3 deleted, 14 changed)
+    OCL=33193
+    CL=33200
+
+ src/pkg/go/printer/testdata/golden1.go | 2 +-
+ src/pkg/go/printer/testdata/golden1.x  | 4 ++++
+ src/pkg/go/printer/testdata/source1.go | 2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

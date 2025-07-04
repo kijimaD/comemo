@@ -1,0 +1,17 @@
+commit 3b1d0d0f070f0ac5769017a227cac91ab0605559
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 11:24:48 2015 -0700
+
+    cmd/asm: remove object file if assembly fails.
+    
+    Just an oversight. Plus the code had an unnecessary call to os.Exit
+    that now has a purpose.
+    
+    Fixes #10372.
+    
+    Change-Id: I456018f3a01ca05b4501c7f8a4961d48ab8c5e16
+    Reviewed-on: https://go-review.googlesource.com/8651
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/asm/main.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 318947c6452eb8c4dfc87ac70480dc49edf0cb77
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jan 13 14:18:13 2015 -0500
+
+    syscall: use name+(NN)FP for darwin
+    
+    Generated from a script using go vet then read by a human.
+    
+    Change-Id: Ie5f7ab3a1075a9c8defbf5f827a8658e3eb55cab
+    Reviewed-on: https://go-review.googlesource.com/2746
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_darwin_386.s   | 93 ++++++++++++++++++++---------------------
+ src/syscall/asm_darwin_amd64.s | 95 ++++++++++++++++++++----------------------
+ 2 files changed, 91 insertions(+), 97 deletions(-)

@@ -1,0 +1,27 @@
+commit 5c9a506de17bdeb692e6e12d5ab56a06c11b042c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 22:12:15 2022 -0500
+
+    cmd/go: remove special case for prebuilt cgo library cache keys
+    
+    This was an oversight from CL 452457 that I noticed while
+    investigating #56889.
+    
+    This change essentially undoes CL 335409, which is no longer needed
+    after CL 450739 because we no longer attempt to use cgo by default
+    when no C compiler is present.
+    
+    Updates #47257.
+    Updates #40042.
+    Updates #47215.
+    
+    Change-Id: I29c7ce777a9ec7ba5820dc1d836b12a61b86bc37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452677
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                     |  9 ++-------
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

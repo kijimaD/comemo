@@ -1,0 +1,27 @@
+commit 60f67631a6c9e75ffd2829fcca56ac45d9baf019
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 14:56:48 2019 -0400
+
+    runtime: fix vet complaints for solaris/amd64, illumos/amd64
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOS/GOARCHes,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    
+    For #31916.
+    
+    Change-Id: Ic64f7f4034695dd4c32c9b7f258960faf3742a83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176103
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/illumos_amd64.txt |  5 ---
+ src/cmd/vet/all/whitelist/solaris_amd64.txt |  5 ---
+ src/runtime/os3_solaris.go                  |  8 ++---
+ src/runtime/os_solaris.go                   | 19 ++++++-----
+ src/runtime/sys_solaris_amd64.s             |  4 +--
+ src/runtime/syscall_solaris.go              | 50 ++++++++++++++++-------------
+ 6 files changed, 44 insertions(+), 47 deletions(-)

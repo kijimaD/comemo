@@ -1,0 +1,21 @@
+commit f6695a15e15713cdac16978837d8b01ef4999279
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 20:06:37 2019 -0400
+
+    crypto/x509: move debug prints to standard error
+    
+    Standard output is reserved for actual program output.
+    Debug print should be limited in general (here they are
+    enabled by an environment variable) and always go to
+    standard error.
+    
+    Came across by accident.
+    
+    Change-Id: I1490be71473520f049719572b3acaa0ea9f9e5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167502
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/root_darwin.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

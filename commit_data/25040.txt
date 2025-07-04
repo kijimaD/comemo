@@ -1,0 +1,46 @@
+commit a7383fc4670947ffa513aae4ce2c8917d753da26
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Nov 17 11:41:06 2015 +0100
+
+    runtime: use a proper type, sigset, for m.sigmask
+    
+    Replace the cross platform but unsafe [4]uintptr type with a OS
+    specific type, sigset. Most OSes already define sigset, and this
+    change defines a suitable sigset for the OSes that don't (darwin,
+    openbsd). The OSes that don't use m.sigmask (windows, plan9, nacl)
+    now defines sigset as the empty type, struct{}.
+    
+    The gain is strongly typed access to m.sigmask, saving a dynamic
+    size sanity check and unsafe.Pointer casting. Also, some storage is
+    saved for each M, since [4]uinptr was conservative for most OSes.
+    
+    The cost is that OSes that don't need m.sigmask has to define sigset.
+    
+    completes ./all.bash with GOOS linux, on amd64
+    completes ./make.bash with GOOSes openbsd, android, plan9, windows,
+    darwin, solaris, netbsd, freebsd, dragonfly, all amd64.
+    
+    With GOOS=nacl ./make.bash failed with a seemingly unrelated error.
+    
+    [Replay of CL 16942 by Elias Naur.]
+    
+    Change-Id: I98f144d626033ae5318576115ed635415ac71b2c
+    Reviewed-on: https://go-review.googlesource.com/17033
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_darwin.go    | 24 +++++++++++-------------
+ src/runtime/os1_dragonfly.go | 11 +++--------
+ src/runtime/os1_freebsd.go   | 11 +++--------
+ src/runtime/os1_linux.go     |  9 +++------
+ src/runtime/os1_nacl.go      |  2 ++
+ src/runtime/os1_netbsd.go    | 11 +++--------
+ src/runtime/os1_openbsd.go   | 23 ++++++++++-------------
+ src/runtime/os1_plan9.go     |  2 ++
+ src/runtime/os1_windows.go   |  2 ++
+ src/runtime/os3_solaris.go   | 11 +++--------
+ src/runtime/os_darwin.go     |  2 +-
+ src/runtime/os_openbsd.go    |  2 +-
+ src/runtime/runtime2.go      |  2 +-
+ 13 files changed, 45 insertions(+), 67 deletions(-)

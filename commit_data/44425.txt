@@ -1,0 +1,29 @@
+commit 4ebb6f5110af3e60455d8751b996b958afb25a36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 7 19:08:37 2021 -0800
+
+    cmd/compile: automate resultInArg0 register checks
+    
+    No functional changes; passes toolstash-check.
+    No measureable performance changes.
+    
+    Change-Id: I2629f73d4a3cc56d80f512f33cf57cf41d8f15d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296010
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go    | 76 ++++++--------------------------
+ src/cmd/compile/internal/arm/ssa.go      |  3 --
+ src/cmd/compile/internal/arm64/ssa.go    |  9 +---
+ src/cmd/compile/internal/mips/ssa.go     |  9 ----
+ src/cmd/compile/internal/mips64/ssa.go   |  3 --
+ src/cmd/compile/internal/riscv64/ssa.go  |  3 --
+ src/cmd/compile/internal/s390x/ssa.go    | 48 ++++----------------
+ src/cmd/compile/internal/ssa/gen/main.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go    |  1 +
+ src/cmd/compile/internal/ssa/value.go    | 17 +++++++
+ src/cmd/compile/internal/ssagen/ssa.go   |  4 ++
+ src/cmd/compile/internal/x86/ssa.go      | 44 +++---------------
+ 12 files changed, 52 insertions(+), 166 deletions(-)

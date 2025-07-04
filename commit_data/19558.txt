@@ -1,0 +1,13 @@
+commit 3d853585b6e89355a2fa61c94af677ad976e1061
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 17 09:34:11 2014 -0700
+
+    text/scanner: fix comment
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105300044
+
+ src/pkg/text/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

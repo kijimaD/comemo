@@ -1,0 +1,15 @@
+commit 81c431a53780d90ebe8a81205db9b3bee7824ffd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 6 15:12:12 2016 -0400
+
+    runtime: abstract out assist queue management
+    
+    This puts all of the assist queue-related code together and makes it
+    easier to modify how the assist queue works.
+    
+    Change-Id: Id54e06702bdd5a5dd3fef2ce2c14cd7ca215303c
+    Reviewed-on: https://go-review.googlesource.com/30700
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 77 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 45 insertions(+), 32 deletions(-)

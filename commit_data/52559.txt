@@ -1,0 +1,21 @@
+commit d7d235c92f1329359194a8c042b2099ef60ec17c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 6 16:38:47 2023 -0700
+
+    runtime: permit core dumps in darwin-amd64
+    
+    Previously we did not permit them as Go programs generated enormous
+    core dumps on macOS. However, according to an investigation in #59446,
+    they are OK now.
+    
+    For #59446
+    
+    Change-Id: I1d7a3f500a6bc525aa6de8dfa8a1d8dbb15feadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/signal_unix.go | 10 ----------
+ 1 file changed, 10 deletions(-)

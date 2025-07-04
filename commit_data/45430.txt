@@ -1,0 +1,18 @@
+commit 12eaefead46d7ba10fce622f093d4c9b2989a5c0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 17:11:03 2021 -0400
+
+    cmd/link: support trampoline insertion for PLT calls on ARM
+    
+    This is CL 314452, for ARM.
+    
+    Fixes #30949.
+    
+    Change-Id: Ib4e46a5bd11c698c4f8ea3bc4e7a605d7a538efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314455
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm/asm.go | 25 +++++++++++++++++++++++--
+ src/cmd/link/internal/ld/data.go |  6 ++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

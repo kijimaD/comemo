@@ -1,0 +1,32 @@
+commit 63ceff95fa7cc93dd848b503dedcef53b918cdc3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 31 21:34:23 2022 +0000
+
+    runtime/metrics: add /sync/mutex/wait/total:seconds metric
+    
+    This change adds a metric to the runtime/metrics package which tracks
+    total mutex wait time for sync.Mutex and sync.RWMutex. The purpose of
+    this metric is to be able to quickly get an idea of the total mutex wait
+    time.
+    
+    The implementation of this metric piggybacks off of the existing G
+    runnable tracking infrastructure, as well as the wait reason set on a G
+    when it goes into _Gwaiting.
+    
+    Fixes #49881.
+    
+    Change-Id: I4691abf64ac3574bec69b4d7d4428b1573130517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427618
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go         |   8 +++
+ src/runtime/metrics.go             |   6 ++
+ src/runtime/metrics/description.go |   6 ++
+ src/runtime/metrics/doc.go         |   7 ++
+ src/runtime/metrics_test.go        | 127 ++++++++++++++++++++++++++++++++++++-
+ src/runtime/proc.go                |  80 ++++++++++++++++-------
+ src/runtime/runtime2.go            |  12 +++-
+ 7 files changed, 221 insertions(+), 25 deletions(-)

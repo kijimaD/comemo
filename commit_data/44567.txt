@@ -1,0 +1,16 @@
+commit b6df58bd1f3b2a05787f62bbec4267f7867d4bbd
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 5 09:50:28 2021 -0800
+
+    cmd/compile: detect duplicate importing earlier
+    
+    Change-Id: I05ba944e189a884b727e40a9526d212612c3e923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299770
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/func.go    | 11 +++--------
+ src/cmd/compile/internal/typecheck/iimport.go |  2 +-
+ 2 files changed, 4 insertions(+), 9 deletions(-)

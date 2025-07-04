@@ -1,0 +1,19 @@
+commit fc908a0298f574948ebf4eab62cf319319e77020
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 16 09:48:23 2014 -0800
+
+    fmt: fix bug printing large zero-padded hexadecimal
+    We forgot to include the width of "0x" when computing the crossover
+    from internal buffer to allocated buffer.
+    Also add a helper function to the test for formatting large zero-padded
+    test strings.
+    
+    Fixes #6777.
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/50820043
+
+ src/pkg/fmt/fmt_test.go | 39 +++++++++++++++++++++++++++++++++------
+ src/pkg/fmt/format.go   | 17 +++++++++++++----
+ 2 files changed, 46 insertions(+), 10 deletions(-)

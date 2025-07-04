@@ -1,0 +1,28 @@
+commit 4edea0f0a77b341ec565d848e453c4a854418e8c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jan 10 23:42:53 2019 +0000
+
+    doc: mention 'go get golang.org/dl/...' in install
+    
+    I needed Go 1.10 to debug and fix a test failure on that Go version in
+    x/tools, but I forgot what the magic 'go get' command for this was.
+    
+    Googling "download specific golang version" and similar keywords showed
+    no results, presumably because the golang.org/dl subrepo isn't
+    prominently recommended nor documented anywhere.
+    
+    The most appropriate documentation page to add this to is doc/install,
+    since it goes into some detail and is well indexed. We only need a short
+    section to introduce the trick.
+    
+    The example does mention a specific version, Go 1.10.7, but I couldn't
+    imagine a way to make it version-agnostic while still being clear on
+    what the commands effectively do.
+    
+    Change-Id: I13158564d76d95caec412cdb35a50a4356df5863
+    Reviewed-on: https://go-review.googlesource.com/c/157457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/install.html | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

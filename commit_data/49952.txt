@@ -1,0 +1,36 @@
+commit 90466e1ddf0e4305bc56f6eac61a690704e6fab8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 10:50:35 2022 -0400
+
+    crypto/internal/subtle: rename to crypto/internal/alias
+    
+    This avoids an import conflict with crypto/subtle.
+    CL 424175 does the same for x/crypto.
+    
+    Change-Id: Id4a319b3283b8affaaf769062388325b31fe1715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424194
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/crypto/aes/aes_gcm.go                          |  6 ++--
+ src/crypto/aes/cbc_ppc64x.go                       |  4 +--
+ src/crypto/aes/cbc_s390x.go                        |  4 +--
+ src/crypto/aes/cipher.go                           |  6 ++--
+ src/crypto/aes/cipher_asm.go                       |  6 ++--
+ src/crypto/aes/cipher_s390x.go                     |  6 ++--
+ src/crypto/aes/ctr_s390x.go                        |  4 +--
+ src/crypto/aes/gcm_s390x.go                        | 10 +++---
+ src/crypto/cipher/cbc.go                           |  6 ++--
+ src/crypto/cipher/cfb.go                           |  4 +--
+ src/crypto/cipher/ctr.go                           |  4 +--
+ src/crypto/cipher/gcm.go                           |  6 ++--
+ src/crypto/cipher/ofb.go                           |  4 +--
+ src/crypto/des/cipher.go                           | 10 +++---
+ .../{subtle/aliasing.go => alias/alias.go}         | 10 ++----
+ .../aliasing_test.go => alias/alias_test.go}       | 12 +++----
+ src/crypto/internal/subtle/aliasing_appengine.go   | 37 ----------------------
+ src/crypto/rc4/rc4.go                              |  4 +--
+ src/go/build/deps_test.go                          |  3 +-
+ 19 files changed, 51 insertions(+), 95 deletions(-)

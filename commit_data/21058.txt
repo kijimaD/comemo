@@ -1,0 +1,14 @@
+commit 6c78443b3e13c43ea887f6b73099e0c1297327c5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 22 16:46:25 2014 -0500
+
+    liblink: code for debugging bad returns
+    
+    Disabled by default, but invaluable when you need it.
+    
+    Change-Id: If4a75d11d14f70b6840d339aaec4b940dc406493
+    Reviewed-on: https://go-review.googlesource.com/2012
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/liblink/obj9.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

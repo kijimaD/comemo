@@ -1,0 +1,18 @@
+commit 199d77aff0372daac2db39d7fb2da16269e4ffd4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 17 21:12:25 2022 -0500
+
+    cmd/dist: stop trying to access runtime/internal/sys.a in debug mode
+    
+    Now that we don't install the .a files, the installed
+    runtime/internal/sys.a no longer exists. Stop trying to access it.
+    
+    Change-Id: Ic437e7ad95be6109d0b2fcfb81e840f5cb476be8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451360
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go | 3 ---
+ 1 file changed, 3 deletions(-)

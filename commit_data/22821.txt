@@ -1,0 +1,19 @@
+commit a55b131393bfc2b0107806edd22c4dd704d96197
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 16:57:23 2015 -0700
+
+    cmd/dist, runtime: Make stack guard larger for non-optimized builds
+    
+    Kind of a hack, but makes the non-optimized builds pass.
+    
+    Fixes #10079
+    
+    Change-Id: I26f41c546867f8f3f16d953dc043e784768f2aff
+    Reviewed-on: https://go-review.googlesource.com/9552
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/buildruntime.go  | 23 +++++++++++++++++++++--
+ src/cmd/internal/obj/stack.go |  2 +-
+ src/runtime/proc1.go          |  4 ++--
+ src/runtime/stack2.go         |  2 +-
+ 4 files changed, 25 insertions(+), 6 deletions(-)

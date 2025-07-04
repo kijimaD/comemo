@@ -1,0 +1,23 @@
+commit c889004615b40535ebd5054cbcf2deebdb3a299a
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Apr 17 08:19:48 2025 +0000
+
+    internal,runtime: use the builtin clear
+    
+    To simplify the code.
+    
+    Change-Id: I023de705504c0b580718eec3c7c563b6cf2c8184
+    GitHub-Last-Rev: 026b32c799b13d0c7ded54f2e61429e6c5ed0aa8
+    GitHub-Pull-Request: golang/go#73412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666118
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/profile/graph.go | 8 ++------
+ src/internal/zstd/xxhash.go   | 4 +---
+ src/runtime/mstats.go         | 4 +---
+ src/runtime/proc.go           | 8 ++------
+ 4 files changed, 6 insertions(+), 18 deletions(-)

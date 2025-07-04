@@ -1,0 +1,36 @@
+commit 4d44a87243576bef5ec1e083eb85fe766f79727d
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Mon Nov 27 22:28:32 2017 -0800
+
+    math/big: return nil for nonexistent ModInverse
+    
+    Currently, the behavior of z.ModInverse(g, n) is undefined
+    when g and n are not relatively prime.  In that case, no
+    ModInverse exists which can be easily checked during the
+    computation of the ModInverse.  Because the ModInverse does
+    not indicate whether the inverse exists, there are reimplementations
+    of a "checked" ModInverse in crypto/rsa.  This change removes the
+    undefined behavior.  If the ModInverse does not exist, the receiver z
+    is unchanged and the return value is nil. This matches the behavior of
+    ModSqrt for the case where the square root does not exist.
+    
+    name          old time/op    new time/op    delta
+    ModInverse-4    2.40µs ± 4%    2.22µs ± 0%   -7.74%  (p=0.016 n=5+4)
+    
+    name          old alloc/op   new alloc/op   delta
+    ModInverse-4    1.36kB ± 0%    1.17kB ± 0%  -14.12%  (p=0.008 n=5+5)
+    
+    name          old allocs/op  new allocs/op  delta
+    ModInverse-4      10.0 ± 0%       9.0 ± 0%  -10.00%  (p=0.008 n=5+5)
+    
+    Fixes #24922
+    
+    Change-Id: If7f9d491858450bdb00f1e317152f02493c9c8a8
+    Reviewed-on: https://go-review.googlesource.com/108996
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/crypto/rsa/rsa.go    | 39 +++++----------------------------------
+ src/math/big/int.go      | 25 +++++++++++++++++--------
+ src/math/big/int_test.go | 11 +++++++++++
+ 3 files changed, 33 insertions(+), 42 deletions(-)

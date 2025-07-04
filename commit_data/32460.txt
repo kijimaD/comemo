@@ -1,0 +1,25 @@
+commit 05ff6bfe3367837a8bdf8f72ed5ceaecbbd7b5e8
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Aug 24 16:32:54 2017 -0400
+
+    misc/trace: update trace-viewer
+    
+    Generated with
+     github.com/catapult/tracing/bin/vulcanize_trace_viewer
+    catapult @ ab4d571fa
+    
+    Renamed trace_viewer_lean.html to trace_viewer_full.html
+    to make it clear we are using the full version of trace viewer
+    (waiting for https://github.com/catapult-project/catapult/issues/2247
+    to be fixed).
+    
+    Update #15302
+    
+    Change-Id: Ice808bb27ab79a1dec9fc863e0c5a761027ebfbe
+    Reviewed-on: https://go-review.googlesource.com/58750
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ misc/trace/trace_viewer_full.html | 9525 +++++++++++++++++++++++++++++++++++++
+ misc/trace/trace_viewer_lean.html | 7758 ------------------------------
+ src/cmd/trace/trace.go            |    2 +-
+ 3 files changed, 9526 insertions(+), 7759 deletions(-)

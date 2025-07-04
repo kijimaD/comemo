@@ -1,0 +1,12 @@
+commit 7fbf9fcba949ba799998671cc31895cb7d59d678
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 25 14:05:54 2010 -0700
+
+    make alignment rules match 8g, just like 6c matches 6g.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/760042
+
+ src/cmd/8c/swt.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

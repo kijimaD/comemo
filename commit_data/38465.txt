@@ -1,0 +1,14 @@
+commit d24d25b4e43badc38539b563f5264b341ccf3746
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:45:40 2019 +0100
+
+    runtime: enable external linker tests for aix/ppc64
+    
+    Change-Id: Icc42843adb15c2aba1cfea854fad049c6704344b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164014
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

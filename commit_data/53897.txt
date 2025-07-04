@@ -1,0 +1,18 @@
+commit 5ad1ed2aa6007cea916a3da9f30c2f1f210fa895
+Author: adetunjii <adetunjithomas1@outlook.com>
+Date:   Sat Aug 5 21:14:36 2023 +0000
+
+    arm64: replace "PCALGIN with PCALIGN" in package documentation
+    
+    Change-Id: I476e2a75f39c876fa9c071cada36573740d546de
+    GitHub-Last-Rev: dec3fb438f4dd0d8e0aff300356c8d92e8ee6749
+    GitHub-Pull-Request: golang/go#61783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516395
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

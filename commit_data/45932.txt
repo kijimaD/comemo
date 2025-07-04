@@ -1,0 +1,22 @@
+commit d568e6e075e6434635268d3caf55963f4e564579
+Author: Benny Siegert <bsiegert@google.com>
+Date:   Tue Jul 20 09:36:08 2021 -0400
+
+    runtime/debug: skip TestPanicOnFault on netbsd/arm
+    
+    This test has been failing since the builder was updated to
+    NetBSD 9. While the issue is under investigation, skip the test
+    so that we do not miss other breakage.
+    
+    Update issue #45026
+    
+    Change-Id: Id083901c517f3f88e6b4bc2b51208f65170d47a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335909
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/debug/panic_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

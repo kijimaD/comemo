@@ -1,0 +1,22 @@
+commit e91704af275fc6dcbad8f94fd11baadeb062e50e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 23 18:52:25 2014 +0400
+
+    runtime: don't lock mheap on user goroutine
+    This is bad for 2 reasons:
+    1. if the code under lock ever grows stack,
+    it will deadlock as stack growing acquires mheap lock.
+    2. It currently deadlocks with SetCPUProfileRate:
+    scavenger locks mheap, receives prof signal and tries to lock prof lock;
+    meanwhile SetCPUProfileRate locks prof lock and tries to grow stack
+    (presumably in runtime.unlock->futexwakeup). Boom.
+    Let's assume that it
+    Fixes #8407.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/112640043
+
+ src/pkg/runtime/mheap.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

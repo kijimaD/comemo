@@ -1,0 +1,27 @@
+commit 4ffa2f1c23d5d43be18c4ebf74ca553119683670
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Aug 4 16:07:28 2021 -0700
+
+    time: fallback to slower TestTicker test after one failure
+    
+    TestTicker is sensitive to overloaded or slow systems, where a 20ms
+    ticker running for 10 ticks has a total run time out of the range
+    [110ms, 290ms]. To counter this flakiness, it tries five times to
+    get a successful result. This is insufficient--an overloaded test
+    machine can introduce more than 100ms of delay across the test.
+    
+    Reduce the five attempts to two, but use a 1s ticker for 8 ticks
+    in the second attempt.
+    
+    Updates #46474.
+    Updates #35692.
+    
+    Change-Id: Ibd5187b00ccceeb981b652f2af9a1c3766357b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339892
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/tick_test.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

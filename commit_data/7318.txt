@@ -1,0 +1,29 @@
+commit 288a39c86b9c90a5e323810f6b55877e08943de8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 13:47:51 2011 -0800
+
+    go/ast: reflect communication operator changes accurately in ast
+    
+    - go/ast: introduce SendStmt; adjust SelectStmt
+    - go/parser: accept new communication syntax, minor
+      unrelated cleanups
+    - go/printer: adjustments for new ast, fewer binary
+      expression precedences
+    - go/token: remove one binary precedence
+    
+    Adjusted dependent code. gofmt -w src -misc. Ran all tests.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3989056
+
+ misc/cgo/stdio/chain.go          |  2 +-
+ src/cmd/cgo/ast.go               |  6 ++-
+ src/pkg/go/ast/ast.go            | 19 ++++++---
+ src/pkg/go/ast/walk.go           |  7 +---
+ src/pkg/go/parser/parser.go      | 90 ++++++++++++++++++++++++++--------------
+ src/pkg/go/parser/parser_test.go |  1 +
+ src/pkg/go/printer/nodes.go      | 81 ++++++++++++++++++------------------
+ src/pkg/go/token/token.go        | 12 +++---
+ src/pkg/netchan/netchan_test.go  |  4 +-
+ 9 files changed, 130 insertions(+), 92 deletions(-)

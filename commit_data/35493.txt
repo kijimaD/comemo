@@ -1,0 +1,31 @@
+commit 8e5cb0da1b7c6d7c18a60ff0c688538dbe27f8f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 23 22:30:41 2018 +0000
+
+    net/http: conservatively flush Transport request headers by default
+    
+    This changes the http.Transport to flush the bufio.Writer between
+    writing the request headers and the body.
+    
+    That wasn't done in the past to minimize the number of TCP packets on
+    the wire, but that's just an optimization, and it causes problems when
+    servers are waiting for the headers and the client is blocked on
+    something before reading the body.
+    
+    Instead, only do the don't-flush optimization if we know we're not
+    going to block, whitelisting a set of common in-memory Request.Body
+    types. (the same set of types special-cased by http.NewRequest)
+    
+    Fixes #22088
+    
+    Change-Id: I7717750aa6df32dd3eb92d181b45bc7af24b1144
+    Reviewed-on: https://go-review.googlesource.com/114316
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/transfer.go       | 28 ++++++++++++++++++++++++++++
+ src/net/http/transfer_test.go  | 28 ++++++++++++++++++++++++++++
+ src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 92 insertions(+), 2 deletions(-)

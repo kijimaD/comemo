@@ -1,0 +1,14 @@
+commit e8edf84d81e70b054bf6e69de1f00e2d035a11f7
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Feb 16 17:14:26 2012 +1100
+
+    dashboard: tidy up 'top' link.
+    
+    The previous link worked, but was unnecessary and had a trailing "}".
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5674068
+
+ misc/dashboard/app/build/ui.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

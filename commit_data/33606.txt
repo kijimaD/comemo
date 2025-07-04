@@ -1,0 +1,17 @@
+commit 7edb721fbcd5d5d60887495172748b1f9bec9203
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 15 17:30:53 2017 +0000
+
+    os/user: handle large 32-bit uid/gid values when stringifying User.Uid/Gid
+    
+    Fixes #22739
+    
+    Change-Id: I374c29d237c498c9e5ac848b01f6d49d7c41b31f
+    Reviewed-on: https://go-review.googlesource.com/77930
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/user/cgo_lookup_unix.go | 12 ++++++++++--
+ src/os/user/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

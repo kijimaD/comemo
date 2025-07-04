@@ -1,0 +1,12 @@
+commit 494bcc80e488112bb1439eec8362ac7b49985629
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Feb 10 22:42:05 2010 -0800
+
+    stop the 5c optimizer from clobbering extern static registers.
+    
+    R=rsc, ken2
+    CC=golang-dev
+    https://golang.org/cl/204064
+
+ src/cmd/5c/reg.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

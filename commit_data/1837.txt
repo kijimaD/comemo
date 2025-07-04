@@ -1,0 +1,20 @@
+commit e9f4fb2839245b0ac00287eb1f9aa166f5879f0b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 16 22:53:23 2009 -0700
+
+    change the tutorial to use File, file rather than FD, fd.
+    also make the default input for makehtml be go_tutorial.txt.
+    
+    R=rsc
+    DELTA=176  (58 added, 58 deleted, 60 changed)
+    OCL=26374
+    CL=26374
+
+ doc/go_tutorial.txt      | 62 ++++++++++++++++++++++++------------------------
+ doc/progs/cat.go         | 22 ++++++++---------
+ doc/progs/cat_rot13.go   | 14 +++++------
+ doc/progs/fd.go          | 62 ------------------------------------------------
+ doc/progs/file.go        | 62 ++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/progs/helloworld3.go |  6 ++---
+ doc/progs/run            |  2 +-
+ 7 files changed, 115 insertions(+), 115 deletions(-)

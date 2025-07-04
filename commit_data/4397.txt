@@ -1,0 +1,18 @@
+commit 222462ed4f36f8b118dbad305b1c89a3c07e574a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 11 16:42:14 2009 -0800
+
+    Various cleanups:
+    - no need to replace comments for stand-alone blocks
+    - always print string concatenations with interspersed "+"
+      (remove option)
+    - minor cleanups
+    
+    R=rsc
+    https://golang.org/cl/174076
+
+ src/cmd/gofmt/gofmt.go        |  2 +-
+ src/pkg/go/printer/nodes.go   | 36 ++++++++++++++++--------------------
+ src/pkg/go/printer/printer.go |  1 -
+ src/pkg/testing/regexp.go     |  3 +--
+ 4 files changed, 18 insertions(+), 24 deletions(-)

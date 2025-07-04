@@ -1,0 +1,31 @@
+commit 1e07c144c3e43d95b0c21fdc73c520fe809d7f51
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 4 11:41:54 2024 -0500
+
+    net/http/cgi: in TestCopyError, check for a Handler.ServeHTTP goroutine instead of a running PID
+    
+    Previously, the test could fail spuriously if the CGI process's PID
+    happened to be reused in between checks. That sort of reuse is highly
+    unlikely on platforms that cycle through the PID space sequentially
+    (such as Linux), but plausible on platforms that use randomized PIDs
+    (such as OpenBSD).
+    
+    Also unskip the test on Windows, since it no longer relies on being
+    able to send signal 0 to an arbitrary PID.
+    
+    Also change the expected failure mode of the test to a timeout instead
+    of a call to t.Fatalf, so that on failure we get a useful goroutine
+    dump for debugging instead of a non-actionable failure message.
+    
+    Fixes #57369 (maybe).
+    
+    Change-Id: Ib7e3fff556450b48cb5e6ea120fdf4d53547479b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/cgi/host_test.go  | 56 +++++++++++++++++++++++-------------------
+ src/net/http/cgi/plan9_test.go | 17 -------------
+ src/net/http/cgi/posix_test.go | 20 ---------------
+ 3 files changed, 31 insertions(+), 62 deletions(-)

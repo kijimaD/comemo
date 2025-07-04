@@ -1,0 +1,18 @@
+commit 2ec3a0a72fbe2cdd4affc67383ae67c503e7469b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 3 12:08:24 2014 +0400
+
+    crypto/x509: fix format strings in test
+    Currently it says:
+    --- PASS: TestDecrypt-2 (0.11s)
+    pem_decrypt_test.go:17: test 0. %!s(x509.PEMCipher=1)
+    --- PASS: TestEncrypt-2 (0.00s)
+    pem_decrypt_test.go:42: test 0. %!s(x509.PEMCipher=1)
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/108400044
+
+ src/pkg/crypto/x509/pem_decrypt_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

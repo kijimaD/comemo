@@ -1,0 +1,19 @@
+commit cd6c4e0557ec9ebba2b62a8632e9fcba67ed518f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 18 16:21:45 2023 -0700
+
+    spec: clarify prose in rule for clear built-in
+    
+    Per feedback on #56351.
+    
+    For #56351.
+    
+    Change-Id: I63dd1713a1efe4d7180d932dbd8e1510cbb32e90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510935
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

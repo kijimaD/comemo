@@ -1,0 +1,14 @@
+commit f656a87697282f419f06f236fe39c28cf531cd33
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 26 14:46:53 2010 +1000
+
+    prof: fix typo in usage string
+    
+    Fixes #948.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1890043
+
+ src/cmd/prof/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

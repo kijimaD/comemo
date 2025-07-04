@@ -1,0 +1,14 @@
+commit 68f496949b9524c610cd25bffd109f27b78536dc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 23 14:48:59 2018 -0400
+
+    cmd/go/internal/cache: write shared mutable files atomically
+    
+    Updates #26794
+    
+    Change-Id: I2a50e3b756ff6a2bbaee4737ca7ed053b01c8d0e
+    Reviewed-on: https://go-review.googlesource.com/c/146378
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/cache/cache.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

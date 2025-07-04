@@ -1,0 +1,32 @@
+commit 829fae3b5ec4c0afd4caae35072bbb6e59d5220c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Oct 9 14:36:09 2019 -0400
+
+    net/http: update bundled x/net/http2
+    
+    Updates x/net/http2 to git rev d66e71096ffb9f08f36d9aefcae80ce319de6d68
+    
+        http2: end stream eagerly after sending the request body
+        https://golang.org/cl/181157 (fixes #32254)
+    
+        all: fix typos
+        https://golang.org/cl/193799
+    
+        http2: fix memory leak in random write scheduler
+        https://golang.org/cl/198462 (fixes #33812)
+    
+        http2: do not sniff body if Content-Encoding is set
+        https://golang.org/cl/199841 (updates #31753)
+    
+    Also unskips tests from CL 199799.
+    
+    Change-Id: I241c0b1cd18cad5041485be92809137a973e33bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200102
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go |  2 --
+ src/net/http/h2_bundle.go         | 49 ++++++++++++++++++++++++++++++++-------
+ src/net/http/serve_test.go        |  1 -
+ 3 files changed, 41 insertions(+), 11 deletions(-)

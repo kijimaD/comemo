@@ -1,0 +1,19 @@
+commit 749082e2a48719101606e7416b70fbdeea93a523
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 1 12:30:09 2013 -0800
+
+    cmd/vet: use go/printer to pretty-print expressions in printf messages
+    Fixes #4945.
+    Most examples in this issue now better, but #10 is incomplete and I'm not
+    certain how to reproduce it. It actually looks like a go/types problem, since
+    the type being reported is coming directly from that package.
+    Please reopen the issue if you disagree.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7448046
+
+ src/cmd/vet/main.go       |  2 +-
+ src/cmd/vet/print.go      |  6 +++---
+ src/cmd/vet/test_print.go | 52 +++++++++++++++++++++++------------------------
+ 3 files changed, 30 insertions(+), 30 deletions(-)

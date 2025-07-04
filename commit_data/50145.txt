@@ -1,0 +1,21 @@
+commit 296c40dbbe91db993e4c756f3b2b383d6995edbc
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 26 01:29:57 2022 +0800
+
+    runtime: mark all methods of atomic types with go:nosplit
+    
+    Atomic types may be used anywhere in the runtime,
+    so they must omit its usual stack overflow checks to avoid errors from stack splits.
+    
+    Change-Id: Icb497334c860bcaa284a2d5a3edc47ee89844301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425484
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/internal/atomic/types.go       | 72 ++++++++++++++++++++++++++++++
+ src/runtime/internal/atomic/types_64bit.go |  4 ++
+ 2 files changed, 76 insertions(+)

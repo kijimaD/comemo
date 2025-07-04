@@ -1,0 +1,13 @@
+commit 4335ec9eeba145032bbe24c53bd130cb7ca49394
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 30 22:03:56 2012 +1000
+
+    misc/dashboard/codereview: send mail to assigned reviewers if they aren't already looped in.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6128054
+
+ misc/dashboard/codereview/dashboard/cl.go     | 101 +++++++++++++++++++++++++-
+ misc/dashboard/codereview/dashboard/people.go |   9 ++-
+ 2 files changed, 103 insertions(+), 7 deletions(-)

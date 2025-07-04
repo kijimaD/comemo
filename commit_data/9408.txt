@@ -1,0 +1,21 @@
+commit 3f5edd2461159bc24e8dd4274eb857270a1aecb8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 13:27:18 2011 +1000
+
+    test/chan/select5.go: change "with" to "if" in templatea
+    
+    I converted this program yesterday and the output is the
+    same as it used to be, ignoring space, but the result is
+    not the best expression of the algorithm.  The old {.section
+    Maybe} pieces are now {{with .Maybe}}, as a direct translation,
+    but I they should be {{if .Maybe}} as the output is just a
+    bool and there is no cascading.
+    
+    I have verified that the output of the program is unaffected.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4889053
+
+ test/chan/select5.go | 92 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

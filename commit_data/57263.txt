@@ -1,0 +1,25 @@
+commit 6f00a4efe4d7ed9ac871a8b025a022f964cfa4e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 26 15:17:07 2024 -0700
+
+    debug/buildinfo: don't crash on corrupt object file
+    
+    If the length reported for the object file is more than the amount of
+    data we actually read, then the count can tell us that there is
+    sufficient remaining data but the slice operation can fail.
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Fixes #69066
+    
+    Change-Id: I8d12ca8ade3330517ade45c7578b477772b7efd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608517
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/debug/buildinfo/buildinfo.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

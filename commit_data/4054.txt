@@ -1,0 +1,13 @@
+commit 13ad5d40c49f10a760c907db6dd09425580310f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 15 11:33:20 2009 -0800
+
+    Use // to start comment instead of #.
+    Fixes #189.
+    
+    R=r
+    CC=rsc
+    https://golang.org/cl/155055
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

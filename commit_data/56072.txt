@@ -1,0 +1,22 @@
+commit ed9aed1c9d7dd340006f22b96e1ee4476582b874
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 17 15:44:20 2023 -0400
+
+    internal/sysinfo: implement CPUName on bsd systems
+    
+    sysctl machdep.cpu.brand_string seems to be standard
+    across the BSDs. There does not seem to be a standard
+    way to get the CPU frequency.
+    
+    Change-Id: Ic986d6c81dd54e1b84544317f2a53ce16801319b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520636
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/sysinfo/cpuinfo_bsd.go  | 14 ++++++++++++++
+ src/internal/sysinfo/cpuinfo_stub.go |  2 +-
+ src/internal/sysinfo/export_test.go  |  7 +++++++
+ src/internal/sysinfo/sysinfo_test.go | 15 +++++++++++++++
+ 4 files changed, 37 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit c89d75f981a64a3c87abb13d62cb44a0b55389e0
+Author: Peter Wu <pwu@cloudflare.com>
+Date:   Wed Nov 22 18:25:20 2017 +0000
+
+    crypto/tls: consolidate signatures handling in SKE and CV
+    
+    ServerKeyExchange and CertificateVerify can share the same logic for
+    picking a signature algorithm (based on the certificate public key and
+    advertised algorithms), selecting a hash algorithm (depending on TLS
+    version) and signature verification.
+    
+    Refactor the code to achieve code reuse, have common error checking
+    (especially for intersecting supported signature algorithms) and to
+    prepare for addition of new signature algorithms. Code should be easier
+    to read since version-dependent logic is concentrated at one place.
+    
+    Change-Id: I978dec3815d28e33c3cfbc85f0c704b1894c25a3
+    Reviewed-on: https://go-review.googlesource.com/79735
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/auth.go             |  99 +++++++++++++++++++++++++++
+ src/crypto/tls/auth_test.go        |  96 ++++++++++++++++++++++++++
+ src/crypto/tls/handshake_client.go |  20 ++----
+ src/crypto/tls/handshake_server.go |  59 ++--------------
+ src/crypto/tls/key_agreement.go    | 134 ++++++++-----------------------------
+ src/crypto/tls/prf.go              |  31 +++------
+ 6 files changed, 243 insertions(+), 196 deletions(-)

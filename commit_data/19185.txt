@@ -1,0 +1,15 @@
+commit fce4f0484c3eccf128b114c27d8eace075b935f9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 16 22:25:40 2014 -0400
+
+    cmd/ld: populate pe symbol table with Go symbols
+    
+    Fixes #6936
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87770048
+
+ src/cmd/ld/pe.c | 126 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 97 insertions(+), 29 deletions(-)

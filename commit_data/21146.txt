@@ -1,0 +1,16 @@
+commit 0b52392ef788bb4914f3fde99fe213ea06527ec4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jan 5 13:50:09 2015 +1100
+
+    image: use three-index slice for NewYCbCr.
+    
+    This ensures that changing an image.YCbCr's Y values can't change its
+    chroma values, even after re-slicing up to capacity.
+    
+    Change-Id: Icb626561522e336a3220e10f456c95330ae7db9e
+    Reviewed-on: https://go-review.googlesource.com/2209
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/ycbcr.go      | 11 +++++++----
+ src/image/ycbcr_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 529939072eef730c82333344f321972874758be8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 16 17:54:27 2021 -0800
+
+    doc/go1.18: document union element restriction
+    
+    For #47694
+    
+    Change-Id: I9af871a4a45b002e72629904011aac8f076617f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372974
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.18.html | 5 +++++
+ 1 file changed, 5 insertions(+)

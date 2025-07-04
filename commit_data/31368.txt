@@ -1,0 +1,26 @@
+commit 8a4087aee64e7f0f73c9e286e159ab9bc5f564bf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 26 09:27:15 2017 +0200
+
+    net: fix close on closed listener on Plan 9
+    
+    Since close errors have been cleaned up in CL 39997,
+    TestCloseError is failing on Plan 9, because
+    TCPListener.Close didn't check that the listener
+    has already been closed before writing the "hangup"
+    string to the listener control file.
+    
+    This change fixes TCPListener.Close on Plan 9,
+    by closing poll.FD before writing the "hangup"
+    string.
+    
+    Fixes #20128.
+    
+    Change-Id: I13862b23a9055dd1be658acef7066707d98c591f
+    Reviewed-on: https://go-review.googlesource.com/41850
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/tcpsock_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

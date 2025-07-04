@@ -1,0 +1,18 @@
+commit 9dd71ba91397c7f69571ae7f0810d64f2f38547a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
+
+    internal/buildcfg: enable regabiargs by default
+    
+    For #40724.
+    
+    Change-Id: I7509668478d20dd625f210e5a33f5d896a76d6b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310176
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

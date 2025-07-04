@@ -1,0 +1,24 @@
+commit f6e1677428e3df28e936cb000b58fca377f67d72
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 23 21:29:44 2022 +0000
+
+    cmd/go/internal: use time.DateTime constant
+    
+    Use the newly defined time.Datetime constant instead of a string literal.
+    
+    Updates #52746
+    
+    Change-Id: I2722415ecc67fd2adfdab2eaba3298774032bff3
+    GitHub-Last-Rev: 65d3aa9bc229cf6d07d6d0c1aaee4ada9056cd49
+    GitHub-Pull-Request: golang/go#55833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433277
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 2 +-
+ src/cmd/go/internal/vcs/vcs.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

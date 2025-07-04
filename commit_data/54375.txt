@@ -1,0 +1,20 @@
+commit dfbf809f2af753db69537a9431d6419142dfe80b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 28 14:59:13 2023 -0400
+
+    runtime: unskip TestG0StackOverflow
+    
+    The stack bounds from pthread are not always accurate, and could
+    cause seg fault if we run out of the actual stack space before
+    reaching the bounds. Here we use an artificially small stack bounds
+    to check overflow without actually running out of the system stack.
+    
+    Change-Id: I8067c5e1297307103b315d9d0c60120293b57aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523695
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/crash_test.go  | 5 -----
+ src/runtime/export_test.go | 9 +++++++++
+ 2 files changed, 9 insertions(+), 5 deletions(-)

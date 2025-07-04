@@ -1,0 +1,15 @@
+commit 08a5d7394054a4cb08e99f6bea0c007aed999a67
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 9 12:57:38 2012 +1100
+
+    misc/dist: produce a zip file under windows
+    
+    Updates #3254.
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5783058
+
+ misc/dist/bindist.go         | 52 +++++++++++++++++++++++++++++++++++++-------
+ misc/dist/windows/README.txt |  1 +
+ 2 files changed, 45 insertions(+), 8 deletions(-)

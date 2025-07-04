@@ -1,0 +1,18 @@
+commit 9192dd8e86f90618c1a9907f665fdf2d946e4051
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 9 00:10:46 2009 -0700
+
+    Start list of default formatters for template variables.
+    The HTML one here is just a stub - should use an HTML library to do the right thing.
+    
+    R=rsc
+    DELTA=54  (47 added, 2 deleted, 5 changed)
+    OCL=27250
+    CL=27250
+
+ src/lib/Makefile                  |  2 +-
+ src/lib/template/Makefile         | 12 ++++++++++--
+ src/lib/template/format.go        | 28 ++++++++++++++++++++++++++++
+ src/lib/template/template.go      | 16 ++++++++++++----
+ src/lib/template/template_test.go |  2 ++
+ 5 files changed, 53 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit c391156f96357593fa18fccee305401e3f82a1a6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 5 16:14:22 2022 +0100
+
+    cmd/go: set up git identity for build_buildvcs_auto.txt
+    
+    Just like in other tests like get_dotfiles.txt or
+    version_buildvcs_git.txt. Without it, I get a failure on my machine:
+    
+            fatal: empty ident name (for <mvdan@p14s.localdomain>) not allowed
+    
+    Change-Id: I1c17c0d58c539b59154570b5438c7bd850bac5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/testdata/script/build_buildvcs_auto.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

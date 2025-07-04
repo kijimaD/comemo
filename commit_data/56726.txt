@@ -1,0 +1,17 @@
+commit 00b8071a12e298303b2f4bd0e9f641ef3e54772a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri May 31 14:16:38 2024 +0200
+
+    net/netip: cover IPv4Unspecified in TestAddrWellKnown
+    
+    Like IPv6Unspecified which is already covered in that test.
+    
+    Change-Id: I2bac4c50577c4c2c91cea26b9fbed88327cef516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/netip/netip_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

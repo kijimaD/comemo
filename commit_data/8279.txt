@@ -1,0 +1,40 @@
+commit 437015bbed3c669dc58c5e93ee4a6f548f5ebc98
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 07:25:53 2011 -0700
+
+    png: speed up opaque RGBA encoding
+    
+    With Linux/8g on a 2006 Mac Mini (1.66 GHz Intel Core Duo,
+    2KB L1, 2MB L2, 2G main memory), GOMAXPROCS unset:
+    
+    start:
+    png.BenchmarkEncodePaletted           50          44772820 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         208395900 ns/op
+    png.BenchmarkEncodeRGBA                5         331088000 ns/op
+    
+    remove interface method calls:
+    png.BenchmarkEncodePaletted           50          44722880 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         139042600 ns/op
+    png.BenchmarkEncodeRGBA                5         334033600 ns/op
+    
+    flate inline min/max():
+    png.BenchmarkEncodePaletted           50          40631180 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         124894900 ns/op
+    png.BenchmarkEncodeRGBA                5         312099000 ns/op
+    
+    after adler change:
+    png.BenchmarkEncodePaletted           50          40181760 ns/op
+    png.BenchmarkEncodeRGBOpaque          20         121781950 ns/op
+    png.BenchmarkEncodeRGBA                5         313890800 ns/op
+    
+    In comparison to 121 ms on this 2006 machine, on my
+    Core2 Duo 2.66 GHz laptop, the final BenchmarkEncodeRGBOpaque
+    runs in 27 ms. (these are all for 640x480 images)
+    
+    R=nigeltao, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4432077
+
+ src/pkg/compress/flate/deflate.go | 29 ++++++++++++++++++++++++-----
+ src/pkg/image/png/writer.go       | 29 +++++++++++++++++++++++------
+ 2 files changed, 47 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 724b66fb1546bc640bd0d193e2329df695632407
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 31 11:00:43 2010 +1000
+
+    doc: add round-robin flag to io2010 balance example.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2050042
+
+ doc/talks/io2010/balance.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 41e5c398d92b271ca78d1770100051e35b233815
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 20:45:31 2014 -0400
+
+    cmd/go: fix 'go test foo_test.go'
+    
+    Fixes race build.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/100410044
+
+ src/cmd/go/test.bash                   | 6 ++++++
+ src/cmd/go/test.go                     | 9 +++++++--
+ src/cmd/go/testdata/standalone_test.go | 6 ++++++
+ 3 files changed, 19 insertions(+), 2 deletions(-)

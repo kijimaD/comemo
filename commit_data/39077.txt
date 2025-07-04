@@ -1,0 +1,21 @@
+commit 7498e8f5a2e3de83771b8dd9997fb9c02a39228d
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 8 16:42:53 2019 -0400
+
+    cmd/link: write memprofile in legacy format for compilebench
+    
+    compilebench depends on the legacy heap profile format to read the
+    allocation stats of build tools. We're adding a benchmark for the
+    linker to compilebench, so we need the linker to emit the heap profile
+    in the legacy format.
+    
+    This is the linker equivalent of CL 35484, which did this for the
+    compiler.
+    
+    Change-Id: I16ad60c4f0fd80b4b6d608a5677ebe04e1fb5e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176057
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/main.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

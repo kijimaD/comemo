@@ -1,0 +1,20 @@
+commit eee20b7244586da70b2bca6fe6346da7dac6be78
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 10:17:06 2016 -0700
+
+    cmd/dist: skip misc/cgo/test with internal linking on ppc64le
+    
+    CL 22372 changed ppc64le to use normal cgo initialization on ppc64le.
+    Doing this uncovered a cmd/link error using internal linking.
+    Opened issue 15409 for the problem.  This CL disables the test.
+    
+    Update #15409.
+    
+    Change-Id: Ia1bb6b874c1b5a4df1a0436c8841c145142c30f7
+    Reviewed-on: https://go-review.googlesource.com/22379
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

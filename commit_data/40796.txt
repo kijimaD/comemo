@@ -1,0 +1,16 @@
+commit d3c2b1f17600fadeebf62d65c85baf3bef879e2b
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Nov 13 11:57:17 2019 +0100
+
+    cmd/link/internal/ld,misc/cgo/testcshared: don't -fuse-ld=gold on Android
+    
+    The NDK is switching to ldd, and will stop including the gold linker.
+    
+    Change-Id: If74168017c9874134b34010906ab1d94001528b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206840
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 2 +-
+ src/cmd/link/internal/ld/lib.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,31 @@
+commit da9bc7ae7d71a2520465594c12dad184e9887885
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 19:51:59 2010 -0800
+
+    runtime: add demo running Go on raw (emulated) hw
+    
+    8l: add GOOS=pchw, stop spelling out all the elf numbers.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186144
+
+ src/cmd/8l/asm.c                  |  24 +++++-----
+ src/cmd/8l/obj.c                  |  14 ++++++
+ src/cmd/ld/elf.c                  |   4 ++
+ src/cmd/ld/elf.h                  |   1 +
+ src/pkg/runtime/Makefile          |   3 ++
+ src/pkg/runtime/pchw/386/defs.h   |   1 +
+ src/pkg/runtime/pchw/386/rt0.s    |  28 ++++++++++++
+ src/pkg/runtime/pchw/386/signal.c |   1 +
+ src/pkg/runtime/pchw/386/sys.s    |  92 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/pchw/README       |  53 ++++++++++++++++++++++
+ src/pkg/runtime/pchw/bootblock    | Bin 0 -> 512 bytes
+ src/pkg/runtime/pchw/dot-bochsrc  |  18 ++++++++
+ src/pkg/runtime/pchw/io.go        |  53 ++++++++++++++++++++++
+ src/pkg/runtime/pchw/mem.c        |  41 +++++++++++++++++
+ src/pkg/runtime/pchw/os.h         |   1 +
+ src/pkg/runtime/pchw/signals.h    |   1 +
+ src/pkg/runtime/pchw/thread.c     |  89 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/symtab.c          |   4 ++
+ 18 files changed, 416 insertions(+), 12 deletions(-)

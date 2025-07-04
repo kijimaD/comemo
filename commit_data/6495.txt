@@ -1,0 +1,15 @@
+commit b5a480f035e546c31680596bb51b9148de85dbad
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 12 13:44:11 2010 +1100
+
+    image: add image.Tiled type, the Go equivalent of Plan9's repl bit.
+    Make ColorImage methods' receiver type be a pointer.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2345043
+
+ src/pkg/exp/draw/draw.go | 12 ++++++------
+ src/pkg/image/geom.go    | 18 ++++++++++++++++++
+ src/pkg/image/names.go   | 36 +++++++++++++++++++++++++++++++-----
+ 3 files changed, 55 insertions(+), 11 deletions(-)

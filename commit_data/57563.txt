@@ -1,0 +1,21 @@
+commit 0fb33863b78c03f4f3d6228e310869f2edff1195
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Sep 28 16:20:58 2024 +0000
+
+    net,os: use os.LookupEnv instead of syscall.Getenv
+    
+    The os package already has a function for retrieving an environment
+    variable with a ok boolean, we don't need to use syscall directly.
+    
+    Change-Id: Ife873e7245261ec765b628e31a0e7a7bc4dff934
+    GitHub-Last-Rev: bc5f30bf56c87a94e0f17dd67a15aa4b2d7e3fd4
+    GitHub-Pull-Request: golang/go#69700
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616342
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf.go           | 3 +--
+ src/os/exec/lp_windows.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

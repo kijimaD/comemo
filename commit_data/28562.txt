@@ -1,0 +1,17 @@
+commit 15b4d187b8dceb3384dd3bf8ea9f368c517f082d
+Author: mike andrews <mra@xoba.com>
+Date:   Tue Sep 27 16:22:29 2016 -0400
+
+        encoding/json: fix a bug in the documentation
+    
+        Documentation made reference to an unknown entity "DisableHTMLEscaping,"
+        but I think it actually meant the method "Encoder.SetEscapeHTML."
+    
+        Fixes #17255
+    
+    Change-Id: I18fda76f8066110caef85fd33698de83d632e646
+    Reviewed-on: https://go-review.googlesource.com/29931
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/encode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

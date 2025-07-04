@@ -1,0 +1,29 @@
+commit 74726defe99bb1e19cee35e27db697085f06fda1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 21:01:17 2024 -0500
+
+    internal/godebugs: test for use of IncNonDefault
+    
+    A few recent godebugs are missing IncNonDefault uses.
+    Test for that, so that people remember to do it.
+    Filed bugs for the missing ones.
+    
+    For #66215.
+    For #66216.
+    For #66217.
+    
+    Change-Id: Ia3fd10fd108e1b003bb30a8bc2f83995c768fab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/go/internal/cache/cache.go     | 18 ++++++-------
+ src/crypto/x509/x509.go                |  8 +++---
+ src/internal/godebug/godebug.go        | 24 +++++++++++++++--
+ src/internal/godebugs/godebugs_test.go | 48 ++++++++++++++++++++++++++++++++++
+ src/internal/godebugs/table.go         |  8 +++---
+ src/mime/multipart/formdata.go         | 12 ++++-----
+ src/mime/multipart/multipart.go        |  8 +++---
+ src/net/http/transfer.go               |  6 ++---
+ src/runtime/metrics/doc.go             | 17 ------------
+ 9 files changed, 100 insertions(+), 49 deletions(-)

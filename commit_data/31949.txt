@@ -1,0 +1,14 @@
+commit 773504aee53eb8229f5e78db36258cc6bb389199
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 28 15:04:47 2017 -0700
+
+    go/importer: don't return packages that are not fully type-checked
+    
+    Fixes #20837.
+    
+    Change-Id: I266519c26c8849da267b77e11abe7734d8275112
+    Reviewed-on: https://go-review.googlesource.com/47074
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

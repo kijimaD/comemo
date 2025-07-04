@@ -1,0 +1,14 @@
+commit 875f34fd4962935d8e0e17d030b91e4c4feb4f08
+Author: Matthew Horsnell <matthew.horsnell@gmail.com>
+Date:   Mon May 21 23:29:30 2012 -0400
+
+    debug/elf: Expose entry point from Header in File struct.
+    Fixes #3470.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6195074
+
+ src/pkg/debug/elf/file.go      | 3 +++
+ src/pkg/debug/elf/file_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

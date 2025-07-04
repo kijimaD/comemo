@@ -1,0 +1,16 @@
+commit f735d2d9d3d9665d0e5058615ac6f62e2ba79887
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:39:40 2012 -0500
+
+    testing: use runtime/debug to format panics
+    
+    Among other things, this avoids putting a testing.go:nnn:
+    prefix on every line of the stack trace.
+    
+    R=golang-dev, r, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5651081
+
+ src/pkg/runtime/debug/stack_test.go |  3 ++-
+ src/pkg/testing/testing.go          | 25 +++++++------------------
+ 2 files changed, 9 insertions(+), 19 deletions(-)

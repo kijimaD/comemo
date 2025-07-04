@@ -1,0 +1,18 @@
+commit ffb3b3698c695b2ada052b803f11a2ffa12e5537
+Author: Alexander Döring <email@alexd.ch>
+Date:   Mon Feb 20 20:34:36 2017 +0100
+
+    math: add more tests for special cases of Bessel functions Y0, Y1, Yn
+    
+    Test finite negative x with Y0(-1), Y1(-1), Yn(2,-1), Yn(-3,-1).
+    
+    Also test the special case Yn(0,0).
+    
+    Fixes #19130.
+    
+    Change-Id: I95f05a72e1c455ed8ddf202c56f4266f03f370fd
+    Reviewed-on: https://go-review.googlesource.com/37310
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

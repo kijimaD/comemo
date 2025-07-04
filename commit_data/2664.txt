@@ -1,0 +1,13 @@
+commit 981f4b43acf508de7a28cf532b9bc71dd7697891
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 10 10:01:08 2009 -0700
+
+    mention file name only once in error message
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31450
+    CL=31452
+
+ src/cmd/gofmt/gofmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

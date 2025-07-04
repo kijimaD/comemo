@@ -1,0 +1,24 @@
+commit ceefd3a37bb2a77b1e9a76fc74360c68ef16ddb8
+Author: Muhammed Can Küçükaslan <32893303+Kucukaslan@users.noreply.github.com>
+Date:   Sun Jul 24 21:44:11 2022 +0000
+
+    bytes: document that Reader.Reset affects the result of Size
+    
+    The Reader.Reset changes the underlying byte slice, so it actually
+    changes the return value of the Size method.
+    
+    Fixes #54018
+    
+    Change-Id: I160deaa2244e95cb93303cb5dfb67a8d90a375ef
+    GitHub-Last-Rev: b04724a072d956db1f84a8f5db0afa0dbb158e96
+    GitHub-Pull-Request: golang/go#54020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419237
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/reader.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

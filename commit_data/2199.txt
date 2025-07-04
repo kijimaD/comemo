@@ -1,0 +1,12 @@
+commit 6fa6f134f1c0b64f5a52e2a39e2bcb009d877cc3
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 13 10:34:11 2009 -0700
+
+    fix indentation
+    
+    R=rsc
+    OCL=28752
+    CL=28752
+
+ src/lib/template/template.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

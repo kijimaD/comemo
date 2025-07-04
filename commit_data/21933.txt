@@ -1,0 +1,12 @@
+commit d07e3380b0f8a7c65eca9037d913b71301c517fb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 6 10:34:59 2015 +1100
+
+    os: do not leave /go_os_test/dir after test
+    
+    Change-Id: Idb8e211bf33d2713735f9cdc868a3458ce799c97
+    Reviewed-on: https://go-review.googlesource.com/6913
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

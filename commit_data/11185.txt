@@ -1,0 +1,13 @@
+commit 92686dda7c76e574d0a7fa447233e2ea7fd6ad59
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 16 14:47:33 2012 +0400
+
+    net/http: fix data race in test
+    Fixes #2712.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5543062
+
+ src/pkg/net/http/fs_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,27 @@
+commit 9f33108dfa22946622a8a78b5cd3f64cd3e455dd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 23 12:02:54 2020 -0400
+
+    cmd/link: skip zero values in fingerprint check
+    
+    Normally, packages are loaded in dependency order, and if a
+    Library object is not nil, it is already loaded with the actual
+    fingerprint. In shared build mode, however, packages may be added
+    not in dependency order (e.g. go install -buildmode=shared std
+    adds all std packages before loading them), and it is possible
+    that a Library's fingerprint is not yet loaded. Skip the check
+    in this case (when the fingerprint is the zero value).
+    
+    Fixes #39777.
+    
+    Change-Id: I66208e92bf687c8778963ba8e33e9bd948f82f3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239517
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testshared/shared_test.go             | 6 ++++++
+ misc/cgo/testshared/testdata/issue39777/a/a.go | 9 +++++++++
+ misc/cgo/testshared/testdata/issue39777/b/b.go | 7 +++++++
+ src/cmd/link/internal/ld/ld.go                 | 7 ++++++-
+ 4 files changed, 28 insertions(+), 1 deletion(-)

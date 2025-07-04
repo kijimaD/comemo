@@ -1,0 +1,14 @@
+commit 789b31a416d1c321984d6ede3381f41b11570740
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 15:33:28 2009 -0800
+
+    better placement of /*-style comments interspersed with code on one line
+    
+    R=rsc
+    http://go/go-review/1017030
+
+ src/pkg/go/printer/printer.go                   | 31 ++++++++++++++++++-------
+ src/pkg/go/printer/testdata/comments.go         |  5 ++++
+ src/pkg/go/printer/testdata/comments.golden     |  5 ++++
+ src/pkg/go/printer/testdata/declarations.golden |  2 +-
+ 4 files changed, 33 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 631b49886c27f88c2d701176104b01b24e551d7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 17:20:26 2018 -0700
+
+    go/internal/gcimporter: rename file to better reflect new meaning
+    
+    Also: Removed unused deref function.
+    
+    Follow-up on https://golang.org/cl/143023.
+    
+    Updates #27999.
+    
+    Change-Id: I088265f0e3ce52029679407f0b84b734191d4d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/143024
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/internal/gcimporter/gcimporter.go              | 7 -------
+ src/go/internal/gcimporter/{bimport.go => support.go} | 2 ++
+ 2 files changed, 2 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit b51123001f76d67df07fca304b16664344ba6800
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 22 20:41:13 2014 -0700
+
+    gccgo_install.html: the 4.9 release series supports Go 1.2
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/163760043
+
+ doc/gccgo_install.html | 4 ++++
+ 1 file changed, 4 insertions(+)

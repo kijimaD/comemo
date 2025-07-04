@@ -1,0 +1,12 @@
+commit 4b2eb3f9f8638295acf1414d02489697c2d2cb6f
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Wed May 22 16:27:39 2013 -0700
+
+    codereview.py: improve error message when user is not a committer
+    
+    R=adg, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/9626045
+
+ lib/codereview/codereview.py | 3 +++
+ 1 file changed, 3 insertions(+)

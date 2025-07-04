@@ -1,0 +1,31 @@
+commit ff5cf43df5b1614f940157b21ca6ed64791b8a1f
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Mar 19 23:07:18 2018 +0300
+
+    runtime,sync/atomic: replace asm BYTEs with insts for x86
+    
+    For each replacement, test case is added to new 386enc.s file
+    with exception of EMMS, SYSENTER, MFENCE and LFENCE as they
+    are already covered in amd64enc.s (same on amd64 and 386).
+    
+    The replacement became less obvious after go vet suggested changes
+    Before:
+            BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+    Changed to MOVQ (this form is being tested):
+            MOVQ M0, 8(SP)
+    Refactored to FP-relative access (go vet advice):
+            MOVQ M0, val+4(FP)
+    
+    Change-Id: I56b87cf3371b6ad81ad0cd9db2033aee407b5818
+    Reviewed-on: https://go-review.googlesource.com/101475
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go  |  4 ++++
+ src/cmd/asm/internal/asm/testdata/386enc.s | 16 ++++++++++++++++
+ src/runtime/asm_386.s                      |  4 ++--
+ src/runtime/internal/atomic/asm_386.s      | 18 ++++++------------
+ src/runtime/sys_darwin_386.s               |  2 +-
+ src/sync/atomic/asm_386.s                  | 12 ++++--------
+ 6 files changed, 33 insertions(+), 23 deletions(-)

@@ -1,0 +1,26 @@
+commit bb34112d4df7b5dfd12fc83b8d1305631a7b8708
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 4 15:32:01 2023 -0500
+
+    os: document Readlink behavior for relative links
+    
+    Also provide a runnable example to illustrate that behavior.
+    
+    This should help users to avoid the common mistake of expecting
+    os.Readlink to return an absolute path.
+    
+    Fixes #57766.
+    
+    Change-Id: I8f60aa111ebda0cae985758615019aaf26d5cb41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546995
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file.go         |  9 +++++++++
+ src/os/file_plan9.go   |  4 +---
+ src/os/file_unix.go    |  4 +---
+ src/os/file_windows.go |  8 +++-----
+ 5 files changed, 68 insertions(+), 11 deletions(-)

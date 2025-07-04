@@ -1,0 +1,15 @@
+commit e11d94fcd7fc1d3c206b5dc42d2d0ce0deeda34d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun May 29 00:23:32 2011 -0300
+
+    template: fix quote-handling with formatters
+    
+    Fixes issue #1896.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4539093
+
+ src/pkg/template/template.go      | 9 +++++----
+ src/pkg/template/template_test.go | 4 ++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

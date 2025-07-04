@@ -1,0 +1,14 @@
+commit 9e5bf27acb813dd67f005d0d4a4e3bdb391a636a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 7 16:32:35 2010 -0700
+
+    go_spec: consistent use of 'low', 'high' in slices section
+    
+    Also: Added examples for slices with omitted index expressions.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2106047
+
+ doc/go_spec.html | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 7622e41c84fd9bb003a2d905b9f0545344842c3a
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 30 17:40:45 2021 -0400
+
+    go/types, types2: add a test for invalid import of "init"
+    
+    This error reporting code path did not have test coverage, and panics in
+    1.17 (filed as #48082).
+    
+    Add a test that would have reproduced the panic, for both go/types and
+    cmd/compile/internal/types2.
+    
+    Change-Id: Icd5f54f8407e4ab57d432f44a129ecf6b2755feb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346309
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src | 7 +++++++
+ src/go/types/testdata/fixedbugs/issue48082.src                    | 7 +++++++
+ 2 files changed, 14 insertions(+)

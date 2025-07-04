@@ -1,0 +1,20 @@
+commit 66e849b168eef36a4159a4b038fe89eecd2f22e3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 4 15:56:19 2016 -0400
+
+    runtime: eliminate mheap.nspan and use range loops
+    
+    This was necessary in the C days when allspans was an mspan**, but now
+    that allspans is a Go slice, this is redundant with len(allspans) and
+    we can use range loops over allspans.
+    
+    Change-Id: Ie1dc39611e574e29a896e01690582933f4c5be7e
+    Reviewed-on: https://go-review.googlesource.com/30531
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/heapdump.go | 14 ++++----------
+ src/runtime/mheap.go    |  4 ----
+ src/runtime/mstats.go   |  3 +--
+ 3 files changed, 5 insertions(+), 16 deletions(-)

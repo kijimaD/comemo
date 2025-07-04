@@ -1,0 +1,15 @@
+commit fe582137f4e9efe5b33ac23ebf0a9e03f4d9bb0b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 18:09:31 2008 -0700
+
+    - removed fall-through for case: case: in switch statements
+    - added ()'s to all print calls in examples
+    - augmented rule about use of identifiers
+    
+    R=r
+    DELTA=11  (0 added, 1 deleted, 10 changed)
+    OCL=14097
+    CL=14097
+
+ doc/go_lang.txt | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit 1e066cad1ba23f4064545355b8737e4762dd6838
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 09:52:56 2016 -0500
+
+    math/big: fix Exp(x, x, x) for certain large x
+    
+    Fixes #13907.
+    
+    Change-Id: Ieaa5183f399b12a9177372212adf481c8f0b4a0d
+    Reviewed-on: https://go-review.googlesource.com/18491
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/math/big/int_test.go | 10 ++++++++--
+ src/math/big/nat.go      | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

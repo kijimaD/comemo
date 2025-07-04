@@ -1,0 +1,11 @@
+commit d38630fe3db1c5c916e496f19d47915f44eed92d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:52:15 2009 -0800
+
+    gotest: add LC_ALL=C
+    
+    R=r
+    https://golang.org/cl/154067
+
+ src/cmd/gotest/gotest | 1 +
+ 1 file changed, 1 insertion(+)

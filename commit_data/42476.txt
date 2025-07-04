@@ -1,0 +1,14 @@
+commit 813c9523a92fbc8e6c3cf1e17de78f2d7ab905a5
+Author: shaquilleq <shaqqywyan@gmail.com>
+Date:   Wed Jun 3 18:25:46 2020 -0700
+
+    doc/go1.15: add release notes for fmt
+    
+    Updates #37419
+    
+    Change-Id: I344dd93ed7a75f88e7f937c80f5a6ad6c0327a07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236417
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

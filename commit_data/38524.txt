@@ -1,0 +1,25 @@
+commit b434bbf197b3683643d4d6b52bca687982e336b5
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Mar 23 14:18:19 2019 +0100
+
+    cmd/go: add GOWASM environment variable
+    
+    This change adds the environment variable GOWASM, which is a comma
+    separated list of experimental WebAssembly features that the compiled
+    WebAssembly binary is allowed to use. The default is to use no
+    experimental features. Initially there are no features avaiable.
+    
+    More information about feature proposals can be found at
+    https://github.com/WebAssembly/proposals
+    
+    Change-Id: I4c8dc534c99ecff8bb075dded0186ca8f8decaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168881
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html           | 11 +++++++++++
+ src/cmd/go/internal/cfg/cfg.go    |  1 +
+ src/cmd/go/internal/envcmd/env.go |  2 ++
+ src/cmd/internal/objabi/util.go   | 24 ++++++++++++++++++++++++
+ 4 files changed, 38 insertions(+)

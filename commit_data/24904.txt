@@ -1,0 +1,23 @@
+commit 7af0839e11378b153feaa9570aeb2cdcdc06b75f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 12 12:55:57 2015 +1300
+
+    cmd/go, runtime: always use position-independent code to invoke vsyscall helper on linux/386
+    
+    golang.org/cl/16346 changed the runtime on linux/386 to invoke the vsyscall
+    helper via a PIC sequence (CALL 0x10(GS)) when dynamically linking. But it's
+    actually quite easy to make that code sequence work all the time, so do that,
+    and remove the ugly machinery that passed the buildmode from the go tool to the
+    assembly.
+    
+    This means enlarging m.tls so that we can safely access 0x10(GS) (GS is set to
+    &m.tls + 4, so 0x10(GS) accesses m_tls[5]).
+    
+    Change-Id: I1345c34029b149cb5f25320bf19a3cdd73a056fa
+    Reviewed-on: https://go-review.googlesource.com/16796
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go         |  3 --
+ src/runtime/runtime2.go     |  2 +-
+ src/runtime/sys_linux_386.s | 96 ++++++++++++++++++++++-----------------------
+ 3 files changed, 49 insertions(+), 52 deletions(-)

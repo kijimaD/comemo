@@ -1,0 +1,21 @@
+commit 974b2011ca2a74ca1137558771b428bddb2e7df3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 18 09:39:31 2024 +0200
+
+    internal/syscall/unix: implement Eaccess on darwin
+    
+    Like on other Unix-like platforms, use faccessat(AT_FDCWD, path, mode,
+    AT_EACCESS).
+    
+    Change-Id: I6e04b4244f8e90bd3b35b1b8a9ca38fe845b34ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579976
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/asm_darwin.s        |  1 +
+ src/internal/syscall/unix/at_sysnum_darwin.go | 10 ++++++---
+ src/internal/syscall/unix/eaccess_darwin.go   | 31 +++++++++++++++++++++++++++
+ src/internal/syscall/unix/eaccess_other.go    |  2 +-
+ 4 files changed, 40 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 4a6dfda4cc07f48a2d529c8013a6700e84e09c6b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 1 15:36:44 2010 -0700
+
+    debug/macho: don't crash when reading non-Mach-O files
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/838046
+
+ src/pkg/debug/macho/file.go      | 4 +++-
+ src/pkg/debug/macho/file_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

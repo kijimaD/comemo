@@ -1,0 +1,13 @@
+commit 4f340f5051ea94d529b1fcd182f61b20b2b41e85
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 30 17:56:51 2010 +1000
+
+    godoc: canonicalize codewalk paths
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1729046
+
+ lib/godoc/codewalk.html   | 2 +-
+ src/cmd/godoc/codewalk.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

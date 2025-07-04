@@ -1,0 +1,27 @@
+commit 180bfc4bd49343cb280d1e162a4d326db7b35a6f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 15:36:47 2017 -0700
+
+    cmd/compile: simplify noding for struct embedding
+    
+    Since golang.org/cl/31670, we've stopped using the 'embedded' function
+    for handling struct embeddings within package export data. Now the
+    only remaining use is for Go source files, which allows for some
+    substantial simplifications:
+    
+    1. CenterDot never appears within Go source files, so that logic can
+    simply be removed.
+    
+    2. The field name will always be declared in the local package.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I59505f62824206dd5de0782918f98fbef6e93224
+    Reviewed-on: https://go-review.googlesource.com/58790
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go   | 27 ---------------------------
+ src/cmd/compile/internal/gc/noder.go |  6 +++++-
+ 2 files changed, 5 insertions(+), 28 deletions(-)

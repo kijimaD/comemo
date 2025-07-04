@@ -1,0 +1,27 @@
+commit 1c8d1f45ba7b72836dfe93fc680dfb27ef174965
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 8 22:24:10 2019 -0500
+
+    runtime: mlock top of signal stack on both amd64 and 386
+    
+    CL 209899 worked around an issue that corrupts vector registers in
+    recent versions of the Linux kernel by mlocking the top page of every
+    signal stack on amd64. However, the underlying issue also affects the
+    XMM registers on 386. This CL applies the mlock fix to both amd64 and
+    386.
+    
+    Fixes #35777 (again).
+    
+    Change-Id: I9886f2dc4c23625421296bd5518d5fd3288bfe48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210345
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/defs_linux_386.go                      | 11 +++++++++++
+ src/runtime/os_linux_386.go                        |  7 -------
+ src/runtime/{os_linux_amd64.go => os_linux_x86.go} |  3 +++
+ src/runtime/sys_linux_386.s                        | 19 +++++++++++++++++++
+ 4 files changed, 33 insertions(+), 7 deletions(-)

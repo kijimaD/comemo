@@ -1,0 +1,15 @@
+commit db42bb3b70fe82e9d33011fb36b4171897663ccf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 19 17:39:11 2019 -0400
+
+    runtime: error formatting fix
+    
+    g.m is an muintptr, but we want to print it in hex like a pointer.
+    
+    Change-Id: Ifc48ed77fb2e93cff7a49d98adc7b9679d26c3b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172988
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

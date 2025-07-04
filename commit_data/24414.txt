@@ -1,0 +1,16 @@
+commit 02d2db18a79ad2b143fe6501dba22feae5260778
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 03:08:18 2015 -0700
+
+    archive/tar: make Reader.Read errors persistent
+    
+    If the stream is in an inconsistent state, it does not make sense
+    that Reader.Read can be called and possibly succeed.
+    
+    Change-Id: I9d1c5a1300b2c2b45232188aa7999e350809dcf2
+    Reviewed-on: https://go-review.googlesource.com/15177
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader.go | 4 ++++
+ 1 file changed, 4 insertions(+)

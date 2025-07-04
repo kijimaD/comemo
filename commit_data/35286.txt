@@ -1,0 +1,17 @@
+commit f7c767edc52e0989b58083c43241a1f21d82915f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 16:44:05 2018 -0700
+
+    cmd/go: don't give an error for an attempt to recreate a symlink
+    
+    When building for gccgo cmd/go uses symlinks for import maps.
+    In some cases, such as TestVendorTest, it generates the same symlink
+    multiple times. Don't give an error when this happens.
+    
+    Change-Id: Iecc154ea1ac53d7c5427b36795881909c5cac7e3
+    Reviewed-on: https://go-review.googlesource.com/111636
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

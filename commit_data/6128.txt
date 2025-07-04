@@ -1,0 +1,13 @@
+commit ca3b5222ebf8dce04d6ce484d7986f382927a168
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 30 14:06:59 2010 +1000
+
+    regexp: interpret all Go characer escapes \a \b \f \n \r \t \v
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2042044
+
+ src/pkg/regexp/find_test.go |  2 ++
+ src/pkg/regexp/regexp.go    | 23 ++++++++++++++++++-----
+ 2 files changed, 20 insertions(+), 5 deletions(-)

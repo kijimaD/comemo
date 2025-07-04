@@ -1,0 +1,28 @@
+commit 8d41d053e0886d1b67b8261330777222f7d96ac0
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 28 14:07:29 2023 -0400
+
+    cmd/compile/internal/inline: debug flag to alter score adjustments
+    
+    Add a debugging flag "-d=inlscoreadj" intended to support running
+    experiments in which the inliner uses different score adjustment
+    values for specific heuristics. The flag argument is a series of
+    clauses separated by the "/" char where each clause takes the form
+    "adjK:valK". For example, in this build
+    
+      go build -gcflags=-d=inlscoreadj=inLoopAdj:10/returnFeedsConstToIfAdj:-99
+    
+    the "in loop" score adjustments would be reset to a value of 15 (effectively
+    penalizing calls in loops) adn the "return feeds constant to foldable if/switch"
+    score adjustment would be boosted from -15 to -99.
+    
+    Change-Id: Ibd1ee334684af5992466556a69baa6dfefb246b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532116
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/debug.go             |  2 +
+ src/cmd/compile/internal/inline/inl.go             |  4 +-
+ .../internal/inline/inlheur/debugflags_test.go     | 65 +++++++++++++++++++
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 75 ++++++++++++++++++++++
+ 4 files changed, 145 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 461e7b7d409dad9406ae1e876ad7032f4356f501
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Fri Mar 29 14:17:09 2013 -0700
+
+    bytes: Benchmark Buffer's compactions
+    
+    This benchmark verifies that CL #8173043 reduces time spent
+    sliding the Buffer's contents.
+    
+    Results without and with CL #8173043 applied:
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkBufferFullSmallReads       755336       175054  -76.82%
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8174043
+
+ src/pkg/bytes/buffer_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

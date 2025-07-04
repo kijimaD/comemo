@@ -1,0 +1,26 @@
+commit ec3ebf7bc31271b52c82b3fac193139b2788ed68
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 6 11:08:37 2019 -0400
+
+    cmd/go/internal/web: support file:// URLs
+    
+    Fixes #27698
+    Fixes #32227
+    
+    Change-Id: I2416408b3de2f9f1ae1af2911cc327a65d2c0170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181037
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/vcs.go                     |  3 +
+ src/cmd/go/internal/modfetch/proxy.go              | 15 ----
+ src/cmd/go/internal/web/file_test.go               | 58 +++++++++++++
+ src/cmd/go/internal/web/http.go                    | 42 ++++++++++
+ src/cmd/go/internal/web/url.go                     | 95 ++++++++++++++++++++++
+ src/cmd/go/internal/web/url_other.go               | 21 +++++
+ src/cmd/go/internal/web/url_other_test.go          | 36 ++++++++
+ src/cmd/go/internal/web/url_test.go                | 77 ++++++++++++++++++
+ src/cmd/go/internal/web/url_windows.go             | 43 ++++++++++
+ src/cmd/go/internal/web/url_windows_test.go        | 94 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_file_proxy.txt      |  7 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 41 ++++++++++
+ 12 files changed, 514 insertions(+), 18 deletions(-)

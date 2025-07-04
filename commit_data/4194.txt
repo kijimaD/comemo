@@ -1,0 +1,15 @@
+commit edf7485a6ea5464c521711deba274a5bb44df75c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 23 15:44:27 2009 -0800
+
+    gofmt -r: documentation and minor fixes
+    fix a few paren insertion bugs in the printer too.
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/157119
+
+ src/cmd/gofmt/doc.go        | 27 +++++++++++++++++++++++++++
+ src/cmd/gofmt/rewrite.go    | 33 +++++++++++++++++----------------
+ src/pkg/go/printer/nodes.go | 36 +++++++++++++++++++++++-------------
+ 3 files changed, 67 insertions(+), 29 deletions(-)

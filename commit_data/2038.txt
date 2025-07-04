@@ -1,0 +1,13 @@
+commit 3761da2d0171946788f6233492622e9078ef242f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 16 17:44:23 2009 -0700
+
+    document template
+    
+    R=rsc
+    DELTA=92  (73 added, 0 deleted, 19 changed)
+    OCL=27566
+    CL=27572
+
+ src/lib/template/template.go | 109 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 91 insertions(+), 18 deletions(-)

@@ -1,0 +1,16 @@
+commit ba8fa0e1a90b01727c9aa6bb23d6c3981cee9b4e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 23 14:14:31 2015 +1000
+
+    image/png: don't silently swallow io.ReadFull's io.EOF error when it
+    lands exactly on an IDAT row boundary.
+    
+    Fixes #10493
+    
+    Change-Id: I12be7c5bdcde7032e17ed1d4400db5f17c72bc87
+    Reviewed-on: https://go-review.googlesource.com/9270
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go      |  9 +++++++++
+ src/image/png/reader_test.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+)

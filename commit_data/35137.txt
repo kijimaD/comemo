@@ -1,0 +1,27 @@
+commit 296e676575af1967e681b85a5f14b56ddd4a6e29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 14:42:47 2018 -0400
+
+    cmd/go: add go list -test to describe test binaries
+    
+    Tools should be able to ask cmd/go about the dependency
+    graph for test binaries instead of reinventing it themselves.
+    Allow them to do so, with the new list -test flag.
+    
+    This also fixes and tests for a bug introduced in CL 104315
+    that was not properly splitting dependencies on the path
+    between package main and the package being tested.
+    
+    Change-Id: I29eb454c82893f5ee70252aaaecd9fa376eaf3c8
+    Reviewed-on: https://go-review.googlesource.com/107916
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go            |  12 +
+ src/cmd/go/go_test.go            |  29 +++
+ src/cmd/go/internal/list/list.go | 113 +++++++++-
+ src/cmd/go/internal/load/pkg.go  |   3 +
+ src/cmd/go/internal/load/test.go | 469 +++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/test/test.go | 429 ++---------------------------------
+ src/cmd/go/internal/vet/vet.go   |   2 +-
+ 7 files changed, 618 insertions(+), 439 deletions(-)

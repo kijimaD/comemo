@@ -1,0 +1,15 @@
+commit b8be100d35109e8cd0abac91edec206df37b07c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 29 11:50:18 2013 -0400
+
+    cmd/gc: silence clang warning
+    
+    This code is only built when you run 'make' in cmd/gc,
+    not in all.bash.
+    
+    R=golang-dev, jsing, iant
+    CC=golang-dev
+    https://golang.org/cl/19160043
+
+ src/cmd/gc/mkbuiltin1.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

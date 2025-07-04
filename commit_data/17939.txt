@@ -1,0 +1,12 @@
+commit 6ede93498c664c33f84f1ab7f81dc15d6444f2f0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 10 12:06:24 2013 +1100
+
+    misc/cgo/testcdefs: rm correct file in test.bash
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/39780043
+
+ misc/cgo/testcdefs/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

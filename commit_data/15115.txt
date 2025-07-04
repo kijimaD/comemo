@@ -1,0 +1,15 @@
+commit bc9999337b0c54a8035c4f9e6ea13b1fe3f34706
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 4 13:05:20 2013 +1100
+
+    net: prevent races during windows lookup calls
+    
+    This only affects code (with exception of lookupProtocol)
+    that is only executed on older versions of Windows.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7293043
+
+ src/pkg/net/lookup_windows.go | 76 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 59 insertions(+), 17 deletions(-)

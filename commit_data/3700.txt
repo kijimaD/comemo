@@ -1,0 +1,13 @@
+commit f4e3947ffeebdf3d60b76c89f0fb21f487ac8b7f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 1 16:29:33 2009 -0800
+
+    Permit the CC environment variable to include arguments
+    (I should have tested the last change a bit more before
+    submitting).
+    
+    R=rsc
+    http://go/go-review/1017011
+
+ src/quietgcc.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 7211694a1e3f9eaebff7074944feead968e00e72
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 09:51:45 2020 -0400
+
+    net/http: add FS to convert fs.FS to FileSystem
+    
+    Two different functions in the http API expect a FileSystem:
+    http.FileSystem and http.NewFileTransport.
+    Add a general converter http.FS to turn an fs.FS into an http.FileSystem
+    for use with either of these functions.
+    
+    (The original plan was to add http.HandlerFS taking an fs.FS directly,
+    but that doesn't help with NewFileTransport.)
+    
+    For #41190.
+    
+    Change-Id: I5f242eafe9b963f4387419a2615bdb487c358f16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243939
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/http/fs.go      | 133 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/net/http/fs_test.go |  37 ++++++++++++++
+ 2 files changed, 162 insertions(+), 8 deletions(-)

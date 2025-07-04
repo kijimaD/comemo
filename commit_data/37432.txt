@@ -1,0 +1,19 @@
+commit ba8f6fa0ca6d5880c637918b16726237480e2854
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 15 18:41:03 2018 -0800
+
+    cmd/cgo: recognized untyped Go constants as untyped constants
+    
+    Fixes #28772
+    
+    Change-Id: I9446d95fb73fbcbb1cd9a4d2156ebc91bc9e91cb
+    Reviewed-on: https://go-review.googlesource.com/c/149858
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue28545.go |  6 ++++++
+ src/cmd/cgo/ast.go          | 13 +++++++++++++
+ src/cmd/cgo/gcc.go          |  3 ++-
+ src/cmd/cgo/main.go         |  1 +
+ 4 files changed, 22 insertions(+), 1 deletion(-)

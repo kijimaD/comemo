@@ -1,0 +1,23 @@
+commit ef8f483c60830a088d5fdc473621dc85a96efe40
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 18 13:18:34 2009 -0800
+
+    net: remove race condition on Close.
+    
+    Previously a netFd could be queued for reading/writing in the channel,
+    but close(2)'ed before pollServer got to it. In this case, the kernel
+    would consider the descriptor closed and the attempt to add it to the
+    epoll set would fail and panic.
+    
+    This patch makes Close a roundtrip to the pollServer, although the
+    actual close(2) still occurs elsewhere to avoid blocking the
+    pollServer.
+    
+    Fixes #143.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152130
+
+ src/pkg/net/fd.go | 47 +++++++++++++++++++++++++++++++----------------
+ 1 file changed, 31 insertions(+), 16 deletions(-)

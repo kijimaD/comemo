@@ -1,0 +1,19 @@
+commit f2acc607f8a6f2837ed302cedd70676d8ea1f463
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Sat Oct 8 17:00:39 2022 +0000
+
+    crypto/x509: add blank line before package declaration
+    
+    The package doc included the copying header by mistake.
+    
+    Change-Id: I37ac2d14b1b8a389e6b603fbb1c6a3a33b1d80d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440456
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/crypto/x509/parser.go      | 1 +
+ src/crypto/x509/parser_test.go | 1 +
+ 2 files changed, 2 insertions(+)

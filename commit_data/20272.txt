@@ -1,0 +1,32 @@
+commit 97f8386af7907191cefbbfa26a3bd01c4ec95655
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 13:02:48 2014 -0400
+
+    runtime: convert symtab.c into symtab.go
+    
+    Because symtab.c was partially converted before,
+    the diffs are not terribly useful.
+    
+    The earlier conversion was trying to refactor or
+    clean up the code in addition to doing the translation.
+    It also made a mistake by redefining Func to be something
+    users could overwrite.
+    
+    I undid those changes, making symtab.go a more
+    literal line-for-line translation of symtab.c instead.
+    
+    LGTM=josharian
+    R=golang-codereviews, dave, bradfitz, josharian
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/140880043
+
+ src/pkg/runtime/error.go     |   2 +-
+ src/pkg/runtime/extern.go    |  13 +-
+ src/pkg/runtime/funcdata.h   |   2 +
+ src/pkg/runtime/runtime.c    |   1 +
+ src/pkg/runtime/string.go    |  13 --
+ src/pkg/runtime/stubs.go     |  18 +--
+ src/pkg/runtime/symtab.c     | 333 -------------------------------------------
+ src/pkg/runtime/symtab.go    | 272 +++++++++++++++++++++++++++--------
+ src/pkg/runtime/traceback.go |  80 +++++++----
+ 9 files changed, 275 insertions(+), 459 deletions(-)

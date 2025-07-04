@@ -1,0 +1,16 @@
+commit e3dbb1a31059994de2b20fedca0a8061cc90a7dd
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Fri Aug 9 15:11:03 2013 -0700
+
+    net/http: Make ReadResponse work with a nil Request parameter
+    
+    Fixes #5583
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9821043
+
+ src/pkg/net/http/response.go      | 21 ++++++++++-----------
+ src/pkg/net/http/response_test.go | 23 +++++++++++++++++++++++
+ src/pkg/net/http/transfer.go      |  7 ++++---
+ 3 files changed, 37 insertions(+), 14 deletions(-)

@@ -1,0 +1,14 @@
+commit 020dbcd4df0eefe3cd24170c9563e41ecdc661f1
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Sep 18 12:47:25 2009 -0700
+
+    revert setting of name from type. already set correctly.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=34799
+    CL=34801
+
+ src/cmd/5g/gobj.c | 1 -
+ 1 file changed, 1 deletion(-)

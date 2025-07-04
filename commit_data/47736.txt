@@ -1,0 +1,18 @@
+commit a19e72cb89fd33e5bf1474887e267806f65b7a40
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 7 09:50:44 2021 -0800
+
+    doc/go1.18: move fuzzing to tools section
+    
+    For #47694
+    
+    Change-Id: Idab1a5822a096447c71776ee4339c4262183ceb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370034
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ doc/go1.18.html | 42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

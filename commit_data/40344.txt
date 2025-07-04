@@ -1,0 +1,28 @@
+commit 2e1a6a28dfcc57ad6a14c9c27a81ee37b9b6f874
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 19 15:18:34 2019 +0700
+
+    runtime: fix unsafe.Pointer alignment on Linux
+    
+    Caught by go test -a -short -gcflags=all=-d=checkptr runtime
+    
+    TestMincoreErrorSign intentionally uses uintptr(1) to get -EINVAL,
+    but it violates unsafe pointer rules 2. So use another misaligned
+    pointer add(new(int32), 1), but do not violate unsafe pointer rules.
+    
+    TestEpollctlErrorSign passes an unsafe.Pointer of &struct{}{} to
+    Epollctl, which is then casted to epollevent, causes mis-alignment.
+    Fixing it by exporting epollevent on runtime_test package, so it can be
+    passed to Epollctl.
+    
+    Updates #34972
+    
+    Change-Id: I78ebfbeaf706fd1d372272af0bbc4e2cabca4631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202157
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_linux_test.go  | 3 +++
+ src/runtime/runtime_linux_test.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)

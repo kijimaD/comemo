@@ -1,0 +1,21 @@
+commit bcd146d398da2a873bb3f5a6e026c70b411a4486
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 19:01:52 2021 +1000
+
+    cmd/compile: convert branch with zero to more optimal branch zero on riscv64
+    
+    Convert BLT and BGE with a zero valued constant to BGTZ/BLTZ/BLEZ/BGEZ as
+    appropriate.
+    
+    Removes over 4,500 instructions from the go binary on riscv64.
+    
+    Change-Id: Icc266e968b126ba04863ec88529630a9dd44498b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342849
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

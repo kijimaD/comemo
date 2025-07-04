@@ -1,0 +1,12 @@
+commit ffbed5c22aec733ae2527f5a1025a4eff8eca93a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 14:42:09 2015 -0400
+
+    net/http: fix tests for recent URL.RawPath addition
+    
+    Change-Id: I35d20ed958c32d464b2c9d849403b6e3f99b6482
+    Reviewed-on: https://go-review.googlesource.com/11343
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/readrequest_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

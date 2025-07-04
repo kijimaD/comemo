@@ -1,0 +1,16 @@
+commit 12e46e42ecd2e5e432385f40cbc4499f60442aa4
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 6 14:33:55 2013 -0700
+
+    runtime: don't mark the new call trampolines as NOSPLIT.
+    They may call other NOSPLIT routines, and that might
+    overflow the stack.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12563043
+
+ src/pkg/runtime/asm_386.s   | 58 ++++++++++++++++++++++-----------------------
+ src/pkg/runtime/asm_amd64.s | 58 ++++++++++++++++++++++-----------------------
+ src/pkg/runtime/asm_arm.s   | 58 ++++++++++++++++++++++-----------------------
+ 3 files changed, 87 insertions(+), 87 deletions(-)

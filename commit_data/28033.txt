@@ -1,0 +1,17 @@
+commit 9be2a279ee12d0e17646c0b0b12d8dff9b157a59
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Aug 24 13:22:54 2016 +0900
+
+    internal/testenv: make MustHaveSymlink message friendly
+    
+    Change-Id: If6e12ebc41152bc0534d3d383df80e960efe97f0
+    Reviewed-on: https://go-review.googlesource.com/27577
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/testenv/testenv.go         |  8 +++++---
+ src/internal/testenv/testenv_notwin.go  |  6 +++---
+ src/internal/testenv/testenv_windows.go | 17 +++++++++++++----
+ 3 files changed, 21 insertions(+), 10 deletions(-)

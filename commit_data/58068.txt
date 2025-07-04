@@ -1,0 +1,40 @@
+commit ecdc8c1b3f54367338de37174531f81574c791b2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 8 14:41:06 2024 +0100
+
+    crypto/internal/cryptotest: add SkipTestAllocations
+    
+    [                                                                     ]
+    [    It has been [ 0 ] days since Filippo broke a TestAllocations.    ]
+    [                                                                     ]
+    
+    Concentrate all the skips in one place, so we don't have to re-discover
+    always the same ones via trial and error.
+    
+    This might over-skip fixable allocations, but all these targets are not
+    fast anyway, so they are not worth going back for.
+    
+    Removed the sysrand TestAllocations because it causes an import loop
+    with cryptotest and it's covered by TestAllocations in crypto/rand.
+    
+    Change-Id: Icd40e97f9128e037f567147f8c9dafa758a47fac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626438
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ed25519/ed25519_test.go                 |  9 ++----
+ src/crypto/internal/cryptotest/allocations.go      | 37 ++++++++++++++++++++++
+ .../internal/edwards25519/edwards25519_test.go     |  5 ++-
+ src/crypto/internal/fips/sha3/sha3_test.go         |  3 +-
+ src/crypto/internal/nistec/nistec_test.go          |  5 ++-
+ src/crypto/internal/sysrand/rand_test.go           | 24 --------------
+ src/crypto/md5/md5_test.go                         |  1 +
+ src/crypto/rand/rand_test.go                       | 19 ++---------
+ src/crypto/rsa/rsa_test.go                         |  8 ++---
+ src/crypto/sha1/sha1_test.go                       |  4 +--
+ src/crypto/sha256/sha256_test.go                   |  7 +---
+ src/crypto/sha512/sha512_test.go                   |  7 +---
+ 12 files changed, 52 insertions(+), 77 deletions(-)

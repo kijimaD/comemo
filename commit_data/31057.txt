@@ -1,0 +1,17 @@
+commit 0d33dc3105734dcd262c3104076e05a363b802b1
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Apr 7 15:41:19 2017 -0500
+
+    runtime: improve output of panic(x) where x is numeric
+    
+    Fixes #19658
+    
+    Change-Id: I41e46073b75c7674e2ed9d6a90ece367ce92166b
+    Reviewed-on: https://go-review.googlesource.com/39650
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/error.go         | 32 +++++++++++++-
+ test/fixedbugs/issue19658.go | 99 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 129 insertions(+), 2 deletions(-)

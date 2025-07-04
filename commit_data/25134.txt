@@ -1,0 +1,14 @@
+commit 723605e9183314e977542fdca208f4ddeb5425f7
+Author: Benjamin Prosnitz <bprosnitz@google.com>
+Date:   Wed Dec 2 11:02:04 2015 +0800
+
+    net: fix failing TestGoLookupIPOrderFallbackToFile
+    
+    Change-Id: I17ef4e221e5cd0fb8dc553785248ccac59380c6f
+    Reviewed-on: https://go-review.googlesource.com/17321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 2 +-
+ src/net/dnsclient_unix_test.go | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

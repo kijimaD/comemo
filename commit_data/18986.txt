@@ -1,0 +1,25 @@
+commit 83ac901fb9298bf29059d52bc8b084c885586d1b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 29 13:04:25 2014 +0900
+
+    net: tweak the ephemeral port range on dragonfly
+    
+    On DragonFly BSD, we adjust the ephemeral port range because
+    unlike other BSD systems its default ephemeral port range
+    doesn't conform to IANA recommendation as described in RFC 6355
+    and is pretty narrow.
+    
+    On DragonFly BSD 3.6: default range [1024, 5000], high range [49152, 65535]
+    On FreeBSD 10: default range [10000, 65535], high range [49152, 65535]
+    On Linux 3.11: default range [32768, 61000]
+    
+    Fixes #7541.
+    
+    LGTM=iant
+    R=jsing, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/80610044
+
+ src/pkg/net/sockopt_bsd.go  | 13 +++++++++++++
+ src/pkg/syscall/net_nacl.go |  8 ++++++++
+ 2 files changed, 21 insertions(+)

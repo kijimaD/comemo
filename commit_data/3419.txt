@@ -1,0 +1,33 @@
+commit 53440da835783963867652cfbfcfc85534d84d71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 1 14:08:00 2009 -0700
+
+    Factored out boilerplate from all html docs in doc directory:
+    - the first HTML comment in those files is extracted as page
+      title when serving them
+    - lib/godoc.html is top-level template for all pages served
+    - experimented a bit with package documentation layout
+      (feedback welcome)
+    - various related cleanups
+    
+    TODO:
+    - The / page (doc/root.html) content repeats links that are
+      in the navigation bar. It needs to be cleaned up.
+    
+    R=rsc
+    DELTA=826  (86 added, 692 deleted, 48 changed)
+    OCL=35230
+    CL=35245
+
+ doc/effective_go.html           |  75 +++-----------------------
+ doc/go_for_cpp_programmers.html |  73 +------------------------
+ doc/go_lang_faq.html            |  64 +---------------------
+ doc/go_mem.html                 |  62 +--------------------
+ doc/go_spec.html                |  73 +------------------------
+ doc/go_tutorial.head            |   7 +--
+ doc/go_tutorial.html            |  12 ++---
+ lib/godoc/package.html          |  14 ++---
+ lib/godoc/package.txt           |  15 +++---
+ lib/godoc/parseerror.html       |   4 +-
+ src/cmd/godoc/godoc.go          | 117 +++++++++++++++++++++++++---------------
+ 11 files changed, 107 insertions(+), 409 deletions(-)

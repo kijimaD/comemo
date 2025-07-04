@@ -1,0 +1,14 @@
+commit 02039b6345fdb2026e4469ef12921a0c5a34d434
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 8 16:49:06 2011 +1000
+
+    exp/template: add a tree-walking example to the test.
+    Also fix a comment formatting glitch.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4672054
+
+ src/pkg/exp/template/exec.go      |  2 +-
+ src/pkg/exp/template/exec_test.go | 81 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 1 deletion(-)

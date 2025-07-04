@@ -1,0 +1,18 @@
+commit aed9762638b9b619b6239367c9368bfa79096cf0
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Fri May 9 14:34:50 2014 -0700
+
+    test/bench/shootout: support windows
+    
+    1. fix executable extension (a.out -> a.exe).
+    2. fix pthread build error on mingw
+    3. if depends lib messing, skip the test
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/100210043
+
+ test/bench/shootout/threadring.c |  12 ++-
+ test/bench/shootout/timing.sh    | 157 +++++++++++++++++++++++----------------
+ 2 files changed, 105 insertions(+), 64 deletions(-)

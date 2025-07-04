@@ -1,0 +1,16 @@
+commit 5e03a9c4b203f529379f913d47ebf8b31cc34699
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Mon Apr 17 12:23:36 2023 +0300
+
+    plugin: fix duplicated word in comment
+    
+    Change-Id: Ia3174d079e84cf874c2f2f3093a7c6337af32b02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/plugin/plugin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 0593ad1e235d324d928fd045bb97098cb3bd1c66
+Author: Jamie Kerr <jkerr113@googlemail.com>
+Date:   Sat Jul 15 12:20:25 2017 -0600
+
+    cmd/compile: fix comment typo
+    
+    Change-Id: If581bd4e9d9b4421e2ae20582c596fccb73d9aed
+    Reviewed-on: https://go-review.googlesource.com/48866
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

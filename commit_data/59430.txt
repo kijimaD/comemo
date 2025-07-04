@@ -1,0 +1,30 @@
+commit ef7724c4324f6bac40463a12e4fea43ff0b4a8e8
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 1 13:24:50 2025 -0400
+
+    runtime: use "bubble" terminology for synctest
+    
+    We've settled on calling the group of goroutines started by
+    synctest.Run a "bubble". At the time the runtime implementation
+    was written, I was still calling this a "group". Update the code
+    to match the current terminology.
+    
+    Change-Id: I31b757f31d804b5d5f9564c182627030a9532f4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670135
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/chan.go      |  10 +--
+ src/runtime/coro.go      |  10 +--
+ src/runtime/mgc.go       |   8 +-
+ src/runtime/mgcmark.go   |   8 +-
+ src/runtime/panic.go     |  14 +--
+ src/runtime/proc.go      |  38 ++++----
+ src/runtime/runtime2.go  |   4 +-
+ src/runtime/select.go    |   4 +-
+ src/runtime/sema.go      |   4 +-
+ src/runtime/synctest.go  | 224 +++++++++++++++++++++++------------------------
+ src/runtime/time.go      |  68 +++++++-------
+ src/runtime/traceback.go |   4 +-
+ 12 files changed, 198 insertions(+), 198 deletions(-)

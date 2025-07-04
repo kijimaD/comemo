@@ -1,0 +1,16 @@
+commit 70cad2744b57691962645681722ce756e81791c1
+Author: hk <hk@tinyclouds.cn>
+Date:   Mon Oct 19 12:11:13 2020 +0000
+
+    cmd/compile/internal/gc: use plural nouns in comments
+    
+    Change-Id: I99a5b5b88495cfaef16d41ee4b962c5d0b3488aa
+    GitHub-Last-Rev: fa0d895b3a87e45f499f02651a5f0e4946124765
+    GitHub-Pull-Request: golang/go#42059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/go.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit a6feaf3affcc83f77af1a2ad8c9418befcdec6ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 18 18:14:54 2014 -0700
+
+    liblink: fix encoding of ASETPC in 6a, 8a
+    
+    It was incorrectly encoded as ASETLS.
+    
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/126400043
+
+ src/liblink/asm6.c | 2 +-
+ src/liblink/asm8.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 31896332b39fcad70d0b451e2bff291d490cb4ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 14:17:57 2017 -0400
+
+    cmd/dist: reenable TestDeps
+    
+    It looks like I forgot to reenable this test when I fixed #21522.
+    Update deps.go and reenable.
+    
+    Change-Id: I68a45df09b418f48d93d2e7ab1d274e056c192e6
+    Reviewed-on: https://go-review.googlesource.com/70050
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go      | 1 +
+ src/cmd/dist/deps_test.go | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)

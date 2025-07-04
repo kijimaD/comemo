@@ -1,0 +1,23 @@
+commit 017933163ab6a2b254f0310c61b57db65cded92e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 8 13:43:40 2022 -0500
+
+    cmd/doc: use new go/doc APIs
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Use the new per-Package go/doc API instead of the
+    top-level functions from go/doc. These handle links better.
+    
+    For #51082.
+    
+    Change-Id: I169b46d973673abdb6f126352c9f1e30f9fe1122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384266
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/doc/pkg.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

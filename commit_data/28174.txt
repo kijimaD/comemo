@@ -1,0 +1,17 @@
+commit 7eddaf5f0b275cd2ff37b260246d276748ac6cd4
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Mon Aug 1 12:50:11 2016 -0400
+
+    go/doc: allow ToHTML to properly handle URLs containing semicolons
+    
+    Fixes #16565
+    
+    Change-Id: I3edfd2576a7ca5270644a4e7f126854f821f2c9a
+    Reviewed-on: https://go-review.googlesource.com/25385
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/doc/comment.go      | 2 +-
+ src/go/doc/comment_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

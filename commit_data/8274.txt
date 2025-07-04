@@ -1,0 +1,12 @@
+commit cb375ffbb091a67c2bd17c994bd1f3526f3a0c35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 19:54:08 2011 -0700
+
+    http: new error for reading a body after it's been closed
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4433094
+
+ src/pkg/http/transfer.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,0 +1,14 @@
+commit 05bf9a456a2c0c5e0c859782d170cd35db019c8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 11 15:11:08 2013 -0800
+
+    net/http/cgi: fix test case sensitivity on Windows
+    
+    Fixes #4645
+    
+    R=golang-dev, alex.brainman, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7105047
+
+ src/pkg/net/http/cgi/host_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

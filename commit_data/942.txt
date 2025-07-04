@@ -1,0 +1,13 @@
+commit 8d3a3dd9040fa3e5b881dd3f3b09172b1a03a4a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 23 11:44:01 2008 -0700
+
+    update golden.out
+    
+    R=iant
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=17680
+    CL=17711
+
+ test/golden.out | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

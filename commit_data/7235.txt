@@ -1,0 +1,15 @@
+commit 166008b988a62d89e8dd1ee7a010557461ec2d75
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 25 12:25:53 2011 -0500
+
+    crypto/dsa: add support for DSA
+    
+    R=bradfitzgo, r, bradfitzwork, nsz, rsc
+    CC=golang-dev
+    https://golang.org/cl/3990043
+
+ src/pkg/Makefile               |   1 +
+ src/pkg/crypto/dsa/Makefile    |  11 ++
+ src/pkg/crypto/dsa/dsa.go      | 276 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/dsa/dsa_test.go |  84 +++++++++++++
+ 4 files changed, 372 insertions(+)

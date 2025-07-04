@@ -1,0 +1,29 @@
+commit 79d9b395adf90f186617ee37800a18af0a7095ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 12:33:59 2022 -0700
+
+    runtime: consolidate some low-level error reporting
+    
+    Use a single writeErrStr function. Avoid using global variables.
+    Use a single version of some error messages rather than duplicating
+    the messages in OS-specific files.
+    
+    Change-Id: If259fbe78faf797f0a21337d14472160ca03efa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_aix.go          | 10 ++++------
+ src/runtime/os_darwin.go       | 19 ++++++++-----------
+ src/runtime/os_freebsd.go      |  7 ++-----
+ src/runtime/os_linux.go        |  7 ++-----
+ src/runtime/os_openbsd_libc.go | 10 ++++------
+ src/runtime/proc.go            | 21 ++++++++++-----------
+ src/runtime/runtime.go         |  9 ++++++++-
+ src/runtime/signal_unix.go     |  5 +----
+ src/runtime/stubs.go           |  5 +----
+ 9 files changed, 40 insertions(+), 53 deletions(-)

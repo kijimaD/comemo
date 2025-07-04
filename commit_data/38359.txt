@@ -1,0 +1,18 @@
+commit 14a58d65e387481a326193840bce5787096a150e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 11 15:18:05 2019 +0100
+
+    internal/bytealg: share code for equal functions on arm
+    
+    Move the shared code into byteal.memeqbody. This will allow to implement
+    optimizations (e.g. for #29001) in a single function.
+    
+    Change-Id: Iaa34ddeb7068d92c35a8b4e581b7fd92da56535c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166677
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/vet/all/whitelist/arm.txt |  1 +
+ src/internal/bytealg/equal_arm.s  | 82 +++++++++++++++++++--------------------
+ 2 files changed, 40 insertions(+), 43 deletions(-)

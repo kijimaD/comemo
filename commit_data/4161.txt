@@ -1,0 +1,13 @@
+commit ec309321240b58c0c83c54aba85925e4c754fda2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 20:32:09 2009 -0800
+
+    big: fix arm build - forgot how to spell JMP
+    
+    Fixes #269.
+    
+    TBR=kaib
+    https://golang.org/cl/156107
+
+ src/pkg/big/arith_arm.s | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

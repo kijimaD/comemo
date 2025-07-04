@@ -1,0 +1,16 @@
+commit 133d231a89c2d9f8bbceeb42cf47d8cd68fde357
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 10 10:36:42 2016 -0700
+
+    cmd/compile/internal/gc: get rid of useless autopkg variable
+    
+    autopkg == localpkg, so it appears to be a remnant of earlier code.
+    
+    Change-Id: I65b6c074535e877317cbf9f1f35e94890f0ebf14
+    Reviewed-on: https://go-review.googlesource.com/26662
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   | 2 --
+ src/cmd/compile/internal/gc/main.go | 2 --
+ src/cmd/compile/internal/gc/ssa.go  | 2 +-
+ 3 files changed, 1 insertion(+), 5 deletions(-)

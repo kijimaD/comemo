@@ -1,0 +1,12 @@
+commit a6400dd448cf534c95f9788add6b3d97f7241dda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 30 19:31:27 2008 -0700
+
+    more fine-tuning of ;'s
+    
+    R=r
+    OCL=16274
+    CL=16274
+
+ usr/gri/pretty/printer.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

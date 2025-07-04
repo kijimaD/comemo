@@ -1,0 +1,27 @@
+commit 6d8ec893039a39f495c8139012e47754e4518b70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 3 23:46:13 2022 +0700
+
+    reflect: fix race condition on funcTypes
+    
+    CL 425314 made creating funcTypes using StructOf, and using a mutex to
+    protect read+write to funcTypes. However, after initializing funcTypes,
+    it is accessed in FuncOf without holding lock, causing a race.
+    
+    Fixing it by returning the n-th Type directly from initFuncTypes, so the
+    accessing funcTypes will always be guarded by a mutex.
+    
+    Fixes #56011
+    
+    Change-Id: I1b50d1ae342943f16f368b8606f2614076dc90fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437997
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 18 ++++++++++++++++++
+ src/reflect/type.go     | 28 +++++++++++-----------------
+ 2 files changed, 29 insertions(+), 17 deletions(-)

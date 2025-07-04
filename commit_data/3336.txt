@@ -1,0 +1,16 @@
+commit 681f86a87f760ae72057fb0ee3345a6eac5a7fce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 21 18:07:20 2009 -0700
+
+    improved spacing around if, switch, and for control clauses
+    
+    R=r
+    DELTA=89  (82 added, 5 deleted, 2 changed)
+    OCL=34870
+    CL=34870
+
+ src/pkg/go/printer/printer.go                 | 14 ++++++----
+ src/pkg/go/printer/printer_test.go            |  1 +
+ src/pkg/go/printer/testdata/statements.go     | 37 +++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/statements.golden | 35 +++++++++++++++++++++++++
+ 4 files changed, 82 insertions(+), 5 deletions(-)

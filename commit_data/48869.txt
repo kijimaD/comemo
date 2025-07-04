@@ -1,0 +1,67 @@
+commit 67d6be139c77b63395d8c1fa29cdae8d34635f3e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 16 19:01:48 2022 -0700
+
+    reflect: make more Value methods inlineable
+    
+    The following Value methods are now inlineable:
+    
+        Bool  for ~bool
+        String for ~string (but not other kinds)
+        Bytes for []byte (but not ~[]byte or ~[N]byte)
+        Len   for ~[]T (but not ~[N]T, ~chan T, ~map[K]V, or ~string)
+        Cap   for ~[]T (but not ~[N]T or ~chan T)
+    
+    For Bytes, we only have enough inline budget to inline one type,
+    so we optimize for unnamed []byte, which is far more common than
+    named []byte or [N]byte.
+    
+    For Len and Cap, we only have enough inline budget to inline one kind,
+    so we optimize for ~[]T, which is more common than the others.
+    The exception is string, but the size of a string can be obtained
+    through len(v.String()).
+    
+    Performance:
+    
+            Bool        1.65ns ± 0%  0.51ns ± 3%  -68.81%  (p=0.008 n=5+5)
+            String      1.97ns ± 1%  0.70ns ± 1%  -64.25%  (p=0.008 n=5+5)
+            Bytes       8.90ns ± 2%  0.89ns ± 1%  -89.95%  (p=0.008 n=5+5)
+            NamedBytes  8.89ns ± 1%  8.88ns ± 1%     ~     (p=0.548 n=5+5)
+            BytesArray  10.0ns ± 2%  10.2ns ± 1%   +1.58%  (p=0.048 n=5+5)
+            SliceLen    1.97ns ± 1%  0.45ns ± 1%  -77.22%  (p=0.008 n=5+5)
+            MapLen      2.62ns ± 1%  3.07ns ± 1%  +17.24%  (p=0.008 n=5+5)
+            StringLen   1.96ns ± 1%  1.98ns ± 2%     ~     (p=0.151 n=5+5)
+            ArrayLen    1.96ns ± 1%  2.19ns ± 1%  +11.46%  (p=0.008 n=5+5)
+            SliceCap    1.76ns ± 1%  0.45ns ± 2%  -74.28%  (p=0.008 n=5+5)
+    
+    There's a slight slowdown (~10-20%) for obtaining the length
+    of a string or map, but a substantial improvement for slices.
+    
+    Performance according to encoding/json:
+    
+            CodeMarshal          555µs ± 2%   562µs ± 4%     ~     (p=0.421 n=5+5)
+            MarshalBytes/32      163ns ± 1%   157ns ± 1%   -3.82%  (p=0.008 n=5+5)
+            MarshalBytes/256     453ns ± 1%   447ns ± 1%     ~     (p=0.056 n=5+5)
+            MarshalBytes/4096   4.10µs ± 1%  4.09µs ± 0%     ~     (p=1.000 n=5+4)
+            CodeUnmarshal       3.16ms ± 2%  3.02ms ± 1%   -4.18%  (p=0.008 n=5+5)
+            CodeUnmarshalReuse  2.64ms ± 3%  2.51ms ± 2%   -4.81%  (p=0.016 n=5+5)
+            UnmarshalString     65.4ns ± 4%  64.1ns ± 0%     ~     (p=0.190 n=5+4)
+            UnmarshalFloat64    59.8ns ± 5%  58.9ns ± 2%     ~     (p=0.222 n=5+5)
+            UnmarshalInt64      51.7ns ± 1%  50.0ns ± 2%   -3.26%  (p=0.008 n=5+5)
+            EncodeMarshaler     23.6ns ±11%  20.8ns ± 1%  -12.10%  (p=0.016 n=5+4)
+    
+    Add all inlineable methods of Value to cmd/compile/internal/test/inl_test.go.
+    
+    Change-Id: Ifc192491918af6b62f7fe3a094a5a5256bfb326d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400676
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go | 28 ++++++++--
+ src/reflect/all_test.go                   | 90 +++++++++++++++++++++++++++++++
+ src/reflect/value.go                      | 57 +++++++++++++++-----
+ 3 files changed, 157 insertions(+), 18 deletions(-)

@@ -1,0 +1,15 @@
+commit 11b7c89b262c41ce53d4ac936fce13ae1488c5d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 10:51:51 2011 -0800
+
+    go spec: be precise about newlines
+    
+    Several places mentioned tokens spanning "multiple lines"
+    which is not a well-defined term in the spec; newline is.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5490046
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

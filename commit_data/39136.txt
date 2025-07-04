@@ -1,0 +1,34 @@
+commit 71be83e8ca660c375592683bf71de8864a8464c5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 9 15:42:55 2019 -0400
+
+    cmd/go: make 'go get' match patterns against packages, not modules
+    
+    This is a follow-up to CL 174099, fixing an important TODO.
+    The 'go help modget' documentation will be clarified in anotehr CL,
+    pending further discussion.
+    
+    When invoked without -m, 'go get' will no longer match arguments
+    containing "..." against module paths. If a module's path matches a
+    pattern but no packages within the module match the pattern, the
+    module should not be upgraded. For example, if
+    golang.org/x/tools/playground and golang.org/x/tools are separate
+    modules, and only golang.org/x/tools is in the build list,
+    'go get golang.org/x/tools/playground/...' should add
+    golang.org/x/tools/playground to the build list and leave
+    golang.org/x/tools alone.
+    
+    Updates #26902
+    
+    Change-Id: I2bd18c7950db1aa7bd8527210c1baf2c7d174375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176578
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 82 ++++++++++++----------
+ .../testdata/mod/example.com_nest_sub_v1.0.0.txt   | 12 ++++
+ .../go/testdata/mod/example.com_nest_v1.0.0.txt    | 12 ++++
+ .../go/testdata/mod/example.com_nest_v1.1.0.txt    | 12 ++++
+ src/cmd/go/testdata/script/mod_get_main.txt        |  5 +-
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |  8 +++
+ 6 files changed, 90 insertions(+), 41 deletions(-)

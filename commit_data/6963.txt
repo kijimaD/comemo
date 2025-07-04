@@ -1,0 +1,13 @@
+commit 670e77b54d800f4636bfbb9af4516660cea2fe6c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 14 17:09:24 2010 -0800
+
+    govet: allow directories as arguments, process recursively.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3652041
+
+ src/cmd/govet/doc.go   |  1 +
+ src/cmd/govet/govet.go | 43 +++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 40 insertions(+), 4 deletions(-)

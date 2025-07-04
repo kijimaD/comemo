@@ -1,0 +1,13 @@
+commit bd3b2f843fc4ee1ba311036b0ebba255bc7b0e82
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 27 21:04:46 2009 -0700
+
+    implement .alternates
+    
+    R=rsc
+    OCL=27928
+    CL=27928
+
+ src/lib/template/template.go      | 30 ++++++++++++++++++++++++++----
+ src/lib/template/template_test.go | 14 ++++++++++++++
+ 2 files changed, 40 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit b3e8fdce8d77dfc1793f37dd4f5bda3b4e54d640
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 16 12:46:56 2010 -0800
+
+    darwin, freebsd: ignore write failure (during print, panic)
+    
+    The other operating systems already ignore write failures.
+    
+    Fixes #1279.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3723041
+
+ src/pkg/runtime/darwin/386/sys.s    | 2 --
+ src/pkg/runtime/darwin/amd64/sys.s  | 2 --
+ src/pkg/runtime/freebsd/386/sys.s   | 2 --
+ src/pkg/runtime/freebsd/amd64/sys.s | 2 --
+ 4 files changed, 8 deletions(-)

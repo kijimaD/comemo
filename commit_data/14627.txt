@@ -1,0 +1,15 @@
+commit f85b94aa85e6dffca51979538a9b4f0d96a3a645
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 12:23:01 2012 -0800
+
+    net/http: return nicer error when Client request Host is blank
+    
+    Update #4271
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6931052
+
+ src/pkg/net/http/transport.go      |  3 +++
+ src/pkg/net/http/transport_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)

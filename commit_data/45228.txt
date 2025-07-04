@@ -1,0 +1,23 @@
+commit 9f87943424df86e501175e10e5e3b8b00dfd03d7
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Apr 19 19:10:09 2021 -0400
+
+    go/types: fix panic when using multiple type arguments
+    
+    Fix a panic caused by using type arguments without first unpacking.
+    
+    This was noticed in the review of CL 300998, but unfortunately not yet
+    fixed.
+    
+    Fixes #45635
+    
+    Change-Id: I8ab1720f3e27a6002bc925f0eea943ec6f778341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311669
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/expr.go                  | 3 ++-
+ src/go/types/fixedbugs/issue45635.go2 | 9 +++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

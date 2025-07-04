@@ -1,0 +1,13 @@
+commit e26e3fa25a2ab428ab04103757b08ed938b356ae
+Author: mattn <mattn.jp@gmail.com>
+Date:   Fri Dec 26 11:44:55 2014 +0900
+
+    reflect, runtime: gofmt
+    
+    Change-Id: I5437b3a36181373d8ff33225d7520ab321459de9
+    Reviewed-on: https://go-review.googlesource.com/2084
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/export_test.go | 6 +++---
+ src/runtime/hashmap.go     | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

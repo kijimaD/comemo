@@ -1,0 +1,23 @@
+commit a15818fed3032d43e57c395c3fe8b46b37a5f1ea
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Feb 5 19:58:18 2015 -0500
+
+    runtime: cache workbufs on Ms and add consistency checks
+    
+    Add local workbufs to the m struct in order to reduce contention.
+    Add consistency checks for workbuf ownership.
+    Chain workbufs through call change to avoid swapping them
+    to and from the m struct.
+    Adjust the size of the workbuf so that the mutators can
+    more frequently pass modifications to the GC thus shifting
+    some work from the STW mark termination phase to the concurrent
+    mark phase.
+    
+    Change-Id: I557b53af34ad9972265e0ed9f5996e52d548563d
+    Reviewed-on: https://go-review.googlesource.com/3972
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go   |   2 +
+ src/runtime/mgc.go      | 454 ++++++++++++++++++++++++++++++++++++------------
+ src/runtime/runtime2.go |   1 +
+ 3 files changed, 348 insertions(+), 109 deletions(-)

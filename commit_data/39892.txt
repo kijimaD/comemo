@@ -1,0 +1,21 @@
+commit 1dd71645558157f2d4477f21c6e9f18a99b0bc94
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 30 14:53:03 2019 -0400
+
+    cmd/go/internal/work: include detail in errors from cache operations
+    
+    Since the cache has been required since Go 1.12, also remove redundant
+    checks for a nil cache.
+    
+    Updates #29127
+    Updates #29667
+    
+    Change-Id: Ibc59b659306a4eef2d4f0e3d0b651986d6cf84ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188021
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cache/cache.go | 69 ++++++++++++++++++++++--------
+ src/cmd/go/internal/work/exec.go   | 86 +++++++++++++++++---------------------
+ 2 files changed, 89 insertions(+), 66 deletions(-)

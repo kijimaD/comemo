@@ -1,0 +1,20 @@
+commit cc155ebf243a900109613eae4c89a381aa545160
+Author: Ian Gudger <igudger@google.com>
+Date:   Sat Mar 17 11:10:10 2018 -0700
+
+    vendor: update golang.org/x/net/dns/dnsmessage from upstream
+    
+    Updates to x/net git rev 24dd378 for CL 100055
+    
+    Fixes #10622
+    Updates #16218
+    
+    Change-Id: I99e26da7b908b36585a0379d9381030c01819b54
+    Reviewed-on: https://go-review.googlesource.com/101278
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../golang_org/x/net/dns/dnsmessage/message.go     | 10 +++++++++-
+ .../x/net/dns/dnsmessage/message_test.go           | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

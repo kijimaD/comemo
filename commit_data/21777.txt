@@ -1,0 +1,12 @@
+commit a3c59779ffdc3d8280f7c32a6aa421ba56bad90d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 17:55:11 2015 -0500
+
+    syscall: exclude Go tool test on darwin/arm
+    
+    Change-Id: I44c1911beceaedaa35dad71d8be8a814528dce67
+    Reviewed-on: https://go-review.googlesource.com/6192
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/syscall_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,16 @@
+commit 6674f2225e3a409f3f03b8b6ba31c1f3ddb0b35b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Dec 22 21:49:46 2023 +0800
+
+    net: verify if internal/poll.Splice has been called during io.Copy
+    
+    Change-Id: I29ef35b034cd4ec401ac502bf95dbd8c3ef2a2d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/splice_linux.go                          |   6 +-
+ src/net/{splice_test.go => splice_linux_test.go} | 128 ++++++++++++++++++++++-
+ 2 files changed, 128 insertions(+), 6 deletions(-)

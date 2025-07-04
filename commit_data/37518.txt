@@ -1,0 +1,30 @@
+commit 2b58ca6e3de3d93817a4e6cc55378015eb3c2040
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 26 12:00:07 2018 -0400
+
+    cmd/compile: begin OpArg and OpPhi location lists at block start
+    
+    For the entry block, make the "first instruction" be truly
+    the first instruction.  This allows printing of incoming
+    parameters with Delve.
+    
+    Also be sure Phis are marked as being at the start of their
+    block.  This is observed to move location list pointers,
+    and where moved, they become correct.
+    
+    Leading zero-width instructions include LoweredGetClosurePtr.
+    Because this instruction is actually architecture-specific,
+    and it is now tested for in 3 different places, also created
+    Op.isLoweredGetClosurePtr() to reduce future surprises.
+    
+    Change-Id: Ic043b7265835cf1790382a74334b5714ae4060af
+    Reviewed-on: https://go-review.googlesource.com/c/145179
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go       |  6 ++++-
+ src/cmd/compile/internal/ssa/debug.go    | 43 ++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/schedule.go | 20 ++++++++++-----
+ src/cmd/compile/internal/ssa/tighten.go  | 13 +++++-----
+ 4 files changed, 60 insertions(+), 22 deletions(-)

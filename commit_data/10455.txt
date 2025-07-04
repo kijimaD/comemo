@@ -1,0 +1,15 @@
+commit 5cad8611366d2a02aa7f02dd51024a1ad1ac7bc6
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 18 15:48:34 2011 -0500
+
+    crypto/x509: fix documentation typos
+    
+    Thanks to Jeff R. Allen for pointing them out.
+    
+    R=bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/5412052
+
+ src/pkg/crypto/x509/cert_pool.go | 10 +++++-----
+ src/pkg/crypto/x509/x509.go      |  9 ++++-----
+ 2 files changed, 9 insertions(+), 10 deletions(-)

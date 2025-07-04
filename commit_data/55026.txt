@@ -1,0 +1,20 @@
+commit 2184a76fb8e1aeb0eb2d5401828548a25f90beae
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 2 22:15:25 2023 +0100
+
+    embed: fix variable name in example
+    
+    Use variable 'mux' for an http.ServeMux, not 'mutex'.
+    
+    Change-Id: I58e9a8ebacbb61727ec4b8e4d0fd7f73e86ab381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539515
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/embed/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

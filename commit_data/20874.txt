@@ -1,0 +1,26 @@
+commit b53bdd496c2de8d33e1e65452f184c829303de9f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:46:27 2014 +1100
+
+    undo CL 169000043 / 05b838013df9
+    
+    This was a mistake. The cmd/api tool
+    depends on an old version of go/types.
+    
+    ««« original CL description
+    cmd/api: use golang.org/x/... import paths
+    
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/169000043
+    »»»
+    
+    TBR=rsc, bradfitz
+    R=bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169320043
+
+ src/cmd/api/goapi.go | 2 +-
+ src/cmd/api/run.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

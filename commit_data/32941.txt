@@ -1,0 +1,14 @@
+commit 52abe50c33b3ecfff2d324ca9d74a1c5c0f719e5
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Wed Oct 4 16:58:36 2017 +0300
+
+    bytes: correct Map documentation
+    
+    Fix incorrect reference to string instead of byte slice.
+    
+    Change-Id: I95553da32acfbcf5dde9613b07ea38408cb31ae8
+    Reviewed-on: https://go-review.googlesource.com/68090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

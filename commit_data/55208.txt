@@ -1,0 +1,17 @@
+commit 49f022cfa382e7326d2a6e3237dbed1ac43ae7b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 12:35:35 2023 -0800
+
+    doc: add release note for go/types/PkgNameOf
+    
+    For #62037.
+    
+    Change-Id: Id1d02f88205e5ea62662e78c8313731ec9e55b1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546975
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

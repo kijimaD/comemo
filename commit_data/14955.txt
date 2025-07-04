@@ -1,0 +1,14 @@
+commit 9114279c6688f9c37de61af1fd77142b4ff6d7e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 22 17:05:45 2013 -0500
+
+    encoding/xml: simplify copyValue
+    
+    Delete various complications left over from an earlier reflect API.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7124063
+
+ src/pkg/encoding/xml/read.go | 59 ++++++++++++++++----------------------------
+ 1 file changed, 21 insertions(+), 38 deletions(-)

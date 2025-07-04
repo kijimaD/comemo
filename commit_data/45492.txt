@@ -1,0 +1,24 @@
+commit b177b2d51ea14637d7a75542cbfd3843db387453
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 1 19:43:55 2021 +0200
+
+    os, syscall: use wait6 to avoid wait/kill race on dragonfly
+    
+    Follow CL 23967 and CL 24021 which did the same on linux and freebsd,
+    respectively.
+    
+    Updates #13987
+    Updates #16028
+    
+    Change-Id: Ia30ef8b5cffd8f9eb75c29ee5fe350dac2be6d44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315279
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_unimp.go                   |  4 ++--
+ src/os/wait_wait6.go                   | 12 +++++++-----
+ src/syscall/zerrors_dragonfly_amd64.go |  2 ++
+ src/syscall/zsysnum_dragonfly_amd64.go |  1 +
+ 4 files changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 9dbb185fb6902d9a1308f709deaa67460ccd6c02
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 2 21:05:41 2014 -0700
+
+    net/http: clarify Request fields' client-vs-server semantics
+    
+    Fixes #7682
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=dsymonds, golang-codereviews, iant
+    https://golang.org/cl/83800043
+
+ src/pkg/net/http/request.go | 51 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 37 insertions(+), 14 deletions(-)

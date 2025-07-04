@@ -1,0 +1,21 @@
+commit 070b82e2e8b28b067e08927228ee651dd54a4236
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 29 00:10:57 2017 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev d4223d6710a for:
+    
+        http2: refund connection flow control on DATA frames received after reset
+        https://golang.org/cl/46591
+    
+    Fixes #46591
+    
+    Change-Id: I5e6999599e921fed279c6d29ae77439191e99615
+    Reviewed-on: https://go-review.googlesource.com/47096
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/h2_bundle.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

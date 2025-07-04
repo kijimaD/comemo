@@ -1,0 +1,22 @@
+commit 682a1d2176b02337460aeede0ff9e49429525195
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jan 15 16:29:00 2021 +0100
+
+    runtime: detect errors in DuplicateHandle
+    
+    These functions rely on DuplicateHandle succeeding, but they don't check
+    the return value, which might be masking subtle bugs that cause other
+    problems down the line.
+    
+    Updates #43720.
+    
+    Change-Id: I77f0e6645affa534777ffc173144a52e4afa5f81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284135
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/os_windows.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

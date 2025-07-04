@@ -1,0 +1,18 @@
+commit fb1cd942225f66a6a8506d28bf317063efe50979
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Jun 25 15:43:33 2019 -0400
+
+    runtime/pprof: export max rss when saving memory profiles.
+    
+    NB: Adds syscall to deps on runtime/pprof.
+    Change-Id: I5dd14c2b25eb9c3c446832f5818de45fafd48a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183844
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/go/build/deps_test.go           |  2 +-
+ src/runtime/pprof/pprof.go          |  3 +++
+ src/runtime/pprof/pprof_norusage.go | 15 +++++++++++++++
+ src/runtime/pprof/pprof_rusage.go   | 20 ++++++++++++++++++++
+ 4 files changed, 39 insertions(+), 1 deletion(-)

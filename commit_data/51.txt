@@ -1,0 +1,14 @@
+commit 87278c26e2bef550800bf7518f50996f202bfa33
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 1 12:48:20 2008 -0700
+
+    bug36
+    fixed error in symbol table in
+    the second forward declaration of
+    a function.
+    
+    SVN=114572
+
+ src/c/dcl.c | 1 -
+ src/c/go.y  | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

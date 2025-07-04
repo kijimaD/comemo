@@ -1,0 +1,17 @@
+commit d0c0dc682c1fb15241d84df11715e706a5bc0da7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 3 11:07:27 2020 +0100
+
+    doc/go1.16: document os package changes
+    
+    For #39444
+    For #40700
+    Fixes #42908
+    
+    Change-Id: Idae35adecd79e9d7d207f9d78cb009a980e5c8a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274477
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.16.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

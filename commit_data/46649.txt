@@ -1,0 +1,21 @@
+commit 84ba117fd7446030f93ab679d5c819dc028ad881
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sat Sep 11 20:53:24 2021 +0800
+
+    runtime: add mp parameter for getMCache
+    
+    Since all callers of getMCache appear to have mp available,
+    we pass the mp to getMCache, and reduce one call to getg.
+    And after modification, getMCache is also inlined.
+    
+    Change-Id: Ib7880c118336acc026ecd7c60c5a88722c3ddfc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349329
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/malloc.go | 4 ++--
+ src/runtime/mcache.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

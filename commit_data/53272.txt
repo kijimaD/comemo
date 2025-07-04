@@ -1,0 +1,44 @@
+commit ac17bb6f13979f2ab9fcd45f0758b43ed72d0973
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Mar 21 13:45:18 2023 -0700
+
+    crypto/x509: properly apply name constrains to roots and intermediates
+    
+    Name constraints are checked during path building. When a new
+    certificate is considered for inclusion in a chain we check if it has
+    name constraints, and if it does, check that they apply to the certs
+    already in the chain, discarding it if the current chain violates any
+    of the constraints the candidate introduces.
+    
+    This check was not acting as intended in two ways. The first was that
+    we only checked that the constraints on the candidate certificate
+    applied to the leaf certificate, and not the rest of the certiifcates in
+    the chain. This was the intended behavior pre-1.19, but in 1.19 we
+    intended for the constraints to be applied to the entire chain (although
+    obviously they were not).
+    
+    The second was that we checked that the candidates constraints applied
+    to the candidate itself. This is not conformant with RFC 5280, which
+    says that during path building the constraint should only be applied to
+    the certificates which follow the certificate which introduces the
+    constraint (e.g. in the chain A -> B -> C, if certificate Bcontains a
+    name constraint, the constraint should only apply to certificate C).
+    
+    The intended behavior introduced in 1.19 was mainly intended to reject
+    dubious chains which the WebPKI disallows, and are relatively rare, but
+    don't have significant security impact. Since the constraints were
+    properly applied to the leaf certificate, there should be no real impact
+    to the majority of users.
+    
+    Fixes #59171
+    
+    Change-Id: Ie6def55b8ab7f14d6ed2c09351f664e148a4160d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478216
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/verify.go      | 11 ++---
+ src/crypto/x509/verify_test.go | 92 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 86 insertions(+), 17 deletions(-)

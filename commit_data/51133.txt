@@ -1,0 +1,23 @@
+commit 81ed1354e8fef60cac1f7043d723d9d38c9ce174
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Aug 29 09:32:34 2022 -0700
+
+    crypto/tls: add a certificate cache implementation
+    
+    Adds a BoringSSL CRYPTO_BUFFER_POOL style reference counted intern
+    table for x509.Certificates. This can be used to significantly reduce
+    the amount of memory used by TLS clients when certificates are reused
+    across connections.
+    
+    Updates #46035
+    
+    Change-Id: I8d7af3bc659a93c5d524990d14e5254212ae70f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426454
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/tls/cache.go      |  93 ++++++++++++++++++++++++++++++++++
+ src/crypto/tls/cache_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 210 insertions(+)

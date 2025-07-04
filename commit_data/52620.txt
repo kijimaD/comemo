@@ -1,0 +1,25 @@
+commit f7f0d395695933bfe4397e1faf70000454f1193c
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Apr 7 18:26:50 2023 -0700
+
+    time: add wasip1 support
+    
+    Fixes #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I51dabbf17b8f5540c964f90223d18457f6f9fbef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483236
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/sys_unix.go        | 12 ++++++++++--
+ src/time/zoneinfo_wasip1.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

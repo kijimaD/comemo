@@ -1,0 +1,13 @@
+commit 37656ad56854705f2a39e77ec3217a375a9f5144
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 19:22:06 2009 -0800
+
+    document container/intvector
+    
+    R=rsc
+    DELTA=15  (15 added, 0 deleted, 0 changed)
+    OCL=25794
+    CL=25812
+
+ src/lib/container/intvector.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

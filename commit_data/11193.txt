@@ -1,0 +1,14 @@
+commit 5163e7aa2724c0c81feea56f7b243b122a1d3bdf
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Jan 16 18:13:34 2012 -0500
+
+    math/rand: document default initial seed for global generator
+    
+    Fixes #2044.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5541056
+
+ src/pkg/math/rand/rand.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

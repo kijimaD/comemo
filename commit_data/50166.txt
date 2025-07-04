@@ -1,0 +1,26 @@
+commit eeb1ba7a89975beb1993242d8f2db05a6237e01c
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Aug 24 03:28:16 2022 +0000
+
+    cmd/compile/obj/arm64: fix encoding error of FMOVD/FMOVS $0|ZR
+    
+    Previously the first operand of FMOVD and FMOVS could be $0, which
+    would be converted to the ZR register. This is prohibited by CL 404316,
+    also it broken the encoding of "FMOVD/FMOVS ZR, Rn", this CL restores
+    this instruction format and fixes the encoding issue.
+    
+    Fixes #54655.
+    Fixes #54729.
+    
+    Change-Id: I9c42cd41296bed7ffd601609bd8ecaa27d11e659
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425188
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 4 ++++
+ src/cmd/internal/obj/arm64/asm7.go        | 4 ++--
+ src/cmd/internal/obj/arm64/obj7.go        | 2 ++
+ 3 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 43a39bfd7fde223b741fc05ee5ac8a336e2a8f0a
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Aug 19 10:14:10 2013 +1000
+
+    encoding/xml: flush buffer after encoding token
+    
+    R=rsc, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/13004046
+
+ src/pkg/encoding/xml/marshal.go      | 3 +--
+ src/pkg/encoding/xml/marshal_test.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

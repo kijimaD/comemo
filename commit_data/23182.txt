@@ -1,0 +1,22 @@
+commit 8801bdf2b3cb8f3d59664f56fba7eeb7a2cf0bdb
+Author: Aamir Khan <syst3m.w0rm@gmail.com>
+Date:   Tue May 19 13:49:53 2015 +0900
+
+    text/template: template must be initialized at the time of creation
+    
+    t.init() should be called at the time of template creation
+    i.e, template.New() and t.New() instead of later in the process.
+    
+    - Removed calls of t.init() from t.Parse(), t.Execute(), t.Funcs()
+    - Also got rid of t.common != nil checks as it should never be nil
+    
+    Fixes #10879
+    
+    Change-Id: I1b7ac812f02c841ae80037babce7e2b0a2df13e8
+    Reviewed-on: https://go-review.googlesource.com/10240
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go       |  4 ----
+ src/text/template/multi_test.go |  6 ++++++
+ src/text/template/template.go   | 19 +++++++------------
+ 3 files changed, 13 insertions(+), 16 deletions(-)

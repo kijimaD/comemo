@@ -1,0 +1,15 @@
+commit c2b4fb5a3bfc13618a683f1265555f89f37de550
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:51:37 2017 -0700
+
+    cmd/compile: eliminate some Linksym calls in obj.go
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0cb2ea9ca7ec2449999af28457270ff7b3324e92
+    Reviewed-on: https://go-review.googlesource.com/41410
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

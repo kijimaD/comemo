@@ -1,0 +1,22 @@
+commit 2b42ed6483a982b7b9683a3b55f3e0febf37d74f
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu May 16 12:58:48 2024 +0000
+
+    crypto: use byteorder to simplify consumeUint32 and consumeUint64
+    
+    A follow-up for the recent CL 585017.
+    
+    Change-Id: I9faaff7fdf62fc931fc7f64dbe238de277280730
+    GitHub-Last-Rev: 468d60c3960751c1eec81c6ef1a57ab9e32f2eb8
+    GitHub-Pull-Request: golang/go#67425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586035
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/sha1/sha1.go     | 9 ++-------
+ src/crypto/sha256/sha256.go | 9 ++-------
+ src/crypto/sha512/sha512.go | 5 +----
+ 3 files changed, 5 insertions(+), 18 deletions(-)

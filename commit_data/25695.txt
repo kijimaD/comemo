@@ -1,0 +1,19 @@
+commit e97096661ecaf1f7476c2320208d92709b72279d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 14:07:25 2016 -0800
+
+    runtime: handle kindString in cgoCheckArg
+    
+    It's awkward to get a string value in cgoCheckArg, but SWIG testing
+    revealed that it is possible.  The new handling of extra files in the
+    ptr.go test emulates what SWIG does with an exported function that
+    returns a string.
+    
+    Change-Id: I453717f867b8a49499576c28550e7c93053a0cf8
+    Reviewed-on: https://go-review.googlesource.com/19020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/errors/ptr.go | 104 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/cgocall.go |   8 ++++
+ 2 files changed, 98 insertions(+), 14 deletions(-)

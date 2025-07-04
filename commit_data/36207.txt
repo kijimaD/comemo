@@ -1,0 +1,16 @@
+commit 1b870077c896379c066b41657d3c9062097a6943
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 3 16:58:07 2018 +0000
+
+    net: skip flaky TestNotTemporaryRead on FreeBSD
+    
+    Updates #25289
+    
+    Change-Id: I662760b921be625aca988cd0b43c648ac5dfd814
+    Reviewed-on: https://go-review.googlesource.com/127837
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

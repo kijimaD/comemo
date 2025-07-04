@@ -1,0 +1,18 @@
+commit bd1783e812bf10f5829b742135ef886623cccc5c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Jun 27 16:23:37 2022 -0700
+
+    crypto/x509: improve RevocationList documentation
+    
+    Adds documentation for a handful of RevocationList fields.
+    
+    Updates #50674
+    
+    Change-Id: I26b838553d870b631deaf8b9a5b4d0b251fdef20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414635
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/x509/x509.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

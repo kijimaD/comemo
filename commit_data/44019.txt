@@ -1,0 +1,18 @@
+commit 8e2d74b705ea669c7b5e56c81c59a350d5192352
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 21:43:50 2020 -0800
+
+    test: only check for issue11362 error with gc
+    
+    With the gc compiler the import path implies the package path,
+    so keeping a canonical path is important.  With the gofrontend
+    this is not the case, so we don't need to report this as a bug.
+    
+    Change-Id: I245e34f9b66383bd17e79438d4b002a3e20aa994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278115
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue11362.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

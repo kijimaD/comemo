@@ -1,0 +1,18 @@
+commit 5a1c7b5841270f9f1b2836aa1d23b289ec24fdc2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 20 13:50:08 2019 -0500
+
+    crypto/tls: enable TLS 1.3 by default
+    
+    Updates #30055
+    
+    Change-Id: I3e79dd7592673c5d76568b0bcded6c391c3be6b3
+    Reviewed-on: https://go-review.googlesource.com/c/163081
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go   | 8 ++++----
+ src/crypto/tls/tls.go      | 9 ++-------
+ src/crypto/tls/tls_test.go | 7 -------
+ 3 files changed, 6 insertions(+), 18 deletions(-)

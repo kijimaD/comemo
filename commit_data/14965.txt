@@ -1,0 +1,14 @@
+commit 86a8d59a014287c899a14ef9ed6fdfb7d1b8d586
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 22 17:25:58 2013 -0800
+
+    time: make TestReset more reliable
+    
+    Fixes #4690
+    
+    R=golang-dev, alex.brainman, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7181052
+
+ src/pkg/time/sleep_test.go | 43 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 33 insertions(+), 10 deletions(-)

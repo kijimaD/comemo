@@ -1,0 +1,18 @@
+commit 6ebfd1eff28fbc84a0857298e4ecee9d4c7570a1
+Author: Adrian O'Grady <elpollouk@gmail.com>
+Date:   Wed Dec 9 00:06:20 2009 -0800
+
+    Added XTEA block cipher package to src/pkg/crypto
+    
+    This is an adaption of the code from http://en.wikipedia.org/wiki/XTEA. The package also implements the block.Cipher
+    interface so that it can be used with the various block modes.
+    
+    R=rsc
+    https://golang.org/cl/157152
+
+ src/pkg/Makefile                 |   1 +
+ src/pkg/crypto/xtea/Makefile     |  12 ++
+ src/pkg/crypto/xtea/block.go     |  66 +++++++++++
+ src/pkg/crypto/xtea/cipher.go    |  92 +++++++++++++++
+ src/pkg/crypto/xtea/xtea_test.go | 246 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 417 insertions(+)

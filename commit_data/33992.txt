@@ -1,0 +1,26 @@
+commit bb4356dbfd03343bef39746f9937e57c93453e97
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 10 21:50:13 2018 +0000
+
+    net/http: fix "http2: no cached connection..." error with x/net/http2
+    
+    The net/http Transport was testing for a sentinel x/net/http2 error
+    value with ==, which meant it was only testing the bundled version. If
+    a user enabled http2 via golang.org/x/net/http2, the error value had a
+    different name.
+    
+    This also updates the bundled x/net/http2 to git rev ab555f36 for:
+    
+        http2: add internal function isNoCachedConnError to test for ErrNoCachedConn
+        https://golang.org/cl/87297
+    
+    Fixes #22091
+    
+    Change-Id: I3fb85e2b7ba7d145dd66767e1795a56de633958c
+    Reviewed-on: https://go-review.googlesource.com/87298
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/h2_bundle.go               | 24 ++++++++++++++++++++++--
+ src/net/http/transport.go               |  2 +-
+ src/net/http/transport_internal_test.go | 22 +++++++++++++++++-----
+ 3 files changed, 40 insertions(+), 8 deletions(-)

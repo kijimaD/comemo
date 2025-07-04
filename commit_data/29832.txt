@@ -1,0 +1,14 @@
+commit 6e542dce216504cc1e849573a4320084307860d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 15 09:00:21 2016 -0800
+
+    test: add test gcc78763.go that caused a gccgo compiler crash
+    
+    Change-Id: I0d990d494ee8eebfc804b526f5ced71944572b4d
+    Reviewed-on: https://go-review.googlesource.com/34491
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/gcc78763.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

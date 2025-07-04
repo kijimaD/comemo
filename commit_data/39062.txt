@@ -1,0 +1,19 @@
+commit 8280455de4728d76f1e084e33284d57eb6ba10ac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 6 14:23:05 2019 -0700
+
+    cmd/go: don't print phdrs running "go version" on ELF files
+    
+    I assume this was for debugging purposes.
+    
+    Updates #31624
+    
+    Change-Id: Ie158fde0574c9bbbd9d1b684f51af5681974aff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175449
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/version/exe.go | 1 -
+ 1 file changed, 1 deletion(-)

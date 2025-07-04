@@ -1,0 +1,27 @@
+commit 0b2e0265ae58a4764c318fb2404f3f3dd44aa797
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Apr 16 13:06:45 2010 +0300
+
+            the android runner script
+    
+            this is a version synthesized from rsc's, dean's and my
+            versions. changes and updates:
+    
+            - embeds the retval script and pushes a new version to the
+              device if needed
+            - passes arguments correctly to the program on the device
+            - export GOARCH, GOTRACEBACK and GOGC from the local
+              environment to the device.
+            - added times.out support to run-arm
+    
+            enabled a few tests that are now passing and moved the
+            GOGC=off workaround to run-arm.
+    
+    R=dpx
+    CC=golang-dev, rsc
+    https://golang.org/cl/880046
+
+ misc/arm/a        | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/arm-pass.txt |  8 ++++----
+ test/run-arm      | 13 +++++++++++--
+ 3 files changed, 64 insertions(+), 6 deletions(-)

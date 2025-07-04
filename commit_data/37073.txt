@@ -1,0 +1,16 @@
+commit e850b3752f49db4c93ebf549400b2d79f6801c9a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Oct 23 15:55:57 2018 +0200
+
+    net: fix TestInterfaceMulticastAddrs for AIX
+    
+    This commit disables checkMulticastStats for AIX operating system.
+    
+    Change-Id: If8d0fb609a0dcf75b7bb5c3871cfb6fad76a0a92
+    Reviewed-on: https://go-review.googlesource.com/c/144102
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

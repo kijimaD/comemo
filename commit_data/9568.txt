@@ -1,0 +1,21 @@
+commit 3f1269ff1ea56cd4d1608a2b6285d12b5b1dc7d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 14:01:58 2011 -0700
+
+    godoc: more index size reduction
+    
+    - KindRuns don't need to repeat SpotKind,
+      it is stored in each Spot
+    - removed extra indirection from FileRuns
+      to KindRuns
+    - slight reduction of written index size
+      (~500KB)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4969052
+
+ lib/godoc/search.html  |  6 +++---
+ src/cmd/godoc/godoc.go |  4 ++--
+ src/cmd/godoc/index.go | 37 +++++++++++++++++--------------------
+ 3 files changed, 22 insertions(+), 25 deletions(-)

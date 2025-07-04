@@ -1,0 +1,21 @@
+commit 16a3cefc93d9b896b2053320e387d0e449904aba
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 7 13:29:09 2021 -0700
+
+    runtime: fix uint64->float32 conversion for softfloat
+    
+    The fix for #48807 in CL 354429 forgot that we also need to fix
+    the softfloat implementation.
+    
+    Update #48807
+    
+    Change-Id: I596fb4e14e78145d1ad43c130b2cc5122b73655c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354613
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/test/ssa_test.go |  2 +-
+ src/runtime/softfloat64.go                | 36 +++++++++++++++++++++++++++----
+ 2 files changed, 33 insertions(+), 5 deletions(-)

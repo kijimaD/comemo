@@ -1,0 +1,14 @@
+commit 4fa6d57f6e8f45b7952e6d5b9637f385f121b1e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 4 14:32:59 2011 -0500
+
+    runtime: fix asm.h on Windows
+    
+    Thanks to mhantsch@gmail.com.
+    
+    R=adg, brainman
+    CC=golang-dev
+    https://golang.org/cl/4092048
+
+ src/pkg/runtime/mkasmh.sh | 1 +
+ 1 file changed, 1 insertion(+)

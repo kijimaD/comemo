@@ -1,0 +1,25 @@
+commit 2ad44158af373f68c1aef528738a5baade77d316
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 22 10:05:44 2020 -0400
+
+    cmd/internal/obj: use correct symbol size for Hashed64 classification
+    
+    Use sym.Size, instead of len(sym.P), to decide whether a
+    content-addressable symbol is "short" and hashed as Hashed64.
+    So we don't dedup a small symbol with a gigantic almost-zero
+    symbol.
+    
+    Fixes #42140.
+    
+    Change-Id: Ic65869e1eaf51947517b3ece49c8b0be1b94bb75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264337
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/sym.go |  2 +-
+ src/cmd/link/link_test.go   | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

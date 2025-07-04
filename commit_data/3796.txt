@@ -1,0 +1,25 @@
+commit d8e0d9a7780a587ee017a3f25a4a890a369b36a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 23:43:55 2009 -0800
+
+    add "hg gofmt" to run all modified files through gofmt.
+    
+    add check before Upload, for now disabled by default,
+    that files do not change when run through gofmt.
+    enable by adding
+    
+            [codereview]
+            force_gofmt = True
+    
+    to .hgrc or .hg/hgrc.
+    
+    add doc strings for a few more commands.
+    rename codereview-login to code-login
+    to make module doc visible.
+    
+    R=r
+    CC=gri
+    http://go/go-review/1018056
+
+ lib/codereview/codereview.py | 105 ++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 93 insertions(+), 12 deletions(-)

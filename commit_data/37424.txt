@@ -1,0 +1,23 @@
+commit 55e1fc930b3a4efe4ac8ad74ff7844be4c7ef162
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 10:43:21 2018 -0500
+
+    cmd/vet: reenable cgo test
+    
+    The reason the 386 trybot was happy but 'GOARCH=386 go test cmd/vet'
+    was not is that CgoEnabled defaults to false in a cross build;
+    I have no idea why. Now we ask the go command for the effective
+    value so that the test works in both cases.
+    
+    Also, remove stale comment.
+    
+    Fixes #28829
+    
+    Change-Id: I1210af34da6986f47924059de5c1f08b2824ace9
+    Reviewed-on: https://go-review.googlesource.com/c/149958
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/vet_test.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit c320cf85d97b3c5a57c120bd7d75a4259c7e24eb
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 16 00:06:19 2013 -0400
+
+    misc/emacs: do not use any free variables
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/12744046
+
+ misc/emacs/go-mode.el | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

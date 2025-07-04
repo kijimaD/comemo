@@ -1,0 +1,18 @@
+commit 16d6b6c77144bd26838d1cfd6631d159b419752b
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Sep 16 19:03:19 2013 -0700
+
+    runtime: export PCDATA value reader
+    
+    This interface is required to use the PCDATA interface
+    implemented in Go 1.2.  While initially entirely private, the
+    FUNCDATA side of the interface has been made public.  This
+    change completes the FUNCDATA/PCDATA interface.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13735043
+
+ src/pkg/runtime/runtime.h | 1 +
+ src/pkg/runtime/symtab.c  | 6 +++---
+ 2 files changed, 4 insertions(+), 3 deletions(-)

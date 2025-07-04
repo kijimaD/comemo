@@ -1,0 +1,13 @@
+commit f298d0ce29cdd6a3521cb6a062a9fc4a104392fc
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 16:28:56 2011 +1100
+
+    time: add ParseDuration.
+    
+    R=rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/5489111
+
+ src/pkg/time/format.go    | 146 +++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/time/time_test.go |  77 ++++++++++++++++++++++++
+ 2 files changed, 207 insertions(+), 16 deletions(-)

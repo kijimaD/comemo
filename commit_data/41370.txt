@@ -1,0 +1,17 @@
+commit 5912f4fc376013897998747bd81602dce962072b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 12 20:17:16 2020 -0800
+
+    runtime: really wait for goroutines in testSemaHandoff
+    
+    The code has a comment saying that it waited for the goroutines,
+    but it didn't actually do so.
+    
+    Change-Id: Icaeb40613711053a9f443cc34143835560427dda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sema_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

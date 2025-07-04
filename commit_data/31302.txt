@@ -1,0 +1,21 @@
+commit 06e5749f0175275cdf0c76836d82a2efd3096386
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 21 19:05:38 2017 -0700
+
+    cmd/link: cleanup after IntSize->PtrSize conversion
+    
+    Passes toolstash-check -all.
+    
+    Updates #19954.
+    
+    Change-Id: Ic162306eed105912491bf1df47e32c32653f824c
+    Reviewed-on: https://go-review.googlesource.com/41490
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/data.go      | 4 ++++
+ src/cmd/link/internal/ld/decodesym.go | 6 +++---
+ src/cmd/link/internal/ld/pcln.go      | 6 +++---
+ src/cmd/link/internal/ld/symtab.go    | 6 +++---
+ 4 files changed, 13 insertions(+), 9 deletions(-)

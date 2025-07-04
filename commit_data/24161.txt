@@ -1,0 +1,23 @@
+commit 37025536c343642a196f058065f6e3ac121e5473
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 16:05:04 2015 -0700
+
+    net/rpc: don't exit if Accept gets an error
+    
+    The default implementation of Accept, which spins up a new server
+    for every new connection, calls log.Fatal if the listener is closed,
+    stopping any outstanding work. Change that to a non-fatal log
+    call so work can continue.
+    
+    There is no programmatic signaling of the problem, just the log,
+    but that should be enough.
+    
+    Fixes #11221.
+    
+    Change-Id: I7c7f6164a0a0143236729eb778d7638c51c34ed1
+    Reviewed-on: https://go-review.googlesource.com/14185
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/server.go      |  8 +++++---
+ src/net/rpc/server_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit dcb4c1c1aad098e6b0da4a64896ff2f98f3a2ad7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 3 17:49:53 2023 -0500
+
+    runtime: dedup function name logic into moduledata method
+    
+    For #54466.
+    
+    Change-Id: I4d8e1953703b6c763e5bd53024da43efcc993489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466095
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/race.go   |  6 ++++--
+ src/runtime/symtab.go | 30 +++++++++++++++---------------
+ 2 files changed, 19 insertions(+), 17 deletions(-)

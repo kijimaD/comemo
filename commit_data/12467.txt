@@ -1,0 +1,12 @@
+commit 08854b022fec37e16d35e3e4e029e703f1911463
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 10:21:56 2012 -0500
+
+    test: fix typo
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5752073
+
+ test/fixedbugs/bug424.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

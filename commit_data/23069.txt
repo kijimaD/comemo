@@ -1,0 +1,14 @@
+commit f9ec929aafeec42eea7234c1fa6c6c817c7a6548
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 18 11:18:58 2015 -0700
+
+    spec: fix typo
+    
+    Fixes #10893.
+    
+    Change-Id: I8afeb55acda1e1c8e181379dbaf443716d63ded1
+    Reviewed-on: https://go-review.googlesource.com/10201
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

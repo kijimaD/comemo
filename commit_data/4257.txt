@@ -1,0 +1,11 @@
+commit 67dc2ae3a647da45d7354b5734483988e447e27d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 1 11:35:34 2009 -0800
+
+    a couple of usage fixups in prof
+    
+    R=rsc
+    https://golang.org/cl/161050
+
+ src/cmd/prof/main.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

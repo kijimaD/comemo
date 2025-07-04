@@ -1,0 +1,27 @@
+commit c8396b51888e4d6ab8b4675b111f329eb23408f6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 12 04:51:16 2023 -0700
+
+    cmd/compile/internal/ir: add NewZero
+    
+    This constructs a zero value of any type, which helps address some
+    corner case scenarios.
+    
+    It should also eventually handle the predeclared "zero" value, at
+    least as currently implemented in go.dev/cl/520336.
+    
+    For #61372.
+    
+    Change-Id: I3a86a94fd8fa388c9c6bf281da8aa532b3da00fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527696
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/const.go      | 30 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/codes.go   |  2 +-
+ src/cmd/compile/internal/noder/helpers.go |  4 ----
+ src/cmd/compile/internal/noder/reader.go  | 15 ++++-----------
+ src/cmd/compile/internal/noder/writer.go  |  2 +-
+ 5 files changed, 36 insertions(+), 17 deletions(-)

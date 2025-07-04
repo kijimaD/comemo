@@ -1,0 +1,13 @@
+commit ccd1d07cc44f3ca033ab7ad9e93ebf97ff3fa94c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 12 05:22:49 2013 +0800
+
+    runtime: round spans_size up to page boundary
+    in case we have weird (not page aligned) memory limit.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10199043
+
+ src/pkg/runtime/malloc.goc | 4 ++++
+ 1 file changed, 4 insertions(+)

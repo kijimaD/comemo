@@ -1,0 +1,12 @@
+commit e98f2179b17e4d5b4e416bf4856cf68813d17356
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Dec 22 23:44:41 2014 -0500
+
+    runtime: fix build for arm and ppc64/ppc64le
+    
+    Change-Id: I17ddcb541dfac8b1e48e01ee005563031b6ade2a
+    Reviewed-on: https://go-review.googlesource.com/2062
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/noasm.go | 2 ++
+ 1 file changed, 2 insertions(+)

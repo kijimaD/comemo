@@ -1,0 +1,19 @@
+commit ecfff58fb8c3aabbce7b15c850210485c1f09d61
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sun Aug 29 14:36:20 2021 +0800
+
+    cmd/compile: fix delay transformation in *subster.node()
+    
+    Add OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, ODYNAMICDOTTYPE transformations to the CALL check switch statement.
+    
+    Fixes #48042
+    
+    Change-Id: Ied93efd979c5b2c56b72fad26fccfd9f887361d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345949
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  3 ++
+ test/typeparam/issue48042.go              | 77 +++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

@@ -1,0 +1,14 @@
+commit b978995f5db06cc1b8f5a46adc38e4a30102d061
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Thu Dec 13 10:14:32 2012 +0400
+
+    runtime/race: fix test for GOMAXPROCS>1
+    
+    Fixes #4530.
+    
+    R=dvyukov, dave
+    CC=golang-dev
+    https://golang.org/cl/6933052
+
+ src/pkg/runtime/race/race_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

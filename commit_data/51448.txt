@@ -1,0 +1,25 @@
+commit d5de62df152baf4de6e9fe81933319b86fd95ae4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 23 14:07:19 2022 +0100
+
+    lib/time, time/tzdata: update to 2022f
+    
+    Version 2022f was released on 2022-10-29,  see
+    https://mm.icann.org/pipermail/tz-announce/2022-October/000075.html for
+    the release announcement.
+    
+    For #22487
+    
+    Change-Id: I6130def7fcd389b30ffed0eb9003d0fcf5eabb82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453055
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 423559 -> 428823 bytes
+ src/time/tzdata/zipdata.go | 13816 ++++++++++++++++++++++---------------------
+ 3 files changed, 6954 insertions(+), 6866 deletions(-)

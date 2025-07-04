@@ -1,0 +1,16 @@
+commit ef0100c7d73acdc0403fe82664be29c2d6c336f4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Dec 18 20:19:59 2013 +0100
+
+    libmach, cmd/8l: fix Plan 9 warnings
+    
+    warning: src/libmach/sym.c:1861 non-interruptable temporary
+    warning: src/cmd/8l/../ld/pcln.c:29 set and not used: p
+    
+    R=golang-dev, gobot, rsc
+    CC=golang-dev
+    https://golang.org/cl/40500043
+
+ src/cmd/ld/pcln.c | 2 +-
+ src/libmach/sym.c | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

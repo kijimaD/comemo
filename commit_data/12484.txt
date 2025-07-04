@@ -1,0 +1,12 @@
+commit b514f0b9069d43e2a92def87201ae4b7cb2acca6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 7 11:17:26 2012 -0800
+
+    test: enable method expression tests in ddd.go
+    
+    R=golang-dev, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5769044
+
+ test/ddd.go | 2 --
+ 1 file changed, 2 deletions(-)

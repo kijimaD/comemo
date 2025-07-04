@@ -1,0 +1,44 @@
+commit cd5b144d9896c05169fea4ed6d3cad9267e3251d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 11 12:58:47 2015 -0700
+
+    runtime,reflect,cmd/internal/gc: Fix comments referring to .c/.h files
+    
+    Everything has moved to Go, but comments still refer to .c/.h files.
+    Fix all of those up, at least for these three directories.
+    
+    Fixes #10138
+    
+    Change-Id: Ie5efe89b247841e0b3f82aac5256b2c606ef67dc
+    Reviewed-on: https://go-review.googlesource.com/7431
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/cplx.go     |  3 ---
+ src/cmd/internal/gc/gsubr.go    |  3 ---
+ src/cmd/internal/gc/obj.go      |  3 ---
+ src/cmd/internal/gc/pgen.go     |  7 -------
+ src/cmd/internal/gc/popt.go     | 21 +--------------------
+ src/cmd/internal/gc/racewalk.go |  2 +-
+ src/cmd/internal/gc/range.go    |  2 +-
+ src/cmd/internal/gc/reflect.go  |  4 ++--
+ src/cmd/internal/gc/select.go   |  2 +-
+ src/cmd/internal/gc/walk.go     |  2 +-
+ src/reflect/type.go             | 11 ++++-------
+ src/reflect/value.go            |  2 +-
+ src/runtime/cgocallback.go      |  2 +-
+ src/runtime/chan_test.go        |  2 +-
+ src/runtime/hashmap.go          | 12 ++++++------
+ src/runtime/malloc.go           |  2 +-
+ src/runtime/mcentral.go         |  2 +-
+ src/runtime/mfixalloc.go        |  2 +-
+ src/runtime/mgcmark.go          |  2 +-
+ src/runtime/mheap.go            |  2 +-
+ src/runtime/msize.go            |  2 +-
+ src/runtime/mstats.go           |  3 ---
+ src/runtime/os1_freebsd.go      |  2 +-
+ src/runtime/rune.go             |  2 +-
+ src/runtime/runtime1.go         |  2 +-
+ src/runtime/runtime2.go         |  8 ++++----
+ src/runtime/select.go           |  2 +-
+ src/runtime/type.go             |  2 +-
+ 28 files changed, 35 insertions(+), 76 deletions(-)

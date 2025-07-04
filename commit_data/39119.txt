@@ -1,0 +1,25 @@
+commit ce5ae2f4bc606ef1d8fddadf771e9889f481a4a4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 10 15:08:17 2019 -0400
+
+    test: use a real use function in nilptr2.go
+    
+    Adjust the dummy use function to a real use. As suggested by the
+    println calls in the test, nilptr2.go supposes to check that a
+    used nil pointer dereference panics. This use function is not
+    real enough so an optimized compiler such as gccgo could
+    eliminate the call.
+    
+    The spec requires that even a dummy use would cause a panic.
+    Unfortunately, due to #31151 this is not true for gccgo at -O1 or
+    above.
+    
+    Change-Id: Ie07c8a5969ab94dad82d4f7cfec30597c25b7c46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176579
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/nilptr2.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

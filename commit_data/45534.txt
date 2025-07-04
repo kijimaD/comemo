@@ -1,0 +1,23 @@
+commit 8c3d217d89e718a5d9b7d8f4b1336907f15ea50c
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue May 4 17:43:26 2021 +0100
+
+    os: skip TestExecutableDeleted on plan9
+    
+    This test deletes the running executable file, which is not safe
+    on Plan 9. The test was working by accident prior to commit 02ab8d1,
+    which must have changed the page reference ordering just enough to
+    cause a new demand page-in after deletion of the file.
+    
+    Fixes #45941
+    
+    Change-Id: Ic13d8032c21cee603e3afc3c5c4da6093fc37bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316829
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/executable_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

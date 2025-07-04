@@ -1,0 +1,16 @@
+commit 9440d823a504d581ef82c53f1bf69b4b0f8e2d55
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 6 14:02:12 2012 +1100
+
+    gob: fuzz testing, plus a fix for very large type names.
+    
+    Fixes #2689.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5616063
+
+ src/pkg/encoding/gob/codec_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/gob/decode.go     |  6 +++-
+ src/pkg/encoding/gob/error.go      |  6 +++-
+ 3 files changed, 69 insertions(+), 2 deletions(-)

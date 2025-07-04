@@ -1,0 +1,19 @@
+commit e308807f658c11af52804d55c1b8c4b2cf80d3f3
+Author: Aaron Cannon <cannona@fireantproductions.com>
+Date:   Sat Oct 27 11:21:00 2018 -0500
+
+    flag: improve docs for PrintDefaults; clarify how to change output destination
+    
+    The existing docs only mention that it is possible to change the output
+    destination of PrintDefaults from the default of standard error, but fail to
+    mention how to actually do so. This change fixes this lack by directing users
+    to CommandLine.SetOutput.
+    
+    Fixes #15024
+    
+    Change-Id: Ieaa7edbebd23d4ea6fa7e53d97a87143d590bdb3
+    Reviewed-on: https://go-review.googlesource.com/c/145203
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 2 ++
+ 1 file changed, 2 insertions(+)

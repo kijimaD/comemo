@@ -1,0 +1,20 @@
+commit 67f052121ed47f23ea613043191ad654702560aa
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 30 12:22:23 2025 -0400
+
+    cmd/distpack: don't keep the pack tool
+    
+    This was an oversight: the pack tool isn't actually used in builds.
+    
+    For #71867
+    
+    Change-Id: Ib1f1cce0b574cf1d2c1002b2f2ab9ef9d750d0fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677557
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/distpack/pack.go       | 2 +-
+ src/cmd/go/internal/work/gc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

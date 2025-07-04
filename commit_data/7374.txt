@@ -1,0 +1,16 @@
+commit 5008c63e6e1b9c1f384c529c3bbe09e9c64ca444
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 4 15:21:08 2011 -0800
+
+    template: allow a leading '*' to indicate that evaulation should
+    indirect through a pointer.
+    
+    Fixes #1478.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4131045
+
+ src/pkg/template/template.go      | 36 +++++++++++++++++++++++++++++----
+ src/pkg/template/template_test.go | 42 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

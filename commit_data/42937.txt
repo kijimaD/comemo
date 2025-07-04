@@ -1,0 +1,26 @@
+commit b4944ef310ed43fad53c6128344e4bed2b346c88
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Sun Sep 6 09:43:34 2020 +0800
+
+    cmd: update golang.org/x/tools to v0.0.0-20200901153117-6e59e24738da
+    
+    Includes the latest fix on vet to warn unused context.WithValue result.
+    
+    Fixes #41149
+    
+    Change-Id: I06c204f40ef12b0f62f59b1bbdf1fe06ccd6565d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252941
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |  15 +-
+ .../go/analysis/passes/structtag/structtag.go      |   6 +-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   7 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |   2 +-
+ .../x/tools/internal/analysisinternal/analysis.go  | 343 +++++++++++++++++-
+ .../golang.org/x/tools/internal/lsp/fuzzy/input.go | 168 +++++++++
+ .../x/tools/internal/lsp/fuzzy/matcher.go          | 398 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   3 +-
+ 9 files changed, 912 insertions(+), 32 deletions(-)

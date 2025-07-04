@@ -1,0 +1,21 @@
+commit 04341b246e14608472527f73577f46024e6c3ec1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 13:05:30 2013 -0700
+
+    cmd/godoc: cleanups
+    
+    - removed gratuitous empty lines that creeped into command line output
+    - changed comment color to a dark green so that links don't visually melt into them
+    - removed some TODOs
+    - updated doc.go
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8108044
+
+ doc/style.css          |  2 +-
+ lib/godoc/package.txt  | 15 +++++++--------
+ src/cmd/godoc/doc.go   |  2 ++
+ src/cmd/godoc/index.go |  2 --
+ src/cmd/godoc/utils.go |  2 --
+ 5 files changed, 10 insertions(+), 13 deletions(-)

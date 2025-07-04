@@ -1,0 +1,21 @@
+commit 54138e1ac356d824fe669b593c9ec24d9c7bbd3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 11:36:14 2014 -0400
+
+    cmd/cgo, runtime: write cgo stub wrappers in Go, not C
+    
+    LGTM=alex.brainman, iant
+    R=golang-codereviews, alex.brainman, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/139070043
+
+ misc/cgo/test/callback.go      |   7 +-
+ src/cmd/cgo/out.go             | 202 ++++++++++++++++++++++-------------------
+ src/pkg/runtime/asm_386.s      |  11 ++-
+ src/pkg/runtime/asm_amd64.s    |  11 ++-
+ src/pkg/runtime/asm_amd64p32.s |   6 ++
+ src/pkg/runtime/asm_arm.s      |  11 ++-
+ src/pkg/runtime/cgocall.c      |  11 ++-
+ src/pkg/runtime/cgocall.h      |   1 +
+ src/pkg/runtime/runtime.h      |   1 +
+ 9 files changed, 160 insertions(+), 101 deletions(-)

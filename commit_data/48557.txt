@@ -1,0 +1,21 @@
+commit 32fdad19a246143ae4f194d1b39886d778de1380
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 12:14:20 2022 -0700
+
+    bytes: restore old Trim/TrimLeft behavior for nil
+    
+    Keep returning nil for the cases where we historically returned nil,
+    even though this is slightly different for TrimLeft and TrimRight.
+    
+    Fixes #51793
+    
+    Change-Id: Ifbdfc6b09d52b8e063cfe6341019f9b2eb8b70e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393876
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes.go      | 24 +++++++++++--
+ src/bytes/bytes_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 106 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 1265a0c22d7ba0f0240cf8a0a4116ceab10762fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 18 15:41:59 2008 -0700
+
+    - essentially reverted my change of yesterday with respect to char/string syntax
+    - fixed indentation in many places
+    - fixed a couple of typos
+    
+    SVN=116120
+
+ doc/go_lang.txt | 274 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 137 insertions(+), 137 deletions(-)

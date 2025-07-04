@@ -1,0 +1,24 @@
+commit 63a3993a336714f95400e3e614064d4ae72995de
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 16 22:53:04 2018 -0500
+
+    cmd/compile: use correct store types in softfloat
+    
+    When using softfloat, floating point ops are rewritten to integer
+    ops. The types of store ops were not rewritten. This may lower
+    to floating point stores, which are problematic. This CL fixes
+    this by rewriting the store types as well.
+    
+    This fixes test/fixedbugs/issue28688.go on Wasm. Softfloat mode
+    is not used by default on Wasm, and it is not needed as Wasm spec
+    supports floating points. But it is nice to have the correct
+    types.
+    
+    Change-Id: Ib5e19e19fa9491b15c2f60320f8724cace5cefb5
+    Reviewed-on: https://go-review.googlesource.com/c/149965
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/softfloat.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

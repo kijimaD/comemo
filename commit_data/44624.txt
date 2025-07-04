@@ -1,0 +1,33 @@
+commit e87c4bb3ef9d1f0aee3c9cc9fec8bef7fcadd6d8
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 10 17:27:30 2021 -0800
+
+    cmd/compile:  fix noder.Addr() to not call typechecker
+    
+    Simple change to avoid calling the old typechecker in noder.Addr(). This
+    fixes cases where generic code calls a pointer method with a non-pointer
+    receiver.
+    
+    Added test typeparam/lockable.go that now works with this change.
+    
+    For lockable.go to work, also fix incorrect check to decide whether to
+    translate an OXDOT now or later. We should delay translating an OXDOT
+    until instantiation (because we don't know how embedding, etc. will
+    work) if the receiver has any typeparam, not just if the receiver type
+    is a simple typeparam. We also have to handle OXDOT for now in
+    IsAddressable(), until we can remove calls to the old typechecker in
+    (*irgen).funcBody().
+    
+    Change-Id: I77ee5efcef9a8f6c7133564106a32437e36ba4bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300990
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go       |  7 +++++
+ src/cmd/compile/internal/noder/expr.go    |  2 +-
+ src/cmd/compile/internal/noder/helpers.go |  9 ++++--
+ test/typeparam/lockable.go                | 50 +++++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 4 deletions(-)

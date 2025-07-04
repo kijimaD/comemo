@@ -1,0 +1,16 @@
+commit cce10dacc6489078837521d34ef317ca17b77d97
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 00:52:17 2011 -0400
+
+    gc: fix select line number
+    
+    Fixes #1393.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4811054
+
+ src/cmd/gc/go.y          |  1 +
+ src/cmd/gc/select.c      |  6 ++++++
+ test/fixedbugs/bug347.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)

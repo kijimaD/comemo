@@ -1,0 +1,33 @@
+commit d0d21b7c4c92df8bf60059cbea4c20cfe4ae5fee
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 1 13:26:47 2021 -0500
+
+    cmd/compile: plumb abi info into expandCalls
+    
+    Work in progress.
+    
+    TODO:
+    - insert debugging output for all the steps listed below
+    - emit modified call instructions w/ multiple register inputs
+      and Result-typed outputs (next CL)
+      - initially just change output from "mem" to "Result{mem}"
+      = most places this hits will be future work.
+    - change OpArg to use registerized variants
+      - (done) match abi paramresultinfo with particular arg, use Name
+      - (this CL) push register offsets for "loads" and "stores" into
+        recursive decomposition.
+    - hand registerized Result to exit block
+    
+    For #40724.
+    
+    Change-Id: Ie5de9d71f8fd4e092f5ee9260b54de35abf91016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293390
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go     |  68 +++---
+ src/cmd/compile/internal/ssa/expand_calls.go | 345 ++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/op.go           |  16 +-
+ 3 files changed, 312 insertions(+), 117 deletions(-)

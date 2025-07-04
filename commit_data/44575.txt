@@ -1,0 +1,30 @@
+commit 48ddf7012875014d3cab4a02002799a520b087a1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 5 16:44:43 2021 -0600
+
+    cmd/asm,cmd/compile: support 5 operand RLWNM/RLWMI on ppc64
+    
+    These instructions are actually 5 argument opcodes as specified
+    by the ISA.  Prior to this patch, the MB and ME arguments were
+    merged into a single bitmask operand to workaround the limitations
+    of the ppc64 assembler backend.
+    
+    This limitation no longer exists. Thus, we can pass operands for
+    these opcodes without having to merge the MB and ME arguments in
+    the assembler frontend or compiler backend.
+    
+    Likewise, support for 4 operand variants is unchanged.
+    
+    Change-Id: Ib086774f3581edeaadfd2190d652aaaa8a90daeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298750
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/asm/internal/asm/asm.go           | 14 +++-----------
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  6 ++++++
+ src/cmd/compile/internal/ppc64/ssa.go     |  8 ++++----
+ src/cmd/internal/obj/ppc64/asm9.go        | 13 +++++++++++++
+ test/codegen/rotate.go                    | 32 +++++++++++++++----------------
+ test/codegen/shift.go                     | 32 +++++++++++++++----------------
+ 6 files changed, 58 insertions(+), 47 deletions(-)

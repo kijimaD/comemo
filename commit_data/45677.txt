@@ -1,0 +1,15 @@
+commit 217f5dd496e14f0e0617c9efe0509073dec95d61
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 12 13:55:59 2021 -0700
+
+    doc: document additional atomic.Value methods
+    
+    For #44513. Fixes #46022.
+    
+    Change-Id: Id1d87fbd4034461953760ce77201f87ed723ff88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319549
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

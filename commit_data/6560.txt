@@ -1,0 +1,63 @@
+commit 19fd5c787f3ff0ac434bca6a29c558ed966e1012
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 19 18:07:19 2010 -0400
+
+    5l, 6l, 8l: link pclntab and symtab as ordinary rodata symbols
+    
+    That is, move the pc/ln table and the symbol table
+    into the read-only data segment.  This eliminates
+    the need for a special load command to map the
+    symbol table into memory, which makes the
+    information available on systems that couldn't handle
+    the magic load to 0x99000000, like NaCl and ARM QEMU
+    and Linux without config_highmem=y.  It also
+    eliminates an #ifdef and some clumsy code to
+    find the symbol table on Windows.
+    
+    The bad news is that the binary appears to be bigger
+    than it used to be.  This is not actually the case, though:
+    the same amount of data is being mapped into memory
+    as before, and the tables are still read-only, so they're
+    still shared across multiple instances of the binary as
+    they were before.  The difference is just that the tables
+    aren't squirreled away in some section that "size" doesn't
+    know to look at.
+    
+    This is a checkpoint.
+    It probably breaks Windows and breaks NaCl more
+    than it used to be broken, but those will be fixed.
+    The logic involving -s needs to be revisited too.
+    
+    Fixes #871.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2587041
+
+ src/cmd/5l/asm.c                 | 119 ++++++++++++++----------
+ src/cmd/5l/l.h                   |   5 +-
+ src/cmd/5l/obj.c                 |   3 +-
+ src/cmd/5l/span.c                |   6 +-
+ src/cmd/5l/symtab.c              | 153 ------------------------------
+ src/cmd/6l/asm.c                 | 102 ++++++++++++--------
+ src/cmd/6l/l.h                   |   3 +-
+ src/cmd/6l/list.c                |   2 +-
+ src/cmd/6l/obj.c                 |   2 +
+ src/cmd/6l/span.c                |  33 +++----
+ src/cmd/8l/asm.c                 | 121 +++++++++++++-----------
+ src/cmd/8l/l.h                   |   3 +-
+ src/cmd/8l/list.c                |   2 +-
+ src/cmd/8l/obj.c                 |   2 +
+ src/cmd/8l/span.c                |  33 +++----
+ src/cmd/8l/symtab.c              | 167 ---------------------------------
+ src/cmd/ld/data.c                |  12 ++-
+ src/cmd/ld/lib.c                 |  41 +++++---
+ src/cmd/ld/lib.h                 |   6 ++
+ src/cmd/ld/macho.c               |  20 ++--
+ src/cmd/ld/macho.h               |   2 +-
+ src/cmd/ld/pe.c                  |   7 --
+ src/cmd/{6l => ld}/symtab.c      | 195 ++++++++++++++++++---------------------
+ src/libmach/executable.c         |  56 ++++++-----
+ src/pkg/runtime/symtab.c         |  42 +++------
+ src/pkg/runtime/windows/thread.c |  20 ----
+ 26 files changed, 421 insertions(+), 736 deletions(-)

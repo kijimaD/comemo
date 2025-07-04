@@ -1,0 +1,14 @@
+commit c7403ac7b6dcea7e0bb0a4991b0ebe7f26b01eff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 10:29:34 2017 -0700
+
+    doc: mention that os package now uses poller
+    
+    Updates #20587
+    
+    Change-Id: I428d20bf8512ba859cc63c439bd5d92a5173fad2
+    Reviewed-on: https://go-review.googlesource.com/45910
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

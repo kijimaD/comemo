@@ -1,0 +1,20 @@
+commit ad35cea7622a6fb839f06bb5b46cee9110fa94a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 6 11:30:48 2011 -0400
+
+    runtime: fix malloc sampling bug
+    
+    The malloc sample trigger was not being set in a
+    new m, so the first allocation in each new m - the
+    goroutine structure - was being sampled with
+    probability 1 instead of probability sizeof(G)/rate,
+    an oversampling of about 5000x for the default
+    rate of 1 MB.  This bug made pprof graphs show
+    far more G allocations than there actually were.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5224041
+
+ src/pkg/runtime/malloc.goc | 9 +++++++++
+ 1 file changed, 9 insertions(+)

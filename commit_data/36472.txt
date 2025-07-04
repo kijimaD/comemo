@@ -1,0 +1,20 @@
+commit 2200b18258874ba61771ea78d5fbee99ba6fe71f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Aug 20 21:31:49 2018 +0100
+
+    cmd/compile: cleanup walking OCONV/OCONVNOP
+    
+    Use a separate func, which needs less indentation and can use returns
+    instead of labelled breaks. We can also give the types better names, and
+    we don't have to repeat the calls to conv and mkcall.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I1071c170fa729562d70093a09b7dea003c5fe26e
+    Reviewed-on: https://go-review.googlesource.com/130075
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 107 +++++++++++++++++-------------------
+ 1 file changed, 51 insertions(+), 56 deletions(-)

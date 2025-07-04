@@ -1,0 +1,14 @@
+commit dbd409afb58b8fcd315afedd097a85b65f80387d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 21 15:55:40 2013 -0800
+
+    bufio: add examples for Scanner
+    Mention Scanner in docs for ReadLine etc.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7375045
+
+ src/pkg/bufio/bufio.go        |  4 ++-
+ src/pkg/bufio/example_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 1 deletion(-)

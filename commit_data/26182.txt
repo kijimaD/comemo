@@ -1,0 +1,30 @@
+commit dbe54d23fe2b2751872aaf41d1ef3179729b9960
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 5 14:44:11 2016 +1100
+
+    cmd/compile/internal: peep.go cleanups
+    
+    More cleanups after CL 20089
+    
+    - copysub, take a bool rather than an int for the f (force) parameter.
+    - copysub returns a bool rather than an int.
+    - prevl, reg is now int16, which reduces type conversion in its callers.
+    - copy1, reduce the scope of t and p variables.
+    - small simplifications in copyau1, copyas, etc.
+    - {mips64,ppc64}/regzer returns a bool.
+    - apply CL 20181 to x86/peep.go which was missed in the last CL.
+    - various comment fixes.
+    
+    Change-Id: Ib73ffb768c979ce86f1614e5366fd576dea50986
+    Reviewed-on: https://go-review.googlesource.com/20281
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/peep.go  |  98 ++++++++++------------
+ src/cmd/compile/internal/arm/peep.go    | 137 ++++++++++++++----------------
+ src/cmd/compile/internal/arm64/peep.go  | 123 ++++++++++++---------------
+ src/cmd/compile/internal/mips64/peep.go | 124 +++++++++++++---------------
+ src/cmd/compile/internal/ppc64/peep.go  | 142 ++++++++++++++------------------
+ src/cmd/compile/internal/x86/peep.go    | 103 +++++++++++------------
+ 6 files changed, 324 insertions(+), 403 deletions(-)

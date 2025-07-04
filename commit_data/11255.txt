@@ -1,0 +1,16 @@
+commit 21d3721eb873c7a99e570e75deb9046a9aadd0bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 19 01:24:01 2012 -0500
+
+    regexp: add SubexpNames
+    
+    Fixes #2440.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5559043
+
+ src/pkg/regexp/all_test.go      | 59 ++++++++++++++++++++++++++---------------
+ src/pkg/regexp/regexp.go        | 23 ++++++++++++----
+ src/pkg/regexp/syntax/regexp.go | 16 +++++++++++
+ 3 files changed, 71 insertions(+), 27 deletions(-)

@@ -1,0 +1,17 @@
+commit 07d09003f1f3360ae870b9960b6a96079e319b3b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 16:09:56 2017 -0700
+
+    cmd/compile: remove itabEntry.sym
+    
+    Follow-up to codereview feedback on CL 41409.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ica6658bdb8215fc4a0a30f41fe7bc8d9a8b109b4
+    Reviewed-on: https://go-review.googlesource.com/41412
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

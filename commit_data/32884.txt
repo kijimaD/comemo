@@ -1,0 +1,25 @@
+commit 6f1724ff415a85b3329806c0c9a3e5e46afac317
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 20:14:54 2017 -0700
+
+    reflect: fix method indexing for non-ASCII exported methods
+    
+    Currently, methods are sorted by name. This happens to guarantee that
+    exported ASCII methods appear before non-exported ASCII methods, but
+    this breaks down when Unicode method names are considered.
+    
+    Type.Method already accounts for this by always indexing into the
+    slice returned by exportedMethods. This CL makes Value.Method do the
+    same.
+    
+    Fixes #22073.
+    
+    Change-Id: I9bfc6bbfb7353e0bd3c439a15d1c3da60d16d209
+    Reviewed-on: https://go-review.googlesource.com/66770
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/all_test.go | 16 ++++++++++++++++
+ src/reflect/value.go    | 12 ++++++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)

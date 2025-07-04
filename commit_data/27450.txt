@@ -1,0 +1,14 @@
+commit c08436d1c897996055892882d23ce6778f3492f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 15:20:56 2016 -0700
+
+    runtime: print PC, not the counter, for a cgo traceback
+    
+    Change-Id: I54ed7a26a753afb2d6a72080e1f50ce9fba7c183
+    Reviewed-on: https://go-review.googlesource.com/23228
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

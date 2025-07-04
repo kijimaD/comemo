@@ -1,0 +1,16 @@
+commit 0b4d4998d57936cf8bb2566f5f3e36eb70892ca4
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 5 13:05:09 2021 -0400
+
+    testing: document f.Fuzz requirement to not change underlying data
+    
+    Updates #48606
+    
+    Change-Id: I6d555fdefccd842fb65ec8d630b4808bcb54a825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353977
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/testing/fuzz.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

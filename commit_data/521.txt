@@ -1,0 +1,13 @@
+commit a8a9dbc9c669c8bd2a2f45d870562fc3ab93201d
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 11 19:17:28 2008 -0700
+
+    print() and field names
+    
+    R=r
+    DELTA=86  (61 added, 3 deleted, 22 changed)
+    OCL=14099
+    CL=14099
+
+ src/cmd/gc/go.y | 100 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 79 insertions(+), 21 deletions(-)

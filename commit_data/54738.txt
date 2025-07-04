@@ -1,0 +1,21 @@
+commit 345f6cd1bd51cc58e62b287c2b679477ed5a30e8
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 17:47:57 2023 +0800
+
+    io: add available godoc link
+    
+    Change-Id: I5973a352edb73e02a274d939d6d0573788640dc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/io/fs/format.go       |  2 +-
+ src/io/fs/fs.go           | 12 ++++++------
+ src/io/fs/walk.go         |  4 ++--
+ src/io/io.go              | 42 +++++++++++++++++++++---------------------
+ src/io/ioutil/tempfile.go |  6 +++---
+ src/io/pipe.go            | 12 ++++++------
+ 6 files changed, 39 insertions(+), 39 deletions(-)

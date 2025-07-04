@@ -1,0 +1,15 @@
+commit 1304183efc34dd9ee87d09f20dc29da07255a898
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 27 21:52:30 2009 -0700
+
+    Add more dependencies for lib/go.
+    This makes "make nuke install" work again.
+    
+    R=r
+    APPROVED=r
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=27929
+    CL=27932
+
+ src/lib/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

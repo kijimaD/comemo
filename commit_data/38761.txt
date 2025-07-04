@@ -1,0 +1,14 @@
+commit f248cd3a0753ce02928525268d9c7d1fcceffee0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 15 17:55:58 2019 -0700
+
+    runtime: print more information when testCgoPprof fails
+    
+    Change-Id: I820dae0303959096f0c434b7e69ecb3bf070df09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172197
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit cb9bf93078c54187f5be9d8a65c81c249d12d3c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 10 15:46:43 2022 -0700
+
+    cmd/go: quote package directory when calling glob
+    
+    Fixes #53314
+    
+    Change-Id: I4933b59ee247daec5cf96eb15c52ff54d3ec26a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411696
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/clean/clean.go            |  3 ++-
+ src/cmd/go/internal/load/pkg.go               |  2 +-
+ src/cmd/go/internal/modfetch/fetch.go         |  5 +++--
+ src/cmd/go/internal/str/path.go               | 18 ++++++++++++++++++
+ src/cmd/go/testdata/script/embed_brackets.txt | 18 ++++++++++++++++++
+ 5 files changed, 42 insertions(+), 4 deletions(-)

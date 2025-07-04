@@ -1,0 +1,23 @@
+commit 6a2b0c0b6d527d45860ec6c0d860b6aebfedea2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 15:00:42 2015 -0400
+
+    runtime: delete cgo_allocate
+    
+    This memory is untyped and can't be used anymore.
+    The next version of SWIG won't need it.
+    
+    Change-Id: I592b287c5f5186975ee09a9b28d8efe3b57134e7
+    Reviewed-on: https://go-review.googlesource.com/8956
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/callback.go        | 19 --------------
+ misc/cgo/test/callback_c_gc.c    | 55 ----------------------------------------
+ misc/cgo/test/callback_c_gccgo.c | 49 -----------------------------------
+ misc/cgo/test/cgo_test.go        |  1 -
+ src/runtime/cgo/callbacks.go     | 26 -------------------
+ src/runtime/cgocall.go           |  6 -----
+ src/runtime/cgocallback.go       | 27 --------------------
+ src/runtime/mgc.go               |  9 -------
+ src/runtime/runtime2.go          |  8 ------
+ 9 files changed, 200 deletions(-)

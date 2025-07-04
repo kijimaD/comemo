@@ -1,0 +1,14 @@
+commit 3238705f0cd7266e20b5d55d8659069c4c702aad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 5 00:55:45 2012 +1000
+
+          doc: mention 'hg update default' in contribution guidelines
+    
+    Fixes #3634.
+    
+    R=golang-dev, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/6270047
+
+ doc/contribute.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

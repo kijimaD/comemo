@@ -1,0 +1,25 @@
+commit 8da7706bb4dc609689fd69e196ddaa800908c31f
+Author: HaraldNordgren <haraldnordgren@gmail.com>
+Date:   Sun Jan 7 15:08:59 2018 +0100
+
+    database/sql: include SQL column name in Scan() error message
+    
+    When 'convertAssign' gives an error, instead of giving just the index of
+    the failing column -- which is not always helpful, especially when there
+    are lots of columns in the query -- utilize 'rs.rowsi.Columns()' to
+    extract the underlying column name and include that in the error string:
+    
+        sql: Scan error on column index 0, name "some_column": ...
+    
+    Fixes #23362
+    
+    Change-Id: I0fe71ff3c25f4c0dd9fc6aa2c2da2360dd93e3e0
+    Reviewed-on: https://go-review.googlesource.com/86537
+    Reviewed-by: Harald Nordgren <haraldnordgren@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      |  2 +-
+ src/database/sql/sql_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 2 deletions(-)

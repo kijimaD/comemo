@@ -1,0 +1,16 @@
+commit 679640aee8e0df8eaed8ac56226b8b7ed69d225e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:32:25 2022 +0800
+
+    cmd/cover: use io.SeekStart, io.SeekCurrent
+    
+    Change-Id: Ie3b593f7f0c71334dc8c446d545bf441f2ae81f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436695
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+
+ src/cmd/cover/cover.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

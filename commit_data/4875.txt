@@ -1,0 +1,15 @@
+commit 1cf6fdf8a112059e464402d6b1031772f4701d13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 17 15:41:26 2010 -0800
+
+    gofmt: make sure certain 2-line comments are stable
+           under repeated application of gofmt
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/212046
+
+ src/pkg/go/printer/printer.go               | 31 ++++++----
+ src/pkg/go/printer/testdata/comments.golden | 92 +++++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/comments.input  | 92 +++++++++++++++++++++++++++++
+ 3 files changed, 205 insertions(+), 10 deletions(-)

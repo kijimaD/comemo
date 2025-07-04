@@ -1,0 +1,14 @@
+commit 3b26e8b29a488d96ea921839ed22e70d894ebe38
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 13:22:42 2015 -0400
+
+    runtime/pprof: ignore too few samples on Windows test
+    
+    Fixes #10842.
+    
+    Change-Id: I7de98f3073a47911863a252b7a74d8fdaa48c86f
+    Reviewed-on: https://go-review.googlesource.com/12529
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

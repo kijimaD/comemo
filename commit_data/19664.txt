@@ -1,0 +1,15 @@
+commit b2c75ae2be56f23fc6518f6d24a3fb95496f1e5f
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Thu Jul 3 16:52:34 2014 -0400
+
+    runtime/cgo: revert use of undefined logging function
+    
+    It snuck into cl/106380043. Too many active clients.
+    
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/110830045
+
+ src/pkg/runtime/cgo/gcc_linux_arm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

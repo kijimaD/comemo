@@ -1,0 +1,18 @@
+commit 17674e2f174280c38ea7ae8297571c09b6eb076b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 1 12:21:36 2021 -0400
+
+    cmd/internal/obj, cmd/link: move symbol alignment logic to object file writer
+    
+    Change-Id: I827a9702dfa01b712b88331668434f8db94df249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353569
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/objfile.go    | 26 ++++++++++++++++++++------
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/cmd/link/internal/ld/pcln.go   |  1 +
+ src/cmd/link/internal/ld/symtab.go | 23 +++++------------------
+ 4 files changed, 27 insertions(+), 25 deletions(-)

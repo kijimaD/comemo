@@ -1,0 +1,16 @@
+commit 78ff74375930d5ae391beae562c91da40e5d92a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 09:24:57 2016 -0700
+
+    crypto/sha1: disable crashing AVX2 optimizations for now
+    
+    Updates #15617
+    
+    Change-Id: I2104776f8e789d987b4f2f7f08f2ebe979b747a1
+    Reviewed-on: https://go-review.googlesource.com/23001
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/sha1/sha1block_amd64.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

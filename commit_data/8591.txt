@@ -1,0 +1,12 @@
+commit ef2d5f68d052412c50d9bf0da417da4c61fd8d7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 2 12:26:43 2011 -0400
+
+    path/filepath: skip permission test in all.bash
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4517132
+
+ src/pkg/path/filepath/path_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

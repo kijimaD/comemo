@@ -1,0 +1,17 @@
+commit 9b409ac7ee8cabb57c9ae93db503fa81fcd4ba2c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 10 15:05:51 2011 +1000
+
+    docs: Update notes for 3-day Go course.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4605041
+
+ doc/GoCourseDay1.pdf | Bin 801121 -> 265989 bytes
+ doc/GoCourseDay2.pdf | Bin 806917 -> 268707 bytes
+ doc/GoCourseDay3.pdf | Bin 530749 -> 178003 bytes
+ doc/docs.html        |  13 ++++++++++++-
+ doc/go_tutorial.html |   3 +--
+ doc/go_tutorial.txt  |   3 +--
+ 6 files changed, 14 insertions(+), 5 deletions(-)

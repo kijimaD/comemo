@@ -1,0 +1,14 @@
+commit db44223fde80485132f477a51b690d5d54dad56e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 25 19:16:18 2016 +0100
+
+    runtime: fix getcallerpc args
+    
+    Change-Id: I6b14b8eecf125dd74bd40f4e7fff6b49de150e42
+    Reviewed-on: https://go-review.googlesource.com/19897
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/race/output_test.go | 17 +++++++++++++++++
+ src/runtime/string.go           |  4 ++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

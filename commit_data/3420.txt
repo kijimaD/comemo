@@ -1,0 +1,13 @@
+commit a27f1f7475f13cec8637145239fcec7c84c2ccaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 1 14:12:18 2009 -0700
+
+    use the notion of "untyped constant" instead of "ideal constant"
+    
+    R=iant
+    DELTA=13  (1 added, 0 deleted, 12 changed)
+    OCL=35241
+    CL=35246
+
+ doc/go_for_cpp_programmers.html | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

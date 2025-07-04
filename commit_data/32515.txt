@@ -1,0 +1,15 @@
+commit 93471a139085fb58b0416e109ba32a927ccf5719
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 25 15:24:14 2017 -0700
+
+    cmd/compile: merge tempnamel into tempAt
+    
+    Passes toolstash-check.
+    
+    Change-Id: I01ed1c04be5a23756742d461f13f1e587ea7ecb8
+    Reviewed-on: https://go-review.googlesource.com/59610
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/gen.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

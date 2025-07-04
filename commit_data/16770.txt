@@ -1,0 +1,20 @@
+commit 2254785c3e691cc95d84cca4864d20b6815f25d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 15 20:39:07 2013 -0400
+
+    cmd/gc: tweak interface satisfaction error message
+    
+    "M requires pointer receiver" can be misinterpreted to
+    mean that method M should have a pointer receiver but
+    does not. In fact the message means "M has a pointer
+    receiver" (and you don't have a pointer).
+    
+    Fixes #5891.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11313043
+
+ src/cmd/gc/subr.c      | 2 +-
+ src/cmd/gc/typecheck.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 34620364cb2ea52e0ebf400a9cda91f86cb38a25
+Author: David Chase <drchase@google.com>
+Date:   Tue Apr 13 14:12:43 2021 -0400
+
+    runtime, cgo/test: improve debugging output
+    
+    tests that run commands should log their actions in a
+    shell-pasteable way.
+    
+    Change-Id: Ifeee88397047ef5a76925c5f30c213e83e535038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309770
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testplugin/plugin_test.go | 67 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/plugin.go              |  3 +-
+ src/runtime/symtab.go              | 12 +++++--
+ 3 files changed, 79 insertions(+), 3 deletions(-)

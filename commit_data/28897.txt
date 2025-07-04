@@ -1,0 +1,15 @@
+commit a431bdc712c7a404307f38228271d970d9d2c023
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 23:19:10 2016 -0400
+
+    testing: document that Skip cannot undo Error
+    
+    Fixes #16502.
+    
+    Change-Id: Id8e117a724d73cd51844c06d47bbeba61f8dc827
+    Reviewed-on: https://go-review.googlesource.com/31324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/testing/testing.go | 1 +
+ 1 file changed, 1 insertion(+)

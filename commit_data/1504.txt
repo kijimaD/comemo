@@ -1,0 +1,33 @@
+commit 1a91b9a8a9b118536db775e215c09091fd72c35f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 11:36:44 2009 -0800
+
+    casify syscall and sequelae
+    
+    R=rsc
+    DELTA=337  (0 added, 1 deleted, 336 changed)
+    OCL=22950
+    CL=22950
+
+ doc/progs/fd.go                       |   8 +--
+ src/lib/net/dialgoogle_test.go        |  24 +++----
+ src/lib/net/fd.go                     |  10 +--
+ src/lib/net/fd_darwin.go              |  32 ++++-----
+ src/lib/net/net.go                    |  26 +++----
+ src/lib/net/net_darwin.go             |  30 ++++----
+ src/lib/net/parse_test.go             |   2 +-
+ src/lib/os/os_error.go                |  17 +++--
+ src/lib/os/os_file.go                 |  14 ++--
+ src/lib/os/os_time.go                 |   2 +-
+ src/lib/syscall/errstr_darwin.go      |   2 +-
+ src/lib/syscall/errstr_linux.go       |   2 +-
+ src/lib/syscall/file_darwin.go        |  38 +++++-----
+ src/lib/syscall/file_linux.go         |  38 +++++-----
+ src/lib/syscall/socket_darwin.go      |  46 ++++++------
+ src/lib/syscall/socket_linux.go       |  50 ++++++-------
+ src/lib/syscall/time_amd64_darwin.go  |   8 +--
+ src/lib/syscall/time_amd64_linux.go   |  10 +--
+ src/lib/syscall/types_amd64_darwin.go | 132 +++++++++++++++++-----------------
+ src/lib/syscall/types_amd64_linux.go  | 104 +++++++++++++--------------
+ src/lib/time/tick.go                  |   2 +-
+ 21 files changed, 298 insertions(+), 299 deletions(-)

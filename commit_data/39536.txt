@@ -1,0 +1,18 @@
+commit b9df8df70fde84bd13558011bad6dfbbeb714599
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 18 17:41:45 2019 -0400
+
+    doc/go1.13: mention the effect of testing.Init on package initialization
+    
+    Fixes #31859
+    
+    Change-Id: I228ed93f9466d1a22f8796964f5d2f056ab9b62f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186818
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/go1.13.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

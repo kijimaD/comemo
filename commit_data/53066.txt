@@ -1,0 +1,17 @@
+commit 7bc3281747030877e13d218ba12c6e95fcf4e7d4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 8 17:35:30 2023 +0100
+
+    crypto/rsa: use BoringCrypto for 4096 bit keys
+    
+    Fixes #58803
+    
+    Change-Id: I097938ff61dae2b65214f8d0126d68de63525f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474515
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rsa/rsa.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

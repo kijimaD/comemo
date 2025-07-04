@@ -1,0 +1,21 @@
+commit 69e666e4f758cb5431e94aa90dc01a72ab806080
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 16:32:52 2018 -0400
+
+    runtime: record in-use spans in a page-indexed bitmap
+    
+    This adds a bitmap indexed by page number that marks the starts of
+    in-use spans. This will be used to quickly find in-use spans with no
+    marked objects for sweeping.
+    
+    For #18155.
+    
+    Change-Id: Icee56f029cde502447193e136fa54a74c74326dd
+    Reviewed-on: https://go-review.googlesource.com/c/138957
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

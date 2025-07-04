@@ -1,0 +1,28 @@
+commit 12e23f05ff39e25193f554c5fa81eebd0b8dbb7d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 17:44:11 2015 -0400
+
+    runtime: eliminate mark completion in scheduler
+    
+    Currently, findRunnableGCWorker will perform mark completion if there
+    is no remaining work and no running workers. This used to be necessary
+    to resolve a race in the transition from mark 1 to mark 2 where we
+    would enter mark 2 with no mark work (and no dedicated workers), so no
+    workers would run, so no worker would signal mark completion.
+    
+    However, we're about to make mark completion also perform the entire
+    follow-on process, which includes mark termination. We really don't
+    want to do that in the scheduler if it happens to detect completion.
+    
+    Conveniently, this hack is no longer necessary because we always
+    enqueue root scanning work at the beginning of both mark 1 and mark 2,
+    so a mark worker will always run. Hence, we can simply eliminate it.
+    
+    Change-Id: I3fc8f27c8da632f0fb732c9f6425e1f457f5652e
+    Reviewed-on: https://go-review.googlesource.com/16358
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 26 ++++----------------------
+ 1 file changed, 4 insertions(+), 22 deletions(-)

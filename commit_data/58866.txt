@@ -1,0 +1,22 @@
+commit beb314c0dbcbe03b576123e99e1331348f858ecc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 25 11:46:15 2025 +0100
+
+    os, syscall: use unix build tag where appropriate
+    
+    These newly added files may use the unix build tag instead of explitly
+    listing all unix-like GOOS values.
+    
+    For #51572
+    
+    Change-Id: I31c71d2b5533b39bbccd89bf616a99b8e33565d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651996
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/os/root_openat.go           | 2 +-
+ src/os/root_unix.go             | 2 +-
+ src/syscall/badlinkname_unix.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

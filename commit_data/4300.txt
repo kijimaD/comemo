@@ -1,0 +1,16 @@
+commit c6e316a4b954cd2d6912cbfb0f5e00f0625862bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 01:30:19 2009 -0800
+
+    gc: handle _ = <-c in select.
+    
+    Fixes #238.
+    
+    R=ken2
+    https://golang.org/cl/163098
+
+ src/cmd/gc/select.c                |  2 +-
+ test/{bugs => fixedbugs}/bug218.go |  0
+ test/fixedbugs/bug225.go           | 22 ++++++++++++++++++++++
+ test/golden.out                    |  4 ----
+ 4 files changed, 23 insertions(+), 5 deletions(-)

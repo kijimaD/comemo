@@ -1,0 +1,18 @@
+commit 44ab8bab1ce14eba5486b288a4930c832ea5342e
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 01:48:03 2015 +0200
+
+    compile/internal/gc,internal/obj: remove some usages of obj.Bool2int
+    
+    Passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: Iea8c7bba2401f61ddf2caffc4bece2c293d10f74
+    Reviewed-on: https://go-review.googlesource.com/14951
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go     |  4 +++-
+ src/cmd/compile/internal/gc/typecheck.go |  8 +++----
+ src/cmd/internal/obj/arm64/asm7.go       | 36 ++++++++++++++++----------------
+ 3 files changed, 25 insertions(+), 23 deletions(-)

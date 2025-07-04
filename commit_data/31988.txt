@@ -1,0 +1,18 @@
+commit 39ed6b14b4212008e32bb53e87fd46d4faa13ce2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 20:02:26 2017 +0000
+
+    cmd/doc: print Go syntax when printing struct.field docs
+    
+    Fixes #20928
+    
+    Change-Id: I7f7aafb8ff4b5deb50c286a9ae81c34ee85e56a9
+    Reviewed-on: https://go-review.googlesource.com/47730
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go     | 14 ++++++++++++--
+ src/cmd/doc/pkg.go          | 36 +++++++++++++++++++++---------------
+ src/cmd/doc/testdata/pkg.go |  4 ++++
+ 3 files changed, 37 insertions(+), 17 deletions(-)

@@ -1,0 +1,17 @@
+commit 7cac742f1769f92313eac2188088c36d4aae1b74
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Dec 12 21:32:10 2023 +0000
+
+    doc/go1.22: document reflect.TypeFor
+    
+    Change-Id: I122a3422f541f66d9f6e644a9f287f0e5a5729d2
+    GitHub-Last-Rev: 1d9fe39d0c1221d7179476383f3d503e45daa051
+    GitHub-Pull-Request: golang/go#64688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549295
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

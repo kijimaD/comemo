@@ -1,0 +1,14 @@
+commit 5dc7525b3e04dc7384e11b986ed13ac130afa748
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jul 26 04:13:15 2016 +0900
+
+    syscall: mksyscall_windows.go: put path separator in suffix for matching GOROOT
+    
+    fixes #16493
+    
+    Change-Id: I86bec2f9bd7965449c43e94733791f7cb18c5c4c
+    Reviewed-on: https://go-review.googlesource.com/25165
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/mksyscall_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,16 @@
+commit 5ab096d0308f7a3f8a59286e2a4123af7e26e3ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 31 15:05:40 2011 -0400
+
+    gc: implement new shift rules
+    
+    The change is that 1.0<<2 is now okay.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4524084
+
+ src/cmd/gc/const.c |  4 ++++
+ test/golden.out    | 15 ---------------
+ test/shift2.go     |  2 +-
+ 3 files changed, 5 insertions(+), 16 deletions(-)

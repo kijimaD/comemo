@@ -1,0 +1,22 @@
+commit c5943c668b919b98fd107c2327678ee32a868246
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 10:58:13 2014 -0400
+
+    net/http/pprof: run GC for /debug/pprof/heap?gc=1
+    
+    We force runtime.GC before WriteHeapProfile with -test.heapprofile.
+    Make it possible to do the same with the HTTP interface.
+    
+    Some servers only run a GC every few minutes.
+    On such servers, the heap profile will be a few minutes stale,
+    which may be too old to be useful.
+    
+    Requested by private mail.
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/161990043
+
+ src/net/http/pprof/pprof.go | 4 ++++
+ 1 file changed, 4 insertions(+)

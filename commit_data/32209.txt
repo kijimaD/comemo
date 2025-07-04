@@ -1,0 +1,20 @@
+commit c8e9fd5db0a7f30456b738e827521091acb41f95
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 11 14:36:16 2017 +0000
+
+    Revert "Revert "cmd/compile: discard duplicate inline method bodies""
+    
+    This reverts commit f612cd704a260cf362e5b6307b7ace4eb83f5f56.
+    
+    Reason for revert: We thought the original change had broken the
+    linux/amd64 and linux/386 builders, but it turned out to be a problem
+    with the build infrastructure, not the change.
+    
+    Change-Id: Ic3318a63464fcba8d845ac04494115a7ba620364
+    Reviewed-on: https://go-review.googlesource.com/55050
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

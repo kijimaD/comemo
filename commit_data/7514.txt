@@ -1,0 +1,14 @@
+commit 7b166cd73c0c3d5dfa69d996a5c7d5a2f6fd2436
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 19 10:41:57 2011 -0500
+
+    crypto/openpgp/packet: comment typo fix.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4178065
+
+ src/pkg/crypto/openpgp/packet/encrypted_key.go | 4 ++--
+ src/pkg/crypto/openpgp/packet/literal.go       | 4 ++--
+ src/pkg/crypto/openpgp/packet/packet.go        | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit 86ca550f407827f620e6c8314ec503fdb48dd898
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 23:26:26 2022 +0800
+
+    bufio: use bytes.Clone
+    
+    Change-Id: Ic21d979da8be1a6047b9bcd65b5ee71ca2ef7548
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435278
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bufio/bufio.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

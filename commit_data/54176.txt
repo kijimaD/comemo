@@ -1,0 +1,27 @@
+commit 7f92dcc88d0a6d7c9a3795f310e8bf3d628120af
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 3 01:24:00 2023 +1100
+
+    cmd/link: add support for openbsd/ppc64
+    
+    Add linker support for the openbsd/ppc64 port.
+    
+    Updates #56001
+    
+    Change-Id: I18bc19b4086599996aebfbe68f2e85e1200589ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475619
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
+
+ src/cmd/dist/build.go              | 4 +++-
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/ld/elf.go    | 2 +-
+ src/cmd/link/internal/ppc64/asm.go | 8 +++-----
+ src/cmd/link/internal/ppc64/obj.go | 5 +++--
+ src/internal/platform/supported.go | 4 +++-
+ 6 files changed, 14 insertions(+), 11 deletions(-)

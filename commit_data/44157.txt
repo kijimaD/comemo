@@ -1,0 +1,68 @@
+commit 953d1feca9b21af075ad5fc8a3dad096d3ccc3a0
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 15 12:14:06 2021 -0800
+
+    all: introduce and use internal/execabs
+    
+    Introduces a wrapper around os/exec, internal/execabs, for use in
+    all commands. This wrapper prevents exec.LookPath and exec.Command from
+    running executables in the current directory.
+    
+    All imports of os/exec in non-test files in cmd/ are replaced with
+    imports of internal/execabs.
+    
+    This issue was reported by RyotaK.
+    
+    Fixes CVE-2021-3115
+    Fixes #43783
+    
+    Change-Id: I0423451a6e27ec1e1d6f3fe929ab1ef69145c08f
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/955304
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Katie Hockman <katiehockman@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284783
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/api/goapi.go                               |   2 +-
+ src/cmd/api/run.go                                 |   2 +-
+ src/cmd/cgo/out.go                                 |   2 +-
+ src/cmd/cgo/util.go                                |   2 +-
+ src/cmd/compile/internal/ssa/html.go               |   2 +-
+ src/cmd/cover/func.go                              |   2 +-
+ src/cmd/cover/testdata/toolexec.go                 |   2 +-
+ src/cmd/dist/buildtool.go                          |   4 +-
+ src/cmd/doc/dirs.go                                |   2 +-
+ src/cmd/fix/typecheck.go                           |   2 +-
+ src/cmd/go/internal/base/base.go                   |   2 +-
+ src/cmd/go/internal/bug/bug.go                     |   2 +-
+ src/cmd/go/internal/generate/generate.go           |   2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |   2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |   2 +-
+ src/cmd/go/internal/test/genflags.go               |   2 +-
+ src/cmd/go/internal/test/test.go                   |   2 +-
+ src/cmd/go/internal/tool/tool.go                   |   2 +-
+ src/cmd/go/internal/vcs/vcs.go                     |   2 +-
+ src/cmd/go/internal/vet/vetflag.go                 |   2 +-
+ src/cmd/go/internal/work/build.go                  |   2 +-
+ src/cmd/go/internal/work/buildid.go                |   2 +-
+ src/cmd/go/internal/work/exec.go                   |   2 +-
+ src/cmd/go/internal/work/gccgo.go                  |   2 +-
+ src/cmd/go/testdata/addmod.go                      |   2 +-
+ src/cmd/internal/browser/browser.go                |   2 +-
+ src/cmd/internal/diff/diff.go                      |   2 +-
+ src/cmd/internal/dwarf/dwarf.go                    |   2 +-
+ src/cmd/internal/pkgpath/pkgpath.go                |   2 +-
+ src/cmd/link/internal/ld/execarchive.go            |   2 +-
+ src/cmd/link/internal/ld/lib.go                    |   2 +-
+ src/cmd/test2json/main.go                          |   2 +-
+ src/cmd/trace/pprof.go                             |   2 +-
+ src/go/build/build.go                              |   2 +-
+ src/go/build/deps_test.go                          |   8 +-
+ src/go/internal/gccgoimporter/gccgoinstallation.go |   2 +-
+ src/go/internal/srcimporter/srcimporter.go         |   2 +-
+ src/internal/execabs/execabs.go                    |  70 ++++++++++++++
+ src/internal/execabs/execabs_test.go               | 104 +++++++++++++++++++++
+ src/internal/goroot/gc.go                          |   2 +-
+ 40 files changed, 220 insertions(+), 38 deletions(-)

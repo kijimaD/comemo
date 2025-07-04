@@ -1,0 +1,22 @@
+commit b83d8bd0b85ff8b60a113bac841bfaf4cce52e3c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 20:59:52 2014 +0400
+
+    runtime: remove dedicated scavenger thread
+    A whole thread is too much for background scavenger that sleeps all the time anyway.
+    We already have sysmon thread that can do this work.
+    Also remove g->isbackground and simplify enter/exitsyscall.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr, rlh
+    https://golang.org/cl/108640043
+
+ src/pkg/runtime/heapdump.c |  2 +-
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/mgc0.c     |  8 ++---
+ src/pkg/runtime/mheap.c    | 72 +++--------------------------------------
+ src/pkg/runtime/proc.c     | 80 ++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/runtime/runtime.h  |  3 +-
+ src/pkg/runtime/time.go    |  2 --
+ 7 files changed, 77 insertions(+), 92 deletions(-)

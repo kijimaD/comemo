@@ -1,0 +1,17 @@
+commit 2a22f35598bba353f13d4808b4c4d710fa125f43
+Author: James P. Cooper <jamespcooper@gmail.com>
+Date:   Thu Jan 26 15:12:48 2012 -0800
+
+        database/sql: convert SQL null values to []byte as nil.
+    
+    Also allow string values to scan into []byte.
+    Fixes #2788.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5577054
+
+ src/pkg/database/sql/convert.go  |  9 +++++++++
+ src/pkg/database/sql/sql.go      | 34 ++++++++++++++++++----------------
+ src/pkg/database/sql/sql_test.go | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 16 deletions(-)

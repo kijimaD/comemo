@@ -1,0 +1,18 @@
+commit 817d6ea2b3dd08d3594341ca5ab7932c102694ad
+Author: eric fang <eric.fang@arm.com>
+Date:   Fri Dec 17 08:26:06 2021 +0000
+
+    runtime: delete useless TPIDR macro on arm64
+    
+    The TPIDR macro in tls_arm64.h is not used anywhere, so remove it
+    to reduce confusion.
+    
+    Change-Id: I04aa5e64ee30753f28f43bc67b44559d81d093c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373357
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/tls_arm64.h | 5 -----
+ 1 file changed, 5 deletions(-)

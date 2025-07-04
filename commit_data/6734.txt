@@ -1,0 +1,13 @@
+commit 02469b82006f354c72b488a7b764e4c28a918bab
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 8 15:08:41 2010 -0800
+
+    strconv: quote erroneous string in errors
+    Fixes #1253.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2990041
+
+ src/pkg/strconv/atoi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

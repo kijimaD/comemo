@@ -1,0 +1,26 @@
+commit c4f18d537428aa61fdcf41498518cc3cc7885d38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 16 16:25:44 2015 -0700
+
+    cmd/go: ignore import of "C" when fetching dependencies
+    
+    The change https://golang.org/cl/12192 changed the get code to use the
+    list of package imports, not the computed list of dependencies, as the
+    computed list could be out of date if the package changed when using
+    go get -u.  Computing the dependency list would skip an import of "C",
+    but that would still be on the package import list.  This changes the
+    code to skip "C" when walking the import list.
+    
+    No test--the best test would be to add an import of "C" to
+    github.com/rsc/go-get-issue-9224-cmd for TestGoGetUpdate.
+    
+    Fixes #11738.
+    
+    Change-Id: Id89ddafeade2391d15688bfd142fafd67844a941
+    Reviewed-on: https://go-review.googlesource.com/12322
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/get.go | 3 +++
+ 1 file changed, 3 insertions(+)

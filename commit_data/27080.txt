@@ -1,0 +1,16 @@
+commit f71a13da93b6ec2da88e2568deacdb6ef002b36c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Apr 12 20:50:59 2016 +0200
+
+    cmd/trace: generate new pprof profiles
+    
+    Generate new protobuf pprof profiles with embed symbol info.
+    This makes program binary unnecessary.
+    
+    Change-Id: Ie628439c13c5e34199782031138102c83ea50621
+    Reviewed-on: https://go-review.googlesource.com/21873
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/pprof.go | 78 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 62 insertions(+), 16 deletions(-)

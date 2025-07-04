@@ -1,0 +1,13 @@
+commit 08483defacf38d2d1f89eae0136268dfee30ec84
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 28 16:05:54 2010 -0700
+
+    rpc: allow non-struct args and reply (they must still be pointers)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1722046
+
+ src/pkg/rpc/server.go      | 45 +++++++++++++----------------
+ src/pkg/rpc/server_test.go | 71 ++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 75 insertions(+), 41 deletions(-)

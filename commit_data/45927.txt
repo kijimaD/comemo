@@ -1,0 +1,35 @@
+commit 49402bee36fd3d5cee9f4b2d2e1e8560ead0203b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 15 16:29:36 2021 -0400
+
+    cmd/{compile,link}: fix bug in map.zero handling
+    
+    In CL 326211 a change was made to switch "go.map.zero" symbols from
+    non-pkg DUPOK symbols to hashed symbols. The intent of this change was
+    ensure that in cases where there are multiple competing go.map.zero
+    symbols feeding into a link, the largest map.zero symbol is selected.
+    The change was buggy, however, and resulted in duplicate symbols in
+    the final binary (see bug cited below for details). This duplication
+    was relatively benign for linux/ELF, but causes duplicate definition
+    errors on Windows.
+    
+    This patch switches "go.map.zero" symbols back from hashed symbols to
+    non-pkg DUPOK symbols, and updates the relevant code in the loader to
+    ensure that we do the right thing when there are multiple competing
+    DUPOK symbols with different sizes.
+    
+    Fixes #47185.
+    
+    Change-Id: I8aeb910c65827f5380144d07646006ba553c9251
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334930
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/obj.go       |  2 +-
+ src/cmd/link/internal/loader/loader.go   |  9 ++++
+ test/fixedbugs/issue47185.dir/bad/bad.go | 72 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue47185.dir/main.go    | 28 +++++++++++++
+ test/fixedbugs/issue47185.go             | 11 +++++
+ 5 files changed, 121 insertions(+), 1 deletion(-)

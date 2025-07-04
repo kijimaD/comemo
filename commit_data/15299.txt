@@ -1,0 +1,28 @@
+commit 6ab113531b49621394dbd274c44bb583ded1dc45
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Feb 19 19:12:36 2013 +1100
+
+    exp/cookiejar: store cookies under TLD+1 on nil public suffix list
+    
+    The current implementation would store all cookies received from
+    any .com domain under "com" in the entries map if a nil public
+    suffix list is used in constructing the Jar. This is inefficient.
+    
+    This CL uses the TLD+1 of the domain if the public suffix list
+    is nil which has two advantages:
+     - It uses the entries map efficiently.
+     - It prevents a host foo.com to set cookies for bar.com.
+       (It may set the cookie, but it won't be returned to bar.com.)
+    A domain like www.british-library.uk may still set a domain
+    cookie for .british-library.uk in this case.
+    
+    The behavior for a non-nil public suffix list is unchanged, cookies
+    are stored under eTLD+1 in this case.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7312105
+
+ src/pkg/exp/cookiejar/jar.go      | 33 +++++++++++++++++++--------------
+ src/pkg/exp/cookiejar/jar_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 37 insertions(+), 17 deletions(-)

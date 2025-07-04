@@ -1,0 +1,20 @@
+commit 8f79ca1d1ae78d3cc8025f0901540c45848347ab
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 28 09:46:11 2019 -0400
+
+    cmd/internal/obj/ppc64: add support for vmrgow,vmrgew
+    
+    This adds support for ppc64 instructions vmrgow and vmrgew which
+    are needed for an improved implementation of chacha20.
+    
+    Change-Id: I967a2de54236bcc573a99f7e2b222d5a8bb29e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192117
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  7 +++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  2 ++
+ src/cmd/internal/obj/ppc64/anames.go      |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 11 +++++++++++
+ 4 files changed, 22 insertions(+)

@@ -1,0 +1,15 @@
+commit 33d72fd4122a4b7e31e738d5d9283093966ec14a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 14 17:21:56 2021 -0800
+
+    doc/faq: update generics entry to reflect accepted proposal
+    
+    For #43651
+    
+    Change-Id: Idb511f4c759d9a77de289938c19c2c1d4a542a17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291990
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

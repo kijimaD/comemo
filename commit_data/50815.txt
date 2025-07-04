@@ -1,0 +1,26 @@
+commit 274d3a06f7331740b849e20cff1d1c1ab84dd0e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 5 15:26:43 2022 -0400
+
+    os/exec: delete TestExtraFilesFDShuffle
+    
+    This test has been disabled for over nine years (since CL 12869049).
+    Although it still compiles, it seems likely to have rotted since then,
+    and if it was going to detect a real bug it also seems like that bug
+    would have been encountered and reported by users since then (and
+    would presumably have its own regression tests).
+    
+    To eliminate overhead from mainining it (or skipping over it while
+    maintaining other tests), let's just delete it.
+    
+    Fixes #5780.
+    
+    Change-Id: I2a85cba20cba98a1dc6fc82336ae5e22d2242e99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439197
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 125 ++++-------------------------------------------
+ 1 file changed, 9 insertions(+), 116 deletions(-)

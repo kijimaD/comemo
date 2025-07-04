@@ -1,0 +1,23 @@
+commit 44d06616b51a8a750c36bba3d4ee8630d2bddef8
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed May 29 10:45:36 2024 -0400
+
+    doc/next: preannounce a new Linux kernel version requirement
+    
+    This change adds a preannouncement to the release notes. Go 1.24
+    will require the Linux kernel to be at version 3.17 or later,
+    with an exception that systems running 3.10 or later will
+    continue to be supported if the kernel has been patched to
+    support the getrandom system call.
+    
+    For #65614
+    For #67001
+    
+    Change-Id: I61a3838b9ce4f48eb9f94830aa03372d589afdcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/next/7-ports.md | 5 +++++
+ 1 file changed, 5 insertions(+)

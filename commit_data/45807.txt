@@ -1,0 +1,19 @@
+commit d4f34f8c63b753160716e9f90ca530016ce019d7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 14 12:35:21 2021 -0400
+
+    doc/go1.17: reword "results" in stack trace printing
+    
+    "Results" may sound like the results from the previous sentence.
+    Reword to "function return values" for clarity.
+    
+    Suggested by Tobias Kohlbau.
+    
+    Change-Id: Ie78df36b5b191b06e98b802f9a46db6d067a8ea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327774
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Tobias Kohlbau <tobias@kohlbau.de>
+
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

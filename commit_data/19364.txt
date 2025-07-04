@@ -1,0 +1,14 @@
+commit 27b98974964e9fd5d25ebef96b4ba11b99aaa8e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 15 12:41:45 2014 -0700
+
+    net/http: fix nits found by go tool vet
+    
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/91480043
+
+ src/pkg/net/http/serve_test.go     | 2 +-
+ src/pkg/net/http/transport_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

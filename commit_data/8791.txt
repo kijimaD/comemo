@@ -1,0 +1,12 @@
+commit f22e5cfc6d58fec0f130957af6a0e30b75565d24
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 20 16:39:16 2011 +1000
+
+    goinstall: update doc.go
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4645048
+
+ src/cmd/goinstall/doc.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

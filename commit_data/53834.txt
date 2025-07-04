@@ -1,0 +1,21 @@
+commit 17d67ed0c904871bb2738ec7d1ed7831924c9aaf
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Jul 29 17:00:35 2023 +0000
+
+    debug/buildinfo: read full data segment to lookup buildinfo magic
+    
+    Fixes #61644
+    
+    Change-Id: I7d40c33e65221994bb6865d22dd0994545603ba8
+    GitHub-Last-Rev: aca92afcbdef2dd191ed0e5c61da29d3b1cb0698
+    GitHub-Pull-Request: golang/go#61649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514075
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/buildinfo/buildinfo.go | 49 +++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 23 deletions(-)

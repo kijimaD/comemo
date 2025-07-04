@@ -1,0 +1,15 @@
+commit 479b1241b5c7451d367d55a4afa9f071f9beb4f6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 11:52:15 2013 -0700
+
+    syscall: fix exec_bsd.go to accompany exec_linux.go changes
+    exec_plan9.go too.
+    Those are in CL 8334044
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9055043
+
+ src/pkg/syscall/exec_bsd.go   |  9 ++++++++-
+ src/pkg/syscall/exec_plan9.go | 10 ++++++++--
+ 2 files changed, 16 insertions(+), 3 deletions(-)

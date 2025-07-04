@@ -1,0 +1,21 @@
+commit 7f710c2de99b747fe98111c1aa143365c615e4ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 7 17:59:33 2012 -0700
+
+    exp/locale/collate: use gofmt -w -s (rather than just gofmt -w)
+    
+    Also: apply gofmt -w -s to existing tables.
+    
+    R=mpvl, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6611051
+
+ src/pkg/exp/locale/collate/Makefile               |   2 +-
+ src/pkg/exp/locale/collate/build/builder_test.go  |  14 +-
+ src/pkg/exp/locale/collate/build/contract_test.go |   4 +-
+ src/pkg/exp/locale/collate/build/order.go         |   2 +-
+ src/pkg/exp/locale/collate/maketables.go          |   2 +-
+ src/pkg/exp/locale/collate/tables.go              | 154 ++++-----
+ src/pkg/exp/locale/collate/tools/colcmp/Makefile  |   2 +-
+ src/pkg/exp/locale/collate/tools/colcmp/chars.go  | 396 +++++++++++-----------
+ 8 files changed, 288 insertions(+), 288 deletions(-)

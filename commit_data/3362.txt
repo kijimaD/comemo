@@ -1,0 +1,12 @@
+commit 89a881dce45b305f5584062e13ed3f3f847683c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 13:17:09 2009 -0700
+
+    delete obsolete Makefile
+    
+    TBR=rsc
+    OCL=34978
+    CL=34978
+
+ usr/gri/pretty/Makefile | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

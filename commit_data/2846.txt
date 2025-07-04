@@ -1,0 +1,12 @@
+commit c670dc450b82601305bd60f66ac7ee8320a50245
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 19:29:31 2009 -0700
+
+    bug fix
+    
+    R=rsc
+    OCL=32563
+    CL=32563
+
+ src/pkg/template/template.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

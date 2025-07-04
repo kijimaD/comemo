@@ -1,0 +1,10 @@
+commit 777ee7163bba96f2c9b3dfe135d8ad4ab837c062
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 21 16:18:04 2008 -0700
+
+    map delete
+    
+    SVN=128258
+
+ doc/go_lang.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

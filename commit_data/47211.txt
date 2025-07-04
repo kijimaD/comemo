@@ -1,0 +1,37 @@
+commit 5b213178e72b6031c9ec790bf9fe784c66b397e3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 26 19:21:29 2021 +1000
+
+    cmd/asm,cmd/compile,runtime: stop using X3 (aka GP) on riscv64
+    
+    The X3 (aka GP) register will potentially be loaded with the __global_pointer$ symbol
+    during program start up (usually by the dynamic linker). As such, non-Go code may depend
+    on the contents of GP and calculate offsets based on it, including code called via cgo
+    and signal handlers installed by non-Go code. As such, stop using the X3 register so
+    that there are fewer issues interacting between Go and non-Go code.
+    
+    While here remove the X4 (TP) name from the assembler such that any references must
+    use the 'TP' name. This should reduce the likelihood of accidental use (like we do
+    for the 'g' register). The same applies for X3 (GP) when the -shared flag is given.
+    
+    Updates #47100
+    
+    Change-Id: I72e82b5ca3f80c46a781781345ca0432a4111b74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351859
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go              |  14 +-
+ src/cmd/asm/internal/asm/operand_test.go       |   2 +-
+ src/cmd/asm/main.go                            |   6 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   5 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 500 ++++++++++++-------------
+ src/runtime/asm_riscv64.s                      |  97 +++--
+ src/runtime/cgo/asm_riscv64.s                  |  60 ++-
+ src/runtime/cgo/gcc_riscv64.S                  | 108 +++---
+ src/runtime/mkpreempt.go                       |   8 +-
+ src/runtime/preempt_riscv64.s                  | 238 ++++++------
+ src/runtime/tls_riscv64.s                      |   4 +-
+ 11 files changed, 519 insertions(+), 523 deletions(-)

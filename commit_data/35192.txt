@@ -1,0 +1,22 @@
+commit 48bfc8db51557210a0c6c38566185b1c376c374d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 17 18:12:22 2018 +0100
+
+    runtime,cmd/compile: adjust and correct path names in comments of map code
+    
+    Some of the comments relative paths do not exist and
+    reflect does not define its own hmap structure.
+    
+    Correct paths and consistently reference paths starting from the
+    go src directory.
+    
+    Change-Id: I5204a3a98f77d65f17dcde98b847378cea05ad8a
+    Reviewed-on: https://go-review.googlesource.com/94758
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go    |  6 +++---
+ src/runtime/map.go                     | 12 ++++++------
+ 3 files changed, 15 insertions(+), 15 deletions(-)

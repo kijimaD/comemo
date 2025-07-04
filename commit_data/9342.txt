@@ -1,0 +1,13 @@
+commit fe59d86dd6ce5e53f9b67bd71f1c2cb3cc7b4b4a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Aug 12 13:29:56 2011 +1000
+
+    exp/template: fix implementation of printValue.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4878042
+
+ src/pkg/exp/template/exec.go      | 22 +++++++++++++---------
+ src/pkg/exp/template/exec_test.go |  5 +++++
+ 2 files changed, 18 insertions(+), 9 deletions(-)

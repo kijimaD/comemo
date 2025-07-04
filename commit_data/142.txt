@@ -1,0 +1,10 @@
+commit 4ff63a4794041bdc33b4399bc369574949cacd9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 9 16:32:49 2008 -0700
+
+    - updated spec w/ respect to variable types and shift operators
+    
+    SVN=121774
+
+ doc/go_lang.txt | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

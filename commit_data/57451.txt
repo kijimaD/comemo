@@ -1,0 +1,26 @@
+commit 4c0f0985337386e0c0a3aad09251d5ee7f2b145e
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Sep 9 11:04:13 2024 -0700
+
+    internal/testenv: add MustHaveSource, rm HasSrc
+    
+    All the users of HasSrc call t.Skip anyway, so let's move it to testenv.
+    
+    Fix go/build to use MustHaveSource rather than MustHaveGoBuild where
+    appropriate.
+    
+    Change-Id: I052bf96fd5a5780c1930da5b3a52b7a8dbebea46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612057
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Tim King <taking@google.com>
+
+ src/compress/gzip/issue14937_test.go            |  4 +---
+ src/go/build/build_test.go                      | 10 +++++-----
+ src/go/build/deps_test.go                       | 11 ++---------
+ src/go/internal/srcimporter/srcimporter_test.go | 20 +++++---------------
+ src/internal/testenv/testenv.go                 |  9 +++++----
+ src/net/http/http_test.go                       |  4 +---
+ 6 files changed, 19 insertions(+), 39 deletions(-)

@@ -1,0 +1,18 @@
+commit b9c8e870d14775a02c6e87ca0344f623f7cab5f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 11:20:35 2018 -0700
+
+    cmd/compile: use 'not defined' rather than 'unnamed' in error message
+    
+    A receiver type may have an (alias type) name and thus be 'named'
+    even though the name doesn't refer to a defined type. Adjust the
+    error message to make this clearer.
+    
+    Change-Id: I969bf8d1ba3db8820f67f6ecd6d5cfe564c5b80d
+    Reviewed-on: https://go-review.googlesource.com/112638
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

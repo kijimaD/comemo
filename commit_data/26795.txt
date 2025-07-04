@@ -1,0 +1,16 @@
+commit dae98d5c3b02b39f53168a9403d24e1ddd4a16d4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 19:35:59 2016 -0400
+
+    test: skip nilptr3 test on s390x
+    
+    Fails for the same reason as ppc64 and mips64 (incomplete
+    optimization).
+    
+    Change-Id: Ieb4d997fc27d4f2b756e63dd7f588abe10c0213a
+    Reviewed-on: https://go-review.googlesource.com/20963
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/nilptr3.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 03e2a4d1f1d2ee74799eb103d0051c129523e4d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 3 16:33:06 2017 -0800
+
+    cmd/compile: cull UINF
+    
+    It was used with Node.Ullman, which is now gone.
+    
+    Change-Id: I83b167645659ae7ef70043b7915d642e42ca524f
+    Reviewed-on: https://go-review.googlesource.com/37761
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go | 1 -
+ 1 file changed, 1 deletion(-)

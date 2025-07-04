@@ -1,0 +1,23 @@
+commit 718f553915cc1c13d7b31cd264c131987f67f14d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 13 11:09:27 2019 -0800
+
+    os/exec: skip poll descriptors when checking for open descriptors
+    
+    It turns out that there is a path that initializes netpoll and opens
+    file descriptors before running the os/exec init function: on some
+    systems, the uses of NewFile when setting os.Stdin and friends can
+    initialize netpoll which can open file descriptors. This in itself
+    is not a problem, but when we check whether the new files are open
+    using os.NewFile, a side-effect is to put them into non-blocking mode.
+    This can then break future uses of netpoll.
+    
+    Updates #35469
+    Fixes #35566
+    
+    Change-Id: I1b2e2c943695d1c2d29496b050abbce9ee710a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

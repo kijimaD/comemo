@@ -1,0 +1,27 @@
+commit 1846dd5a318f1abd293c9cd54c868b7e288f1d26
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 24 09:08:47 2024 -0500
+
+    cmd/compile/internal/ssa: fix PPC64 shift codegen regression
+    
+    CL 621357 introduced new generic lowering rules which caused
+    several shift related codegen test failures.
+    
+    Add new rules to fix the test regressions, and cleanup tests
+    which are changed but not regressed. Some CLRLSLDI tests are
+    removed as they are no test CLRLSLDI rules.
+    
+    Fixes #70003
+    
+    Change-Id: I1ecc5a7e63ab709a4a0cebf11fa078d5cf164034
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622236
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewrite.go       | 30 ++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 84 +++++++++++++++++++++++++++
+ test/codegen/shift.go                         |  8 +--
+ 4 files changed, 120 insertions(+), 7 deletions(-)

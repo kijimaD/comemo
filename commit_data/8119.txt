@@ -1,0 +1,12 @@
+commit db7a2024f93e45848d2b204fecabe830b5079445
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 10:34:55 2011 -0400
+
+    gc: printing of multiple assignment
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4429043
+
+ src/cmd/gc/print.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

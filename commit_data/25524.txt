@@ -1,0 +1,22 @@
+commit 1f26864f88a419e6e99c6a4d171a5a15b09739a1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 8 14:57:26 2016 -0500
+
+    runtime: clean up gctrace format
+    
+    Go 1.6 simplified the GC phases. The "synchronize Ps" phase no longer
+    exists and "root scan" and "mark" phases have been combined.
+    
+    Update the gctrace line implementation and documentation to remove the
+    unused phases.
+    
+    Fixes #13536.
+    
+    Change-Id: I4fc37a3ce1ae3a99d48c0be2df64cbda3e05dee6
+    Reviewed-on: https://go-review.googlesource.com/18458
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/extern.go |  8 ++++----
+ src/runtime/mgc.go    | 16 +++-------------
+ 2 files changed, 7 insertions(+), 17 deletions(-)

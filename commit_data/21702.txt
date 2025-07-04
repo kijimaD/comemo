@@ -1,0 +1,15 @@
+commit 291bf1f03feece8360e080856e835bcc2cd1f521
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Feb 24 11:10:13 2015 -0500
+
+    cmd/go: limit default darwin/arm parallelism
+    
+    iOS devices can only run tests serially.
+    
+    Change-Id: I3f4e7abddf812a186895d9d5138999c8bded698f
+    Reviewed-on: https://go-review.googlesource.com/5751
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go/build.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 4b3a3bd3aa7ff9f02d1f2dde0bcafc0110984c59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 12 16:29:48 2018 -0800
+
+    runtime: don't issue cgocheck error for timer bucket source pointer
+    
+    The cgo checker was issuing an error with cgocheck=2 when a timer
+    bucket was stored in a pollDesc. The pollDesc values are allocated
+    using persistentalloc, so they are not in the Go heap. The code is OK
+    since timer bucket pointers point into a global array, and as such are
+    never garbage collected or moved.
+    
+    Mark timersBucket notinheap to avoid the problem. timersBucket values
+    only occur in the global timers array.
+    
+    Fixes #23435
+    
+    Change-Id: I835f31caafd54cdacc692db5989de63bb49e7697
+    Reviewed-on: https://go-review.googlesource.com/87637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/ptr_test.go | 8 ++++++++
+ src/runtime/time.go         | 1 +
+ 2 files changed, 9 insertions(+)

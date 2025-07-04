@@ -1,0 +1,22 @@
+commit 368a9ec99834652ca3f7d8fe24862a7581e12358
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jan 14 12:43:27 2025 -0800
+
+    encoding/json: cleanup tests
+    
+    Perform minor cleanups in tests to improve printout of diffs
+    and/or follow modern coding style.
+    
+    This reduces the amount of diffs between v1 and the v2 prototype.
+    
+    Change-Id: I019bb9642e2135f2fa3eac6abfa6df91c397aa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642257
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/decode_test.go |  4 ++--
+ src/encoding/json/stream_test.go | 10 +++++-----
+ src/encoding/json/tags_test.go   |  4 +---
+ 3 files changed, 8 insertions(+), 10 deletions(-)

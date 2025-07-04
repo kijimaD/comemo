@@ -1,0 +1,14 @@
+commit 54faecac0b9c7cd26440c344c7af86e1d6bd2c62
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Apr 2 15:08:28 2013 +1100
+
+    doc/go1.1.html: add a note about additional platforms
+    
+    Mention support for NetBSD, OpenBSD, and cgo for linux/arm.
+    
+    R=golang-dev, dvyukov, r, minux.ma, adg, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/8152043
+
+ doc/go1.1.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

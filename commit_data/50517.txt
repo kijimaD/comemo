@@ -1,0 +1,17 @@
+commit a84f46a28a1a9ffc0183fed394b6969c10fad502
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 16 10:28:42 2022 -0700
+
+    net/http/httputil: remove duplicated code block
+    
+    Remove a harmless but redundant section of code introduced
+    in CL 407214.
+    
+    Change-Id: Id6522e6ff13a283d726b3b97dfc72f101884f733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 6 ------
+ 1 file changed, 6 deletions(-)

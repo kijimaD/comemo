@@ -1,0 +1,16 @@
+commit 9a86e244bf9041926e03610319474a149356fa2d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 30 20:11:57 2011 -0800
+
+    html/template: make execution thread-safe
+    The problem is that execution can modify the template, so it needs
+    interlocking to have the same thread-safe guarantee as text/template.
+    Fixes #2439.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5450056
+
+ src/pkg/html/template/escape.go   |  4 +-
+ src/pkg/html/template/template.go | 84 ++++++++++++++++++++++++++-------------
+ 2 files changed, 58 insertions(+), 30 deletions(-)

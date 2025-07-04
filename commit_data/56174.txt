@@ -1,0 +1,36 @@
+commit c23579f031ecd09bf37c644723b33736dffa8b92
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jan 23 15:59:47 2024 -0800
+
+    database/sql: avoid clobbering driver-owned memory in RawBytes
+    
+    Depending on the query, a RawBytes can contain memory owned by the
+    driver or by database/sql:
+    
+    If the driver provides the column as a []byte,
+    RawBytes aliases that []byte.
+    
+    If the driver provides the column as any other type,
+    RawBytes contains memory allocated by database/sql.
+    Prior to this CL, Rows.Scan will reuse existing capacity in a
+    RawBytes to permit a single allocation to be reused across rows.
+    
+    When a RawBytes is reused across queries, this can result
+    in database/sql writing to driver-owned memory.
+    
+    Add a buffer to Rows to store RawBytes data, and reuse this
+    buffer across calls to Rows.Scan.
+    
+    Fixes #65201
+    
+    Change-Id: Iac640174c7afa97eeb39496f47dec202501b2483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/database/sql/convert.go      |  8 +++----
+ src/database/sql/convert_test.go | 12 +++++++---
+ src/database/sql/sql.go          | 34 +++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go     | 47 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 7 deletions(-)

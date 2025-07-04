@@ -1,0 +1,17 @@
+commit 90a3ce02dc25adcf1598faf11a66b151ada3f637
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Mar 27 14:25:24 2019 +0100
+
+    cmd/link/internal/ld: skip TLS section on Android
+    
+    We don't use the TLS section on android, and dropping it avoids
+    complaints about underalignment from the Android Q linker.
+    
+    Updates #29674
+    
+    Change-Id: I91dabf2a58e6eb1783872639a6a144858db09cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169618
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

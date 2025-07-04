@@ -1,0 +1,18 @@
+commit 7085fb31dfb1a6b447a139064a4a692677284132
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 11 11:14:53 2016 +1000
+
+    html/template, text/template: clarify Parse{Files,Glob} semantics
+    
+    Document the subtle property that files with equivalent base names
+    will overwrite extant templates with those same names.
+    
+    Fixes golang/go#14320
+    
+    Change-Id: Ie9ace1b08e6896ea599836e31582123169aa7a25
+    Reviewed-on: https://go-review.googlesource.com/21824
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/template.go | 14 ++++++++++++++
+ src/text/template/helper.go   | 14 ++++++++++++++
+ 2 files changed, 28 insertions(+)

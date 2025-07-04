@@ -1,0 +1,18 @@
+commit 31a9e505241e22e4b6ee623419db601334158101
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 22:28:04 2016 -0700
+
+    cmd/internal/obj: remove LSym.Etext
+    
+    Use a local variable instead.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9623a40ff0d568f11afd1279b6aaa1c33eda644c
+    Reviewed-on: https://go-review.googlesource.com/20730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go        |  1 -
+ src/cmd/internal/obj/objfile.go     | 10 +++++-----
+ src/cmd/internal/obj/sizeof_test.go |  2 +-
+ 3 files changed, 6 insertions(+), 7 deletions(-)

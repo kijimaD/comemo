@@ -1,0 +1,23 @@
+commit 467e15accc95d4e080a8088eaff0aaa28f572c7e
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 21 15:33:20 2018 +0200
+
+    runtime: use raise instead of pthread_self and pthread_kill
+    
+    pthread_self and pthread_kill are not safe to call from a signal
+    handler. In particular, pthread_self fails in iOS when called from
+    a signal handler context.
+    
+    Use raise instead; it is signal handler safe and simpler.
+    
+    Change-Id: I0cbfe25151aed245f55d7b76719ce06dc78c6a75
+    Reviewed-on: https://go-review.googlesource.com/113877
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_darwin.go       |  6 ------
+ src/runtime/sys_darwin.go      |  9 ++++-----
+ src/runtime/sys_darwin_386.s   | 19 +++----------------
+ src/runtime/sys_darwin_amd64.s | 16 +++-------------
+ 4 files changed, 10 insertions(+), 40 deletions(-)

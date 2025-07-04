@@ -1,0 +1,12 @@
+commit 46ecd6f14102678a34359346825797eaef104090
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 07:00:48 2011 +1000
+
+    exp/template: index: forgot the always last-to-arrive uintptr.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4636087
+
+ src/pkg/exp/template/funcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

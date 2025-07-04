@@ -1,0 +1,14 @@
+commit 7e92eedced0d592e1e2beef291d857a95f55bcfb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 18:24:53 2009 -0800
+
+    gofmt'ed various stragglers
+    
+    R=rsc
+    http://go/go-review/1022002
+
+ src/pkg/patch/patch_test.go         | 536 ++++++++++++++++++------------------
+ src/pkg/path/path.go                |   4 +-
+ src/pkg/rpc/client.go               |  36 +--
+ src/pkg/tabwriter/tabwriter_test.go | 240 ++++++++--------
+ 4 files changed, 408 insertions(+), 408 deletions(-)

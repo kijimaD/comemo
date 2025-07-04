@@ -1,0 +1,17 @@
+commit 4dec8ef35a0071064b3fd68203ae5ce66c6f9b6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 19:16:57 2009 -0700
+
+    get function calls out of the way before
+    allocating registers in shift and div.
+    
+    fix behavior when res == a reserved register.
+    
+    R=ken
+    OCL=32765
+    CL=32767
+
+ src/cmd/6g/ggen.c         | 58 ++++++++++++++++++++++++++++++++++++++---------
+ src/pkg/time/time_test.go |  8 +++----
+ test/fixedbugs/bug180.go  | 17 ++++++++++++++
+ 3 files changed, 68 insertions(+), 15 deletions(-)

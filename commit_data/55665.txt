@@ -1,0 +1,28 @@
+commit 7fd62ba821b1044e8e4077df052b0a1232672d57
+Author: Alex Bozhenko <alexbozhenko@gmail.com>
+Date:   Wed Feb 7 15:19:06 2024 +0000
+
+    cmd/fix: support go versions with patch release
+    
+    Support go version with patch release(e.g. 1.21.0)
+    and release candidates(e.g. 1.21rc1)
+    when parsing the go version in the fix command
+    by using new "go/version" package.
+    
+    Fixes #62584
+    
+    Change-Id: I0ec16137c7a396c68039d374c770c4021fb54b4e
+    GitHub-Last-Rev: 76bced5c48334c0937289bce8bcf50f82e3f0b98
+    GitHub-Pull-Request: golang/go#62586
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527342
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Bozhenko <alexbozhenko@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/fix/buildtag.go      |  5 +++--
+ src/cmd/fix/buildtag_test.go |  4 ++--
+ src/cmd/fix/main.go          | 29 ++++++-----------------------
+ src/cmd/fix/main_test.go     | 10 +++++-----
+ 4 files changed, 16 insertions(+), 32 deletions(-)

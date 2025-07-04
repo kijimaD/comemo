@@ -1,0 +1,19 @@
+commit c8b589e26643f83cf5469e5bcb06af40c10932e2
+Author: goto1134 <1134togo@gmail.com>
+Date:   Mon May 29 09:23:27 2023 +0000
+
+    cmd/list: fix -retracted flag description
+    
+    Change-Id: Ia1ab220485af2f38c3ddcd4c5d5bca1b195a33ed
+    GitHub-Last-Rev: fb9933427d852518c93efbc4f2c2e4d4ee9b9197
+    GitHub-Pull-Request: golang/go#59847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489175
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/go/alldocs.go            | 4 ++--
+ src/cmd/go/internal/list/list.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 06450a82b04dc4b3599ae4864827e6f8a5b7d628
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 24 09:20:30 2025 +0000
+
+    internal/runtime/cgroup: add line-by-line reader using a single scratch buffer
+    
+    Change-Id: I6a6a636ca21edcc6f16705fbb72a5241d4f7f22d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668637
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/objabi/pkgspecial.go           |   1 +
+ src/go/build/deps_test.go                       |   1 +
+ src/internal/runtime/cgroup/export_test.go      |  24 ++++
+ src/internal/runtime/cgroup/line_reader.go      | 179 ++++++++++++++++++++++++
+ src/internal/runtime/cgroup/line_reader_test.go | 170 ++++++++++++++++++++++
+ 5 files changed, 375 insertions(+)

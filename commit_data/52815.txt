@@ -1,0 +1,18 @@
+commit e7af0e0cac6c65043335da6b6329f7141d2f68c5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 29 02:00:15 2023 +1000
+
+    cmd/internal/obj/arm64: use appropriate return type for regoff
+    
+    All of the callers of regoff cast the return value from uint32 to int32.
+    Instead, simply return int32 in the first place.
+    
+    Change-Id: I43a672bb3143a71f4a37779ed8ae9adcda623ba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490355
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

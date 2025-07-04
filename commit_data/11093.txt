@@ -1,0 +1,13 @@
+commit b06514bb34486cb8b57305f065a4ec50c2bbbfa3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 10 18:27:09 2012 -0800
+
+    syscall: fix windows build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5533063
+
+ src/pkg/syscall/syscall_windows.go | 16 ----------------
+ src/pkg/syscall/ztypes_windows.go  | 24 ++++++++++++++++--------
+ 2 files changed, 16 insertions(+), 24 deletions(-)

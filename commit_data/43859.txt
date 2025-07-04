@@ -1,0 +1,28 @@
+commit f7342596daa892400e91a407cac5843bc43dcdd0
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 13 15:48:05 2020 +0100
+
+    syscall: add DLLError.Unwrap function
+    
+    Because we're expecting for future functions to be unavailable, we
+    should add an Unwrap() function to the DLLError struct, so that people
+    can test for this situation easily via:
+    
+        if errors.Is(err, syscall.ERROR_PROC_NOT_FOUND) { ... }
+    
+    DLLError already was wrapping the underlying Errno error, but never got
+    the Go 1.13 helper method.
+    
+    Fixes golang/go#42584
+    
+    Change-Id: I0f32a5146946b1b37a30897ba825a56faefc792c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269761
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ doc/go1.16.html            | 4 ++++
+ src/syscall/dll_windows.go | 2 ++
+ 2 files changed, 6 insertions(+)

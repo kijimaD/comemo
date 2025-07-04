@@ -1,0 +1,14 @@
+commit 96890d4218c0967820020dffb9835a703717a8c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 15:51:41 2009 -0700
+
+    close TODO
+    
+    R=r
+    DELTA=42  (0 added, 26 deleted, 16 changed)
+    OCL=28940
+    CL=28942
+
+ src/lib/syscall/types_amd64_darwin.go | 29 ++++++++---------------------
+ src/lib/syscall/types_amd64_linux.go  | 29 ++++++++---------------------
+ 2 files changed, 16 insertions(+), 42 deletions(-)

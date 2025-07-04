@@ -1,0 +1,27 @@
+commit 3c2f0ae13294d2b818a28f98df372c9848fc1454
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 13 17:50:46 2008 -0800
+
+    * pretty printing snapshot: towards printing comments nicely
+    - implemented elastic tabstops algorithm, now correct and documented
+    - first cut at printing comments (use -comments flag, disabled for now)
+    - struct field types are now aligned (using elastic tab stops)
+    - needs more fine-tuning
+    
+    * fixed a bug in test script
+    * added quick smoke test to makefile and invoke it in run.bash
+      instead of the full test
+    
+    R=r
+    OCL=19220
+    CL=19220
+
+ src/run.bash                |   2 +-
+ usr/gri/pretty/Makefile     |   3 +
+ usr/gri/pretty/ast.go       |   5 +
+ usr/gri/pretty/parser.go    |   9 +-
+ usr/gri/pretty/printer.go   | 295 +++++++++++++++++++++++++++++---------------
+ usr/gri/pretty/scanner.go   |  53 +++++---
+ usr/gri/pretty/selftest2.go |  36 ++++++
+ usr/gri/pretty/test.sh      |   4 +-
+ 8 files changed, 278 insertions(+), 129 deletions(-)

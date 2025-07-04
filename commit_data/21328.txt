@@ -1,0 +1,12 @@
+commit afe6668216516b012a09f6c7166009761e965f5b
+Author: Michael Matloob <matloob@google.com>
+Date:   Wed Jan 21 23:05:42 2015 -0800
+
+    cmd/ld: s/specificaly/specifically/ in comment
+    
+    Change-Id: I849b8046daaec97ae631d59f1870cd5f1cd72f22
+    Reviewed-on: https://go-review.googlesource.com/3176
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/ld/decodesym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

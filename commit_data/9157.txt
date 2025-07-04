@@ -1,0 +1,16 @@
+commit 14eba969d88d2d5af8443acc9450f0b31f1bcf55
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jul 21 03:48:56 2011 -0300
+
+    ld: fix freebsd build reverting .interp move
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4794046
+
+ src/cmd/5l/asm.c  | 14 ++++----------
+ src/cmd/6l/asm.c  | 20 ++------------------
+ src/cmd/8l/asm.c  | 30 ++++++++++++------------------
+ src/cmd/ld/data.c |  2 +-
+ src/cmd/ld/elf.c  | 27 +++++++++++++++++++++++++++
+ 5 files changed, 46 insertions(+), 47 deletions(-)

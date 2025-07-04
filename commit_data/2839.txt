@@ -1,0 +1,34 @@
+commit 34b277f046eb4b6ffffd524ff76c5fd264f82b87
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 16:46:14 2009 -0700
+
+    use errchk in more places.
+    let errchk exit 0 even if it has reported a BUG.
+    it echoed BUG and that's all that matters.
+    
+    R=r
+    DELTA=143  (1 added, 89 deleted, 53 changed)
+    OCL=32533
+    CL=32542
+
+ test/errchk                       | 15 ++------
+ test/fixedbugs/bug035.go          |  4 +-
+ test/fixedbugs/bug037.go          |  2 +-
+ test/fixedbugs/bug039.go          |  2 +-
+ test/fixedbugs/bug049.go          |  2 +-
+ test/fixedbugs/bug050.go          |  2 +-
+ test/fixedbugs/bug051.go          |  2 +-
+ test/fixedbugs/bug062.go          |  2 +-
+ test/fixedbugs/bug068.go          |  2 +-
+ test/fixedbugs/bug072.go          |  2 +-
+ test/fixedbugs/bug073.go          |  4 +-
+ test/fixedbugs/bug074.go          |  2 +-
+ test/fixedbugs/bug083.dir/bug1.go |  3 +-
+ test/fixedbugs/bug086.go          |  2 +-
+ test/fixedbugs/bug091.go          |  3 +-
+ test/fixedbugs/bug103.go          |  2 +-
+ test/fixedbugs/bug131.go          |  2 +-
+ test/fixedbugs/bug133.dir/bug2.go |  2 +-
+ test/fixedbugs/bug146.go          |  2 +-
+ test/golden.out                   | 81 ---------------------------------------
+ 20 files changed, 25 insertions(+), 113 deletions(-)

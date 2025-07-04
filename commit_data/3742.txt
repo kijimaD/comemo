@@ -1,0 +1,17 @@
+commit b5ab5d4f12754cc0b86a2bf5efc7974039f39a26
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 16:29:32 2009 -0800
+
+    document the assemblers.
+    add details about -d and -e flags in the loaders.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018031
+
+ src/cmd/5a/doc.go | 14 ++++++++++++++
+ src/cmd/6a/doc.go | 14 ++++++++++++++
+ src/cmd/6l/doc.go |  7 +++++++
+ src/cmd/8a/doc.go | 14 ++++++++++++++
+ src/cmd/8l/doc.go |  4 ++++
+ 5 files changed, 53 insertions(+)

@@ -1,0 +1,32 @@
+commit e22bd2348c8e3bfdf12197d0b0e194b66bbf5a36
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 13 16:12:47 2023 -0500
+
+    internal/abi,runtime: refactor map constants into one place
+    
+    Previously TryBot-tested with bucket bits = 4.
+    Also tested locally with bucket bits = 5.
+    This makes it much easier to change the size of map
+    buckets, and hopefully provides pointers to all the
+    code that in some way depends on details of map layout.
+    
+    Change-Id: I9f6669d1eadd02f182d0bc3f959dc5f385fa1683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 14 +++-
+ src/cmd/dist/buildtool.go                       |  2 +
+ src/cmd/link/internal/ld/dwarf.go               |  7 +-
+ src/internal/abi/abi.go                         | 24 -------
+ src/internal/abi/funcpc.go                      | 35 ++++++++++
+ src/internal/abi/map.go                         | 14 ++++
+ src/reflect/all_test.go                         | 21 +++---
+ src/reflect/type.go                             |  7 +-
+ src/runtime/map.go                              | 13 ++--
+ src/runtime/map_test.go                         | 34 +++++++--
+ src/runtime/runtime-gdb.py                      |  3 +-
+ src/runtime/runtime-gdb_test.go                 | 10 ++-
+ test/codegen/maps.go                            | 91 +++++++++++++++++++------
+ 13 files changed, 195 insertions(+), 80 deletions(-)

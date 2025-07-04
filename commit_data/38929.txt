@@ -1,0 +1,21 @@
+commit a74e01204e08c51792a4f6a238762352e971efea
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Apr 27 11:28:49 2019 +0200
+
+    cmd/link/internal/ld: consolidate macho platform setup
+    
+    Determine the macho platform once and use that the two places that
+    need it. This makes it easier to add a third platform check for a
+    follow-up change.
+    
+    Updates #31447
+    
+    Change-Id: I522a5fface647ab8e608f816c5832d531534df7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174198
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/lib.go   |  6 +---
+ src/cmd/link/internal/ld/macho.go | 58 +++++++++++++++++++++------------------
+ 2 files changed, 33 insertions(+), 31 deletions(-)

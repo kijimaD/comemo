@@ -1,0 +1,12 @@
+commit 4bb337e5254f6c4d20748759109dade64c26f99a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 26 09:53:28 2011 -0700
+
+    CONTRIBUTORS: add William Chan (Google CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4552066
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

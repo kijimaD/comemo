@@ -1,0 +1,19 @@
+commit a21a6e44616eed6fa6eae0e40864d109390960ed
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Apr 24 23:04:23 2019 +1000
+
+    cmd/dist: handle arm64 as a machine hardware name
+    
+    OpenBSD/arm64 reports itself as arm64 from `uname -m` - this currently
+    matches as gohostarch=arm, rather than gohostarch=arm64. Correct this
+    by matching on both aarch64 and arm64 (the alternative would be to use
+    `uname -p`, however that's likely to cause upset elsewhere).
+    
+    Updates #31656
+    
+    Change-Id: I7b2da93495d808e704caf032b3fadc984077769e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173598
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

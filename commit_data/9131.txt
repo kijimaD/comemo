@@ -1,0 +1,17 @@
+commit 9f636598ba2425cbc31e416599f430829fa36b20
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jul 19 10:47:33 2011 -0400
+
+    cgo: windows amd64 port
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4725041
+
+ src/cmd/6l/asm.c                    |  2 +-
+ src/cmd/ld/data.c                   | 40 ++++++++++++++++++++++++++++++++-----
+ src/cmd/ld/ldpe.c                   | 29 +++++++++++++++++++++++++++
+ src/pkg/runtime/amd64/asm.s         |  4 +++-
+ src/pkg/runtime/cgo/windows_amd64.c |  9 ++++++---
+ src/pkg/runtime/windows/amd64/rt0.s |  3 +++
+ 6 files changed, 77 insertions(+), 10 deletions(-)

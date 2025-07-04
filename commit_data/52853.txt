@@ -1,0 +1,25 @@
+commit 57cb47209c655bdd7fb6d7effd5375e9b0fe90cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 22:06:11 2023 -0400
+
+    cmd/compile,cmd/link: skip tests that require DWARF symbols on ios
+    
+    The linker does not combine DWARF information into the binary on ios.
+    This generalizes test skips that were already present for a similar
+    reason on plan9.
+    
+    Fixes #59939.
+    
+    Change-Id: Ideda07c9f9a69fd102a7d9a83ea8e7b7c29d0da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491835
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/dwarfgen/scope_test.go |   9 ++-
+ src/cmd/compile/internal/ssa/stmtlines_test.go  |   5 +-
+ src/cmd/link/dwarf_test.go                      |   4 +-
+ src/cmd/link/internal/ld/dwarf_test.go          | 103 +++++++-----------------
+ src/internal/platform/supported.go              |  12 ++-
+ 5 files changed, 52 insertions(+), 81 deletions(-)

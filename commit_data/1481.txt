@@ -1,0 +1,12 @@
+commit 2ab55776b5e7c5c1336af3a3234974b31c99af1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 15:14:19 2009 -0800
+
+    - fixed untab.go to compile again
+    
+    R=r
+    OCL=22871
+    CL=22871
+
+ usr/gri/pretty/untab.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

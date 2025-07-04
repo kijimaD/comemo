@@ -1,0 +1,13 @@
+commit 6fcae0f04431b6a02959c9d6476051bed967523d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 13 17:08:40 2010 -0800
+
+    token/position: provide files iterator
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/3541044
+
+ src/pkg/go/token/position.go      | 22 ++++++++++++++++++++++
+ src/pkg/go/token/position_test.go | 18 ++++++++++++++++++
+ 2 files changed, 40 insertions(+)

@@ -1,0 +1,16 @@
+commit 871177df6ac09ebccb793138dc0b9ccd8fca8cec
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 29 00:34:03 2013 -0700
+
+    8a/8l: add PCMPEQB and PMOVMSKB to 386.
+    
+    Used by CL 8056043 for fast string equals.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8102044
+
+ src/cmd/8a/lex.c   | 2 ++
+ src/cmd/8l/8.out.h | 2 ++
+ src/cmd/8l/optab.c | 8 ++++++++
+ 3 files changed, 12 insertions(+)

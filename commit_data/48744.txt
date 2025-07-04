@@ -1,0 +1,26 @@
+commit 0605bf6052807e71e52fc3864b18b221ce61b047
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 11 17:19:09 2022 -0400
+
+    go/ast, go/printer: recognize export and extern line directives
+    
+    Now that gofmt is reformatting these, we can't get away with
+    not knowing about directives such as //export and //extern (for gccgo).
+    Otherwise "//export foo" and "//extern foo" turn into "// export foo",
+    and "// extern foo", which are completely different meanings.
+    
+    For #51082.
+    
+    Change-Id: Id0970331fa0b52ab5fa621631b5fa460767068bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399734
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/ast/ast.go                       | 4 +++-
+ src/go/ast/ast_test.go                  | 3 +++
+ src/go/printer/comment.go               | 4 +++-
+ src/go/printer/testdata/comments.golden | 6 ++++++
+ src/go/printer/testdata/comments.input  | 6 ++++++
+ 5 files changed, 21 insertions(+), 2 deletions(-)

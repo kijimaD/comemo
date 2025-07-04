@@ -1,0 +1,19 @@
+commit ebe837d6eb05035ef74f475a6a1bc7b0d8bb8f2e
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Sep 2 13:48:28 2010 -0400
+
+    goinstall: added -a flag to mean "all remote packages"
+    Fixes #897.
+    
+    goinstall -a can be used to reinstall all packages after an upgrade
+    goinstall -a -u can be used to update all package
+    A history of remote package installs is stored in $GOROOT/goinstall.log
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/1947041
+
+ .hgignore                 |  1 +
+ src/cmd/goinstall/doc.go  | 27 +++++++++++++++++---
+ src/cmd/goinstall/main.go | 65 +++++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 81 insertions(+), 12 deletions(-)

@@ -1,0 +1,13 @@
+commit d3ae2d2749d2e26dcfc84ed1ea6a0cfb513ab863
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 14 15:12:40 2015 +0000
+
+    net/http/cgi: optimize internal function removeLeadingDuplicates a bit
+    
+    Change-Id: I0255f24f5c5925ea4daa28a28d23606df35d4373
+    Reviewed-on: https://go-review.googlesource.com/15824
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/cgi/host.go      | 16 ++++++++--------
+ src/net/http/cgi/host_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 8 deletions(-)

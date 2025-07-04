@@ -1,0 +1,12 @@
+commit d009679d42c3a77fffabde7684e2c1b9c0befe94
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Feb 14 00:27:10 2018 -0500
+
+    github: add a Pull Request template
+    
+    Change-Id: I02938b2435e3a98efea7ee5545a6f8f5f6f794b4
+    Reviewed-on: https://go-review.googlesource.com/93915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/PULL_REQUEST_TEMPLATE.md | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

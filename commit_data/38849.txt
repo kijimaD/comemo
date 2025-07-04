@@ -1,0 +1,44 @@
+commit e6ae4e86ad59c45f302a8828e77e6c234307fce4
+Author: Shawn Elliott <selliott@microsoft.com>
+Date:   Mon Apr 22 14:45:19 2019 +0000
+
+    cmd/go/internal/generate: stop premature variable substitution in commands
+    
+    go:generate commands passed no arguments are currently subject
+    to premature variable substitution due to mistakenly assuming append
+    guarantees a copy.  The change fixes this by forcing a slice copy at
+    each invocation of a command.
+    
+    The previous code assumed that append would always generate a
+    copy of its inputs. However, append wouldn't create a copy if there was
+    no need to increase capacity and it would just return the original
+    input slice. This resulted in premature variable substitutions in
+    the "master word list" of generate commands, thus yielding incorrect
+    results across multiple invocations of the same command when the
+    body contained substitutions e.g. environment variables, moreover
+    these can change during the lifetime of go:generate processing a
+    file.
+    
+    Note that this behavior would not manifest itself if any arguments were
+    passed to the command, because append would make a copy of the slice
+    as it needed to increase its capacity.   The "hacky" work-around was to
+    always pass at least one argument to any command, even if the
+    command ignores it.  e.g.,
+           //go:generate MyNoArgsCmd ' '
+    
+    This CL fixes that issue and removes the need for the hack mentioned
+    above.
+    
+    Fixes #31608
+    
+    Change-Id: I782ac2234bd7035a37f61c101ee4aee38ed8d29f
+    GitHub-Last-Rev: 796d3430191f183c123c450a60b4a7987cc85e20
+    GitHub-Pull-Request: golang/go#31527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172580
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/generate/generate.go      |   7 +-
+ src/cmd/go/internal/generate/generate_test.go | 198 ++++++++++++++++++++++++++
+ 2 files changed, 204 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit f12a167ba298c1b259dc9dce82676a649d59deb0
+Author: Shane Hansen <shanemhansen@gmail.com>
+Date:   Mon Feb 24 10:13:27 2014 -0500
+
+    gdb: Add partial python3 + go1.2 support to runtime-gdb.py
+    
+    Update #6963 Fixes pretty printing maps and updates
+    functions for interacting with $len(). goroutine $n bt
+    remains not working. Tested on gdb using python 2 and 3.
+    Fixes #7052
+    Update #6963
+    Fixes #6698
+    
+    LGTM=rsc
+    R=golang-codereviews, josharian, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/53590043
+
+ src/pkg/runtime/runtime-gdb.py | 160 +++++++++++++++++++++++++----------------
+ 1 file changed, 97 insertions(+), 63 deletions(-)

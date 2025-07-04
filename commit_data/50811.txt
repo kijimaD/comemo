@@ -1,0 +1,23 @@
+commit b314eea4cdba0755caedc9a3e683d3f7e1e2be6f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Oct 5 03:15:24 2022 +0000
+
+    all: remove redundant type conversion
+    
+    Change-Id: I375233dc700adbc58a6d4af995d07b352bf85b11
+    GitHub-Last-Rev: ef129205231b892f61b0135c87bb791a5e1a126c
+    GitHub-Pull-Request: golang/go#55994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437715
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/internal/obj/wasm/wasmobj.go | 10 +++++-----
+ src/crypto/sha1/sha1.go              |  2 +-
+ src/crypto/sha256/sha256.go          |  2 +-
+ src/crypto/sha512/sha512.go          |  2 +-
+ src/encoding/asn1/asn1_test.go       |  2 +-
+ src/encoding/base32/base32_test.go   |  2 +-
+ 6 files changed, 10 insertions(+), 10 deletions(-)

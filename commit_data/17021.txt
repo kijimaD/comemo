@@ -1,0 +1,14 @@
+commit 38a77ff03fb521eb086eaeb4082682b74a2fa44c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 5 11:24:27 2013 +1000
+
+    doc/effective_go.html: remove spurious word
+    
+    Fixes #6003.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12387045
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit d5bf9604aa597d23085435701f5f8d1584596dbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 28 10:51:53 2022 -0700
+
+    test: add more tests for const decls with ommitted RHS expressions
+    
+    Add analogous tests to go/types and types2 test suites.
+    Make sure "assert" built-in is available in type-checker
+    tests.
+    
+    For #49157.
+    For #53585.
+    
+    Change-Id: I092901ecb43eb4833c09bd8f5e38efbe0285babe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414795
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ .../internal/types2/testdata/check/constdecl.go    | 22 +++++++++++++
+ src/go/types/check_test.go                         |  2 +-
+ src/go/types/testdata/check/constdecl.go           | 22 +++++++++++++
+ test/const8.go                                     | 36 ++++++++++++++++++++++
+ 5 files changed, 82 insertions(+), 2 deletions(-)

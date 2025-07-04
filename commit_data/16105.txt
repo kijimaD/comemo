@@ -1,0 +1,14 @@
+commit b6a39a25455b07b98a48b97ebfb761fb080af825
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 17:04:18 2013 -0700
+
+    strconv: remove some test TODOs and adjust malloc limits lower
+    
+    These no longer allocate.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/8340047
+
+ src/pkg/strconv/strconv_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

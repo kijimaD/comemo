@@ -1,0 +1,16 @@
+commit c1a466b158d5bfa47993d52e5151588d23c45ab0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 5 17:35:13 2018 -0400
+
+    cmd/compile: update some liveness comments
+    
+    These refer to old function names.
+    
+    Change-Id: Ic4507ff836b442e953a21c8a2d09def54e1e43a7
+    Reviewed-on: https://go-review.googlesource.com/108495
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 2f46dfb271414581b048ee54f728c55dbdd85bf0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:17:21 2018 +0000
+
+    encoding/xml: remove some primordial semicolons
+    
+    Change-Id: I23e5d87648a4091fb4f6616bf80aa6c800974900
+    Reviewed-on: https://go-review.googlesource.com/127662
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/encoding/xml/xml.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

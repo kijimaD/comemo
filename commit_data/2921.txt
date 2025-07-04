@@ -1,0 +1,13 @@
+commit 4b9083380356e46f63b71ce073e534c56018099e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 7 17:05:41 2009 -0700
+
+    - clarified section on return statements
+    - added some TODOs
+    
+    DELTA=46  (15 added, 4 deleted, 27 changed)
+    OCL=32901
+    CL=32918
+
+ doc/go_spec.html | 63 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 37 insertions(+), 26 deletions(-)

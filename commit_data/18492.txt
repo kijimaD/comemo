@@ -1,0 +1,16 @@
+commit f8e4a2ef94f852c9f112e118f4d266b97839c3c9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 13 19:36:45 2014 +0400
+
+    runtime: fix concurrent GC sweep
+    The issue was that one of the MSpan_Sweep callers
+    was doing sweep with preemption enabled.
+    Additional checks are added.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/62990043
+
+ src/pkg/runtime/mgc0.c | 32 ++++++++++++++++++++++++--------
+ 1 file changed, 24 insertions(+), 8 deletions(-)

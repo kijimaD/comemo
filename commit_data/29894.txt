@@ -1,0 +1,16 @@
+commit 6a1cac27005f5e37c9c4acd0f63121e61b41ae3c
+Author: Michael Marineau <mike@marineau.org>
+Date:   Tue Jan 3 00:15:05 2017 -0800
+
+    runtime: check sched_getaffinity return value
+    
+    Android on ChromeOS uses a restrictive seccomp filter that blocks
+    sched_getaffinity, leading this code to index a slice by -errno.
+    
+    Change-Id: Iec09a4f79dfbc17884e24f39bcfdad305de75b37
+    Reviewed-on: https://go-review.googlesource.com/34794
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux.go | 3 +++
+ 1 file changed, 3 insertions(+)

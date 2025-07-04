@@ -1,0 +1,19 @@
+commit 4e550bdacdeb2e6992d05a41373ec8f031535832
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 17 12:40:57 2020 -0700
+
+    cmd/compile: simplify state.addr
+    
+    OADDR nodes can't be bounded.
+    All calls to state.addr thus pass false.
+    Remove the argument.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I9a3fcf37f63b2b5094e043d39ab3b857b5090e91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228788
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 44 ++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 23 deletions(-)

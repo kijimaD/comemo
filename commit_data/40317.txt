@@ -1,0 +1,38 @@
+commit 6917b3c839af615e22ef479b23983d186e578bd6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 21 14:02:18 2019 +0200
+
+    vendor: re-vendor golang.org/x/net to fix Dragonfly build
+    
+    This picks up CL 202317 which fixes golang.org/x/net for Dragonfly
+    master (upcoming 5.8 release). Also re-enable the interface tests
+    disabled in CL 201482.
+    
+    Vendored using:
+    
+        $ go get golang.org/x/net@24d2ffbea1e8
+        $ go mod tidy
+        $ go mod vendor
+    
+    Fixes #34368
+    
+    Change-Id: Iac152b7ffaa607bfedbb4024b4e1ffc9b649d689
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202438
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go.mod                                            |  2 +-
+ src/go.sum                                            |  4 ++--
+ src/net/interface_test.go                             |  3 ---
+ src/vendor/golang.org/x/net/dns/dnsmessage/message.go |  2 +-
+ src/vendor/golang.org/x/net/http2/hpack/encode.go     |  2 +-
+ src/vendor/golang.org/x/net/route/address.go          |  2 +-
+ src/vendor/golang.org/x/net/route/message.go          |  2 +-
+ src/vendor/golang.org/x/net/route/route.go            |  2 +-
+ src/vendor/golang.org/x/net/route/route_classic.go    |  2 +-
+ src/vendor/golang.org/x/net/route/sys.go              |  3 +++
+ src/vendor/golang.org/x/net/route/sys_dragonfly.go    | 14 +++++++++++++-
+ src/vendor/golang.org/x/net/route/zsys_dragonfly.go   |  4 ++--
+ src/vendor/modules.txt                                |  2 +-
+ 13 files changed, 28 insertions(+), 16 deletions(-)

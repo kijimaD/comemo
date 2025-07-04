@@ -1,0 +1,19 @@
+commit 8f816259eea991fc354fe44add5223e9ee6b9d67
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Jul 30 17:28:29 2019 -0400
+
+    cmd/link: make PCIter available to compiler
+    
+    I'm branching this off cl/187117, and will be reworking that diff stack.
+    
+    Testing: I've run go build -toolexec 'toolstash -cmp'
+    
+    Change-Id: I922a97d0f25d52ea70cd974008a063d4e7af34a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188023
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/pcln.go      | 66 +++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf.go | 68 ++++++++++++++++----------------
+ src/cmd/link/internal/ld/lib.go   | 15 +++----
+ src/cmd/link/internal/ld/pcln.go  | 83 +++++----------------------------------
+ 4 files changed, 117 insertions(+), 115 deletions(-)

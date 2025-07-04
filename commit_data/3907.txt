@@ -1,0 +1,11 @@
+commit e8b580c9aa809d4741eb1917154bfd31e2c51956
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 18:19:06 2009 -0800
+
+    fix sentence extraction
+    
+    R=rsc
+    http://go/go-review/1026027
+
+ src/cmd/godoc/godoc.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 7ca772a5bc5d7f2a391f7f2a0febc54d84acb9d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 16:00:34 2021 -0700
+
+    cmd/compile/internal/types2: make object test an external test
+    
+    Change-Id: I15c969a799404067f34f600da15b1a97d4857315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361409
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/object_test.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

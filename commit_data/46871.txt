@@ -1,0 +1,19 @@
+commit 53260943eac49dde51e0ce28e50e9b4bc90661b8
+Author: Forest Johnson <forest.n.johnson@gmail.com>
+Date:   Fri Oct 8 19:03:35 2021 +0000
+
+    os: explain ProccessState.Exited()  SIGKILL interaction
+    
+    When a process is forcefully killed (for example, with SIGKILL on unix), its ProccessState.Exited() will return false.
+    
+    Change-Id: I8cebc8d28f2ba1b687c145f6d941647fc3a10665
+    GitHub-Last-Rev: 414ae1980fe61dd530c46cc2c7f4de3a5bc83ed5
+    GitHub-Pull-Request: golang/go#48871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354698
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

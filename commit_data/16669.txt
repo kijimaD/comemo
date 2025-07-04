@@ -1,0 +1,12 @@
+commit ab1270bcfc2410c8b4637a2e3b530a8f51494de1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 27 22:43:30 2013 -0700
+
+    runtime: remove declaration of function that does not exist
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10730045
+
+ src/pkg/runtime/proc.c | 1 -
+ 1 file changed, 1 deletion(-)

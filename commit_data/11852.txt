@@ -1,0 +1,19 @@
+commit 28ffb38f4a55759664b240843af00e6d88b72128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 11:50:53 2012 -0800
+
+    go/printer, gofmt: don't indent line directives
+    
+    This was broken by https://golang.org/cl/5643066
+    which introduced lazy indentation printing.
+    
+    Fixes #2990.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5655067
+
+ src/pkg/go/printer/printer.go               | 48 +++++++++++++----------------
+ src/pkg/go/printer/testdata/comments.golden | 19 ++++++++++++
+ src/pkg/go/printer/testdata/comments.input  | 19 ++++++++++++
+ 3 files changed, 59 insertions(+), 27 deletions(-)

@@ -1,0 +1,29 @@
+commit b6e0d39a343128759988c12e7560d21cd35472ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 7 17:56:00 2013 -0800
+
+    net/http: Transport socket late binding
+    
+    Implement what Chrome calls socket "late binding". See:
+    https://insouciant.org/tech/connection-management-in-chromium/
+    
+    In a nutshell, if our HTTP client needs a TCP connection to a
+    remote host and there's not an idle one available, rather than
+    kick off a dial and wait for that specific dial, we instead
+    kick off a dial and wait for either our own dial to finish, or
+    any other TCP connection to that same host to become
+    available.
+    
+    The implementation looks like a classic "Learning Go
+    Concurrency" slide.
+    
+    Chrome's commit and numbers:
+    http://src.chromium.org/viewvc/chrome?view=rev&revision=36230
+    
+    R=golang-dev, daniel.morsing, adg
+    CC=golang-dev
+    https://golang.org/cl/7587043
+
+ src/pkg/net/http/transport.go      | 78 ++++++++++++++++++++++++++++++++++----
+ src/pkg/net/http/transport_test.go | 58 ++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+), 8 deletions(-)

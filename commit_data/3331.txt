@@ -1,0 +1,23 @@
+commit 6efd7e6b8ff4083bef716217cb79fabd135eb745
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 21 12:59:14 2009 -0700
+
+    move strings.Buffer into bytes
+    delete strings.Buffer
+    add a test for a bug not caught before (mustn't install zero-length blocks)
+    
+    R=rsc
+    DELTA=987  (289 added, 587 deleted, 111 changed)
+    OCL=34850
+    CL=34850
+
+ src/pkg/Make.deps              |   4 +-
+ src/pkg/base64/base64_test.go  |   4 +-
+ src/pkg/bufio/bufio_test.go    |   8 +-
+ src/pkg/bytes/buffer.go        | 338 ++++++++++++++++++++++++++++++++--------
+ src/pkg/bytes/buffer_test.go   | 107 ++++++++++---
+ src/pkg/gob/encoder_test.go    |   3 +-
+ src/pkg/strings/Makefile       |   1 -
+ src/pkg/strings/buffer.go      | 340 -----------------------------------------
+ src/pkg/strings/buffer_test.go | 234 ----------------------------
+ 9 files changed, 370 insertions(+), 669 deletions(-)

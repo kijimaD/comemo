@@ -1,0 +1,17 @@
+commit d0ffee8abfad42e632129848b1f8ab9efcfa6ce9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 26 13:05:04 2010 -0700
+
+    bytes, strings: IndexOfAny
+    + first use in go/doc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/781041
+
+ src/pkg/bytes/bytes.go          | 15 +++++++++
+ src/pkg/bytes/bytes_test.go     | 70 +++++++++++++++++++++++++++++++----------
+ src/pkg/go/doc/doc.go           | 11 ++-----
+ src/pkg/strings/strings.go      | 15 +++++++++
+ src/pkg/strings/strings_test.go | 19 +++++++++--
+ 5 files changed, 102 insertions(+), 28 deletions(-)

@@ -1,0 +1,13 @@
+commit a4f5c9c40de3fcf4396037ba63dc547225e00375
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 09:51:17 2019 -0400
+
+    runtime: fix vet complaints for js/wasm
+    
+    Change-Id: Ifc8a731a2efd94fdc4fc6f26ca6e16f0c0292211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176178
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/vet/all/whitelist/wasm.txt | 11 -----------
+ src/runtime/asm_wasm.s             |  3 ++-
+ 2 files changed, 2 insertions(+), 12 deletions(-)

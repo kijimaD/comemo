@@ -1,0 +1,18 @@
+commit c4c68fb57f1b081557a837e8809094b42cfdc5e3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Apr 28 05:21:33 2021 +0000
+
+    cmd/compile/internal/walk: delete unused statement
+    
+    Change-Id: I3f118c868b13ec51b2e501424b35564929eed56d
+    GitHub-Last-Rev: d15ae124c582417cd10bceaef0b5c0ebbf100f7e
+    GitHub-Pull-Request: golang/go#45816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314570
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/range.go | 1 -
+ 1 file changed, 1 deletion(-)

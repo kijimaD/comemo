@@ -1,0 +1,11 @@
+commit 9e99383df51327e52b5484d849a4a1d861375c22
+Author: Kai Backman <kaib@golang.org>
+Date:   Sun Oct 25 11:51:48 2009 -0700
+
+    frame size > StackBig support
+    
+    R=rsc
+    http://go/go-review/1015010
+
+ src/cmd/5l/noop.c | 56 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 49 insertions(+), 7 deletions(-)

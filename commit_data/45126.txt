@@ -1,0 +1,18 @@
+commit 82e4a6310b78290cb55be6e6e5d0e274aa004faf
+Author: Ruslan Andreev <ruslan.andreev@huawei.com>
+Date:   Tue Dec 22 19:22:14 2020 +0800
+
+    runtime: move roots' bases calculation to gcMarkRootPrepare
+    
+    This patch provides changes according to Austin's TODO. It just moves
+    calculation of base indexes of each root type from markroot function
+    to gcMarkRootPrepare.
+    
+    Change-Id: Ib231de34e7f81e922762fc3ee2b1830921c0c7cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279461
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go     |  4 ++++
+ src/runtime/mgcmark.go | 37 ++++++++++++++++++-------------------
+ 2 files changed, 22 insertions(+), 19 deletions(-)

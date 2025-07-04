@@ -1,0 +1,14 @@
+commit 123549acb1be28d1a973d13430e6d2cb3145c544
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 23 09:16:20 2011 +1000
+
+    exec: better error message for windows LookPath
+    
+    Fixes #1991.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4648049
+
+ src/pkg/exec/lp_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

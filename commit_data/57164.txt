@@ -1,0 +1,25 @@
+commit 9becf401de6080cb9edd524def7e77aeaede4126
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri Aug 9 07:33:36 2024 +0000
+
+    bytes, strings: add Lines, SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq
+    
+    Fixes #61901.
+    
+    Change-Id: I4db21c91fd21079f2aa3bc81fb03dd6f40423a38
+    GitHub-Last-Rev: ed3df560a40ea10cdcb8ad476ba6849463f3c761
+    GitHub-Pull-Request: golang/go#67543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587095
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/61901.txt                          |  10 ++
+ doc/next/6-stdlib/99-minor/bytes/61901.md   |  12 +++
+ doc/next/6-stdlib/99-minor/strings/61901.md |  12 +++
+ src/bytes/bytes_test.go                     |  57 +++++++++++
+ src/bytes/iter.go                           | 148 ++++++++++++++++++++++++++++
+ src/strings/iter.go                         | 148 ++++++++++++++++++++++++++++
+ src/strings/strings_test.go                 |  52 ++++++++++
+ 7 files changed, 439 insertions(+)

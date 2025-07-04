@@ -1,0 +1,25 @@
+commit 493ebc359029a066d039adf861ea33bec68422b8
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Sep 20 16:15:49 2022 -0700
+
+    all: update vendored golang.org/x/net
+    
+    Pull in HTTP/2 fix needed for net/http test case.
+    
+            f8f703f979 http2: accept HEAD requests with a body
+    
+    For #53960
+    
+    Change-Id: I59bbd83977daced5ed21ec5345af8cdb607e532e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432197
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  2 +
+ src/net/http/h2_bundle.go                          | 72 ++++++++++++----------
+ .../golang.org/x/net/dns/dnsmessage/message.go     |  4 +-
+ .../golang.org/x/net/http/httpproxy/proxy.go       |  3 +-
+ src/vendor/modules.txt                             |  2 +-
+ 6 files changed, 48 insertions(+), 37 deletions(-)

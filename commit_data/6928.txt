@@ -1,0 +1,14 @@
+commit cc1556d9a29865f1cce8d0ee516b6116bae3ca54
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 10:04:53 2010 -0500
+
+    runtime/linux/386: set FPU to 64-bit precision
+    
+    Fixes #550.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3469044
+
+ src/pkg/runtime/linux/386/rt0.s | 8 ++++++++
+ 1 file changed, 8 insertions(+)

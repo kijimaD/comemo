@@ -1,0 +1,12 @@
+commit 096f3a293e3dd3aee1980cbbd3f6fed91f7fefe1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 13 09:38:08 2011 -0700
+
+    os: Fix comment in generated signal_unix.go file.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5013042
+
+ src/pkg/os/mkunixsignals.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

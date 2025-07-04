@@ -1,0 +1,27 @@
+commit 21908c3dec35f19d283051e150143a651cc2a71f
+Author: Stefan Schlosser <bsdcode0@gmail.com>
+Date:   Tue Apr 22 15:49:26 2025 +0000
+
+    cmd/go/internal/vcs: include Subversion VCS build information
+    
+    The existing implementation lacks the Status function for retrieving VCS build
+    information for Subversion. As a consequence, binaries aren't stamped with the
+    Revision, CommitTime and Uncommitted information from SVN repositories.
+    
+    This change provides the svnStatus function and retrieves the information by
+    running svn info and svn status commands.
+    
+    Fixes #73444
+    
+    Change-Id: Ie6d95ffbb3a3c580cc42128ad1f8d82a869c91f2
+    GitHub-Last-Rev: 3472222865638a13b122c8995561166cfe228fa8
+    GitHub-Pull-Request: golang/go#73446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go                     | 30 +++++++
+ .../go/testdata/script/version_buildvcs_svn.txt    | 96 ++++++++++++++++++++++
+ 2 files changed, 126 insertions(+)

@@ -1,0 +1,11 @@
+commit dee07c884e190c14caf1f82288455d37707da6bf
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 22 21:02:06 2008 -0700
+
+    maps
+    
+    SVN=124030
+
+ src/cmd/gc/walk.c     | 109 ++++++++-------
+ src/runtime/runtime.c | 359 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 418 insertions(+), 50 deletions(-)

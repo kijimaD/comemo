@@ -1,0 +1,19 @@
+commit d4b2168b238a9e46886ddbf337de68cfacd62a11
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 20 09:55:28 2018 +0000
+
+    regexp/syntax: make Op an fmt.Stringer
+    
+    Using stringer.
+    
+    Fixes #22684.
+    
+    Change-Id: I62fbde5dcb337cf269686615616bd39a27491ac1
+    Reviewed-on: https://go-review.googlesource.com/95355
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/syntax/op_string.go | 26 ++++++++++++++++++++++++++
+ src/regexp/syntax/regexp.go    |  2 ++
+ 2 files changed, 28 insertions(+)

@@ -1,0 +1,16 @@
+commit a55a5c8df3d8ced8f0399a523dc4508af1db5904
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 24 12:52:15 2012 +1100
+
+    test: add temporary show_skips flag.
+    
+    To find test files with legacy headers.
+    
+    We can remove this flag once everything is converted.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5694060
+
+ test/run.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

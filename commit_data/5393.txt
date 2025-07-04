@@ -1,0 +1,14 @@
+commit ad26019ba69628b17d3749fdb460925b94c985d4
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Thu Apr 29 14:06:27 2010 +1000
+
+    codelab/index.html "os" needs to be imported because os.Error is used almost immediately
+    
+    Also, calling fmt, ioutil and os "builtin" is probably confusing.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/965045
+
+ doc/codelab/wiki/index.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

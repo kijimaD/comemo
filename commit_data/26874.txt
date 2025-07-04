@@ -1,0 +1,14 @@
+commit 37af06360039c96be707526596557a33885c3ad0
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Apr 12 13:12:54 2016 -0300
+
+    crypto/x509: remove broken link in ParsePKCS8PrivateKey documentation
+    
+    Fixes #14776
+    
+    Change-Id: I55423ac643f18542b9fd1386ed98dec47fb678aa
+    Reviewed-on: https://go-review.googlesource.com/21890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/pkcs8.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

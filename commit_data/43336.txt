@@ -1,0 +1,34 @@
+commit 9cec50f50c29f5ef7264bf06ee7ac0991b4b36d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 16 19:35:09 2020 +0200
+
+    internal/poll, net, syscall: use accept4 on illumos
+    
+    Illumos supports the accept4 syscall, use it in internal/poll.accept
+    like on other platforms.
+    
+    Add Accept4 to package syscall despite the package being frozen. The
+    other option would have been to add this to internal/syscall/unix, but
+    adding it to syscall avoids duplicating a lot of code in internal/poll
+    and net/internal/socktest. Also, all other platforms supporting the
+    accept4 syscall already export Accept4.
+    
+    Follow CL 97196, CL 40895 and CL 94295
+    
+    Change-Id: I13b32f0163a683840c02b16722730d9dfdb98f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256101
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/hook_cloexec.go        |  2 +-
+ src/internal/poll/sock_cloexec.go        |  2 +-
+ src/internal/poll/sys_cloexec.go         |  2 +-
+ src/net/internal/socktest/sys_cloexec.go |  2 +-
+ src/net/main_cloexec_test.go             |  2 +-
+ src/net/sock_cloexec.go                  |  2 +-
+ src/net/sys_cloexec.go                   |  2 +-
+ src/runtime/cgo/cgo.go                   |  1 +
+ src/syscall/syscall_illumos.go           | 25 ++++++++++++++++++++++++-
+ 9 files changed, 32 insertions(+), 8 deletions(-)

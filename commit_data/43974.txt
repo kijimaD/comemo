@@ -1,0 +1,29 @@
+commit 5627a4dc3013fed02c4b8097413643b682cac276
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 8 19:44:33 2020 -0500
+
+    runtime/metrics: simplify test to support more environments
+    
+    go test sets the working directory to that of the package being tested,
+    so opening one of the package source files can be done in a simpler way.
+    This also allows the test to run in more environments, for example when
+    GOROOT_FINAL¹ is set.
+    
+    Also remove the testenv.HasSrc-like check for Go source. The doc.go
+    file is a part of the package being built and tested, so it's expected
+    to be available. If it's important for this test to handle when a test
+    binary is built with go test -c and executed elsewhere without package
+    source files, something more than testenv.HasSrc would be needed.
+    
+    ¹ https://golang.org/cmd/go/#hdr-Environment_variables
+    
+    Fixes #43085.
+    
+    Change-Id: Ie6ade395a8fc7beebdadbad6f4873800138dfc26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276452
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/metrics/description_test.go | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

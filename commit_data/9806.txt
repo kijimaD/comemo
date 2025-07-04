@@ -1,0 +1,12 @@
+commit aeaa8171407675611b3d08f1d0950f72c0929ad1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 19:52:34 2011 -0400
+
+    websocket: remove use of container/vector
+    
+    R=golang-dev, r
+    CC=golang-dev, ukai
+    https://golang.org/cl/5140046
+
+ src/pkg/websocket/hixie.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

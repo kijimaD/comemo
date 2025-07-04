@@ -1,0 +1,29 @@
+commit ff3a73b407e1d061dddf0c455172f605249d37e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 16:53:08 2009 -0700
+
+    typechecking checkpoint.
+    started to move typechecking to another file.
+    can build entire tree still, but lots of work
+    is duplicated.  much to clean up.
+    
+    R=ken
+    OCL=32536
+    CL=32543
+
+ src/cmd/5g/cgen.c      |    6 +-
+ src/cmd/6g/cgen.c      |    6 +-
+ src/cmd/8g/cgen.c      |    6 +-
+ src/cmd/gc/Makefile    |    1 +
+ src/cmd/gc/align.c     |    8 +
+ src/cmd/gc/const.c     |   26 +-
+ src/cmd/gc/dcl.c       |   18 +-
+ src/cmd/gc/gen.c       |    6 +-
+ src/cmd/gc/go.h        |   13 +-
+ src/cmd/gc/go.y        |   15 +-
+ src/cmd/gc/print.c     |   61 +--
+ src/cmd/gc/subr.c      |   12 +-
+ src/cmd/gc/swt.c       |   21 +-
+ src/cmd/gc/typecheck.c | 1099 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c      |  584 +++++--------------------
+ 15 files changed, 1327 insertions(+), 555 deletions(-)

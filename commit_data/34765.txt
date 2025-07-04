@@ -1,0 +1,21 @@
+commit 64bf90576e60bce0c2a6acd3d42855ffdc1c2654
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 27 13:35:39 2018 -0700
+
+    cmd/compile: refactor memory op constructors in SSA builder
+    
+    Pulling these operations out separately so it's easier to add
+    instrumentation calls.
+    
+    Passes toolstash-check.
+    
+    Updates #19054.
+    
+    Change-Id: If6a537124a87bac2eceff1d66d9df5ebb3bf07be
+    Reviewed-on: https://go-review.googlesource.com/102816
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 127 ++++++++++++++++++++-----------------
+ 1 file changed, 69 insertions(+), 58 deletions(-)

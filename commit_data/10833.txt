@@ -1,0 +1,14 @@
+commit 6699aa4aeea17acb4751f1bdbf259e16f9ad0033
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 18:37:31 2011 -0500
+
+    crypto/tls: quiet build
+    
+    On a Mac, all the useful functions are deprecated.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5493054
+
+ src/pkg/crypto/tls/root_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

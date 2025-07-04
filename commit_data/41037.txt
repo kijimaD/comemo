@@ -1,0 +1,19 @@
+commit f376b8510ed7884c69a09fbcf61418f7285f2787
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Jan 2 02:00:55 2020 -0800
+
+    all: fix invalid invocations of Fatalf in goroutines
+    
+    Found by running the go vet pass 'testinggoroutine' that
+    I started in CL 212920.
+    
+    Change-Id: Ic9462fac85dbafc437fe4a323b886755a67a1efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213097
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql_test.go | 6 +++++-
+ src/net/lookup_test.go       | 6 +++++-
+ src/time/sleep_test.go       | 2 +-
+ 3 files changed, 11 insertions(+), 3 deletions(-)

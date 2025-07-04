@@ -1,0 +1,17 @@
+commit 7717ac151ae1556541dddc6a817ac04733f1af44
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 10 11:23:40 2022 -0500
+
+    runtime: make Malloc benchmarks actually benchmark malloc
+    
+    The compiler is too clever so the allocations are currently
+    avoided. Rewrite to make them actually allocate.
+    
+    Change-Id: I9542e1365120b2ace318360883b0b01ed5670da7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449476
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc_test.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

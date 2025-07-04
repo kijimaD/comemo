@@ -1,0 +1,38 @@
+commit b5777571b3ab20ca124fa60c34cd5094098fbb2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 15:16:38 2012 -0500
+
+    go/build: add BuildTags to Context, allow !tag
+    
+    This lets the client of go/build specify additional tags that
+    can be recognized in a // +build directive.  For example,
+    a build for a custom environment like App Engine might
+    include "appengine" in the BuildTags list, so that packages
+    can be written with some files saying
+    
+            // +build appengine   (build only on app engine)
+    
+    or
+    
+            // +build !appengine  (build only when NOT on app engine)
+    
+    App Engine here is just a hypothetical context.  I plan to use
+    this in the cmd/go sources to distinguish the bootstrap version
+    of cmd/go (which will not use networking) from the full version
+    using a custom tag.  It might also be useful in App Engine.
+    
+    Also, delete Build and Script, which we did not end up using for
+    cmd/go and which never got turned on for real in goinstall.
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/5554079
+
+ src/cmd/goinstall/main.go       |  29 +--
+ src/pkg/crypto/tls/root_stub.go |   2 +-
+ src/pkg/go/build/build.go       | 425 +---------------------------------------
+ src/pkg/go/build/build_test.go  |  56 +++---
+ src/pkg/go/build/dir.go         | 128 ++++++++++--
+ src/pkg/net/cgo_stub.go         |   2 +-
+ src/pkg/os/user/lookup_stubs.go |   2 +-
+ 7 files changed, 137 insertions(+), 507 deletions(-)

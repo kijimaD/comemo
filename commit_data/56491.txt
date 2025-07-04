@@ -1,0 +1,25 @@
+commit 36b06c3d2f7fc1089e63a9040ad04ef6194b932f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 15 15:06:14 2024 -0400
+
+    cmd/vendor/golang.org/x/telemetry: update to ac8fed8
+    
+    Updates #67182
+    
+    Change-Id: I14f6a35491e3a58fff2f33285bd13ac706668df6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585818
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../telemetry/internal/crashmonitor/crash_go123.go |  7 +++--
+ .../golang.org/x/telemetry/internal/upload/date.go |  6 ++--
+ .../x/telemetry/internal/upload/findwork.go        |  2 +-
+ .../x/telemetry/internal/upload/reports.go         |  6 ++--
+ .../golang.org/x/telemetry/internal/upload/run.go  | 31 ++++++++++++++------
+ .../x/telemetry/internal/upload/upload.go          |  6 ++--
+ src/cmd/vendor/golang.org/x/telemetry/start.go     |  2 +-
+ .../vendor/golang.org/x/telemetry/upload/upload.go | 33 ----------------------
+ src/cmd/vendor/modules.txt                         |  3 +-
+ 11 files changed, 43 insertions(+), 59 deletions(-)

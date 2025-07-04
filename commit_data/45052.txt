@@ -1,0 +1,29 @@
+commit 52bf14e0e8bdcd73f1ddfb0c4a1d0200097d3ba2
+Author: Naman Gera <namangera15@gmail.com>
+Date:   Fri Apr 9 03:48:14 2021 +0000
+
+    all: fix spellings
+    
+    This follows the spelling choices that the Go project has made for English words.
+    https://github.com/golang/go/wiki/Spelling
+    
+    Change-Id: Ie7c586d2cf23020cb492cfff58c0831d2d8d3a78
+    GitHub-Last-Rev: e16a32cd225a275f73d236bcb33703986d110ded
+    GitHub-Pull-Request: golang/go#45442
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308291
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ misc/cgo/test/issue6997_linux.go        | 8 +++++---
+ src/context/context_test.go             | 4 ++--
+ src/crypto/tls/handshake_server_test.go | 6 +++---
+ src/database/sql/sql.go                 | 2 +-
+ src/database/sql/sql_test.go            | 4 ++--
+ src/net/http/client_test.go             | 2 +-
+ src/net/http/httputil/dump_test.go      | 2 +-
+ src/net/http/httputil/reverseproxy.go   | 2 +-
+ src/net/http/pprof/pprof.go             | 2 +-
+ src/net/http/transport.go               | 6 +++---
+ 10 files changed, 20 insertions(+), 18 deletions(-)

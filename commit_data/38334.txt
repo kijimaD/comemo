@@ -1,0 +1,51 @@
+commit fe24837c4de6dac36f3496e6bac85f72209ee841
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 3 14:47:20 2019 -0800
+
+    math/big: add fast path for pure Go addVW for large z
+    
+    In the normal case, only a few words have to be updated when adding a word to a vector.
+    When that happens, we can simply copy the rest of the words, which is much faster.
+    However, the overhead of that makes it prohibitive for small vectors,
+    so we check the size at the beginning.
+    
+    The implementation is a bit weird to allow addVW to continued to be inlined; see #30548.
+    
+    The AddVW benchmarks are surprising, but fully repeatable.
+    The SubVW benchmarks are more or less as expected.
+    I expect that removing the indirect function call will
+    help both and make them a bit more normal.
+    
+    name            old time/op    new time/op     delta
+    AddVW/1-8         4.27ns ± 2%     3.81ns ± 3%   -10.83%  (p=0.000 n=89+90)
+    AddVW/2-8         4.91ns ± 2%     4.34ns ± 1%   -11.60%  (p=0.000 n=83+90)
+    AddVW/3-8         5.77ns ± 4%     5.76ns ± 2%      ~     (p=0.365 n=91+87)
+    AddVW/4-8         6.03ns ± 1%     6.03ns ± 1%      ~     (p=0.392 n=80+76)
+    AddVW/5-8         6.48ns ± 2%     6.63ns ± 1%    +2.27%  (p=0.000 n=76+74)
+    AddVW/10-8        9.56ns ± 2%     9.56ns ± 1%    -0.02%  (p=0.002 n=69+76)
+    AddVW/100-8       90.6ns ± 0%     18.1ns ± 4%   -79.99%  (p=0.000 n=72+94)
+    AddVW/1000-8       865ns ± 0%       85ns ± 6%   -90.14%  (p=0.000 n=66+96)
+    AddVW/10000-8     8.57µs ± 2%     1.82µs ± 3%   -78.73%  (p=0.000 n=99+94)
+    AddVW/100000-8    84.4µs ± 2%     31.8µs ± 4%   -62.29%  (p=0.000 n=93+98)
+    
+    name            old time/op    new time/op     delta
+    SubVW/1-8         3.90ns ± 2%     4.13ns ± 4%    +6.02%  (p=0.000 n=92+95)
+    SubVW/2-8         4.15ns ± 1%     5.20ns ± 1%   +25.22%  (p=0.000 n=83+85)
+    SubVW/3-8         5.50ns ± 2%     6.22ns ± 6%   +13.21%  (p=0.000 n=91+97)
+    SubVW/4-8         5.99ns ± 1%     6.63ns ± 1%   +10.63%  (p=0.000 n=79+61)
+    SubVW/5-8         6.75ns ± 4%     6.88ns ± 2%    +1.82%  (p=0.000 n=98+73)
+    SubVW/10-8        9.57ns ± 1%     9.56ns ± 1%    -0.13%  (p=0.000 n=77+64)
+    SubVW/100-8       90.3ns ± 1%     18.1ns ± 2%   -80.00%  (p=0.000 n=75+94)
+    SubVW/1000-8       860ns ± 4%       85ns ± 7%   -90.14%  (p=0.000 n=97+99)
+    SubVW/10000-8     8.51µs ± 3%     1.77µs ± 6%   -79.21%  (p=0.000 n=100+97)
+    SubVW/100000-8    84.4µs ± 3%     31.5µs ± 3%   -62.66%  (p=0.000 n=92+92)
+    
+    Change-Id: I721d7031d40f245b4a284f5bdd93e7bb85e7e937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164968
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith.go           | 44 +++++++++++++++++++++++++++++++++++++++--
+ src/math/big/arith_decl_pure.go | 14 +++++++++++--
+ 2 files changed, 54 insertions(+), 4 deletions(-)

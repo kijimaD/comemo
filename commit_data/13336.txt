@@ -1,0 +1,12 @@
+commit 44a3a58e451bcabad67fbd31e203a4f9f1ba2eae
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Wed Jun 13 10:25:00 2012 -0400
+
+    misc/emacs: Fix a failure when /tmp/<file>.go exists.
+    
+    R=sameer
+    CC=golang-dev
+    https://golang.org/cl/6296060
+
+ misc/emacs/go-mode.el | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit 5e1726b71a6485f5744db1c5533c847fa63163fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 19 15:46:37 2024 -0500
+
+    cmd/go: add GOFIPS140 to 'go help environment'
+    
+    Also re-sort the various lists. (All lists should be sorted.)
+    The linked page https://go.dev/security/fips140 has yet
+    to be written, but soon.
+    
+    For #70123.
+    
+    Change-Id: Ica5bbf5bd29e9136c2a49d3099d6e0e018c36145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629816
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/alldocs.go               | 44 +++++++++++++++++++++----------------
+ src/cmd/go/internal/help/helpdoc.go | 44 +++++++++++++++++++++----------------
+ 2 files changed, 50 insertions(+), 38 deletions(-)

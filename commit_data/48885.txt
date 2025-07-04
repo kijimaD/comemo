@@ -1,0 +1,25 @@
+commit 8e1a9c34ab7ae73f6c7d6fad10a37f1738a1e86a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 22 10:39:04 2022 -0400
+
+    net: eliminate a deadlock on the failure path in TestNotTemporaryRead
+    
+    This fixes a deadlock-on-failure that I probably introduced in
+    CL 385314.
+    
+    This doesn't explain why the failure observed in #52492 occurred, but
+    it will at least give us more information to diagnose the failure if
+    it happens again. (The deadlock currently prevents the t.Fatal log
+    message from being written to the test's output.)
+    
+    Fixes #52492.
+    
+    Change-Id: I9e7874985e2820a6a4b703abe4f8e2035d5138c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401575
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/net_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

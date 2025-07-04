@@ -1,0 +1,37 @@
+commit a2ace8ec18a833e5d286e4e9af6fc5de41ca9a31
+Author: Chris Marchesi <chrism@vancluevertech.com>
+Date:   Thu Mar 7 07:36:05 2019 +0000
+
+    net/http: unfurl persistConnWriter's underlying writer
+    
+    Make persistConnWriter implement io.ReaderFrom, via an io.Copy on the
+    underlying net.Conn. This in turn enables it to use OS level
+    optimizations such as sendfile.
+    
+    This has been observed giving performance gains even in the absence
+    of ReaderFrom, more than likely due to the difference in io's default
+    buffer (32 KB) versus bufio's (4 KB).
+    
+    Speedups on linux/amd64:
+    benchmark                               old MB/s     new MB/s     speedup
+    BenchmarkFileAndServer_16MB/NoTLS-4     662.96       2703.74      4.08x
+    BenchmarkFileAndServer_16MB/TLS-4       552.76       1420.72      2.57x
+    
+    Speedups on darwin/amd64:
+    benchmark                               old MB/s     new MB/s     speedup
+    BenchmarkFileAndServer_16MB/NoTLS-8     357.58       1972.86      5.52x
+    BenchmarkFileAndServer_16MB/TLS-8       346.20       1067.41      3.08x
+    
+    Updates #30377.
+    
+    Change-Id: Ic88d4ac254f665223536fcba4d551fc32ae105b6
+    GitHub-Last-Rev: a6f67cda2ed63ac61a1dffc87f0ea396363f72c6
+    GitHub-Pull-Request: golang/go#30390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163737
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/transport.go      |  11 ++++
+ src/net/http/transport_test.go | 143 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 154 insertions(+)

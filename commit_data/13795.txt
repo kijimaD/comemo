@@ -1,0 +1,19 @@
+commit b45b6fd1c73c7560740b5ff2700f9b07ed41914c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Sep 11 08:45:23 2012 +0200
+
+    cmd/6g, cmd/8g: do not LEA[LQ] interfaces when calling methods.
+    
+    It is enough to load directly the data word and the itab word
+    from memory, so we save a LEA instruction for each method call,
+    and allow elimination of some extra temporaries.
+    
+    Update #1914.
+    
+    R=daniel.morsing, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6501110
+
+ src/cmd/6g/ggen.c | 38 ++++++++++++++++++++------------------
+ src/cmd/8g/ggen.c | 26 ++++++++++++++------------
+ 2 files changed, 34 insertions(+), 30 deletions(-)

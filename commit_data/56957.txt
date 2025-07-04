@@ -1,0 +1,24 @@
+commit c0eac35a4cd3ca16d3d1fc153a155b0b18f49633
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:32:22 2024 +0000
+
+    bytes,strings,unicode/utf16: use slices to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal, which is much faster.
+    Remove some redundant helper functions.
+    
+    Change-Id: I51b32a3d0c3fc5ad0d3b6ff0dd03f39c507e5762
+    GitHub-Last-Rev: e21f46d4a026b6bf6e8d912dfb8d361a20a4e779
+    GitHub-Pull-Request: golang/go#67609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587937
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/bytes/bytes_test.go         | 37 +++++++------------------------------
+ src/strings/search_test.go      |  4 ++--
+ src/strings/strings_test.go     |  6 +++---
+ src/unicode/utf16/utf16_test.go |  8 ++++----
+ 4 files changed, 16 insertions(+), 39 deletions(-)

@@ -1,0 +1,22 @@
+commit 318da8d66958574497450e4dcee518df55194f14
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 16 04:36:42 2016 +0200
+
+    net: ignore lack of deadline support on Plan 9
+    
+    Since CL 22101, network tests are failing on Plan 9
+    due to the lack of deadline support.
+    
+    Instead of panicking, we just ignore the deadline
+    when set.
+    
+    Update #11932.
+    Fixes #15328.
+    
+    Change-Id: I1399303b0b3d6d81e0b8b8d327980d978b411a46
+    Reviewed-on: https://go-review.googlesource.com/22127
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/tcpsock_plan9.go | 2 +-
+ src/net/udpsock_plan9.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

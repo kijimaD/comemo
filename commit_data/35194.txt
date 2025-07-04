@@ -1,0 +1,17 @@
+commit eef27a8fa2fb390d65a7476e686d933d927acdf7
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 30 00:27:13 2018 -0700
+
+    runtime: fix newosproc darwin+arm/arm64
+    
+    Missed conversion of newosproc for the parts of darwin that
+    weren't affected by my previous change.
+    
+    Update #25181
+    
+    Change-Id: I81a2935e192b6d0df358c59b7e785eb03c504c23
+    Reviewed-on: https://go-review.googlesource.com/110123
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/os_darwin_raw.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

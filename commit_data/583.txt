@@ -1,0 +1,16 @@
+commit e2e48e9a8ea26511ca7a090744b48a27500daaf1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 5 09:55:33 2008 -0700
+
+    use a makefile to build math
+    fix a typo in syscall/Makefile
+    
+    R=ken
+    OCL=14863
+    CL=14863
+
+ src/lib/math/Makefile   | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/math/clean.bash |  2 +-
+ src/lib/math/make.bash  |  4 ++--
+ src/syscall/Makefile    |  4 ++--
+ 4 files changed, 52 insertions(+), 5 deletions(-)

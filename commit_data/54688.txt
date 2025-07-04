@@ -1,0 +1,25 @@
+commit a762ea17ecb593d695601f0c1b4ea9fbd601c6cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 11 14:09:20 2023 -0700
+
+    runtime: don't use atomic store in noteclear on AIX
+    
+    In CL 163624 we added an atomic store in noteclear on AIX only.
+    In the discussion on issue #63384 we think we figured out that the
+    real problem was in the implementation of compare-and-swap on ppc64.
+    That is fixed by CL 533118, so the atomic store is no longer required.
+    
+    For #30189
+    For #63384
+    
+    Change-Id: I60f4f2fac75106f2bee51a8d9663259dcde2029c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534517
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/lock_sema.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit e06e29b9b4afbb30f5c77551ff8e6bdaafcf8e9b
+Author: Richard Miller <millerresearch@gmail.com>
+Date:   Tue Nov 19 12:15:26 2024 +0000
+
+    os: allow for variant plan9 error messages in TestOpenError
+    
+    Different Plan 9 file servers may return different error strings
+    on an attempt to open a directory for writing: EISDIR, EACCES or
+    EPERM. TestOpenError allows for the first two, but it needs to
+    allow for EPERM as well.
+    
+    Fixes #70440
+    
+    Change-Id: I705cc086e21630ca254499ca922ede78c9901b11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629635
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/os/os_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

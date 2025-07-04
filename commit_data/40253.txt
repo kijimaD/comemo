@@ -1,0 +1,22 @@
+commit a04aa1f6d17cd723baad25118b31ab8ca5dc8e20
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Oct 4 04:02:38 2019 +1000
+
+    cmd/internal/obj/riscv: implement MOV pseudo-instructions
+    
+    Add support for rewriting MOV pseudo-instructions into appropriate
+    RISC-V instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I22da6f5f12c841d56fb676ab2a37f6d0a686b033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198677
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  30 +++
+ src/cmd/internal/obj/riscv/obj.go            | 338 +++++++++++++++++++++++++++
+ 2 files changed, 368 insertions(+)

@@ -1,0 +1,23 @@
+commit f4086d36862d8fd41af90356c894d04d3ff58203
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 25 09:25:05 2023 -0400
+
+    cmd/dist: drop wasitest from special list
+    
+    CL 498255 made runtime/internal/wasitest compatible with all platforms
+    so that "go test std" works again. This means it no longer has to be
+    in the special dist test list.
+    
+    While we're here explain the purpose of this list better and implore
+    people to please not expand it, since almost any addition is a sign
+    that "go test std cmd" no longer works.
+    
+    Change-Id: I31c7fb767787fa587f65c2697aed9ed43e95fb18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498256
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

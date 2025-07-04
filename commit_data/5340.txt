@@ -1,0 +1,12 @@
+commit 43409ed2c66cdf739334e68472db57885d5ca0c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 01:09:19 2010 -0700
+
+    libmach: disassemble MOVLQZX correctly
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1007041
+
+ src/libmach/8db.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 30b080e0600e774516a4f9343d7c5f53a5d012c2
+Author: Goo <liuwanle2010@gmail.com>
+Date:   Sat Aug 25 22:35:38 2018 +0000
+
+    src/make.bat: add missing go.exe extension
+    
+    Got error:
+    'go' is not an internal or external command, nor is it a runnable program
+    
+    Change-Id: Ie45a3a12252fa01b67ca09ef8fbb5b4bbf728fe7
+    GitHub-Last-Rev: 451815cacd9bfc509fa0aab3be54303797e605a2
+    GitHub-Pull-Request: golang/go#27214
+    Reviewed-on: https://go-review.googlesource.com/131397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

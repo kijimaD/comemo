@@ -1,0 +1,14 @@
+commit ee14989e4365dcc14820445183776c8361954785
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 8 17:53:55 2011 +1000
+
+    exp/template: lex variables
+    Variables start with'$' and are declared with ':='.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4662084
+
+ src/pkg/exp/template/lex.go      | 43 ++++++++++++++++++++++++++--------------
+ src/pkg/exp/template/lex_test.go | 13 ++++++++++++
+ 2 files changed, 41 insertions(+), 15 deletions(-)

@@ -1,0 +1,20 @@
+commit 15779d58ecb7c16442a75eba73c2dbae7fc27fcb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 3 17:44:00 2018 +0900
+
+    net: update docs for unimplemented methods and functions
+    
+    Change-Id: I54e651a952afa8928cc0204ba37092d3b2347266
+    Reviewed-on: https://go-review.googlesource.com/127737
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/file.go      | 2 +-
+ src/net/interface.go | 2 +-
+ src/net/iprawsock.go | 4 ++--
+ src/net/rawconn.go   | 4 ++--
+ src/net/tcpsock.go   | 4 ++--
+ src/net/udpsock.go   | 3 +++
+ src/net/unixsock.go  | 3 +++
+ 7 files changed, 14 insertions(+), 8 deletions(-)

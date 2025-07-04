@@ -1,0 +1,12 @@
+commit 8200a0b08883f27c6fd014d68f1dc2eb9feece82
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 8 12:48:37 2008 -0700
+
+    optional semicolons
+    
+    SVN=121604
+
+ src/cmd/gc/go.h   |   1 +
+ src/cmd/gc/go.y   | 155 +++++++++++++++++++++++++++++++++++-------------------
+ src/cmd/gc/walk.c |  34 ++++++++++++
+ 3 files changed, 135 insertions(+), 55 deletions(-)

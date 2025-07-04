@@ -1,0 +1,18 @@
+commit 43b3e6e02a46393dbbd6e67eb62978d0b236e6cc
+Author: Mike Andrews <mra@xoba.com>
+Date:   Thu Apr 3 16:31:41 2014 -0700
+
+    cmd/dist: reflect local changes to tree in goversion
+    
+    runtime.Version() requires a trailing "+" when
+    tree had local modifications at time of build.
+    
+    Fixes #7701
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84040045
+
+ src/cmd/dist/build.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

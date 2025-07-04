@@ -1,0 +1,19 @@
+commit 92b8f4e293421b3b61e868d593a89315c788c327
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:28:35 2022 +0800
+
+    internal/fuzz: simplify code using unsafe.{SliceData,Slice}
+    
+    Updates #54854
+    
+    Change-Id: If70b11c0fc920b7214fcff249da9e3c4ac1de991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428156
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/internal/fuzz/mutator.go     | 5 +----
+ src/internal/fuzz/sys_windows.go | 7 +------
+ 2 files changed, 2 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 9f232c1786f57051d34848db48ece398ad0329db
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 29 10:55:46 2017 +1100
+
+    cmd/compile/internal/gc: remove unused state.placeholder field
+    
+    gc.state.placeholder was added in 5a6e511c61 but never used.
+    
+    Change-Id: I5a621507279d5bb1f3991b7a412d9a63039c464e
+    Reviewed-on: https://go-review.googlesource.com/38755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

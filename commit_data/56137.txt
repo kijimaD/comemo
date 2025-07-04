@@ -1,0 +1,42 @@
+commit fd999fda5941f215ef082c6ef70e44e648db5485
+Author: Emma Haruka Iwao <yuryu@google.com>
+Date:   Mon Oct 2 17:32:28 2023 +0000
+
+    strings: intrinsify and optimize Compare
+    
+    slices.SortFunc requires a three-way comparison and we need an
+    efficient strings.Compare to perform three-way string comparisons.
+    This new implementation adds bytealg.CompareString as a wrapper of
+    runtime_cmpstring and changes Compare to use bytealg.CompareString.
+    
+    The new implementation of Compare with runtime_cmpstring is about
+    28% faster than the previous one.
+    
+    Fixes #61725
+    
+                               │ /tmp/gobench-sort-cmp.txt │    /tmp/gobench-sort-strings.txt    │
+                               │          sec/op           │   sec/op     vs base                │
+    SortFuncStruct/Size16-48                   918.8n ± 1%   726.6n ± 0%  -20.92% (p=0.000 n=10)
+    SortFuncStruct/Size32-48                   2.666µ ± 1%   2.003µ ± 1%  -24.85% (p=0.000 n=10)
+    SortFuncStruct/Size64-48                   1.934µ ± 1%   1.331µ ± 1%  -31.22% (p=0.000 n=10)
+    SortFuncStruct/Size128-48                  3.560µ ± 1%   2.423µ ± 0%  -31.94% (p=0.000 n=10)
+    SortFuncStruct/Size512-48                 13.019µ ± 0%   9.071µ ± 0%  -30.33% (p=0.000 n=10)
+    SortFuncStruct/Size1024-48                 25.61µ ± 0%   17.75µ ± 0%  -30.70% (p=0.000 n=10)
+    geomean                                    4.217µ        3.018µ       -28.44%
+    
+    Change-Id: I2513b6f8c1b9b273ef2d23f0a86f691e2d097eb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532195
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmp/cmp_test.go                     |  5 +++--
+ src/internal/bytealg/compare_generic.go |  4 ++++
+ src/internal/bytealg/compare_native.go  |  4 ++++
+ src/slices/example_test.go              | 10 +++++-----
+ src/slices/sort_benchmark_test.go       | 34 +++++++++++++++++++++++++++++++--
+ src/strings/compare.go                  | 23 ++++++----------------
+ 6 files changed, 54 insertions(+), 26 deletions(-)

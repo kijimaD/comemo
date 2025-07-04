@@ -1,0 +1,22 @@
+commit 6428a8b437a36f07b5f0d1b6f0d06e3ee6fc57c1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 16 15:36:06 2015 +1000
+
+    cmd/dist: add new misc/cgo/testsovar test
+    
+    This change reintroduces CL 8523. CL 8523 was reverted because
+    it broke darwin and netbsd builds. Now that this test is part
+    of "go tool dist test" command we could skip OSes that fail.
+    
+    Updates #10360
+    
+    Change-Id: Iaaeb5b800126492f36415a439c333a218fe4ab67
+    Reviewed-on: https://go-review.googlesource.com/11119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testsovar/cgoso.go  | 43 +++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/testsovar/cgoso_c.c |  7 +++++++
+ misc/cgo/testsovar/cgoso_c.h | 17 +++++++++++++++++
+ misc/cgo/testsovar/main.go   | 13 +++++++++++++
+ src/cmd/dist/test.go         | 20 +++++++++++++++++---
+ 5 files changed, 97 insertions(+), 3 deletions(-)

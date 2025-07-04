@@ -1,0 +1,15 @@
+commit 1d77ff5b6b2ec5679cd847f0e091a827fd1716b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 11 22:27:47 2010 -0700
+
+    6g, 8g: handle slice by sub-word-sized index (uint8, int8, uint16, int16)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1960042
+
+ src/cmd/6g/ggen.c            | 16 +++++++++-------
+ src/cmd/8g/ggen.c            | 31 ++++++++++++++++++++++++++-----
+ src/pkg/exp/draw/x11/auth.go |  5 +----
+ test/fixedbugs/bug303.go     | 37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 73 insertions(+), 16 deletions(-)

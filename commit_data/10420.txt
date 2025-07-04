@@ -1,0 +1,12 @@
+commit d0b9a84ab3da756fdd5cc89f0342ded96a2855c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 16 13:41:26 2011 -0800
+
+    go/ast: remove unused receiver names (cleanup)
+    
+    R=iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5393047
+
+ src/pkg/go/ast/ast.go | 100 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 50 insertions(+), 50 deletions(-)

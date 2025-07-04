@@ -1,0 +1,13 @@
+commit d85238635ab04908e31c9a30ca5cd9832c8a89cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 15:22:42 2009 -0700
+
+    deps.bash tweak - no need to sort -u the $O files.
+    
+    R=dsymonds
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29048
+    CL=29053
+
+ src/lib/deps.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

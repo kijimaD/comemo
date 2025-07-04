@@ -1,0 +1,36 @@
+commit 897baae953ca812005703d367234b3b867f2a4b0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 20 19:30:21 2021 +0000
+
+    runtime/metrics: add additional allocation metrics
+    
+    This change adds four additional metrics to the runtime/metrics package
+    to fill in a few gaps with runtime.MemStats that were overlooked. The
+    biggest one is TotalAlloc, which is impossible to find with the
+    runtime/metrics package, but also add a few others for convenience and
+    clarity. For instance, the total number of objects allocated and freed
+    are technically available via allocs-by-size and frees-by-size, but it's
+    onerous to get them (one needs to sum the sample counts in the
+    histograms).
+    
+    The four additional metrics are:
+    - /gc/heap/allocs:bytes   -- total bytes allocated (TotalAlloc)
+    - /gc/heap/allocs:objects -- total objects allocated (Mallocs - [tiny])
+    - /gc/heap/frees:bytes    -- total bytes frees (TotalAlloc-HeapAlloc)
+    - /gc/heap/frees:objects  -- total objects freed (Frees - [tiny])
+    
+    This change also updates the descriptions of allocs-by-size and
+    frees-by-size to be more precise.
+    
+    Change-Id: Iec8c1797a584491e3484b198f2e7f325b68954a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312431
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/metrics.go             | 61 ++++++++++++++++++++++++++++++++++----
+ src/runtime/metrics/description.go | 45 ++++++++++++++++++++++++----
+ src/runtime/metrics/doc.go         | 24 +++++++++++++--
+ src/runtime/metrics_test.go        | 52 ++++++++++++++++++++++++++++----
+ 4 files changed, 164 insertions(+), 18 deletions(-)

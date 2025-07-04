@@ -1,0 +1,17 @@
+commit c7e2970ba82d4f07956fd58e09e62087346cae81
+Author: Ken Friedenbach <kenliz@cruzio.com>
+Date:   Tue Dec 29 14:43:54 2009 -0800
+
+    Improved Xcode support
+    
+    Added definition for raw string.
+    Added definitions for function and method declarations.
+    Enabled function, method, and type declarations to appear in Editor pop up menu.
+    Fixes #466.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/183065
+
+ misc/xcode/go.xclangspec | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)

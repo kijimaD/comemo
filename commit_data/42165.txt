@@ -1,0 +1,20 @@
+commit 9a3f22be7a3a28bd8f33a86925e2b05f2314ead2
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 15:23:37 2020 -0400
+
+    hash/crc32: simplify hasVX checking on s390x
+    
+    Originally, we use an assembly function that returns a boolean result to
+    tell whether the machine has vector facility or not. It is now no longer
+    needed when we can directly use cpu.S390X.HasVX variable. This CL
+    also removes the last occurence of hasVectorFacility function on s390x.
+    
+    Change-Id: Id20cb746c21eacac5e13344b362e2d87adfe4317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230337
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/hash/crc32/crc32_s390x.go |  8 ++++----
+ src/hash/crc32/crc32_s390x.s  | 22 ----------------------
+ 2 files changed, 4 insertions(+), 26 deletions(-)

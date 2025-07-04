@@ -1,0 +1,16 @@
+commit c1e20720f7b3c53cd195c4996b1758e44be6787c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 11 01:38:12 2010 -0700
+
+    runtime: switch to OS stack during Windows syscall
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1381041
+
+ src/pkg/runtime/windows/386/sys.s   | 51 ++++++++++++++++---------
+ src/pkg/runtime/windows/mem.c       |  2 +-
+ src/pkg/runtime/windows/os.h        | 27 ++++++++++++--
+ src/pkg/runtime/windows/syscall.goc | 74 ++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/windows/thread.c    | 65 ++++++++++++++++++++++----------
+ 5 files changed, 163 insertions(+), 56 deletions(-)

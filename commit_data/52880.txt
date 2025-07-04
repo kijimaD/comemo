@@ -1,0 +1,23 @@
+commit 10141676d15665ed8a0255cfc5585ad50444f4ee
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 4 09:30:24 2023 -0700
+
+    cmd/compile: fix bswap/load rewrite rules
+    
+    When combining a byteswap and a load, the resulting combined op
+    must go in the load's block, not the byteswap's block, as the load
+    has a memory argument that might only be valid in its original block.
+    
+    Fixes #59973
+    
+    Change-Id: Icd84863ef3a9ca1fc22f2bb794a003f2808c746f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492616
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |   8 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 120 ++++++++++++++++----------
+ 2 files changed, 80 insertions(+), 48 deletions(-)

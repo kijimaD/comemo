@@ -1,0 +1,19 @@
+commit 42aa9abae967b27582e1275793a841bd312d18f4
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Apr 26 02:57:23 2012 -0700
+
+    gc: use correct line number for EOF syntax error
+    
+    I also added some debugging code that's turned
+    on with -xx.
+    
+    Fixes #3392.
+    
+    R=rsc, lvd
+    CC=golang-dev
+    https://golang.org/cl/5909058
+
+ src/cmd/gc/lex.c         |  5 ++---
+ src/cmd/gc/subr.c        |  5 +++++
+ test/fixedbugs/bug435.go | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

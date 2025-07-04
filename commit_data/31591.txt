@@ -1,0 +1,111 @@
+commit b3e577b9e7eb6cc0ccdefdd6f686be5a7f329ec3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 16 21:57:18 2017 -0700
+
+    cmd/compile: fuse from end to beginning
+    
+    fuseBlockPlain was accidentally quadratic.
+    If you had plain blocks b1 -> b2 -> b3 -> b4,
+    each containing single values v1, v2, v3, and v4 respectively,
+    fuseBlockPlain would move v1 from b1 to b2 to b3 to b4,
+    then v2 from b2 to b3 to b4, etc.
+    
+    There are two obvious fixes.
+    
+    * Look for runs of blocks in fuseBlockPlain
+      and handle them in a single go.
+    * Fuse from end to beginning; any given value in a run
+      of blocks to fuse then moves only once.
+    
+    The latter is much simpler, so that's what this CL does.
+    
+    Somewhat surprisingly, this change does not pass toolstash-check.
+    
+    The resulting set of blocks is the same,
+    and the values in them are the same,
+    but the order of values in them differ,
+    and that order of values (while arbitrary)
+    is enough to change the compiler's output.
+    This may be due to #20178; deadstore is the next pass after fuse.
+    
+    Adding basic sorting to the beginning of deadstore
+    is enough to make this CL pass toolstash-check:
+    
+            for _, b := range f.Blocks {
+                    obj.SortSlice(b.Values, func(i, j int) bool { return b.Values[i].ID < b.Values[j].ID })
+            }
+    
+    Happily, this CL appears to result in better code on average,
+    if only by accident. It cuts 4k off of cmd/go; go1 benchmarks
+    are noisy as always but don't regress (numbers below).
+    
+    No impact on the standard compilebench benchmarks.
+    For the code in #13554, this speeds up compilation dramatically:
+    
+    name  old time/op       new time/op       delta
+    Pkg         53.1s ± 2%        12.8s ± 3%  -75.92%  (p=0.008 n=5+5)
+    
+    name  old user-time/op  new user-time/op  delta
+    Pkg         55.0s ± 2%        14.9s ± 3%  -73.00%  (p=0.008 n=5+5)
+    
+    name  old alloc/op      new alloc/op      delta
+    Pkg        2.04GB ± 0%       2.04GB ± 0%   +0.18%  (p=0.008 n=5+5)
+    
+    name  old allocs/op     new allocs/op     delta
+    Pkg         6.21M ± 0%        6.21M ± 0%     ~     (p=0.222 n=5+5)
+    
+    name  old object-bytes  new object-bytes  delta
+    Pkg         28.4M ± 0%        28.4M ± 0%   +0.00%  (p=0.008 n=5+5)
+    
+    name  old export-bytes  new export-bytes  delta
+    Pkg           208 ± 0%          208 ± 0%     ~     (all equal)
+    
+    
+    Updates #13554
+    
+    
+    go1 benchmarks:
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              2.29s ± 2%     2.26s ± 2%  -1.43%  (p=0.000 n=48+50)
+    Fannkuch11-8                2.74s ± 2%     2.79s ± 2%  +1.63%  (p=0.000 n=50+49)
+    FmtFprintfEmpty-8          36.6ns ± 3%    34.6ns ± 4%  -5.29%  (p=0.000 n=49+50)
+    FmtFprintfString-8         58.3ns ± 3%    59.1ns ± 3%  +1.35%  (p=0.000 n=50+49)
+    FmtFprintfInt-8            62.4ns ± 2%    63.2ns ± 3%  +1.19%  (p=0.000 n=49+49)
+    FmtFprintfIntInt-8         95.1ns ± 2%    96.7ns ± 3%  +1.61%  (p=0.000 n=49+50)
+    FmtFprintfPrefixedInt-8     118ns ± 3%     113ns ± 2%  -4.00%  (p=0.000 n=50+49)
+    FmtFprintfFloat-8           191ns ± 2%     192ns ± 2%  +0.40%  (p=0.034 n=50+50)
+    FmtManyArgs-8               419ns ± 2%     420ns ± 2%    ~     (p=0.228 n=49+49)
+    GobDecode-8                5.26ms ± 3%    5.19ms ± 2%  -1.33%  (p=0.000 n=50+49)
+    GobEncode-8                4.12ms ± 2%    4.15ms ± 3%  +0.68%  (p=0.007 n=49+50)
+    Gzip-8                      198ms ± 2%     197ms ± 2%  -0.50%  (p=0.018 n=48+48)
+    Gunzip-8                   31.9ms ± 3%    31.8ms ± 3%  -0.47%  (p=0.024 n=50+50)
+    HTTPClientServer-8         64.4µs ± 0%    64.0µs ± 0%  -0.55%  (p=0.000 n=43+46)
+    JSONEncode-8               10.6ms ± 2%    10.6ms ± 3%    ~     (p=0.543 n=49+49)
+    JSONDecode-8               43.3ms ± 3%    43.1ms ± 2%    ~     (p=0.079 n=50+50)
+    Mandelbrot200-8            3.70ms ± 2%    3.70ms ± 2%    ~     (p=0.553 n=47+50)
+    GoParse-8                  2.70ms ± 2%    2.71ms ± 3%    ~     (p=0.843 n=49+50)
+    RegexpMatchEasy0_32-8      70.5ns ± 4%    70.4ns ± 4%    ~     (p=0.867 n=48+50)
+    RegexpMatchEasy0_1K-8       162ns ± 3%     162ns ± 2%    ~     (p=0.739 n=48+48)
+    RegexpMatchEasy1_32-8      66.1ns ± 5%    66.2ns ± 4%    ~     (p=0.970 n=50+50)
+    RegexpMatchEasy1_1K-8       297ns ± 7%     296ns ± 7%    ~     (p=0.406 n=50+50)
+    RegexpMatchMedium_32-8      105ns ± 5%     105ns ± 5%    ~     (p=0.702 n=50+50)
+    RegexpMatchMedium_1K-8     32.3µs ± 4%    32.2µs ± 3%    ~     (p=0.614 n=49+49)
+    RegexpMatchHard_32-8       1.75µs ±18%    1.74µs ±12%    ~     (p=0.738 n=50+48)
+    RegexpMatchHard_1K-8       52.2µs ±14%    51.3µs ±13%    ~     (p=0.230 n=50+50)
+    Revcomp-8                   366ms ± 3%     367ms ± 3%    ~     (p=0.745 n=49+49)
+    Template-8                 48.5ms ± 4%    48.5ms ± 4%    ~     (p=0.824 n=50+48)
+    TimeParse-8                 263ns ± 2%     256ns ± 2%  -2.98%  (p=0.000 n=48+49)
+    TimeFormat-8                265ns ± 3%     262ns ± 3%  -1.35%  (p=0.000 n=48+49)
+    [Geo mean]                 41.1µs         40.9µs       -0.48%
+    
+    
+    Change-Id: Ib35fa15b54282abb39c077d150beee27f610891a
+    Reviewed-on: https://go-review.googlesource.com/43570
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/fuse.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

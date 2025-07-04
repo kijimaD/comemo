@@ -1,0 +1,18 @@
+commit 6128ff84f1106af4944f50f74070566e87f2cb35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 1 19:00:05 2017 +0000
+
+    bufio: add Reader.Size and Writer.Size accessors
+    
+    Fixes #21343
+    
+    Change-Id: I3582fced902592fe12bfa29acf7b40b6e5e554a7
+    Reviewed-on: https://go-review.googlesource.com/75150
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/bufio/bufio.go       |  6 ++++++
+ src/bufio/bufio_test.go  | 18 ++++++++++++++++++
+ src/bufio/export_test.go |  2 ++
+ 3 files changed, 26 insertions(+)

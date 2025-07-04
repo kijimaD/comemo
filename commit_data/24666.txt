@@ -1,0 +1,15 @@
+commit 51586aadfbc3632a6829b0d72aa433952165d650
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 29 20:24:29 2015 +1300
+
+    cmd/compile, cmd/go, cmd/link: enable -buildmode=shared and related flags on linux/arm64
+    
+    Change-Id: Ibddbbf6f4a5bd336a8b234d40fad0fcea574cd6e
+    Reviewed-on: https://go-review.googlesource.com/13994
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 3 ++-
+ src/cmd/go/build.go                | 4 ++--
+ src/cmd/link/internal/arm64/obj.go | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ 4 files changed, 6 insertions(+), 5 deletions(-)

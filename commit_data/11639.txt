@@ -1,0 +1,16 @@
+commit 0a75a79cc063d0149921c2248c6ef0fa9583174d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 15:29:21 2012 +1100
+
+    bytes: API tweaks
+    - fix documentation for NewBuffer and NewBufferString
+    - document and implement behavior of Truncate on invalid lengths
+    
+    Fixes #2837.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5637044
+
+ src/pkg/bytes/buffer.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

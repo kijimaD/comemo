@@ -1,0 +1,18 @@
+commit 1df777f6a425d9e61f8094cfb1d96fd90bb0bdf1
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed May 10 15:35:33 2017 +0900
+
+    go/build: accept spaces in cgo directives
+    
+    Fixes #7906
+    
+    Change-Id: Ibcf9cd670593241921ab3c426ff7357f799ebc3e
+    Reviewed-on: https://go-review.googlesource.com/43072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go      | 64 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/build.go      | 20 +++++----------
+ src/go/build/build_test.go |  4 ++-
+ 3 files changed, 73 insertions(+), 15 deletions(-)

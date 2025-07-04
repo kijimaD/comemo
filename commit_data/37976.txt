@@ -1,0 +1,33 @@
+commit af8f4062c24cb36af4dc24fbaffd23aa7f7bde36
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 9 23:31:59 2019 -0500
+
+    runtime: scan gp._panic in stack scan
+    
+    In runtime.gopanic, the _panic object p is stack allocated and
+    referenced from gp._panic. With stack objects, p on stack is dead
+    at the point preprintpanics runs. gp._panic points to p, but
+    stack scan doesn't look at gp. Heap scan of gp does look at
+    gp._panic, but it stops and ignores the pointer as it points to
+    the stack. So whatever p points to may be collected and clobbered.
+    We need to scan gp._panic explicitly during stack scan.
+    
+    To test it reliably, we introduce a GODEBUG mode "clobberfree",
+    which clobbers the memory content when the GC frees an object.
+    
+    Fixes #30150.
+    
+    Change-Id: I11128298f03a89f817faa221421a9d332b41dced
+    Reviewed-on: https://go-review.googlesource.com/c/161778
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_test.go              | 12 ++++++++++++
+ src/runtime/extern.go                  |  4 ++++
+ src/runtime/mgcmark.go                 |  6 ++++++
+ src/runtime/mgcsweep.go                | 14 +++++++++++++-
+ src/runtime/runtime1.go                |  2 ++
+ src/runtime/testdata/testprog/crash.go | 21 +++++++++++++++++++++
+ 6 files changed, 58 insertions(+), 1 deletion(-)

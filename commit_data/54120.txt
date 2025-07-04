@@ -1,0 +1,22 @@
+commit e4a8fb0fa04a95876e8c5cc6ce6850a06d3d670a
+Author: Josh Kraft <joshkraft757@gmail.com>
+Date:   Wed Aug 16 18:36:46 2023 -0600
+
+    os: add tests for UserCacheDir and UserConfigDir
+    
+    Adds basic test scenarios for UserCacheDir and
+    UserConfigDir.
+    
+    Fixes #57638
+    
+    Change-Id: Ieb86e95faff44287bfa13daa0cb26e7b5401373b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520262
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ misc/go_android_exec/main.go |  1 +
+ src/os/os_test.go            | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

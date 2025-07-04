@@ -1,0 +1,24 @@
+commit 2f072a427a9ac20bd6deda18d95e4abb25ea6297
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 09:57:38 2017 -0700
+
+    cmd/compile: clean up methodsym
+    
+    Convert yyerrors into Fatals.
+    Remove the goto.
+    Move variable declaration closer to use.
+    Unify printing strings a bit.
+    Convert an int param into a bool.
+    
+    Passes toolstash-check. No compiler performance impact.
+    
+    Change-Id: I9017681417b785cf8693d18b124ac4f1ff37f2b5
+    Reviewed-on: https://go-review.googlesource.com/39170
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       | 54 ++++++++++++--------------------
+ src/cmd/compile/internal/gc/reflect.go   |  6 ++--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++--
+ 4 files changed, 27 insertions(+), 41 deletions(-)

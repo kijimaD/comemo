@@ -1,0 +1,18 @@
+commit e1ac15743b026f843401b95d34c2c0f54847e15d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 6 15:47:52 2013 -0400
+
+    cmd/gc: remove "send used as value" hint
+    
+    This message was helpful for pre-Go 1 users updating to Go 1.
+    That time is past. Now the message is confusing because it
+    depends on knowing what pre-Go 1 looked like.
+    
+    Update #4697.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13335051
+
+ src/cmd/gc/typecheck.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

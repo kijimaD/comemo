@@ -1,0 +1,24 @@
+commit 14305bf0b9ab87bcaca11416ab61e7a4ba09690d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jun 11 17:53:29 2021 +0200
+
+    misc/cgo: generate Windows import libraries for clang
+    
+    LLD won't import a .dll directly and instead requires an import library.
+    So generate these using -out-implib, the same way as was done in CL
+    312046, where it makes sense, and elsewhere build the import library
+    using a def file. We can't use -out-implib all the time, because the
+    output file gets overwritten each time the linker is called, rather than
+    merged.
+    
+    Updates #46502.
+    
+    Change-Id: Iefe54cb6c576004b83b1039ba673881b8640423d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327211
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 56 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

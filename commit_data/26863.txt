@@ -1,0 +1,17 @@
+commit 7cbe7b1e867db9001db35ca41ee3e4a3b0de31c7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:13:59 2016 -0400
+
+    runtime/internal/atomic: add s390x atomic operations
+    
+    Load and store instructions are atomic on the s390x.
+    
+    Change-Id: I0031ed2fba43f33863bca114d0fdec2e7d1ce807
+    Reviewed-on: https://go-review.googlesource.com/20938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/asm_s390x.s     | 174 ++++++++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_s390x.go |  73 ++++++++++++
+ 2 files changed, 247 insertions(+)

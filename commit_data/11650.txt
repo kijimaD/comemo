@@ -1,0 +1,16 @@
+commit 74ee51ee92d35ccc6486b9126265bd2c62be2c3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 12:35:29 2012 -0500
+
+    cmd/gc: disallow switch _ := v.(type)
+    
+    Fixes #2827.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5638045
+
+ src/cmd/gc/go.y     | 2 +-
+ src/cmd/gc/y.tab.c  | 2 +-
+ test/typeswitch3.go | 4 ++++
+ 3 files changed, 6 insertions(+), 2 deletions(-)

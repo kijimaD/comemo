@@ -1,0 +1,18 @@
+commit 6dfe0162a659d75bf83379dd03c040ae8666b9a5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 17 04:22:44 2012 +0800
+
+    misc/chrome/gophertool: lower CL number's lower bound and fix input focus on Mac
+    As our CL number could be as small as 152046, changed CL number's lower bound
+    to 150000. Hopefully our issue count won't reach 150000 any time soon.
+    Chrome on Mac OS X has very strange behavior regarding the focus, although we
+    force the focus to the input box on load, the page still come up with focus on
+    "issue". Set the tabindex of the input box as a workaround.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6212055
+
+ misc/chrome/gophertool/gopher.js  | 2 +-
+ misc/chrome/gophertool/popup.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

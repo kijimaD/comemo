@@ -1,0 +1,16 @@
+commit 0b86a04db011c44056688217e073ae380772b57b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 16 17:51:43 2023 -0400
+
+    doc/go1.21: document that -pgo=auto enabled by default
+    
+    Updates #58099.
+    
+    Change-Id: I95c0397add696f677c86ab7618482e07eb4e9fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495477
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

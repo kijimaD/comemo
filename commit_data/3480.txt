@@ -1,0 +1,89 @@
+commit 094f1d5990e8bf9742b7f1635768c374dd8a2d62
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 8 15:14:54 2009 -0700
+
+    more lgtm files from gofmt
+    
+    R=gri
+    OCL=35485
+    CL=35488
+
+ src/cmd/godoc/godoc.go                       | 164 ++++++-------
+ src/cmd/godoc/spec.go                        |  39 ++--
+ src/pkg/archive/tar/reader.go                |   6 +-
+ src/pkg/archive/tar/writer.go                |   2 +-
+ src/pkg/base64/base64.go                     |   6 +-
+ src/pkg/base64/base64_test.go                |   4 +-
+ src/pkg/bignum/arith.go                      |   4 +-
+ src/pkg/bignum/bignum.go                     |   4 +-
+ src/pkg/bignum/nrdiv_test.go                 |   4 +-
+ src/pkg/bufio/bufio.go                       | 158 ++++++-------
+ src/pkg/bytes/buffer.go                      |  40 ++--
+ src/pkg/bytes/buffer_test.go                 |   2 +-
+ src/pkg/bytes/bytes_test.go                  | 154 ++++++------
+ src/pkg/compress/flate/deflate.go            | 139 ++++++-----
+ src/pkg/compress/flate/deflate_test.go       | 337 ++++++++++++++-------------
+ src/pkg/compress/flate/flate_test.go         |  12 +-
+ src/pkg/compress/flate/huffman_bit_writer.go | 112 +++++----
+ src/pkg/compress/flate/inflate.go            |  22 +-
+ src/pkg/compress/flate/reverse_bits.go       |   2 +-
+ src/pkg/compress/flate/token.go              |  16 +-
+ src/pkg/compress/gzip/gunzip.go              |   2 +-
+ src/pkg/compress/gzip/gunzip_test.go         |  59 +++--
+ src/pkg/compress/zlib/reader.go              |   4 +-
+ src/pkg/container/vector/vector.go           |   8 +-
+ src/pkg/crypto/aes/aes_test.go               |   4 +-
+ src/pkg/crypto/aes/block.go                  |  58 +++--
+ src/pkg/crypto/block/ctr.go                  |   2 +-
+ src/pkg/crypto/block/ctr_aes_test.go         |   4 +-
+ src/pkg/crypto/block/ecb.go                  |   8 +-
+ src/pkg/crypto/block/ofb_aes_test.go         |   4 +-
+ src/pkg/datafmt/parser.go                    |   4 +-
+ src/pkg/debug/binary/binary.go               |   4 +-
+ src/pkg/debug/dwarf/buf.go                   |   6 +-
+ src/pkg/debug/dwarf/entry.go                 |  10 +-
+ src/pkg/debug/elf/elf_test.go                |   2 +-
+ src/pkg/debug/elf/file.go                    |   2 +-
+ src/pkg/debug/elf/file_test.go               |  32 +--
+ src/pkg/debug/gosym/pclntab.go               |   2 +-
+ src/pkg/debug/proc/proc_linux.go             |   4 +-
+ src/pkg/ebnf/parser.go                       |  14 +-
+ src/pkg/flag/flag.go                         |   4 +-
+ src/pkg/fmt/print.go                         |   2 +-
+ src/pkg/go/ast/filter.go                     |   4 +-
+ src/pkg/go/doc/doc.go                        | 158 +++++++------
+ src/pkg/gob/encode.go                        |   6 +-
+ src/pkg/http/client.go                       |   2 +-
+ src/pkg/http/request.go                      | 178 +++++++-------
+ src/pkg/http/server.go                       |   2 +-
+ src/pkg/image/png/reader.go                  |   2 +-
+ src/pkg/io/pipe.go                           |   2 +-
+ src/pkg/log/log.go                           |   8 +-
+ src/pkg/log/log_test.go                      |   6 +-
+ src/pkg/math/pow10.go                        |   4 +-
+ src/pkg/math/sinh.go                         |   4 +-
+ src/pkg/math/sqrt.go                         |   8 +-
+ src/pkg/os/exec.go                           |   2 +-
+ src/pkg/os/path_test.go                      |   8 +-
+ src/pkg/os/stat_nacl_386.go                  |   6 +-
+ src/pkg/os/time.go                           |   2 +-
+ src/pkg/path/path.go                         |  11 +-
+ src/pkg/path/path_test.go                    |  19 +-
+ src/pkg/regexp/all_test.go                   |   6 +-
+ src/pkg/strconv/atof.go                      |   8 +-
+ src/pkg/strconv/decimal_test.go              |   2 +-
+ src/pkg/strconv/fp_test.go                   |   4 +-
+ src/pkg/strconv/ftoa.go                      |  54 ++---
+ src/pkg/template/template_test.go            | 134 +++++------
+ src/pkg/testing/iotest/reader.go             |   2 +-
+ src/pkg/testing/regexp.go                    | 288 +++++++++++++----------
+ src/pkg/testing/regexp_test.go               | 127 +++++-----
+ src/pkg/testing/testing.go                   |   4 +-
+ src/pkg/time/time.go                         |   4 +-
+ src/pkg/time/time_test.go                    |  39 ++--
+ src/pkg/time/zoneinfo.go                     |   2 +-
+ src/pkg/unicode/script_test.go               | 201 ++++++++--------
+ src/pkg/utf8/utf8.go                         | 112 ++++-----
+ src/pkg/utf8/utf8_test.go                    |   2 +-
+ src/pkg/xml/xml.go                           |  75 +++---
+ 78 files changed, 1519 insertions(+), 1443 deletions(-)

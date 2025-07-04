@@ -1,0 +1,17 @@
+commit 9a8750b2765184b3bfa555ac7cce6e28e45de03e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Jun 14 21:52:57 2015 +0200
+
+    misc/trace: update trace viewer
+    
+    Update to tip to fix #11003 (not possible to select events in chromium).
+    Fixed #11003
+    
+    Change-Id: Ibba5d39ca809cfd5cb79c9e6d152b00899d49e08
+    Reviewed-on: https://go-review.googlesource.com/11062
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ misc/trace/README.md              |    3 +-
+ misc/trace/trace_viewer_lean.html | 5732 ++++++++++++++++++++++---------------
+ src/cmd/trace/trace.go            |    2 +-
+ 3 files changed, 3427 insertions(+), 2310 deletions(-)

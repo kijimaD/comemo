@@ -1,0 +1,16 @@
+commit d17ffb9753185ea76e4f89a4bad0474f7422e724
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 17:40:50 2010 -0800
+
+    godoc: path cleanups, fixed a race condition, initial support for a menu on pages
+    
+    R=rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/215050
+
+ doc/style.css          | 13 +++++++++++++
+ lib/godoc/godoc.html   |  7 +++++++
+ src/cmd/godoc/doc.go   |  6 ------
+ src/cmd/godoc/godoc.go | 41 ++++++++++++++---------------------------
+ src/cmd/godoc/main.go  |  9 ++++++---
+ 5 files changed, 40 insertions(+), 36 deletions(-)

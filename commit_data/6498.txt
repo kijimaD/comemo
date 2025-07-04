@@ -1,0 +1,16 @@
+commit ded12ee4b5062dea93ef7a9a4f31fd6f189f4fa5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 11 23:58:51 2010 -0400
+
+    arm: fix build
+    
+    Effectively reverts https://code.google.com/p/go/source/detail?r=8c52477401ad
+    Should make ARM build pass again, but untested.
+    Probably still bugs involving reflect.call somewhere.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2416042
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

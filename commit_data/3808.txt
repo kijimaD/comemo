@@ -1,0 +1,12 @@
+commit f93ecca3979789a56219e21e9bd1797319b850d7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 5 13:46:12 2009 -0800
+
+    add a place-holder link for the hour-long video
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017054
+
+ lib/godoc/godoc.html | 1 +
+ 1 file changed, 1 insertion(+)

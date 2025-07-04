@@ -1,0 +1,14 @@
+commit 42a61b920ee242023d46818da2267e88d635a4c9
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 18 11:43:10 2010 +1000
+
+    windows: fix netchan test by using 127.0.0.1.
+    Re-enable the test on Windows.
+    
+    R=brainman, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/2244041
+
+ src/pkg/Makefile                | 1 -
+ src/pkg/netchan/netchan_test.go | 4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

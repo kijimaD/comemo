@@ -1,0 +1,14 @@
+commit d78823168fb90c33b6a208e56bffa1e17e32de59
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Sep 12 15:05:41 2014 -0700
+
+    cmd/gc: fix racewalk after writebarrier change
+    Instrument dst argument of writebarrier calls.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/139560045
+
+ src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

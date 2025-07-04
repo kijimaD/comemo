@@ -1,0 +1,22 @@
+commit 37a5d720d4c4ebf3fd0c8a089a3bde347d72c01a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 28 14:17:11 2021 -0800
+
+    spec: corrections to various sections
+    
+    - fix definition of "specific types" and add more examples
+    - state that a parameterized function must be instantiated
+      when used as a function value
+    - remove duplicate word ("can can" -> "can")
+    
+    Thanks to @danscales for finding these.
+    
+    Change-Id: Ideb41efc35a3e67694d3bc97e462454feae37c44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367394
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ doc/go_spec.html | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

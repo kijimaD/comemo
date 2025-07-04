@@ -1,0 +1,15 @@
+commit 2bcfe8b9357f5f823211157c3b67bb03e2f89a2d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 18 08:25:30 2015 +0100
+
+    cmd/gc: replace NULL by nil
+    
+    In CL 3964, NULL was used instead of nil.
+    However, Plan 9 doesn't declare NULL.
+    
+    Change-Id: Ied3850aca5c8bca5974105129a37d575df33f6ec
+    Reviewed-on: https://go-review.googlesource.com/5150
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/gc/closure.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 150f45b2c463ba8411738adf637acf651a273e68
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 30 13:03:56 2024 +0200
+
+    os: use stringslite.HasPrefix
+    
+    Change-Id: I791bdfecc6c94ee9dac592d60d95e97182bf0120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/file_plan9.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

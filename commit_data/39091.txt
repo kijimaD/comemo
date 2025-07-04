@@ -1,0 +1,48 @@
+commit ff70494b75fab24f43b79f069afcdc196e11ec32
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 7 19:04:41 2019 +0000
+
+    runtime: split spans when scavenging if it's more than we need
+    
+    This change makes it so that during scavenging we split spans when the
+    span we have next for scavenging is larger than the amount of work we
+    have left to do.
+    
+    The purpose of this change is to improve the worst-case behavior of the
+    scavenger: currently, if the scavenger only has a little bit of work to
+    do but sees a very large free span, it will scavenge the whole thing,
+    spending a lot of time to get way ahead of the scavenge pacing for no
+    reason.
+    
+    With this change the scavenger should follow the pacing more closely,
+    but may still over-scavenge by up to a physical huge page since the
+    splitting behavior avoids breaking up huge pages in free spans.
+    
+    This change is also the culmination of the scavenging improvements, so
+    we also include benchmark results for this series (starting from
+    "runtime: merge all treaps into one implementation" until this patch).
+    
+    This patch stack results in average and peak RSS reductions (up to 11%
+    and 7% respectively) for some benchmarks, with mostly minimal
+    performance degredation (3-4% for some benchmarks, ~0% geomean). Each of
+    these benchmarks was executed with GODEBUG=madvdontneed=1 on Linux; the
+    performance degredation is even smaller when MADV_FREE may be used, but
+    the impact on RSS is much harder to measure. Applications that generally
+    maintain a steady heap size for the most part show no change in
+    application performance.
+    
+    These benchmarks are taken from an experimental benchmarking suite
+    representing a variety of open-source Go packages, the raw results may
+    be found here:
+    
+    https://perf.golang.org/search?q=upload:20190509.1
+    
+    For #30333.
+    
+    Change-Id: I618a48534d2d6ce5f656bb66825e3c383ab1ffba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175797
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 62 insertions(+), 1 deletion(-)

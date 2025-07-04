@@ -1,0 +1,18 @@
+commit bcd3a58d4694fa0bf8aa079875a5d236c9f20ef6
+Author: tkivisik <taavi.kivisik@gmail.com>
+Date:   Fri Jan 18 20:45:41 2019 +0000
+
+    A+C: add author, rename contributor to a real name
+    
+    Renamed from github user to use my real name in CONTRIBUTORS, added my name
+    to AUTHORS.
+    
+    Change-Id: I671638f1525d44bcc2b0a08d0dcff6adb1717510
+    GitHub-Last-Rev: b989e185de9ad2d1207085043fcdc821d851c562
+    GitHub-Pull-Request: golang/go#29823
+    Reviewed-on: https://go-review.googlesource.com/c/158540
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

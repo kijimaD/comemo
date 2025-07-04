@@ -1,0 +1,16 @@
+commit 9a8da9d4999f53fa4487cf3e36c3e5bc59fd6fee
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 5 14:36:02 2011 -0700
+
+    exp/norm: LastBoundary is used in preparation for an append operation. It seems
+    therefore unlikely that there is a good use for its string version
+    LastBoundaryInString. Yet, the implemenation of this method would complicate
+    things a bit as it would require the introduction for another interface and
+    some duplication of code. Removing it seems a better choice.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5182044
+
+ src/pkg/exp/norm/normalize.go | 6 ------
+ 1 file changed, 6 deletions(-)

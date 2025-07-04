@@ -1,0 +1,14 @@
+commit 65727ab59d20663a76692fea7b8444dbb349080b
+Author: Ross Light <light@google.com>
+Date:   Wed Mar 21 09:54:22 2018 -0700
+
+    net/url: fix contradiction in PathUnescape docs
+    
+    Change-Id: If35e3faa738c5d7d72cf77d14b276690579180a1
+    Reviewed-on: https://go-review.googlesource.com/101921
+    Run-TryBot: Ross Light <light@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

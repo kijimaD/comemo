@@ -1,0 +1,11 @@
+commit f32cde88b6a60232555d18f9e3ee0faff68d9b8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 12:53:06 2009 -0800
+
+    Define constants for sizes of Sym structures.
+    
+    R=rsc, agl
+    http://go/go-review/1016028
+
+ src/pkg/debug/elf/elf.go | 3 +++
+ 1 file changed, 3 insertions(+)

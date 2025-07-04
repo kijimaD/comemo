@@ -1,0 +1,16 @@
+commit 02c1d8a1589b47f12deaaa63d4a6a084640f4389
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 24 15:06:20 2016 +1100
+
+    cmd/link/internal/ld: remove goto from ldpe.go
+    
+    Updates #15345
+    
+    Change-Id: I447d133512e99a9900928a910e161a85db6e8b75
+    Reviewed-on: https://go-review.googlesource.com/31792
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/ldpe.go | 61 ++++++++++++++++++----------------------
+ 1 file changed, 27 insertions(+), 34 deletions(-)

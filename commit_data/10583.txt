@@ -1,0 +1,16 @@
+commit e6b3371781d4f7b07c2c7c4e2f2ef4c4e7233225
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 1 17:24:54 2011 -0800
+
+    template: move the empty check into parse, which needs it when constructing
+    tree sets.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5449062
+
+ src/pkg/text/template/multi_test.go       | 29 ----------------------------
+ src/pkg/text/template/parse/parse.go      | 32 +++++++++++++++++++++++++++++--
+ src/pkg/text/template/parse/parse_test.go | 29 ++++++++++++++++++++++++++++
+ src/pkg/text/template/template.go         | 28 ++-------------------------
+ 4 files changed, 61 insertions(+), 57 deletions(-)

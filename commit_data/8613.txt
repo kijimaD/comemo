@@ -1,0 +1,21 @@
+commit 518331dfeadfe60b7ccb7402030ac8883858c54b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 3 14:35:42 2011 -0400
+
+    net: add network interface identification API
+    
+    This CL introduces new API into package net to identify the network
+    interface.  A functionality of new API is very similar to RFC3493 -
+    "Interface Identification".
+    
+    R=r, gri, bradfitz, robert.hencke, fullung, rsc
+    CC=golang-dev
+    https://golang.org/cl/4437087
+
+ src/pkg/net/Makefile           |   6 ++
+ src/pkg/net/interface.go       | 133 +++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_bsd.go   | 148 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_linux.go | 165 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_stub.go  |  23 ++++++
+ src/pkg/net/interface_test.go  |  90 ++++++++++++++++++++++
+ 6 files changed, 565 insertions(+)

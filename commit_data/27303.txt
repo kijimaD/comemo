@@ -1,0 +1,18 @@
+commit b90cb3f4716d3fede57bf8e798d27406fba5c294
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 5 17:52:37 2016 -0700
+
+    cmd/go: fail with nice error message on bad GOOS/GOARCH pair
+    
+    Fixes #12272
+    
+    Change-Id: I2115ec62ed4061084c482eb385a583a1c1909888
+    Reviewed-on: https://go-review.googlesource.com/22838
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ .gitignore              |  1 +
+ src/cmd/dist/build.go   |  2 ++
+ src/cmd/dist/buildgo.go | 15 +++++++++++----
+ src/cmd/go/build.go     |  6 ++++++
+ 4 files changed, 20 insertions(+), 4 deletions(-)

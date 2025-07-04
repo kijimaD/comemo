@@ -1,0 +1,21 @@
+commit c5aa53c8c52ec895d7e7c18a8fab9c5786555c1a
+Author: Aleksandr Demakin <alexander.demakin@gmail.com>
+Date:   Tue Aug 25 19:54:57 2015 +0300
+
+    cmd/go: fix bad shared lib name with buildmode=shared
+    
+    Use import paths of packages to build a shared lib name.
+    Use arguments for meta-packages 'std', 'cmd', and 'all'.
+    
+    Fixes #12236
+    
+    Change-Id: If274d63301686ef34e198287eb012f9062541ea0
+    Reviewed-on: https://go-review.googlesource.com/13921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go    | 56 +++++++++++++++++++++++-------
+ src/cmd/go/main.go     |  4 +--
+ src/cmd/go/pkg_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 137 insertions(+), 15 deletions(-)

@@ -1,0 +1,18 @@
+commit 59847321a7c3f1b3398667b0923916307ab829d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 21 13:51:22 2014 -0500
+
+    reflect: better error for walking through nil embedded struct pointer
+    
+    The old error was "call of reflect.Value.Field on ptr Value".
+    
+    http://play.golang.org/p/Zm-ZbQaPeR
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/67020043
+
+ src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/reflect/value.go    |  5 ++++-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

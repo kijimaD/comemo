@@ -1,0 +1,28 @@
+commit 49b2dd583beffaf983910f24c5e2d02a31d0c5b4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 31 12:01:32 2016 -0700
+
+    cmd/compile: remove legacy debug flags
+    
+    -M, -P, and -R were for debugging backend passes that no longer
+    exists.
+    
+    -g is used for debugging instructions generated with Gins, but the SSA
+    backend mostly generates instructions directly. The handful of
+    instructions still generated with Gins are pretty useless for
+    debugging.
+    
+    -x was used to debug the old lexer, but now it only causes us to print
+    file names as they're parsed, and only if we manually hack the
+    compiler to enable tracing.
+    
+    Change-Id: Ia58d4bc9c1312693466171a3fcefc1221e9a2381
+    Reviewed-on: https://go-review.googlesource.com/32428
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go  | 9 +--------
+ src/cmd/compile/internal/gc/main.go   | 9 ---------
+ src/cmd/compile/internal/gc/parser.go | 2 --
+ 3 files changed, 1 insertion(+), 19 deletions(-)

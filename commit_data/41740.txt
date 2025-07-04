@@ -1,0 +1,16 @@
+commit 9f343b1942356e0c87c6994118be298f634e6b4d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 24 13:13:38 2020 -0700
+
+    os/exec: for TestExtraFiles failure, print readlink of unexpected fd
+    
+    For #25628
+    
+    Change-Id: If1dce7ba9310e1418e67b9954c989471b775a28e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

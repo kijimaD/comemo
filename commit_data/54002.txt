@@ -1,0 +1,22 @@
+commit 36dc84ca5738e5aa03814dba4c439a0d823a1fa9
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 14 11:53:26 2023 +0000
+
+    encoding/json: declare hex as a const
+    
+    hex is in fact immutable, declare it as a const to avoid accidental
+    modification, also for consistency with other packages.
+    
+    Change-Id: I99f292e98c82d4c4526e46c9897d154d0c073da5
+    GitHub-Last-Rev: d2f06965e7e03df470d8c3c8882619187abf1609
+    GitHub-Pull-Request: golang/go#62011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

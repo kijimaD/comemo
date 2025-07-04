@@ -1,0 +1,17 @@
+commit 112a72a020f8976876ea7644f9220dbfb0f85464
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Sep 7 04:40:38 2019 +1000
+
+    cmd/asm/internal/arch: consolidate LinkArch handling
+    
+    Rather than manually setting the LinkArch for each case, pass the correct
+    *obj.LinkArch to the arch* function, as is already done for archX86().
+    
+    Change-Id: I4cf950780aa30a1385e785fb1d26edacb99bda79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193818
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 40 +++++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 27 deletions(-)

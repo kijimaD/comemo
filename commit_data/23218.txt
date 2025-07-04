@@ -1,0 +1,33 @@
+commit 3c3019aa51ece3001139e568d78aef6a2762395f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 00:44:05 2015 -0400
+
+    cmd/compile: move Node.Param, Node.Funcdepth into Node.Name; remove Node.Walkgen
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 176
+    $
+    
+    Change-Id: Ibf1ab531a60d4af8a0c242c0e504f4fd50cd5b36
+    Reviewed-on: https://go-review.googlesource.com/10530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/align.go     |  4 +--
+ src/cmd/compile/internal/gc/cgen.go      |  4 +--
+ src/cmd/compile/internal/gc/closure.go   | 54 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go       | 48 ++++++++++++++--------------
+ src/cmd/compile/internal/gc/esc.go       | 54 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 14 ++++-----
+ src/cmd/compile/internal/gc/gen.go       |  8 ++---
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go       |  4 +--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 22 +++++++------
+ src/cmd/compile/internal/gc/swt.go       |  4 +--
+ src/cmd/compile/internal/gc/syntax.go    | 42 +++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 47 ++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      | 14 ++++-----
+ src/cmd/compile/internal/gc/y.go         |  4 +--
+ 17 files changed, 156 insertions(+), 173 deletions(-)

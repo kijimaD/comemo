@@ -1,0 +1,23 @@
+commit cc795a01dcec7c97044b31571af88ac98310f2b3
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 9 12:51:29 2021 -0500
+
+    testenv: kill subprocess if SIGQUIT doesn't do it
+    
+    This makes testenv.RunWithTimeout first attempt to SIGQUIT the
+    subprocess to get a useful Go traceback, but if that doesn't work, it
+    sends a SIGKILL instead to make sure we tear down the subprocess. This
+    is potentially important for non-Go subprocesses.
+    
+    For #37405.
+    
+    Change-Id: I9e7e118dc5769ec3f45288a71658733bff30c9cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370702
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/testenv/testenv.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

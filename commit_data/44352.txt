@@ -1,0 +1,18 @@
+commit 6525abddcee2886ca0095decdfe1e97de19d06f2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 16 03:09:15 2021 +1100
+
+    cmd/internal/obj/riscv: clean up branch tests
+    
+    Address review comments from earlier changes, which would have previously
+    caused unwanted conflicts.
+    
+    Change-Id: If2c61ffe977d721cccf276f931825b003521fda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284116
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+
+ .../obj/riscv/testdata/testbranch/branch_test.go   | 117 ++++++++++-----------
+ .../obj/riscv/testdata/testbranch/branch_test.s    |  28 ++---
+ 2 files changed, 67 insertions(+), 78 deletions(-)

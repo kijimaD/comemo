@@ -1,0 +1,26 @@
+commit 5f6552018d1ec920c3ca3d459691528f48363c3c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 30 18:58:53 2021 -0500
+
+    runtime/race: rebuild darwin syso to work around macOS 12 malloc reserved address
+    
+    On macOS 12 a new malloc implementation (nano) is used by default,
+    and apparently it reserves address range
+    0x600000000000-0x600020000000, which conflicts with the address
+    range that TSAN uses for Go. Work around the issue by changing the
+    address range slightly.
+    
+    The actual change is made on LLVM at https://reviews.llvm.org/D114825 .
+    This CL includes syso's built with the patch applied.
+    
+    Fixes #49138.
+    
+    Change-Id: I7b367d6e042b0db39a691c71601c98e4f8728a70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367916
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/race/README                 |   4 ++--
+ src/runtime/race/race_darwin_amd64.syso | Bin 451280 -> 455944 bytes
+ src/runtime/race/race_darwin_arm64.syso | Bin 438936 -> 438560 bytes
+ 3 files changed, 2 insertions(+), 2 deletions(-)

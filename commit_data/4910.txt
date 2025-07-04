@@ -1,0 +1,24 @@
+commit f59cb49a5a6959cf84c7af32c871e45d5efd0641
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Feb 19 20:42:50 2010 -0800
+
+    fixed bug in mpconst float multiply by 0.
+    more complex -- constants, variables and print.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217061
+
+ src/cmd/6g/Makefile       |   1 +
+ src/cmd/6g/cgen.c         |   8 +++
+ src/cmd/6g/cplx.c         | 147 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gg.h           |   8 +++
+ src/cmd/6g/gsubr.c        |  32 ++++++++++
+ src/cmd/gc/const.c        |  23 +++++++-
+ src/cmd/gc/mparith1.c     |   5 +-
+ src/cmd/gc/mparith3.c     |  25 ++++----
+ src/cmd/gc/typecheck.c    |  10 +---
+ src/cmd/gc/walk.c         |   2 +-
+ src/pkg/runtime/print.c   |  13 ++++
+ src/pkg/runtime/runtime.h |  16 ++++-
+ 12 files changed, 262 insertions(+), 28 deletions(-)

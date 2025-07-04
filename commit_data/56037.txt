@@ -1,0 +1,19 @@
+commit aaecd755d70746b4b2daf9c694108360603d493d
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Mar 21 12:59:39 2024 +0000
+
+    net/http: update bundled x/net/http2
+    
+    Keep ReadTimeout, ReadHeaderTimeout, IdleTimeout and WriteTimeout in sync
+    
+    Change-Id: I32b43884c0078eca86f20ec363f1d702ba298d1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/go.mod                | 2 +-
+ src/go.sum                | 4 ++--
+ src/net/http/h2_bundle.go | 5 +++--
+ src/vendor/modules.txt    | 2 +-
+ 4 files changed, 7 insertions(+), 6 deletions(-)

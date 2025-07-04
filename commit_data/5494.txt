@@ -1,0 +1,12 @@
+commit 5265857ac40a5ec7dc875773d1dcad695c97a4af
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu May 20 09:39:35 2010 -0700
+
+    syscall: bsd, stub BindToDevice
+    
+    R=rsc
+    CC=adg, golang-dev, r
+    https://golang.org/cl/1257041
+
+ src/pkg/syscall/syscall_bsd.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

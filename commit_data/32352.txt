@@ -1,0 +1,17 @@
+commit 310be7be5c41e70f1c2306f23c108aff2b0ed78b
+Author: pvoicu <pvoicu@paypal.com>
+Date:   Fri Aug 18 03:32:49 2017 -0700
+
+    runtime: fix usleep by correctly setting nanoseconds parameter for pselect6
+    
+    Fixes #21518
+    
+    Change-Id: Idd67e3f0410d0ce991b34dcc0c8f15e0d5c529c9
+    Reviewed-on: https://go-review.googlesource.com/56850
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

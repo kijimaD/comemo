@@ -1,0 +1,18 @@
+commit 6adf54a3ebca857ae529b78c03945750731042ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 10 16:35:24 2025 -0800
+
+    cmd/cgo: declare _GoString{Len,Ptr} in _cgo_export.h
+    
+    Fixes #71226
+    
+    Change-Id: I91c46a4310a9c7a9fcd1e3a131ca16e46949edb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642235
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/out.go           |  2 ++
+ test/fixedbugs/issue71226.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

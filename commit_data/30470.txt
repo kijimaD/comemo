@@ -1,0 +1,19 @@
+commit a047f72dcfee7504a4dadc5e4c392dda761a3738
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Wed Mar 1 13:21:29 2017 -0800
+
+    cmd/vendor/github.com/google/pprof: refresh from upstream
+    
+    Updating to commit dec22b42d9eee442222c36c8da24ddc9905e7ee6
+    from github.com/google/pprof
+    
+    Fixes #19322.
+    
+    Change-Id: I1bc3fcd381f22d52557f61c6fb694f54fc64470c
+    Reviewed-on: https://go-review.googlesource.com/37652
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go | 4 ++--
+ src/cmd/vendor/vendor.json                                           | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

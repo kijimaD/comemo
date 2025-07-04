@@ -1,0 +1,12 @@
+commit d34c0dbc17e61e9e7a15355e75b9578d7d024f52
+Author: kim yongbin <kybinz@gmail.com>
+Date:   Thu Dec 27 11:33:15 2018 +0900
+
+    doc/go1.12: add notes about 'go doc -src'
+    
+    Change-Id: Iaf67fcbb145277327e24150b29ff38f6c65f6a03
+    Reviewed-on: https://go-review.googlesource.com/c/155781
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

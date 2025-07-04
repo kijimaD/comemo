@@ -1,0 +1,16 @@
+commit 4e1896a1b54ec4315970e6770f394ecbb299b0a4
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Apr 10 16:35:36 2009 -0700
+
+    Adding ARM elf support to the 5l linker.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=312  (312 added, 0 deleted, 0 changed)
+    OCL=27133
+    CL=27326
+
+ src/cmd/5l/asm.c | 292 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/l.h   |  10 ++
+ src/cmd/5l/obj.c |  10 ++
+ 3 files changed, 312 insertions(+)

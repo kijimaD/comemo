@@ -1,0 +1,21 @@
+commit 0fc595ec9999df08f25c2a981b8c9bf006079939
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:11:26 2021 -0700
+
+    cmd/compile/internal/types2: review of check.go
+    
+    The changes between (equivalent, and reviewed) go/types/check.go
+    and check.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences to go/types/check.go are:
+    - use of syntax instead of go/ast package
+    - tracing is controlled via flag not the "trace" constant
+    
+    Change-Id: I1c9998afb3e0b7e29f5b169d3a4054cf22841490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304109
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/check.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

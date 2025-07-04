@@ -1,0 +1,15 @@
+commit f3a33bca40cb376f7a3b8a307782c5dbbd6a0975
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 14 17:39:17 2009 -0700
+
+    make SimpleStmt include EmptyStmt and the grammar simplifies a bit.
+    SimpleStmt was always used as an option.
+    
+    fix bug: divide is a right shift
+    
+    DELTA=8  (0 added, 0 deleted, 8 changed)
+    OCL=34612
+    CL=34614
+
+ doc/go_spec.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 9d76157e2dc91dff82ed7c8bd2598be6e418c175
+Author: cuishuang <imcusg@gmail.com>
+Date:   Mon Dec 2 18:12:12 2024 +0800
+
+    sort: add examples for SearchStrings, SliceIsSorted
+    
+    Change-Id: I80b5c99bd8626be6e347f535579c864a565685db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/sort/example_search_test.go | 17 +++++++++++++++++
+ src/sort/example_test.go        | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

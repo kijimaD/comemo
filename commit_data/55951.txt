@@ -1,0 +1,25 @@
+commit 49204af37efb819bf22f720f27adadfb9b6238fc
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 14 12:55:10 2024 +0000
+
+    internal/bisect: replace atomicPointerDedup to simplify the code
+    
+    "atomicPointerDedup" is a redundancy of "atomic.Pointer".
+    
+    Since Go 1.22 now requires the final point release of Go 1.20  or
+    later for bootstrap, Go 1.19's atomic.Pointer can be used
+    without problems.
+    
+    atomicPointerDedup is unnecessary and we can remove it now.
+    
+    Change-Id: I0a65ad0b6649cecb73d58dc39c5fd736390d5fa5
+    GitHub-Last-Rev: 6c6e9421fbdf34c2d4b3ea21359f847ccf9a34cd
+    GitHub-Pull-Request: golang/go#65987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567656
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/bisect/bisect.go | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)

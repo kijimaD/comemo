@@ -1,0 +1,22 @@
+commit d20e688fcff2e5cc0d5fcc85dc5cc69ce92f919b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 16:51:34 2023 +0100
+
+    runtime: remove implicit NOFRAME heuristic support
+    
+    All amd64 OSes already make use of the NOFRAME flag wherever is
+    required, so we can remove the frameless nosplit functions heuristic
+    code path.
+    
+    Updates #58378
+    
+    Change-Id: I966970693ba07f8c66da0aca83c23caad7cbbfe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466458
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go | 16 ++--------------
+ src/runtime/textflag.h           |  1 -
+ 2 files changed, 2 insertions(+), 15 deletions(-)

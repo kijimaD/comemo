@@ -1,0 +1,15 @@
+commit ca75fdf972fa3db7385241eda83691dd7ec3fc17
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 14 12:06:21 2012 -0400
+
+    cmd/go: treat all commands in exp/ as tools
+    
+    Nothing in exp should get installed directly in bin,
+    at least not by default.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6497138
+
+ src/cmd/go/pkg.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

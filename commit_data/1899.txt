@@ -1,0 +1,14 @@
+commit a52d6fb73a0767428c1d970fc94a446848990272
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 26 22:20:27 2009 -0700
+
+    Add a few tests which weren't being run.
+    
+    R=r
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=26797
+    CL=26814
+
+ src/lib/Makefile | 2 ++
+ src/run.bash     | 2 ++
+ 2 files changed, 4 insertions(+)

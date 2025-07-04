@@ -1,0 +1,12 @@
+commit dc43b74eb1a3628adb20269545b9f138d7b5b393
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 15:58:44 2009 -0800
+
+    6l, 8l: add trivial hash table for dynamic symbols
+    
+    R=r
+    https://golang.org/cl/156085
+
+ src/cmd/6l/asm.c | 39 +++++++++++++++++++++------------------
+ src/cmd/8l/asm.c | 39 +++++++++++++++++++++------------------
+ 2 files changed, 42 insertions(+), 36 deletions(-)

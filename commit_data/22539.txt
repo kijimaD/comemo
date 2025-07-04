@@ -1,0 +1,27 @@
+commit 2f0828ef7c083bce7b912217762a872257022011
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 23:11:47 2015 +0000
+
+    reflect, cmd/internal/gc: look for pointer types by string before synthesizing
+    
+    The ptrto field of the type data cannot be relied on when dynamic linking: a
+    type T may be defined in a module that makes no use of pointers to that type,
+    but another module can contain a package that imports the first one and does use
+    *T pointers.  The second module will end up defining type data for *T and a
+    type.*T symbol pointing at it. It's important that calling .PtrTo() on the
+    refect.Type for T returns this type data and not some synthesized object, so we
+    need reflect to be able to find it!
+    
+    Fortunately, the reflect package already has a mechanism for doing this sort of
+    thing: ChanOf/MapOf/etc look for pre-existing type data by name.  So this change
+    just extends PtrTo() to consult this too, and changes the compiler to include
+    pointer types in the data consulted when compiling for dynamic linking.
+    
+    Change-Id: I3773c066fd0679a62e9fc52a84bf64f1d67662b7
+    Reviewed-on: https://go-review.googlesource.com/8232
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/reflect.go | 14 ++++++++++++++
+ src/reflect/type.go            | 12 +++++++++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 88b5c5f0f872e176be8e87b04c612817eeed5844
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 6 14:52:26 2009 -0800
+
+    make for slice/map/chan
+    new for pointers
+    
+    R=r
+    OCL=22158
+    CL=22158
+
+ src/cmd/gc/go.h   |  3 ++-
+ src/cmd/gc/go.y   | 15 ++++++++++--
+ src/cmd/gc/lex.c  |  1 +
+ src/cmd/gc/subr.c |  1 +
+ src/cmd/gc/walk.c | 70 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 5 files changed, 74 insertions(+), 16 deletions(-)

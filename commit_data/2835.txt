@@ -1,0 +1,14 @@
+commit bbeb2276de8c82679ccc4ac28afc4e9dd91bc58f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 18:33:31 2009 -0700
+
+    fixed golden.out, which is what 32496 should have done.
+    roll back 32496
+    
+    TBR=austin
+    OCL=32499
+    CL=32501
+
+ test/bugs/bug136.go | 9 ++++++++-
+ test/golden.out     | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

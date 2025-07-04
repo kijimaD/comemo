@@ -1,0 +1,18 @@
+commit a3d545933fcc8bdd2edad56cc3f8c2aa6140814d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:37:22 2022 -0500
+
+    cmd/objdump: use the test binary as 'objdump' instead of rebuilding it
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: Icd22062ab75964a74d011c81ea6c99be80bece18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450704
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 74 +++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 40 deletions(-)

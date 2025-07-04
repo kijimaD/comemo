@@ -1,0 +1,15 @@
+commit f4349f7368ae46cf7aa34119a6c930ae7be113a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 31 13:16:51 2011 -0700
+
+    gophertool: also permit typing "go [whatever]" in omnibox
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4560056
+
+ misc/chrome/gophertool/background.html | 24 +++++++++++++++++++
+ misc/chrome/gophertool/gopher.js       | 34 +++++++++++++++++++++++++++
+ misc/chrome/gophertool/manifest.json   |  5 ++++
+ misc/chrome/gophertool/popup.html      | 42 +++++++++++-----------------------
+ 4 files changed, 76 insertions(+), 29 deletions(-)

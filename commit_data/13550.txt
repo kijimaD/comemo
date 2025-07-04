@@ -1,0 +1,16 @@
+commit 8dbeb0ad072354e84463f38aef790cc1d69352e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 31 23:26:33 2012 -0400
+
+    test/run.go: fix compiledir test on windows
+        we can't import "./bug0" on windows, as it will trigger
+    "import path contains invalid character ':'" error.
+        instead, we pass "-D." and "-I." to gc to override this
+    behavior. this idea is due to remyoudompheng.
+    
+    R=golang-dev, r, alex.brainman, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6441074
+
+ test/run.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

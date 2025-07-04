@@ -1,0 +1,22 @@
+commit 6b34eba007052b5985abc0a3ff1e90316ec28d91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 4 14:40:12 2013 -0800
+
+    go/types: "missing return" check
+    
+    Implementation closely based on Russ' CL 7440047.
+    
+    Future work: The error messages could be better
+    (e.g., instead of "missing return" it might say
+    "missing return (no default in switch)", etc.).
+    
+    R=adonovan, rsc
+    CC=golang-dev
+    https://golang.org/cl/7437049
+
+ src/pkg/go/types/check.go            |   3 +
+ src/pkg/go/types/check_test.go       |   1 +
+ src/pkg/go/types/return.go           | 186 +++++++++++++++++++++++++++++++++++
+ src/pkg/go/types/testdata/decls1.src |   8 +-
+ src/pkg/go/types/testdata/stmt1.src  | 164 ++++++++++++++++++++++++++++++
+ 5 files changed, 358 insertions(+), 4 deletions(-)

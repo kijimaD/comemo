@@ -1,0 +1,18 @@
+commit 9575882461b79c833d206ace186db178e5aff9fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 12:19:52 2016 -0400
+
+    cmd/go: document that cmd/foo is only in Go repo, never GOPATH
+    
+    It's always been like this, so document it.
+    
+    Fixes #14351.
+    
+    Change-Id: Ic6a7c44881bac0209fa6863a487fabec5ec0214e
+    Reviewed-on: https://go-review.googlesource.com/31663
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/help.go | 3 +++
+ 1 file changed, 3 insertions(+)

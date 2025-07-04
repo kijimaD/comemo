@@ -1,0 +1,14 @@
+commit 7df8ba136c911542374186fe5bed603ca6e7e015
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 12:30:58 2015 -0700
+
+    runtime: replace unsafe pointer arithmetic with array indexing
+    
+    Change-Id: I313819abebd4cda4a6c30fd0fd6f44cb1d09161f
+    Reviewed-on: https://go-review.googlesource.com/16167
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mfinal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

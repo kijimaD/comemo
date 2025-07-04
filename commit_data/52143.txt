@@ -1,0 +1,17 @@
+commit ec26277aecfba112089b1bb54b522bf062059e22
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Feb 28 10:11:51 2023 -0800
+
+    crypto/x509: fix ParsePKCS8PrivateKey comment
+    
+    Fixes #58789
+    
+    Change-Id: I91cdd20c6d4f05baaacd6a38717aa7bed6682573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/x509/pkcs8.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

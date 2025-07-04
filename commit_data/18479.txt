@@ -1,0 +1,15 @@
+commit 27cb59fdad4696c9a9169af50bff520492d98b35
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 12 17:03:21 2014 -0800
+
+    cmd/5g: fix print format in peephole debugging
+    
+    Fixes #7294.
+    
+    LGTM=minux.ma, dave, bradfitz
+    R=golang-codereviews, minux.ma, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/61370043
+
+ src/cmd/5g/peep.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

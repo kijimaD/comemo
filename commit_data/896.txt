@@ -1,0 +1,13 @@
+commit 071e963e0e8047bc0599aa1372fa79b6045c4618
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 17 16:27:49 2008 -0700
+
+    - fixed bug that wasn't caught by 6g (but by gccgo)
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=17380
+    CL=17380
+
+ usr/gri/pretty/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

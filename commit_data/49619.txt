@@ -1,0 +1,24 @@
+commit c4c1993fd2a5b26fe45c09592af6d3388a3b2e08
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Mar 29 15:52:09 2022 -0700
+
+    encoding/xml: limit depth of nesting in unmarshal
+    
+    Prevent exhausting the stack limit when unmarshalling extremely deeply
+    nested structures into nested types.
+    
+    Fixes #53611
+    Fixes CVE-2022-30633
+    
+    Change-Id: Ic6c5d41674c93cfc9a316135a408db9156d39c59
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1421319
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417061
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/xml/read.go      | 27 +++++++++++++++++++--------
+ src/encoding/xml/read_test.go | 15 +++++++++++++++
+ 2 files changed, 34 insertions(+), 8 deletions(-)

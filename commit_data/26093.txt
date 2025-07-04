@@ -1,0 +1,23 @@
+commit d145456b168029188ffc654ce2e9f1bbc62f8b99
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 18:43:36 2016 +0000
+
+    runtime: signal handling support for plan9_arm
+    
+    Plan 9 trap/signal handling differs on ARM from other architectures
+    because ARM has a link register.  Also trap message syntax varies
+    between different architectures (historical accident?).
+    Revised 7 March to clarify a comment.
+    
+    Change-Id: Ib6485f82857a2f9a0d6b2c375cf0aaa230b83656
+    Reviewed-on: https://go-review.googlesource.com/18969
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/defs_plan9_386.go   |  6 ++++++
+ src/runtime/defs_plan9_amd64.go |  6 ++++++
+ src/runtime/os3_plan9.go        | 35 +++++++++++++++++++++++++----------
+ src/runtime/os_plan9.go         | 10 +++++++++-
+ src/runtime/signal_plan9.go     |  4 ++--
+ 5 files changed, 48 insertions(+), 13 deletions(-)

@@ -1,0 +1,25 @@
+commit 1cc5b34d2864251c0ab05d8c560b1aede6786327
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 09:13:57 2023 -0400
+
+    math/rand/v2: remove Rand.Seed
+    
+    Removing Rand.Seed lets us remove lockedSource as well,
+    along with the ambiguity in globalRand about which source
+    to use.
+    
+    For #61716.
+    
+    Change-Id: Ibe150520dd1e7dd87165eacaebe9f0c2daeaedfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502498
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ api/next/61716.txt               |   9 +--
+ src/math/rand/v2/auto_test.go    |   8 +-
+ src/math/rand/v2/default_test.go | 148 ----------------------------------
+ src/math/rand/v2/race_test.go    |   8 +-
+ src/math/rand/v2/rand.go         | 167 ++++-----------------------------------
+ 5 files changed, 25 insertions(+), 315 deletions(-)

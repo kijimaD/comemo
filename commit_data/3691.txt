@@ -1,0 +1,22 @@
+commit 45495249e131cd832c2f1e5ac67766882e5cc1dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 05:49:35 2009 -0800
+
+    code review fixes
+    
+    * clean up error handling: show Exception info
+    * white space fixes
+    * clean up output when creating CL
+    * simplify hg change command; add hg file
+    * fix stale cookie bug (thanks iant)
+    * in LoadAllCL, load each CL in a different thread,
+      to parallelize the slow web fetches
+    * throw away support for Mercurial before version 1.3
+    * add @CL-number file pattern for commands like diff
+    * make hg sync show files being sync'ed
+    
+    R=r
+    http://go/go-review/1016016
+
+ lib/codereview/codereview.py | 470 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 282 insertions(+), 188 deletions(-)

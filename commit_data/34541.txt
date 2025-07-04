@@ -1,0 +1,18 @@
+commit 2cc15b18dbab600939147dfe4c58aa6b8f04586e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 8 14:39:43 2018 -0800
+
+    encoding/csv: disallow quote for use as Comma
+    
+    '"' has special semantic meaning that conflicts with using it as Comma.
+    
+    Change-Id: Ife25ba43ca25dba2ea184c1bb7579a230d376059
+    Reviewed-on: https://go-review.googlesource.com/99696
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader.go      |  2 +-
+ src/encoding/csv/reader_test.go |  4 ++++
+ src/encoding/csv/writer_test.go | 12 ++++++++++--
+ 3 files changed, 15 insertions(+), 3 deletions(-)

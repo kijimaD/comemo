@@ -1,0 +1,34 @@
+commit 72c52bfbe2f72fbcacc865e18f132366bdd2effa
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 7 16:16:45 2021 -0700
+
+    net/http: parse HTTP version strings according to RFC 7230
+    
+    RFC 2616 permits multiple digits in the major and minor numbers of an
+    HTTP version:
+    
+            https://datatracker.ietf.org/doc/html/rfc2616#section-3.1
+    
+    RFC 7230 obsoletes 2616 and tightens the specification to permit only a
+    single digit in the major and minor number:
+    
+            https://datatracker.ietf.org/doc/html/rfc7230#section-2.6
+    
+    Use the stricter definition.
+    
+    Also fix a bug which caused version numbers with a leading "+" to
+    be accepted (e.g., "HTTP/1.+1".)
+    
+    Fixes #46587.
+    
+    Change-Id: Ic5923bb858e5ac402cfde486fba2c075e221553d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325874
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go      | 19 ++++++++++---------
+ src/net/http/request_test.go |  8 +++++++-
+ 2 files changed, 17 insertions(+), 10 deletions(-)

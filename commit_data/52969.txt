@@ -1,0 +1,18 @@
+commit 48f8c5c0373886736d348acb1ce1601457da1d2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 10 15:51:46 2023 -0400
+
+    internal/bisect: copy parser changes from CL 494177
+    
+    x/tools/cmd/bisect is changing to emit hex skips for robustness.
+    Update this copy of internal/bisect to understand them.
+    
+    Change-Id: Ie9445714e8e9fb594e656db2f94dcde9b6ce82d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494178
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 46 ++++++++++++------------
+ src/internal/bisect/bisect.go                    | 23 ++++++++++--
+ 2 files changed, 45 insertions(+), 24 deletions(-)

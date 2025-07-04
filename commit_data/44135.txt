@@ -1,0 +1,20 @@
+commit 9f83418b83a43029ce8801ef10162dd94fdba81d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 15 13:19:31 2021 -0500
+
+    cmd/link: remove GOROOT write in TestBuildForTvOS
+    
+    Tests should avoid writing to GOROOT when possible. Such writes
+    would fail if GOROOT is non-writeable, and it can interfere with
+    other tests that don't expect GOROOT to change during test execution.
+    
+    Updates #28387.
+    
+    Change-Id: I7d72614f218df3375540f5c2f9c9f8c11034f602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284293
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/link/link_test.go | 1 +
+ 1 file changed, 1 insertion(+)

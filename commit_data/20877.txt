@@ -1,0 +1,20 @@
+commit 2cd05c34046c4802fb2494c718d651045c2a3eb0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:20:45 2014 -0500
+
+    runtime/cgo: add +build tags to files named for $GOOS
+    
+    These are being built into the runtime/cgo for every
+    operating system. It doesn't seem to matter, but
+    restore the Go 1.3 behavior anyway.
+    
+    LGTM=r
+    R=r, dave
+    CC=golang-codereviews
+    https://golang.org/cl/171290043
+
+ src/runtime/cgo/dragonfly.c | 2 ++
+ src/runtime/cgo/freebsd.c   | 2 ++
+ src/runtime/cgo/netbsd.c    | 2 ++
+ src/runtime/cgo/openbsd.c   | 2 ++
+ 4 files changed, 8 insertions(+)

@@ -1,0 +1,16 @@
+commit b6efc3b755b74147a3700ad51773b01fa68f76e8
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 2 01:05:42 2024 +0000
+
+    cmd/go/internal/modload: close modules.txt
+    
+    Change-Id: Ieb4cf76f4d7050d2f3052c2f90e47901de74d641
+    GitHub-Last-Rev: 1e8dcfd6517201c3a467109ae133846cc66e053a
+    GitHub-Pull-Request: golang/go#66629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/modload/init.go | 1 +
+ 1 file changed, 1 insertion(+)

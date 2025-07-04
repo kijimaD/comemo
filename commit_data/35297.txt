@@ -1,0 +1,16 @@
+commit d474f582fed7c9b6bc78deee3d09f77b4c8af9ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 7 11:25:28 2018 -0400
+
+    compress/flate: do not rename math/bits import
+    
+    Makes compress/flate work better with cmd/dist bootstrap.
+    
+    Change-Id: Ifc7d74027367008e82c1d14ec77141830583ba82
+    Reviewed-on: https://go-review.googlesource.com/111815
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/inflate.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

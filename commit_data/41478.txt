@@ -1,0 +1,18 @@
+commit 173dce8d2029cc3797537431b93d9ab04e135289
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:08:30 2020 -0800
+
+    cmd/compile: check rune type bounds as int32, not uint32
+    
+    Also, avoid string(i) where i has type int.
+    
+    Updates #32479
+    
+    Change-Id: If3c6edc8523860082726e034ef9e887b5f7fabd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221382
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

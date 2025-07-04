@@ -1,0 +1,12 @@
+commit f716c5c5bb814090503eebe15699a3068a55b296
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 24 10:21:14 2015 -0500
+
+    cmd/internal/gc: restore detail in plain syntax errors
+    
+    Change-Id: Ifc4b25fa57d0c9242968246d2193aa29f6b87700
+    Reviewed-on: https://go-review.googlesource.com/5950
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/subr.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

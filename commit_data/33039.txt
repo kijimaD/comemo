@@ -1,0 +1,18 @@
+commit 0c6fc0d711da590eafdfa4719ae322f84b49521d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 6 15:59:44 2017 -0400
+
+    debug/elf: add relocation constants
+    
+    Compiled from various tables found around the internet.
+    
+    Some of these are used by cmd/link.
+    
+    Change-Id: I258b25e694dbe91a61d675763f2c47ccc928fd70
+    Reviewed-on: https://go-review.googlesource.com/69012
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/elf.go | 756 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 556 insertions(+), 200 deletions(-)

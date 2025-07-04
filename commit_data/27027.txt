@@ -1,0 +1,14 @@
+commit 7acb642e4f0b77763a13c99c756aa846b01a428c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 10:29:43 2016 -0400
+
+    test: print output on link -X failure
+    
+    (Split out from CL 22205.)
+    
+    Change-Id: Iab66ac2a1cd3716966d8e59c570931bce95aba9b
+    Reviewed-on: https://go-review.googlesource.com/22297
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/linkx_run.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 623ebad6850578a8a51d4d73f6ceab2d7de75fd1
+Author: David Chase <drchase@google.com>
+Date:   Tue May 9 17:23:39 2023 -0400
+
+    internal/godebug: make test godebug calls not vary
+    
+    I think there may be an issue in bisect search with
+    change set elements not actually being independent,
+    to be explored later.  For now, modify the test to
+    remove that property.
+    
+    Change-Id: I4b171bc024795d950cf4663374ad1dfc4e2952fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494036
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/godebug/godebug_test.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

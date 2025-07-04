@@ -1,0 +1,50 @@
+commit 9aa70984a95c24e7ced91432e0d780e6d2361679
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Dec 24 16:42:29 2012 +0100
+
+    exp/locale/collate: include composed characters into the table. This eliminates
+    the need to decompose characters for the majority of cases.  This considerably
+    speeds up collation while increasing the table size minimally.
+    
+    To detect non-normalized strings, rather than relying on exp/norm, the table
+    now includes CCC information. The inclusion of this information does not
+    increase table size.
+    
+    DETAILS
+     - Raw collation elements are now a struct that includes the CCC, rather
+       than a slice of ints.
+     - Builder now ensures that NFD and NFC counterparts are included in the table.
+       This also fixes a bug for Korean which is responsible for most of the growth
+       of the table size.
+     - As there is no more normalization step, code should now handle both strings
+       and byte slices as input. Introduced source type to facilitate this.
+    
+    NOTES
+     - This change does not handle normalization correctly entirely for contractions.
+       This causes a few failures with the regtest. table_test.go contains a few
+       uncommented tests that can be enabled once this is fixed.  The easiest is to
+       fix this once we have the new norm.Iter.
+     - Removed a test cases in table_test that covers cases that are now guaranteed
+       to not exist.
+    
+    R=rsc, mpvl
+    CC=golang-dev
+    https://golang.org/cl/6971044
+
+ src/pkg/exp/locale/collate/build/builder.go      |   153 +-
+ src/pkg/exp/locale/collate/build/builder_test.go |    62 +-
+ src/pkg/exp/locale/collate/build/colelem.go      |    90 +-
+ src/pkg/exp/locale/collate/build/colelem_test.go |    39 +-
+ src/pkg/exp/locale/collate/build/order.go        |    53 +-
+ src/pkg/exp/locale/collate/build/order_test.go   |     6 +-
+ src/pkg/exp/locale/collate/colelem.go            |    57 +-
+ src/pkg/exp/locale/collate/colelem_test.go       |   112 +-
+ src/pkg/exp/locale/collate/collate.go            |   173 +-
+ src/pkg/exp/locale/collate/collate_test.go       |     1 +
+ src/pkg/exp/locale/collate/contract.go           |    61 +-
+ src/pkg/exp/locale/collate/export_test.go        |     6 +-
+ src/pkg/exp/locale/collate/table.go              |   103 +-
+ src/pkg/exp/locale/collate/table_test.go         |    25 +-
+ src/pkg/exp/locale/collate/tables.go             | 87963 +++++++++++----------
+ src/pkg/exp/locale/collate/trie.go               |    61 +
+ 16 files changed, 46736 insertions(+), 42229 deletions(-)

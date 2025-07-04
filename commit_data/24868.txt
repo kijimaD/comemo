@@ -1,0 +1,12 @@
+commit 64fbca41c8777b2b03f7e545be3bea34862ecf8f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 20:50:59 2015 +1300
+
+    cmd/internal/obj/ppc64: avoid calling morestack via a PLT when dynamically linking
+    
+    Change-Id: Ie79f72786b1d7154f1910e717a0faf354b913b89
+    Reviewed-on: https://go-review.googlesource.com/15970
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 59 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 8 deletions(-)

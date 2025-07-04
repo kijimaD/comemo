@@ -1,0 +1,20 @@
+commit d4ca006334bedd55f1ebacc915ceaed5fd7c9e0a
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Jan 26 12:53:02 2010 -0800
+
+    math: 386 FPU hypot
+    
+    Added 386 FPU version of Hypot; modified all_test.go to test
+    Hypot with large arguments.  Also edited sqrt.go to remove
+    Sqrt(0) as a special case.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186180
+
+ src/pkg/math/Makefile      |  1 +
+ src/pkg/math/all_test.go   |  6 ++---
+ src/pkg/math/hypot_386.s   | 57 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/hypot_decl.go |  7 ++++++
+ src/pkg/math/sqrt.go       |  1 -
+ 5 files changed, 68 insertions(+), 4 deletions(-)

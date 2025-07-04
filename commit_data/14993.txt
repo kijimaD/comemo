@@ -1,0 +1,18 @@
+commit b53e95ac2efa287d5932acc4a2dbf68bdb2a5659
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jan 28 21:05:25 2013 +1100
+
+    src: add race.bash
+    
+    Add race.bash so anyone with suitable hardware can run a race detector build. race.bash can be called from the dashboard builder by passing -cmd="race.bash".
+    
+    Original source for race.bash is here, http://code.google.com/p/go-wiki/wiki/DashboardBuilders
+    
+    TODO: add race.bat for windows/amd64
+    
+    R=dvyukov, minux.ma, adg, rsc
+    CC=fullung, golang-dev
+    https://golang.org/cl/7179052
+
+ src/race.bash | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

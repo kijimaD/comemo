@@ -1,0 +1,16 @@
+commit 098b62644f9388a8afba90d3e74ea7d7497def4c
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Mar 23 23:14:35 2016 -0700
+
+    encoding/json: add (*Encoder).Indent
+    
+    Fixes #6492.
+    
+    Change-Id: Ibc633c43a6d134bb140addb59780a5758b35a5c5
+    Reviewed-on: https://go-review.googlesource.com/21057
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/stream.go      | 22 +++++++++++++++++++++-
+ src/encoding/json/stream_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

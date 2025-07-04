@@ -1,0 +1,14 @@
+commit f43b6d470eea1618b3ead2e1e21612b6d22730e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 16 11:20:07 2013 +1000
+
+    doc: add uninstallation instructions
+    
+    Fixes #5821.
+    
+    R=golang-dev, kamil.kisiel
+    CC=golang-dev
+    https://golang.org/cl/13720043
+
+ doc/install.html | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

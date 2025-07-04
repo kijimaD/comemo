@@ -1,0 +1,23 @@
+commit b8d67596f67ea13525e752a02f45c9d9f346472d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 01:23:26 2015 -0500
+
+    cmd/go: adjust error for custom import checkout mismatch
+    
+    Before:
+    
+            ...
+            imports golang.org/x/net/context: /Users/rsc/g/src/golang.org/x/net is from https://code.google.com/p/go.net, should be from https://go.googlesource.com/net
+    
+    After:
+    
+            ...
+            imports golang.org/x/net/context: golang.org/x/net is a custom import path for https://go.googlesource.com/net, but /Users/rsc/g/src/golang.org/x/net is checked out from https://code.google.com/p/go.net
+    
+    Change-Id: I93c35b85f955c7de684f71fbd4baecc717405318
+    Reviewed-on: https://go-review.googlesource.com/2808
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

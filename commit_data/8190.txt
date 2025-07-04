@@ -1,0 +1,15 @@
+commit 81cfb4ec2b37a296722de4172a4a0d29cce06961
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 09:09:37 2011 -0700
+
+    http: fix FileServer's default text content type
+    
+    Fixes #1729
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4443057
+
+ src/pkg/http/fs.go      | 2 +-
+ src/pkg/http/fs_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

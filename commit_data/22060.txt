@@ -1,0 +1,23 @@
+commit c8198344ef363b707b74f6d9abef81d668c52ff7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 12 18:45:30 2015 -0400
+
+    cmd/internal/gc: fmt.Sprintf elimination and minor cleanup
+    
+    Change-Id: Iaf5a7d25e6308b32c17a38afbbd46befa17aa3a4
+    Reviewed-on: https://go-review.googlesource.com/7629
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/bv.go        |  43 +---
+ src/cmd/internal/gc/dcl.go       |   7 +-
+ src/cmd/internal/gc/esc.go       |  44 ++--
+ src/cmd/internal/gc/fmt.go       | 477 +++++++++++++++++----------------------
+ src/cmd/internal/gc/go.go        |   1 +
+ src/cmd/internal/gc/mparith1.go  |   4 +-
+ src/cmd/internal/gc/obj.go       |  15 +-
+ src/cmd/internal/gc/reflect.go   |  51 ++---
+ src/cmd/internal/gc/reg.go       |   3 +-
+ src/cmd/internal/gc/subr.go      |  29 +--
+ src/cmd/internal/gc/typecheck.go |  31 ++-
+ src/cmd/internal/gc/walk.go      |  17 +-
+ 12 files changed, 304 insertions(+), 418 deletions(-)

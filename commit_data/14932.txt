@@ -1,0 +1,12 @@
+commit c8c8ab08ed4946e719d0ae001d9af3287e73b70d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jan 19 13:36:59 2013 +1100
+
+    doc: fix effective_go: s/byte array/byte slice/.
+    
+    R=rsc
+    CC=golang-dev, mdempsky
+    https://golang.org/cl/7062049
+
+ doc/effective_go.html | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

@@ -1,0 +1,26 @@
+commit 16ce8b3925deaeb72541ee96b6ee23a08fc21dea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 28 14:39:56 2024 +0200
+
+    net: fix lookupHost on Plan 9
+    
+    CL 532217 added the newDNSError function.
+    
+    However, the implementation was not correct on
+    Plan 9, which lead TestLookupNoSuchHost to fail.
+    
+    This change fixes lookupHost on Plan 9.
+    
+    Fixes #67096.
+    
+    Change-Id: I39271f7d588b19c1b1608f18a24d871460be09cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582236
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/lookup_plan9.go | 19 +++++--------------
+ src/net/lookup_test.go  |  4 ++++
+ 2 files changed, 9 insertions(+), 14 deletions(-)

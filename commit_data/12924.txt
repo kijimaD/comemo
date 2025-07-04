@@ -1,0 +1,16 @@
+commit 244706bd0f6d190559073141c378c874636e4341
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 20 11:36:06 2012 -0700
+
+    runtime: disable memory profiler in gc_test
+    
+    This lets the test pass on PPC64 GNU/Linux, which uses a much
+    larger page size and thus uses more memory to hold blocks
+    allocated for memory profiling.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6048054
+
+ src/pkg/runtime/gc_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

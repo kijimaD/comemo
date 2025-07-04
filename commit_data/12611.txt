@@ -1,0 +1,12 @@
+commit f26b1f8056284537b05be8003973abb4e84da811
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 13 16:50:44 2012 +1100
+
+    make.bat: properly handle directories with spaces
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5797079
+
+ src/make.bat | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit dee5ad5c241ad3612c252f570f2b76c78b86dcfc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:57:33 2009 -0800
+
+    godocs.js: fix bad variable name
+    
+    Thanks to anno.langen.
+    Fixes #103.
+    
+    R=r
+    https://golang.org/cl/155050
+
+ doc/godocs.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit f04a002e5ab99868d89e3263cfe947853d87b2d6
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Jul 31 19:48:52 2018 -0400
+
+    math: ensure Erfc is not called with out-of-expected-range arguments on s390x
+    
+    The existing implementation produces correct results with a wide range of inputs,
+    but invalid results asymptotically. With this change we ensure correct asymptotic results
+    on s390x
+    
+    Fixes #26477
+    
+    Change-Id: I760c1f8177f7cab2d7622ab9a926dfb1f8113b49
+    Reviewed-on: https://go-review.googlesource.com/127119
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/erfc_s390x.s | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit b751be4cf5f6704af1a1d031dc61191e52714761
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 10:45:53 2009 -0700
+
+    Cleanup func literals.  "func (" -> "func("
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=41  (0 added, 0 deleted, 41 changed)
+    OCL=31773
+    CL=31773
+
+ usr/austin/eval/expr.go | 78 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

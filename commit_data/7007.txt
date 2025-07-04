@@ -1,0 +1,12 @@
+commit ea70b0d51d2967e747f31be599bd28953831cd53
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 22 10:28:22 2010 +1100
+
+    hash/crc64: fix typo in Sum.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/3772043
+
+ src/pkg/hash/crc64/crc64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

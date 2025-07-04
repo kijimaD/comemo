@@ -1,0 +1,12 @@
+commit 92755f38ae86b7e2e476392a0d7be987f69f6b61
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 17:13:14 2012 +1100
+
+    dashboard: rename buttons to satisfy pedantic souls
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5686053
+
+ misc/dashboard/app/build/ui.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

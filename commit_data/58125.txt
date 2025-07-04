@@ -1,0 +1,19 @@
+commit c14fc500c772c35050699f3bcc3688db3d0fbed2
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 18 16:23:43 2024 -0800
+
+    internal/runtime/maps: assume constant elem offset with int64 and string keys
+    
+    Note this doesn't work with int32 keys because alignment padding can change
+    the offset of the element.
+    
+    Change-Id: I27804d3cfc7cc1b7f995f7e29630f0824f0ee899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629418
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go  | 6 ++++++
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 8 ++++----
+ src/internal/runtime/maps/runtime_faststr_swiss.go | 9 +++++----
+ 3 files changed, 15 insertions(+), 8 deletions(-)

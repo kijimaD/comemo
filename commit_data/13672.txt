@@ -1,0 +1,14 @@
+commit 1cf27acfed67a25bb1e53115739a7d88efd9997d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 23 14:33:41 2012 +0800
+
+    cmd/ld: set ELF header flags for our Linux/ARM binary
+    To make it more compliant.
+    This won't affect the behavior of running on OABI-only kernels.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6475044
+
+ src/cmd/ld/elf.c | 3 +++
+ 1 file changed, 3 insertions(+)

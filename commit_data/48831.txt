@@ -1,0 +1,24 @@
+commit c75befeec2a8ef2fea3c41da589ca0ffddda506f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 14 13:00:03 2022 -0400
+
+    cmd/go: don't compute Deps fields if they're not needed
+    
+    If the user provides the -json flag to explicitly specify fields, but
+    doesn't specify the Deps or DepsErrors fields, skip computing the deps
+    fields.
+    
+    For #29666
+    
+    Change-Id: I15596c374aba1af13bdf5808d11d54abdc838667
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/list/list.go                |  7 +++++++
+ src/cmd/go/internal/load/pkg.go                 | 10 +++++++++-
+ src/cmd/go/testdata/script/list_json_fields.txt |  5 +++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

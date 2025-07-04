@@ -1,0 +1,14 @@
+commit af1dd56d1bcb842a10adaa071cca3ad5bb687a38
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 18 02:55:44 2013 +0800
+
+    misc/cgo/test: deflake TestParallelSleep once more
+    Fixes #5480.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9475043
+
+ misc/cgo/test/callback_c.c | 26 +++++++++++++++++--
+ misc/cgo/test/issue1560.go | 63 ++++++++++++++--------------------------------
+ 2 files changed, 43 insertions(+), 46 deletions(-)

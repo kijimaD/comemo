@@ -1,0 +1,25 @@
+commit 06338941ea0e3d654805b7323761f3c841cc8d58
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 11:12:25 2022 -0400
+
+    net/http: fix for recent go.mod update
+    
+    cmd/internal/moddeps was failing.
+    Ran the commands it suggested:
+    
+    % go mod tidy                               # to remove extraneous dependencies
+    % go mod vendor                             # to vendor dependencies
+    % go generate -run=bundle std               # to regenerate bundled packages
+    % go generate syscall internal/syscall/...  # to regenerate syscall packages
+    
+    cmd/internal/moddeps is happy now.
+    
+    Change-Id: I4ee212cdc323f62a6cdcfdddb6813397b23d89e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403454
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 24be0997a20ee7b45dde76dee78404ee9cd9cae7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 24 21:24:23 2015 -0400
+
+    runtime: add a missing hex conversion
+    
+    gobuf.g is a guintptr, so without hex(), it will be printed as
+    a decimal, which is not very helpful and inconsistent with how
+    other pointers are printed.
+    
+    Change-Id: I7c0432e9709e90a5c3b3e22ce799551a6242d017
+    Reviewed-on: https://go-review.googlesource.com/13879
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/stack1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

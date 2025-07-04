@@ -1,0 +1,27 @@
+commit 25a59decd58d67edb1f0d15c899ecb27c7ebb3d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 30 13:51:04 2023 -0700
+
+    go/types, types2: more concise error if conversion fails due to integer overflow
+    
+    This change brings the error message for this case back in line
+    with the pre-Go1.18 error message.
+    
+    Fixes #63563.
+    
+    Change-Id: I3c6587d420907b34ee8a5f295ecb231e9f008380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538058
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/types2/conversions.go     | 15 +++++++-
+ src/go/types/conversions.go                        | 15 +++++++-
+ src/internal/types/testdata/check/const1.go        | 44 +++++++++++-----------
+ src/internal/types/testdata/check/constdecl.go     |  2 +-
+ src/internal/types/testdata/check/expr0.go         |  2 +-
+ .../types/testdata/fixedbugs/issue63563.go         | 37 ++++++++++++++++++
+ 6 files changed, 89 insertions(+), 26 deletions(-)

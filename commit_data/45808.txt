@@ -1,0 +1,27 @@
+commit 6bbb0a9d4a086af04d8eb16e17d1b144622a86f5
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jun 11 17:38:23 2021 +0200
+
+    cmd/internal/sys: mark windows/arm64 as c-shared-capable
+    
+    The platform supports c-shared now, so flip this on. I've given this a
+    small smoke test using [1], and it was able to pass packets and
+    generally function well. Since [1] uses quite a bit of Go functionality
+    under the hood, I think it's a decent test that a lot of things that
+    should be working are working. So this commit enables it.
+    
+    [1] https://git.zx2c4.com/wireguard-windows/about/embeddable-dll-service/README.md
+    
+    Updates #46502.
+    
+    Change-Id: I5c771d033bd20e5ce472c315d7c207bbc1020b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326310
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/test.go              | 2 +-
+ src/cmd/internal/sys/supported.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

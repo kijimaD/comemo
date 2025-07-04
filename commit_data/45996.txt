@@ -1,0 +1,18 @@
+commit 6ed9463133daabcf11b259155c3f3348ae5a06af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 15 11:46:33 2021 -0700
+
+    cmd/compile/internal/syntax: better error message for index syntax error
+    
+    Fixes #47704.
+    
+    Change-Id: I1de9fd00baaa4b534c23f011ade54120f5153a9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342369
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
+ .../compile/internal/syntax/testdata/issue47704.src    | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

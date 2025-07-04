@@ -1,0 +1,12 @@
+commit 6e37bc1eecb41838d9f7bdc27a5f323b1d92ff0e
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Jul 24 13:48:04 2013 -0400
+
+    misc/emacs: replace our go-goto-opening-parenthesis with backward-up-list
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/11524045
+
+ misc/emacs/go-mode.el | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

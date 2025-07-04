@@ -1,0 +1,16 @@
+commit 5c59cb4aa308828884079b13f100b539448a0861
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 16:06:16 2016 -0400
+
+    cmd/compile: make LR allocatable in non-leaf functions on ARM64
+    
+    The mechanism is initially introduced (and reviewed) in CL 30597
+    on S390X.
+    
+    Change-Id: I12fbe6e9269b2936690e0ec896cb6b5aa40ad7da
+    Reviewed-on: https://go-review.googlesource.com/32180
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  12 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 813 ++++++++++++++-------------
+ 2 files changed, 413 insertions(+), 412 deletions(-)

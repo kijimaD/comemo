@@ -1,0 +1,49 @@
+commit 6dc9e31f5e86112737bb60e54b6f903929ca11d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 14:41:42 2017 -0500
+
+    cmd/go: split out cmd/go/internal/base
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I7c5dde6e7fe4f390e6607303b4d42535c674eac3
+    Reviewed-on: https://go-review.googlesource.com/36193
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/bug.go                                |   5 +-
+ src/cmd/go/build.go                              | 143 +++++++++--------------
+ src/cmd/go/clean.go                              |  15 +--
+ src/cmd/go/doc.go                                |  11 +-
+ src/cmd/go/env.go                                |   7 +-
+ src/cmd/go/fix.go                                |   7 +-
+ src/cmd/go/fmt.go                                |  14 ++-
+ src/cmd/go/generate.go                           |  13 ++-
+ src/cmd/go/get.go                                |  21 ++--
+ src/cmd/go/help.go                               |  16 +--
+ src/cmd/go/internal/base/base.go                 | 143 +++++++++++++++++++++++
+ src/cmd/go/internal/base/path.go                 |  36 ++++++
+ src/cmd/go/{ => internal/base}/signal.go         |  12 +-
+ src/cmd/go/{ => internal/base}/signal_notunix.go |   8 +-
+ src/cmd/go/{ => internal/base}/signal_unix.go    |   6 +-
+ src/cmd/go/internal/base/tool.go                 |  53 +++++++++
+ src/cmd/go/internal/cfg/cfg.go                   |   7 ++
+ src/cmd/go/list.go                               |  11 +-
+ src/cmd/go/main.go                               | 130 ++-------------------
+ src/cmd/go/pkg.go                                |  31 +++--
+ src/cmd/go/pkg_test.go                           |   3 +-
+ src/cmd/go/run.go                                |  34 ++----
+ src/cmd/go/test.go                               |  37 +++---
+ src/cmd/go/testflag.go                           |  13 ++-
+ src/cmd/go/tool.go                               |  63 +++-------
+ src/cmd/go/version.go                            |   5 +-
+ src/cmd/go/vet.go                                |   7 +-
+ 27 files changed, 464 insertions(+), 387 deletions(-)

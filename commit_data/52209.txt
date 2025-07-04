@@ -1,0 +1,31 @@
+commit 457fd1d52d17fc8e73d4890150eadab3128de64d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 1 15:17:35 2023 -0800
+
+    net/http: support full-duplex HTTP/1 responses
+    
+    Add support for concurrently reading from an HTTP/1 request body
+    while writing the response.
+    
+    Normally, the HTTP/1 server automatically consumes any remaining
+    request body before starting to write a response, to avoid deadlocking
+    clients which attempt to write a complete request before reading the
+    response.
+    
+    Add a ResponseController.EnableFullDuplex method which disables this
+    behavior.
+    
+    For #15527
+    For #57786
+    
+    Change-Id: Ie7ee8267d8333e9b32b82b9b84d4ad28ab8edf01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/next/57786.txt                      |  1 +
+ src/net/http/responsecontroller.go      | 25 +++++++++++++++++
+ src/net/http/responsecontroller_test.go | 48 +++++++++++++++++++++++++++++++++
+ src/net/http/server.go                  | 25 +++++++++++------
+ 4 files changed, 91 insertions(+), 8 deletions(-)

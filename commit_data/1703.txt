@@ -1,0 +1,13 @@
+commit fd1f3830c141451670b0d6cfe4a2fd0025950019
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 19:49:56 2009 -0800
+
+    autogenerate the table of contents
+    
+    R=rsc
+    DELTA=149  (1 added, 145 deleted, 3 changed)
+    OCL=25231
+    CL=25234
+
+ doc/go_spec.html | 148 +------------------------------------------------------
+ 1 file changed, 2 insertions(+), 146 deletions(-)

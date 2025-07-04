@@ -1,0 +1,12 @@
+commit 6cd8537fd1191022d54f7bed469093702728fb5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 10 13:30:39 2010 -0700
+
+    test: check that surrogate pair runes and huge rune values are rejected
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1615042
+
+ test/char_lit1.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

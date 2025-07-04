@@ -1,0 +1,29 @@
+commit 0613418c9865bb3fb04e26822f3d4f4a317a2540
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Aug 9 06:10:16 2022 +0000
+
+    cmd/internal/obj/arm64: mark branch instructions in optab
+    
+    Currently, we judge whether we need to fix up the branch instruction
+    based on Optab.type_ field, but the type_ field in optab may change.
+    This CL marks the branch instruction in optab, and checks whether to
+    do fixing up according to the mark. Depending on the constant parameter
+    range of the branch instruction, there are two labels, BRANCH14BITS,
+    BRANCH19BITS. For the 26-bit branch, linker will handle it.
+    
+    Besides this CL removes the unnecessary alignment of the DWORD
+    instruction. Because the ISA doesn't require it and no 64-bit load
+    assume it. The only effect is that there is some performance penalty
+    for loading from DWORDs if the 8-byte DWORD instruction crosses the
+    cache line, but this is very rare.
+    
+    Change-Id: I993902b3fb5ad8e081dd6c441e86bcf581031835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424135
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 44 +++++++++++---------------------------
+ 1 file changed, 13 insertions(+), 31 deletions(-)

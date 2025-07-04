@@ -1,0 +1,14 @@
+commit a3985e400f1afe6f6640b03dceb4ef8396a2763a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 11:13:15 2015 +1000
+
+    time: document that time.Tick creates an unrecoverable resource
+    
+    Fixes #11662.
+    
+    Change-Id: I8839b48a1cd3da4c29b6def03cb0c74c1c12942e
+    Reviewed-on: https://go-review.googlesource.com/12066
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/tick.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

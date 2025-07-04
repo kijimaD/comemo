@@ -1,0 +1,20 @@
+commit fa0e3bffb494fb9f97c241d6579daa443fbcbb06
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 26 10:27:57 2022 +0800
+
+    runtime: convert semaRoot.nwait to atomic type
+    
+    For #53821
+    
+    Change-Id: I686fe81268f70acc6a4c3e6b1d3ed0e07bb0d61c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425775
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go |  2 +-
+ src/runtime/sema.go        | 14 +++++++-------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

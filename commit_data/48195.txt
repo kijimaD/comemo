@@ -1,0 +1,15 @@
+commit d0c3b0116217a898f2e5d2d00cc5f0356ea5ad1e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 23 12:23:41 2022 -0500
+
+    doc/go1.18: drop misplaced period
+    
+    Change-Id: Id29f352c8d2e61672f55294120058b1f585f7aeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387655
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

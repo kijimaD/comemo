@@ -1,0 +1,22 @@
+commit c99300229de4e69220790c71da14785dc52c3d68
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jun 18 16:29:16 2018 -0400
+
+    runtime: fix lldb test after DWARF compression
+    
+    Most (all?) released versions of lldb don't support compressed DWARF.
+    For now, skip the test if lldb can't find where to put the breakpoint.
+    
+    This is the best I could think of -- there is no explicit error that I
+    can find that indicates it couldn't load the DWARF.
+    
+    Fixes #25925.
+    
+    Change-Id: Ib8fa486a04940cee5959ba7aab7bdbbaa3b2974e
+    Reviewed-on: https://go-review.googlesource.com/119535
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-lldb_test.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

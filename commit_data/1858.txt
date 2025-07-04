@@ -1,0 +1,14 @@
+commit 90943c8ee4cf2ccef11b72ba01ea729edd8b3c66
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 20 16:30:54 2009 -0700
+
+    Test that interfaces work in type switches.
+    
+    R=ken,rsc
+    DELTA=30  (30 added, 0 deleted, 0 changed)
+    OCL=26599
+    CL=26604
+
+ test/bugs/bug141.go | 30 ++++++++++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 34 insertions(+)

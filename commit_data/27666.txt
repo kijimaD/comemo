@@ -1,0 +1,18 @@
+commit 8042bfe347d5b2c4f6af372b09b23c8945fb196e
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Fri May 20 14:35:28 2016 -0700
+
+    encoding/csv: update doc about comments whitespace
+    
+    This patch updates the doc about comments whitespace for the
+    encoding/csv package to reflect that leading whitespace before
+    the hash will treat the line as not a comment.
+    
+    Fixes #13775.
+    
+    Change-Id: Ia468c75b242a487b4b2b4cd3d342bfb8e07720ba
+    Reviewed-on: https://go-review.googlesource.com/23302
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/csv/reader.go | 53 +++++++++++++++++++++++-----------------------
+ 1 file changed, 27 insertions(+), 26 deletions(-)

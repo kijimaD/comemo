@@ -1,0 +1,16 @@
+commit c72bce901eb0e6be6bc544ace561a1ce88209cb8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 13 11:53:01 2013 +1100
+
+    doc: use the same wording for OS X as the other OSes
+    
+    I used "and above" when I should have said "or later".
+    
+    Sorry for the churn.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/25670043
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

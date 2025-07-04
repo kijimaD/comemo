@@ -1,0 +1,25 @@
+commit 865911424d509184d95d3f9fc6a8301927117fdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 16:42:05 2022 -0500
+
+    doc: update Go memory model
+    
+    Following discussion on #47141, make the following changes:
+    
+    - Document Go's overall approach.
+    - Document that multiword races can cause crashes.
+    - Document happens-before for runtime.SetFinalizer.
+    - Document (or link to) happens-before for more sync types.
+    - Document happens-before for sync/atomic.
+    - Document disallowed compiler optimizations.
+    
+    See also https://research.swtch.com/gomm for background.
+    
+    Fixes #50859.
+    
+    Change-Id: I17d837756a77f4d8569f263489c2c45de20a8778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381315
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_mem.html | 575 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 486 insertions(+), 89 deletions(-)

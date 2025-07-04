@@ -1,0 +1,18 @@
+commit 6b895d9eaa4a9889fea88205d7cca5cc736de0fc
+Author: Alexander Frolov <9749087+fxrlv@users.noreply.github.com>
+Date:   Fri Dec 9 07:56:21 2022 +0000
+
+    doc/go1.20: fix typo
+    
+    Change-Id: Id0319a9cc9acc549022fdcd6b7d71c7343afd245
+    GitHub-Last-Rev: 2b84d25763c3f8a03663d4ba75cefa4a372fefbd
+    GitHub-Pull-Request: golang/go#57187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456395
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

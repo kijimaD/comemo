@@ -1,0 +1,18 @@
+commit 1660ece7695a90e178aa08ef6e413811957791d5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 26 14:45:53 2014 -0700
+
+    time: use go generate rather than Makefile (windows only)
+    Also make genzabbrs.go more self-contained.
+    Also run it (on Linux; does that matter?) to update the table.
+    
+    LGTM=rsc
+    R=rsc, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/128350044
+
+ src/pkg/time/Makefile                  |  9 ---------
+ src/pkg/time/genzabbrs.go              | 20 +++++++++++++++++---
+ src/pkg/time/zoneinfo_abbrs_windows.go | 11 ++++++-----
+ src/pkg/time/zoneinfo_windows.go       |  2 ++
+ 4 files changed, 25 insertions(+), 17 deletions(-)

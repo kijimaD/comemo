@@ -1,0 +1,25 @@
+commit 884aa71f5126d10f7fa4cbf2dd643b3595763908
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 29 15:22:32 2023 -0400
+
+    go/internal/gcimporter: propagate errors from FindPkg
+    
+    Previously, FindPkg returned the empty string as a sentinel value,
+    causing Import to collapse all errors to "can't find import".
+    
+    (See also https://go.dev/wiki/CodeReviewComments#in-band-errors.)
+    
+    For #61064.
+    
+    Change-Id: I21f335d206308b44fe585619e00782abb0b65a94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507360
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/importer/gcimporter.go    | 64 ++++++++++++---------
+ .../compile/internal/importer/gcimporter_test.go   | 10 ++--
+ src/go/internal/gcimporter/gcimporter.go           | 66 +++++++++++++---------
+ src/go/internal/gcimporter/gcimporter_test.go      |  2 +-
+ 4 files changed, 81 insertions(+), 61 deletions(-)

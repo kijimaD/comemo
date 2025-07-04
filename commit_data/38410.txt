@@ -1,0 +1,26 @@
+commit 8bf18b56a47a98b9dd2fa03beb358312237a8c76
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 13 16:47:44 2019 +0100
+
+    errors: improve performance of New
+    
+    See Issue #29382 and Issue #30468.
+    
+    Improvements in this CL:
+    
+    name                     old time/op  new time/op  delta
+    New-8                     352ns ± 2%   225ns ± 5%  -36.04%  (p=0.008 n=5+5)
+    
+    Improvements together with moving to 1 uintptr:
+    
+    name                     old time/op  new time/op  delta
+    New-8                     475ns ± 3%   225ns ± 5%  -52.59%  (p=0.008 n=5+5)
+    
+    Change-Id: I9d69a14e5e10a6498767defb7d5f26ceedcf9ba5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167401
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/errors.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

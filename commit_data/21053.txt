@@ -1,0 +1,12 @@
+commit aaa4bf3720bbf69e1ac65414448baf88b5e4cd83
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 11:23:43 2014 -0800
+
+    cmd/gc: update hashmap code location in comments
+    
+    Change-Id: I3b81f2e9eb29ee6349d758b68fe7951b34f15a81
+    Reviewed-on: https://go-review.googlesource.com/1974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 14e446d909784fba7b349b76ec0a234c2a86a491
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Jul 20 00:58:55 2016 +0200
+
+    bytes: add examples
+    
+    `bytes` and `strings` are pretty similar to each other, this commit
+    brings `strings` examples to its counter-part.
+    
+    Partially addresses #16360
+    
+    Change-Id: I551320eaa78be9df69012035f1c3333f500e04c9
+    Reviewed-on: https://go-review.googlesource.com/25062
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/example_test.go | 203 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 203 insertions(+)

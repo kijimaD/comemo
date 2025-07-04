@@ -1,0 +1,22 @@
+commit 5a8b652c6e93311fb6f336e7075aee46ef560213
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 9 10:46:28 2018 -0400
+
+    cmd/go: add test for tests with no tests
+    
+    CL 122518 rolled back an earlier CL that made "go test"
+    start running test binaries for packages with no *_test.go files.
+    Add a test as another roadblock to reintroducing that behavior
+    in the future.
+    
+    For #26462.
+    
+    Change-Id: I898103064efee8d6ae65bcf74f4dffc830eae7e9
+    Reviewed-on: https://go-review.googlesource.com/122595
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                  | 10 ++++++++++
+ src/cmd/go/testdata/src/testnorun/p.go |  5 +++++
+ 2 files changed, 15 insertions(+)

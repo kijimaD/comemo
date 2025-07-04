@@ -1,0 +1,15 @@
+commit e04ef7769ec0a4fde622bc64585fa0681f384310
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Dec 13 16:41:02 2010 +1100
+
+    Fix windows build.
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/3533041
+
+ src/cmd/ld/data.c                |  3 ++-
+ src/pkg/Makefile                 |  4 ++++
+ src/pkg/runtime/windows/mem.c    |  4 ++--
+ src/pkg/runtime/windows/thread.c | 36 ++++++++++++++++++------------------
+ 4 files changed, 26 insertions(+), 21 deletions(-)

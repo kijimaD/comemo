@@ -1,0 +1,18 @@
+commit 1df309eb023973f52b4955ea5b001c0d44961743
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 23 22:30:38 2021 -0400
+
+    cmd/compile: skip types.Sym for GC mask symbols
+    
+    For GC mask symbols, we don't need to create types.Sym, just the
+    LSym.
+    
+    Change-Id: I285b518cfd60bfaa3202a02b3005a7122daeb338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313512
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,0 +1,22 @@
+commit 337547d1c997a11266c967e27ac7bc6c611b6372
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 00:50:56 2012 -0500
+
+    gc: make constant arith errors a little more friendly
+    
+    Fixes #2804.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5652067
+
+ src/cmd/gc/const.c    |  2 +-
+ src/cmd/gc/go.h       |  2 +-
+ src/cmd/gc/go.y       |  2 +-
+ src/cmd/gc/mparith1.c | 10 +++++-----
+ src/cmd/gc/mparith2.c | 49 ++++++++++++++++++++++++++++++-------------------
+ src/cmd/gc/mparith3.c | 10 +++++-----
+ src/cmd/gc/y.tab.c    |  2 +-
+ src/cmd/go/build.go   |  7 +++++++
+ test/const2.go        |  4 ++++
+ 9 files changed, 55 insertions(+), 33 deletions(-)

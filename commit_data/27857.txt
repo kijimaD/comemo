@@ -1,0 +1,16 @@
+commit f88a88402cbf93b37f701a8ca0c70b7d2558a057
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Sun Jul 31 12:55:06 2016 -0400
+
+    regexp: add some tests that were fixed in #12980
+    
+    Also includes a minor golint cleanup in the tests.
+    
+    Change-Id: I8c0fc81479e635e7cca18d5c48c28b654afa59d8
+    Reviewed-on: https://go-review.googlesource.com/25380
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/all_test.go | 38 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 32 insertions(+), 6 deletions(-)

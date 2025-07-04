@@ -1,0 +1,15 @@
+commit b388d84013d53ab0098d9ffa26b021d94f573545
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Jul 27 14:33:21 2009 -0700
+
+    Fixed a small bug with compress/flate/Inflater. It incorrectly checked
+    the size of chunk with uncompressed data (00 is terms of DEFLATE).
+    
+    APPROVED=rsc
+    DELTA=15  (14 added, 0 deleted, 1 changed)
+    OCL=32105
+    CL=32238
+
+ src/pkg/compress/flate/flate_test.go | 14 ++++++++++++++
+ src/pkg/compress/flate/inflate.go    |  2 +-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

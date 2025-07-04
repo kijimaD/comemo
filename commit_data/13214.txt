@@ -1,0 +1,23 @@
+commit 334bf95f9e66a1751692c0bdcee2c03183d89375
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed May 30 13:07:52 2012 -0400
+
+    runtime: update field types in preparation for GC changes
+    
+    R=rsc, remyoudompheng, minux.ma, ality
+    CC=golang-dev
+    https://golang.org/cl/6242061
+
+ src/pkg/runtime/cgocall.c        |  2 +-
+ src/pkg/runtime/mgc0.c           | 12 +++----
+ src/pkg/runtime/mprof.goc        |  2 +-
+ src/pkg/runtime/proc.c           | 68 +++++++++++++++++++++-------------------
+ src/pkg/runtime/runtime.h        | 16 +++++-----
+ src/pkg/runtime/thread_darwin.c  |  2 +-
+ src/pkg/runtime/thread_freebsd.c |  2 +-
+ src/pkg/runtime/thread_linux.c   |  2 +-
+ src/pkg/runtime/thread_netbsd.c  |  2 +-
+ src/pkg/runtime/thread_openbsd.c |  2 +-
+ src/pkg/runtime/traceback_arm.c  |  6 ++--
+ src/pkg/runtime/traceback_x86.c  | 10 +++---
+ 12 files changed, 65 insertions(+), 61 deletions(-)

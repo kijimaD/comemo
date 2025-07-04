@@ -1,0 +1,21 @@
+commit 9a7fe196e468c687ad7239b9447c584826331771
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 21:32:29 2021 +0000
+
+    Revert "cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer"
+    
+    This reverts commit CL 294849.
+    
+    Reason for revert: this doesn't actually fix the issue, as revealed
+    by the noopt builder's failures.
+    
+    Change-Id: Ib4ea9ceb4d75e46b3b91ec348b365fd8c83316ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296629
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++------------------
+ src/cmd/compile/internal/walk/stmt.go |  3 ---
+ test/fixedbugs/issue24491a.go         | 30 ------------------------------
+ test/fixedbugs/issue44415.go          | 21 ---------------------
+ 4 files changed, 14 insertions(+), 72 deletions(-)

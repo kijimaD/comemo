@@ -1,0 +1,12 @@
+commit 50d3447a36c563c8580c815198d4d0ae04245d3d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 29 15:20:53 2009 +1100
+
+    JPEG decoder now handles RST (restart) markers.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181075
+
+ src/pkg/image/jpeg/reader.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

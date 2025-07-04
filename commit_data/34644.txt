@@ -1,0 +1,16 @@
+commit 4b837c702340d23bdf28b98f44ab18a8da33fdcb
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sat Mar 17 18:29:05 2018 -0700
+
+    go/constant: add examples for working with constant.Value
+    
+    Updates #24352.
+    
+    Change-Id: Ie7c1de905154a483b7f7748de28e35b484cce6ea
+    Reviewed-on: https://go-review.googlesource.com/101279
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/constant/example_test.go | 158 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 158 insertions(+)

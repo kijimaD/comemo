@@ -1,0 +1,17 @@
+commit cf3fd0a55fde7c8bf579bdcab663890404a337c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 21:56:11 2014 -0400
+
+    cmd/dist: another attempt at textflag.h
+    
+    The old change worked fine in my client, but my client
+    must not have been in a completely clean state.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/138100043
+
+ src/cmd/dist/a.h            |  1 +
+ src/cmd/dist/build.c        | 25 ++++++++++++-------------
+ src/cmd/dist/buildruntime.c | 11 ++++++++++-
+ 3 files changed, 23 insertions(+), 14 deletions(-)

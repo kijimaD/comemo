@@ -1,0 +1,13 @@
+commit 715e8bbe636ae9aa7365ff8415dcbf1b5f57b009
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 13:14:03 2020 -0800
+
+    cmd/compile: factor out opIsCommutative from commute1
+    
+    Change-Id: I989a66c98dcca8168e35dd9834fc1365e0a1d881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213697
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 44 ++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)

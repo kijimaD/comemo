@@ -1,0 +1,22 @@
+commit 35ec948de766e7e8854b95edda3a0bb4723a63ec
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Apr 14 14:25:53 2023 -0400
+
+    go/types,types2: fix panic in reverse type inference when -lang<go1.18
+    
+    Due to reverse type inference, we may not have an index expression when
+    type-checking a function instantiation. Fix a panic when the index expr
+    is nil.
+    
+    Fixes #59639
+    
+    Change-Id: Ib5de5e49cdb7b339653e4fb775bf5c5fdb3c6907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484757
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go             |  8 +++++++-
+ src/go/types/call.go                                |  8 +++++++-
+ src/internal/types/testdata/fixedbugs/issue59639.go | 11 +++++++++++
+ 3 files changed, 25 insertions(+), 2 deletions(-)

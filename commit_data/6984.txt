@@ -1,0 +1,16 @@
+commit fd021cbe8f768381285d9766360799cebdab3ac5
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 16 10:39:53 2010 -0500
+
+    crypto/tls: check in support code.
+    
+    This support code helps in generating the handshake scripts
+    which are used for testing.
+    
+    R=rsc, ality
+    CC=golang-dev
+    https://golang.org/cl/3680041
+
+ src/pkg/crypto/tls/handshake_server_test.go      |  9 ++--
+ src/pkg/crypto/tls/parse-gnutls-cli-debug-log.py | 55 ++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 4 deletions(-)

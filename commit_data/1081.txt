@@ -1,0 +1,15 @@
+commit 335a5236e72b1d059fabfbfdd2ac13107aec4072
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 15:48:36 2008 -0800
+
+    add sys.float32bits, sys.float64bits
+    
+    R=rsc
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=18709
+    CL=18718
+
+ src/cmd/gc/sys.go      |  2 ++
+ src/cmd/gc/sysimport.c |  2 ++
+ src/runtime/runtime.c  | 17 +++++++++++++++++
+ 3 files changed, 21 insertions(+)

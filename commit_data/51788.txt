@@ -1,0 +1,52 @@
+commit f0b1563535bf548d989d7bd4647dd698232e4467
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 17:42:02 2022 -0800
+
+    cmd/compile/internal/types: remove unneeded functionality
+    
+    This CL removes a handful of features that were only needed for the
+    pre-unified frontends.
+    
+    In particular, Type.Pkg was a hack for iexport so that
+    go/types.Var.Pkg could be precisely populated for struct fields and
+    signature parameters by gcimporter, but it's no longer necessary with
+    the unified export data format because we now write export data
+    directly from types2-supplied type descriptors.
+    
+    Several other features (e.g., OrigType, implicit interfaces, type
+    parameters on signatures) are no longer relevant to the unified
+    frontend, because it only uses types1 to represent instantiated
+    generic types.
+    
+    Updates #57410.
+    
+    Change-Id: I84fd1da5e0b65d2ab91d244a7bb593821ee916e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458622
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go           |  6 +-
+ src/cmd/compile/internal/compare/compare_test.go   | 22 +++----
+ src/cmd/compile/internal/escape/call.go            |  2 +-
+ src/cmd/compile/internal/noder/reader.go           | 45 ++++++-------
+ src/cmd/compile/internal/pkginit/init.go           |  2 +-
+ .../compile/internal/pkginit/initAsanGlobals.go    |  6 +-
+ src/cmd/compile/internal/reflectdata/alg.go        |  4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    | 10 +--
+ src/cmd/compile/internal/ssagen/ssa.go             |  2 +-
+ src/cmd/compile/internal/test/abiutils_test.go     |  2 +-
+ src/cmd/compile/internal/test/abiutilsaux_test.go  |  4 +-
+ src/cmd/compile/internal/typecheck/builtin.go      |  4 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |  4 +-
+ src/cmd/compile/internal/typecheck/func.go         |  4 +-
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |  4 +-
+ src/cmd/compile/internal/types/fmt.go              |  3 -
+ src/cmd/compile/internal/types/sizeof_test.go      |  8 +--
+ src/cmd/compile/internal/types/type.go             | 75 ++--------------------
+ src/cmd/compile/internal/types/universe.go         | 10 +--
+ src/cmd/compile/internal/walk/closure.go           |  2 +-
+ src/cmd/compile/internal/walk/compare.go           |  2 +-
+ src/cmd/compile/internal/walk/select.go            |  2 +-
+ 22 files changed, 75 insertions(+), 148 deletions(-)

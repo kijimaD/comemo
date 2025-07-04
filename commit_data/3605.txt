@@ -1,0 +1,35 @@
+commit 357b770defa6e808b1f795db08dbad877506eebf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 20 13:00:16 2009 -0700
+
+    base64 -> encoding/base64
+    base85 -> encoding/ascii85, encoding/git85
+    debug/binary -> encoding/binary
+    
+    R=r
+    DELTA=3190  (1884 added, 1297 deleted, 9 changed)
+    OCL=35923
+    CL=35929
+
+ src/pkg/Make.deps                                  |  15 +-
+ src/pkg/Makefile                                   |   7 +-
+ src/pkg/debug/dwarf/buf.go                         |   2 +-
+ src/pkg/debug/dwarf/open.go                        |   2 +-
+ src/pkg/debug/elf/file.go                          |   2 +-
+ src/pkg/debug/elf/file_test.go                     |   2 +-
+ src/pkg/debug/gosym/pclntab.go                     |   2 +-
+ src/pkg/debug/gosym/symtab.go                      |   2 +-
+ src/pkg/debug/macho/file.go                        |   2 +-
+ src/pkg/encoding/ascii85/Makefile                  |  11 +
+ .../base85.go => encoding/ascii85/ascii85.go}      |  12 +-
+ .../ascii85/ascii85_test.go}                       |   2 +-
+ src/pkg/encoding/base64/Makefile                   |  11 +
+ src/pkg/encoding/base64/base64.go                  | 334 +++++++++++++++++++++
+ src/pkg/encoding/base64/base64_test.go             | 201 +++++++++++++
+ src/pkg/{debug => encoding}/binary/Makefile        |   2 +-
+ src/pkg/{debug => encoding}/binary/binary.go       |   0
+ src/pkg/{debug => encoding}/binary/binary_test.go  |   0
+ src/pkg/{base85 => encoding/git85}/Makefile        |   3 +-
+ src/pkg/{base85 => encoding/git85}/git.go          |  69 +++--
+ src/pkg/{base85 => encoding/git85}/git_test.go     |  84 +++---
+ 21 files changed, 676 insertions(+), 89 deletions(-)

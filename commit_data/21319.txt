@@ -1,0 +1,12 @@
+commit 6cf5a733d54dfbef47e908f91bf50d7180317325
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 19 12:34:56 2015 -0500
+
+    internal/syscall: add getrandom syscall number for ppc64/ppc64le
+    
+    Change-Id: I04c1b8f2a9ac4efba227d6c0a20459420cd3dc05
+    Reviewed-on: https://go-review.googlesource.com/3014
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/getrandom_linux.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

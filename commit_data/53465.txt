@@ -1,0 +1,15 @@
+commit 26a90e4e36c01ae0d356d4e077b99c31cfcb4d1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 13:52:19 2023 -0400
+
+    doc/go1.21: document GOEXPERIMENT=loopvar and invite feedback
+    
+    For #60078.
+    
+    Change-Id: I92ab1fc2f30e6bbaabd8e3e1b8834e6ddff2414d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500958
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.21.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

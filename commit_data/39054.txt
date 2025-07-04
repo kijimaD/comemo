@@ -1,0 +1,21 @@
+commit 04845fe78aeba33106c6f8a40d05e608ca687214
+Author: Keith Randall <khr@google.com>
+Date:   Mon May 6 12:58:54 2019 -0700
+
+    reflect: special-case panic message when returning Value{} from MakeFunc function
+    
+    Before this CL we used to panic with "nil pointer dereference" because
+    the value we're calling assignTo on is the zero Value. Provide a better
+    error message.
+    
+    Fixes #28748
+    
+    Change-Id: I7dd4c9e30b599863664d91e78cc45878d8b0052e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175440
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/value.go         |  4 ++++
+ test/fixedbugs/issue28748.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

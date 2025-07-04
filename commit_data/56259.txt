@@ -1,0 +1,14 @@
+commit 7f76c00fc5678fa782708ba8fece63750cb89d03
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 16:14:54 2024 -0400
+
+    internal/reflectlite: remove unused mapType
+    
+    Change-Id: I715186c053bc9911b912e69904735c9498bf9c13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/reflectlite/reflect_mirror_test.go |  1 -
+ src/internal/reflectlite/type.go                | 14 --------------
+ 2 files changed, 15 deletions(-)

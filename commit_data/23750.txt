@@ -1,0 +1,13 @@
+commit 4db074639c1eab543018acd4e74d2ccf46102897
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 17 09:40:04 2015 -0700
+
+    net/http: add example for setting trailers in an Handler
+    
+    Change-Id: I6a8bb853a538c80d95589321d3226784bc017eef
+    Reviewed-on: https://go-review.googlesource.com/12327
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/example_test.go | 23 +++++++++++++++++++++++
+ src/net/http/server.go       |  2 +-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

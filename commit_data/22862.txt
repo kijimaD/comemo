@@ -1,0 +1,18 @@
+commit 5a828cfcde20c25b9b3a3387159a77eb084383b8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 14:56:35 2015 -0700
+
+    runtime: let freezetheworld work even when gomaxprocs=1
+    
+    Freezetheworld still has stuff to do when gomaxprocs=1.
+    In particular, signals can come in on other Ms (like the GC M, say)
+    and the single user M is still running.
+    
+    Fixes #10546
+    
+    Change-Id: I2f07f17d1c81e93cf905df2cb087112d436ca7e7
+    Reviewed-on: https://go-review.googlesource.com/9551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/proc1.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,15 @@
+commit bc405df3914e82c9967e029a0235e19ba4461072
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 14 17:37:20 2019 -0700
+
+    spec: allow embedding overlapping interfaces
+    
+    Updates #6977.
+    
+    Change-Id: I6eda4be550e7c7ea1e1bac3222850002d90a81a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190378
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 64 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 41 insertions(+), 23 deletions(-)

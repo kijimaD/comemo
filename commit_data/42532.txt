@@ -1,0 +1,14 @@
+commit 340efd3608c2dc69b8786a8e7ca472e9f78d9002
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 21:32:15 2020 -0700
+
+    go/token: explain file base offset better in documentation
+    
+    Fixes #36648.
+    
+    Change-Id: I92d4462fea0079f63697fb8f407fd2d50b7d68f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/token/position.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 203b80ab8639ff9dc0710e22c2b33f2df861363b
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Sun Apr 28 15:43:46 2019 +0300
+
+    strconv: Document ParseFloat's special cases
+    
+    Updates #30990
+    
+    Change-Id: I968fb13251ab3796328089046a3f0fc5c7eb9df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174204
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,0 +1,18 @@
+commit b548e7346092383aec5176121ea9d6459963c6b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 14:05:21 2008 -0800
+
+    - array lib (essentially vector, more complete)
+    - TODO replace vector
+    
+    R=r
+    DELTA=314  (313 added, 0 deleted, 1 changed)
+    OCL=19592
+    CL=19609
+
+ src/lib/container/array/Makefile     |  56 +++++++++++++++++
+ src/lib/container/array/array.go     | 117 +++++++++++++++++++++++++++++++++++
+ src/lib/container/array/intarray.go  |  64 +++++++++++++++++++
+ src/lib/container/array/testarray.go |  82 ++++++++++++++++++++++++
+ src/lib/make.bash                    |   2 +-
+ 5 files changed, 320 insertions(+), 1 deletion(-)

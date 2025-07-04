@@ -1,0 +1,21 @@
+commit 8248b5791cd825f80c55e972c1e96c6fadf5885e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 14 15:56:59 2020 -0400
+
+    cmd/go/internal/modget: factor out functions for argument resolution
+    
+    For #37438
+    For #41315
+    For #36460
+    
+    Change-Id: I17041c35ec91ff6ffb547e0f32572673d191b1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254820
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go | 340 +++++++++++++++++++++-----------------
+ 1 file changed, 184 insertions(+), 156 deletions(-)

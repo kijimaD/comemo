@@ -1,0 +1,27 @@
+commit d3e3d03666bbd8784007bbb78a75864aac786967
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Jun 7 10:21:29 2021 -0700
+
+    net: reject leading zeros in IP address parsers
+    
+    In both net.ParseIP and net.ParseCIDR reject leading zeros in the
+    dot-decimal notation of IPv4 addresses.
+    
+    Fixes #30999
+    Fixes #43389
+    
+    Change-Id: I2b6a31fe84db89ac828cf5ed03eaa586ee96ab68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325829
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/go1.17.html             | 10 ++++++++++
+ src/net/hosts_test.go       |  4 ++--
+ src/net/ip.go               |  4 ++++
+ src/net/ip_test.go          |  8 ++++++--
+ src/net/testdata/ipv4-hosts |  8 ++------
+ 5 files changed, 24 insertions(+), 10 deletions(-)

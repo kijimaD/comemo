@@ -1,0 +1,13 @@
+commit c5f14c55c19d872921b476187f153a7361a80fa7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 08:19:35 2014 +1000
+
+    doc/go1.3.html: linker, go command, miscellany
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/85660043
+
+ doc/go1.3.html | 40 +++++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

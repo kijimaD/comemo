@@ -1,0 +1,19 @@
+commit 3fd729b2a14a7efcf08465cbea60a74da5457f06
+Author: Antonio Pitasi <antonio@pitasi.dev>
+Date:   Wed May 21 11:58:13 2025 +0200
+
+    log/slog: make TextHandler discard empty Source
+    
+    Fixes #73808
+    
+    Change-Id: Ica4b7a63eebbf0fff41d68f4de928f9da90c8ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674875
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/log/slog/handler.go      | 3 +++
+ src/log/slog/handler_test.go | 2 +-
+ src/log/slog/record.go       | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

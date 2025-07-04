@@ -1,0 +1,43 @@
+commit f7b625e4cb363c23ed5c8c144ee7d06c4136a0eb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 25 09:15:25 2018 +1000
+
+    cmd/go/internal/load: use lowercase package directory comparisons on Windows
+    
+    go build
+    
+    command is short for
+    
+    go build .
+    
+    and it builds . package. When command above is executed from
+    directory inside of GOPATH, it uses GOPATH to calculate package
+    source directory. So . package uses GOPATH as part of package
+    source directory.
+    
+    On the other hand
+    
+    go build -ldflags=abc
+    
+    only passes flag to the linker for packages that are listed
+    on the command line. The command above assumes . package again,
+    and that package source path is compared with current directory.
+    
+    Current code compares result of os.Getwd with what GOPATH
+    environment variable contains. But these values might differ
+    in letter case on Windows. For example, one might return
+    c:\gopath\..., while the other might contain C:\GOPATH.
+    
+    Fixes #24750
+    Fixes #24232
+    Fixes #25046
+    
+    Change-Id: I03d8c7a9b73e847f88ae61c88cd41efa546c6d0e
+    Reviewed-on: https://go-review.googlesource.com/109235
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go              | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/search.go |  8 +++++++-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

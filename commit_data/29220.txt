@@ -1,0 +1,22 @@
+commit ec5b6406b76462a1a97ce19f86c5c23ac1d2c830
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 28 14:22:13 2016 -0700
+
+    cmd/compile: improve not enough / too many arguments errors
+    
+    Use "have" and "want" and multiple lines like other similar error
+    messages. Also, fix handling of ... and multi-value function calls.
+    
+    Fixes #17650.
+    
+    Change-Id: I4850e79c080eac8df3b92a4accf9e470dff63c9a
+    Reviewed-on: https://go-review.googlesource.com/32261
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 28 +++++++++++++++++++---------
+ test/ddd1.go                             |  5 ++---
+ test/fixedbugs/issue4215.go              | 22 +++++++++++-----------
+ test/fixedbugs/issue6750.go              |  2 +-
+ 4 files changed, 33 insertions(+), 24 deletions(-)

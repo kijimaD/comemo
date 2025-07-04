@@ -1,0 +1,16 @@
+commit 109c7bbf8f4d78896e383db08c33d5ae91f7a86b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 12 21:25:14 2023 -0800
+
+    cmd/link: use symbolic offset for ITab.Type
+    
+    Change-Id: If04c24d5209cd241e300ce714efdd0e0dde61af2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549456
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/rttype/rttype.go | 3 +++
+ src/cmd/link/internal/ld/decodesym.go     | 2 +-
+ src/internal/abi/compiletype.go           | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

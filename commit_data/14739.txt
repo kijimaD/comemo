@@ -1,0 +1,12 @@
+commit fcc5cf639ef110eb7e845f3782eb82d2c897d693
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 24 03:48:17 2012 +0800
+
+    doc/articles/wiki/test.bash: suppress unnecessary output
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7000045
+
+ doc/articles/wiki/test.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

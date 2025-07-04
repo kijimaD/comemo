@@ -1,0 +1,31 @@
+commit 6508fdad9d83d6792314639c9819a15894728682
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 8 21:07:02 2021 +0000
+
+    runtime: formalize and fix gcPercent synchronization
+    
+    Currently gcController.gcPercent is read non-atomically by
+    gcControllerState.revise and gcTrigger.test, but these users may
+    execute concurrently with an update to gcPercent.
+    
+    Although revise's results are best-effort, reading it directly in this
+    way is, generally speaking, unsafe.
+    
+    This change makes gcPercent atomically updated for concurrent readers
+    and documents the complete synchronization semantics.
+    
+    Because gcPercent otherwise only updated with the heap lock held or the
+    world stopped, all other reads can remain unsynchronized.
+    
+    For #44167.
+    
+    Change-Id: If09af103aae84a1e133e2d4fed8ab888d4b8f457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308690
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 2 +-
+ src/runtime/mgcpacer.go | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

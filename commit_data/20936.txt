@@ -1,0 +1,18 @@
+commit 0f2db8217471d01fa5fa525242eeb8ca17674e36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 8 22:05:57 2014 +1100
+
+    doc: add CONRIBUTORS.md
+    
+    This file is known to GitHub and will be linked prominently when
+    potential contributors try to open pull requests.
+    
+    Here's how it should appear:
+            https://gist.github.com/adg/e0ffcc922a32f20af3db
+    
+    Change-Id: I41c5aadf284a0a24c485f96b7fe2caa338ad1e4f
+    Reviewed-on: https://go-review.googlesource.com/1178
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ CONTRIBUTING.md | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

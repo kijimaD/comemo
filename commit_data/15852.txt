@@ -1,0 +1,22 @@
+commit d3c758d7d2a29f86d4d75bc29363532c6b8c49b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 17:11:09 2013 -0400
+
+    cmd/gc: implement method values
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/7546052
+
+ src/cmd/5g/gsubr.c     |  20 +---
+ src/cmd/6g/gsubr.c     |  16 +--
+ src/cmd/8g/gsubr.c     |  16 +--
+ src/cmd/gc/closure.c   | 176 ++++++++++++++++++++++++++---
+ src/cmd/gc/gen.c       |   5 +-
+ src/cmd/gc/go.h        |   8 +-
+ src/cmd/gc/inl.c       |   2 +-
+ src/cmd/gc/subr.c      |  14 +++
+ src/cmd/gc/typecheck.c |  13 ++-
+ src/cmd/gc/walk.c      |  27 +++--
+ test/method5.go        | 297 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 524 insertions(+), 70 deletions(-)

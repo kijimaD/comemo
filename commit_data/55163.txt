@@ -1,0 +1,16 @@
+commit 6111acc8e6bc96f5ca0fa58adf4a0226fff3dd28
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Nov 28 16:07:01 2023 -0500
+
+    go/types: include AST in instantiatedIdent panic message
+    
+    Updates golang/go#63933
+    
+    Change-Id: I3ff71e92d124c850eb8b4d136e163bf5786897a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

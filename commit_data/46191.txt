@@ -1,0 +1,32 @@
+commit 6a35e075126f4f78d50f236856fc5ba759616ee7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 15:41:11 2021 -0700
+
+    cmd/compile: fix stenciling of conversions between interfaces
+    
+    Conversions need to allow nil through.
+    We do that using a CONVIFACE instead of a DOTTYPE.
+    
+    Also reorganize how nonempty interfaces are handled.
+    For nonempty to empty, a simple CONVIFACE suffices.
+    For nonempty to nonempty, we need to call the runtime to get the
+    new itab. Use the entry from the dictionary to identify the
+    target interface type (if parameterized).
+    
+    Fixes #47925
+    
+    Change-Id: I4ffeed964318bb3e270b06f558e6ab9c5bfc7188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344830
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 64 +++++++++++++++++++++++--------
+ test/typeparam/eface.go                   | 10 ++---
+ test/typeparam/issue47925.go              | 20 ++++++++++
+ test/typeparam/issue47925b.go             | 33 ++++++++++++++++
+ test/typeparam/issue47925c.go             | 36 +++++++++++++++++
+ test/typeparam/issue47925d.go             | 47 +++++++++++++++++++++++
+ 6 files changed, 187 insertions(+), 23 deletions(-)

@@ -1,0 +1,13 @@
+commit 0932b1f9b8e9b6e9b499a84702d632b9feac2ee6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 14:22:37 2009 -0700
+
+    move pragtextflag into lexbody
+    
+    R=ken
+    OCL=26581
+    CL=26587
+
+ src/cmd/6a/lex.c   | 7 -------
+ src/cmd/cc/lexbody | 7 +++++++
+ 2 files changed, 7 insertions(+), 7 deletions(-)

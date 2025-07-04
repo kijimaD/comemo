@@ -1,0 +1,28 @@
+commit 05cd6cbb98a78f04fcfe018527fc8a50364bd0ee
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Apr 7 06:15:59 2023 +1000
+
+    cmd/asm,cmd/internal/obj/x86: add RDPID instruction to x86 assembler
+    
+    Add support for the Read Processor ID (RDPID) instruction to the x86
+    assembler. This returns the current logical processor's ID in the
+    specified register, as a faster alternative to RDTSCP.
+    
+    Fixes #56525
+    
+    Change-Id: I43482e42431dfc385ce2e7f6d44b9746b0cc4548
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482955
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/asm/internal/asm/testdata/386enc.s         | 3 +++
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 4 ++++
+ src/cmd/asm/internal/asm/testdata/amd64error.s     | 3 +++
+ src/cmd/internal/obj/x86/aenum.go                  | 1 +
+ src/cmd/internal/obj/x86/anames.go                 | 1 +
+ src/cmd/internal/obj/x86/asm6.go                   | 3 ++-
+ src/cmd/internal/obj/x86/obj6.go                   | 1 +
+ 7 files changed, 15 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit a918c2c6d82c115fdcbc14e7ae754b3c278c1ae4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:27:48 2014 +0900
+
+    syscall: add Accept4 for freebsd
+    
+    Update #7186
+    Update #7428
+    
+    LGTM=r, bradfitz
+    R=golang-codereviews, rsc, minux.ma, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68880043
+
+ src/pkg/syscall/syscall_freebsd.go        | 19 +++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 11 +++++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 11 +++++++++++
+ src/pkg/syscall/zsyscall_freebsd_arm.go   | 11 +++++++++++
+ 4 files changed, 52 insertions(+)

@@ -1,0 +1,16 @@
+commit b9f8b9c43a1b15fe5d31a80fa4873944fcd821d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 26 13:38:38 2008 -0700
+
+    - fixed Go statement syntax (only notational change)
+    - simplified Assignment syntax (only notational change)
+    - added TODOs
+    - made old text invisible by moving it into HTML comment
+    
+    R=r
+    DELTA=107  (4 added, 95 deleted, 8 changed)
+    OCL=15972
+    CL=15987
+
+ doc/go_spec.txt | 111 +++++---------------------------------------------------
+ 1 file changed, 10 insertions(+), 101 deletions(-)

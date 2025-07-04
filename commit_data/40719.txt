@@ -1,0 +1,28 @@
+commit 78d4560793de65e21199d3c80e9c901833bdaeba
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sat Nov 9 16:02:46 2019 -0500
+
+    cmd/go/internal/lockedfile, os: fix O_CREATE flag on Plan 9
+    
+    os.OpenFile was assuming that a failed syscall.Open means the file does
+    not exist and it tries to create it. However, syscall.Open may have
+    failed for some other reason, such as failing to lock a os.ModeExclusive
+    file. We change os.OpenFile to only create the file if the error
+    indicates that the file doesn't exist.
+    
+    Remove skip of TestTransform test, which was failing because sometimes
+    syscall.Open would fail due to the file being locked, but the
+    syscall.Create would succeed because the file is no longer locked. The
+    create was truncating the file.
+    
+    Fixes #35471
+    
+    Change-Id: I06583b5f8ac33dc90a51cc4fb64f2d8d9c0c2113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206299
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/lockedfile/transform_test.go | 6 ------
+ src/os/file_plan9.go                             | 2 +-
+ 2 files changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit c4311a47a0cb97f85e045a6d8f7c284cb6866da9
+Author: Than McIntosh <thanm@google.com>
+Date:   Sat May 7 09:24:05 2022 -0400
+
+    internal/cpu: revise test to make it work properly with -cover
+    
+    Fix up a test to insure that it does the right thing when
+    "go test -cover" is in effect.
+    
+    Fixes #52761.
+    
+    Change-Id: I0c141181e2dcaefd592fb04813f812f2800511da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404715
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/cpu/cpu_test.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

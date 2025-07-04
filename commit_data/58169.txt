@@ -1,0 +1,14 @@
+commit 2c02b4a2529528ddcbea493d179e8e766cba9ddb
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 20 08:25:20 2024 -0800
+
+    runtime: remove unused casgcopystack function
+    
+    Change-Id: I349b24ba5259d7abb0ae37065f704517aa4decda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630155
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

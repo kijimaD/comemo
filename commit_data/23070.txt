@@ -1,0 +1,18 @@
+commit 362a40e37da849696e1af6874d0d5f1275a1a386
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu May 7 21:29:47 2015 +1200
+
+    misc/cgo/testshared: rewrite in Go
+    
+    And fix to work on filesystems with only 1s resolution.
+    
+    Fixes #10724
+    
+    Change-Id: Ia07463f090b4290fc27f5953fa94186463d7afc7
+    Reviewed-on: https://go-review.googlesource.com/9768
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 364 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/testshared/test.bash      | 137 --------------
+ src/cmd/dist/test.go               |   2 +-
+ 3 files changed, 365 insertions(+), 138 deletions(-)

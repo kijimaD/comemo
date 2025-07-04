@@ -1,0 +1,25 @@
+commit 57b0d838ed2e0c128dfc480fee3b5c43309d3369
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 20 10:25:19 2021 +0200
+
+    net: pass MSG_CMSG_CLOEXEC in ReadMsgUnix on dragonfly, netbsd and openbsd
+    
+    Add support for passing MSG_CMSG_CLOEXEC to the recvmsg syscall on
+    dragonfly, netbsd and openbsd. MSG_CMSG_CLOEXEC on freebsd is currently
+    broken, see https://reviews.freebsd.org/D29328.
+    
+    Change-Id: Ie4c6e3cb550cd0ae32a1c2acca12edf77569e96a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311570
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock_posix.go                                     |  2 +-
+ ...{unixsock_readmsg_posix.go => unixsock_readmsg_cloexec.go} |  8 +++-----
+ ...sock_readmsg_linux.go => unixsock_readmsg_cmsg_cloexec.go} | 11 ++++-------
+ src/net/unixsock_readmsg_other.go                             |  3 +--
+ src/syscall/zerrors_dragonfly_amd64.go                        |  1 +
+ src/syscall/zerrors_openbsd_386.go                            |  1 +
+ src/syscall/zerrors_openbsd_amd64.go                          |  1 +
+ 7 files changed, 12 insertions(+), 15 deletions(-)

@@ -1,0 +1,24 @@
+commit cfe7f21dd55fca8250c34bae8837d241f4a9876e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Feb 13 15:34:26 2024 -0800
+
+    log/slog: document atomicity guarantees and ordering limitations of handlers
+    
+    The new wording is slightly more strict than before in that
+    it guarantees each Write only contains exactly one Record,
+    while the previous wording opened up the possibility for
+    multiple Records in a Write call.
+    
+    We also add a comment about the lack of sorting guarantees for
+    concurrently logged Records. That is, the obtained lock only covers
+    the Write call, rather than the combination of the call to time.Now,
+    JSON/text serialization, and also the Write call.
+    
+    Change-Id: Ia65c50579215a35a1f5b2952c6954ddb60e7fe66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563976
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/doc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

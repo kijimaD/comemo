@@ -1,0 +1,20 @@
+commit d91e9705f87da8b939a6e074ebaa0de6b0340541
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 6 21:45:55 2018 -0700
+
+    runtime: avoid unnecessary scanblock calls
+    
+    This is the scanstack analog of CL 104737,
+    which made a similar change for copystack.
+    
+    name         old time/op  new time/op  delta
+    ScanStack-8  41.1ms ± 6%  38.9ms ± 5%  -5.52%  (p=0.000 n=50+48)
+    
+    Change-Id: I7427151dea2895ed3934f8a0f61d96b568019217
+    Reviewed-on: https://go-review.googlesource.com/105536
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

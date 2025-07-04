@@ -1,0 +1,17 @@
+commit 27be2915f361d1c7904c61f492c1471dea41c2cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 13 15:18:56 2010 -0800
+
+    Distinguish between html generation and html quoting in godoc formatters.
+    Replacement for CL 184084; originally by Roger Peppe (rogpeppe@gmail.com).
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/189059
+
+ lib/godoc/dirlist.html |  2 +-
+ lib/godoc/godoc.html   |  2 +-
+ lib/godoc/package.html | 14 +++++++-------
+ lib/godoc/search.html  |  8 ++++----
+ src/cmd/godoc/godoc.go |  9 +++++++++
+ 5 files changed, 22 insertions(+), 13 deletions(-)

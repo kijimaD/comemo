@@ -1,0 +1,14 @@
+commit 28852c15312fefac1cd962681686f7f635041873
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 3 16:29:34 2010 -0700
+
+    io/ioutil: add TempFile
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1472042
+
+ src/pkg/io/ioutil/Makefile         |  1 +
+ src/pkg/io/ioutil/tempfile.go      | 63 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/io/ioutil/tempfile_test.go | 29 ++++++++++++++++++
+ 3 files changed, 93 insertions(+)

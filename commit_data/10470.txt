@@ -1,0 +1,18 @@
+commit 2e9d7a6d1cf16f80fec288cad0af03601f00e331
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 09:41:25 2011 -0500
+
+    gofix: test and fix missorted renames
+    
+    Also introduce a new insertion heuristic:
+    insert new import next to existing import
+    with the longest matching prefix.
+    
+    R=golang-dev, adg, gri
+    CC=golang-dev
+    https://golang.org/cl/5412053
+
+ src/cmd/gofix/fix.go               | 76 +++++++++++++++++++++++++-------------
+ src/cmd/gofix/go1pkgrename_test.go | 27 ++++++++++++++
+ src/cmd/gofix/import_test.go       | 47 ++++++++++++++++++++---
+ 3 files changed, 119 insertions(+), 31 deletions(-)

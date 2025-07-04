@@ -1,0 +1,19 @@
+commit 831573cd21e65c37b4e1bf5d44dc23b125084b7a
+Author: Adam Mitha <adam.mitha@gmail.com>
+Date:   Thu May 13 20:52:41 2021 -0700
+
+    io/fs: added an example for io/fs.WalkDir
+    
+    The documentation currently does not show how to get an `FS` instance for the operating system's filesystem. This example demonstrates how to accomplish this using the `os` package.
+    
+    Fixes #46083
+    
+    Change-Id: I053111c12ab09ef13f0d04fcdff8a6ea0dccf379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319989
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/fs/example_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

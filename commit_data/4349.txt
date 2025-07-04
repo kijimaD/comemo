@@ -1,0 +1,13 @@
+commit cdce7325c80aadb481ed431f0ac847122ff0ea6e
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Tue Dec 8 18:18:04 2009 -0800
+
+    When SA_SIGINFO is set, we should use __sa_sigaction on FreeBSD
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/165097
+
+ src/pkg/runtime/freebsd/386/signal.c   | 4 ++--
+ src/pkg/runtime/freebsd/amd64/signal.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

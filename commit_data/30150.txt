@@ -1,0 +1,19 @@
+commit 0c9325e13d5d9e2ab7459522e3556f6f44cbcb10
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:47:34 2017 -0800
+
+    crypto/tls: document that only tickets are supported.
+    
+    This change clarifies that only ticket-based resumption is supported by
+    crypto/tls. It's not clear where to document this for a server,
+    although perhaps it's obvious there because there's nowhere to plug in
+    the storage that would be needed by SessionID-based resumption.
+    
+    Fixes #18607
+    
+    Change-Id: Iaaed53e8d8f2f45c2f24c0683052df4be6340922
+    Reviewed-on: https://go-review.googlesource.com/36560
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

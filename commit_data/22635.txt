@@ -1,0 +1,17 @@
+commit 873483c682747e8ce881c1bf8ac4428a01836324
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 10:20:36 2015 -0700
+
+    cmd/internal/obj: reuse the varint encoding buffer
+    
+    This reduces the number of allocations in the compiler
+    while building the stdlib by 15.66%.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: Ia21b37134a8906a4e23d53fdc15235b4aa7bbb34
+    Reviewed-on: https://go-review.googlesource.com/9085
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/objfile.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

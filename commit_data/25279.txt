@@ -1,0 +1,64 @@
+commit 24a83d35453e29087c4d63954bb8c78a982fc207
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 22:21:48 2015 +0000
+
+    net: add Dialer.Cancel to cancel pending dials
+    
+    Dialer.Cancel is a new optional <-chan struct{} channel whose closure
+    indicates that the dial should be canceled. It is compatible with the
+    x/net/context and http.Request.Cancel types.
+    
+    Tested by hand with:
+    
+    package main
+    
+        import (
+                "log"
+                "net"
+                "time"
+        )
+    
+        func main() {
+                log.Printf("start.")
+                var d net.Dialer
+                cancel := make(chan struct{})
+                time.AfterFunc(2*time.Second, func() {
+                        log.Printf("timeout firing")
+                        close(cancel)
+                })
+                d.Cancel = cancel
+                c, err := d.Dial("tcp", "192.168.0.1:22")
+                if err != nil {
+                        log.Print(err)
+                        return
+                }
+                log.Fatalf("unexpected connect: %v", c)
+        }
+    
+    Which says:
+    
+        2015/12/14 22:24:58 start.
+        2015/12/14 22:25:00 timeout firing
+        2015/12/14 22:25:00 dial tcp 192.168.0.1:22: operation was canceled
+    
+    Fixes #11225
+    
+    Change-Id: I2ef39e3a540e29fe6bfec03ab7a629a6b187fcb3
+    Reviewed-on: https://go-review.googlesource.com/17821
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dial.go            |  7 ++++-
+ src/net/dial_test.go       | 66 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/fd_unix.go         | 20 +++++++++++++-
+ src/net/fd_windows.go      | 32 +++++++++++++++++++---
+ src/net/iprawsock_posix.go |  4 +--
+ src/net/ipsock_posix.go    |  4 +--
+ src/net/net.go             | 11 +++++++-
+ src/net/sock_posix.go      |  8 +++---
+ src/net/tcpsock_plan9.go   |  5 ++--
+ src/net/tcpsock_posix.go   | 10 +++----
+ src/net/udpsock_posix.go   |  6 ++---
+ src/net/unixsock_posix.go  |  2 +-
+ 12 files changed, 147 insertions(+), 28 deletions(-)

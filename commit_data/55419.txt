@@ -1,0 +1,25 @@
+commit 1a07550962a9f0123284a0efbe11c486fb1a452e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 16:45:04 2023 -0500
+
+    net: unskip and attempt to deflake TestAcceptTimeout
+    
+    This test has been unconditionally skipped for over five years.
+    It may be that whatever was causing it to flake has been fixed.
+    And if it hasn't been fixed, it isn't providing any value.
+    Let's unskip it for the Go 1.23 development cycle and see what happens.
+    
+    Let's also use a separate listener for each test case, so that a
+    leaked Dial goroutine from one case won't interfere with the other.
+    
+    Fixes #17948 (maybe).
+    
+    Change-Id: I239f22ca5d5a44388b9aa0ed4d81e451c6342617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548940
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/timeout_test.go | 100 ++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 50 deletions(-)

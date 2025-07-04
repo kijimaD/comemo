@@ -1,0 +1,15 @@
+commit a19ab9d1ccb038df9e564f10d2f688499c864698
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 02:01:58 2012 -0500
+
+    cmd/dist: fix arm build
+    
+    5l does not use the whole set of ld files
+    like the other linkers do.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5629052
+
+ src/cmd/dist/build.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

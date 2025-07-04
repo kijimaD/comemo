@@ -1,0 +1,17 @@
+commit 2bf91afd2bef0e95229da4f6d42e5ffc9aee85a9
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Oct 18 15:45:36 2015 -0700
+
+    crypto/cipher: fix CTR infinite loop with large block sizes
+    
+    Additionally, add a test for CTR mode to cover a range of block sizes.
+    
+    Fixes #12975
+    
+    Change-Id: I458aac1616228747e62f92f823768d55e874877a
+    Reviewed-on: https://go-review.googlesource.com/16050
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/cipher/ctr.go      |  5 +---
+ src/crypto/cipher/ctr_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 4 deletions(-)

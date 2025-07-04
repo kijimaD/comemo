@@ -1,0 +1,15 @@
+commit 2184282308566ad6fd445ea55ab755019e360d77
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 09:43:56 2013 -0700
+
+    cmd/api: don't print out except.txt removed features to stdout
+    
+    It's just noise. They've already been acknowledged in except.txt.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9392047
+
+ src/cmd/api/goapi.go      | 7 ++++++-
+ src/cmd/api/goapi_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

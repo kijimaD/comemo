@@ -1,0 +1,18 @@
+commit 7145f1c7c7dcd4506f2819166f073e92f57afbb7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 27 17:05:48 2018 +0900
+
+    cmd/compile: minor updates to the README
+    
+    Use an HTML comment with triple dashes for the copypright header, which
+    means that the paragraph will be ignored when rendering both HTML and
+    TeX.
+    
+    While at it, quote "GC", and properly link to internal/ssa/README.md.
+    
+    Change-Id: Ib18529d2fc777d836e74726ff1cfe685e08b063c
+    Reviewed-on: https://go-review.googlesource.com/109875
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/README.md | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

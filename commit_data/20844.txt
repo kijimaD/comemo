@@ -1,0 +1,14 @@
+commit 6a0a47539072b8ba4a7cfa585e4a0d71fba8c4c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 1 08:27:55 2014 -0700
+
+    A+C: add Benoit Sigoure (individual CLA)
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/164410043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

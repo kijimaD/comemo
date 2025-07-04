@@ -1,0 +1,22 @@
+commit 4346ba34df6b830b629f716002ce83d2e9c41288
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 9 13:36:17 2023 -0800
+
+    go/types, types2: always run tests with and without _Alias nodes enabled
+    
+    In manual mode, _Alias nodes are disabled by default and can be
+    enabled with a line comment (// -alias) at the start of a file.
+    
+    Follow-up on feedback for CL 521956.
+    
+    Change-Id: I937eb2e58e9e96fa6785ac45ca19e6328d2bd1fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541295
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 60 ++++++++++++++-----------
+ src/go/types/check_test.go                    | 65 ++++++++++++++++-----------
+ 2 files changed, 73 insertions(+), 52 deletions(-)

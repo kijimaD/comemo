@@ -1,0 +1,25 @@
+commit d0c11577b9c6d584959aceddf97266b9cbc336d0
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 21 20:43:14 2016 -0800
+
+    cmd/compile: inline {i,e}facethash
+    
+    These functions are really simple, the overhead of calling
+    them (in both time and code size) is larger than the inlined versions.
+    
+    Reorganize how the nil case in a type switch is handled, as we have
+    to check for nil explicitly now anyway.
+    
+    Saves about 0.8% in the binary size of the go tool.
+    
+    Change-Id: I8501b62d72fde43650b79f52b5f699f1fbd0e7e7
+    Reviewed-on: https://go-review.googlesource.com/19814
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |  2 -
+ src/cmd/compile/internal/gc/builtin/runtime.go |  2 -
+ src/cmd/compile/internal/gc/swt.go             | 76 ++++++++++++++++++--------
+ src/runtime/iface.go                           | 16 ------
+ 4 files changed, 53 insertions(+), 43 deletions(-)

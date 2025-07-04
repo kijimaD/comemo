@@ -1,0 +1,13 @@
+commit 1ca99c84f8fd70129d970758b35f05857333cc02
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 27 16:47:42 2010 -0700
+
+    golang.org: added Resources page, re-organized left hand panel.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1309045
+
+ doc/go_learning.html | 141 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ lib/godoc/godoc.html |  25 +++++----
+ 2 files changed, 156 insertions(+), 10 deletions(-)

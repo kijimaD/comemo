@@ -1,0 +1,19 @@
+commit 5680874e0c633e368b40ccc9534e5125375d89cb
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Nov 26 16:11:18 2018 +0100
+
+    test: fix nilptr5 for AIX
+    
+    This commit fixes a mistake made in CL 144538.
+    This nilcheck can be removed because OpPPC64LoweredMove will fault if
+    arg0 is nil, as it's used to store. Further information can be found in
+    cmd/compile/internal/ssa/nilcheck.go.
+    
+    Change-Id: Ifec0080c00eb1f94a8c02f8bf60b93308e71b119
+    Reviewed-on: https://go-review.googlesource.com/c/151298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/nilptr5_aix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

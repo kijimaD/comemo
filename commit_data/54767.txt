@@ -1,0 +1,14 @@
+commit 3839447ac39b1c49cb14833f0832e5f934e5bf6b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 20 09:41:39 2023 -0400
+
+    doc: add missing space in godebug.md
+    
+    Change-Id: I941b6397e2f09a4abb30c0caf91cc2ff2212a445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

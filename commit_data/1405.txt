@@ -1,0 +1,16 @@
+commit 2d259c817a5edda82a98befd49212f3e47eac5e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 5 17:32:23 2009 -0800
+
+    add comments and delete dead code
+    
+    R=ken
+    OCL=22078
+    CL=22080
+
+ src/cmd/6g/cgen.c  |  29 +++++++++++
+ src/cmd/6g/gen.c   | 143 +++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/6g/gg.h    |   3 +-
+ src/cmd/6g/gsubr.c |  72 +++++++++++++++++----------
+ src/cmd/gc/go.h    |   2 +
+ 5 files changed, 185 insertions(+), 64 deletions(-)

@@ -1,0 +1,23 @@
+commit b6d115a583c42cb086de408471dc943ff6704cfb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 15:28:01 2015 -0700
+
+    runtime: on unexpected netpoll error, throw instead of looping
+    
+    The current code prints an error message and then tries to carry on.
+    This is not helpful for Go users: they see a message that means
+    nothing and that they can do nothing about.  In the only known case of
+    this message, in issue 11498, the best guess is that the netpoll code
+    went into an infinite loop.  Instead of doing that, crash the program.
+    
+    Fixes #11498.
+    
+    Change-Id: Idda3456c5b708f0df6a6b56c5bb4e796bbc39d7c
+    Reviewed-on: https://go-review.googlesource.com/12047
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/netpoll_epoll.go   | 7 +++----
+ src/runtime/netpoll_kqueue.go  | 7 +++----
+ src/runtime/netpoll_solaris.go | 7 ++-----
+ 3 files changed, 8 insertions(+), 13 deletions(-)

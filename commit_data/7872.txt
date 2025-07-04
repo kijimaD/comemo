@@ -1,0 +1,15 @@
+commit e480b81971790667048d68e728275e40cffa74ea
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri Mar 25 14:42:25 2011 -0400
+
+    net: add FileConn, FilePacketConn, FileListener
+    
+    R=iant, rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4306042
+
+ src/pkg/net/Makefile        |   4 ++
+ src/pkg/net/file.go         | 115 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/file_test.go    | 131 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/file_windows.go |  17 ++++++
+ 4 files changed, 267 insertions(+)

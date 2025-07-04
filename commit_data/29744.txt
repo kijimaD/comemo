@@ -1,0 +1,19 @@
+commit 6c9f600d4991f66f1ce621c4e2d9ea72d5188d34
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 5 14:10:46 2016 -0800
+
+    misc/cgo/test: ignore "too many open files" in issue 18146 test
+    
+    Seen on the OpenBSD/AMD64 builder:
+    https://build.golang.org/log/fa34df1bcd3af12d4fc0fb0e60e3c6197a2a6f75
+    
+    Update #18146.
+    
+    Change-Id: I2646621488be84d50f47c312baa0817c72e3c058
+    Reviewed-on: https://go-review.googlesource.com/33907
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue18146.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

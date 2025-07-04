@@ -1,0 +1,17 @@
+commit 3a6c0990a46e6261b872f32b4ffe37751c99ad14
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 18 11:54:36 2011 -0700
+
+    rpc: keep free lists of Request and Response structures.
+    Also in the common case avoid unnecessary buffering in
+    the channel.
+    Removes 13 allocations per round trip. Now at 86, down from
+    144 a week ago.
+    
+    R=rsc, bradfitzgo, r2, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4277060
+
+ src/pkg/rpc/client.go | 17 ++++++------
+ src/pkg/rpc/server.go | 76 ++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 72 insertions(+), 21 deletions(-)

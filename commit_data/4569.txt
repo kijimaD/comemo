@@ -1,0 +1,22 @@
+commit 93d81fb7476fb3b6aa428be7f55fa59ad1356ae0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 11 10:38:06 2010 -0800
+
+    Partial work-around for gofmt bug.
+    
+    Addresses some cases and respects position of
+    closing parenthesis; but doesn't work yet in
+    all cases. Heuristic; will need to be replaced
+    by a real solution eventually. Does not cause
+    existing code to be reformatted.
+    
+    R=r
+    CC=golang-dev, rsc
+    https://golang.org/cl/186043
+
+ src/pkg/go/printer/nodes.go                    | 48 ++++++++++++++------------
+ src/pkg/go/printer/printer.go                  |  2 +-
+ src/pkg/go/printer/testdata/expressions.golden | 28 ++++++++++++++-
+ src/pkg/go/printer/testdata/expressions.input  | 29 +++++++++++++++-
+ src/pkg/go/printer/testdata/expressions.raw    | 28 ++++++++++++++-
+ 5 files changed, 109 insertions(+), 26 deletions(-)

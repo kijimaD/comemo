@@ -1,0 +1,12 @@
+commit bfeb79bae5e27977d1b82e8ffa4bf08c0a9d33fa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 22 15:45:16 2013 -0700
+
+    doc/go1.1.html: blockprofile, method values, ListenUnixgram, etc.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/7496051
+
+ doc/go1.1.html | 91 +++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 75 insertions(+), 16 deletions(-)

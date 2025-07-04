@@ -1,0 +1,17 @@
+commit 084f2eafcdc55392cf8d32f58b417b9575de001d
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Sat Nov 10 00:01:14 2018 +0300
+
+    runtime: don't check _defer against nil twice
+    
+    This issue was found by the new vet's nilness check. _defer was already
+    checked against nil, so don't check it again.
+    
+    Change-Id: I78725eaec7234b262b3c941e06441ca57f82bdd9
+    Reviewed-on: https://go-review.googlesource.com/c/148917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/traceback.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

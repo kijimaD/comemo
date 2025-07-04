@@ -1,0 +1,26 @@
+commit 93d7d1685ee9e9f296e20f6c712796e54602e891
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:17:40 2020 +0000
+
+    runtime: load gcControllerState.scanWork atomically in revise
+    
+    gcControllerState.scanWork's docs state that it must be accessed
+    atomically during a GC cycle, but gcControllerState.revise does not do
+    this (even when called with the heap lock held).
+    
+    This change makes it so that gcControllerState.revise accesses scanWork
+    atomically and explicitly.
+    
+    Note that we don't update gcControllerState.revise's erroneous doc
+    comment here because this change isn't about revise's guarantees, just
+    about heap_scan. The comment is updated in a later change.
+    
+    Change-Id: Iafc3ad214e517190bfd8a219896d23da19f7659d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246961
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

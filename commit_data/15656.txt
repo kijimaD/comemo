@@ -1,0 +1,20 @@
+commit a8e55f8858da7e79ba3aafbde61a7326b411b3fe
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Sat Mar 9 14:54:56 2013 -0800
+
+    cmd/8l/obj.c: NetBSD passes the test, Hnetbsd added.
+    
+    myrtle$ go version
+    go version devel +d533352b414d Sat Mar 09 05:39:15 2013 +0100 netbsd/386
+    myrtle$ time go test -ldflags -hostobj ../misc/cgo/test
+    ok      _/var/project/GoLang/misc/cgo/test      10.962s
+       68.63s real    49.60s user    19.06s system
+    myrtle$ uname -a
+    NetBSD myrtle.plan9.local 6.0_BETA2 NetBSD 6.0_BETA2 (GENERIC) i386
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7641047
+
+ src/cmd/8l/obj.c | 1 +
+ 1 file changed, 1 insertion(+)

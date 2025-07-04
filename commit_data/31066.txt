@@ -1,0 +1,25 @@
+commit a5999b7b81b9dc875cc635e1b089d768ddd41a8c
+Author: George Gkirtsou <ggirtsou@gmail.com>
+Date:   Sun Apr 9 21:12:39 2017 +0100
+
+    os: more descriptive error for File.ReadAt and File.WriteAt with negative offset.
+    
+    The existing implementation does not provide a useful error message
+    if a negative offset is passed in File.ReadAt or File.WriteAt. This
+    change is to return descriptive errors. An error of type *PathError
+    is returned to keep it consistent with rest of the code.
+    
+    There is no need to add an exported error variable since it's used only
+    in one file.
+    
+    Fixes #19031
+    
+    Change-Id: Ib94cab0afae8c5fe4dd97ed2887018a09b9f4538
+    Reviewed-on: https://go-review.googlesource.com/39136
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file.go    | 11 +++++++++++
+ src/os/os_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

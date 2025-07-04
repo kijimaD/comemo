@@ -1,0 +1,32 @@
+commit 9582b6e8fd1b278e670987c7689920888191b14f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 20 21:28:02 2020 +0000
+
+    runtime: implement the spanSet data structure
+    
+    This change implements the spanSet data structure which is based off of
+    the gcSweepBuf data structure. While the general idea is the same (one
+    has two of these which one switches between every GC cycle; one to push
+    to and one to pop from), there are some key differences.
+    
+    Firstly, we never have a need to iterate over this data structure so
+    delete numBlocks and block. Secondly, we want to be able to pop from the
+    front of the structure concurrently with pushes to the back. As a result
+    we need to maintain both a head and a tail and this change introduces an
+    atomic headTail structure similar to the one used by sync.Pool. It also
+    implements popfirst in a similar way.
+    
+    As a result of this headTail, we need to be able to explicitly reset the
+    length, head, and tail when it goes empty at the end of sweep
+    termination, so add a reset method.
+    
+    Updates #37487.
+    
+    Change-Id: I5b8ad290ec32d591e3c8c05e496c5627018074f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221181
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mspanset.go | 232 +++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 172 insertions(+), 60 deletions(-)

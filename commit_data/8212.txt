@@ -1,0 +1,16 @@
+commit 4efdeeec51f873704cf787632dc350d15c670f2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 12:12:53 2011 -0400
+
+    codereview: various fixes
+    
+    Set mailed bit correctly for self-clpatch.
+    Use repo.rollback correctly.
+    Allow leading spaces in some C code.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4438064
+
+ lib/codereview/codereview.py | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

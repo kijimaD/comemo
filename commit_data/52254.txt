@@ -1,0 +1,17 @@
+commit 93b8995594457a6984382b81fd9d4033c039bd78
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 8 11:30:16 2023 +0100
+
+    os: correct func name in WriteFile godoc comment
+    
+    Change-Id: Ideb70ce04f49ff676c20c2e1f0b43f1d7a6665dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474355
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

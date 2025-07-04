@@ -1,0 +1,22 @@
+commit 20f052c83c380b8b3700b7aca93017178a692d78
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 19 21:07:46 2024 +1100
+
+    cmd/internal/obj/riscv: check immediate for rotation instructions
+    
+    Ensure that the immediate for a RORI or RORIW instruction are within range,
+    adding test coverage. Also use a consistent "immediate out of range" error
+    for both rotations and shifts.
+    
+    Change-Id: Id687d7c6e028786f607e9519bbb64dab62b6cf3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572735
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 28 ++++++++++++++----------
+ src/cmd/internal/obj/riscv/obj.go                | 18 ++++++++++++---
+ 2 files changed, 31 insertions(+), 15 deletions(-)

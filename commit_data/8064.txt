@@ -1,0 +1,12 @@
+commit 0be2ef3fc474f2716bf60114ddd2a0b481970460
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 11:18:38 2011 -0700
+
+    io: clarify that ReadAt shouldn't move the seek offset
+    
+    R=r, mkrautz, r2, rsc
+    CC=golang-dev
+    https://golang.org/cl/4415041
+
+ src/pkg/io/io.go | 4 ++++
+ 1 file changed, 4 insertions(+)

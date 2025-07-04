@@ -1,0 +1,22 @@
+commit d4896fb8766f8b7ac37ba421fbfbffb0f56ee8d4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 09:55:59 2014 +1100
+
+    cmd/cc, cmd/5c, cmd/6c, cmd/8c: introduce linkarchinit and add amd64p32 support
+    
+    Replaces CL 70000043.
+    
+    Introduce linkarchinit() from cmd/ld.
+    
+    For cmd/6c, switch to the amd64p32 linker model if we are building under nacl/amd64p32.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72010043
+
+ src/cmd/6c/txt.c | 11 +++++++++--
+ src/cmd/8c/txt.c |  8 +++++++-
+ src/cmd/cc/cc.h  |  1 +
+ src/cmd/cc/lex.c |  3 ++-
+ 4 files changed, 19 insertions(+), 4 deletions(-)

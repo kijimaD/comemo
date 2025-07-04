@@ -1,0 +1,14 @@
+commit ef99381676fb008d418720a1169184cea21f4bb6
+Author: azat <kaumov.a.r@gmail.com>
+Date:   Thu Nov 30 22:32:39 2017 +0300
+
+    os: Add example for Expand function.
+    
+    Change-Id: I581492c29158e57ca2f98b75f47870791965a7ff
+    Reviewed-on: https://go-review.googlesource.com/81155
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

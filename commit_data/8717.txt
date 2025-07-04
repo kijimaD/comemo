@@ -1,0 +1,16 @@
+commit 400d825ea0d0471f4b395eabde6b963835250ec3
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Tue Jun 14 11:29:51 2011 -0400
+
+    syscall: fix Plan 9 build.
+    Move mmapper from syscall.go to syscall_unix.go.
+    Remove Sendfile from syscall_plan9.go.
+    
+    R=rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4368060
+
+ src/pkg/syscall/syscall.go       | 65 ---------------------------------------
+ src/pkg/syscall/syscall_plan9.go |  5 ---
+ src/pkg/syscall/syscall_unix.go  | 66 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 70 deletions(-)

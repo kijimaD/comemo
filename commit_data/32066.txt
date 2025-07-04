@@ -1,0 +1,18 @@
+commit dc7fa5f6dbf1bc638d3c2b48ae394c6a2517d0ba
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Thu Jul 20 12:29:15 2017 -0400
+
+    cmd/go: fix test when go source tree has POSIX ACL
+    
+    Fixes TestGoBuildUmask when the user has a POSIX ACL on the Go source tree.
+    
+    Fixes #17909.
+    
+    Change-Id: I5bc19099af8353afd41071258f4f317612b4c8c1
+    Reviewed-on: https://go-review.googlesource.com/50370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_unix_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

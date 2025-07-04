@@ -1,0 +1,14 @@
+commit fc26cbacff12a2f81ab3cb4c55c00dfd0e8bb8ff
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jun 26 15:21:38 2019 -0400
+
+    doc/go1.13: describe new 'go version' behavior
+    
+    Change-Id: I18e2546f89e68e77d6e829acc997851751a44f0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183983
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

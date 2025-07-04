@@ -1,0 +1,34 @@
+commit 57c63e0fb2ec624f97153bcef8c0d014fe1653be
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 28 19:02:15 2019 +0200
+
+    math/bits: add Rem, Rem32, Rem64
+    
+    The Div functions in math/bits (Div, Div32, and Div64) compute both
+    quotients and remainders, but they panic if the quotients do not not
+    fit a 32/64 uint.
+    
+    Since, on the other hand, the remainder will always fit the size of
+    the divisor, it is useful to have Div variants that only compute the
+    remainder, and don't panic on a quotient overflow.
+    
+    This change adds to the math/bits package three new functions:
+    
+      Rem(hi, lo, y uint) uint
+      Rem32(hi, lo, y uint32) uint32
+      Rem64(hi, lo, y uint64) uint64
+    
+    which can be used to compute (hi,lo)%y even when the quotient
+    overflows the uint size.
+    
+    Fixes #28970
+    
+    Change-Id: I119948429f737670c5e5ceb8756121e6a738dbdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197838
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/bits/bits.go      | 31 ++++++++++++++++++++
+ src/math/bits/bits_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+)

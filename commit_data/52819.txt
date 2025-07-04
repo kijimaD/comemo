@@ -1,0 +1,40 @@
+commit 265d19ed526b6d6a01a20150918b362c1e6befba
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Tue Apr 25 14:48:00 2023 -0400
+
+    runtime/trace: avoid frame pointer unwinding for events during cgocallbackg
+    
+    The current mp.incgocallback() logic allows for trace events to be
+    recorded using frame pointer unwinding during cgocallbackg when they
+    shouldn't be. Specifically, mp.incgo will be false during the
+    reentersyscall call at the end. It's possible to crash with tracing
+    enabled because of this, if C code which uses the frame pointer register
+    for other purposes calls into Go. This can be seen, for example, by
+    forcing testprogcgo/trace_unix.c to write a garbage value to RBP prior
+    to calling into Go.
+    
+    We can drop the mp.incgo check, and instead conservatively avoid doing
+    frame pointer unwinding if there is any C on the stack. This is the case
+    if mp.ncgo > 0, or if mp.isextra is true (meaning we're coming from a
+    thread created by C). Rename incgocallback to reflect that we're
+    checking if there's any C on the stack. We can also move the ncgo
+    increment in cgocall closer to where the transition to C happens, which
+    lets us use frame pointer unwinding for the entersyscall event during
+    the first Go-to-C call on a stack, when there isn't yet any C on the
+    stack.
+    
+    Fixes #59830.
+    
+    Change-Id: If178a705a9d38d0d2fb19589a9e669cd982d32cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488755
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgocall.go | 9 ++++++++-
+ src/runtime/proc.go    | 4 ++--
+ src/runtime/trace.go   | 4 ++--
+ 3 files changed, 12 insertions(+), 5 deletions(-)

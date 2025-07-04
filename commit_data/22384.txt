@@ -1,0 +1,20 @@
+commit c844bf4cfc6bd05448b0c60aa01c07034d635384
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 19:44:14 2015 -0400
+
+    runtime: fix darwin/386, darwin/arm builds
+    
+    In cl/8652 I broke darwin/arm and darwin/386 because I removed the *g
+    parameter, which they both expect and use. This CL adjusts both ports
+    to look for g0 in m, just as darwin/amd64 does.
+    
+    Tested on darwin{386,arm,amd64}.
+    
+    Change-Id: Ia56f3d97e126b40d8bbd2e8f677b008e4a1badad
+    Reviewed-on: https://go-review.googlesource.com/8666
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin_386.s   | 16 ++++++++--------
+ src/runtime/sys_darwin_amd64.s | 12 ++++++------
+ src/runtime/sys_darwin_arm.s   | 15 +++++++--------
+ 3 files changed, 21 insertions(+), 22 deletions(-)

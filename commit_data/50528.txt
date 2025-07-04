@@ -1,0 +1,29 @@
+commit fc1cddcfe916eff82b7c6a0e82765e9b9fe29980
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 19 05:48:35 2022 +0000
+
+    Revert "runtime: treat SI_TKILL like SI_USER on Linux"
+    
+    This reverts CL 431255.
+    
+    Reason for revert: breaks darwin-arm and linux-noopt builders.
+    
+    Change-Id: I29332b935cc1e35fa039af3d70465e496361fcc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431715
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_cgo_test.go                  | 17 +--------
+ src/runtime/os_linux.go                        | 12 ------
+ src/runtime/os_linux_be64.go                   |  1 +
+ src/runtime/os_linux_generic.go                |  1 +
+ src/runtime/os_linux_mips64x.go                |  1 +
+ src/runtime/os_linux_mipsx.go                  |  1 +
+ src/runtime/os_unix_nonlinux.go                | 13 -------
+ src/runtime/signal_unix.go                     | 14 +++----
+ src/runtime/testdata/testprogcgo/segv.go       | 18 +++++----
+ src/runtime/testdata/testprogcgo/segv_linux.go | 51 --------------------------
+ 10 files changed, 22 insertions(+), 107 deletions(-)

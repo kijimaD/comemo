@@ -1,0 +1,17 @@
+commit 5fd8c9b5c5a0348317e49e6c58e34b9a6e00e91a
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Jan 22 16:43:53 2022 +1030
+
+    cmd/go: correct -trimpath docs for the standard library
+    
+    Fixes #50402
+    
+    Change-Id: Ic539afc1aef3906ef591b403eba0fde20a5ccef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380078
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/go/alldocs.go             | 5 ++---
+ src/cmd/go/internal/work/build.go | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

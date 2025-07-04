@@ -1,0 +1,23 @@
+commit f8f83e80b1218a1c49f7c85501ebe49ed993d2ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 17:47:59 2010 -0700
+
+    test/bench: import new fasta C reference, update Go, optimizations
+    
+    OLD fasta -n 25000000
+            gcc -O2 fasta.c 7.59u 0.06s 7.74r
+            gc fasta        9.54u 0.15s 9.84r
+            gc_B fasta      9.48u 0.10s 9.62r
+    
+    NEW fasta -n 25000000
+            gcc -O2 fasta.c 2.59u 0.02s 2.66r
+            gc fasta        3.00u 0.03s 3.09r
+            gc_B fasta      2.72u 0.03s 2.81r
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1054041
+
+ test/bench/fasta.c  | 300 ++++++++++++++++++++++++++++++----------------------
+ test/bench/fasta.go | 219 ++++++++++++++++++++++----------------
+ 2 files changed, 297 insertions(+), 222 deletions(-)

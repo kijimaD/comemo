@@ -1,0 +1,14 @@
+commit 2c1acc18f42ffd2412e0e1b9acc04fbc5ea7c0aa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 19:10:11 2013 +0200
+
+    test: correct sizeof.go.
+    
+    It would not pass on amd64 due to alignment of pointers.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9949043
+
+ test/sizeof.go | 54 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

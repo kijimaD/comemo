@@ -1,0 +1,15 @@
+commit 6e56fcedfb6338e0a75dadef190a1c342e837cf4
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Fri Feb 4 11:27:17 2022 -0800
+
+    internal/nettrace: fix spelling error
+    
+    Change-Id: Ibf51c0687197c0d791916b21cba7f8408aa5300a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383216
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Kevin Burke <kevin@burke.dev>
+
+ src/internal/nettrace/nettrace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

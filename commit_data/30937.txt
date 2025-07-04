@@ -1,0 +1,19 @@
+commit 3ebe7d7d110ba2573cfd597bb786d14749181cc3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 1 11:50:38 2017 -0500
+
+    runtime: pull heap profile cycle into a type
+    
+    Currently memRecord has the same set of four fields repeated three
+    times. Pull these into a type and use this type three times. This
+    cleans up and simplifies the code a bit and will make it easier to
+    switch to a globally tracked heap profile cycle for #19311.
+    
+    Change-Id: I414d15673feaa406a8366b48784437c642997cf2
+    Reviewed-on: https://go-review.googlesource.com/37713
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mprof.go | 74 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 36 insertions(+), 38 deletions(-)

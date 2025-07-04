@@ -1,0 +1,62 @@
+commit 8f70e1f8a91db6c8a1bcc292766af95e52e8512b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 3 01:24:19 2017 -0400
+
+    cmd/go: do not install dependencies during "go install"
+    
+    This CL makes "go install" behave the way many users expect:
+    install only the things named on the command line.
+    Future builds still run as fast, thanks to the new build cache (CL 75473).
+    To install dependencies as well (the old behavior), use "go install -i".
+    
+    Actual definitions aside, what most users know and expect of "go install"
+    is that (1) it installs what you asked, and (2) it's fast, unlike "go build".
+    It was fast because it installed dependencies, but installing dependencies
+    confused users repeatedly (see for example #5065, #6424, #10998, #12329,
+    "go build" and "go test" so that they could be "fast" too, but that only
+    created new opportunities for confusion. We also had to add -installsuffix
+    and then -pkgdir, to allow "fast" even when dependencies could not be
+    installed in the usual place.
+    
+    The recent introduction of precise content-based staleness logic means that
+    the go command detects the need for rebuilding packages more often than it
+    used to, with the consequence that "go install" rebuilds and reinstalls
+    dependencies more than it used to. This will create more new opportunities
+    for confusion and will certainly lead to more issues filed like the ones
+    listed above.
+    
+    CL 75743 introduced a build cache, separate from the install locations.
+    That cache makes all operations equally incremental and fast, whether or
+    not the operation is "install" or "build", and whether or not "-i" is used.
+    
+    Installing dependencies is no longer necessary for speed, it has confused
+    users in the past, and the more accurate rebuilds mean that it will confuse
+    users even more often in the future. This CL aims to end all that confusion
+    by not installing dependencies by default.
+    
+    By analogy with "go build -i" and "go test -i", which still install
+    dependencies, this CL introduces "go install -i", which installs
+    dependencies in addition to the things named on the command line.
+    
+    Fixes #5065.
+    Fixes #6424.
+    Fixes #10998.
+    Fixes #12329.
+    Fixes #18981.
+    Fixes #22469.
+    
+    Another step toward #4719.
+    
+    Change-Id: I3d7bc145c3a680e2f26416e182fa0dcf1e2a15e5
+    Reviewed-on: https://go-review.googlesource.com/75850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go |  4 +--
+ misc/cgo/testcshared/cshared_test.go   |  2 +-
+ src/cmd/dist/build.go                  |  4 +--
+ src/cmd/dist/test.go                   | 23 +++++++++++++---
+ src/cmd/go/go_test.go                  | 49 +++++++++++++++++++++++++++++----
+ src/cmd/go/internal/work/action.go     | 50 ++++++++++++++++++++++------------
+ src/cmd/go/internal/work/build.go      | 15 +++++++---
+ 7 files changed, 110 insertions(+), 37 deletions(-)

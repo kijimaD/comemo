@@ -1,0 +1,16 @@
+commit c86d4647348b420f55d4ce7572c4cd93b20a1d4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 29 10:24:05 2018 -0700
+
+    math/big: shallow copies of Int/Rat/Float are not supported (documentation)
+    
+    Fixes #28423.
+    
+    Change-Id: Ie57ade565d0407a4bffaa86fb4475ff083168e79
+    Reviewed-on: https://go-review.googlesource.com/c/145537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/float.go | 8 +++++++-
+ src/math/big/int.go   | 7 +++++++
+ src/math/big/rat.go   | 7 +++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

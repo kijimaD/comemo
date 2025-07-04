@@ -1,0 +1,25 @@
+commit ec77e75e5d5430e06ed22cc0886544b568d71687
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 13 16:59:51 2009 -0700
+
+    daily snapshot:
+    - various parser fixes to match updated spec (&&, &^=, label decls, const decls)
+    - using html template for directory and error page in doc server
+    - show compile errors inplace in the source
+    - cleanups
+    
+    R=rsc
+    OCL=26287
+    CL=26287
+
+ usr/gri/pretty/ast.go              |  21 +++----
+ usr/gri/pretty/compilation.go      |  94 +++++++++++++++----------------
+ usr/gri/pretty/dir_template.html   |  17 ++++++
+ usr/gri/pretty/error_template.html |  12 ++++
+ usr/gri/pretty/gds.go              | 111 +++++++++++++++++++++++++++----------
+ usr/gri/pretty/parser.go           |  62 +++++++++++----------
+ usr/gri/pretty/pretty.go           |   4 +-
+ usr/gri/pretty/printer.go          |  57 +++++++++----------
+ usr/gri/pretty/template.go         |  22 +++++++-
+ usr/gri/pretty/test.sh             |   2 +-
+ 10 files changed, 247 insertions(+), 155 deletions(-)

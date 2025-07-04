@@ -1,0 +1,12 @@
+commit d7a6a44deb3a56aa3f94b75f7ab4ffa1a0fa8cef
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Aug 25 10:38:50 2020 +0300
+
+    doc/asm: add BP is callee-save paragraph
+    
+    Change-Id: Id38e639c66a42acf0b1c4488cdfd0b7b6cf71c78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250397
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/asm.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

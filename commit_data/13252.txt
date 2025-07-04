@@ -1,0 +1,14 @@
+commit 911f802b37dec543caf7646fdc8987d4be299c5c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 3 06:49:57 2012 +0800
+
+    syscall: fix 32-bit uid calls
+            16-bit uid calls are not always supported in newer kernels.
+    
+    R=dave, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6279047
+
+ src/pkg/syscall/syscall_linux_arm.go  | 30 ++++++++++++++++--------------
+ src/pkg/syscall/zsyscall_linux_arm.go | 28 ++++++++++++++--------------
+ 2 files changed, 30 insertions(+), 28 deletions(-)

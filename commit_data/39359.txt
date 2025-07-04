@@ -1,0 +1,12 @@
+commit f2a4c139c1e0cff35f89e4b5a531d5dedc5ed8e0
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Jun 8 07:43:40 2019 -0400
+
+    errors: clarify doc for As
+    
+    Change-Id: I389d140e8fd2849e4dc438246add47819f6b25a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181300
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/errors/wrap.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

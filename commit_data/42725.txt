@@ -1,0 +1,16 @@
+commit 99d6e3eec2cad4387b28759322273d774cc94fe5
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Thu Jun 11 10:16:33 2020 +0800
+
+    internal/bytealg: use CBZ instructions
+    
+    Use CBZ to replace the comparison and jump to the zero instruction in the arm64 assembly file.
+    
+    Change-Id: Ie16fb52e27b4d327343e119ebc0f0ca756437bc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/bytealg/compare_arm64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

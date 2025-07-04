@@ -1,0 +1,20 @@
+commit 0194aaf9188a39110b4a00aeb7ca7ae39508b6c2
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Sep 5 19:50:34 2008 -0700
+
+    T{} syntax for constructors
+    T(expression) for conversion
+    FUNC keyword no longer a type
+    
+    R=r
+    OCL=14887
+    CL=14887
+
+ src/cmd/gc/go.y              | 184 +++++++++++++++++++++----------------------
+ test/bugs/bug088.dir/bug0.go |   6 +-
+ test/complit.go              |  24 +++---
+ test/fixedbugs/bug047.go     |   4 +-
+ test/fixedbugs/bug048.go     |   2 +-
+ test/ken/intervar.go         |   2 +-
+ test/ken/ptrfun.go           |   2 +-
+ 7 files changed, 112 insertions(+), 112 deletions(-)

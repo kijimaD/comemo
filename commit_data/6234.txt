@@ -1,0 +1,14 @@
+commit 5011c27018bf7fb5091c501cae71ab3dc6a59a6b
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 10 15:55:35 2010 -0400
+
+    crypto/tls: don't return an error from Close()
+    
+    Fixes #1037.
+    
+    R=adg, rsc1
+    CC=golang-dev
+    https://golang.org/cl/2107048
+
+ src/pkg/crypto/tls/conn.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

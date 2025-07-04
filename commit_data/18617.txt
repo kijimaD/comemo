@@ -1,0 +1,13 @@
+commit bb9531e11ba964fa5f8df2404fea8606a4a43b1d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:47:17 2014 +0400
+
+    time: use RunParallel in benchmarks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68060043
+
+ src/pkg/time/sleep_test.go | 23 +++++------------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)

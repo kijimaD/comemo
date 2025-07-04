@@ -1,0 +1,18 @@
+commit a9014ba4150b782ee10ab532752f97a7df26846e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 25 11:25:20 2014 +1100
+
+    math/cmplx: define Pow(0, x) for problematic values of x.
+    Currently it's always zero, but that is inconsistent with math.Pow
+    and also plain wrong.
+    This is a proposal for how it should be defined.
+    Fixes #7583.
+    
+    LGTM=rsc
+    R=golang-codereviews, iant, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/76940044
+
+ src/pkg/math/cmplx/cmath_test.go | 13 +++++++++++++
+ src/pkg/math/cmplx/pow.go        | 18 ++++++++++++++++++
+ 2 files changed, 31 insertions(+)

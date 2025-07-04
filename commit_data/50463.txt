@@ -1,0 +1,20 @@
+commit 242adb784cd64265ce803f6b0c59dbf126bcda9c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 10 01:43:16 2022 +0700
+
+    syscall: simplify unsafe.Slice usage
+    
+    Same as CL 429915.
+    
+    Change-Id: I83f4d3bd980294d5bae387d875368b069be2d91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 91dfae756e014c878bb1a501a6b8e892a88f1aef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 15 12:35:19 2011 +1000
+
+    gobuilder: respect MAKEFLAGS if provided
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4426041
+
+ misc/dashboard/builder/main.go | 1 +
+ 1 file changed, 1 insertion(+)

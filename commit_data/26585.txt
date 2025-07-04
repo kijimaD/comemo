@@ -1,0 +1,19 @@
+commit 777a77b4d29853e13dc803b2923bf88b498ed306
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 07:30:17 2016 -0700
+
+    cmd/compile: don't skip PPARAMOUT in esccall after varargs
+    
+    Fixes bug I introduced in CL 21202.
+    
+    Fixes #15013.
+    
+    Change-Id: I2344d7e22b8273425a0a56f4a77588b5c6e4d8c6
+    Reviewed-on: https://go-review.googlesource.com/21270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 25 +++++++++++++------------
+ test/fixedbugs/issue15013.go       | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 12 deletions(-)

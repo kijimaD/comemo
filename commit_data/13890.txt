@@ -1,0 +1,28 @@
+commit 85729503834e899324640023f2e969042ed647ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 21 00:35:56 2012 -0400
+
+    all: match asm variable names to Go func declarations
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6548046
+
+ src/pkg/bytes/asm_386.s           | 20 ++++++++---------
+ src/pkg/bytes/asm_amd64.s         | 24 ++++++++++----------
+ src/pkg/bytes/asm_arm.s           | 20 ++++++++---------
+ src/pkg/hash/crc32/crc32_amd64.go |  2 +-
+ src/pkg/hash/crc32/crc32_amd64.s  |  4 ++--
+ src/pkg/math/abs_arm.s            |  8 +++----
+ src/pkg/math/big/arith_386.s      | 18 +++++++--------
+ src/pkg/math/big/arith_amd64.s    | 18 +++++++--------
+ src/pkg/math/big/arith_arm.s      | 16 +++++++-------
+ src/pkg/math/frexp_386.s          | 12 +++++-----
+ src/pkg/math/hypot_386.s          | 46 +++++++++++++++++++--------------------
+ src/pkg/math/hypot_amd64.s        | 10 ++++-----
+ src/pkg/math/ldexp_386.s          |  6 ++---
+ src/pkg/math/modf_386.s           | 14 ++++++------
+ src/pkg/math/sincos_386.s         |  8 +++----
+ src/pkg/sync/atomic/asm_386.s     | 24 ++++++++++----------
+ src/pkg/sync/atomic/asm_amd64.s   | 14 ++++++------
+ 17 files changed, 132 insertions(+), 132 deletions(-)

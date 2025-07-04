@@ -1,0 +1,18 @@
+commit c23c8d58d694d03b6411f7cccad476f330cb5448
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 23 21:02:50 2015 +1200
+
+    cmd/compile: allow -shared/-dynlink on ppc64
+    
+    Only effect is register related: do not allocate R2 or R12, put function
+    entrypoint in R12 before indirect call.
+    
+    Change-Id: I9cdd553bab022601c9cb5bb43c9dc0c368c6fb0a
+    Reviewed-on: https://go-review.googlesource.com/15961
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go       |  4 +++-
+ src/cmd/compile/internal/ppc64/galign.go |  5 +++++
+ src/cmd/compile/internal/ppc64/gsubr.go  | 12 ++++++++++++
+ src/cmd/compile/internal/ppc64/reg.go    |  6 ++++++
+ 4 files changed, 26 insertions(+), 1 deletion(-)

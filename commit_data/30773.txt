@@ -1,0 +1,61 @@
+commit 01cd22c68792b659ca0912c104b14c86044110cb
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Sun Mar 19 12:18:08 2017 +0100
+
+    bytes: add optimized countByte for amd64
+    
+    Use SSE/AVX2 when counting a single byte.
+    Inspired from runtime indexbyte implementation.
+    
+    Benchmark against previous implementation, where
+    1 byte in every 8 is the one we are looking for:
+    
+    * On a machine without AVX2
+    name               old time/op   new time/op     delta
+    CountSingle/10-4    61.8ns ±10%     15.6ns ±11%    -74.83%  (p=0.000 n=10+10)
+    CountSingle/32-4     100ns ± 4%       17ns ±10%    -82.54%  (p=0.000 n=10+9)
+    CountSingle/4K-4    9.66µs ± 3%     0.37µs ± 6%    -96.21%  (p=0.000 n=10+10)
+    CountSingle/4M-4    11.0ms ± 6%      0.4ms ± 4%    -96.04%  (p=0.000 n=10+10)
+    CountSingle/64M-4    194ms ± 8%        8ms ± 2%    -95.64%  (p=0.000 n=10+10)
+    
+    name               old speed     new speed       delta
+    CountSingle/10-4   162MB/s ±10%    645MB/s ±10%   +297.00%  (p=0.000 n=10+10)
+    CountSingle/32-4   321MB/s ± 5%   1844MB/s ± 9%   +474.79%  (p=0.000 n=10+9)
+    CountSingle/4K-4   424MB/s ± 3%  11169MB/s ± 6%  +2533.10%  (p=0.000 n=10+10)
+    CountSingle/4M-4   381MB/s ± 7%   9609MB/s ± 4%  +2421.88%  (p=0.000 n=10+10)
+    CountSingle/64M-4  346MB/s ± 7%   7924MB/s ± 2%  +2188.78%  (p=0.000 n=10+10)
+    
+    * On a machine with AVX2
+    name               old time/op   new time/op     delta
+    CountSingle/10-8    37.1ns ± 3%      8.2ns ± 1%    -77.80%  (p=0.000 n=10+10)
+    CountSingle/32-8    66.1ns ± 3%      9.8ns ± 2%    -85.23%  (p=0.000 n=10+10)
+    CountSingle/4K-8    7.36µs ± 3%     0.11µs ± 1%    -98.54%  (p=0.000 n=10+10)
+    CountSingle/4M-8    7.46ms ± 2%     0.15ms ± 2%    -97.95%  (p=0.000 n=10+9)
+    CountSingle/64M-8    124ms ± 2%        6ms ± 4%    -95.09%  (p=0.000 n=10+10)
+    
+    name               old speed     new speed       delta
+    CountSingle/10-8   269MB/s ± 3%   1213MB/s ± 1%   +350.32%  (p=0.000 n=10+10)
+    CountSingle/32-8   484MB/s ± 4%   3277MB/s ± 2%   +576.66%  (p=0.000 n=10+10)
+    CountSingle/4K-8   556MB/s ± 3%  37933MB/s ± 1%  +6718.36%  (p=0.000 n=10+10)
+    CountSingle/4M-8   562MB/s ± 2%  27444MB/s ± 3%  +4783.43%  (p=0.000 n=10+9)
+    CountSingle/64M-8  543MB/s ± 2%  11054MB/s ± 3%  +1935.81%  (p=0.000 n=10+10)
+    
+    Fixes #19411
+    
+    Change-Id: Ieaf20b1fabccabe767c55c66e242e86f3617f883
+    Reviewed-on: https://go-review.googlesource.com/38258
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes.go                  |   5 +-
+ src/bytes/bytes_amd64.go            |  13 +++
+ src/bytes/bytes_amd64.s             | 183 ++++++++++++++++++++++++++++++++++++
+ src/bytes/bytes_generic.go          |   6 ++
+ src/bytes/bytes_s390x.go            |   6 ++
+ src/bytes/bytes_test.go             |  93 ++++++++++++++++++
+ src/bytes/export_test.go            |   1 +
+ src/cmd/vet/all/whitelist/amd64.txt |   1 +
+ src/runtime/asm_amd64.s             |  12 ++-
+ src/runtime/runtime2.go             |   1 +
+ 10 files changed, 317 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 85cbdda5a6d8525973580776c835e725452db898
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 14 15:40:44 2021 -0700
+
+    doc/go1.18: add release notes for build and VCS info
+    
+    Fixes #37475
+    For #39301
+    
+    Change-Id: I765bc667004931ff8973b947f2e95624a4a0375d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356013
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

@@ -1,0 +1,14 @@
+commit 56b3e5d644e737046d019516b577821b55f167fb
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Thu Jul 8 16:57:07 2010 +1000
+
+    io: fix SectionReader Seek to seek backwards
+    
+    Fixes #899.
+    
+    R=golang-dev, rminnich, adg
+    CC=golang-dev
+    https://golang.org/cl/1749041
+
+ src/pkg/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 78175474c4a93c2b18516d2127a160b83926c143
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 9 08:35:36 2019 +0200
+
+    strings: use Go style character range comparison in ToUpper/ToLower
+    
+    As noted by Brad in CL 170954 for package bytes.
+    
+    Change-Id: I2772a356299e54ba5b7884d537e6649039adb9be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171198
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

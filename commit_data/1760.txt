@@ -1,0 +1,16 @@
+commit 63985b489b2ad5307de221120df39fbeb66532eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 15:57:03 2009 -0800
+
+    bug085 bug129
+    
+    R=ken
+    OCL=25787
+    CL=25791
+
+ src/cmd/gc/go.y                    | 54 ++++++++++++++++++++++++++++++--------
+ src/cmd/gc/lex.c                   |  3 +++
+ test/{bugs => fixedbugs}/bug085.go |  0
+ test/{bugs => fixedbugs}/bug129.go |  0
+ test/golden.out                    | 12 +--------
+ 5 files changed, 47 insertions(+), 22 deletions(-)

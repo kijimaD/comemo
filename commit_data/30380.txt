@@ -1,0 +1,34 @@
+commit 1a680a902ada111a0d8122e12b42f5b437ba2566
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 15:57:57 2017 -0500
+
+    runtime/pprof: use new profile buffers for CPU profiling
+    
+    This doesn't change the functionality of the current code,
+    but it sets us up for exporting the profiling labels into the profile.
+    
+    The old code had a hash table of profile samples maintained
+    during the signal handler, with evictions going into a log.
+    The new code just logs every sample directly, leaving the
+    hash-based deduplication to an ordinary goroutine.
+    
+    The new code also avoids storing the entire profile in two
+    forms in memory, an unfortunate regression introduced
+    when binary profile support was added. After this CL the
+    entire profile is only stored once in memory. We'd still like
+    to get back down to storing it zero times (streaming it to
+    the underlying io.Writer).
+    
+    Change-Id: I0893a1788267c564aa1af17970d47377b2a43457
+    Reviewed-on: https://go-review.googlesource.com/36712
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/cpuprof.go             | 496 +++++++++----------------------------
+ src/runtime/pprof/pprof.go         |  34 +--
+ src/runtime/pprof/proto.go         | 180 ++++++++++----
+ src/runtime/pprof/proto_test.go    | 200 +++++++--------
+ src/runtime/pprof/protomem_test.go |  90 ++-----
+ src/runtime/proc.go                |  51 ++--
+ 6 files changed, 405 insertions(+), 646 deletions(-)

@@ -1,0 +1,21 @@
+commit 9c1f14f3763dbbc0d8105fa88c0b7bdad5674ee7
+Author: K. "pestophagous" Heller <pestophagous@gmail.com>
+Date:   Sun Aug 4 22:46:29 2019 -0700
+
+    doc/install-source: create distinction between steps that involve "git clone"
+    
+    Prior doc implied that "git clone" was one way to obtain a go1.4
+    bootstrap toochain, but it did not state this outright. Further,
+    the doc did not make it explicit in the "Fetch the repository"
+    section that one must necessarily "git clone" a second time in
+    the (presumed-to-be-uncommon) case where "git clone" had already
+    been perfomed in the "compiler binaries" section.
+    
+    Updates #33402
+    
+    Change-Id: Id70a6587b6ee09aca13559d63868b75cb07dff1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188900
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

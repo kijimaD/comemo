@@ -1,0 +1,14 @@
+commit a8ba40823c08508ca5f7562501a26bc2e85c88eb
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 17 18:21:47 2009 -0800
+
+    crypto/rsa: add PKCS#1 v1.5 signature support.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156051
+
+ src/pkg/crypto/rsa/pkcs1v15.go      | 128 ++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/pkcs1v15_test.go |  45 +++++++++++++
+ src/pkg/crypto/rsa/rsa.go           |   6 ++
+ 3 files changed, 179 insertions(+)

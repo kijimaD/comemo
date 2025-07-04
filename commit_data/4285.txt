@@ -1,0 +1,11 @@
+commit ccd026486abdd5d0844aab26fd7644b184fcd350
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 13:26:39 2009 -0800
+
+    Add copy to the list of predeclared functions.
+    
+    R=gri
+    https://golang.org/cl/164081
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

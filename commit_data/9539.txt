@@ -1,0 +1,14 @@
+commit 1075af0cce1fc706a5c1c0bfa5471e0d063399ce
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 29 11:07:19 2011 -0400
+
+    runtime: add openbsd 386 defs.h
+    
+    Missed in previous change (4951043).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4967044
+
+ src/pkg/runtime/openbsd/386/defs.h | 140 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)

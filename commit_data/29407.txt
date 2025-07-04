@@ -1,0 +1,37 @@
+commit e0178025978470e9f7b5fa9365891d20db809a7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 19:12:09 2016 +0000
+
+    cmd/vet: parallelize tests
+    
+    Was 2.3 seconds. Now 1.4 seconds.
+    
+    Next win would be not running a child process and refactoring main so
+    it could be called from tests easily. But that would also require
+    rewriting the errchk written in Perl. This appears to be the last user
+    of errchk in the tree.
+    
+    Updates #17751
+    
+    Change-Id: Id7c3cec76f438590789b994e756f55b5397be07f
+    Reviewed-on: https://go-review.googlesource.com/32754
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/testdata/{ => asm}/asm.go              |   0
+ src/cmd/vet/testdata/{ => asm}/asm1.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm2.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm3.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm4.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm5.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm6.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm7.s              |   0
+ src/cmd/vet/testdata/{ => buildtag}/buildtag.go    |   0
+ .../vet/testdata/{ => buildtag}/buildtag_bad.go    |   0
+ src/cmd/vet/testdata/{ => cgo}/cgo.go              |   0
+ src/cmd/vet/testdata/{ => cgo}/cgo2.go             |   0
+ src/cmd/vet/testdata/testingpkg/tests.go           |   1 +
+ .../vet/testdata/{ => testingpkg}/tests_test.go    |   0
+ src/cmd/vet/vet_test.go                            | 125 +++++++++++++++------
+ 15 files changed, 92 insertions(+), 34 deletions(-)

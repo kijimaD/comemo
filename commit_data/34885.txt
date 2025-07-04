@@ -1,0 +1,16 @@
+commit 8818b4d27e3a076ae779051cce4d5831581269a6
+Author: Ryan Slade <ryanslade@gmail.com>
+Date:   Thu Apr 5 13:27:44 2018 +0000
+
+    net/http: fix comment on LocalAddrContextKey
+    
+    Change-Id: Ibb793158a190758cebc00b58c12e3b8b106c0548
+    GitHub-Last-Rev: 6a6d949eb252ec6d3e76920fc2f50ef5ac3cdb5a
+    GitHub-Pull-Request: golang/go#24702
+    Reviewed-on: https://go-review.googlesource.com/104896
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

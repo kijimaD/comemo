@@ -1,0 +1,22 @@
+commit fd74a835bc6d7eb64c0a5de38a001b3bf5fa9719
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 21 17:53:50 2009 -0700
+
+    Add initial x509 code.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=659  (659 added, 0 deleted, 0 changed)
+    OCL=35932
+    CL=35975
+
+ src/pkg/Make.deps                |   1 +
+ src/pkg/Makefile                 |   1 +
+ src/pkg/crypto/rsa/rsa.go        |  37 +++++
+ src/pkg/crypto/x509/Makefile     |  11 ++
+ src/pkg/crypto/x509/x509.go      |  63 ++++++++
+ src/pkg/crypto/x509/x509_test.go |  52 +++++++
+ src/pkg/encoding/pem/Makefile    |  11 ++
+ src/pkg/encoding/pem/pem.go      | 160 +++++++++++++++++++
+ src/pkg/encoding/pem/pem_test.go | 323 +++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 659 insertions(+)

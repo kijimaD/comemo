@@ -1,0 +1,14 @@
+commit 0a969fa9832bf933a91cf11146b6ccc3fe68dca6
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 18:04:18 2009 -0700
+
+    Debugger's remote runtime definitions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=237  (237 added, 0 deleted, 0 changed)
+    OCL=33966
+    CL=34065
+
+ usr/austin/ogle/rruntime.go | 241 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 241 insertions(+)

@@ -1,0 +1,19 @@
+commit 1101a902fe7dba7285e88c94d73489cc2b7b2511
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Mar 18 12:15:55 2018 -0700
+
+    go/format: move example to external test file
+    
+    Per #11257 all examples should be in external test files.
+    
+    Additionally, doing so makes this example playable.
+    
+    Updates #24352. (Albeit tangentially).
+    
+    Change-Id: I77ab4655107f61db2e9d21a608b73ace3a230fb2
+    Reviewed-on: https://go-review.googlesource.com/101285
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/format/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/go/format/format_test.go  | 27 ---------------------------
+ 2 files changed, 39 insertions(+), 27 deletions(-)

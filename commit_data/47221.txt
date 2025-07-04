@@ -1,0 +1,29 @@
+commit 1f368d5b860b178bcbd55dfeb64474295263516b
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jul 12 09:25:04 2021 -0500
+
+    database/sql: use errors.Is when checking ErrBadConn
+    
+    When drivers return driver.ErrBadConn, no meaningful
+    information about what the cause of the problem is
+    returned. Ideally the driver.ErrBadConn would be
+    always caught with the retry loop, but this is not
+    always the case. Drivers today must choose between
+    returning a useful error and use the rety logic.
+    This allows supporting both.
+    
+    Fixes #47142
+    
+    Change-Id: I454573028f041dfdf874eed6c254fb194ccf6d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333949
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/driver/driver.go |  3 ++
+ src/database/sql/fakedb_test.go   | 27 +++++++++++----
+ src/database/sql/sql.go           | 69 +++++++++++++++++++++++----------------
+ src/database/sql/sql_test.go      |  2 +-
+ 4 files changed, 64 insertions(+), 37 deletions(-)

@@ -1,0 +1,21 @@
+commit faafcc606e9b2e19bd8d9829aa55603cb291b1a1
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 29 13:39:53 2018 +0100
+
+    cmd: allow build with gccgo on AIX
+    
+    This commit adapts cmd/internal/buildid and cmd/go to allow the use of
+    gccgo on AIX.
+    Buildid is supported only for AIX archives.
+    
+    Change-Id: I14c790a8994ae8d2ee629d8751e04189c30ffd94
+    Reviewed-on: https://go-review.googlesource.com/c/145417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/buildid.go | 13 +++---
+ src/cmd/go/internal/work/exec.go    |  8 +++-
+ src/cmd/go/internal/work/gccgo.go   | 38 +++++++++++++----
+ src/cmd/internal/buildid/buildid.go | 83 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 128 insertions(+), 14 deletions(-)

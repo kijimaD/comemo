@@ -1,0 +1,13 @@
+commit 02d184b3033a09120c5dcac239987e1605a6de87
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 13:00:10 2008 -0700
+
+    remove support for *T as an implicit declaration of T
+    
+    R=ken
+    OCL=16651
+    CL=16653
+
+ src/cmd/gc/dcl.c | 20 +++-----------------
+ src/cmd/gc/go.y  |  8 --------
+ 2 files changed, 3 insertions(+), 25 deletions(-)

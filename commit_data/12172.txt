@@ -1,0 +1,12 @@
+commit 3a6a1f9e7ecbbb33e7d20be621e1b41ce750b30d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 14:44:53 2012 -0500
+
+    go/parser: expand test cases for bad import
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5697047
+
+ src/pkg/go/parser/parser_test.go | 44 +++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)

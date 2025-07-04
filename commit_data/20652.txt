@@ -1,0 +1,14 @@
+commit 6e8f7b4f3e98deb90c8e2bc183b514c6780cb3a9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 6 22:22:47 2014 -0700
+
+    doc/go1.4.txt: useless change to tickle builders
+    
+    Debugging the builders and need a commit to make them run.
+    
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/149600043
+
+ doc/go1.4.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

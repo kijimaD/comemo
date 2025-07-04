@@ -1,0 +1,27 @@
+commit 5dda49037209290519f4881a0080caaef025bbd7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 22 11:01:29 2023 -0400
+
+    net/http: use testenv.Command instead of exec.Command in tests
+    
+    On Unix platforms, testenv.Command sends SIGQUIT to stuck commands
+    before the test times out. For subprocesses that are written in Go,
+    that causes the runtime to dump running goroutines, and in other
+    languages it triggers similar behavior (such as a core dump).
+    If the subprocess is stuck due to a bug (such as #57999), that may
+    help to diagnose it.
+    
+    For #57999.
+    
+    Change-Id: Ia2e9d14718a26001e030e162c69892497a8ebb21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521816
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/http/cgi/host_test.go | 5 +++--
+ src/net/http/fs_test.go       | 5 +++--
+ src/net/http/http_test.go     | 7 +++----
+ src/net/http/serve_test.go    | 3 +--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

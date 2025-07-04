@@ -1,0 +1,19 @@
+commit 0e7a2504224716fd233c07b7d19ed9fe317caa9c
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 12:07:21 2023 -0400
+
+    misc: remove misc/arm/a script
+    
+    This appears to be a very old wrapper around adb for testing on
+    Android before we had the go_android_exec wrapper.
+    
+    Change-Id: I847bb15c98febbcffc063f00719a084e5c99a18b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493604
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/arm/a | 58 ----------------------------------------------------------
+ 1 file changed, 58 deletions(-)

@@ -1,0 +1,24 @@
+commit 8fea862f425df795ea3850e9b8a5ea0800d98a32
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Wed Feb 21 11:31:47 2018 +0100
+
+    cmd/compile: regenerate rewrite rules for amd64
+    
+    Sometimes, multiple CLs being merged that create rules on the same
+    opcodes can cause the generated file to differ compared to a new
+    regeneration. This is caused by the fact that rulegen splits
+    generated functions in chunks of 10 rules per function (to avoid
+    creating functions that are too big). If two CLs add rules to
+    the same function, they might cause a generated function to
+    have more than 10 rules, even though each CL individually didn't
+    pass this limit.
+    
+    Change-Id: Ib641396b7e9028f80ec8718746969d390a9fbba9
+    Reviewed-on: https://go-review.googlesource.com/95795
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 34 ++++++++++------------------
+ 1 file changed, 12 insertions(+), 22 deletions(-)

@@ -1,0 +1,14 @@
+commit 3828316b9fc138e0da5257c8779b197ccb2ebd5e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 23 20:30:42 2013 +0900
+
+    net: fix protocol number for IPv6 test
+    
+    The protocol number of ICMP for IPv6 is 58, not 1.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/8663048
+
+ src/pkg/net/ipraw_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

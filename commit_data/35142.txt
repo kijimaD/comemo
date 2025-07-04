@@ -1,0 +1,29 @@
+commit ebb67d993a55f8084f8175a326b481ff1725ea4a
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Mar 2 16:47:54 2018 -0300
+
+    cmd/compile, cmd/internal/obj/ppc64: make math.Round an intrinsic on ppc64x
+    
+    This change implements math.Round as an intrinsic on ppc64x so it can be
+    done using a single instruction.
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkRound-16           2.60          0.69          -73.46%
+    
+    Change-Id: I9408363e96201abdfc73ced7bcd5f0c29db006a8
+    Reviewed-on: https://go-review.googlesource.com/109395
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 11 +++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go          |  2 ++
+ src/cmd/internal/obj/ppc64/anames.go         |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go           |  6 ++++++
+ test/codegen/math.go                         |  4 ++++
+ 10 files changed, 43 insertions(+), 2 deletions(-)

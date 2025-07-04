@@ -1,0 +1,17 @@
+commit 1069d25e37e741a70977a42e60395923f9662778
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Feb 28 11:18:39 2013 +1100
+
+    exp/cookiejar: add some more tests
+    
+    New tests added for port handling and IDNA domains.
+    A new test case contains several redundant
+    tests but provides a nice documentation of the
+    implemented rules for domain handling.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7393070
+
+ src/pkg/exp/cookiejar/jar_test.go | 202 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 202 insertions(+)

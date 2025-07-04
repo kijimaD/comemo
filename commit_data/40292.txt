@@ -1,0 +1,22 @@
+commit f9226454b9830dd7fe6405bdb2953a6747dce41b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 13:16:15 2019 -0700
+
+    cmd/compile: fix -d=checkptr for named unsafe.Pointer types
+    
+    We need to explicitly convert pointers to unsafe.Pointer before
+    passing to the runtime checkptr instrumentation in case the user
+    declared their own type with underlying type unsafe.Pointer.
+    
+    Updates #22218.
+    Fixes #34966.
+    
+    Change-Id: I3baa2809d77f8257167cd78f57156f819130baa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201782
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  9 ++++++---
+ test/fixedbugs/issue34966.go        | 14 ++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

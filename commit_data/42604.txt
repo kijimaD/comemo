@@ -1,0 +1,12 @@
+commit 2336d127e137fd877283eb691494cd97cb0b9d71
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Jul 6 13:30:56 2020 -0400
+
+    doc/editors.html: update VS Code Go extension url
+    
+    Change-Id: I7aa73861de053db6b424f113733de9caba19145b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241086
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

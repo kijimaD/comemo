@@ -1,0 +1,33 @@
+commit 6be1cb8c7a8771310e0cc36c3d8fa783d48d0cf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 7 15:24:51 2013 -0500
+
+    cmd/cgo: fix handling of array of pointers when using clang
+    
+    Clang does not record the "size" field for pointer types,
+    so we must insert the size ourselves. We were already
+    doing this, but only for the case of pointer types.
+    For an array of pointer types, the setting of the size for
+    the nested pointer type was happening after the computation
+    of the size of the array type, meaning that the array type
+    was always computed as 0 bytes. Delay the size computation.
+    
+    This bug happens on all Clang systems, not just FreeBSD.
+    Our test checked that cgo wrote something, not that it was correct.
+    FreeBSD's default clang rejects array[0] as a C struct field,
+    so it noticed the incorrect sizes. But the sizes were incorrect
+    everywhere.
+    
+    Update testcdefs to check the output has the right semantics.
+    
+    Fixes #6292.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/22840043
+
+ misc/cgo/testcdefs/main.c    | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/testcdefs/main.go   | 11 +++++++---
+ misc/cgo/testcdefs/test.bash |  2 +-
+ src/cmd/cgo/gcc.go           | 34 +++++++++++++++++++++----------
+ 4 files changed, 80 insertions(+), 15 deletions(-)

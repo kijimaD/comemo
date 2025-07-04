@@ -1,0 +1,25 @@
+commit c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun May 19 12:07:45 2019 -0700
+
+    runtime: In Frames.Next, delay file/line lookup until just before return
+    
+    That way we will never have to look up the file/line for the frame
+    that's next to be returned when the user stops calling Next.
+    
+    For the benchmark from #32093:
+    
+    name      old time/op  new time/op  delta
+    Helper-4   948ns ± 1%   836ns ± 3%  -11.89%  (p=0.000 n=9+9)
+    
+    (#32093 was fixed with a more specific, and better, fix, but this
+    fix is much more general.)
+    
+    Change-Id: I89e796f80c9706706d8d8b30eb14be3a8a442846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178077
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/symtab.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

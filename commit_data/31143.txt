@@ -1,0 +1,14 @@
+commit a7276742e69a9d9a34834d13fcf5867051bea3f1
+Author: David Lazar <lazard@golang.org>
+Date:   Thu Apr 13 09:35:31 2017 -0400
+
+    runtime/trace: better output when test fails
+    
+    Change-Id: I108d15eb4cd25904bb76de4ed7548c039c69d1a3
+    Reviewed-on: https://go-review.googlesource.com/40590
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/trace/trace_stack_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

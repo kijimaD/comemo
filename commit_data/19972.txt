@@ -1,0 +1,13 @@
+commit 2a37efbe1e25d30a4a998fc7ddad6d10c7df74da
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 16:56:36 2014 -0400
+
+    misc/nacl/testzip.proto: add fewer files to the zip
+    
+    LGTM=bradfitz, rsc
+    R=rsc, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/126940043
+
+ misc/nacl/testzip.proto | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

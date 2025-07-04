@@ -1,0 +1,12 @@
+commit 6677d2954eaa4d2ff89a5c962168440825b38611
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 01:21:38 2011 -0500
+
+    syscall: make windows Errno implement net.Error (fix build)
+    
+    TBR=brainman
+    CC=golang-dev
+    https://golang.org/cl/5371086
+
+ src/pkg/syscall/dll_windows.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,16 @@
+commit 6f38063369a55d3cc4f67ee236214dcbbf511c09
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 15 14:27:15 2008 -0700
+
+    update bugs
+    delete bug100.go since the compiler is doing what we agreed.
+    
+    R=gri
+    OCL=15367
+    CL=15367
+
+ test/bugs/bug060.go          |  2 +-
+ test/bugs/bug100.go          | 27 ------------
+ test/{fmt.go => fmt_test.go} |  0
+ test/map.go                  | 98 ++------------------------------------------
+ 4 files changed, 4 insertions(+), 123 deletions(-)

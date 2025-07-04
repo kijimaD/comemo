@@ -1,0 +1,22 @@
+commit 47a538842bf05c7ea4b376447789d0906ba49bd8
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 4 15:10:30 2022 -0400
+
+    runtime/coverage: revise/shorten function names
+    
+    Use shorter more Go-like names for the new APIs being added in the
+    runtime/coverage package for writing coverage data under user control
+    from server programs. Old names were a bit too clunky/verbose.
+    
+    Updates #51430.
+    
+    Change-Id: Ifdd5b882a88613c7c4342b40ed93b58547483c77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438503
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/51430.txt                       | 10 ++---
+ src/runtime/coverage/apis.go             | 74 ++++++++++++++++----------------
+ src/runtime/coverage/testdata/harness.go | 46 ++++++++++----------
+ 3 files changed, 65 insertions(+), 65 deletions(-)

@@ -1,0 +1,15 @@
+commit 671f807e2efe49d6b26d1d5dd617bf5402d6bfe4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 09:22:30 2009 -0700
+
+    simplify decoders.  error checking is done higher up.
+    if there is an error, we will write one more value into the struct but in return
+    we do fewer tests in the decode.
+    
+    R=rsc
+    DELTA=56  (0 added, 42 deleted, 14 changed)
+    OCL=31041
+    CL=31044
+
+ src/pkg/gob/decode.go | 70 +++++++++++----------------------------------------
+ 1 file changed, 14 insertions(+), 56 deletions(-)

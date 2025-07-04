@@ -1,0 +1,12 @@
+commit 65b31e14f572957d78689cc36d4532544355ecf1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 3 13:20:49 2015 -0800
+
+    doc: add note about cgo pointer passing rules to go1.6.txt
+    
+    Change-Id: I988d1b230ce516bf2997ec0932a854323b2bab7c
+    Reviewed-on: https://go-review.googlesource.com/17395
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

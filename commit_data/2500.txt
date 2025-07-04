@@ -1,0 +1,13 @@
+commit b6ce2a72e1dc6a5bf0fc1dc1c270f7bcbc5197c9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 22 18:09:40 2009 -0700
+
+    document the verbs for Printf
+    
+    R=rsc
+    DELTA=61  (48 added, 0 deleted, 13 changed)
+    OCL=30616
+    CL=30619
+
+ src/pkg/fmt/print.go | 74 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 61 insertions(+), 13 deletions(-)

@@ -1,0 +1,13 @@
+commit 68cce4ab206586267fcfa9ac4ef3dc8396054e94
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Sep 6 08:04:53 2010 +1000
+
+    fmt.Scan: fix integer overflow on 32-bit machines
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2144043
+
+ src/pkg/fmt/scan.go      | 2 +-
+ src/pkg/fmt/scan_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

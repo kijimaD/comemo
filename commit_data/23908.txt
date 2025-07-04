@@ -1,0 +1,26 @@
+commit a1e422071cd8122b4b93bbdeb02d0ea646519955
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 10:28:44 2015 -0400
+
+    cmd/internal/obj/arm: fix line numbers after constant pool
+    
+    If a function is large enough to need to flush the constant pool
+    mid-function, the line number assignment code was forcing the
+    line numbers not just for the constant pool but for all the instructions
+    that follow it. This made the line number information completely
+    wrong for all but the beginning of large functions on arm.
+    
+    Same problem in code copied into arm64.
+    
+    This broke runtime/trace's TestTraceSymbolize.
+    
+    Fixes arm build.
+    
+    Change-Id: I84d9fb2c798c4085f69b68dc766ab4800c7a6ca4
+    Reviewed-on: https://go-review.googlesource.com/12894
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 15 +++++++--------
+ src/cmd/internal/obj/arm64/asm7.go | 16 ++++++++--------
+ 2 files changed, 15 insertions(+), 16 deletions(-)

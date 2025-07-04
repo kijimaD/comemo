@@ -1,0 +1,18 @@
+commit e905cb2df7a2e7e7da08d40600045b8784e87d14
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 22:57:53 2009 -0700
+
+    add generator for expr1.go
+    
+    R=austin
+    DELTA=959  (404 added, 99 deleted, 456 changed)
+    OCL=34214
+    CL=34237
+
+ usr/austin/eval/eval_test.go |   2 +-
+ usr/austin/eval/expr.go      |  97 -------
+ usr/austin/eval/expr1.go     | 622 ++++++++++++++++++++++++-------------------
+ usr/austin/eval/gen.go       | 322 ++++++++++++++++++++++
+ usr/austin/eval/stmt.go      |   2 +-
+ usr/austin/eval/stmt_test.go |   2 +-
+ 6 files changed, 678 insertions(+), 369 deletions(-)

@@ -1,0 +1,13 @@
+commit bb55b9c6aec020a0aead564e44b79cae09a888bd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 5 09:28:24 2013 +1100
+
+    A+C: add Dmitri Shuralyov
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/31900043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

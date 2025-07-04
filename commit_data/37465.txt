@@ -1,0 +1,26 @@
+commit 47df645473210267fd7512c5b92de00908198974
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 22 00:06:42 2018 +0100
+
+    os: prevent RemoveAll to remove "." on Plan 9
+    
+    CL 150497 enabled TestRemoveAllDot on "noat" systems.
+    
+    However, this test is failing on Plan 9 because the rmdir
+    system call allows to remove "." on Plan 9.
+    
+    This change prevents the "noat" implementation of RemoveAll to
+    remove ".", so it remains consistent with the "at" implementation.
+    
+    Fixes #28903.
+    
+    Change-Id: Ifc8fe36bdd8053a4e416f0590663c844c97ce72a
+    Reviewed-on: https://go-review.googlesource.com/c/150621
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/path.go           | 11 +++++++++++
+ src/os/removeall_at.go   | 11 -----------
+ src/os/removeall_noat.go |  7 +++++++
+ 3 files changed, 18 insertions(+), 11 deletions(-)

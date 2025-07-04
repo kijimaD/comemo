@@ -1,0 +1,24 @@
+commit ed1cf6ab3ef94c603f9d883aa6806a5a82d2bee3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 27 20:52:43 2023 +0200
+
+    cmd/link/internal/ld, internal/syscall/unix: use posix_fallocate on freebsd
+    
+    The posix_fallocate system call is available since FreeBSD 9.0, see
+    https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate
+    
+    Change-Id: Ie65e0a44341909707617d3b0d9a4f1710c45b935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/buildtool.go                      |  3 ++-
+ src/cmd/link/internal/ld/fallocate_test.go     |  3 +--
+ src/cmd/link/internal/ld/outbuf_freebsd.go     | 13 +++++++++++++
+ src/cmd/link/internal/ld/outbuf_nofallocate.go |  2 +-
+ src/cmd/link/internal/ld/outbuf_notdarwin.go   |  1 -
+ src/internal/syscall/unix/fallocate_freebsd.go | 18 ++++++++++++++++++
+ 6 files changed, 35 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit ce877acf310a14c4c41f1e0df91bd57147461f06
+Author: David Jakob Fritz <david.jakob.fritz@gmail.com>
+Date:   Mon Jun 6 06:55:32 2011 +0000
+
+    netchan: added drain method to importer.
+    
+    Fixes #1868.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4550093
+
+ src/pkg/netchan/import.go       | 45 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/netchan/netchan_test.go | 10 +++++++++
+ 2 files changed, 53 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 5d53aab4a25d315ef94b31c70d85cb805a8acc2e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 23 10:56:53 2011 +1000
+
+    exec: LookPath should not search %PATH% for files like c:cmd.exe
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4632055
+
+ src/pkg/exec/lp_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

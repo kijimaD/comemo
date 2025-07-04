@@ -1,0 +1,15 @@
+commit c3c047a6a32ab1f5344e7c0b074fb9d1ce365bbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 14:23:23 2015 -0400
+
+    runtime: test and fix heap bitmap for 1-pointer allocation on 32-bit system
+    
+    Change-Id: Ic064fe7c6bd3304dcc8c3f7b3b5393870b5387c2
+    Reviewed-on: https://go-review.googlesource.com/10119
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/gcinfo_test.go | 30 ++++++++++++++++++++++++------
+ src/runtime/mbitmap.go     | 27 ++++++++++++++++++++++-----
+ 3 files changed, 48 insertions(+), 11 deletions(-)

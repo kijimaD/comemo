@@ -1,0 +1,20 @@
+commit 583eeaae509a01cc50955c4174044b9dac539ff6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 15:55:53 2021 -0400
+
+    cmd/internal/objfile: use aux symbol for pcdata references
+    
+    Pcdata are now separate aux symbols. Read them from aux, instead
+    of using funcinfo.
+    
+    Change-Id: Ib3e4b5cff1e3329d0600504a8829a969a9c9f517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352612
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/goobj/objfile.go |  2 ++
+ src/cmd/internal/objfile/goobj.go | 25 ++++++++++---------------
+ 2 files changed, 12 insertions(+), 15 deletions(-)

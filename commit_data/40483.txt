@@ -1,0 +1,14 @@
+commit a0c1e8d1ab07068e14b5abcd02099dbfb932188b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 06:39:01 2019 -0700
+
+    context: mark testDeadline as a testing helper method
+    
+    Change-Id: Ie6fc3e9789aea6e5949e66186db6f2b071b6fdff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context_test.go | 1 +
+ 1 file changed, 1 insertion(+)

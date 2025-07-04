@@ -1,0 +1,20 @@
+commit 8f1c99035d7797993a5ee393704603f21bb6f10c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 28 19:29:57 2020 +0200
+
+    crypto/dsa,crypto/x509: deprecate DSA and remove crypto/x509 support
+    
+    Updates #40337
+    
+    Change-Id: I5c1218df3ae7e13144a1d9f7d4a4b456e4475c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257939
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.16.html              | 19 ++++++++++++++++++
+ src/crypto/dsa/dsa.go        |  6 ++++++
+ src/crypto/x509/x509.go      | 37 ++++++----------------------------
+ src/crypto/x509/x509_test.go | 47 ++------------------------------------------
+ 4 files changed, 33 insertions(+), 76 deletions(-)

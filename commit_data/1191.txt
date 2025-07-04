@@ -1,0 +1,12 @@
+commit 10002bb0fbd9897fe0a3bb54b022306bc9d6c3fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 14:27:48 2008 -0800
+
+    accept empty list of package imports.
+    
+    R=ken
+    OCL=19617
+    CL=19617
+
+ src/cmd/gc/go.y | 1 -
+ 1 file changed, 1 deletion(-)

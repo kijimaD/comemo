@@ -1,0 +1,14 @@
+commit 5f8423844463b3b77588e46ea57f44d8b69a1564
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 20 08:34:30 2015 +1100
+
+    cmd/dist: show friendlier error message when building outside a Git repo
+    
+    Fixes #9932
+    
+    Change-Id: I7943470a1784278a5c6e99c3b66c59d4953734ba
+    Reviewed-on: https://go-review.googlesource.com/5340
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

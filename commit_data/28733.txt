@@ -1,0 +1,21 @@
+commit 672e57944458fc3c5f5ee1dd11d4f32d1aeaebe1
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Wed Jul 13 12:29:39 2016 -0600
+
+    cmd/compile: avoid leak of dottype expression on double assignment form
+    
+    This is a followup to issue #13805. That change avoid leaks for types that
+    don't have any pointers for the single assignment form of a dottype expression.
+    This does the same for the double assignment form.
+    
+    Fixes #15796
+    
+    Change-Id: I27474cade0ff1f3025cb6392f47b87b33542bc0f
+    Reviewed-on: https://go-review.googlesource.com/24906
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  4 ++--
+ test/escape_iface.go               | 18 ++++++++++++++++--
+ 2 files changed, 18 insertions(+), 4 deletions(-)

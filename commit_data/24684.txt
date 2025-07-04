@@ -1,0 +1,22 @@
+commit 4cca1cc05eae81b933d2aa703b71780a150d715a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 19 13:35:25 2015 -0400
+
+    runtime: consolidate "out of GC work" checks
+    
+    We already have gcMarkWorkAvailable, but the check for GC mark work is
+    open-coded in several places. Generalize gcMarkWorkAvailable slightly
+    and replace these open-coded checks with calls to gcMarkWorkAvailable.
+    
+    In addition to cleaning up the code, this puts us in a better position
+    to make this check slightly more complicated.
+    
+    Change-Id: I1b29883300ecd82a1bf6be193e9b4ee96582a860
+    Reviewed-on: https://go-review.googlesource.com/16058
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go     | 9 +++++----
+ src/runtime/mgcmark.go | 2 +-
+ 2 files changed, 6 insertions(+), 5 deletions(-)

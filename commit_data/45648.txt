@@ -1,0 +1,21 @@
+commit bfe3573d58d7c49c4d58e0ab392eb0b5a660d262
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon May 17 16:11:51 2021 -0400
+
+    go/token: correct the interval notation used in some panic messages
+    
+    Fix an apparent typo for the right-hand bound in a couple panic
+    messages, where '[' was used instead of ']'.
+    
+    Fixes #46215
+    
+    Change-Id: Ie419c404ca72ed085a83a2c38ea1a5d6ed326cca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320510
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/token/position.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

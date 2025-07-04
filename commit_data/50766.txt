@@ -1,0 +1,59 @@
+commit ef1c70fbde3acb3d0865b8c12e75e6dcb65653d3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 5 15:57:37 2022 +0100
+
+    cmd/go: remove the -i build flag
+    
+    The flag is now removed from `go build` and `go test`.
+    It has been deprecated since Go 1.16, printing a warning message.
+    The idea was to fully delete it in Go 1.17, but that didn't happen.
+    
+    First, delete the BuildI variable and its flag declarations,
+    as well as all the bits of docs that mentioned the flag.
+    
+    Second, delete or simplify the code paths that used BuildI.
+    
+    Third, adapt the tests to the removed flag.
+    Some of them are removed, like test_relative_import_dash_i.txt and
+    TestGoTestDashIDashOWritesBinary, as they centered around the flag.
+    The rest are modified to not cover or use the flag.
+    
+    Finally, change cmd/dist to no longer use `go install -i`.
+    The purpose of the flag was that, when bootstrapping the toolchain,
+    all of its dependencies would also be installed as object files.
+    
+    When removing the use of the -i flags, the checkNotStale call right
+    after building toolchain3 would fail as expected,
+    because runtime/internal/sys is now only up to date in the build cache.
+    
+    Luckily, that's not a problem: we run `go install std cmd` right after,
+    so all standard library packages will be installed as object files.
+    Move the checkNotStale call after that install command.
+    
+    Fixes #41696.
+    
+    Change-Id: I5d8139f18aaee07da886d483e663f3f2f00d5f3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416094
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go                              |  6 +-
+ src/cmd/dist/test.go                               |  6 +-
+ src/cmd/go/alldocs.go                              | 11 ---
+ src/cmd/go/go_test.go                              | 35 +---------
+ src/cmd/go/internal/cfg/cfg.go                     |  1 -
+ src/cmd/go/internal/test/test.go                   | 80 ----------------------
+ src/cmd/go/internal/test/testflag.go               | 10 +--
+ src/cmd/go/internal/work/build.go                  | 36 ----------
+ src/cmd/go/testdata/script/build_i.txt             | 41 -----------
+ src/cmd/go/testdata/script/build_i_deprecate.txt   | 24 -------
+ .../go/testdata/script/build_relative_pkgdir.txt   |  2 +-
+ .../go/testdata/script/install_rebuild_gopath.txt  | 30 --------
+ src/cmd/go/testdata/script/test_flag.txt           |  6 +-
+ src/cmd/go/testdata/script/test_race_install.txt   |  6 --
+ .../script/test_relative_import_dash_i.txt         | 32 ---------
+ .../go/testdata/script/vendor_test_issue11864.txt  |  8 ---
+ .../go/testdata/script/vendor_test_issue14613.txt  |  4 --
+ 17 files changed, 14 insertions(+), 324 deletions(-)

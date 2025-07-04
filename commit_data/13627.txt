@@ -1,0 +1,27 @@
+commit 27cb1cbb2e360b2ced4d3419ebd646d9d36acf5e
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Aug 15 11:44:25 2012 +1000
+
+    exp/html: skip render and reparse on more tests that build badly-formed parse trees
+    
+    All of the remaining tests that had as status of PARSE rather than PASS had
+    good reasons for not passing the render-and-reparse step: the correct parse tree is
+    badly formed, so when it is rendered out as HTML, the result doesn't parse into the
+    same tree. So add them to the list of tests where that step is skipped.
+    
+    Also, I discovered that it is possible to end up with HTML elements (not just text)
+    inside a raw text element through reparenting. So change the rendering routines to
+    handle that situation as sensibly as possible (which still isn't very sensible, but
+    this is HTML5).
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6446137
+
+ src/pkg/exp/html/parse_test.go            | 20 +++++++++++++++++++-
+ src/pkg/exp/html/render.go                | 22 ++++++++--------------
+ src/pkg/exp/html/testlogs/tests16.dat.log | 18 +++++++++---------
+ src/pkg/exp/html/testlogs/tests18.dat.log |  8 ++++----
+ src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
+ src/pkg/exp/html/testlogs/tests20.dat.log |  2 +-
+ 6 files changed, 42 insertions(+), 30 deletions(-)

@@ -1,0 +1,16 @@
+commit aad4609c086cc5069aecb66cd1b7c32700fda1d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 30 07:56:05 2014 -0700
+
+    runtime: add zero field to rtype
+    
+    The rtype struct is meant to be a copy of reflect.rtype.  The
+    zero field was added to reflect.rtype in 18495:6e50725ac753.
+    
+    LGTM=rsc
+    R=khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/93660045
+
+ src/pkg/runtime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

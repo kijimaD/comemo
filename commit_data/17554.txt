@@ -1,0 +1,31 @@
+commit fa4984d535b23c0d2b14650a8842d63083893af3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 11:59:19 2013 -0400
+
+    runtime: show runtime.panic frame in traceback
+    
+    Otherwise, if panic starts running deferred functions,
+    the code that panicked appears to be calling those
+    functions directly, which is not the case and can be
+    confusing.
+    
+    For example:
+    
+    main.Two()
+            /Users/rsc/x.go:12 +0x2a
+    runtime.panic(0x20dc0, 0x2100cc010)
+            /Users/rsc/g/go/src/pkg/runtime/panic.c:248 +0x106
+    main.One()
+            /Users/rsc/x.go:8 +0x55
+    
+    This makes clear(er) that main.Two is being called during
+    a panic, not as a direct call from main.One.
+    
+    Fixes #5832.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13302051
+
+ src/pkg/runtime/symtab.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

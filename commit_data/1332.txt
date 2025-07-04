@@ -1,0 +1,12 @@
+commit a3155bdb09075ea5b34dc1f3974ee3004772de03
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 17:04:12 2008 -0800
+
+    remove implicit int -> string
+    
+    R=ken
+    OCL=21020
+    CL=21020
+
+ src/lib/json/generic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

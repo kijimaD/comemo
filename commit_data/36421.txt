@@ -1,0 +1,26 @@
+commit 1484270aec14b9d971b94832d0fac9d3db382cf9
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Jul 18 13:05:29 2018 +0300
+
+    test: restore tests for the reject unsafe code option
+    
+    Tests in test/safe were neglected after moving to the run.go
+    framework. This change restores them.
+    
+    These tests are skipped for go/types via -+ option.
+    
+    Fixes #25668
+    
+    Change-Id: I8fe26574a76fa7afa8664c467d7c2e6334f1bba9
+    Reviewed-on: https://go-review.googlesource.com/124660
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/safe/main.go      | 14 --------------
+ test/safe/nousesafe.go |  8 --------
+ test/safe/pkg.go       | 16 ----------------
+ test/safe/usesafe.go   |  8 --------
+ test/unsafereject1.go  | 16 ++++++++++++++++
+ test/unsafereject2.go  | 15 +++++++++++++++
+ 6 files changed, 31 insertions(+), 46 deletions(-)

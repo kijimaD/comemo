@@ -1,0 +1,12 @@
+commit d31d9201d6a962b8f6402850de22b72e09097309
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 11:09:38 2012 +1100
+
+    .hgignore: delete dregs
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5634045
+
+ .hgignore | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,26 @@
+commit cb9b1038db77198c2b0961634cf161258af2374d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 24 15:57:30 2008 -0700
+
+    select
+    
+    R=r
+    APPROVED=r
+    DELTA=638  (433 added, 21 deleted, 184 changed)
+    OCL=13426
+    CL=13438
+
+ src/cmd/6g/gen.c               |  11 ++
+ src/cmd/6g/gg.h                |   1 +
+ src/cmd/gc/go.h                |   7 +-
+ src/cmd/gc/go.y                |   2 -
+ src/cmd/gc/mksys.bash          |   1 +
+ src/cmd/gc/subr.c              |   1 +
+ src/cmd/gc/sys.go              |  11 ++
+ src/cmd/gc/sysimport.c         | 293 +++++++++++++++++++++++------------------
+ src/cmd/gc/walk.c              | 224 ++++++++++++++++++++++++-------
+ src/runtime/chan.c             | 247 +++++++++++++++++++++++++++++++---
+ src/runtime/runtime.h          |   2 +-
+ src/runtime/sys_amd64_darwin.s |  10 +-
+ src/runtime/sys_amd64_linux.s  |  10 +-
+ 13 files changed, 616 insertions(+), 204 deletions(-)

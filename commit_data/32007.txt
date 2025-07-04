@@ -1,0 +1,21 @@
+commit 7e172509d96db8cc3d0fb58ab4389b9785307d2c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 12 20:51:15 2017 -0700
+
+    runtime: don't call t.Parallel in TestCgoSignalDeadlock
+    
+    It seems that when too much other code is running on the system,
+    the testprogcgo code can overrun its timeouts.
+    
+    Updates #18598.
+    
+    Not marking the issue as fixed until it doesn't recur for some time.
+    
+    Change-Id: Ieaf106b41986fdda76b1d027bb9d5e3fb805cc3b
+    Reviewed-on: https://go-review.googlesource.com/48233
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

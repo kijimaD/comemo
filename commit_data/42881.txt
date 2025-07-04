@@ -1,0 +1,15 @@
+commit 4d89b3231d590284e35bff647e597e93fdf41dae
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Mon Aug 31 19:22:36 2020 +0800
+
+    runtime: remove remnants of signal stack workaround
+    
+    Updates #35979
+    
+    Change-Id: Ic3a6e1b5e9d544979a3c8d909a36a55efa3b9c9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251757
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_linux.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

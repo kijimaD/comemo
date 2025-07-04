@@ -1,0 +1,28 @@
+commit f7a8adbd511e921111fc0682d380a6f7a33e0c93
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 5 18:12:32 2014 -0700
+
+    cmd/cgo: fix handling of defs_linux.go
+    
+    Instead of including <sys/types.h> to get size_t, instead include
+    the ISO C standard <stddef.h> header, which defines fewer additional
+    types at risk of colliding with the user code.  In particular, this
+    prevents collisions between <sys/types.h>'s userspace definitions with
+    the kernel definitions needed by defs_linux.go.
+    
+    Also, -cdefs mode uses #pragma pack, so we can keep misaligned fields.
+    
+    Fixes #8477.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/120610043
+
+ misc/cgo/testcdefs/cdefstest.c  |  1 +
+ misc/cgo/testcdefs/cdefstest.go | 18 ++++++++++++++++++
+ misc/cgo/testcdefs/main.c       | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go              |  4 +++-
+ src/cmd/cgo/out.go              | 10 ++--------
+ src/pkg/runtime/defs_linux.go   |  1 +
+ 6 files changed, 48 insertions(+), 9 deletions(-)

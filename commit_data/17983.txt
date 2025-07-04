@@ -1,0 +1,14 @@
+commit c134ce272f5e1170908771f8371f5f8c01caf37c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Dec 12 22:13:19 2013 -0500
+
+    bytes: fix description of FieldsFunc
+    Similar to CL 3814041 that fixed the same issue in strings.
+    Fixes #6941.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/41490045
+
+ src/pkg/bytes/bytes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

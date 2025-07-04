@@ -1,0 +1,15 @@
+commit fdce27f7b8f671e3399d2c116dbd15ec2e612af2
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 25 13:19:35 2012 +0200
+
+    exp/locale/collate: Added Builder type for generating a complete
+    collation table. At this moment, it only implements the generation of
+    a root table.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6039047
+
+ src/pkg/exp/locale/collate/build/builder.go      | 501 +++++++++++++++++++++++
+ src/pkg/exp/locale/collate/build/builder_test.go | 265 ++++++++++++
+ 2 files changed, 766 insertions(+)

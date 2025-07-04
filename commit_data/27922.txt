@@ -1,0 +1,18 @@
+commit a25a7ad70323e8edea4b607aad7c9d2bb96fcc82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 18:24:21 2016 -0700
+
+    cmd/internal/obj: update Bool2int to the form optimized by the compiler
+    
+    As of https://golang.org/cl/22711 the compiler optimizes this form.
+    
+    Updates #6011
+    
+    Change-Id: Ibc6c529dfa24d42f4aab78ebd6722e1d72cb6038
+    Reviewed-on: https://go-review.googlesource.com/27395
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/util.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

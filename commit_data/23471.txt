@@ -1,0 +1,18 @@
+commit 4ba1f258881b7cd82e22be3bff25b84fe6f21219
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 23 13:59:18 2015 -0700
+
+    go/types: better error message for certain unary/binary expression errors
+    
+    Port of https://go-review.googlesource.com/11363.
+    
+    Fixes #11367.
+    
+    Change-Id: Ie0a82bcfab782c514d1947e7a6b190e286afd159
+    Reviewed-on: https://go-review.googlesource.com/11367
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go            | 16 ++++++++++++----
+ src/go/types/stmt.go            |  4 ++--
+ src/go/types/testdata/expr0.src |  6 ++++++
+ 3 files changed, 20 insertions(+), 6 deletions(-)

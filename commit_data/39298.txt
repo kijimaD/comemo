@@ -1,0 +1,25 @@
+commit 5e2af2b0d2e7e367e461d4162b0338ff2dc08033
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 20:33:01 2019 +1000
+
+    errors: fix package example
+    
+    The example in example_test.go requires that the whole file be
+    displayed; the addition of ExampleAs meant that only the body of the
+    package example function was shown, rather than the surrounding context.
+    
+    This change moves ExampleAs to the file wrap_test.go file, restoring the
+    package example to its former glory.
+    
+    Update #31716
+    
+    Change-Id: Id0ea77bc06023b239a63c1d6a7c8b3c1dae91ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179737
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/errors/example_test.go | 16 ----------------
+ src/errors/wrap_test.go    | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 16 deletions(-)

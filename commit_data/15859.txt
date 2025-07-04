@@ -1,0 +1,22 @@
+commit 0ad265d48fbdef6b8ce21cd6e067d43c19b4d2a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 20 16:32:37 2013 -0700
+
+    src/pkg: fixed various typos
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7936043
+
+ src/pkg/go/build/build.go           | 2 +-
+ src/pkg/mime/multipart/multipart.go | 2 +-
+ src/pkg/net/http/server.go          | 2 +-
+ src/pkg/net/interface_darwin.go     | 2 +-
+ src/pkg/net/interface_freebsd.go    | 2 +-
+ src/pkg/net/iprawsock_plan9.go      | 2 +-
+ src/pkg/net/iprawsock_posix.go      | 2 +-
+ src/pkg/net/udpsock_plan9.go        | 2 +-
+ src/pkg/net/udpsock_posix.go        | 2 +-
+ src/pkg/os/file_windows.go          | 2 +-
+ src/pkg/reflect/type.go             | 2 +-
+ 11 files changed, 11 insertions(+), 11 deletions(-)

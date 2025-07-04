@@ -1,0 +1,19 @@
+commit 59bfc18e3441d9cd0b1b2f302935403bbf52ac8b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 8 16:12:46 2021 -0500
+
+    cmd/go: add hint to read 'go help vcs' to GOVCS errors
+    
+    Fixes #43596
+    
+    Change-Id: Iff925d077b5de64161e88c9471402bc7e8885fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282713
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/query.go  |  4 +--
+ src/cmd/go/internal/vcs/vcs.go       |  2 +-
+ src/cmd/go/testdata/script/govcs.txt | 52 ++++++++++++++++++------------------
+ 3 files changed, 29 insertions(+), 29 deletions(-)

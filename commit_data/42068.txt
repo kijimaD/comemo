@@ -1,0 +1,28 @@
+commit 0ee4b13830572ad66cdcc045d1e4ae1e15a87ebb
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Wed Apr 22 16:24:30 2020 -0400
+
+    net/http/pprof: allow "seconds" parameters to most profiles
+    
+    golang.org/cl/147598 added the support for delta computation for mutex
+    and block profiles. In fact, this delta computation makes sense for
+    other types of profiles.
+    
+    For example, /debug/pprof/allocs?seconds=x will provide how much allocation
+    was made during the specified period. /debug/pprof/goroutine?seconds=x will
+    provide the changes in the list of goroutines. This also makes sense for
+    custom profiles.
+    
+    Update #23401
+    Update google/pprof#526
+    
+    Change-Id: I45e9073eb001ea5b3f3d16e5a57f635193610656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229537
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/pprof/pprof.go      | 8 ++++++--
+ src/net/http/pprof/pprof_test.go | 1 +
+ 2 files changed, 7 insertions(+), 2 deletions(-)

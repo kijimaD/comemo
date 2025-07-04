@@ -1,0 +1,20 @@
+commit 8826bdd143314895230776e582043d34ea635a33
+Author: Florian Zenker <floriank@google.com>
+Date:   Fri Oct 14 09:13:38 2022 +0000
+
+    debug/elf: fix inccorrect value in COMPRESS_ZLIB string name
+    
+    LLVM recently introduced ZSTD compression for ELF sections. The error
+    message when failing to read the compressed section calls this
+    COMPRESS_ZLIB+2 while it should report it as COMPRESS_ZLIB+1.
+    
+    Change-Id: I869aa69baf0c8c86665475b47343c790587cb39b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443035
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/elf/elf.go      | 2 +-
+ src/debug/elf/elf_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

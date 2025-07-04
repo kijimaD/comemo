@@ -1,0 +1,20 @@
+commit e1a91c5b8963e3e02c897f96218d4eae17bcb740
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 27 20:29:21 2014 +0400
+
+    runtime: fix buffer overflow in stringtoslicerune
+    On 32-bits n*sizeof(r[0]) can overflow.
+    Or it can become 1<<32-eps, and mallocgc will "successfully"
+    allocate 0 pages for it, there are no checks downstream
+    and MHeap_Grow just does:
+    npage = (npage+15)&~15;
+    ask = npage<<PageShift;
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews
+    https://golang.org/cl/54760045
+
+ src/pkg/runtime/malloc.goc | 2 ++
+ src/pkg/runtime/string.goc | 2 ++
+ 2 files changed, 4 insertions(+)

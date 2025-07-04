@@ -1,0 +1,62 @@
+commit ecfce58965da6017e02f5fc5c03eda52fc41c8d6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 7 12:01:44 2021 -0400
+
+    runtime: skip work recheck for non-spinning Ms
+    
+    When an M transitions from spinning to non-spinning state, it must
+    recheck most sources of work to avoid missing work submitted between its
+    initial check and decrementing sched.nmspinning (see "delicate dance"
+    comment).
+    
+    Ever since the scheduler rewrite in Go 1.1 (golang.org/cl/7314062), we
+    have performed this recheck on all Ms before stopping, regardless of
+    whether or not they were spinning.
+    
+    Unfortunately, there is a problem with this approach: non-spinning Ms
+    are not eligible to steal work (note the skip over the stealWork block),
+    but can detect work during the recheck. If there is work available, this
+    non-spinning M will jump to top, skip stealing, land in recheck again,
+    and repeat. i.e., it will spin uselessly.
+    
+    The spin is bounded. This can only occur if there is another spinning M,
+    which will either take the work, allowing this M to stop, or take some
+    other work, allowing this M to upgrade to spinning. But the spinning is
+    ultimately just a fancy spin-wait.
+    
+    golang.org/issue/43997 discusses several ways to address this. This CL
+    takes the simplest approach: skipping the recheck on non-spinning Ms and
+    allowing them to go to stop.
+    
+    Results for scheduler-relevant runtime and time benchmarks can be found
+    at https://perf.golang.org/search?q=upload:20210420.5.
+    
+    The new BenchmarkCreateGoroutinesSingle is a characteristic example
+    workload that hits this issue hard. A single M readies lots of work
+    without itself parking. Other Ms must spin to steal work, which is very
+    short-lived, forcing those Ms to spin again. Some of the Ms will be
+    non-spinning and hit the above bug.
+    
+    With this fixed, that benchmark drops in CPU usage by a massive 68%, and
+    wall time 24%. BenchmarkNetpollBreak shows similar drops because it is
+    unintentionally almost the same benchmark (create short-living Gs in a
+    loop). Typical well-behaved programs show little change.
+    
+    We also measure scheduling latency (time from goready to execute). Note
+    that many of these benchmarks are very noisy because they don't involve
+    much scheduling. Those that do, like CreateGoroutinesSingle, are
+    expected to increase as we are replacing unintentional spin waiting with
+    a real park.
+    
+    Fixes #43997
+    
+    Change-Id: Ie1d1e1800f393cee1792455412caaa5865d13562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310850
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go      | 58 +++++++++++++++++++++++++-----------------------
+ src/runtime/proc_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 28 deletions(-)

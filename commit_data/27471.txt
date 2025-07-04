@@ -1,0 +1,21 @@
+commit b3bf2e7803174b77838a357ee05b1351ece6a29d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 03:01:27 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev 8a52c78 for golang.org/cl/23258
+    (http2: fix Transport.CloseIdleConnections when http1+http2 are wired together)
+    
+    Fixes #14607
+    
+    Change-Id: I038badc69e230715b8ce4e398eb5e6ede73af918
+    Reviewed-on: https://go-review.googlesource.com/23280
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 29 +++++++++++++++++++++++++++++
+ src/net/http/export_test.go       | 30 +++++++++++++++++++-----------
+ src/net/http/h2_bundle.go         | 32 ++++++++++++++++++++++----------
+ 3 files changed, 70 insertions(+), 21 deletions(-)

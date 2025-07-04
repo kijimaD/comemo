@@ -1,0 +1,19 @@
+commit 0436b162397018c45068b47ca1b5924a3eafdee0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 25 02:08:52 2018 +0900
+
+    net: improve ExampleUDPConn_WriteTo docs
+    
+    Also updates comment on isConnected field of netFD for clarification.
+    
+    Change-Id: Icb1b0332e3b4c7802eae00ddc26cd5ba54c82dc2
+    Reviewed-on: https://go-review.googlesource.com/120955
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/example_test.go | 5 +++--
+ src/net/fd_unix.go      | 2 +-
+ src/net/fd_windows.go   | 2 +-
+ src/net/net_fake.go     | 2 +-
+ 4 files changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,26 @@
+commit 0cfe1fb87815c4bee910f6f066f7872800dbce24
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed May 20 17:54:55 2020 -0400
+
+    cmd/go: rank errUseProxy lower when handling proxy errors
+    
+    modfetch.TryProxies ranks errors returned by GOPROXY entries by
+    usefulness. It returns the error of the highest rank from the last
+    proxy. Errors from "direct" and "noproxy" are most useful, followed by
+    errors other than ErrNotExist, followed by ErrNotExist.
+    
+    This change ranks errUseProxy with ErrNotExist even though it's
+    reported by "noproxy". There is almost always a more useful message
+    than "path does not match GOPRIVATE/GONOPROXY".
+    
+    Fixes #39180
+    
+    Change-Id: Ifa5b96462d7bf411e6d2d951888465c839d42471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234687
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/proxy.go        | 10 +++++++---
+ src/cmd/go/testdata/script/mod_gonoproxy.txt | 10 ++++++++--
+ 2 files changed, 15 insertions(+), 5 deletions(-)

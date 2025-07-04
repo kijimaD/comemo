@@ -1,0 +1,27 @@
+commit 3d40895e36e5f16654fa6b75f7fdf59edb18d2e0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 01:29:02 2020 +1000
+
+    runtime: switch openbsd/arm64 to pthreads
+    
+    This switches openbsd/arm64 to thread creation via pthreads, rather than doing
+    direct system calls.
+    
+    Update #36435
+    
+    Change-Id: I7cf60fa954f92628e05f15d2732833a2fbdccdb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250182
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/defs_openbsd_arm64.go |   9 ++
+ src/runtime/os_openbsd_libc.go    |   2 +-
+ src/runtime/os_openbsd_syscall.go |   1 +
+ src/runtime/proc.go               |   2 +-
+ src/runtime/sys_libc.go           |   2 +-
+ src/runtime/sys_openbsd.go        |   2 +-
+ src/runtime/sys_openbsd_arm64.s   | 281 ++++++++++++++++++++++++--------------
+ src/runtime/tls_arm64.s           |   4 +
+ 8 files changed, 195 insertions(+), 108 deletions(-)

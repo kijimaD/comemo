@@ -1,0 +1,20 @@
+commit ac0da79a676c852fee4939b79baf97224cd0b334
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 19 12:51:25 2021 -0500
+
+    cmd/go: temporarily skip TestScript/test_fuzz_minimize
+    
+    This test is failing on the longtest builders.
+    Adding a skip temporarily until it can be diagnosed and fixed.
+    
+    For #49685
+    
+    Change-Id: I0ceaf009f5029d1ad6f667f7cfee1f1605737bf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365315
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 ++
+ 1 file changed, 2 insertions(+)

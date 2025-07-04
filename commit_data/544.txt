@@ -1,0 +1,13 @@
+commit 30fd44cf9d0fcfc07c08d21d01d0c8b9a431d2cc
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 21 20:49:04 2008 -0700
+
+    fix fat copy of overlapping data
+    
+    R=r
+    OCL=14417
+    CL=14417
+
+ src/cmd/6g/cgen.c | 93 +++++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/gc/go.y   | 40 +++---------------------
+ 2 files changed, 74 insertions(+), 59 deletions(-)

@@ -1,0 +1,20 @@
+commit 9c7207891c16951121d8b3f19f49ec72f87da9fe
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Apr 29 06:33:21 2021 +0000
+
+    cmd/internal/obj/arm64: fix the size of STP series instructions in optab
+    
+    When the class of p.To is C_NAUTO4K, STP series instructions will be translated
+    into add/sub + stp instructions, the total size is 8. Currently this size
+    value in optab is 12, this CL fixes it.
+    
+    Change-Id: Ife1b9e9f8a28edca9b59f62b45a80d83f38993b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314210
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

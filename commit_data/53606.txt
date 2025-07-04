@@ -1,0 +1,27 @@
+commit 78c3aba4704c86874c36e61224966e7e07706bc0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 19 15:35:50 2023 -0700
+
+    net/mail: permit more characters in mail headers
+    
+    We parse mail messages using net/textproto. For #53188, we tightened
+    up the bytes permitted by net/textproto to match RFC 7230.
+    However, this package uses RFC 5322 which is more permissive.
+    Restore the permisiveness we used to have, so that older code
+    continues to work.
+    
+    Fixes #58862
+    Fixes #60332
+    
+    Change-Id: I5437f5e18a756f6ca61c13c4d8ba727be73eff9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/mail/message.go      | 51 +++++++++++++++++++++++++++++++++++++++++++-
+ src/net/mail/message_test.go | 28 ++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 1 deletion(-)

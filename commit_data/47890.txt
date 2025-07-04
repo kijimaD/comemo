@@ -1,0 +1,17 @@
+commit ab4556a93d88a8ce8dbff1b5fcf7dea27c6c6587
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 18:23:01 2022 -0800
+
+    test/typeparam: adjust test preamble (fix longtests)
+    
+    For #50317.
+    
+    Change-Id: I24ccf333c380283a36b573ef8fc3e7fcd71bd17f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376215
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ test/typeparam/issue50317.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

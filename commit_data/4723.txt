@@ -1,0 +1,22 @@
+commit c9150003a96d8ecb314d3cb5678225959b3a77c0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jan 29 11:00:05 2010 +1100
+
+    gzip deflater (i.e., writer).
+    
+    Also, the unused Inflater.eof field was removed.
+    It has been unused since revision aaa0b24538.
+    "introduce os.EOF and io.ErrUnexpectedEOF. remove io.ErrEOF."
+    http://code.google.com/p/go/source/diff?spec=svnaaa0b24538ed1e3e54cbbfdd030a3c35785e74c5&r=aaa0b24538ed1e3e54cbbfdd030a3c35785e74c5&format=side&path=/src/pkg/compress/gzip/gunzip.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194122
+
+ src/pkg/compress/gzip/Makefile       |   1 +
+ src/pkg/compress/gzip/gunzip.go      |  31 +++---
+ src/pkg/compress/gzip/gunzip_test.go |  24 ++---
+ src/pkg/compress/gzip/gzip.go        | 187 +++++++++++++++++++++++++++++++++++
+ src/pkg/compress/gzip/gzip_test.go   |  65 ++++++++++++
+ src/pkg/compress/zlib/writer.go      |   2 +-
+ 6 files changed, 285 insertions(+), 25 deletions(-)

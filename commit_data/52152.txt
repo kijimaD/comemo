@@ -1,0 +1,40 @@
+commit 61e5ea492905ba71c5c53ad27e72d042e60bb66a
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jan 26 11:46:45 2023 -0500
+
+    runtime/coverage: restrict use of all counter-related APIs to atomic mode
+    
+    The existing runtime/coverage API set includes a "ClearCounters()"
+    function that zeros out the counter values in a running process so as
+    enable capturing of a coverage profile from a specific execution time
+    segment. Calling this function is only permitted if the program is
+    built with "-covermode=atomic", due (in part) to concerns about
+    processors with relaxed memory models in which normal stores can be
+    reordered.
+    
+    In the bug in question, a test that stresses a different set of
+    counter-related APIs was hitting an invalid counter segment when
+    running on a machine (ppc64) which does indeed have a relaxed memory
+    consistency model.
+    
+    From a post-mortem examination of the counter array for the harness
+    from the ppc64 test run, it was clear that the thread reading values
+    from the counter array was seeing the sort of inconsistency that could
+    result from stores being reordered (specifically the prolog
+    "packageID" and "number-of-counters" stores).
+    
+    To preclude the possibility of future similar problems, this patch
+    extends the "atomic mode only" restriction from ClearCounters to the
+    other APIs that deal with counters (WriteCounters, WriteCountersDir).
+    
+    Fixes #56197.
+    
+    Change-Id: Idb85d67a84d69ead508e0902ab46ab4dc82af466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463695
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/coverage/apis.go          |  12 ++-
+ src/runtime/coverage/emitdata_test.go | 197 +++++++++++++++++++++-------------
+ 2 files changed, 131 insertions(+), 78 deletions(-)

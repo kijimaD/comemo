@@ -1,0 +1,16 @@
+commit a531bd5a59177dfef354df8b5b5b529a2a55d015
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 8 20:41:51 2020 -0400
+
+    cmd/internal/objfile: recognize Mach-O __DATA_CONST segment as read-only data
+    
+    Updates #38830.
+    
+    Change-Id: I826c6b0a42bc8e48fcda556250ca4a95c73987eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253918
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/objfile/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

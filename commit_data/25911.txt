@@ -1,0 +1,24 @@
+commit c8ae2e82c7262df1fa902b847e09f0aa776e7ccd
+Author: Datong Sun <dndx@idndx.com>
+Date:   Sat Feb 20 02:39:07 2016 -0600
+
+    crypto/x509: better documentation for ParsePKIXPublicKey
+    
+    The existing documentation for ParsePKIXPublicKey is difficult to understand
+    and the return type of the parsed public key are not mentioned explicitly.
+    
+    Descriptions about types of public key supported, as well as an example on
+    how to use type assertions to determine return type of a parsed public key
+    has been added.
+    
+    Fixes #14355
+    
+    Change-Id: Ib9561efb34255292735742c0b3e835c4b97ac589
+    Reviewed-on: https://go-review.googlesource.com/19757
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509.go         |  6 ++++++
+ 2 files changed, 49 insertions(+)

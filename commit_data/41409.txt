@@ -1,0 +1,17 @@
+commit 7c0f540b00a7ba7cc723bd7ea27ae90ab72ac09b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 22 09:58:43 2020 -0800
+
+    cmd/compile: use ellipses in 386 rules
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I8ca47b7b7987cb81edaded23331f25c40a8e80dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217004
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386.rules |  123 +-
+ src/cmd/compile/internal/ssa/rewrite386.go | 1680 +++++-----------------------
+ 2 files changed, 365 insertions(+), 1438 deletions(-)

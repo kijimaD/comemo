@@ -1,0 +1,16 @@
+commit 2b309c6e225a908132ddf34316286ec0cdfdb98f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 09:17:33 2014 -0700
+
+    runtime: fix stringw test.
+    
+    Null terminate string.  Make it endian-agnostic.
+    
+    TBR=bradfitz
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/106060044
+
+ src/pkg/runtime/export_test.go |  2 +-
+ src/pkg/runtime/string_test.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

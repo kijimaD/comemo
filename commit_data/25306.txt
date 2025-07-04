@@ -1,0 +1,14 @@
+commit e5ba367c10c8d819841da5ec3661d3d20fc1e765
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 16:20:03 2015 -0500
+
+    go/build: disable test on nacl (and a few others, unnecessarily)
+    
+    Fixes build.
+    
+    Change-Id: Ia71fc031cc8eb575e5ab5323ff4084147d143744
+    Reviewed-on: https://go-review.googlesource.com/17867
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/build_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

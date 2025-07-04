@@ -1,0 +1,23 @@
+commit 7f1f4a193662f18393ee7a189bccba4f3d1c3a64
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 15:52:55 2023 -0700
+
+    cmd/internal/ir: remove ConstExpr in favor of BasicLit
+    
+    OrigNode will be going away soon, which is the only reason for
+    ConstExpr to exist. Otherwise, it's identical to BasicLit.
+    
+    To keep existing code working, change NewConstExpr to construct and
+    return a BasicLit instead.
+    
+    Change-Id: I68b43ec1fcaa57e6723f289ce9f953996aeefb14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526395
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/expr.go     | 28 +++++++++-------------------
+ src/cmd/compile/internal/ir/node_gen.go | 19 -------------------
+ 2 files changed, 9 insertions(+), 38 deletions(-)

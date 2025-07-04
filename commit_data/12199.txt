@@ -1,0 +1,20 @@
+commit 52cd4c8610561bfe0ba06ecb6dbb540128ffc7e8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Feb 25 01:09:05 2012 +0800
+
+    doc: update codelab/wiki to Go 1.
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5683076
+
+ doc/codelab/wiki/Makefile               |  15 ++---
+ doc/codelab/wiki/final-noclosure.go     |   2 +-
+ doc/codelab/wiki/final-noerror.go       |   2 +-
+ doc/codelab/wiki/final-parsetemplate.go |   4 +-
+ doc/codelab/wiki/final-template.go      |   4 +-
+ doc/codelab/wiki/final.go               |   2 +-
+ doc/codelab/wiki/index.html             | 104 +++++++++++++++-----------------
+ doc/codelab/wiki/test.sh                |   4 +-
+ doc/codelab/wiki/wiki.html              | 100 ++++++++++++++----------------
+ 9 files changed, 108 insertions(+), 129 deletions(-)

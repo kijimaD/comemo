@@ -1,0 +1,40 @@
+commit cf8cc7f63c7ddefb666a6e8d99a4843d3277db9f
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 12:14:27 2019 +0100
+
+    cmd/compile: add saturating conversions on wasm
+    
+    This change adds the GOWASM option "satconv" to enable the generation
+    of experimental saturating (non-trapping) float-to-int conversions.
+    It improves the performance of the conversion by 42%.
+    
+    Previously the conversions had already been augmented with helper
+    functions to have saturating behavior. Now Wasm.rules is always using
+    the new operation names and wasm/ssa.go is falling back to the helpers
+    if the feature is not enabled.
+    
+    The feature is in phase 4 of the WebAssembly proposal process:
+    https://github.com/WebAssembly/meetings/blob/master/process/phases.md
+    
+    More information on the feature can be found at:
+    https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md
+    
+    Change-Id: Ic6c3688017054ede804b02b6b0ffd4a02ef33ad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170119
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/install-source.html                     |  1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 16 +++++++--------
+ src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go       | 12 +++++------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 32 ++++++++++++++---------------
+ src/cmd/compile/internal/wasm/ssa.go        | 21 +++++++++++++------
+ src/cmd/go/alldocs.go                       |  2 +-
+ src/cmd/go/internal/help/helpdoc.go         |  2 +-
+ src/cmd/internal/obj/wasm/a.out.go          |  9 ++++++++
+ src/cmd/internal/obj/wasm/anames.go         |  8 ++++++++
+ src/cmd/internal/obj/wasm/wasmobj.go        |  9 ++++++--
+ src/cmd/internal/objabi/util.go             |  6 ++++++
+ 12 files changed, 80 insertions(+), 42 deletions(-)

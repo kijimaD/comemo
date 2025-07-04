@@ -1,0 +1,16 @@
+commit 08a263a991c2e5b38eebe6955ecc96372822661a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 15:17:42 2010 -0700
+
+    gc: bug291
+    
+    Fixes #915.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1856042
+
+ src/cmd/gc/sinit.c       | 10 ++--------
+ test/fixedbugs/bug291.go | 23 +++++++++++++++++++++++
+ test/golden.out          |  3 ---
+ 3 files changed, 25 insertions(+), 11 deletions(-)

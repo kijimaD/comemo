@@ -1,0 +1,22 @@
+commit c2b91d4889cf50abda0d55483f44f2d2cd5c5ad4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 12:16:39 2010 -0700
+
+    6l: correct logic for morestack choice
+    
+    The frame that gets allocated is for both
+    the args and the autos.  If together they
+    exceed the default frame size, we need to
+    tell morestack about both so that it allocates
+    a large enough frame.
+    
+    Sanity check stack pointer in morestack
+    to catch similar bugs.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2609041
+
+ src/cmd/6l/pass.c      | 2 +-
+ src/pkg/runtime/proc.c | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

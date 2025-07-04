@@ -1,0 +1,56 @@
+commit 9b875bc037407b47c4922871390fbae8e3f16592
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:09:56 2011 -0500
+
+    bytes: faster Count, Index, Equal
+    
+    Benchmarks are from GOARCH=amd64 on a MacPro5,1.
+    
+    benchmark                                    old MB/s     new MB/s  speedup
+    bytes_test.BenchmarkEqual32                    452.89       891.07    1.97x
+    bytes_test.BenchmarkEqual4K                    852.71      1700.44    1.99x
+    bytes_test.BenchmarkEqual4M                    841.53      1587.93    1.89x
+    bytes_test.BenchmarkEqual64M                   838.22      1578.14    1.88x
+    
+    bytes_test.BenchmarkIndex32                     58.02        48.99    0.84x
+    bytes_test.BenchmarkIndex4K                     48.26        41.32    0.86x
+    bytes_test.BenchmarkIndex4M                     48.20        41.24    0.86x
+    bytes_test.BenchmarkIndex64M                    48.08        41.21    0.86x
+    bytes_test.BenchmarkIndexEasy32                410.04       546.82    1.33x
+    bytes_test.BenchmarkIndexEasy4K                849.26     14257.37   16.79x
+    bytes_test.BenchmarkIndexEasy4M                854.54     17222.15   20.15x
+    bytes_test.BenchmarkIndexEasy64M               843.57     11060.40   13.11x
+    
+    bytes_test.BenchmarkCount32                     57.24        50.68    0.89x
+    bytes_test.BenchmarkCount4K                     48.19        41.82    0.87x
+    bytes_test.BenchmarkCount4M                     48.18        41.74    0.87x
+    bytes_test.BenchmarkCount64M                    48.17        41.71    0.87x
+    bytes_test.BenchmarkCountEasy32                433.11       547.44    1.26x
+    bytes_test.BenchmarkCountEasy4K               1130.59     14194.06   12.55x
+    bytes_test.BenchmarkCountEasy4M               1131.23     17231.18   15.23x
+    bytes_test.BenchmarkCountEasy64M              1111.40     11068.88    9.96x
+    
+    The non-easy Count/Index benchmarks are a worst case input.
+    
+    regexp.BenchmarkMatchEasy0_32                  237.46       221.47    0.93x
+    regexp.BenchmarkMatchEasy0_1K                  553.53      1019.72    1.84x
+    regexp.BenchmarkMatchEasy0_32K                 693.99      1672.06    2.41x
+    regexp.BenchmarkMatchEasy0_1M                  688.72      1611.68    2.34x
+    regexp.BenchmarkMatchEasy0_32M                 680.70      1565.05    2.30x
+    regexp.BenchmarkMatchEasy1_32                  165.56       243.08    1.47x
+    regexp.BenchmarkMatchEasy1_1K                  336.45       496.32    1.48x
+    regexp.BenchmarkMatchEasy1_32K                 302.80       425.63    1.41x
+    regexp.BenchmarkMatchEasy1_1M                  300.42       414.20    1.38x
+    regexp.BenchmarkMatchEasy1_32M                 299.64       413.47    1.38x
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5451116
+
+ src/pkg/bytes/asm_386.s      |  16 +++++
+ src/pkg/bytes/asm_amd64.s    |  16 +++++
+ src/pkg/bytes/asm_arm.s      |   3 +
+ src/pkg/bytes/bytes.go       |  53 +++++++++++++---
+ src/pkg/bytes/bytes_test.go  | 147 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/bytes/export_test.go |   1 +
+ 6 files changed, 210 insertions(+), 26 deletions(-)

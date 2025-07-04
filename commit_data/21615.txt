@@ -1,0 +1,22 @@
+commit b5b11bdbc6be59c0449f95949d68dd4151a3a8d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 13 08:06:36 2015 -0800
+
+    test: deflake init1.go test, tighten its bounds
+    
+    Per the comment at top, this test is about whether the GC runs during
+    init, but it was testing more than that, and testing how much the GC
+    collected in a certain amount of time.
+    
+    Instead, loosen this test to just see whether it ran at all and not
+    how well it did.
+    
+    Fixes #9848
+    
+    Change-Id: I31da7dd769140d7b49aa6c149a543fae6076aa5e
+    Reviewed-on: https://go-review.googlesource.com/4820
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/init1.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

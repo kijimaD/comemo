@@ -1,0 +1,12 @@
+commit 86a6995a7e4cc7242b010642dc12f61488b5cddf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 14:05:18 2011 -0500
+
+    os: fix windows build
+    
+    TBR=brainman
+    CC=golang-dev
+    https://golang.org/cl/5373105
+
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

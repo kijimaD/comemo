@@ -1,0 +1,41 @@
+commit 5f29a7a705e706e307653db47c03df6dbbaf47bc
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Nov 18 00:21:06 2017 -0700
+
+    cmd/compile: hint on wrong case-field names in composite literals
+    
+    Improve the error message for wrong
+    case-field names in composite literals,
+    by mentioning the correct field name.
+    
+    Given the program:
+    package main
+    
+    type it struct {
+            ID string
+    }
+    
+    func main() {
+            i1 := &it{id: "Bar"}
+    }
+    
+    just like we do for usage of fields, we now
+    report wrongly cased fields as hints to give:
+    
+    ts.go:8:14: unknown field 'id' in struct literal of type it (but does have ID)
+    
+    instead of before:
+    
+    ts.go:8:14: unknown field 'id' in struct literal of type it
+    
+    Fixes #22794
+    
+    Change-Id: I18cd70e75817025cb1df083503cae306e8d659fd
+    Reviewed-on: https://go-review.googlesource.com/78545
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ test/fixedbugs/issue22794.go             | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 7b768d43d0f0e3e734369496bb1caa409d4bd0bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 17:23:35 2021 -0700
+
+    math: replace float32/64 extrema with exact expressions
+    
+    Follow-up on https://golang.org/cl/315170.
+    
+    Updates #44057.
+    Updates #44058.
+    
+    Change-Id: I0b071e8ee7a1c97aae2436945cc9583cde3b40b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315969
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/except.txt    | 1 +
+ src/math/const.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

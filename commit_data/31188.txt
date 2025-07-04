@@ -1,0 +1,22 @@
+commit 0ea120a70c03c3c57778d6863188fdfee87cb0f9
+Author: David Lazar <lazard@golang.org>
+Date:   Mon Apr 10 14:33:07 2017 -0400
+
+    runtime: skip logical frames in runtime.Caller
+    
+    This rewrites runtime.Caller in terms of stackExpander, which already
+    handles inlined frames and partially skipped frames. This also has the
+    effect of making runtime.Caller understand cgo frames if there is a cgo
+    symbolizer.
+    
+    Updates #19348.
+    
+    Change-Id: Icdf4df921aab5aa394d4d92e3becc4dd169c9a6e
+    Reviewed-on: https://go-review.googlesource.com/40270
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/extern.go | 37 ++++++++++---------------
+ test/inline_caller.go | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 92 insertions(+), 22 deletions(-)

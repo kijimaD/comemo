@@ -1,0 +1,13 @@
+commit 96e0c0c7648bc4dbdf433d14c43f6f31d4f13472
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 12 11:24:24 2013 +1100
+
+    encoding/base32, encoding/base64: a small stack-space optimization.
+    
+    R=dsymonds, dave
+    CC=golang-dev
+    https://golang.org/cl/7568045
+
+ src/pkg/encoding/base32/base32.go | 12 ++++++------
+ src/pkg/encoding/base64/base64.go | 10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)

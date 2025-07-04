@@ -1,0 +1,17 @@
+commit e6d5233cfeda21001e2bf228f09c464845c4ef33
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 15 14:59:46 2015 -0400
+
+    misc/ios: adjust exec script for iOS 8.3
+    
+    We no longer need the EXC_BAD_ACCESS watcher as runtime/cgo contains
+    a mach exception handler that catches it. And now lldb only
+    intermittently reports process connection and exiting, so instead
+    just look for the PASS from Go.
+    
+    Change-Id: I403266558f5a900e0b87ec1019d9baec88148d23
+    Reviewed-on: https://go-review.googlesource.com/8957
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)

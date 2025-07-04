@@ -1,0 +1,14 @@
+commit e9453e05454acd5039ac0d499990fd93b11ff43b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 15:55:16 2013 -0400
+
+    cmd/gc: do not report fields when looking for methods
+    
+    Fixes #6395.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13470046
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 01b649b7ef45b89610a47efa048b8e73e76b078e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 13 16:49:58 2023 -0700
+
+    spec: explain in which situations function type arguments can be omitted
+    
+    Change-Id: I9f008dba7ba6e30f0e62647482a3ed0b51bc1ad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502997
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 52 +++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 37 insertions(+), 15 deletions(-)

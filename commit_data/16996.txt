@@ -1,0 +1,14 @@
+commit ebc5513be607165c4d676283d76b3284f103dbd8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 13:51:28 2013 -0400
+
+    runtime: in newstack, double-check calling goroutine
+    
+    Checking this condition helped me find the arm problem last night.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12267043
+
+ src/pkg/runtime/stack.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

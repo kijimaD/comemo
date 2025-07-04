@@ -1,0 +1,20 @@
+commit 673fdea5e798baa98c418cba86cf50c8d80cbc36
+Author: Julio Montes <julio.montes@intel.com>
+Date:   Mon May 22 10:33:31 2017 -0500
+
+    syscall: allow processes steal a controlling terminal on Linux
+    
+    The current implementation of forkAndExecInChild for Linux does not allow
+    spawned processes steal the controlling terminal from a different session
+    group. This patch passes 1 as the argument to TIOCSCTTY in order to allow
+    spawned processes steal controlling terminals.
+    
+    Fixes #20454
+    
+    Change-Id: I171b8981509d648b07f89bddc1e9d45cb70e00e6
+    Reviewed-on: https://go-review.googlesource.com/44343
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

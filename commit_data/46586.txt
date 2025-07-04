@@ -1,0 +1,28 @@
+commit 217507eb035933bac6c990844f0d71d6000fd339
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 18:32:45 2021 -0400
+
+    runtime: set vdsoSP to caller's SP consistently
+    
+    m.vdsoSP should be set to the SP of the caller of nanotime1,
+    instead of the SP of nanotime1 itself, which matches m.vdsoPC.
+    Otherwise the unmatched vdsoPC and vdsoSP would make the stack
+    trace look like recursive.
+    
+    We already do it correctly on AMD64, 386, and RISCV64. This CL
+    fixes the rest.
+    
+    Fixes #47324.
+    
+    Change-Id: I98b6fcfbe9fc6bdd28b8fe2a1299b7c505371dd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337590
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/pprof/pprof_test.go | 30 ++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s     |  6 ++++--
+ src/runtime/sys_linux_arm64.s   |  6 ++++--
+ src/runtime/sys_linux_mips64x.s |  6 ++++--
+ src/runtime/sys_linux_ppc64x.s  |  8 +++++---
+ 5 files changed, 47 insertions(+), 9 deletions(-)

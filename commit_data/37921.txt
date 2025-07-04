@@ -1,0 +1,12 @@
+commit c53aecaaeaf8992bf8cafa7c8729228d7e4d2fee
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 22 13:44:32 2019 -0800
+
+    doc: describe change to eliminate method expression wrappers from stack traces
+    
+    Change-Id: I824b42a1c1fdcee8712681ffc6316470761be065
+    Reviewed-on: https://go-review.googlesource.com/c/159858
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,0 +1,18 @@
+commit 8ae44af2bb94963c626b2ec637fc580fdc7d7934
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 5 17:39:09 2015 +1000
+
+    image/gif: allow encoding a single-frame image whose top-left corner
+    isn't (0, 0).
+    
+    Also fix a s/b.Min.X/b.Max.X/ typo in bounds checking.
+    
+    Fixes #10676
+    
+    Change-Id: Ie5ff7ec20ca30367a8e65d32061959a2d8e089e9
+    Reviewed-on: https://go-review.googlesource.com/9712
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/writer.go      | 11 ++++++++++-
+ src/image/gif/writer_test.go | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 37 insertions(+), 2 deletions(-)

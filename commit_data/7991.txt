@@ -1,0 +1,13 @@
+commit db99a784c22fce2aa786d8e06335edc1e5612da1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 5 17:07:56 2011 -0400
+
+    A+C: Dmitry Chestnykh (individual CLA)
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/4346054
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

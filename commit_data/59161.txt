@@ -1,0 +1,19 @@
+commit f90f3cfcf71fa1226572f87035323fca0ab33e52
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 7 18:46:37 2023 +1100
+
+    cmd/internal/obj/arm64: move register encoding into oprrr
+    
+    Rather than having register encoding knowledge in each caller of oprrr,
+    pass the registers into oprrr and let it handle the encoding. This reduces
+    duplication and improves readability.
+    
+    Change-Id: Iab6c70f7796b7a8c071419654b8a5686aeee8c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471518
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 716 +++++++++++++++++--------------------
+ 1 file changed, 323 insertions(+), 393 deletions(-)

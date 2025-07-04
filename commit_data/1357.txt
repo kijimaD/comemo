@@ -1,0 +1,12 @@
+commit 003f0ad6afacbed76dfc09788d1117c44cc42222
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 18:03:18 2008 -0800
+
+    - added missing file
+    
+    R=r
+    OCL=21384
+    CL=21384
+
+ usr/gri/pretty/typechecker.go | 100 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)

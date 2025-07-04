@@ -1,0 +1,19 @@
+commit de5329f1de4cd4a938323012910310e548b2d936
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 23 14:11:59 2022 -0400
+
+    debug/dwarf: handle malformed line table with bad program offset
+    
+    Touch up the line table reader to ensure that it can detect and reject
+    an invalid program offset field in the table header.
+    
+    Fixes #53329.
+    
+    Change-Id: Ia8d684e909af3aca3014b4a3d0dfd431e3f5a9f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413814
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/dwarf/line.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

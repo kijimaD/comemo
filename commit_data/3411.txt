@@ -1,0 +1,18 @@
+commit 0632bb4ae51c3f60c7beffaada5af2d82157dec8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 30 13:11:33 2009 -0700
+
+    rename the public exvar package to be expvar.
+    
+    R=rsc
+    DELTA=684  (324 added, 324 deleted, 36 changed)
+    OCL=35161
+    CL=35163
+
+ src/pkg/Make.deps                                      |  2 +-
+ src/pkg/Makefile                                       |  2 +-
+ src/pkg/{exvar => expvar}/Makefile                     |  4 ++--
+ src/pkg/{exvar/exvar.go => expvar/expvar.go}           |  8 ++++----
+ src/pkg/{exvar/exvar_test.go => expvar/expvar_test.go} |  2 +-
+ src/pkg/http/triv.go                                   | 10 +++++-----
+ 6 files changed, 14 insertions(+), 14 deletions(-)

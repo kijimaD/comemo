@@ -1,0 +1,25 @@
+commit 51ff2ef409ef0e9b3748540e37ff378a9b8bcaea
+Author: Micah Stetson <micah.stetson@gmail.com>
+Date:   Mon Jun 25 16:03:18 2012 -0400
+
+    encoding/json: simplify (*decodeState).indirect
+    
+    Removes an incorrect code comment and some superfluous variables.
+    
+    The comment I removed says that struct fields which implement
+    Unmarshaler must be pointers, even if they're in an addressable
+    struct. That's not the case, and there's already a test in decode_test.go
+    that demonstrates as much.
+    
+    Encoding/json has quite a few assignments of reflect.Values to extra
+    variables – things like "iv := v" when there's no need to make a copy. I
+    think these are left over from a previous version of the reflect API. If they
+    aren't wanted, I wouldn't mind going through the package and getting
+    rid of the rest of them.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6318047
+
+ src/pkg/encoding/json/decode.go | 39 ++++++++++++---------------------------
+ 1 file changed, 12 insertions(+), 27 deletions(-)

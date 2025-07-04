@@ -1,0 +1,27 @@
+commit cbcf8efa5f749b4e5bceda8682070cd9cf84bee5
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 18 13:31:49 2023 -0700
+
+    cmd/compile: use cache in front of type assert runtime call
+    
+    That way we don't need to call into the runtime for every
+    type assertion (to an interface type).
+    
+    name           old time/op  new time/op  delta
+    TypeAssert-24  3.78ns ± 3%  1.00ns ± 1%  -73.53%  (p=0.000 n=10+8)
+    
+    Change-Id: I0ba308aaf0f24a5495b4e13c814d35af0c58bfde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529316
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go      | 128 +++++++++++++++++++++++-----
+ src/cmd/compile/internal/test/iface_test.go |  12 +++
+ src/cmd/compile/internal/walk/expr.go       |   7 +-
+ src/internal/abi/switch.go                  |  12 +++
+ src/runtime/iface.go                        |  87 ++++++++++++++++++-
+ test/codegen/ifaces.go                      |  14 ++-
+ test/codegen/switch.go                      |   9 ++
+ 7 files changed, 239 insertions(+), 30 deletions(-)

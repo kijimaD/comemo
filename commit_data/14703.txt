@@ -1,0 +1,13 @@
+commit 74dcfc957639078508aa3b9a0c396b9d4ef55fe2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 21 19:11:10 2012 +0400
+
+    cmd/go: improve wording of race detector documentation
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7006043
+
+ src/cmd/go/build.go | 3 +--
+ src/cmd/go/doc.go   | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

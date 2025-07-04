@@ -1,0 +1,14 @@
+commit bdcc0437f61d9ef7df356003c2f594b2c52edc6e
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Fri Apr 15 08:25:44 2011 -0400
+
+    make: prevent rm provoking 'text file busy' errors.
+    
+    Trivial patch to stop intermediate rm'ing of binaries stopping build.
+    
+    R=rsc1, bradfitzgo, rsc
+    CC=golang-dev
+    https://golang.org/cl/4412045
+
+ src/Make.common | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

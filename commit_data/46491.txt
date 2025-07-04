@@ -1,0 +1,25 @@
+commit 83b36ffb108cc6e6cc3282b94c090f70100b5ef0
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 09:09:55 2021 -0700
+
+    cmd/compile: implement constant rotates on arm64
+    
+    Explicit constant rotates work, but constant arguments to
+    bits.RotateLeft* needed the additional rule.
+    
+    Fixes #48465
+    
+    Change-Id: Ia7544f21d0e7587b6b6506f72421459cd769aea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350909
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 33 ++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 40 ++++++++++++++++++++++++++++
+ test/codegen/rotate.go                       | 19 +++++++++++--
+ 5 files changed, 82 insertions(+), 16 deletions(-)

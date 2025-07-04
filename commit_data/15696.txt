@@ -1,0 +1,45 @@
+commit e15c0ac693dec3379306f5c0942812f12a37e736
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 14:16:55 2013 -0700
+
+    all: remove now-unnecessary unreachable panics
+    
+    Take advantage of the new terminating statement rule.
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/7712044
+
+ src/cmd/api/goapi.go                   | 1 -
+ src/cmd/go/build.go                    | 1 -
+ src/pkg/bufio/bufio.go                 | 1 -
+ src/pkg/bufio/scan.go                  | 1 -
+ src/pkg/compress/bzip2/huffman.go      | 2 --
+ src/pkg/compress/flate/deflate_test.go | 1 -
+ src/pkg/compress/flate/inflate.go      | 2 --
+ src/pkg/compress/flate/token.go        | 1 -
+ src/pkg/compress/lzw/reader.go         | 1 -
+ src/pkg/crypto/dsa/dsa.go              | 2 --
+ src/pkg/crypto/x509/pkcs8.go           | 2 --
+ src/pkg/crypto/x509/x509.go            | 1 -
+ src/pkg/encoding/ascii85/ascii85.go    | 1 -
+ src/pkg/encoding/binary/varint.go      | 1 -
+ src/pkg/encoding/csv/reader.go         | 1 -
+ src/pkg/encoding/json/decode.go        | 2 +-
+ src/pkg/encoding/xml/read.go           | 2 --
+ src/pkg/go/parser/error_test.go        | 2 --
+ src/pkg/html/template/transition.go    | 1 -
+ src/pkg/image/gif/reader.go            | 1 -
+ src/pkg/io/ioutil/ioutil.go            | 1 -
+ src/pkg/math/rand/exp.go               | 1 -
+ src/pkg/math/rand/normal.go            | 1 -
+ src/pkg/mime/multipart/multipart.go    | 1 -
+ src/pkg/net/dial.go                    | 1 -
+ src/pkg/net/http/client_test.go        | 1 -
+ src/pkg/net/http/fcgi/child.go         | 1 -
+ src/pkg/net/http/server.go             | 1 -
+ src/pkg/net/http/transport.go          | 1 -
+ src/pkg/net/rpc/server_test.go         | 2 --
+ src/pkg/net/textproto/reader.go        | 1 -
+ src/pkg/os/file_unix.go                | 1 -
+ 32 files changed, 1 insertion(+), 39 deletions(-)

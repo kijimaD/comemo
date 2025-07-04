@@ -1,0 +1,13 @@
+commit 2d543d0c14e03e6a1cbd1ed74152f4018ce505de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 10:16:17 2009 -0700
+
+    Adjustements related to AST changes.
+    
+    R=r
+    OCL=27026
+    CL=27028
+
+ usr/gri/pretty/astprinter.go |  96 +++++++++++++++---------------------
+ usr/gri/pretty/docprinter.go | 114 +++++++++++++++++++------------------------
+ 2 files changed, 88 insertions(+), 122 deletions(-)

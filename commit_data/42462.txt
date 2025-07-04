@@ -1,0 +1,12 @@
+commit 9d715e0bffe895187bd602d58a4cf2c348f07e49
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 10:44:46 2020 -0400
+
+    doc/go1.15: 1.15 supports OpenBSD 6.7 on arm and arm64
+    
+    Change-Id: Ibea6fbb73abdb7201855e80967120c07484d6460
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

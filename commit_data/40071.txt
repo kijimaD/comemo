@@ -1,0 +1,18 @@
+commit 9748e64fe552f484285ea6399329e6c8e696db63
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Wed Sep 25 20:20:37 2019 +0000
+
+    regexp: add examples for FindSubmatchIndex and Longest
+    
+    updates #21450
+    
+    Change-Id: Ibffe0dadc1e1523c55cd5f5b8a69bc1c399a255d
+    GitHub-Last-Rev: 507f55508121a525de4d210e7ada1396ccaaf367
+    GitHub-Pull-Request: golang/go#33497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,0 +1,24 @@
+commit d42b520b037311b406da9fcb564f3ef5f91470d7
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 8 13:30:02 2022 -0700
+
+    math/big: make NewInt inlineable and zero allocation
+    
+    Mark the assembly routines as not escaping their arguments.
+    
+    Add a special case to NewInt that, when inlined, can do all
+    of its allocations (a big.Int and a [1]Word) on the stack.
+    
+    Update #29951
+    
+    Change-Id: I9bd38c262eb97df98c0ed9874da7daac381243ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411254
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/big/arith_decl.go | 16 ++++++++++++++++
+ src/math/big/int.go        | 15 ++++++++++++++-
+ src/math/big/int_test.go   | 26 +++++++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 2 deletions(-)

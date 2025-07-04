@@ -1,0 +1,15 @@
+commit dbecfbf86d9bc0290dcf90cea4139bfdb00bc4da
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Aug 13 18:10:38 2009 -0700
+
+    Don't try to account for CALL instruction in 0th frame.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=9  (4 added, 3 deleted, 2 changed)
+    OCL=33238
+    CL=33251
+
+ src/pkg/runtime/386/traceback.c   | 5 +++--
+ src/pkg/runtime/amd64/traceback.c | 6 +++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)

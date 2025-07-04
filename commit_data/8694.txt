@@ -1,0 +1,13 @@
+commit 968afa0e8c7f27b8767e76ed813e92bf670164c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 10 17:19:01 2011 -0700
+
+    go/scanner: partially revert CL4538096 now that we have %#U for runes
+    
+    R=r, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4572049
+
+ src/pkg/go/scanner/scanner.go      | 3 ++-
+ src/pkg/go/scanner/scanner_test.go | 6 +++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

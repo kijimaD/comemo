@@ -1,0 +1,19 @@
+commit 8764ebee95803d7eb9c1ef70b4ae54b10c0d0f29
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 17:25:38 2009 -0700
+
+    spectral-norm
+    make regexp-dna use bytes not strings (no significant timing change)
+    
+    R=rsc
+    DELTA=149  (138 added, 1 deleted, 10 changed)
+    OCL=32804
+    CL=32807
+
+ test/bench/regex-dna.go      | 20 +++++-----
+ test/bench/spectral-norm.c   | 82 ++++++++++++++++++++++++++++++++++++++
+ test/bench/spectral-norm.go  | 95 ++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/spectral-norm.txt |  1 +
+ test/bench/timing.log        |  8 ++++
+ test/bench/timing.sh         | 10 ++++-
+ 6 files changed, 205 insertions(+), 11 deletions(-)

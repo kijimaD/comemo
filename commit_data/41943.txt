@@ -1,0 +1,33 @@
+commit 201cb046b745f8bb00e3d382290190c74ba7b7e1
+Author: Obeyda Djeffal <djefobey@gmail.com>
+Date:   Sat Apr 11 23:21:22 2020 +0100
+
+    time: quote original value in errors returned by ParseDuration
+    
+    Quote original values passed as substring of ParseError.Message.
+    Improves the user experience of ParseDuration by making it
+    quote its original argument, for example:
+    
+       _, err := time.ParseDuration("for breakfast")
+     will now produce an error, which when printed out is:
+    
+      time: invalid duration "for breakfast"
+     instead of:
+    
+      time: invalid duration for breakfast
+    
+    Adapt test cases for format.Parse and format.ParseDuration.
+    
+    Fixes #38295
+    
+    Change-Id: Ife322c8f3c859e1e4e8dd546d4cf0d519b4bfa81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227878
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/example_test.go |   2 +-
+ src/time/format.go       |  20 +++----
+ src/time/format_test.go  |   6 +--
+ src/time/time_test.go    | 135 ++++++++++++++++++++++++++---------------------
+ 4 files changed, 90 insertions(+), 73 deletions(-)

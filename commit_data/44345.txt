@@ -1,0 +1,18 @@
+commit 6a40dd05d833b2bd78eb68ac67d7e860edff6878
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 20:06:24 2021 -0800
+
+    cmd/compile/internal/types2: review of sanitize.go
+    
+    Remove the "// UNREVIEWED" marker and add guards (as in go/types)
+    to prevent data races. To see the added guards, see compare patch
+    sets 3 and 4. The equivalent changes for go/types were done in
+    https://golang.org/cl/294411.
+    
+    Change-Id: Ibef07eaae400bd32bff32b102cc743580290d135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294510
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/sanitize.go | 87 ++++++++++++++++++++++-------
+ 1 file changed, 66 insertions(+), 21 deletions(-)

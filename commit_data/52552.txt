@@ -1,0 +1,25 @@
+commit ef4b2fdc48f242fe8f95f15df055c674efa8f35e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 6 12:09:04 2023 -0700
+
+    net/http: improve failure mode for TestResponseControllerSetPastReadDeadline
+    
+    A test flake in #59447 seems to indicate that this test got stuck
+    waiting for the test handler to close the readc channel.
+    If the handler returns early due to an unexpected error, it might
+    fail to close this channel. Add a second channel to act as a
+    signal that the handler has given up and the test should stop.
+    This won't fix whatever happened in the flake, but might help
+    us debug it if it happens again.
+    
+    For #59447
+    
+    Change-Id: I05d84c6176aa938887d93126a6f3bb4dc941c90d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482935
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/responsecontroller_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

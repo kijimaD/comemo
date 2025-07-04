@@ -1,0 +1,40 @@
+commit 2ee420fa5ebe212926ee077e0b892839307ef88f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 11:55:48 2010 -0400
+
+    ... changes
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/2273042
+
+ src/cmd/cgo/util.go                      |  4 ++--
+ src/cmd/goyacc/goyacc.go                 |  2 +-
+ src/pkg/encoding/ascii85/ascii85_test.go |  2 +-
+ src/pkg/encoding/base64/base64_test.go   |  2 +-
+ src/pkg/encoding/git85/git_test.go       |  2 +-
+ src/pkg/exp/datafmt/datafmt.go           |  6 +++---
+ src/pkg/exp/datafmt/datafmt_test.go      |  4 ++--
+ src/pkg/exp/eval/compiler.go             |  2 +-
+ src/pkg/exp/eval/expr.go                 |  2 +-
+ src/pkg/exp/eval/stmt.go                 |  2 +-
+ src/pkg/fmt/print.go                     |  6 +++---
+ src/pkg/fmt/scan.go                      | 12 ++++++------
+ src/pkg/go/ast/print.go                  |  2 +-
+ src/pkg/go/parser/parser.go              |  2 +-
+ src/pkg/go/printer/printer.go            |  2 +-
+ src/pkg/go/typechecker/typechecker.go    |  2 +-
+ src/pkg/log/log.go                       | 20 ++++++++++----------
+ src/pkg/net/textproto/textproto.go       |  2 +-
+ src/pkg/net/textproto/writer.go          |  2 +-
+ src/pkg/netchan/export.go                |  2 +-
+ src/pkg/netchan/import.go                |  2 +-
+ src/pkg/nntp/nntp.go                     |  2 +-
+ src/pkg/path/path_test.go                |  2 +-
+ src/pkg/template/template.go             |  4 ++--
+ src/pkg/testing/testing.go               | 12 ++++++------
+ test/bench/pidigits.go                   |  2 +-
+ test/ddd.go                              | 14 +++++++-------
+ test/defer.go                            |  2 +-
+ test/fixedbugs/bug252.go                 |  4 ++--
+ 29 files changed, 62 insertions(+), 62 deletions(-)

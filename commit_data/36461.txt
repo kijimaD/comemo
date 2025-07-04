@@ -1,0 +1,40 @@
+commit 379d2dea72e475288da97ad6c665105fb731a34d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jun 2 20:55:20 2018 +0200
+
+    cmd/compile: remove superfluous signed right shift used for signed division by 2
+    
+    A signed right shift before an unsigned right shift by register width-1
+    (extracts the sign bit) is superflous.
+    
+    trigger counts during ./make.bash
+     0   (Rsh8U  (Rsh8  x _) 7  ) -> (Rsh8U  x 7 )
+     0   (Rsh16U (Rsh16 x _) 15 ) -> (Rsh16U x 15)
+     2   (Rsh32U (Rsh32 x _) 31 ) -> (Rsh32U x 31)
+     251 (Rsh64U (Rsh64 x _) 63 ) -> (Rsh64U x 63)
+    
+    Changes the instructions generated on AMD64 for x / 2 where
+    x is a signed integer from:
+    
+     MOVQ    AX, CX
+     SARQ    $63, AX
+     SHRQ    $63, AX
+     ADDQ    CX, AX
+     SARQ    $1, AX
+    
+    to:
+    
+     MOVQ    AX, CX
+     SHRQ    $63, AX
+     ADDQ    CX, AX
+     SARQ    $1, AX
+    
+    Change-Id: I86321ae8fc9dc24b8fa9eb80aa5c7299eff8c9dc
+    Reviewed-on: https://go-review.googlesource.com/115956
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   6 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 104 +++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+)

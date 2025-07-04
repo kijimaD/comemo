@@ -1,0 +1,14 @@
+commit b3de7f28a8c111043013cc539421021a32176c33
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Aug 28 16:02:15 2014 -0700
+
+    runtime: fix Plan 9 build for new C calling convention
+    
+    LGTM=0intro, rsc
+    R=rsc, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/132320043
+
+ src/pkg/runtime/sys_plan9_386.s   | 27 ++++++++++++++-------------
+ src/pkg/runtime/sys_plan9_amd64.s | 29 +++++++++++++++--------------
+ 2 files changed, 29 insertions(+), 27 deletions(-)

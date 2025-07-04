@@ -1,0 +1,17 @@
+commit c33a9511e7ba79177c256e1ff9d7c952ab80104f
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Feb 27 18:53:14 2019 +0100
+
+    cmd/dist: fix variable name
+    
+    Noticed by Bryan after CL 163618 went in.
+    
+    Change-Id: Ia33c80dca60321f6a8329097ff55118e5d2634ab
+    Reviewed-on: https://go-review.googlesource.com/c/164042
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

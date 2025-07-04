@@ -1,0 +1,19 @@
+commit a20724d63425ccb871c57d45e2401af2401518bc
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Jan 11 12:53:25 2022 -0500
+
+    go/types, types2: mention type decl scopes in Info.Scopes documentation
+    
+    We now may have a scope associated with a type declaration, so need to
+    update our API documentation accordingly.
+    
+    Change-Id: Ic66dc3b7cd1969b25fb7c4bee986d76ab3544042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377655
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api.go | 1 +
+ src/go/types/api.go                    | 1 +
+ 2 files changed, 2 insertions(+)

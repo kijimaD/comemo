@@ -1,0 +1,12 @@
+commit a1a3d213559861f407a9f5bc7db3c3ae0d7fe5c5
+Author: Arne Hormann <arnehormann@gmail.com>
+Date:   Wed Dec 18 08:17:43 2013 +1100
+
+    database/sql: fix typo in comment
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/43300043
+
+ src/pkg/database/sql/fakedb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

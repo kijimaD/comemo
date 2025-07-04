@@ -1,0 +1,19 @@
+commit 14c3692502be68275a8deb9c19dabbbd510a4f31
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Mar 16 14:05:00 2019 +0100
+
+    cmd/dist: reenable testing of Examples for js/wasm
+    
+    Testing Examples for js/wasm is supported as of ac56baa, so we can
+    reenable them.
+    
+    This reverts CL 119377 (commit 9a91713).
+    
+    Fixes #25933
+    
+    Change-Id: I0f228a3ec385dbe9573d3c33e42dccd4488d7152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167800
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 5 -----
+ 1 file changed, 5 deletions(-)

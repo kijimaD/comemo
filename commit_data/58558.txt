@@ -1,0 +1,20 @@
+commit 9da530f11ac8331e9326290e42e9a39e7bd56d35
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Feb 3 09:59:25 2025 -0500
+
+    internal/goversion: update Version to 1.25
+    
+    Go 1.25 is in the process of being opened for development (to be
+    eventually released). This change marks the very beginning of its
+    development cycle, updating the Version value accordingly.
+    
+    For #40705.
+    For #70525.
+    
+    Change-Id: If673d4aeddc376fefe6bddc3ec2704ca91245777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646155
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

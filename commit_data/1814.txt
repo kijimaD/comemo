@@ -1,0 +1,13 @@
+commit cd04ec95ea0a7f31798889101a29bc20658b6b56
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 11 21:59:05 2009 -0700
+
+    bit clear: &^ and &^=
+    
+    R=gri
+    DELTA=5  (3 added, 0 deleted, 2 changed)
+    OCL=26155
+    CL=26157
+
+ doc/go_spec.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

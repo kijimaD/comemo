@@ -1,0 +1,14 @@
+commit 18107ed9fbdb0d2ae1006857e21a8a66882e12dd
+Author: Michael Brandenburg <mcbrande@gmail.com>
+Date:   Tue Jun 18 22:16:05 2019 -0700
+
+    math: add examples for Log, Log2, Mod, and Abs
+    
+    Change-Id: I5f57acd5e970b3fec5f33cfceee179235cbf739f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182877
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

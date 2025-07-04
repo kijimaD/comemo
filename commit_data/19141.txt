@@ -1,0 +1,22 @@
+commit 55e0f36fb46cd3c5b54c4fb0d8444135c3dff0ac
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Apr 15 19:48:17 2014 +0400
+
+    runtime: fix program termination when main goroutine calls Goexit
+    Do not consider idle finalizer/bgsweep/timer goroutines as doing something useful.
+    We can't simply set isbackground for the whole lifetime of the goroutines,
+    because when finalizer goroutine calls user function, we do want to consider it
+    as doing something useful.
+    This is borken due to timers for quite some time.
+    With background sweep is become even more broken.
+    Fixes #7784.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87960044
+
+ src/pkg/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c        |  4 ++++
+ src/pkg/runtime/time.goc      |  2 ++
+ 3 files changed, 34 insertions(+)

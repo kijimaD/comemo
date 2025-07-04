@@ -1,0 +1,15 @@
+commit 138d2c9b88d9e3d5adcebf9cb7c356b43d6a9782
+Author: EndlessCheng <loli.con@qq.com>
+Date:   Tue May 4 01:00:37 2021 +0000
+
+    strconv: fix a typo
+    
+    Change-Id: I17911dc95fb2126b41dc95f8839c4b3fa8f35d12
+    GitHub-Last-Rev: 88e120329301bd73db39e1081737a83f49a5672b
+    GitHub-Pull-Request: golang/go#45933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316689
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strconv/atoi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 4d08d91192002fd5d14916efe43fe71c64a6218e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 17 15:38:24 2009 -0700
+
+    fix build    (Makefile comment convention)
+    
+    R=rsc
+    OCL=33418
+    CL=33418
+
+ src/libbio/Makefile | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

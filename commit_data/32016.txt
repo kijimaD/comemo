@@ -1,0 +1,16 @@
+commit 121d076679a376ef5549c858195c5a8357cba36e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 14 19:02:05 2017 +0000
+
+    syscall: skip TestUnshare on Linux upon permission error
+    
+    Fixes #17206
+    
+    Change-Id: Id0ebc3a55ea1c5f52608decffee04c8398a8774b
+    Reviewed-on: https://go-review.googlesource.com/48571
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

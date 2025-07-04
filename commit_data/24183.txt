@@ -1,0 +1,33 @@
+commit 5a3ff6c8955a5df81f6dd83e143a47bd51266b61
+Author: Paul Marks <pmarks@google.com>
+Date:   Fri Sep 4 18:33:35 2015 -0700
+
+    net: Make Listen(":port") use IPv6 when IPv4 is not supported.
+    
+    When running an experimental kernel with IPv4 disabled, Listen(":port")
+    currently tries to create an AF_INET socket, and fails.  Instead, it
+    should see !supportsIPv4, and use an AF_INET6 socket.
+    
+    This sort of environment is quite esoteric at the moment, but I can
+    force the tests to fail on regular Linux using the following tweaks:
+    
+    - net/net.go: supportsIPv4, supportsIPv6, supportsIPv4map = false, true, false
+    - net/sockopt_linux.go: ipv6only=true
+    - net/ipsock_posix.go: Revert this fix
+    - ./make.bash && ../bin/go test net
+    
+    Also, make the arrows in server_test.go point to the left, because
+    server<-client is easier to read.
+    
+    Fixes #12510
+    
+    Change-Id: I0cc3b6b08d5e6908d2fbf8594f652ba19815aa4b
+    Reviewed-on: https://go-review.googlesource.com/14334
+    Run-TryBot: Paul Marks <pmarks@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ipsock_posix.go  | 11 ++++++-----
+ src/net/platform_test.go |  2 +-
+ src/net/server_test.go   |  6 +++---
+ 3 files changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 8a2d6e9f6fd2f9e5b06add7e1c958ee6d3051ca7
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon Mar 14 10:24:19 2016 +0000
+
+    runtime: fix a typo in asssembly macro GO_RESULTS_INITIALIZED
+    
+    Fixes #14772
+    
+    Change-Id: I32f2b6b74de28be406b1306364bc07620a453962
+    Reviewed-on: https://go-review.googlesource.com/20680
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/funcdata.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 775ab8eeaaea970ddfcb339c275f79cd98e6bca5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 11 11:48:47 2014 -0400
+
+    cmd/gc: fix escape analysis for &x inside switch x := v.(type)
+    
+    The analysis for &x was using the loop depth on x set
+    during x's declaration. A type switch creates a list of
+    implicit declarations that were not getting initialized
+    with loop depths.
+    
+    Fixes #8176.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/108860043
+
+ src/cmd/gc/esc.c | 18 ++++++++++++++++--
+ test/escape2.go  | 10 ++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

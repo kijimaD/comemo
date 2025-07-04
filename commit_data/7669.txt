@@ -1,0 +1,16 @@
+commit 6d6f3381ffa470e879cceec7ef926445ed86bc27
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 10:37:28 2011 -0500
+
+    io: reimplement Pipe
+    
+    No known bugs in the current pipe,
+    but this one is simpler and easier to
+    understand.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4252057
+
+ src/pkg/io/pipe.go | 307 ++++++++++++++++-------------------------------------
+ 1 file changed, 92 insertions(+), 215 deletions(-)

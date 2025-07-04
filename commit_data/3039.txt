@@ -1,0 +1,28 @@
+commit bd4161fcbafb72b4df7da643e9639b897fafbc5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 16:09:38 2009 -0700
+
+    FFI step 2: can ask for libc.so.6.
+    
+    introduced explicit "data" symbol instead of etext
+    to mark beginning of data, so that using larger
+    alignment (i.e. 4MB like GNU loader) doesn't
+    confuse garbage collector.
+    
+    split dodata into dodata and dobss in preparation
+    for putting the dynamic data + headers in the data
+    segment instead of stuffed at the beginning of the binary.
+    
+    R=r
+    DELTA=52  (37 added, 3 deleted, 12 changed)
+    OCL=33610
+    CL=33618
+
+ src/cmd/6l/asm.c       | 28 +++++++++++++++++++++++-----
+ src/cmd/6l/l.h         |  1 +
+ src/cmd/6l/obj.c       |  1 +
+ src/cmd/6l/pass.c      |  9 +++++++++
+ src/cmd/ld/elf64.c     | 19 +++++++++++--------
+ src/cmd/ld/elf64.h     |  1 +
+ src/pkg/runtime/mgc0.c |  3 ++-
+ 7 files changed, 48 insertions(+), 14 deletions(-)

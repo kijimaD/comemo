@@ -1,0 +1,16 @@
+commit 352a322a8356ef5f7d9392c401cd9f181a1cf80b
+Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
+Date:   Sat May 1 21:13:38 2021 +0000
+
+    path/filepath: fix documentation typo (was "each each")
+    
+    Change-Id: I8dcf6c4489e16e91b8685c31569297cfeb700f9d
+    GitHub-Last-Rev: f6b40e029874230789a7ae2b750a42a355ae42cf
+    GitHub-Pull-Request: golang/go#45905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316009
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Trust: Kevin Burke <kev@inburke.com>
+
+ src/path/filepath/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit b5a0f7156845302040746ebcb71304f6cb03ba40
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:31:57 2017 -0700
+
+    runtime: deflake TestPanicRace
+    
+    The test is inherently racy, and for me fails about 0.05% of the time.
+    So only fail the test if it fails ten times in a row.
+    
+    Fixes #20594
+    
+    Change-Id: I3b3f7598f2196f7406f1a3937f38f21ff0c0e4b5
+    Reviewed-on: https://go-review.googlesource.com/45020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_test.go | 43 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 13 deletions(-)

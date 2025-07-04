@@ -1,0 +1,23 @@
+commit b6946fb120ed0c176162e4f632fb8cd062144af3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 7 14:42:43 2016 -0500
+
+    cmd/asm: ppc64le support for ISEL for use by SSA
+    
+    This adds the support for the ppc64le isel instruction so
+    it can be used by SSA.
+    
+    Fixed #16771
+    
+    Change-Id: Ia2517f0834ff5e7ad927e218b84493e0106ab4a7
+    Reviewed-on: https://go-review.googlesource.com/28611
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/ppc64.go   |  4 ++++
+ src/cmd/asm/internal/asm/asm.go      | 27 ++++++++++++++++++---------
+ src/cmd/internal/obj/ppc64/a.out.go  |  1 +
+ src/cmd/internal/obj/ppc64/anames.go |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go   | 15 +++++++++++++++
+ 5 files changed, 39 insertions(+), 9 deletions(-)

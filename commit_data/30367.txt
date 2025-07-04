@@ -1,0 +1,25 @@
+commit 72a071c1da98458e9f7ccf1812b401903acf5b1d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Feb 20 15:54:43 2017 -0500
+
+    cmd/compile: rewrite pairs of shifts to extensions
+    
+    Replaces pairs of shifts with sign/zero extension where possible.
+    
+    For example:
+    (uint64(x) << 32) >> 32 -> uint64(uint32(x))
+    
+    Reduces the execution time of the following code by ~4.5% on s390x:
+    
+    for i := 0; i < N; i++ {
+            x += (uint64(i)<<32)>>32
+    }
+    
+    Change-Id: Idb2d56f27e80a2e1366bc995922ad3fd958c51a7
+    Reviewed-on: https://go-review.googlesource.com/37292
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 348 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/shift_test.go     |  60 +++++
+ 3 files changed, 424 insertions(+)

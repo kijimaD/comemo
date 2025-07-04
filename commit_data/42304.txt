@@ -1,0 +1,21 @@
+commit b1760f3a27ed9a0e99599bf028b2b48403f8c3fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 27 11:17:00 2020 -0700
+
+    runtime: grow stack more than 2x if the new frame is large
+    
+    We might as well grow the stack at least as large as we'll need for
+    the frame that is calling morestack. It doesn't help with the
+    lots-of-small-frames case, but it may help a bit with the
+    few-big-frames case.
+    
+    Update #18138
+    
+    Change-Id: I1f49c97706a70e20b30433cbec99a7901528ea52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225800
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/stack.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

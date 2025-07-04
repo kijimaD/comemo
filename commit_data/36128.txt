@@ -1,0 +1,21 @@
+commit ead59f4bf368f13bbabea3f8a59f9f29ccdd3900
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 15:24:27 2018 -0700
+
+    cmd/cgo: don't resolve typedefs in -godefs mode
+    
+    In -godefs mode any typedefs that appear in struct fields and the like
+    will presumably be defined in the input file. If we resolve to the
+    base type, those cross-references will not work. So for -godefs mode,
+    keep the Go 1.10 behavior and don't resolve the typedefs in a loop.
+    
+    Fixes #26644
+    
+    Change-Id: I48cf72d9eb5016353c43074e6aff6495af326f35
+    Reviewed-on: https://go-review.googlesource.com/125995
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/testgodefs/fieldtypedef.go | 18 ++++++++++++++++++
+ misc/cgo/testgodefs/test.bash       |  2 +-
+ src/cmd/cgo/gcc.go                  |  7 +++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

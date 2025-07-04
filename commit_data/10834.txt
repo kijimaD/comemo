@@ -1,0 +1,18 @@
+commit 80103cd54fa1a6ae0cd75a8c545a365bf31f58cf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 16 10:48:06 2011 +1100
+
+    misc/dashboard: user interface
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5461047
+
+ misc/dashboard/app/app.yaml                |   4 +-
+ misc/dashboard/app/build/build.go          | 129 ++++++++++++++------
+ misc/dashboard/app/build/test.go           |  25 +++-
+ misc/dashboard/app/build/ui.go             | 187 +++++++++++++++++++++++++++++
+ misc/dashboard/app/build/ui.html           | 138 +++++++++++++++++++++
+ misc/dashboard/app/static/status_alert.gif | Bin 0 -> 570 bytes
+ misc/dashboard/app/static/status_good.gif  | Bin 0 -> 328 bytes
+ 7 files changed, 442 insertions(+), 41 deletions(-)

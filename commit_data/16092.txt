@@ -1,0 +1,14 @@
+commit 5d1c7bd1a66544376cf267706b005462b275f6a6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 14:21:19 2013 +1100
+
+    misc/dist: add -version flag to override version name
+    
+    Also, don't build the tour when making the source distribution.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/8354043
+
+ misc/dist/bindist.go | 61 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 35 insertions(+), 26 deletions(-)

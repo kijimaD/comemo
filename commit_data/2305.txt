@@ -1,0 +1,24 @@
+commit 79435569709b9cebcb30791b7a0994ed8471f609
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue May 26 11:18:42 2009 -0700
+
+    Added enough arm related scaffolding to create a simple
+    hello.c program linking against the runtime.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=178  (175 added, 0 deleted, 3 changed)
+    OCL=29283
+    CL=29380
+
+ src/cmd/5l/5.out.h             |  3 +-
+ src/runtime/Makefile           |  6 ++-
+ src/runtime/arm/asm.s          | 83 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/arm/closure.c      |  4 ++
+ src/runtime/arm/traceback.s    |  0
+ src/runtime/linux/arm/defs.h   | 27 ++++++++++++++
+ src/runtime/linux/arm/rt0.s    |  6 +++
+ src/runtime/linux/arm/signal.c |  4 ++
+ src/runtime/linux/arm/sys.s    | 15 ++++++++
+ src/runtime/linux/defs_arm.c   | 54 +++++++++++++++++++++++++++
+ 10 files changed, 199 insertions(+), 3 deletions(-)

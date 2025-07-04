@@ -1,0 +1,29 @@
+commit 8e2315678667f498f50f0b38dd064e8cc7f6c215
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Mar 6 00:39:37 2016 +0100
+
+    fmt: refactor pointer formatting and improve tests
+    
+    Uses a switch statement for direct format function selection
+    similar to other types verb handling in fmt.
+    
+    Applies padding also to nil pointers formatted with %v.
+    
+    Guards against "slice bounds out of range" panic in TestSprintf
+    when a pointer test results in a formatted string s
+    that is shorter than the index i the pointer should appear in.
+    
+    Adds more and rearranges tests.
+    
+    Fixes #14712
+    Fixes #14714
+    
+    Change-Id: Iaf5ae37b7e6ba7d27d528d199f2b2eb9d5829b8c
+    Reviewed-on: https://go-review.googlesource.com/20371
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 110 ++++++++++++++++++++++++++++++++--------------------
+ src/fmt/print.go    |  51 +++++++++++-------------
+ 2 files changed, 90 insertions(+), 71 deletions(-)

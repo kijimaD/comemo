@@ -1,0 +1,18 @@
+commit 3494a726009d049887bb3fb95181f71e07b21da3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 28 22:15:48 2023 -0400
+
+    cmd/compile: don't generate DWARF info for static vars
+    
+    Static data symbols are compiler generated, not user symbols. The
+    linker already does not include them in the final DWARF section.
+    Don't generate the DWARF info in the first place.
+    
+    Change-Id: Id2ae36683bfc1ed60b9924b7305eae5e8aa14d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490817
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

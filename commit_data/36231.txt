@@ -1,0 +1,13 @@
+commit 8c0fd83f72d0f8804001aeab52489130cb33b90a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 14:55:12 2018 -0400
+
+    cmd/go: add test cases for 'go list' with bad import paths
+    
+    Change-Id: I45a675c5f699b23284a2a50b33cb22882f4b3b80
+    Reviewed-on: https://go-review.googlesource.com/128016
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/list_bad_import.txt     | 67 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_bad_import.txt | 59 +++++++++++++++++++
+ 2 files changed, 126 insertions(+)

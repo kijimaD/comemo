@@ -1,0 +1,20 @@
+commit 6275b54a2a58a1a1bed7f2cc3bc92eca5affb8ff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 14:37:19 2021 +0000
+
+    Revert "cmd/go: temporarily skip TestScript/test_fuzz_minimize"
+    
+    This reverts CL 365315.
+    
+    Reason for revert: test may have been fixed by intervening changes.
+    
+    Change-Id: I110948d53a789527edf471f1637eadbd98a1fc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366074
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 --
+ 1 file changed, 2 deletions(-)

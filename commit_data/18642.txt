@@ -1,0 +1,16 @@
+commit fd4b4b56c4a1fd3426fc9ab4c36ec1b270089d29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 25 08:08:15 2014 -0800
+
+    net/http: add Transport.TLSHandshakeTimeout; set it by default
+    
+    Update #3362
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/68150045
+
+ src/pkg/net/http/transport.go      | 36 +++++++++++++++++---
+ src/pkg/net/http/transport_test.go | 67 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 4 deletions(-)

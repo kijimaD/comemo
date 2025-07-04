@@ -1,0 +1,21 @@
+commit 2bacae815b853522d8f6bbd82156f1e1c20482cb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 15:38:12 2015 -0500
+
+    runtime: update triggerRatio in setGCPercent
+    
+    Currently, runtime/debug.SetGCPercent does not adjust the controller
+    trigger ratio. As a result, runtime reductions of GOGC don't take full
+    effect until after one more concurrent cycle has happened, which
+    adjusts the trigger ratio to account for the new gcpercent.
+    
+    Fix this by lowering the trigger ratio if necessary in setGCPercent.
+    
+    Change-Id: I4d23e0c58d91939b86ac60fa5d53ef91d0d89e0c
+    Reviewed-on: https://go-review.googlesource.com/17813
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 3 +++
+ 1 file changed, 3 insertions(+)

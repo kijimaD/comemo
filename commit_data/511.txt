@@ -1,0 +1,27 @@
+commit c7fb27f6e473261745fc86c07bc3664310221917
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 09:45:40 2008 -0700
+
+    - more steps towards automatic recursive compilation of dependencies
+    - make forward declarations of types match 6g
+    - better factoring
+    
+    R=r
+    OCL=14059
+    CL=14059
+
+ usr/gri/gosrc/compilation.go |  76 ++++++++++++-
+ usr/gri/gosrc/decls.go       |  10 +-
+ usr/gri/gosrc/export.go      |  49 ++++++++-
+ usr/gri/gosrc/globals.go     |  35 +++---
+ usr/gri/gosrc/go.go          |  12 +-
+ usr/gri/gosrc/import.go      |  83 ++------------
+ usr/gri/gosrc/parser.go      | 253 +++++++++++++++++++++++--------------------
+ usr/gri/gosrc/platform.go    |  60 ++++++++++
+ usr/gri/gosrc/printer.go     |   7 +-
+ usr/gri/gosrc/scanner.go     |  40 +------
+ usr/gri/gosrc/type.go        |  25 ++++-
+ usr/gri/gosrc/universe.go    |   6 +-
+ usr/gri/gosrc/utils.go       |  64 ++++++-----
+ usr/gri/gosrc/verifier.go    |   7 +-
+ 14 files changed, 431 insertions(+), 296 deletions(-)

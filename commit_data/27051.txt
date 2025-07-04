@@ -1,0 +1,14 @@
+commit f8fc3710fd4c596adac57048f705a994f199df8c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 21 10:02:36 2016 -0700
+
+    cmd/compile: handle mem copies in amd64 backend
+    
+    Fixes noopt builder.
+    
+    Change-Id: If13373b2597f0fcc9b1b2f9c860f2bd043e43c6c
+    Reviewed-on: https://go-review.googlesource.com/22338
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,12 @@
+commit ec72f9bf18c95cc79b81627433f4ac2995581d50
+Author: Corey Thomasson <cthom.lists@gmail.com>
+Date:   Thu Aug 26 13:32:45 2010 -0400
+
+    net: add LookupMX
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1976049
+
+ src/pkg/net/dnsclient.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

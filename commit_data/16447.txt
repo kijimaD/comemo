@@ -1,0 +1,16 @@
+commit ab5c762a4644c5701dfa14905802979b04cee4b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 31 11:21:37 2013 -0700
+
+    spec: better wording re: receiving from closed channels
+    
+    As suggested by ej@evanjones.ca.
+    
+    Fixes #5604.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/9899043
+
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

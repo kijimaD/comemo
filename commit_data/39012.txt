@@ -1,0 +1,19 @@
+commit d2c12634dedad9976dae0621d863d2cfb3a040bc
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu May 2 03:12:12 2019 -0400
+
+    cmd/dist: don't generate exec wrappers for compatible cross compiles
+    
+    This change will allow android/arm64 hosts to build for android/arm,
+    and likewise for iOS.
+    
+    Updates #31722
+    
+    Change-Id: Id410bd112abbab585ebb13b61fe4d3a38a1a81fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174705
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 089bc25ae2be117310ae7e19d79d40e1ed69fc6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 22 10:37:33 2013 -0400
+
+    math: remove unnecessary source file
+    
+    The routines in this file are dregs from a very early copy of the math API.
+    There are no Go prototypes and no non-amd64 implementations.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/15750046
+
+ src/pkg/math/fltasm_amd64.s | 69 ---------------------------------------------
+ 1 file changed, 69 deletions(-)

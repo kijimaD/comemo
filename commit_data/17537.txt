@@ -1,0 +1,32 @@
+commit 6706931a71fd3dfece6d1f9794a04d378cccd57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 14:41:20 2013 -0400
+
+    go/doc: restore handling of multi-paragraph BUG comments
+    
+    It was lost when the generic "Notes" support went in.
+    
+    Had to change the test setup, because it precluded even
+    being able test multi-line comments, much less multi-paragraph
+    comments.
+    
+    Now 'godoc sync/atomic' works correctly again.
+    
+    Fixes #6135.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13427045
+
+ src/pkg/go/doc/doc_test.go               | 10 +++++++
+ src/pkg/go/doc/reader.go                 |  2 +-
+ src/pkg/go/doc/synopsis.go               | 12 ++++++---
+ src/pkg/go/doc/testdata/a.0.golden       | 46 +++++++++++++++++++++++---------
+ src/pkg/go/doc/testdata/a.1.golden       | 46 +++++++++++++++++++++++---------
+ src/pkg/go/doc/testdata/a.2.golden       | 46 +++++++++++++++++++++++---------
+ src/pkg/go/doc/testdata/bugpara.0.golden | 20 ++++++++++++++
+ src/pkg/go/doc/testdata/bugpara.1.golden | 20 ++++++++++++++
+ src/pkg/go/doc/testdata/bugpara.2.golden | 20 ++++++++++++++
+ src/pkg/go/doc/testdata/bugpara.go       |  5 ++++
+ src/pkg/go/doc/testdata/template.txt     |  4 +--
+ 11 files changed, 186 insertions(+), 45 deletions(-)

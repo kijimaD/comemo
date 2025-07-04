@@ -1,0 +1,14 @@
+commit 79807793748cd845685bb2a81ed0fdf2559f1684
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 29 13:45:56 2015 +0100
+
+    cmd/pack: make a test less disk-intensive in short mode
+    
+    Fixes #9656
+    
+    Change-Id: I1158636683492ef12eeafb12e257d205026adc3f
+    Reviewed-on: https://go-review.googlesource.com/3175
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/pack/pack_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

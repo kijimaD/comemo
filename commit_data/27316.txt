@@ -1,0 +1,19 @@
+commit 61602b0e9e1daa0490793ef9ada3a51f8f482265
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 6 16:06:02 2016 +0000
+
+    runtime: delete empty files
+    
+    I meant to delete these in CL 22850, actually.
+    
+    Change-Id: I0c286efd2b9f1caf0221aa88e3bcc03649c89517
+    Reviewed-on: https://go-review.googlesource.com/22851
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_freebsd.go | 5 -----
+ src/runtime/os_nacl.go    | 5 -----
+ src/runtime/os_openbsd.go | 5 -----
+ src/runtime/os_plan9.go   | 5 -----
+ 4 files changed, 20 deletions(-)

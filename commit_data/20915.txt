@@ -1,0 +1,116 @@
+commit 2b62e1eaece7c98444a588e2f2a3dbed8dddc273
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 1 16:32:06 2014 -0500
+
+    runtime: fix hang in GC due to shrinkstack vs netpoll race
+    
+    During garbage collection, after scanning a stack, we think about
+    shrinking it to reclaim some memory. The shrinking code (called
+    while the world is stopped) checked that the status was Gwaiting
+    or Grunnable and then changed the state to Gcopystack, to essentially
+    lock the stack so that no other GC thread is scanning it.
+    The same locking happens for stack growth (and is more necessary there).
+    
+            oldstatus = runtime·readgstatus(gp);
+            oldstatus &= ~Gscan;
+            if(oldstatus == Gwaiting || oldstatus == Grunnable)
+                    runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
+            else
+                    runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
+    
+    Unfortunately, "stop the world" doesn't stop everything. It stops all
+    normal goroutine execution, but the network polling thread is still
+    blocked in epoll and may wake up. If it does, and it chooses a goroutine
+    to mark runnable, and that goroutine is the one whose stack is shrinking,
+    then it can happen that between readgstatus and casgstatus, the status
+    changes from Gwaiting to Grunnable.
+    
+    casgstatus assumes that if the status is not what is expected, it is a
+    transient change (like from Gwaiting to Gscanwaiting and back, or like
+    from Gwaiting to Gcopystack and back), and it loops until the status
+    has been restored to the expected value. In this case, the status has
+    changed semi-permanently from Gwaiting to Grunnable - it won't
+    change again until the GC is done and the world can continue, but the
+    GC is waiting for the status to change back. This wedges the program.
+    
+    To fix, call a special variant of casgstatus that accepts either Gwaiting
+    or Grunnable as valid statuses.
+    
+    Without the fix bug with the extra check+throw in casgstatus, the
+    program below dies in a few seconds (2-10) with GOMAXPROCS=8
+    on a 2012 Retina MacBook Pro. With the fix, it runs for minutes
+    and minutes.
+    
+    package main
+    
+    import (
+            "io"
+            "log"
+            "net"
+            "runtime"
+    )
+    
+    func main() {
+            const N = 100
+            for i := 0; i < N; i++ {
+                    l, err := net.Listen("tcp", "127.0.0.1:0")
+                    if err != nil {
+                            log.Fatal(err)
+                    }
+                    ch := make(chan net.Conn, 1)
+                    go func() {
+                            var err error
+                            c1, err := net.Dial("tcp", l.Addr().String())
+                            if err != nil {
+                                    log.Fatal(err)
+                            }
+                            ch <- c1
+                    }()
+                    c2, err := l.Accept()
+                    if err != nil {
+                            log.Fatal(err)
+                    }
+                    c1 := <-ch
+                    l.Close()
+                    go netguy(c1, c2)
+                    go netguy(c2, c1)
+                    c1.Write(make([]byte, 100))
+            }
+            for {
+                    runtime.GC()
+            }
+    }
+    
+    func netguy(r, w net.Conn) {
+            buf := make([]byte, 100)
+            for {
+                    bigstack(1000)
+                    _, err := io.ReadFull(r, buf)
+                    if err != nil {
+                            log.Fatal(err)
+                    }
+                    w.Write(buf)
+            }
+    }
+    
+    var g int
+    
+    func bigstack(n int) {
+            var buf [100]byte
+            if n > 0 {
+                    bigstack(n - 1)
+            }
+            g = int(buf[0]) + int(buf[99])
+    }
+    
+    Fixes #9186.
+    
+    LGTM=rlh
+    R=austin, rlh
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/179680043
+
+ src/runtime/proc.c    | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/runtime.h |  2 ++
+ src/runtime/stack.c   |  7 +------
+ 3 files changed, 35 insertions(+), 6 deletions(-)

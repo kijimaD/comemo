@@ -1,0 +1,15 @@
+commit 5b8bcf2324fab8a5b7c32886dda828b934645ecc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 11 11:12:15 2011 -0500
+
+    godefs: better handling of enums
+    
+    Fixes #432.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3869043
+
+ src/cmd/godefs/main.c  |  2 ++
+ src/cmd/godefs/stabs.c | 13 +++++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

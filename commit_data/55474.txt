@@ -1,0 +1,22 @@
+commit b89ad464510e643c23df28bc5c181ad0a16773bf
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Jan 24 18:10:47 2024 +0100
+
+    cmd/link: add DW_AT_go_runtime_type to unsafe.Pointer and fix it for
+    uintptr
+    
+    Adds the DW_AT_go_runtime_type attribute to the debug_info entry for
+    unsafe.Pointer (which is special) and fixes the debug_info entry of
+    uintptr so that its DW_AT_go_runtime_type attribute has the proper
+    class (it was accidentally using DW_CLS_ADDRESS instead of
+    DW_CLS_GO_TYPEREF)
+    
+    Change-Id: I52e18593935fbda9bc425e849f4c7f50e9144ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558275
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go   |  1 +
+ src/cmd/link/internal/ld/dwarf.go | 13 +++++++------
+ 2 files changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 270bad3939b7fff4e012995add174e8f08becbc5
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Nov 1 16:15:17 2010 -0400
+
+    testing: add Benchmark to allow benchmarks to be run without gotest.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2506042
+
+ src/cmd/gotest/gotest        |  4 ++--
+ src/pkg/testing/benchmark.go | 45 +++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 38 insertions(+), 11 deletions(-)

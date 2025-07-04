@@ -1,0 +1,18 @@
+commit af4320350b3a156de0d1cfa9845ab1e48dcbfefa
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jan 3 11:03:19 2019 -0800
+
+    runtime: add test for go function argument scanning
+    
+    Derived from Naoki's reproducer.
+    
+    Update #29362
+    
+    Change-Id: I1cbd33b38a2f74905dbc22c5ecbad4a87a24bdd1
+    Reviewed-on: https://go-review.googlesource.com/c/156122
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue29362.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

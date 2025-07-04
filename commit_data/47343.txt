@@ -1,0 +1,17 @@
+commit 955f9f56bf21dca045c042a2a8998a2fc04117a4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 8 13:13:30 2021 -0800
+
+    test: add regress test for reported non-monomorphizable example
+    
+    Fixes #48711.
+    
+    Change-Id: I2ed1ef5267343d4b9f91da0618905098d178db90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362394
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/typeparam/issue48711.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

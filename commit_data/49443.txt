@@ -1,0 +1,19 @@
+commit 80f86f706deff532cf3ee94a75dd1dc0db6795b2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 8 18:08:30 2022 -0400
+
+    api/next: minor reformat
+    
+    Add newline endings to files without them. Delete empty lines. So
+    it is consistent and easier to put them together.
+    
+    Change-Id: I84e6b7a1fe59e9f4d7f00f61539f6449f19a5d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411121
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/35044.txt | 2 +-
+ api/next/46059.txt | 1 -
+ api/next/50062.txt | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

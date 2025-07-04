@@ -1,0 +1,14 @@
+commit 98b27814ae71d1921e5b71618f2e40c4da11d650
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 7 18:27:26 2010 -0700
+
+    gc: better error message when ~ operator is found
+    
+    Fixes #844.
+    
+    R=ken2, rsc, ken3
+    CC=golang-dev
+    https://golang.org/cl/1593041
+
+ src/cmd/gc/go.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

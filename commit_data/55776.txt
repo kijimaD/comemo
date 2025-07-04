@@ -1,0 +1,21 @@
+commit 288615ddb57a79fa78c6f13b829bd8daeeff8fa1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Nov 27 17:05:56 2023 -0600
+
+    cmd/internal/obj/ppc64: generate smaller machine code for OR/XOR of uint32 values
+    
+    These binary operations can be done in two sequential instructions instead of loading a
+    constant into REGTMP and doing the binary op.
+    
+    Change-Id: Ie0ab863f9e81afad140b92b265bca4d3f0fe90b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565215
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 10 +++++-----
+ src/cmd/internal/obj/ppc64/asm9.go        | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 5 deletions(-)

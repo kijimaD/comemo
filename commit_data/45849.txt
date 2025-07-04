@@ -1,0 +1,16 @@
+commit 3f9ec83b10c6de2a992b7458eb3be279f48eb6f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 20 12:22:16 2021 -0700
+
+    cmd/go: document GOPPC64 environment variable
+    
+    Change-Id: I2d2c02eec4ac6eca218fa5334d32650c1620692c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329689
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/go/alldocs.go               | 3 +++
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ 2 files changed, 6 insertions(+)

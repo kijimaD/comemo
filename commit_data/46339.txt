@@ -1,0 +1,18 @@
+commit b606739be6758615658188c8a6453256eaeccf35
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 7 15:13:51 2021 -0700
+
+    reflect: add test for passing float32 signaling NaNs
+    
+    Update #40724
+    
+    Change-Id: I110cdb7c4a2c5db6b85ca951143430555261abf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348017
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/abi_test.go | 25 +++++++++++++++++++++++++
+ src/reflect/all_test.go |  3 ++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

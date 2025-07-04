@@ -1,0 +1,17 @@
+commit 0b248cea169a261cd0c2db8c014269cca5a170c4
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Mon Oct 5 16:47:31 2015 -0700
+
+    cmd/go: fix `go test -n`
+    
+    The <importPath>/_test directory is not actually created in -n mode, so
+    `go test` fails to write _testmain.go.
+    
+    Do not write _testmain.go if -n is passed.
+    
+    Change-Id: I825d5040cacbc9d9a8c89443e5a3f83e6f210ce4
+    Reviewed-on: https://go-review.googlesource.com/15433
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

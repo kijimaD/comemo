@@ -1,0 +1,16 @@
+commit c79ba22ece2cbb86b00325df7712ff0803cfd6e9
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 6 11:08:11 2016 -0700
+
+    test: delete sliceopt.go
+    
+    It tests the behavior of the old deleted compiler.
+    
+    Fixes #17362.
+    
+    Change-Id: Ia2fdec734c5cbe724a9de562ed71598f67244ab3
+    Reviewed-on: https://go-review.googlesource.com/30593
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/sliceopt.go | 60 --------------------------------------------------------
+ 1 file changed, 60 deletions(-)

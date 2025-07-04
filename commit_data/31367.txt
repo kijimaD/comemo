@@ -1,0 +1,14 @@
+commit aecf73fc3193cbcb1d6b02c64dcd3bf7f0317bd2
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Fri Apr 14 10:40:30 2017 +0000
+
+    cmd/internal: fix bug getting wrong indicator in DRconv()
+    
+    Change-Id: I251ae497b0ab237d4b3fe98e397052394142d437
+    Reviewed-on: https://go-review.googlesource.com/41653
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/anames7.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

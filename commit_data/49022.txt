@@ -1,0 +1,25 @@
+commit aeb933d3ffa1cba614baf21849715bed4145dcd4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Apr 27 16:04:28 2022 -0400
+
+    cmd/go: skip computing BuildInfo in go list unless it's needed
+    
+    The only fields of the go list output that require BuildInfo to be
+    computed are the Stale and StaleReason fields. If a user explicitly
+    requests JSON fields and does not ask for Stale or StaleReason, skip
+    the computation of BuildInfo.
+    
+    For #29666
+    
+    Change-Id: Ie77581c44babedcb5cb7f3dc7d6ed1078b56eee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402736
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go                |  3 ++-
+ src/cmd/go/internal/load/pkg.go                 |  8 ++++++--
+ src/cmd/go/testdata/script/list_json_fields.txt | 18 ++++++++++++++++++
+ 3 files changed, 26 insertions(+), 3 deletions(-)

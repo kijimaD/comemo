@@ -1,0 +1,22 @@
+commit 1da64686f85da38af13c4ee186f261343455c697
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Wed Sep 8 14:07:12 2021 +0000
+
+    test/codegen: fix compilation of bitfield tests
+    
+    The codegen tests are currently skipped (see #48247) and the
+    bitfield tests do not actually compile due to a duplicate function
+    name (sbfiz5) added in CL 267602. Renaming the function fixes the
+    issue.
+    
+    Updates #48247.
+    
+    Change-Id: I626fd5ef13732dc358e73ace9ddcc4cbb6ae5b21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348391
+    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ test/codegen/bitfield.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit a0fc306023d77e5605203c14ca92f368bdbce3ae
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 13 17:08:16 2015 -0400
+
+    runtime: eliminate runqvictims and a copy from runqsteal
+    
+    Currently, runqsteal steals Gs from another P into an intermediate
+    buffer and then copies those Gs into the current P's run queue. This
+    intermediate buffer itself was moved from the stack to the P in commit
+    c4fe503 to eliminate the cost of zeroing it on every steal.
+    
+    This commit follows up c4fe503 by stealing directly into the current
+    P's run queue, which eliminates the copy and the need for the
+    intermediate buffer. The update to the tail pointer is only committed
+    once the entire steal operation has succeeded, so the semantics of
+    stealing do not change.
+    
+    Change-Id: Icdd7a0eb82668980bf42c0154b51eef6419fdd51
+    Reviewed-on: https://go-review.googlesource.com/9998
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/proc1.go    | 21 ++++++++++-----------
+ src/runtime/runtime2.go |  7 +++----
+ 2 files changed, 13 insertions(+), 15 deletions(-)

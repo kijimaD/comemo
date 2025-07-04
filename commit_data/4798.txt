@@ -1,0 +1,12 @@
+commit 5d827fac39918005361fccc67b4339bcb7d19035
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 5 05:39:49 2010 -0500
+
+    crypto/tls: typo fix
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/201047
+
+ src/pkg/crypto/tls/ca_set.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

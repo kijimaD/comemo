@@ -1,0 +1,20 @@
+commit a9d8d4df616dc570e443d82bdc6d06a94a3c4ffd
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed May 24 19:36:41 2017 -0600
+
+    net/http: revert CL 43779
+    
+    CL 43779/commit 6a6c792eef55eded7fb3165a330ec2b239b83960
+    broke the builds at tip, and that CL doesn't account for
+    cases where Redirect is directly invoked with a full URL
+    that itself has a query string.
+    
+    Updates #17841
+    
+    Change-Id: Idb0486bae8625e1f9e033ca4cfcd87de95bc835c
+    Reviewed-on: https://go-review.googlesource.com/44100
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 42 ------------------------------------------
+ src/net/http/server.go     |  9 ---------
+ 2 files changed, 51 deletions(-)

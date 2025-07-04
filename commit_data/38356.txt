@@ -1,0 +1,25 @@
+commit 8b2a2d03947453147e8dcbec50dfe33c19e5fa57
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 01:58:38 2019 +0000
+
+    Revert "cmd/go: change the default value of GO111MODULE to 'on'"
+    
+    This reverts commit cf4691650c3c556f19844a881a32792a919ee8d1
+    (CL 162698).
+    
+    Reason for revert: broke make.bash bootstrapping from head.
+    
+    Change-Id: I3de6d26b1af9038c6b92dec88667bfa734060a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166985
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
+ src/cmd/go/help_test.go                           |   5 -
+ src/cmd/go/internal/help/help.go                  |   7 +-
+ src/cmd/go/internal/modload/help.go               |  39 ++-
+ src/cmd/go/internal/modload/init.go               |  35 ++-
+ src/cmd/go/main.go                                |  15 +-
+ src/cmd/go/mkalldocs.sh                           |   2 +-
+ src/cmd/go/testdata/script/mod_find.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 -
+ 9 files changed, 232 insertions(+), 210 deletions(-)

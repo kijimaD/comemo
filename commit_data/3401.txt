@@ -1,0 +1,16 @@
+commit 6f1698774d7061d30fd74fca7dacde8ea77a39a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 21:21:14 2009 -0700
+
+    undo 35108 (disallow parens around type in struct literal).
+    allow parens around [...]int in struct literal.
+    
+    R=ken
+    OCL=35112
+    CL=35130
+
+ src/cmd/gc/go.y             | 24 +++++++-----------------
+ src/pkg/reflect/all_test.go | 10 +++++-----
+ test/fixedbugs/bug207.go    | 12 ------------
+ test/parentype.go           |  4 ++++
+ 4 files changed, 16 insertions(+), 34 deletions(-)

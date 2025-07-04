@@ -1,0 +1,16 @@
+commit 13a5958db328a74f863d8391f453a81ae326fd31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 11 13:40:37 2014 -0800
+
+    go/parser: check presence of 2nd and 3rd index in 3-index slice
+    
+    Fixes #7305.
+    
+    LGTM=adonovan
+    R=bradfitz, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/58950045
+
+ src/pkg/go/parser/parser.go     | 25 +++++++++++++++++++++----
+ src/pkg/go/parser/short_test.go |  6 +++++-
+ 2 files changed, 26 insertions(+), 5 deletions(-)

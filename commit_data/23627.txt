@@ -1,0 +1,31 @@
+commit 6a90b1d62100bd9fa8a4c6d566b990609c1c9d76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 05:20:20 2015 -0700
+
+    runtime, cmd/go: fix tests to work when GOROOT_FINAL is set
+    
+    When GOROOT_FINAL is set when running all.bash, the tests are run
+    before the files are copied to GOROOT_FINAL.  The tests are run with
+    GOROOT set, so most work fine.  This fixes two cases that do not.
+    
+    In cmd/go/go_test.go we were explicitly removing GOROOT from the
+    environment, causing tests that did not themselves explicitly set
+    GOROOT to fail.  There was no need to explicitly remove GOROOT, so
+    don't do it.  If people choose to run "go test cmd/go" with a bad
+    GOROOT, that is their own lookout.
+    
+    In the runtime GDB test, the linker has told gdb to find the support
+    script in GOROOT_FINAL, which will fail.  Check for that case, and
+    skip the test when we see it.
+    
+    Fixes #11652.
+    
+    Change-Id: I4d3a32311e3973c30fd8a79551aaeab6789d0451
+    Reviewed-on: https://go-review.googlesource.com/12021
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go           |  1 -
+ src/runtime/runtime-gdb_test.go | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

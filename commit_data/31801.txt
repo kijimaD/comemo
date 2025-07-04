@@ -1,0 +1,23 @@
+commit fcb45b9c61c369ac340b1cecac770fe0f64c4859
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 16:19:16 2017 -0400
+
+    runtime: increase MaxGomaxprocs to 1024
+    
+    Currently MaxGomaxprocs is 256. The previous CL saved enough per-P
+    static space that we can quadruple MaxGomaxprocs (and hence the static
+    size of allp) and still come out ahead.
+    
+    This is safe for Go 1.9. In Go 1.10 we'll eliminate the hard-coded
+    limit entirely.
+    
+    Updates #15131.
+    
+    Change-Id: I919ea821c1ce64c27812541dccd7cd7db4122d16
+    Reviewed-on: https://go-review.googlesource.com/45673
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

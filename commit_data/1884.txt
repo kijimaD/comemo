@@ -1,0 +1,20 @@
+commit fcd536d801a60ed0a00152851d42b88c7947a4ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 18:04:50 2009 -0700
+
+    add .8 support to libmach_amd64 [sic].
+    add code to handle 32-bit Mach-O and ELF binaries.
+    
+    R=r
+    DELTA=452  (365 added, 29 deleted, 58 changed)
+    OCL=26696
+    CL=26712
+
+ src/libmach_amd64/8.c          |   2 +-
+ src/libmach_amd64/8obj.c       | 172 ++++++++++++++++++++++++++++++++
+ src/libmach_amd64/Makefile     |   2 +-
+ src/libmach_amd64/executable.c | 218 +++++++++++++++++++++++++++++++----------
+ src/libmach_amd64/fakeobj.c    |   2 -
+ src/libmach_amd64/linux.c      | 100 ++++++++++++++-----
+ src/libmach_amd64/macho.h      |  32 +++++-
+ 7 files changed, 446 insertions(+), 82 deletions(-)

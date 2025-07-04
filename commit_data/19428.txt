@@ -1,0 +1,16 @@
+commit f9c6ad9b6bad25bff480b95d3ebf6a780e86964d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 21 13:59:14 2014 -0400
+
+    cmd/go: fix coverage for 'package foo_test' tests
+    
+    Fixes #8062.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/91610046
+
+ src/cmd/go/test.bash | 36 ++++++++++++++++++++-------------
+ src/cmd/go/test.go   | 56 ++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 54 insertions(+), 38 deletions(-)

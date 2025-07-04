@@ -1,0 +1,16 @@
+commit dcc42c7d11ad06bebc9d13d1e812629f930f14a7
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue May 24 13:53:44 2016 +0300
+
+    cmd/vet: do not check print-like functions with unknown type
+    
+    Fixes #15787
+    
+    Change-Id: I559ba886527b474dbdd44fe884c78973b3012377
+    Reviewed-on: https://go-review.googlesource.com/23351
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 34 ++++++++++++++++++----------------
+ src/cmd/vet/testdata/print.go | 18 ++++++++++++++++++
+ 2 files changed, 36 insertions(+), 16 deletions(-)

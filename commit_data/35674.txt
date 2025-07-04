@@ -1,0 +1,16 @@
+commit 39ad208c13368bbd1a129c5e2ed85d6ebc22401a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 12 16:16:38 2018 +0000
+
+    test: add test to verify that string copies don't get optimized away
+    
+    Fixes #25834
+    
+    Change-Id: I33e58dabfd04b84dfee1a9a3796796b5d19862e7
+    Reviewed-on: https://go-review.googlesource.com/118295
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/strcopy.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

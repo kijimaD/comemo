@@ -1,0 +1,17 @@
+commit a4772376af5821c5c341ce9de49628d10d60971b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 28 15:42:40 2022 -0500
+
+    doc/go1.20: add release notes for the linker
+    
+    For #54202.
+    
+    Change-Id: I06d7a44fb24427d783a9f57368dccce219b217bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453620
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.20.html | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

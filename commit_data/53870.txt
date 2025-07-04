@@ -1,0 +1,27 @@
+commit 865760373194e358fefa4d1e45ebdf2141b77b59
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Aug 1 18:02:54 2023 +0000
+
+    net: use the extended RCode from EDNS(0) OPT resources
+    
+    For a while now we support EDNS, but the current
+    implementation only sends the OPT resource and doesn't
+    do anything with the response OPT resource.
+    
+    For reference the miekg/dns updates the RCode in the
+    header when there is a OPT resource:
+    https://github.com/miekg/dns/blob/48f38ebef989eedc6b57f1869ae849ccc8f5fe29/msg.go#L868-L872
+    
+    Change-Id: I0a7146aed3e50654f340a3925f48612561cb85f4
+    GitHub-Last-Rev: adc304167e0540cb1f066f07a249d67fad89182e
+    GitHub-Pull-Request: golang/go#61695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go      | 27 +++++++++++++++++++++++----
+ src/net/dnsclient_unix_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 4 deletions(-)

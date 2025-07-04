@@ -1,0 +1,12 @@
+commit 2332439b1b02789f5cfeceb78458eb34981e28c8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 27 13:44:48 2012 +1100
+
+    gc: permit unsafe.Pointer for inlined functions.
+    
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5573075
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

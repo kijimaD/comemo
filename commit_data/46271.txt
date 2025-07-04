@@ -1,0 +1,22 @@
+commit 9afbf82667a81827a805f39db51ff36bf0abc737
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 1 19:58:31 2021 +0700
+
+    cmd/compile: allow objStub from unsafe package
+    
+    CL 346469 added support for unsafe.Sizeof and friends to operate on
+    generic parameters for compiler importer/exporter. This CL adds support
+    for unified IR.
+    
+    Updates #48094
+    
+    Change-Id: I63af1a7c3478f59b03ecc23229ac2254d3457868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346769
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/reader2.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

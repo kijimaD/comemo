@@ -1,0 +1,18 @@
+commit 4a8995179edc48bf37aacc80703287c4c6b2e8e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 09:45:24 2021 -0700
+
+    cmd/compile/internal/types2: add a NewSignatureType constructor accepting type parameters
+    
+    This is a clean port of CL 352615 from go/types to types2 with
+    renames from types -> types2.
+    
+    Change-Id: Ib9bae3fd8b93c3bd6c56e4e039a296cb34b0eb47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352869
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/importer/iimport.go | 21 ++++++++++-----------
+ src/cmd/compile/internal/types2/signature.go | 26 +++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 12 deletions(-)

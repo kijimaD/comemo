@@ -1,0 +1,12 @@
+commit 800c49820aa5ecd83506276070bd8e9439e2eb5a
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Jan 10 07:43:48 2012 -0800
+
+    go: fix typo in comment
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5531060
+
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

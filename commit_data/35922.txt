@@ -1,0 +1,21 @@
+commit 5fbfda6a833f3bbc3d714459b5194f7fef1e0b43
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 6 13:59:06 2018 -0700
+
+    cmd/go: add LDFLAGS to cache ID when using cgo
+    
+    The cgo tool records the value of the CGO_LDFLAGS environment variable
+    in the generated file, so that the linker can later read and use it.
+    Therefore, we must add CGO_LDFLAGS to the cache ID, as otherwise
+    changing CGO_LDFLAGS may cause a build result to be incorrectly read
+    from the cache, producing a different final program.
+    
+    Change-Id: Ic89c1edc4069837451a36376710ca9b56fb87455
+    Reviewed-on: https://go-review.googlesource.com/122520
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  4 ++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)

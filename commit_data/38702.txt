@@ -1,0 +1,54 @@
+commit 4166ff42c09cae4ca9e15154627e7cfc80586c65
+Author: Andrei Vagin <avagin@google.com>
+Date:   Fri Mar 29 10:43:31 2019 -0700
+
+    runtime: preempt a goroutine which calls a lot of short system calls
+    
+    A goroutine should be preempted if it runs for 10ms without blocking.
+    We found that this doesn't work for goroutines which call short system calls.
+    
+    For example, the next program can stuck for seconds without this fix:
+    
+    $ cat main.go
+    package main
+    
+    import (
+            "runtime"
+            "syscall"
+    )
+    
+    func main() {
+            runtime.GOMAXPROCS(1)
+            c := make(chan int)
+            go func() {
+                    c <- 1
+                    for {
+                            t := syscall.Timespec{
+                                    Nsec: 300,
+                            }
+                            if true {
+                                    syscall.Nanosleep(&t, nil)
+                            }
+                    }
+            }()
+            <-c
+    }
+    
+    $ time go run main.go
+    
+    real    0m8.796s
+    user    0m0.367s
+    sys     0m0.893s
+    
+    Updates #10958
+    
+    Change-Id: Id3be54d3779cc28bfc8b33fe578f13778f1ae2a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170138
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/proc.go        | 28 ++++++++++---------
+ src/runtime/proc_test.go   | 67 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 84 insertions(+), 13 deletions(-)

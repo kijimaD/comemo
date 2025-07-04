@@ -1,0 +1,13 @@
+commit 26880d7e034bcfd3ca45121148a3f7443409b39e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 11 17:47:17 2011 -0500
+
+    sync: check Unlock of unlocked Mutex
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4180044
+
+ src/pkg/sync/mutex.go      |  7 ++++++-
+ src/pkg/sync/mutex_test.go | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 787362327fbc2ec010659cd9067cc899cc15203c
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sun May 18 16:28:13 2025 +0800
+
+    io/fs: add examples for Glob,ReadFile and ValidPath
+    
+    Change-Id: I8451179bc0fa88b7e60afbc6fd9e06a22a94f3aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673835
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/io/fs/example_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

@@ -1,0 +1,13 @@
+commit f17c6bcafb48c28e965683e32e73a4dab423ed75
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 15:27:15 2009 -0700
+
+    this time really clean up a TODO
+    
+    R=rsc
+    DELTA=28  (0 added, 20 deleted, 8 changed)
+    OCL=32676
+    CL=32684
+
+ src/cmd/gobuild/util.go | 28 ++++------------------------
+ 1 file changed, 4 insertions(+), 24 deletions(-)

@@ -1,0 +1,15 @@
+commit 85115da5d3351c4300337579eafe726700f3b587
+Author: kenshi kamata <kenshi.kamata@gmail.com>
+Date:   Wed May 22 17:19:56 2024 +0900
+
+    errors: change interface{} to any in comment
+    
+    Change-Id: Ibf28c4b3026019427a2485230e14929ed80a1727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587255
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

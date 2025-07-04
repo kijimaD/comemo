@@ -1,0 +1,36 @@
+commit 554d47ecb5f35dd5bb850f5e20dde978bea37061
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 9 09:02:27 2013 +0900
+
+    net: separate unix pollster initialization from network file descriptor allocation
+    
+    Unlike the existing net package own pollster, runtime-integrated
+    network pollster on BSD variants, actually kqueue, requires a socket
+    that has beed passed to syscall.Listen previously for a stream
+    listener.
+    
+    This CL separates pollDesc.Init of Unix network pollster from newFD
+    to avoid any breakages in the transition from Unix network pollster
+    to runtime-integrated pollster. Upcoming CLs will rearrange the call
+    order of pollster and syscall functions like the following;
+    
+    - For dialers that open active connections, pollDesc.Init will be
+      called in between syscall.Bind and syscall.Connect.
+    
+    - For stream listeners that open passive stream connections,
+      pollDesc.Init will be called just after syscall.Listen.
+    
+    - For datagram listeners that open datagram connections,
+      pollDesc.Init will be called just after syscall.Bind.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12663043
+
+ src/pkg/net/fd_poll_unix.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,14 @@
+commit f72534ab6adcdc7a5fe4dc639c551213931bdc77
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 12:03:33 2017 +1200
+
+    cmd/link: document the various Attribute values
+    
+    Change-Id: I11c14111b6c72eab5fc11e9e28cd8b37ad99b401
+    Reviewed-on: https://go-review.googlesource.com/42019
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/link.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

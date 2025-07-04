@@ -1,0 +1,14 @@
+commit 6ea5687b46b080304584fbc80c3e2dd18f2e1c43
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 25 23:00:22 2013 +0300
+
+    net/url: fix Encode doc comment
+    
+    Encoded query strings are always sorted by key; the example wasn't.
+    
+    R=golang-dev, dsymonds, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/16430043
+
+ src/pkg/net/url/url.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

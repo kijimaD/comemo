@@ -1,0 +1,13 @@
+commit 11fe7cd6e32bdd41dcf9ff9b5fb82048b1340509
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Nov 14 15:59:27 2011 -0500
+
+    6l, 8l: add missing space in error message
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5374085
+
+ src/cmd/6l/obj.c | 2 +-
+ src/cmd/8l/obj.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

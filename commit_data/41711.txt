@@ -1,0 +1,16 @@
+commit 0c302459968511865ec6a5ee4ff2172e4e54cef8
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 22 06:22:41 2020 +0000
+
+    runtime: correct the system-call name of kevent  in comment
+    
+    Change-Id: Ib1f4a6f7e36d28eff39f597df5c4703bf62654a4
+    GitHub-Last-Rev: 15ea1b9fa846737bd5d30b7b98d8933f9992e5c7
+    GitHub-Pull-Request: golang/go#37994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll_aix.go    | 2 +-
+ src/runtime/netpoll_kqueue.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit d7634ad7d9a3b914245fba89cb9737f12c07dfe6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 12 16:08:32 2011 -0500
+
+    gc: fix wrong arguments to error message for switches.
+    
+    Fixes #2502.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5472062
+
+ src/cmd/gc/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

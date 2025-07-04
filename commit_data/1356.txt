@@ -1,0 +1,22 @@
+commit b86359073e8268093dbff1c5d5a8ed600218c816
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 18:02:22 2008 -0800
+
+    Snapshot.
+    
+    Preparations to track identifiers and declarations so that we can
+    generate good html links as pretty printer output:
+    - brought over old code and adjusted it
+    - initial hookups, nothing really running yet
+    
+    R=r
+    OCL=21383
+    CL=21383
+
+ usr/gri/pretty/Makefile       |  12 ++-
+ usr/gri/pretty/compilation.go |   6 ++
+ usr/gri/pretty/globals.go     | 240 ++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/object.go      |  36 +++++++
+ usr/gri/pretty/type.go        | 207 ++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/universe.go    | 125 ++++++++++++++++++++++
+ 6 files changed, 624 insertions(+), 2 deletions(-)

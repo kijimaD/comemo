@@ -1,0 +1,17 @@
+commit 5d25189d801d7e8bf2fe10ffe95d43dda648a6b0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 7 16:34:21 2014 +1000
+
+    race.bash,race.bat: unset GOROOT_FINAL during tests
+    
+    Just like run.* scripts do.
+    Fixes race build.
+    
+    LGTM=dave, dvyukov
+    R=dvyukov, dave
+    CC=golang-codereviews
+    https://golang.org/cl/98980043
+
+ src/race.bash | 6 ++++++
+ src/race.bat  | 6 ++++++
+ 2 files changed, 12 insertions(+)

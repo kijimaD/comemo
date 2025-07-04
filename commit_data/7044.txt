@@ -1,0 +1,16 @@
+commit 29d0f02bd24541adbcee5c5b5583371c2b72d7d5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 5 11:39:57 2011 -0800
+
+    effective go: explain the effect of repanicking better.
+    Also fix a <p> error in go_spec.html.
+    
+    Fixes #1370.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3835043
+
+ doc/effective_go.html | 13 ++++++++++++-
+ doc/go_spec.html      |  4 ++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

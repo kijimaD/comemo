@@ -1,0 +1,28 @@
+commit ab38e2a498f432fc33dc1f91815756cf2c56af72
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 12:00:37 2013 -0400
+
+    runtime: show m stack during crash on m stack
+    
+    The various throwing > 0 finish a change started
+    in a previous CL, which sets throwing = -1 to mean
+    "don't show the internals". That gets set during the
+    "all goroutines are asleep - deadlock!" crash, and it
+    should also be set during any other expected crash
+    that does not indicate a problem within the runtime.
+    
+    Most runtime.throw do indicate a problem within the
+    runtime, however, so we should be able to enumerate
+    the ones that should be silent. The goroutine sleeping
+    deadlock is the only one I can think of.
+    
+    Update #5139
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13662043
+
+ src/pkg/runtime/panic.c         | 2 +-
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

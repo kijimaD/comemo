@@ -1,0 +1,15 @@
+commit 2b325f8d5240fe46de768b15cb5085eddfa2b8f6
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Sat Apr 27 04:10:01 2019 +0000
+
+    cmd/go: fix typo in "go help version" output
+    
+    Change-Id: I38b22786aae3d7a08cf2863ef5d15e476fe30093
+    GitHub-Last-Rev: 57d07dd1c711029b965afd32e1d8a3c22560276f
+    GitHub-Pull-Request: golang/go#31711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174086
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/go/alldocs.go                  | 2 +-
+ src/cmd/go/internal/version/version.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

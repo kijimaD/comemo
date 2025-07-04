@@ -1,0 +1,13 @@
+commit 24838a2df659513371dd0d488d71b594e38f71ea
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 8 19:30:14 2008 -0700
+
+    fix bug in stack limit calculation - was setting limit reg in wrong place.
+    
+    R=ken
+    OCL=14981
+    CL=14981
+
+ src/runtime/proc.c            | 11 +++--------
+ src/runtime/sys_amd64_linux.s |  3 ++-
+ 2 files changed, 5 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 1fe42e2d4d8f7898ba60af2986bf0d0db7a80d19
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 9 18:00:41 2009 -0700
+
+    delete float80 from libraries
+    
+    R=rsc
+    DELTA=40  (0 added, 38 deleted, 2 changed)
+    OCL=25969
+    CL=25969
+
+ src/lib/fmt/print.go        |  4 +---
+ src/lib/reflect/all_test.go |  1 -
+ src/lib/reflect/tostring.go |  4 +---
+ src/lib/reflect/type.go     |  4 ----
+ src/lib/reflect/value.go    | 29 -----------------------------
+ 5 files changed, 2 insertions(+), 40 deletions(-)

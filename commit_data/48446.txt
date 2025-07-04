@@ -1,0 +1,21 @@
+commit d68615f64b0d7c1e886f4b8c1267ecc1c4da76ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:38:25 2022 -0500
+
+    cmd/go/internal/test: ensure that build.ToolDir is accurate in tests
+    
+    This fixes a build failure due to inability to locate the "vet" tool
+    when the test binary is built with -trimpath.
+    
+    Updates #51461
+    
+    Change-Id: I81838cc8842e4ff7900cab81af60501ebba86ff1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391808
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go            | 50 ++++++++++++++++++++-----------
+ src/cmd/go/internal/test/flagdefs_test.go |  6 ++++
+ 2 files changed, 39 insertions(+), 17 deletions(-)

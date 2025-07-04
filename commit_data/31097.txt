@@ -1,0 +1,18 @@
+commit 30ddffadd5475e76aeaccdf1e243658c20350422
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 06:06:51 2017 -0700
+
+    cmd/internal/obj: remove Link.Debugdivmod
+    
+    It is only used once and never written to.
+    Switch to a local constant instead.
+    
+    Change-Id: Icdd84e47b81f0de44ad9ed56ab5f4f91df22e6b6
+    Reviewed-on: https://go-review.googlesource.com/40405
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/obj5.go | 3 ++-
+ src/cmd/internal/obj/link.go     | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)

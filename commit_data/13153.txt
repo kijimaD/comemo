@@ -1,0 +1,18 @@
+commit 016d0d0900bf9447b5ea4ada697ae64597a85daf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 24 10:56:35 2012 -0700
+
+    godoc: correctly categorize interface methods, performance tuning
+    
+    - interface methods appeared under VarDecl in search results
+      (long-standing TODO)
+    
+    - don't walk parts of AST which contain no indexable material
+      (minor performance tuning)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6228047
+
+ src/cmd/godoc/index.go | 84 ++++++++++++++++++++++----------------------------
+ 1 file changed, 36 insertions(+), 48 deletions(-)

@@ -1,0 +1,22 @@
+commit 9311af79d5a9670d4ad2c9ab4f94d53563bc82d4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 9 16:12:57 2017 -0400
+
+    sync: release m.mu during (*RWMutexMap).Range callbacks in sync_test
+    
+    The mainline sync.Map has allowed mutations within Range callbacks
+    since https://golang.org/cl/37342. The reference implementations need
+    to do the same.
+    
+    This change integrates https://go-review.googlesource.com/c/42956/
+    from x/sync.
+    
+    Change-Id: I6b58cf874bb31cd4f6fdb8bfa8278888ed617a5a
+    Reviewed-on: https://go-review.googlesource.com/42957
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/map_bench_test.go     |  4 +---
+ src/sync/map_reference_test.go | 13 +++++++++++--
+ 2 files changed, 12 insertions(+), 5 deletions(-)

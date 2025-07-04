@@ -1,0 +1,30 @@
+commit d83168eb385f7ae38710028fff5c84252267adbc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 13 17:07:34 2020 +0200
+
+    lib/time, time, time/tzdata: use slim tz data format
+    
+    Follow-up for CL 261363 which had to retain the fat tz data format due
+    to failing test.
+    
+    The reason for the failed tests was that when caching location data, the
+    extended time format past the end of zone transitions was not
+    considered. The respective change was introduced in (*Location).lookup
+    by CL 215539.
+    
+    This slims down zoneinfo.zip (and thus also the embedded copy in
+    time/tzdata) by ~350KB.
+    
+    Change-Id: I412f79de98ba45358b8696aca784999b3479135e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261877
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash       |     2 +-
+ lib/time/zoneinfo.zip      |   Bin 783364 -> 422355 bytes
+ src/time/tzdata/tzdata.go  |     2 +-
+ src/time/tzdata/zipdata.go | 19763 +++++++++++++++----------------------------
+ src/time/zoneinfo_read.go  |     8 +
+ 5 files changed, 6883 insertions(+), 12892 deletions(-)

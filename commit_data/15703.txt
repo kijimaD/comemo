@@ -1,0 +1,15 @@
+commit 05403fa8fbfe1c6e44e1b015a6e990af11c81dfd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 11 17:17:25 2013 -0700
+
+    go/test/bench/go1: add printf and time format tests
+    Also rename the go parser test to GoParse so it doesn't grab the globally useful Parse name.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7732044
+
+ test/bench/go1/fmt_test.go    | 68 +++++++++++++++++++++++++++++++++++++++++++
+ test/bench/go1/parser_test.go |  2 +-
+ test/bench/go1/time_test.go   | 25 ++++++++++++++++
+ 3 files changed, 94 insertions(+), 1 deletion(-)

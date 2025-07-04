@@ -1,0 +1,12 @@
+commit ba15bbe6542dd72606847df1f5a5f7c9c6ea884c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 16:35:53 2009 -0700
+
+    simple AST walking support
+    
+    R=rsc
+    http://go/go-review/1014006
+
+ src/pkg/go/ast/Makefile |   1 +
+ src/pkg/go/ast/walk.go  | 309 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 310 insertions(+)

@@ -1,0 +1,52 @@
+commit a5c3bbe0b49af8c3d31e511c6ee4c9380696e40d
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 20 11:57:02 2015 -0400
+
+    runtime: eliminate write barrier from adjustpointers
+    
+    Currently adjustpointers invokes a write barrier for every stack slot
+    it updates. This is safe---the write barrier always does nothing
+    because the new value is never a heap pointer---but it's unnecessary
+    overhead in performance and complexity.
+    
+    Fix this by rewriting adjustpointers to work with *uintptrs instead of
+    *unsafe.Pointers. As an added bonus, this makes the code cleaner.
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            3.35s × (0.98,1.01)   3.33s × (0.99,1.02)    ~    (p=0.095 n=20+19)
+    Fannkuch11              2.49s × (1.00,1.01)   2.52s × (0.99,1.01)  +1.23% (p=0.000 n=19+20)
+    FmtFprintfEmpty        52.2ns × (0.99,1.02)  52.2ns × (0.99,1.02)    ~    (p=0.766 n=19+19)
+    FmtFprintfString        181ns × (0.99,1.02)   179ns × (0.99,1.01)  -1.06% (p=0.000 n=20+19)
+    FmtFprintfInt           177ns × (0.99,1.01)   173ns × (0.99,1.02)  -2.26% (p=0.000 n=17+20)
+    FmtFprintfIntInt        300ns × (0.99,1.01)   302ns × (0.99,1.01)  +0.76% (p=0.000 n=19+20)
+    FmtFprintfPrefixedInt   253ns × (0.99,1.02)   256ns × (0.99,1.01)  +0.96% (p=0.000 n=20+19)
+    FmtFprintfFloat         334ns × (0.99,1.02)   334ns × (1.00,1.01)    ~    (p=0.243 n=20+19)
+    FmtManyArgs            1.16µs × (0.99,1.01)  1.17µs × (0.99,1.02)  +0.88% (p=0.000 n=20+20)
+    GobDecode              9.16ms × (0.99,1.02)  9.18ms × (1.00,1.00)  +0.21% (p=0.048 n=20+17)
+    GobEncode              7.03ms × (0.99,1.01)  7.05ms × (0.99,1.01)    ~    (p=0.091 n=19+19)
+    Gzip                    374ms × (0.99,1.01)   372ms × (0.99,1.02)  -0.50% (p=0.008 n=18+20)
+    Gunzip                 92.9ms × (0.99,1.01)  92.5ms × (1.00,1.01)  -0.47% (p=0.002 n=19+19)
+    HTTPClientServer       53.1µs × (0.98,1.01)  52.5µs × (0.99,1.01)  -0.98% (p=0.000 n=20+19)
+    JSONEncode             17.4ms × (0.99,1.02)  17.5ms × (0.99,1.01)    ~    (p=0.061 n=19+20)
+    JSONDecode             66.0ms × (0.99,1.02)  64.7ms × (0.99,1.01)  -1.87% (p=0.000 n=20+20)
+    Mandelbrot200          3.94ms × (1.00,1.01)  3.95ms × (1.00,1.01)    ~    (p=0.799 n=18+19)
+    GoParse                3.89ms × (0.99,1.02)  3.86ms × (0.99,1.01)  -0.70% (p=0.016 n=20+19)
+    RegexpMatchEasy0_32     102ns × (0.99,1.02)   102ns × (1.00,1.01)    ~    (p=0.557 n=20+18)
+    RegexpMatchEasy0_1K     353ns × (0.99,1.02)   341ns × (0.99,1.01)  -3.38% (p=0.000 n=20+20)
+    RegexpMatchEasy1_32    85.0ns × (0.99,1.02)  85.0ns × (0.99,1.01)    ~    (p=0.851 n=19+20)
+    RegexpMatchEasy1_1K     521ns × (0.99,1.02)   506ns × (1.00,1.01)  -2.85% (p=0.000 n=20+18)
+    RegexpMatchMedium_32    142ns × (0.99,1.02)   141ns × (1.00,1.01)  -1.17% (p=0.000 n=20+19)
+    RegexpMatchMedium_1K   42.8µs × (0.99,1.01)  42.3µs × (0.99,1.01)  -1.07% (p=0.000 n=20+19)
+    RegexpMatchHard_32     2.17µs × (0.99,1.01)  2.16µs × (1.00,1.01)  -0.51% (p=0.042 n=20+18)
+    RegexpMatchHard_1K     65.6µs × (0.99,1.01)  64.8µs × (1.00,1.00)  -1.21% (p=0.000 n=20+17)
+    Revcomp                 581ms × (0.99,1.04)   536ms × (1.00,1.01)  -7.71% (p=0.000 n=20+18)
+    Template               77.2ms × (0.99,1.01)  76.8ms × (0.99,1.01)    ~    (p=0.426 n=20+18)
+    TimeParse               369ns × (0.99,1.02)   371ns × (1.00,1.01)    ~    (p=0.117 n=20+19)
+    TimeFormat              371ns × (0.99,1.02)   391ns × (0.99,1.01)  +5.33% (p=0.000 n=20+19)
+    
+    Change-Id: I5b952ba577ac4365c8c87db837c5804a1e30b7be
+    Reviewed-on: https://go-review.googlesource.com/10293
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/stack1.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit 1baea0ddb32dbcce37d7d8e5863dbf7063439a74
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 1 00:44:43 2022 +0700
+
+    test: skip inlining check in escape4.go
+    
+    This is the last failed test in Unified IR, since it can inline f5 and
+    f6 but the old frontend can not. So marking them as //go:noinline, with
+    a TODO for re-enable once GOEXPERIMENT=nounified is gone.
+    
+    Fixes #53058
+    
+    Change-Id: Ifbbc49c87997a53e1b323048f0067f0257655fad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437217
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/escape4.go | 5 +++++
+ test/run.go     | 8 +-------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit 21617250f4b94af3ec0d79e7192573a7de80d31c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 22 13:22:56 2008 -0700
+
+    import/export of embedded types
+    
+    R=ken
+    OCL=17643
+    CL=17643
+
+ src/cmd/gc/go.y   | 17 ++++++++++++++---
+ src/cmd/gc/subr.c |  2 +-
+ 2 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit b752ab2e90a29e8c56a19457c736065085d4ab09
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Sep 9 20:07:09 2012 -0400
+
+    crypto/rand: zero length reads shouldn't crash on Windows.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6496099
+
+ src/pkg/crypto/rand/rand_test.go    | 11 +++++++++++
+ src/pkg/crypto/rand/rand_windows.go |  4 ++++
+ 2 files changed, 15 insertions(+)

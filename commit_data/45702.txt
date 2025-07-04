@@ -1,0 +1,15 @@
+commit a62c08734f8e2fc5333036e3a069a55288d1f674
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 15:44:46 2021 -0700
+
+    src/os: revert accidentally submitted change
+    
+    Change-Id: Ib34984a6bd0abc76266e8aac96f9f8ad8ae21d17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322894
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/pipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 30c0d2315e1c6bdd7a0ba4f7c9e498486cecb750
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 21 10:39:31 2012 -0700
+
+    net/http: fix regression and mute known test failure for now
+    
+    Two tests added in 820ffde8c are expected to fail until the fix
+    for Issue 3540 goes back in (pending Windows net fixes), so
+    make those tests just Logf for now, with a TODO to re-enable.
+    
+    Add a new client test.
+    
+    Rearrange the transport code to be more readable, and fix the
+    bug from 820ffde8c where the persistConn was being closed before
+    the body was fully ready.
+    
+    Fixes #3644
+    Updates #1967 (not yet fixed, but should be after Issue 3540)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6211069
+
+ src/pkg/net/http/transport.go      | 48 ++++++++++++++--------------
+ src/pkg/net/http/transport_test.go | 65 ++++++++++++++++++++++++++------------
+ 2 files changed, 69 insertions(+), 44 deletions(-)

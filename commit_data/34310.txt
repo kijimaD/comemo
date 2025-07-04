@@ -1,0 +1,44 @@
+commit ed1959c6e6f6321383efd52dc250480a4aab40f6
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 19 16:10:58 2018 -0500
+
+    runtime: offset the heap arena index by 2^47 on amd64
+    
+    On amd64, the virtual address space, when interpreted as signed
+    values, is [-2^47, 2^47). Currently, we only support heap addresses in
+    the "positive" half of this, [0, 2^47). This suffices for linux/amd64
+    and windows/amd64, but solaris/amd64 can map user addresses in the
+    negative part of this range. Specifically, addresses
+    0xFFFF8000'00000000 to 0xFFFFFD80'00000000 are part of user space.
+    This leads to "memory allocated by OS not in usable address space"
+    panic, since we don't map heap arena index space for these addresses.
+    
+    Fix this by offsetting addresses when computing arena indexes so that
+    arena entry 0 corresponds to address -2^47 on amd64. We already map
+    enough arena space for 2^48 heap addresses on 64-bit (because arm64's
+    virtual address space is [0, 2^48)), so we don't need to grow any
+    structures to support this.
+    
+    A different approach would be to simply mask out the top 16 bits.
+    However, there are two advantages to the offset approach: 1) invalid
+    heap addresses continue to naturally map to invalid arena indexes so
+    we don't need extra checks and 2) it perturbs the mapping of addresses
+    to arena indexes more, which helps check that we don't accidentally
+    compute incorrect arena indexes somewhere that happen to be right most
+    of the time.
+    
+    Several comments and constant names are now somewhat misleading. We'll
+    fix that in the next CL. This CL is the core change the arena
+    indexing.
+    
+    Fixes #23862.
+    
+    Change-Id: Idb8e299fded04593a286b01a9582da6ddbac2f9a
+    Reviewed-on: https://go-review.googlesource.com/95497
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 11 +++++++++++
+ src/runtime/mheap.go  |  9 +++++----
+ 2 files changed, 16 insertions(+), 4 deletions(-)

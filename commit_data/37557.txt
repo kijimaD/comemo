@@ -1,0 +1,77 @@
+commit 9e277f7d554455e16ba3762541c53e9bfc1d8188
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 22 11:46:44 2018 +0100
+
+    all: use "reports whether" consistently instead of "returns whether"
+    
+    Follow-up for CL 147037 and after Brad noticed the "returns whether"
+    pattern during the review of CL 150621.
+    
+    Go documentation style for boolean funcs is to say:
+    
+        // Foo reports whether ...
+        func Foo() bool
+    
+    (rather than "returns whether")
+    
+    Created with:
+    
+        $ perl -i -npe 's/returns whether/reports whether/' $(git grep -l "returns whether" | grep -v vendor)
+    
+    Change-Id: I15fe9ff99180ad97750cd05a10eceafdb12dc0b4
+    Reviewed-on: https://go-review.googlesource.com/c/150918
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go                             |  2 +-
+ src/cmd/cgo/gcc.go                              | 12 ++++++------
+ src/cmd/cgo/out.go                              |  2 +-
+ src/cmd/compile/internal/gc/reflect.go          |  2 +-
+ src/cmd/compile/internal/mips/ssa.go            |  4 ++--
+ src/cmd/compile/internal/mips64/ssa.go          |  4 ++--
+ src/cmd/compile/internal/ssa/biasedsparsemap.go |  2 +-
+ src/cmd/compile/internal/ssa/config.go          |  2 +-
+ src/cmd/compile/internal/ssa/magic.go           |  2 +-
+ src/cmd/compile/internal/ssa/numberlines.go     |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  2 +-
+ src/cmd/compile/internal/ssa/value.go           |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go    |  2 +-
+ src/cmd/compile/internal/types/type.go          |  2 +-
+ src/cmd/internal/obj/arm64/asm7.go              |  2 +-
+ src/cmd/internal/objabi/reloctype.go            |  2 +-
+ src/cmd/link/internal/ld/data.go                |  2 +-
+ src/cmd/link/internal/ld/lib.go                 |  6 +++---
+ src/cmd/pprof/readlineui.go                     |  2 +-
+ src/cmd/trace/annotations.go                    |  2 +-
+ src/crypto/tls/common.go                        |  2 +-
+ src/crypto/tls/handshake_server_tls13.go        |  2 +-
+ src/crypto/x509/pkix/pkix.go                    |  2 +-
+ src/crypto/x509/verify.go                       |  2 +-
+ src/crypto/x509/x509.go                         |  2 +-
+ src/database/sql/sql.go                         |  2 +-
+ src/debug/dwarf/line.go                         |  2 +-
+ src/go/printer/nodes.go                         |  2 +-
+ src/internal/goroot/gc.go                       |  4 ++--
+ src/internal/goroot/gccgo.go                    |  2 +-
+ src/net/http/cookie.go                          |  6 +++---
+ src/net/http/h2_bundle.go                       |  2 +-
+ src/net/http/server.go                          |  2 +-
+ src/net/interface.go                            |  2 +-
+ src/os/wait_unimp.go                            |  2 +-
+ src/os/wait_wait6.go                            |  2 +-
+ src/os/wait_waitid.go                           |  2 +-
+ src/path/filepath/symlink_windows.go            |  2 +-
+ src/runtime/cgocall.go                          |  4 ++--
+ src/runtime/mbitmap.go                          |  2 +-
+ src/runtime/mgcmark.go                          |  2 +-
+ src/runtime/pprof/internal/profile/filter.go    |  2 +-
+ src/runtime/proc.go                             |  2 +-
+ src/runtime/select.go                           |  2 +-
+ src/runtime/signal_unix.go                      |  2 +-
+ src/runtime/stubs.go                            |  2 +-
+ src/runtime/trace/annotation.go                 |  2 +-
+ src/runtime/traceback.go                        |  2 +-
+ src/runtime/vdso_linux.go                       |  2 +-
+ src/testing/benchmark.go                        |  2 +-
+ src/time/zoneinfo.go                            |  2 +-
+ 51 files changed, 64 insertions(+), 64 deletions(-)

@@ -1,0 +1,20 @@
+commit 298c623e8caadf68198ba7bc4e6b128cb87983d7
+Author: Joel Stemmer <stemmertech@gmail.com>
+Date:   Fri Aug 8 12:42:20 2014 -0700
+
+    time: Fix missing colon when formatting time zone offsets with seconds
+    
+    When formatting time zone offsets with seconds using the stdISO8601Colon
+    and stdNumColon layouts, the colon was missing between the hour and minute
+    parts.
+    
+    Fixes #8497.
+    
+    LGTM=r
+    R=golang-codereviews, iant, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/126840043
+
+ src/pkg/time/format.go      |  2 +-
+ src/pkg/time/format_test.go | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

@@ -1,0 +1,32 @@
+commit adc575e64c8a49c0a14a8a6b0480c5f9815bdb1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:05 2024 -0500
+
+    runtime: move per-P timers state into its own struct
+    
+    Continuing conversion from C to Go, introduce type timers
+    encapsulating all timer heap state, with methods for operations.
+    This should at least be easier to think about, instead of having
+    these fields strewn through the P struct. It should also be easier
+    to test.
+    
+    I am skeptical about the pair of atomic int64 deadlines:
+    I think there are missed wakeups lurking.
+    Having the code in an abstracted API should make it easier
+    to reason through and fix if needed.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: If5ea3e0b946ca14076f44c85cbb4feb9eddb4f95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564132
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go     |  22 +--
+ src/runtime/runtime2.go |  29 +---
+ src/runtime/time.go     | 423 ++++++++++++++++++++++++++----------------------
+ src/time/sleep.go       |   4 +-
+ 4 files changed, 244 insertions(+), 234 deletions(-)

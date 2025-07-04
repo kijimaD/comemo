@@ -1,0 +1,12 @@
+commit e3b94edc030d7a1f2aba0a325e2d0cd0929dd8df
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Feb 18 23:38:17 2010 -0800
+
+    http: do not edit Response.ContentLength in Response.Write
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/207061
+
+ src/pkg/http/response.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

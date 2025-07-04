@@ -1,0 +1,15 @@
+commit 3d0726b04d123819648df7a8b492b349de48c31a
+Author: Jim McGrath <jimmc2@gmail.com>
+Date:   Mon Oct 11 14:45:01 2010 -0400
+
+    6l: correct offset for __nl_symbol_ptr in Mach-O.
+    
+    Fixes malformed object message from nm etc.
+    Fixes #1180.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/2390042
+
+ src/cmd/ld/macho.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

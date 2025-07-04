@@ -1,0 +1,23 @@
+commit d8e4446d129f823a3f92d5750b1bf8fdd1d1a242
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 12:03:32 2009 -0700
+
+    - install gofmt in src/cmd/gofmt
+    - remove some left-over files
+    
+    R=rsc
+    DELTA=1465  (281 added, 1181 deleted, 3 changed)
+    OCL=30350
+    CL=30353
+
+ src/cmd/gofmt/Makefile                     |  27 ++
+ {usr/gri/pretty => src/cmd/gofmt}/gofmt.go |   0
+ {usr/gri/pretty => src/cmd/gofmt}/test.sh  |   5 +-
+ src/make.bash                              |   2 +-
+ src/run.bash                               |   6 +-
+ usr/gri/pretty/godoc.go                    | 707 -----------------------------
+ usr/gri/pretty/package.html                |  54 ---
+ usr/gri/pretty/package.txt                 |  70 ---
+ usr/gri/pretty/parseerror.html             |   4 -
+ usr/gri/pretty/parseerror.txt              |   6 -
+ 10 files changed, 32 insertions(+), 849 deletions(-)

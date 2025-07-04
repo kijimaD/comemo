@@ -1,0 +1,20 @@
+commit 9d2fc7084f03fc29fa3fbb509d9d3ef82e173cc3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 21 16:14:53 2023 -0400
+
+    net/http: simplify Conn lifetimes in TestClientTimeoutKillsConn tests
+    
+    This is intended to fix the failure mode observed in
+    https://build.golang.org/log/f153e06ed547517fb2cddb0fa817fea40a6146f7,
+    but I haven't been able to reproduce that failure mode locally so I'm
+    not sure whether it actually does.
+    
+    Change-Id: Ib14378f1299a76b54013419bdc715a9dbdd94667
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478235
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 78 +++++++++++++++++++++++++-----------------
+ 1 file changed, 46 insertions(+), 32 deletions(-)

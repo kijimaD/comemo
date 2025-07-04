@@ -1,0 +1,14 @@
+commit 38083c83a60aa7a1b71b072ea5ecf70a3721ef2e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 21:36:16 2017 +0000
+
+    doc: fix mistake in NetBSD notes
+    
+    It's 32-bit binaries that fail for reasons unknown on 64-bit kernels.
+    
+    Change-Id: Ib410af0491160e3ed8d32118966142516123db2c
+    Reviewed-on: https://go-review.googlesource.com/82655
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.10.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

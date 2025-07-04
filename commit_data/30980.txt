@@ -1,0 +1,22 @@
+commit d6b999436a5ad7f303c20c018867e1e118572fa0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Apr 3 15:18:30 2017 +0100
+
+    go/parser: fix example to run on the playground
+    
+    The example shouldn't rely on the existance of example_test.go. That
+    breaks in the playground, which is what the "run" button in
+    https://golang.org/pkg/go/parser/#example_ParseFile does.
+    
+    Make the example self-sufficient by using a small piece of source via a
+    string literal instead.
+    
+    Fixes #19823.
+    
+    Change-Id: Ie8a3c6c5d00724e38ff727862b62e6a3621adc88
+    Reviewed-on: https://go-review.googlesource.com/39236
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/example_test.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

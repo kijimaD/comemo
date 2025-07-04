@@ -1,0 +1,12 @@
+commit d08728f1e13c70af122f95ef54c6b06702599494
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 5 22:08:07 2010 -0700
+
+    deps.bash: be less strict about format of x.go lines
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/862042
+
+ src/pkg/deps.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

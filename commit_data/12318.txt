@@ -1,0 +1,12 @@
+commit e8c970e5f7d5fa720a38da00a31870fc0b1c2b0f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Mar 1 20:14:21 2012 -0300
+
+    cmd/go: fix verbose command displaying
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5715050
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

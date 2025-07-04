@@ -1,0 +1,28 @@
+commit 212d2f82e05018f1ebb5e40e2c328865201da356
+Author: Dan Caddigan <goldcaddy77@gmail.com>
+Date:   Fri Oct 7 00:46:56 2016 -0400
+
+    os: add ErrClosed, return for use of closed File
+    
+    This is clearer than syscall.EBADF.
+    
+    Fixes #17320.
+    
+    Change-Id: I14c6a362f9a6044c9b07cd7965499f4a83d2a860
+    Reviewed-on: https://go-review.googlesource.com/30614
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/error.go        |  1 +
+ src/os/error_test.go   |  2 ++
+ src/os/file.go         | 39 ++++++++++++++++++++++++---------------
+ src/os/file_plan9.go   |  8 ++++----
+ src/os/file_posix.go   | 18 +++++++++---------
+ src/os/file_unix.go    |  2 +-
+ src/os/file_windows.go |  4 +++-
+ src/os/os_test.go      | 22 ++++++++++++++++++++++
+ src/os/types_plan9.go  |  2 ++
+ src/os/types_unix.go   |  2 ++
+ 10 files changed, 70 insertions(+), 30 deletions(-)

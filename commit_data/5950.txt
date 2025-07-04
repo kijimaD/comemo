@@ -1,0 +1,13 @@
+commit 99aab8bacb71f6c232bb6b5a2cea4efb0c3e8018
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Aug 4 13:33:24 2010 +1000
+
+    bytes: added test case for explode with blank string.
+    Tests for the equivalent of the strings.explode("") panic bug (issue 980).
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1850052
+
+ src/pkg/bytes/bytes_test.go | 1 +
+ 1 file changed, 1 insertion(+)

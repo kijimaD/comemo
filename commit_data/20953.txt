@@ -1,0 +1,24 @@
+commit 6820be25da81c1e647e3b807b70a5daf579bb6cf
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 9 14:40:40 2014 -0800
+
+    runtime: clean up & go-ify the hash function seeder
+    
+    Change-Id: I0e95f8a5962c547da20e19a356ae1cf8375c9107
+    Reviewed-on: https://go-review.googlesource.com/1270
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/alg.go              | 14 +-------------
+ src/runtime/os1_darwin.go       | 12 +++---------
+ src/runtime/os1_dragonfly.go    | 12 +++---------
+ src/runtime/os1_freebsd.go      | 12 +++---------
+ src/runtime/os1_linux.go        | 24 ++++++------------------
+ src/runtime/os1_netbsd.go       | 12 +++---------
+ src/runtime/os1_openbsd.go      | 12 +++---------
+ src/runtime/os1_plan9.go        | 12 +++---------
+ src/runtime/os1_windows.go      | 13 +++++--------
+ src/runtime/os3_solaris.go      | 12 +++---------
+ src/runtime/os_linux_386.go     |  3 +--
+ src/runtime/runtime2.go         | 31 ++++++++++++++++++++++++-------
+ src/runtime/vdso_linux_amd64.go |  3 +--
+ 13 files changed, 59 insertions(+), 113 deletions(-)

@@ -1,0 +1,12 @@
+commit b9bd57e7152f93d788f62a8cc09d0e0f89b60066
+Author: Brandon Gilmore <varz@google.com>
+Date:   Fri Jun 12 11:32:22 2015 -0700
+
+    doc/effective_go: fix grammatical error
+    
+    Change-Id: Ib52854169f3dd18f54d3ae9263c897d3f45ea869
+    Reviewed-on: https://go-review.googlesource.com/10982
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

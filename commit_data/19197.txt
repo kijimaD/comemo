@@ -1,0 +1,19 @@
+commit 576318c7bd9c1deeb5877df65dc26aeb53999ee2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 17 16:25:38 2014 -0400
+
+    cmd/pack: avoid ./ import in test (fix Windows build)
+    
+    It is possible to use ./ imports on Windows but it
+    requires some extra command-line work
+    ('go build' does this automatically, but we can't use 'go build' here).
+    
+    Instead, use an ordinary import and -I/-L, which are easier to use.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/89040043
+
+ src/cmd/pack/pack_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 6440c59e22dda7ffd05b33a86c789b5ee634082e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 10:01:34 2008 -0700
+
+    - removed need for lhs field in stat node
+    - as a result deleted some more code
+    
+    R=r
+    OCL=17449
+    CL=17449
+
+ usr/gri/pretty/node.go    |  2 +-
+ usr/gri/pretty/parser.go  | 10 ++++++----
+ usr/gri/pretty/printer.go | 24 ++++++------------------
+ usr/gri/pretty/scanner.go |  9 ++++++++-
+ 4 files changed, 21 insertions(+), 24 deletions(-)

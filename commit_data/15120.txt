@@ -1,0 +1,15 @@
+commit f41ffc2bf4a5a29bdff0b11a787e2536859ea61d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 4 15:28:55 2013 +1100
+
+    regexp: add (*Regexp).Longest
+    
+    Fixes #3696.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7133051
+
+ src/pkg/regexp/exec_test.go | 14 ++++++++++++++
+ src/pkg/regexp/regexp.go    |  8 ++++++++
+ 2 files changed, 22 insertions(+)

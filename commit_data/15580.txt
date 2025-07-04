@@ -1,0 +1,14 @@
+commit 4be38dde841ea5581661ca327e11b4199b69a460
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 4 12:59:40 2013 -0800
+
+    spec: cyclic imports are illegal
+    
+    Fixes #4976.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/7421050
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

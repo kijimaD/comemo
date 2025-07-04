@@ -1,0 +1,16 @@
+commit c12c5dba9c9d81242569f4108b707c6c16dfa066
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 15 18:44:33 2014 -0700
+
+    compress/bzip2: fix panics on malformed input.
+    
+    Fixes 8363.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/114810043
+
+ src/pkg/compress/bzip2/bzip2.go      | 21 +++++++++++++++++++--
+ src/pkg/compress/bzip2/bzip2_test.go | 18 ++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

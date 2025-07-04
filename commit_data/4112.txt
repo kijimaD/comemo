@@ -1,0 +1,11 @@
+commit b90c39beeefcb4adf226650110eb7958a08a1fb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 22:00:17 2009 -0800
+
+    release.2009-11-17: tag as of earlier this evening
+    
+    R=r
+    https://golang.org/cl/156058
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

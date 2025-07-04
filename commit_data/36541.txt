@@ -1,0 +1,19 @@
+commit d5c7abf73a3f65cb7d5b9c3193e59ac9e0729c7a
+Author: ianzapolsky <ianzapolsky@gmail.com>
+Date:   Thu Aug 30 12:57:16 2018 -0600
+
+    fmt: add an example for Errorf
+    
+    The errors package has an example for Errorf, but the fmt
+    package does not. Copy the Errorf example from errors to
+    fmt. Move existing Stringer example into separate file, so as
+    not to break the assumption that the entire file will be
+    presented as the example.
+    
+    Change-Id: I8a210a69362017fa08615a8c3feccdeee8427e22
+    Reviewed-on: https://go-review.googlesource.com/132239
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/example_test.go          | 25 +++++++------------------
+ src/fmt/stringer_example_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 18 deletions(-)

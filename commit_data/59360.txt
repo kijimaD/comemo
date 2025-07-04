@@ -1,0 +1,42 @@
+commit 8a8f506516e1210c9ca3a352d76bd1d570c407fd
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Apr 10 17:45:47 2025 +0200
+
+    os,internal/poll: disassociate handle from IOCP in File.Fd
+    
+    Go 1.25 will gain support for overlapped IO on handles passed to
+    os.NewFile thanks to CL 662236. It was previously not possible to add
+    an overlapped handle to the Go runtime's IO completion port (IOCP),
+    and now happens on the first call the an IO method.
+    
+    This means that there is code that relies on the fact that File.Fd
+    returns a handle that can always be associated with a custom IOCP.
+    That wouldn't be the case anymore, as a handle can only be associated
+    with one IOCP at a time and it must be explicitly disassociated.
+    
+    To fix this breaking change, File.Fd will disassociate the handle
+    from the Go runtime IOCP before returning it. It is then not necessary
+    to defer the association until the first IO method is called, which
+    was recently added in CL 661955 to support this same use case, but
+    in a more complex and unreliable way.
+    
+    Updates #19098.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race,gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Id8a7e04d35057047c61d1733bad5bf45494b2c28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664455
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/fd_plan9.go                   |   4 -
+ src/internal/poll/fd_poll_runtime.go            |   1 -
+ src/internal/poll/fd_unix.go                    |   4 -
+ src/internal/poll/fd_windows.go                 | 129 +++++++++++++-----------
+ src/internal/syscall/windows/syscall_windows.go |   2 +
+ src/internal/syscall/windows/types_windows.go   |   8 ++
+ src/os/file.go                                  |   8 +-
+ src/os/file_windows.go                          |   5 +
+ src/os/os_windows_test.go                       |  62 +++++++++---
+ 9 files changed, 140 insertions(+), 83 deletions(-)

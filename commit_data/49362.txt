@@ -1,0 +1,20 @@
+commit aae0bef72f97f74318bb57da24efef49b1096a67
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 2 09:58:42 2022 -0700
+
+    archive/zip: use bufio.Reset rather than NewReader
+    
+    A clean up for CL 408734, suggested by Joe Tsai.
+    
+    Change-Id: Ida9db0b8d31785d5640938c286c9c6c82c27f457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410154
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/archive/zip/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

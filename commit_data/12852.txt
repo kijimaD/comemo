@@ -1,0 +1,12 @@
+commit 149983f13682ecd1cf19db3fb9a7788f614f1aa9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 01:49:49 2012 +0800
+
+    build: run.bash no longer accepts --no-banner
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5986063
+
+ src/all.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

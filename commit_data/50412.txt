@@ -1,0 +1,19 @@
+commit 33628ce1950287721fd30b333c962984f3524b00
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:01:19 2022 +0800
+
+    cmd/cgo: use strings.Builder
+    
+    Change-Id: I427776e5b2d9c7279932548c86c8faded0eed041
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428285
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+
+ src/cmd/cgo/gcc.go    | 2 +-
+ src/cmd/cgo/godefs.go | 5 ++---
+ src/cmd/cgo/out.go    | 8 ++++----
+ 3 files changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit df1eeeba4a991a10f6b8e992d7d1b6ac87c23f7b
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Thu Aug 1 15:20:01 2013 -0700
+
+    compress/flate: Fixed two panics on bad data
+    
+    I used just enough of the data provided by Matt in Issue 5915 to trigger
+    issue 5915. As luck would have it, using slightly less of it triggered
+    issue 5962.
+    
+    Fixes #5915.
+    Fixes #5962.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12288043
+
+ src/pkg/compress/flate/flate_test.go | 23 +++++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go    |  9 ++++++++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

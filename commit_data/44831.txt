@@ -1,0 +1,80 @@
+commit 359f44910f470578b2aed43f057b6fa8b4b41bcc
+Author: Pat Gavlin <pgavlin@gmail.com>
+Date:   Fri Mar 26 17:48:42 2021 +0000
+
+    cmd/compile: fix long RMW bit operations on AMD64
+    
+    Under certain circumstances, the existing rules for bit operations can
+    produce code that writes beyond its intended bounds. For example,
+    consider the following code:
+    
+        func repro(b []byte, addr, bit int32) {
+                _ = b[3]
+                v := uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24 | 1<<(bit&31)
+                b[0] = byte(v)
+                b[1] = byte(v >> 8)
+                b[2] = byte(v >> 16)
+                b[3] = byte(v >> 24)
+        }
+    
+    Roughly speaking:
+    
+    1. The expression `1 << (bit & 31)` is rewritten into `(SHLL 1 bit)`
+    2. The expression `uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 |
+       uint32(b[3])<<24` is rewritten into `(MOVLload &b[0])`
+    3. The statements `b[0] = byte(v) ... b[3] = byte(v >> 24)` are
+       rewritten into `(MOVLstore &b[0], v)`
+    4. `(ORL (SHLL 1, bit) (MOVLload &b[0]))` is rewritten into
+       `(BTSL (MOVLload &b[0]) bit)`. This is a valid transformation because
+       the destination is a register: in this case, the bit offset is masked
+       by the number of bits in the destination register. This is identical
+       to the masking performed by `SHL`.
+    5. `(MOVLstore &b[0] (BTSL (MOVLload &b[0]) bit))` is rewritten into
+       `(BTSLmodify &b[0] bit)`. This is an invalid transformation because
+       the destination is memory: in this case, the bit offset is not
+       masked, and the chosen instruction may write outside its intended
+       32-bit location.
+    
+    These changes fix the invalid rewrite performed in step (5) by
+    explicitly maksing the bit offset operand to `BT(S|R|C)(L|Q)modify`. In
+    the example above, the adjusted rules produce
+    `(BTSLmodify &b[0] (ANDLconst [31] bit))` in step (5).
+    
+    These changes also add several new rules to rewrite bit sets, toggles,
+    and clears that are rooted at `(OR|XOR|AND)(L|Q)modify` operators into
+    appropriate `BT(S|R|C)(L|Q)modify` operators. These rules catch cases
+    where `MOV(L|Q)store ((OR|XOR|AND)(L|Q) ...)` is rewritten to
+    `(OR|XOR|AND)(L|Q)modify` before the `(OR|XOR|AND)(L|Q) ...` can be
+    rewritten to `BT(S|R|C)(L|Q) ...`.
+    
+    Overall, compilecmp reports small improvements in code size on
+    darwin/amd64 when the changes to the compiler itself are exlcuded:
+    
+    file                               before   after    Δ       %
+    runtime.s                          536464   536412   -52     -0.010%
+    bytes.s                            32629    32593    -36     -0.110%
+    strings.s                          44565    44529    -36     -0.081%
+    os/signal.s                        7967     7959     -8      -0.100%
+    cmd/vendor/golang.org/x/sys/unix.s 81686    81678    -8      -0.010%
+    math/big.s                         188235   188253   +18     +0.010%
+    cmd/link/internal/loader.s         89295    89056    -239    -0.268%
+    cmd/link/internal/ld.s             633551   633232   -319    -0.050%
+    cmd/link/internal/arm.s            18934    18928    -6      -0.032%
+    cmd/link/internal/arm64.s          31814    31801    -13     -0.041%
+    cmd/link/internal/riscv64.s        7347     7345     -2      -0.027%
+    cmd/compile/internal/ssa.s         4029173  4033066  +3893   +0.097%
+    total                              21298280 21301472 +3192   +0.015%
+    
+    Change-Id: I2e560548b515865129e1724e150e30540e9d29ce
+    GitHub-Last-Rev: 9a42bd29a55b3917651aecab6932074df96535ae
+    GitHub-Pull-Request: golang/go#45242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304869
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  24 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 229 ++++++++++++++++++++++++---
+ test/codegen/bits.go                         |  10 +-
+ test/fixedbugs/issue45242.go                 |  28 ++++
+ 5 files changed, 272 insertions(+), 24 deletions(-)

@@ -1,0 +1,27 @@
+commit d698e614a21cd50055c7c5e7100069d2bcdb9b83
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 25 08:51:21 2016 +1100
+
+    cmd/vet: include function name or value in copylock message
+    
+    Given
+            var t struct{ lock sync.Mutex }
+            var fntab []func(t)
+            f(a(), b(&t), c(), fntab[0](t))
+    
+    Before:
+            function call copies lock value: struct{lock sync.Mutex} contains sync.Mutex
+    
+    After:
+            call of fntab[0] copies lock value: struct{lock sync.Mutex} contains sync.Mutex
+    
+    This will make diagnosis easier when there are multiple function calls per line.
+    
+    Change-Id: I9881713c5671b847b84a0df0115f57e7cba17d72
+    Reviewed-on: https://go-review.googlesource.com/34730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/copylock.go               | 2 +-
+ src/cmd/vet/testdata/copylock.go      | 6 +++---
+ src/cmd/vet/testdata/copylock_func.go | 6 ++++--
+ 3 files changed, 8 insertions(+), 6 deletions(-)

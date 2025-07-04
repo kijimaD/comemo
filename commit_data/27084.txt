@@ -1,0 +1,29 @@
+commit 97360096e5e9fdea06be8c97f32bd83741f68adb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 22 12:27:29 2016 -0700
+
+    cmd/compile: replace Ctype switches with type switches
+    
+    Instead of switching on Ctype (which internally uses a type switch)
+    and then scattering lots of type assertions throughout the CTFOO case
+    clauses, just use type switches directly on the underlying constant
+    value.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I9bc172cc67e5f391cddc15539907883b4010689e
+    Reviewed-on: https://go-review.googlesource.com/22384
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go  | 108 ++++++++++++++++------------------
+ src/cmd/compile/internal/gc/cplx.go   |   5 +-
+ src/cmd/compile/internal/gc/dcl.go    |  14 ++---
+ src/cmd/compile/internal/gc/fmt.go    |  45 +++++++-------
+ src/cmd/compile/internal/gc/gsubr.go  |  20 +++----
+ src/cmd/compile/internal/gc/obj.go    |  21 ++++---
+ src/cmd/compile/internal/gc/parser.go |  19 +++---
+ src/cmd/compile/internal/gc/sinit.go  |  30 ++++------
+ src/cmd/compile/internal/gc/ssa.go    |  52 ++++++++--------
+ 9 files changed, 146 insertions(+), 168 deletions(-)

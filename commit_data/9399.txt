@@ -1,0 +1,16 @@
+commit cf79411b1deac3c416db6b0c47e6cf34cd99f37e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 17 14:54:51 2011 -0400
+
+    gc: fix mkbuiltin
+    
+    Broken by Plan 9 changes.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4896050
+
+ src/cmd/gc/Makefile     | 4 ++++
+ src/cmd/gc/mkbuiltin    | 2 +-
+ src/cmd/gc/mkbuiltin1.c | 6 +++---
+ 3 files changed, 8 insertions(+), 4 deletions(-)

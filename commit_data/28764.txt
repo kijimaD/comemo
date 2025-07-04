@@ -1,0 +1,22 @@
+commit 81b9af7cccce8234319551330cb6406469f32bab
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 28 10:33:26 2016 +1000
+
+    os: add new tests for symbolic links and directory junctions
+    
+    Updates #15978
+    Updates #16145
+    
+    Change-Id: I161f5bc97d41c08bf5e1405ccafa86232d70886d
+    Reviewed-on: https://go-review.googlesource.com/25320
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/syscall/windows/mksyscall.go        |   2 +-
+ src/internal/syscall/windows/reparse_windows.go  |  64 +++++
+ src/internal/syscall/windows/security_windows.go |  57 ++++
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go | 105 ++++++-
+ src/os/os_windows_test.go                        | 342 +++++++++++++++++++++--
+ 6 files changed, 539 insertions(+), 32 deletions(-)

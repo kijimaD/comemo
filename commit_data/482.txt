@@ -1,0 +1,38 @@
+commit 2f4352a26d277046d7566b08296b242343223f51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 4 17:17:59 2008 -0700
+
+    - switched most of existing Go code to new export syntax
+    - adjusted lang doc
+    
+    R=r
+    DELTA=192  (26 added, 65 deleted, 101 changed)
+    OCL=13844
+    CL=13848
+
+ doc/go_lang.txt                  | 43 ++++++++++++++++++++++++++++++---------
+ src/lib/container/vector.go      |  6 +++---
+ src/lib/flag.go                  | 22 ++++++++++----------
+ src/lib/fmt.go                   |  6 +++---
+ src/lib/math/asin.go             |  6 ++----
+ src/lib/math/atan.go             |  4 +---
+ src/lib/math/atan2.go            |  3 +--
+ src/lib/math/exp.go              |  3 +--
+ src/lib/math/fabs.go             |  4 +---
+ src/lib/math/floor.go            |  6 ++----
+ src/lib/math/fmod.go             |  4 +---
+ src/lib/math/hypot.go            |  4 +---
+ src/lib/math/log.go              |  6 ++----
+ src/lib/math/pow.go              |  3 +--
+ src/lib/math/pow10.go            |  4 +---
+ src/lib/math/sin.go              |  6 ++----
+ src/lib/math/sinh.go             |  5 ++---
+ src/lib/math/sqrt.go             |  4 +---
+ src/lib/math/tan.go              |  4 +---
+ src/lib/math/tanh.go             |  3 +--
+ src/lib/rand.go                  | 18 ++++++++--------
+ src/pkg/integer.go               | 15 +++++---------
+ src/syscall/file_amd64_darwin.go | 44 ++++++++++++++--------------------------
+ src/syscall/file_amd64_linux.go  | 44 ++++++++++++++--------------------------
+ src/syscall/syscall.go           |  8 ++------
+ 25 files changed, 118 insertions(+), 157 deletions(-)

@@ -1,0 +1,19 @@
+commit 497f891fce8c6657ab28dfcd2e7195014f3a967f
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Aug 17 23:26:31 2017 -0700
+
+    math/big: recognize squaring for Floats
+    
+    Updates #13745
+    
+    Recognize z.Mul(x, x) as squaring for Floats and use
+    the internal z.sqr(x) method for nat on the mantissa.
+    
+    Change-Id: I0f792157bad93a13cae1aecc4c10bd20c6397693
+    Reviewed-on: https://go-review.googlesource.com/56774
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/float.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

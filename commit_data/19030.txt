@@ -1,0 +1,42 @@
+commit 17f9423e75db40a08369c7ea23449db1c26a4890
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 19:07:33 2014 -0400
+
+    runtime: test malformed address fault and fix on OS X
+    
+    The garbage collector poison pointers
+    (0x6969696969696969 and 0x6868686868686868)
+    are malformed addresses on amd64.
+    That is, they are not 48-bit addresses sign extended
+    to 64 bits. This causes a different kind of hardware fault
+    than the usual 'unmapped page' when accessing such
+    an address, and OS X 10.9.2 sends the resulting SIGSEGV
+    incorrectly, making it look like it was user-generated
+    rather than kernel-generated and does not include the
+    faulting address. This means that in GODEBUG=gcdead=1
+    mode, if there is a bug and something tries to dereference
+    a poisoned pointer, the runtime delivers the SIGSEGV to
+    os/signal and returns to the faulting code, which faults
+    again, causing the process to hang instead of crashing.
+    
+    Fix by rewriting "user-generated" SIGSEGV on OS X to
+    look like a kernel-generated SIGSEGV with fault address
+    0xb01dfacedebac1e.
+    
+    I chose that address because (1) when printed in hex
+    during a crash, it is obviously spelling out English text,
+    (2) there are no current Google hits for that pointer,
+    which will make its origin easy to find once this CL
+    is indexed, and (3) it is not an altogether inaccurate
+    description of the situation.
+    
+    Add a test. Maybe other systems will break too.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, iant, ken
+    https://golang.org/cl/83270049
+
+ src/pkg/runtime/runtime_test.go | 47 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/signal_amd64x.c | 21 ++++++++++++++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)

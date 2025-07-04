@@ -1,0 +1,34 @@
+commit f88c3b9f4d087895c3eab5ac4dd8459c76d0d0d8
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jan 19 14:46:58 2022 -0800
+
+    cmd/compile: distinguish bound calls/field access in getInstInfo
+    
+    Given we have support for field access to type params with a single
+    structural type, we need to distinguish between methods calls and field
+    access when we have an OXDOT node on an expression which is a typeparam
+    (or correspondingly a shape). We were missing checks in getInstInfo,
+    which figures out the dictionary format, which then caused problems when
+    we generate the dictionaries. We don't need/want dictionary entries for
+    field access, only for bound method calls. Added a new function
+    isBoundMethod() to distinguish OXDOT nodes which are bound calls vs.
+    field accesses on a shape.
+    
+    Removed isShapeDeref() - we can't have field access or method call on a
+    pointer to variable of type param type.
+    
+    Fixes #50690
+    
+    Change-Id: Id692f65e6f427f28cd2cfe474dd30e53c71877a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379674
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 54 +++++++++++++++------------
+ test/typeparam/issue50690a.go             | 62 +++++++++++++++++++++++++++++++
+ test/typeparam/issue50690a.out            |  1 +
+ test/typeparam/issue50690b.go             | 41 ++++++++++++++++++++
+ test/typeparam/issue50690b.out            |  1 +
+ test/typeparam/issue50690c.go             | 36 ++++++++++++++++++
+ test/typeparam/issue50690c.out            |  1 +
+ 7 files changed, 173 insertions(+), 23 deletions(-)

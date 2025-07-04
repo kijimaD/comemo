@@ -1,0 +1,16 @@
+commit b8620afb8d17a2b884f20535ccbc21b192b75b3a
+Author: mewmew <rnd0x00@gmail.com>
+Date:   Thu Mar 29 23:00:01 2018 +0000
+
+    fmt: document the behaviour of %p on slices
+    
+    Fixes #23291.
+    
+    Change-Id: I9bb3b8246968693871d4800e2cdb2c8390f4b6a6
+    GitHub-Last-Rev: bc3444206764016b730d770a8c71a49c214ae824
+    GitHub-Pull-Request: golang/go#24600
+    Reviewed-on: https://go-review.googlesource.com/103516
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

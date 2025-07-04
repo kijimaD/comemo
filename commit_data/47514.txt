@@ -1,0 +1,21 @@
+commit 1c13b58abaaeaaaa54a5471613c020fe78105016
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 11:27:56 2021 -0800
+
+    cmd/compile/internal/types2: rename types.context to types.environment
+    
+    This CL is a clean port of CL 363176 from go/types to types2.
+    
+    It also includes a minor adjustment to a field access in go/types
+    to match types2 in that respect.
+    
+    Change-Id: If33fc7e68372b12d61d06b75dd9f7c0715b57bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364474
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go | 17 +++++++++--------
+ src/cmd/compile/internal/types2/decl.go  | 14 +++++++-------
+ src/cmd/compile/internal/types2/stmt.go  | 10 +++++-----
+ src/go/types/decl.go                     |  2 +-
+ 4 files changed, 22 insertions(+), 21 deletions(-)

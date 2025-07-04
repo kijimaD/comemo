@@ -1,0 +1,14 @@
+commit 6481e37d28b61bfae99a6fe2f70fa0412da16de6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 00:08:38 2011 -0500
+
+    8c: handle 64-bit switch value
+    Cases must still be 32-bit values, but one thing at a time.
+    
+    R=ality, ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/5485063
+
+ src/cmd/8c/swt.c  | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/cc/pgen.c | 12 ++----------
+ 2 files changed, 47 insertions(+), 15 deletions(-)

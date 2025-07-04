@@ -1,0 +1,26 @@
+commit fd34e78b53322114cfbcfa0af886a5a82a2f9ae5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 13 22:42:42 2011 -0500
+
+    various: reduce overuse of os.EINVAL + others
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5372081
+
+ src/pkg/bufio/bufio_test.go          |  7 +++----
+ src/pkg/compress/lzw/reader.go       |  5 +++--
+ src/pkg/compress/lzw/writer.go       |  9 ++++-----
+ src/pkg/compress/lzw/writer_test.go  |  4 ----
+ src/pkg/compress/zlib/writer_test.go |  4 ----
+ src/pkg/crypto/rand/util.go          |  4 ++--
+ src/pkg/crypto/tls/conn.go           |  5 +++--
+ src/pkg/encoding/xml/xml_test.go     |  3 +--
+ src/pkg/image/tiff/buffer.go         |  7 ++-----
+ src/pkg/log/syslog/syslog.go         |  3 ++-
+ src/pkg/mime/multipart/formdata.go   |  2 +-
+ src/pkg/net/http/httputil/persist.go | 10 +++++++---
+ src/pkg/net/http/transport.go        |  2 +-
+ src/pkg/text/tabwriter/tabwriter.go  |  3 +--
+ src/pkg/websocket/websocket.go       | 10 ++++++----
+ 15 files changed, 36 insertions(+), 42 deletions(-)

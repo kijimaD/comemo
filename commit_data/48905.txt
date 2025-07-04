@@ -1,0 +1,25 @@
+commit ad5eaa8c4cd952df0d4894f11ee0158a9a33a0f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 22 22:00:16 2022 -0400
+
+    os/exec: make skipStdinCopyError a function instead of a variable
+    
+    This makes clearer that skipStdinCopyError is always defined and never
+    overridden in tests.
+    
+    Secondarily, it may also help reduce init-time work and allow the
+    linker and/or inliner to better optimize this package.
+    
+    (Noticed while prototyping #50436.)
+    
+    Change-Id: I4f3c1bc146384a98136a4039f82165ed106c14b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401897
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec.go         |  6 +-----
+ src/os/exec/exec_plan9.go   | 20 ++++++++++----------
+ src/os/exec/exec_unix.go    | 20 ++++++++++----------
+ src/os/exec/exec_windows.go | 22 +++++++++++-----------
+ 4 files changed, 32 insertions(+), 36 deletions(-)

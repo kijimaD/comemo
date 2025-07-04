@@ -1,0 +1,22 @@
+commit 38f1df66ff231458a81cb07e7b147f30854b45d4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 9 10:22:10 2016 -0400
+
+    runtime: make gcDumpObject useful on stack frames
+    
+    gcDumpObject is often used on a stack pointer (for example, when
+    checkmark finds an unmarked object on the stack), but since stack
+    spans don't have an elemsize, it doesn't print any of the memory from
+    the frame. Make it at least slightly more useful by printing
+    everything between obj and obj+off (inclusive). While we're here, also
+    print out the span state.
+    
+    Change-Id: I51be064ea8791b4a365865bfdc7afa7b5aaecfbd
+    Reviewed-on: https://go-review.googlesource.com/30142
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 17 +++++++++++++++--
+ src/runtime/mheap.go   |  9 +++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

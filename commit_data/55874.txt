@@ -1,0 +1,38 @@
+commit 85bbb121413b5fe49238b2e089975f8b50b30de0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 16 17:56:43 2024 -0500
+
+    runtime: fix timers.wakeTime inaccuracy race
+    
+    timers.wakeTime, which is called concurrently by P's trying to decide
+    how long they should sleep, can return inaccurate values while
+    timers.adjust is running. (Before the refactoring, this was still true
+    but the code did not have good names and was spread across more
+    files, making the race harder to see.)
+    
+    The runtime thread sleeping code is complex enough that I am not
+    confident that the inaccuracy can cause delayed timer wakeups,
+    but I am also not confident that it can't, nor that it won't in the future.
+    
+    There are two parts to the fix:
+    
+    1. A simple logic change in timers.adjust.
+    
+    2. The introduction of t.maybeAdd to avoid having a t that is
+    marked as belonging to a specific timers ts but not present
+    in ts.heap. That was okay before when everything was racy
+    but needs to be eliminated to make timers.adjust fully consistent.
+    The cost of the change is an extra CAS-lock operation on a timer add
+    (close to free since the CAS-lock was just unlocked) and a change
+    in the static lock ranking to allow malloc while holding a timer lock.
+    
+    Change-Id: I1249e6e24ae9ef74a69837f453e15b513f0d75c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564977
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/lockrank.go   |  42 ++++++------
+ src/runtime/mklockrank.go |   5 +-
+ src/runtime/time.go       | 166 +++++++++++++++++++++++++++++++---------------
+ 3 files changed, 137 insertions(+), 76 deletions(-)

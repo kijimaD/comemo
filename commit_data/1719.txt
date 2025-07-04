@@ -1,0 +1,26 @@
+commit 3689e221e8af8039ed70eb7ed0d4e62494b34f4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 27 15:40:17 2009 -0800
+
+    Steps towards a general scanner/parser library for Go:
+    - converted more of AST and parser to use interfaces and explicit
+    structs for individual Go constructs (can be replaced now with
+    interface calls such that the parser becomes AST structure
+    independent, as suggested by rsc)
+    - added more tests (find all .go files under GOROOT)
+    - (temporarily) lost html links for identifiers when generating
+    html output
+    - TODO: lots of cleanups
+    
+    R=r
+    OCL=25518
+    CL=25518
+
+ usr/gri/pretty/ast.go         | 309 +++++++++++++----------
+ usr/gri/pretty/compilation.go |  11 +-
+ usr/gri/pretty/parser.go      | 575 +++++++++++++++++++++++++-----------------
+ usr/gri/pretty/printer.go     | 553 ++++++++++++++++++++++------------------
+ usr/gri/pretty/selftest1.go   |   2 +-
+ usr/gri/pretty/test.sh        |  15 +-
+ usr/gri/pretty/typechecker.go |   6 +-
+ 7 files changed, 847 insertions(+), 624 deletions(-)

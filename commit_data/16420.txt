@@ -1,0 +1,16 @@
+commit 4d6bfcf24504bb2de0bf63bf43ad703ba808a3e9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 28 21:09:27 2013 +0400
+
+    os/exec: fix test hang
+    Currently the test closes random files descriptors,
+    which leads to hang (in particular if netpoll fd is closed).
+    Try to open only fd 3, since the parent process expects it to be fd 3 anyway.
+    Fixes #5571.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9778048
+
+ src/pkg/os/exec/exec_test.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

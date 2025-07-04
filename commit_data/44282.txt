@@ -1,0 +1,31 @@
+commit 38672d3dcf2eae297c45dc2a899c39528148f14b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:15:33 2021 -0500
+
+    runtime: crash earlier on windows for runtime.abort
+    
+    The isAbort check was wrong for non-x86 systems.
+    That was causing the exception chain to be passed back to Windows.
+    That was causing some other kind of fault - not sure what.
+    That was leading back to lastcontinuehandler to print a larger
+    stack trace, and then the throwing = 1 print added runtime.abort,
+    which made TestAbort pass even though it wasn't really working.
+    
+    Recognize abort properly and handle it as Go, not as something
+    for Windows to try to handle.
+    
+    Keep the throwing = 1 print, because more detail on throw is
+    always better.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: If614f4ab2884bd90410d29e28311bf969ceeac09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288810
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/signal_windows.go | 45 +++++++++++++++++++++++--------------------
+ 1 file changed, 24 insertions(+), 21 deletions(-)

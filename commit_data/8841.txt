@@ -1,0 +1,12 @@
+commit a39ead7ed2b92a0f22fe837500b650180bb23f33
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 24 19:18:59 2011 +1000
+
+    path/filepath: enable TestWalk to run on windows
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4630066
+
+ src/pkg/path/filepath/path_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

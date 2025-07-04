@@ -1,0 +1,26 @@
+commit df459d5e6cc14532961875058f5d4ba3d04b5ed4
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 13 15:48:17 2018 -0700
+
+    cmd/compile: emit symbol for constant string before parallel compiler phase
+    
+    This CL makes sure we walk the newly generated assignment. Part of
+    that walk makes sure that all symbols for strings are emitted before
+    we start referencing them during the parallel compilation
+    phase. Without this change, those references during the parallel phase
+    do a create-if-not-exist, which leads to a data race.
+    
+    I'm not 100% sure this is the fix for the issues below, but optimistically
+    assuming it is...
+    
+    Fixes #28170
+    Fixes #28159
+    
+    Change-Id: Ic63d5160ad9be5cb23fa6bbb2183e4848776c0ff
+    Reviewed-on: https://go-review.googlesource.com/c/141648
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

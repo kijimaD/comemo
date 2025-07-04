@@ -1,0 +1,14 @@
+commit 3b4180c67425ead0631a8c86eb164f9eaa6c922d
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:48 2016 -0400
+
+    cmd/go: enable TestNodeReading on linux/mips64x
+    
+    external linking is now supported.
+    
+    Change-Id: I3f552f5f09391205fced509fe8a5a38297ea8153
+    Reviewed-on: https://go-review.googlesource.com/19810
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/note_test.go | 2 --
+ 1 file changed, 2 deletions(-)

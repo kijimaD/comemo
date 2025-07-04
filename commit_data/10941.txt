@@ -1,0 +1,12 @@
+commit 43b8f68c3f5b1f11f9e7c9488a603f4746b4dc22
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Dec 21 08:25:31 2011 -0500
+
+    cmd/go: use spaces consistently in help message
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5501053
+
+ src/cmd/go/help.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

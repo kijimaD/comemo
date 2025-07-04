@@ -1,0 +1,27 @@
+commit 157a230413580efb5ab6e4bdceb6d583afeedca9
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri Apr 14 23:20:20 2017 +0200
+
+    vendor: update golang_org/x/net/lif package
+    
+    Update the lif package to rev 7bf7a75.
+    
+    Introduce the following changes:
+     - 7bf7a75 lif: use of nativeEndian to make API endian agnostic
+     - adc6ba9 lif: drop support for go1.5
+    
+    Updates #19967
+    
+    Change-Id: Iaba893b5ee9af4c54bf5ba4244ce5752ce9f6ad3
+    Reviewed-on: https://go-review.googlesource.com/40831
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/vendor/golang_org/x/net/lif/address.go         |  4 +-
+ src/vendor/golang_org/x/net/lif/binary.go          | 49 +++++++++++++++++++++-
+ src/vendor/golang_org/x/net/lif/link.go            | 12 ++++--
+ src/vendor/golang_org/x/net/lif/sys.go             | 21 ++++++++++
+ .../golang_org/x/net/lif/sys_solaris_amd64.s       |  3 --
+ src/vendor/golang_org/x/net/lif/syscall.go         |  5 ---
+ 6 files changed, 79 insertions(+), 15 deletions(-)

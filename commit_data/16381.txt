@@ -1,0 +1,13 @@
+commit 1beb791934e6092ae2d16aa3e01eb09f031ae12c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 23 04:41:22 2013 +0800
+
+    test/errchk: use "#!/usr/bin/env perl" shebang line
+    fix test failure of go.tools sub-repo on NetBSD.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9662044
+
+ test/errchk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

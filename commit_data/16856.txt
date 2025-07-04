@@ -1,0 +1,13 @@
+commit cefdb9c286e6dfdeb966df1517879bdc5f8c4452
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 23 22:59:32 2013 -0400
+
+    runtime: fix windows build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/11595045
+
+ src/pkg/runtime/asm_386.s   | 2 +-
+ src/pkg/runtime/asm_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

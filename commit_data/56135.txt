@@ -1,0 +1,17 @@
+commit 7e9894449e8a12157a28a4a14fc9341353a6469c
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:40:52 2024 +0800
+
+    internal/poll: eliminate the redundant conditional branch for isKernelVersionGE53
+    
+    Follow up CL 573755
+    
+    Change-Id: I27c7571d3ef1274cf2c6892e678f946f9b65de33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/copy_file_range_linux.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

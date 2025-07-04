@@ -1,0 +1,21 @@
+commit 9871726c72af7009aa73be33edfa06a8d9e5965e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 18 09:38:19 2021 -0700
+
+    reflect: add test for invalid conversion
+    
+    Conversion between slices with different element types is not allowed.
+    Previously (1.8 <= goversion <= 1.16), this conversion was allowed
+    if the base types were from different packages and had identical names.
+    
+    Update #47785
+    
+    Change-Id: I359de5b6fe3ff35bdbf9ab5a13902a0f820cac66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343329
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,35 @@
+commit be1ef467756bff3c475321a2213182020454075e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 13 17:45:22 2015 -0800
+
+    runtime: add optional expensive check for invalid cgo pointer passing
+    
+    If you set GODEBUG=cgocheck=2 the runtime package will use the write
+    barrier to detect cases where a Go program writes a Go pointer into
+    non-Go memory.  In conjunction with the existing cgo checks, and the
+    not-yet-implemented cgo check for exported functions, this should
+    reliably detect all cases (that do not import the unsafe package) in
+    which a Go pointer is incorrectly shared with C code.  This check is
+    optional because it turns on the write barrier at all times, which is
+    known to be expensive.
+    
+    Update #12416.
+    
+    Change-Id: I549d8b2956daa76eac853928e9280e615d6365f4
+    Reviewed-on: https://go-review.googlesource.com/16899
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/errors/ptr.go                         | 190 ++++++++++++++++---
+ src/cmd/compile/internal/gc/builtin.go         |   2 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |   6 +-
+ src/cmd/compile/internal/gc/cgen.go            |   4 +-
+ src/runtime/cgocall.go                         |  14 +-
+ src/runtime/cgocheck.go                        | 243 +++++++++++++++++++++++++
+ src/runtime/extern.go                          |   7 +
+ src/runtime/mbarrier.go                        |  30 ++-
+ src/runtime/mbitmap.go                         |   4 +-
+ src/runtime/mgc.go                             |  12 +-
+ src/runtime/mgcmark.go                         |   4 +-
+ src/runtime/runtime1.go                        |   7 +
+ src/runtime/slice.go                           |   2 +-
+ 13 files changed, 479 insertions(+), 46 deletions(-)

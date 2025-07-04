@@ -1,0 +1,19 @@
+commit 98f1bfbb180b30e899b27ef5c5f53d16138dbd86
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 7 20:39:54 2017 -0500
+
+    cmd/go: move cfg.ExternalLinkingForced to internal/load
+    
+    It needs to refer to packages, so it can no longer be in cfg.
+    No semantic changes here.
+    
+    Can now be unexported, so that was a net win anyway.
+    
+    Change-Id: I58bf6cdcd435e6e019291bb8dcd5d5b7f1ac03a3
+    Reviewed-on: https://go-review.googlesource.com/76550
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go  | 37 -------------------------------------
+ src/cmd/go/internal/load/pkg.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 38 deletions(-)

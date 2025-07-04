@@ -1,0 +1,19 @@
+commit da7aa86917811a571e6634b45a457f918b8e6561
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 21:31:06 2020 -0800
+
+    cmd/go: in cgoflags, permit -DX1, prohibit -Wp,-D,opt
+    
+    Restrict -D and -U to ASCII C identifiers, but do permit trailing digits.
+    When using -Wp, prohibit commas in -D values.
+    
+    Change-Id: Ibfc4dfdd6e6c258e131448e7682610c44eee9492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267277
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/security.go      | 8 ++++----
+ src/cmd/go/internal/work/security_test.go | 5 +++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

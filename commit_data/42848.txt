@@ -1,0 +1,24 @@
+commit 3b20d484fbb7a4f64881002f8a63eca42f0e7c29
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 18 22:29:22 2020 -0400
+
+    go/types: fix missing Importer for TestBenchmark
+    
+    TestBenchmark is broken due to lack of a Config.Importer, but
+    unfortunately fails silently due to an unchecked error.
+    
+    Fix the importer and check the error. Also improve the output to include
+    allocation stats.
+    
+    Finally, don't run TestBenchmark on go/types by default. If the
+    benchmark is being used during a refactoring of go/types itself, results
+    for go/types will not be comparable.
+    
+    Change-Id: Ib6bdb6807403b3ec99762f535e2496c94bd9b6e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249517
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/self_test.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

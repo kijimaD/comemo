@@ -1,0 +1,15 @@
+commit bcf3d55ed99b7b7e689e05a8333ba89d337c0cad
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 23 20:37:43 2014 -0500
+
+    misc/cgo/testso: don't use TLS variables on Darwin and OpenBSD.
+    Fix build for 10.6 Darwin builders and OpenBSD builers.
+    
+    LGTM=jsing
+    R=golang-codereviews, dave, jsing
+    CC=golang-codereviews
+    https://golang.org/cl/67710043
+
+ misc/cgo/testso/cgoso_c.c     | 4 ++++
+ misc/cgo/testso/cgoso_unix.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

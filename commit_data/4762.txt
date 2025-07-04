@@ -1,0 +1,17 @@
+commit 0bd41e2ff07229e0e4fa1427978f5d62082609c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:18:51 2010 -0800
+
+    gc: bug242
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/198053
+
+ src/cmd/gc/go.h                    |  4 +--
+ src/cmd/gc/subr.c                  | 62 ++++++++++++++++++--------------------
+ src/cmd/gc/typecheck.c             |  3 +-
+ src/cmd/gc/walk.c                  | 38 +++++++++++++++++------
+ test/{bugs => fixedbugs}/bug242.go |  0
+ test/golden.out                    |  5 ---
+ 6 files changed, 60 insertions(+), 52 deletions(-)

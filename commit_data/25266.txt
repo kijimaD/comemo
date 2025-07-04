@@ -1,0 +1,18 @@
+commit d26a0952a8f91e1c10c53a1cc910ca7d6b0c1d84
+Author: Péter Szilágyi <peterke@gmail.com>
+Date:   Sun Dec 13 21:04:06 2015 +0200
+
+    runtime: init argc/argv for android/arm64 c-shared
+    
+    Analogous to https://go-review.googlesource.com/#/c/8457/ this
+    code synthesizes an set of program arguments for Android on the
+    arm64 architecture.
+    
+    Change-Id: I851958b4b0944ec79d7a1426a3bb2cfc31746797
+    Reviewed-on: https://go-review.googlesource.com/17782
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/rt0_android_arm64.s | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

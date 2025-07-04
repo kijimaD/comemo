@@ -1,0 +1,14 @@
+commit 40a66ef59ebcc97b0c2468e5274dae4ef1c02812
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 28 17:52:30 2009 -0700
+
+    missed changes to Makefiles for container/ring
+    
+    R=rsc
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=32389
+    CL=32392
+
+ src/pkg/Make.deps | 1 +
+ src/pkg/Makefile  | 2 ++
+ 2 files changed, 3 insertions(+)

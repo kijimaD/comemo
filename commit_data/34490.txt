@@ -1,0 +1,17 @@
+commit 558769a61b246464f979f3f4d370dad96cee2109
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 6 14:12:45 2018 -0800
+
+    internal/poll: if poller init fails, assume blocking mode
+    
+    Fixes #23943
+    
+    Change-Id: I16e604872f1615963925ec3c4710106bcce1330c
+    Reviewed-on: https://go-review.googlesource.com/99015
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_unix.go |  8 +++++++-
+ src/os/timeout_test.go       | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

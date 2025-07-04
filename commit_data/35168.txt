@@ -1,0 +1,17 @@
+commit 62adf6fc2d70d9270b4213218e622c15504966be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 26 22:34:38 2018 -0700
+
+    cmd/internal/obj: convert unicode C to ASCII C
+    
+    Hex before: d0 a1
+    Hex after: 43
+    
+    Not sure where that came from.
+    
+    Change-Id: I189e7e21f8faf480ba72846b956a149976f720f8
+    Reviewed-on: https://go-review.googlesource.com/109777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

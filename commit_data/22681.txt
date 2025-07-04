@@ -1,0 +1,23 @@
+commit da0e37fa8d284e92972877c4be3d031ecf1c8334
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 16:38:04 2015 -0400
+
+    runtime: benchmark for ping-pong in the presence of a CPU hog
+    
+    This benchmark demonstrates a current problem with the scheduler where
+    a set of frequently communicating goroutines get very little CPU time
+    in the presence of another goroutine that hogs that CPU, even if one
+    of those communicating goroutines is always runnable.
+    
+    Currently it takes about 0.5 milliseconds to switch between
+    ping-ponging goroutines in the presence of a CPU hog:
+    
+    BenchmarkPingPongHog        2000            684287 ns/op
+    
+    Change-Id: I278848c84f778de32344921ae8a4a8056e4898b0
+    Reviewed-on: https://go-review.googlesource.com/9288
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

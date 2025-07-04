@@ -1,0 +1,12 @@
+commit 054cf72b56d7fb6953acccf775e548cce685b31f
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 23:16:33 2011 +1000
+
+    html: fix nesting when parsing a close tag.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4636067
+
+ src/pkg/html/parse.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

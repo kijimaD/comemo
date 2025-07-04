@@ -1,0 +1,14 @@
+commit 92e8b121a0f31586a198148307f5f2f6eb6bf78a
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 14 14:41:50 2009 -0700
+
+    Fix build
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=33294
+    CL=33294
+
+ src/pkg/runtime/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

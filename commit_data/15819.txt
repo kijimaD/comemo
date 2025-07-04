@@ -1,0 +1,13 @@
+commit f005eddb3a9694b09b3f830028c491416f0a37b8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 18 15:27:05 2013 -0700
+
+    doc/go1.1.html: document some of the library changes.
+    Still much to do, but this is a start.
+    
+    R=golang-dev, adg, bradfitz, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7729046
+
+ doc/go1.1.html | 265 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 255 insertions(+), 10 deletions(-)

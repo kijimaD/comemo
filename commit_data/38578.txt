@@ -1,0 +1,16 @@
+commit 722b1abbcf842be5276c0d2ebde6aa076a4f4687
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 27 18:00:24 2019 -0700
+
+    runtime: fix TestLldbPython test with modules enabled
+    
+    Fixes #30751
+    
+    Change-Id: I1f783578df499d52eaec3690303671661c8bf5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169725
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

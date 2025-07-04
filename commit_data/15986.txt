@@ -1,0 +1,24 @@
+commit a891484a4edb241ae1b11f3b336f63fe08b10cb7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 13:13:28 2013 -0700
+
+    net/http: inline chunkWriter in response
+    
+    A chunkWriter and a response are 1:1. Make them contiguous in
+    memory and save an allocation.
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        10715        10539   -1.64%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           21           20   -4.76%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1626         1609   -1.05%
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/8114043
+
+ src/pkg/net/http/server.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

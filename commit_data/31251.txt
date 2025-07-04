@@ -1,0 +1,18 @@
+commit be66d174523809e00d3fba3cd3c52d6b74bc7e73
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Thu Apr 20 13:01:59 2017 +0100
+
+    net/http: use bullet characters for godoc lists
+    
+    Brad noticed a bullet list was rendered as preformatted text because of
+    the indentation. One can use a unicode bullet as an ersatz for bullet
+    lists.
+    
+    Fixes #20043
+    
+    Change-Id: Iaed3582d14bd05920455669039a900d7155960d9
+    Reviewed-on: https://go-review.googlesource.com/41212
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

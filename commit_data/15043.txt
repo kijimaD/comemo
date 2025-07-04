@@ -1,0 +1,15 @@
+commit fa2acad60379f59712cc15ea1c4192b982e69a35
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 12:45:13 2013 -0800
+
+    crypto/cipher: avoid out of bounds error in CryptBlocks
+    
+    Fixes #4699.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/7231065
+
+ src/pkg/crypto/cipher/cbc.go         | 12 ++++++++++++
+ src/pkg/crypto/cipher/cipher_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

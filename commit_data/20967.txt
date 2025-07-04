@@ -1,0 +1,12 @@
+commit afc2890291feea1d1d46eb9808118dbd7c28ddb2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 12 11:38:07 2014 +1100
+
+    doc/play: revise peano.go comment again.
+    
+    Change-Id: I412358e99301d1c9603960fd34601dae60fca3cb
+    Reviewed-on: https://go-review.googlesource.com/1400
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/play/peano.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

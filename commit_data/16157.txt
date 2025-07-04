@@ -1,0 +1,14 @@
+commit 082a4a8a47d03c5fd246b4d079391bdb21f2c3ed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 10 20:58:19 2013 -0700
+
+    bufio/Scan: fix error handling at EOF
+    Fixes #5268.
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8646045
+
+ src/pkg/bufio/scan.go      |  5 +++--
+ src/pkg/bufio/scan_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 9a78eadeb636689f79dbf6bd3c0a35d830678097
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 14:05:51 2016 -0800
+
+    net: deflake TestTCPSupriousConnSetupCompletion [sic]
+    
+    And rename it.
+    
+    Fixes #17703
+    
+    Change-Id: I73c82a9b3f96180699c6d33c069a666018eb30f9
+    Reviewed-on: https://go-review.googlesource.com/33149
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_test.go        | 3 ++-
+ src/net/tcpsock_unix_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

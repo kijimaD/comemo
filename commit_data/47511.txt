@@ -1,0 +1,18 @@
+commit 489f58779ce073ef8f6b1505f80580211200ff60
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 08:31:38 2021 -0800
+
+    cmd/compile/internal/types2: when type hashing, use placeholders for type parameters
+    
+    This is a port of CL 363114 from go/types to types2 with a temporary
+    work-around in tparamIndex to avoid a crash with the unified build
+    and test/typeparam/setsimp.go.
+    
+    Change-Id: Id4805385f21c95b461911b246fb47ee278a84ac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364336
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typestring.go | 55 ++++++++++++++++-----------
+ src/cmd/compile/internal/types2/unify.go      |  7 ++++
+ 2 files changed, 40 insertions(+), 22 deletions(-)

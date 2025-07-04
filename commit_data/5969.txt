@@ -1,0 +1,13 @@
+commit 8c5f30c0d94cf657b7c7e9329ac8c87b515a8869
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 6 16:31:12 2010 -0700
+
+    A+C: Anschel Schaffer-Cohen (individual CLA)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1893045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

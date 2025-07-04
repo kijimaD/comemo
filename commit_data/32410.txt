@@ -1,0 +1,15 @@
+commit 5e5a1ed88d2df462aaab68690ef64d35a416966a
+Author: Guilherme Rezende <guilhermebr@gmail.com>
+Date:   Mon Jul 24 13:19:58 2017 -0300
+
+    io: add example for Pipe
+    
+    Change-Id: I24374accf48d43edf4bf27ea6ba2245ddca558ad
+    Reviewed-on: https://go-review.googlesource.com/50910
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/example_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

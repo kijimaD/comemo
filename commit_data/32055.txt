@@ -1,0 +1,12 @@
+commit e9b9dfe3f71a8b9f5006616f877836c67eb4fba0
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Tue Jul 18 07:18:35 2017 +0300
+
+    database/sql: fix wrong method name in description
+    
+    Change-Id: Ie6a88b70d7c45c59995ee2f57fb28f9a3cbb404d
+    Reviewed-on: https://go-review.googlesource.com/49470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

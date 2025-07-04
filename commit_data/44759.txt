@@ -1,0 +1,21 @@
+commit 8fd0f83552d3ef9ca38c031bec93a36b189e3e11
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 21 00:58:18 2021 +1100
+
+    cmd/compile/internal/ssa: correct sign extension for consts on riscv64
+    
+    Correct sign extension handling for consts on riscv64. This fixes a bug
+    in part exposed by CL 302609 - previously 64 bit consts were rewritten into
+    multiple 32 bit consts and the expansion would result in sign/zero extension
+    not being eliminated. With this change a MOVDconst with a 64 bit value can be
+    followed by a MOV{B,H,W}reg, which will be eliminated without actually
+    truncating to a smaller value.
+    
+    Change-Id: I8d9cd380217466997b341e008a1f139bc11a0d51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303350
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 ++++++------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

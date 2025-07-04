@@ -1,0 +1,32 @@
+commit 36dbf7f7e63f3738795bb04593c3c011e987d1f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 28 13:22:07 2021 -0400
+
+    cmd/go: add //go:embed all:pattern
+    
+    When //go:embed d matches directory d, it embeds the directory
+    tree rooted at d, but it excludes files beginning with . and _,
+    as well as files having problematic names that will not be packaged
+    into modules (names such as .git and com1).
+    
+    After long discussions on #42328 and #43854, we decided to keep
+    the behavior of excluding . and _ files by default, but to allow the pattern
+    prefix 'all:' to override this default. This CL implements that change.
+    
+    Note that paths like .git and com1 are still excluded, as they must be,
+    since they will never be packed into a module.
+    
+    Fixes #43854.
+    
+    Change-Id: I4f3731e14ecffd4b691fda3a0890b460027fe209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359413
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go      | 11 ++++++++---
+ src/cmd/go/testdata/script/embed.txt | 20 ++++++++++++++++++++
+ src/embed/embed.go                   |  5 +++++
+ 3 files changed, 33 insertions(+), 3 deletions(-)

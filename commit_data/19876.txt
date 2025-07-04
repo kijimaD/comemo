@@ -1,0 +1,13 @@
+commit 3950655bb567a3c3445ee7b952beff0f9c3a9b1b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 5 17:03:06 2014 +0400
+
+    runtime: remove outdated comment
+    
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/120400043
+
+ src/pkg/runtime/malloc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

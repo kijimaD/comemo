@@ -1,0 +1,24 @@
+commit a6c8fac78194bf84eb75c845f2a80646211877c5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 6 16:20:50 2019 +0000
+
+    os: skip a new failing test on Windows
+    
+    This test was recently added in CL 209961.
+    
+    Apparently Windows can't seek a directory filehandle?
+    
+    And move the test from test/fixedbugs (which is mostly for compiler bugs) to
+    an os package test.
+    
+    Updates #36019
+    
+    Change-Id: I626b69b0294471014901d0ccfeefe5e2c7651788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210283
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/os/os_test.go            | 42 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue35767.go | 51 --------------------------------------------
+ 2 files changed, 42 insertions(+), 51 deletions(-)

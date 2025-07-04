@@ -1,0 +1,24 @@
+commit 70c5839fe0e2149d505c0e28c42e133d4bc01503
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 12:17:09 2018 +0300
+
+    cmd/internal/obj/x86: forbid mem args for MOV_DR and MOV_CR
+    
+    Memory arguments for debug/control register moves are a
+    minefield for programmer: not useful, but can lead to errors.
+    
+    See referenced issue for detailed explanation.
+    
+    Fixes #24981
+    
+    Change-Id: I918e81cd4a8b1dfcfc9023cdfc3de45abe29e749
+    Reviewed-on: https://go-review.googlesource.com/107075
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/386enc.s         | 10 ++++
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 10 ++++
+ src/cmd/asm/internal/asm/testdata/amd64error.s     | 21 +++++++
+ src/cmd/internal/obj/x86/asm6.go                   | 68 +++++++++++-----------
+ 4 files changed, 75 insertions(+), 34 deletions(-)

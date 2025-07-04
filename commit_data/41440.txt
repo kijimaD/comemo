@@ -1,0 +1,20 @@
+commit 8e2dad5529d250d548e87720741d20e88a1dfaf2
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Tue Feb 25 13:44:18 2020 -0500
+
+    doc/go1.14: add link to module migration guide
+    
+    Adding a link to this guide will provide more value to instructing Go
+    users to migrate to modules.
+    
+    Updates #36878
+    
+    Change-Id: Ie6ab45efcd35cc5e5ba5adc16ba0ca4cca4292bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220906
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: thepudds <thepudds1460@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

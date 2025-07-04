@@ -1,0 +1,68 @@
+commit 001b75c942b67e09893c8ad895b2c9c01e4e14b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 18:07:39 2012 -0400
+
+    cmd/gc: contiguous loop layout
+    
+    Drop expecttaken function in favor of extra argument
+    to gbranch and bgen. Mark loop condition as likely to
+    be true, so that loops are generated inline.
+    
+    The main benefit here is contiguous code when trying
+    to read the generated assembly. It has only minor effects
+    on the timing, and they mostly cancel the minor effects
+    that aligning function entry points had.  One exception:
+    both changes made Fannkuch faster.
+    
+    Compared to before CL 6244066 (before aligned functions)
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    4222117400   4201958800   -0.48%
+    BenchmarkFannkuch11      3462631800   3215908600   -7.13%
+    BenchmarkGobDecode         20887622     20899164   +0.06%
+    BenchmarkGobEncode          9548772      9439083   -1.15%
+    BenchmarkGzip                151687       152060   +0.25%
+    BenchmarkGunzip                8742         8711   -0.35%
+    BenchmarkJSONEncode        62730560     62686700   -0.07%
+    BenchmarkJSONDecode       252569180    252368960   -0.08%
+    BenchmarkMandelbrot200      5267599      5252531   -0.29%
+    BenchmarkRevcomp25M       980813500    985248400   +0.45%
+    BenchmarkTemplate         361259100    357414680   -1.06%
+    
+    Compared to tip (aligned functions):
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    4140739800   4201958800   +1.48%
+    BenchmarkFannkuch11      3259914400   3215908600   -1.35%
+    BenchmarkGobDecode         20620222     20899164   +1.35%
+    BenchmarkGobEncode          9384886      9439083   +0.58%
+    BenchmarkGzip                150333       152060   +1.15%
+    BenchmarkGunzip                8741         8711   -0.34%
+    BenchmarkJSONEncode        65210990     62686700   -3.87%
+    BenchmarkJSONDecode       249394860    252368960   +1.19%
+    BenchmarkMandelbrot200      5273394      5252531   -0.40%
+    BenchmarkRevcomp25M       996013800    985248400   -1.08%
+    BenchmarkTemplate         360620840    357414680   -0.89%
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6245069
+
+ src/cmd/5g/cgen.c   | 83 +++++++++++++++++++++++++++--------------------------
+ src/cmd/5g/cgen64.c | 36 +++++++++++------------
+ src/cmd/5g/gg.h     |  5 ++--
+ src/cmd/5g/ggen.c   | 10 +++----
+ src/cmd/5g/gsubr.c  | 15 ++++++----
+ src/cmd/6g/cgen.c   | 72 ++++++++++++++++++++++------------------------
+ src/cmd/6g/gg.h     |  5 +---
+ src/cmd/6g/ggen.c   | 24 +++++++---------
+ src/cmd/6g/gsubr.c  | 44 +++++++++++++---------------
+ src/cmd/6g/reg.c    |  2 +-
+ src/cmd/8g/cgen.c   | 78 ++++++++++++++++++++++++-------------------------
+ src/cmd/8g/cgen64.c | 36 +++++++++++------------
+ src/cmd/8g/gg.h     |  7 ++---
+ src/cmd/8g/ggen.c   | 25 ++++++++--------
+ src/cmd/8g/gsubr.c  | 45 +++++++++++++++--------------
+ src/cmd/8g/reg.c    |  2 +-
+ src/cmd/gc/cplx.c   |  4 +--
+ src/cmd/gc/gen.c    |  4 +--
+ src/cmd/gc/go.h     |  4 +--
+ 19 files changed, 247 insertions(+), 254 deletions(-)

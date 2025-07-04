@@ -1,0 +1,12 @@
+commit ca230d2d6ffeaef0be2f58fd46ba6ed34a8dbf46
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 21:02:58 2014 -0400
+
+    cmd/objdump: disable test failing on arm5
+    
+    TBR=adg
+    CC=golang-codereviews
+    https://golang.org/cl/167890043
+
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

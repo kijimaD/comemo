@@ -1,0 +1,15 @@
+commit 0be3c4093d2ac0c59c392298f08a58bc09fd2616
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 26 11:15:09 2015 -0400
+
+    androidtest.bash: set GOARM=7
+    
+    It's the only ARM version we have ever supported on android.
+    (Not setting it caused some builder timeouts.)
+    
+    Change-Id: I26061434252ff2a236bb31d95787a1c582d24b3f
+    Reviewed-on: https://go-review.googlesource.com/16295
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/androidtest.bash | 8 ++++++++
+ 1 file changed, 8 insertions(+)

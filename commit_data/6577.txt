@@ -1,0 +1,15 @@
+commit 231fcea7e60ebf76d01b6ebd6534558ac079fe3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 18:11:53 2010 -0400
+
+    5l: two stack split bugs in one day
+    
+    An ARM expert could probably phrase the
+    comparison in fewer instructions, but this works.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2620041
+
+ src/cmd/5l/noop.c | 36 +++++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)

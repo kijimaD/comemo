@@ -1,0 +1,21 @@
+commit 8a330454dc1502091dba2c890f5f6d0c095034de
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sat Sep 9 00:39:20 2017 +0900
+
+    net/url: don't escape sub-delims in fragment
+    
+    According to RFC-3986, the sub-delims chars should not be escaped in
+    fragment.
+    So this change fixes current behavior a bit.
+    
+    Fixes #19917
+    
+    Change-Id: I1a8deb93255d979532f75bae183c3fb53a05d395
+    Reviewed-on: https://go-review.googlesource.com/61650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go      | 13 +++++++++++++
+ src/net/url/url_test.go |  1 +
+ 2 files changed, 14 insertions(+)

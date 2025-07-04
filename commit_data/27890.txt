@@ -1,0 +1,12 @@
+commit c2322b7ea60f85b4fd3d566b17ab3f7dcb865c1a
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Aug 17 16:08:10 2016 -0700
+
+    runtime: fix the absolute URL to pprof tools
+    
+    Change-Id: I82eaf5c14a5b8b9ec088409f946adf7b5fd5dbe3
+    Reviewed-on: https://go-review.googlesource.com/27311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cpuprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 00b3b40b0773b59d556bcd90b78575694d42f769
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 13 11:58:13 2015 -0400
+
+    cmd/internal/obj/x86: minor optimization
+    
+    - avoid copy in range ytab
+    - add fast path to prefixof
+    
+    Change-Id: I88aa9d91a0abe80d253f7c3bca950b4613297499
+    Reviewed-on: https://go-review.googlesource.com/7628
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

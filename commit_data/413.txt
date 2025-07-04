@@ -1,0 +1,12 @@
+commit 5a30b5b8a9fc7926b46665320fda8beb5d308c9e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 23 18:11:17 2008 -0700
+
+    new bug: x, ok = t.m[i] doesn't compile
+    
+    R=ken
+    OCL=13395
+    CL=13395
+
+ test/bugs/bug075.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

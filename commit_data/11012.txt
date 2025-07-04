@@ -1,0 +1,15 @@
+commit 8e9e75f0082390a2dc2238adf12eca01ac68ec47
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Jan 3 12:00:39 2012 +1100
+
+    gotest: make _testmain.go conform to gofmt rules
+    
+    Otherwise, running "gofmt -d ." after "gotest" gives some
+    spurious changes.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5504101
+
+ src/cmd/gotest/gotest.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

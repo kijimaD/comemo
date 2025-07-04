@@ -1,0 +1,19 @@
+commit ef18d6a929438babb59056aef0e485ca65ff8c25
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 16 18:02:35 2019 -0700
+
+    syscall: avoid "just past the end" pointers in UnixRights
+    
+    Caught with -d=checkptr.
+    
+    Updates #22218.
+    
+    Change-Id: Ic0fcff4d2c8d83e4e7f5e0c6d01f03c9c7766c6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/sockcmsg_linux.go |  2 +-
+ src/syscall/sockcmsg_unix.go  | 10 ++++------
+ 2 files changed, 5 insertions(+), 7 deletions(-)

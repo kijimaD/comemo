@@ -1,0 +1,26 @@
+commit 99475dfb5923b775a9ab587ad99cb64de5d1f51c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 10:39:21 2015 -0700
+
+    cmd/internal/gc: avoid spurious div-zero errors
+    
+    Set overflowing integer constants to 1 rather than 0 to avoid
+    spurious div-zero errors in subsequent constant expressions.
+    
+    Also: Exclude new test case from go/types test since it's
+    running too long (go/types doesn't have an upper constant
+    size limit at the moment).
+    
+    Fixes #7746.
+    
+    Change-Id: I3768488ad9909a3cf995247b81ee78a8eb5a1e41
+    Reviewed-on: https://go-review.googlesource.com/9165
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/const.go    |   4 +-
+ src/cmd/internal/gc/mparith2.go |   2 +-
+ src/go/types/stdlib_test.go     |   1 +
+ test/fixedbugs/issue7746.go     | 133 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 137 insertions(+), 3 deletions(-)

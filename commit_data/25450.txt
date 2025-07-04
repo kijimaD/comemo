@@ -1,0 +1,14 @@
+commit 6866f5e1437eb410706c76109012abb2bca7e2be
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 11:12:10 2016 -0500
+
+    cmd/dist: assume amd64 on OS X, don't run sysctl
+    
+    Fixes #13425.
+    
+    Change-Id: I82f49d07841e89fc4f3fde9ea41e710a634579d0
+    Reviewed-on: https://go-review.googlesource.com/18313
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

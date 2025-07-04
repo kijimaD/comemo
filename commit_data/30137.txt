@@ -1,0 +1,18 @@
+commit a833485828f02b098c67127ed8be8e78493aaf4b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jan 16 12:37:11 2017 -0500
+
+    cmd/compile: do not use statictmp for zeroing
+    
+    Also fixes #18687.
+    
+    Change-Id: I7c6d47c71e632adf4c16937a29074621f771844c
+    Reviewed-on: https://go-review.googlesource.com/35261
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/order.go | 14 --------------
+ src/cmd/compile/internal/gc/ssa.go   |  9 +++++++++
+ src/cmd/compile/internal/gc/walk.go  | 13 +++++++++++++
+ 3 files changed, 22 insertions(+), 14 deletions(-)

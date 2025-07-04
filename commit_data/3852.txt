@@ -1,0 +1,12 @@
+commit 9ad14c94db182dd3326e4c80053e0311f47700ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 6 10:33:46 2009 -0800
+
+    expand "this is not just mercurial" section
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1024008
+
+ doc/contribute.html | 41 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 33 insertions(+), 8 deletions(-)

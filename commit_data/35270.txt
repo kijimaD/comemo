@@ -1,0 +1,21 @@
+commit 8c62fc0ca3c96ecbd3a6e81546aa8c53e32ff500
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri May 4 06:54:18 2018 +0200
+
+    strings: fix encoding of \u0080 in map
+    
+    Fix encoding of PAD (U+0080) which has the same value as utf8.RuneSelf
+    being incorrectly encoded as \x80 in strings.Map due to using <= instead
+    of a < comparison operator to check one byte encodings for utf8.
+    
+    Fixes #25242
+    
+    Change-Id: Ib6c7d1f425a7ba81e431b6d64009e713d94ea3bc
+    Reviewed-on: https://go-review.googlesource.com/111286
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go      |  4 ++--
+ src/strings/strings_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 86d72fa2cba51342ba5617abf43a732f9fd668ca
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Jun 23 12:59:48 2021 +0800
+
+    time: handle invalid UTF-8 byte sequences in quote to prevent panic
+    
+    Fixes #46883
+    Updates CL 267017
+    
+    Change-Id: I15c307bfb0aaa2877a148d32527681f79df1a650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330289
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/time/format.go    | 18 +++++++++++++++---
+ src/time/time_test.go |  5 +++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

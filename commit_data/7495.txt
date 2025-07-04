@@ -1,0 +1,14 @@
+commit dd7403b1b82b6b5882589bc8f53c1d77133da364
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 17 16:32:50 2011 -0500
+
+    net: remove comment fragments
+    
+    I have no idea how I meant to complete that sentence.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4191046
+
+ src/pkg/net/net.go | 3 ---
+ 1 file changed, 3 deletions(-)

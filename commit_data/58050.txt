@@ -1,0 +1,18 @@
+commit e5c4c79cc446976e61f0b08577dc6f994dec023f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 13 16:44:29 2024 +0000
+
+    internal/sync: add Clear to HashTrieMap
+    
+    This change adds the Clear operation to HashTrieMap to align it with
+    sync.Map.
+    
+    Change-Id: I46069b018725d7fe3a07d667876235534bca86f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606459
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/sync/hashtriemap.go      | 36 ++++++++++++++++---------
+ src/internal/sync/hashtriemap_test.go | 51 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 12 deletions(-)

@@ -1,0 +1,21 @@
+commit 24af43fa660d212af8b5609ec715b937989eb021
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jul 28 19:27:22 2023 +1000
+
+    cmd/internal/obj/mips: use obj.REG_NONE rather than 0
+    
+    Instead of comparing register values to 0, use obj.REG_NONE to improve
+    readability. No functional change.
+    
+    Change-Id: I848f7ab7e27fe7e5e9fe2caf9cce47e372c6cd6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Junxian Zhu <zhujunxian@oss.cipunited.com>
+
+ src/cmd/internal/obj/mips/asm0.go | 70 +++++++++++++++++++--------------------
+ 1 file changed, 35 insertions(+), 35 deletions(-)

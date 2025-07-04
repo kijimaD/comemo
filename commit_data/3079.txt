@@ -1,0 +1,20 @@
+commit 75a38963ca9144cbbc55ef32c25b020e668eeb40
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 21:16:15 2009 -0700
+
+    cgocall bug fix.
+    
+    better FFI demo: compute fibonacci numbers using FFI'ed libgmp.
+    
+    R=r
+    DELTA=281  (255 added, 19 deleted, 7 changed)
+    OCL=33815
+    CL=33820
+
+ src/libcgo/cgocall.c | 60 ++++++++++++++++++++++++++++++++++------------------
+ usr/rsc/gmp/6c.c     | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/gmp/Makefile | 52 +++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/gmp/gcc.c    | 54 ++++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/gmp/go.go    | 24 +++++++++++++++++++++
+ usr/rsc/gmp/main.go  | 28 ++++++++++++++++++++++++
+ 6 files changed, 257 insertions(+), 21 deletions(-)

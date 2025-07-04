@@ -1,0 +1,14 @@
+commit e2bf22715dedcfcbfd8c6d7b0046529bf9b4c89d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 23:07:15 2009 -0700
+
+    make string take []byte only, so have to use *[10]byte to convert
+    
+    R=r
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=27578
+    CL=27584
+
+ test/fixedbugs/bug102.go | 4 ++--
+ test/ken/string.go       | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

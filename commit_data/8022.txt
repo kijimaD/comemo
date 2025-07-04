@@ -1,0 +1,12 @@
+commit 0ada4a2d627ac84d6ff22d0b6e51a868a62fbf89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 7 22:10:39 2011 -0700
+
+    go/types: fix build: use the right compiler to compile test case
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4369050
+
+ src/pkg/go/types/gcimporter_test.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

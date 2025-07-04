@@ -1,0 +1,22 @@
+commit af8748054b40e9a1e529e42a0f83cc2c90a35af6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 12:09:56 2020 -0400
+
+    sort: update comments
+    
+    - Describe requirements on Less more precisely.
+    - Standardize on x for the variable name of the data being sorted
+      (was variously a, p, slice).
+    - Many other minor wording changes.
+    
+    Fixes #41951.
+    
+    Change-Id: Ic9e222a53ec035fcc3b5ddfc7f0eefbe1bb2890d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262657
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/sort/slice.go |  40 ++++++++++---------
+ src/sort/sort.go  | 114 ++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 86 insertions(+), 68 deletions(-)

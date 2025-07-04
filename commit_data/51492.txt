@@ -1,0 +1,21 @@
+commit d71b1c3dcc2039f44fb2e3f271997ee260e6685b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:01:36 2022 -0500
+
+    archive/tar: use proper doc comment for Deprecated notes
+    
+    End-of-line comments are not doc comments,
+    so Deprecated notes in them are not recognized
+    as deprecation notices. Rewrite the comments.
+    
+    Change-Id: Idb19603d7fc2ec8e3a2f74bacb74fbbec5583d20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/go1.16.txt            | 1 +
+ src/archive/tar/common.go | 6 ++++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

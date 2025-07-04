@@ -1,0 +1,16 @@
+commit 469e3a91d450fb29778ba0d37377ddb40a58f1d5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 28 10:55:39 2012 -0700
+
+    net/http: correct and faster hasToken
+    
+    Fixes #3535
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6245060
+
+ src/pkg/net/http/header.go      | 35 +++++++++++++++++++++++++++++++++
+ src/pkg/net/http/header_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/request.go     |  8 --------
+ 3 files changed, 78 insertions(+), 8 deletions(-)

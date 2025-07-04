@@ -1,0 +1,53 @@
+commit e3d608a8664b2cb0054f4d4706cdf911fd699b82
+Author: Rob Findley <rfindley@google.com>
+Date:   Sun Jul 12 16:20:02 2020 -0400
+
+    go/types: factor out some methods that compute a single error
+    
+    In order to generate more accurate or informative error messages from
+    the type checker, it can be helpful to interpret error messages in
+    context. This is currently achieved in a number of ways:
+    
+     + Return a boolean value, and then reverse-engineer the error at the
+       callsite (as in representable->representableConst).
+     + Return a value causing the error (as in Checker.missingMethod), and
+       add the error at the callsite.
+     + Pass a "reason" string pointer to capture the error (as in
+       Checker.assignableTo), and add the error at the callsite.
+     + Pass a "context" string pointer, and use this when writing errors in
+       the delegated method.
+    
+    In all cases, it is the responsibility of whatever code calls
+    Checker.error* to set the operand mode to invalid.
+    
+    These methods are used as appropriate, depending on whether multiple
+    errors are generated, whether additional context is needed, and whether
+    the mere presence of an error needs to be interpreted at the callsite.
+    However, this practice has some downsides: the plurality of error
+    handling techniques can be a barrier to readability and composability.
+    
+    In this CL, we introduce Yet Another Pattern, with the hope that it can
+    replace some or all of the existing techniques: factor out side-effect
+    free functions that evaluate a single error, and add helpers for
+    recording this error in the Checker.
+    
+    As a proof of concept this is done for Checker.representable and
+    Checker.convertUntyped. If the general pattern does not seem appropriate
+    for replacing some or all of the error-handling techniques listed above,
+    we should revert to an established technique.
+    
+    Some internal error APIs are refactored to operate on an error, rather
+    than a types.Error, with internal error metadata extracted using
+    errors.As. This seemed to have negligible impact on performance, but we
+    should be careful about actually wrapping errors: I expect that many
+    users will expect err to be a types.Error.
+    
+    Change-Id: Ic5c6edcdc02768cd84e04638fad648934bcf3c17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242082
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/errors.go | 39 +++++++++++++++++++++++++++++++++------
+ src/go/types/expr.go   | 36 ++++++++++++++++++++++++------------
+ 2 files changed, 57 insertions(+), 18 deletions(-)

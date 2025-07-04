@@ -1,0 +1,20 @@
+commit ff5c94538292ca66543603fc78c02a96c823c6aa
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 15:07:40 2015 -0500
+
+    runtime: reset sweep stats before starting the world
+    
+    Currently we reset the sweep stats just after gcMarkTermination starts
+    the world and releases worldsema. However, background sweeping can
+    start the moment we start the world and, in fact, pause sweeping can
+    start the moment we release worldsema (because another GC cycle can
+    start up), so these need to be cleared before starting the world.
+    
+    Change-Id: I95701e3de6af76bb3fbf2ee65719985bf57d20b2
+    Reviewed-on: https://go-review.googlesource.com/17811
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

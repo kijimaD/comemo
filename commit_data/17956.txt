@@ -1,0 +1,13 @@
+commit 77fe6befb7852d58250c4ebe12d80d665f900829
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 10 23:35:50 2013 -0500
+
+    net/http: document that body is closed after (*Request).Write.
+    Fixes #6911.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/38690043
+
+ src/pkg/net/http/response.go | 1 +
+ 1 file changed, 1 insertion(+)

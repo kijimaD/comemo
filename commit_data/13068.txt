@@ -1,0 +1,12 @@
+commit 773685b4a3e4f8911421825f879f06a3de92c15e
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 15 11:48:58 2012 -0400
+
+    runtime: fix counting of free objects
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6206056
+
+ src/pkg/runtime/malloc.goc | 1 +
+ 1 file changed, 1 insertion(+)

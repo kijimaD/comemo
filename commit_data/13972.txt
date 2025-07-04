@@ -1,0 +1,12 @@
+commit 348e31f8f70f9e06d90aa03419907ce91122c402
+Author: Josh Holland <jrh@joshh.co.uk>
+Date:   Thu Sep 27 15:47:54 2012 +1000
+
+    text/template: fix typo of errorf as error in comment.
+    
+    R=r, minux.ma
+    CC=gobot, golang-dev
+    https://golang.org/cl/6506120
+
+ src/pkg/text/template/parse/lex.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit bf061af1d0cf5b27ec1415d7b555874b070f483a
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Tue Jun 30 09:14:15 2020 -0700
+
+    doc/go1.15: add encoding/asn1 note about minimal encoding
+    
+    Also fix missing <code> tags in the other encoding/asn1 note.
+    
+    Updates #37419
+    
+    Change-Id: Ic0e9131016b44ed864629aa8d0a7fddb57146d21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240518
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.15.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

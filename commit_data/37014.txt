@@ -1,0 +1,19 @@
+commit 1d18f66dc82088a3a3d39410866157e3e1e44554
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 16 21:36:34 2018 -0700
+
+    cmd/cgo: write a string rather than building an AST
+    
+    This generates the same code as before, but does so directly rather
+    than building an AST and printing that. This is in preparation for
+    later changes.
+    
+    Change-Id: Ifec141120bcc74847f0bff8d3d47306bfe69b454
+    Reviewed-on: https://go-review.googlesource.com/c/142883
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/gcc.go    | 246 +++++++++++++++++++++++++-------------------------
+ src/cmd/cgo/godefs.go |   6 ++
+ 2 files changed, 130 insertions(+), 122 deletions(-)

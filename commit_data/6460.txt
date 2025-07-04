@@ -1,0 +1,12 @@
+commit 335a318c279deae521ac538bacd55098c4685875
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 11:25:40 2010 -0400
+
+    build: disable archive/zip for nacl (fix build)
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2290045
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

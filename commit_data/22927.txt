@@ -1,0 +1,40 @@
+commit d4bb72b485cc9aa790e3a176b2e728e2d28d52ed
+Author: David Chase <drchase@google.com>
+Date:   Tue May 5 13:25:58 2015 -0400
+
+    cmd/internal/gc: improve "type *X has no field or method M" message
+    
+    Try to provide hints for common areas, either *interface
+    were interface would have been better, and note incorrect
+    capitalization (but don't be more ambitious than that, at
+    least not today).
+    
+    Added code and test for cases
+    
+      ptrInterface.ExistingMethod
+      ptrInterface.unexportedMethod
+      ptrInterface.MissingMethod
+      ptrInterface.withwRongcASEdMethod
+      interface.withwRongcASEdMethod
+      ptrStruct.withwRongcASEdMethod
+      struct.withwRongcASEdMethod
+    
+    also included tests for related errors to check for
+    unintentional changes and consistent wording.
+    
+    Somewhat simplified from previous versions to avoid second-
+    guessing user errors, yet also biased to point out most-likely
+    root cause.
+    
+    Fixes #10700
+    
+    Change-Id: I16693e93cc8d8ca195e7742a222d640c262105b4
+    Reviewed-on: https://go-review.googlesource.com/9731
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/typecheck.go       | 44 +++++++++++++++++++++++-------
+ test/fixedbugs/issue10700.dir/other.go | 10 +++++++
+ test/fixedbugs/issue10700.dir/test.go  | 49 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue10700.go           |  7 +++++
+ test/interface/embed2.go               | 23 +++++++++-------
+ 5 files changed, 115 insertions(+), 18 deletions(-)

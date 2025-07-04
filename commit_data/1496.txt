@@ -1,0 +1,16 @@
+commit e83c85accb1c02409390b2a11fda95c131a692d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 10:14:12 2009 -0800
+
+    casify time
+    
+    R=r
+    DELTA=103  (1 added, 0 deleted, 102 changed)
+    OCL=22914
+    CL=22937
+
+ src/lib/time/tick.go      |   4 +-
+ src/lib/time/time.go      | 106 +++++++++++++++++++++++-----------------------
+ src/lib/time/time_test.go |  30 ++++++-------
+ src/lib/time/zoneinfo.go  |  53 +++++++++++------------
+ 4 files changed, 97 insertions(+), 96 deletions(-)

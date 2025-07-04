@@ -1,0 +1,12 @@
+commit 9a65381b77bb7d8e58e8b4a258ec54119b36a720
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 1 16:26:50 2010 -0800
+
+    Fix for gccgo, which uses a package prefix.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198046
+
+ test/fixedbugs/bug248.dir/bug2.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

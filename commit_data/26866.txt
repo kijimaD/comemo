@@ -1,0 +1,22 @@
+commit 8edf4cb27d07a81ae340b0fda4e519c12f139618
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 8 13:30:41 2016 -0400
+
+    hash/crc32: invert build tags for go implementation
+    
+    It seems cleaner and more consistent with other files to list the
+    architectures that have assembly implementations rather than to
+    list those that do not.
+    
+    This means we don't have to add s390x and future platforms to this
+    list.
+    
+    Change-Id: I2ad3f66b76eb1711333c910236ca7f5151b698e5
+    Reviewed-on: https://go-review.googlesource.com/21770
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/hash/crc32/crc32_generic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

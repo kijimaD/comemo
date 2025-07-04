@@ -1,0 +1,24 @@
+commit cea35baf12cd8996c97f6dd3e62a0165d0e50843
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 23:57:36 2023 +0000
+
+    runtime: hold sched.lock over traceThreadDestroy in dropm
+    
+    This is required by traceThreadDestroy, though it's not strictly
+    necessary in this case. The requirement to hold sched.lock comes from
+    the assumption that traceThreadDestroy is getting called when the thread
+    leaves the tracer's view, but in this case the extra m that dropm is
+    dropping never leaves the allm list. Nevertheless, traceThreadDestroy
+    requires it just as a safety measure, and that's reasonable. dropm is
+    generally rare on pthread platforms, so the extra lock acquire over this
+    short critical section (and only when tracing is enabled) is fine.
+    
+    Change-Id: Ib631820963c74f2f087d14a0067d0441d75d6785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544396
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

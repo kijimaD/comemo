@@ -1,0 +1,15 @@
+commit 5dde7ccecf22a345535721c78a34879755de1fc0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 14 11:01:17 2013 +1000
+
+    cmd/go: add -t flag to 'go get' to download test dependencies
+    
+    Fixes #5126.
+    
+    R=golang-dev, dsymonds, bradfitz, r, rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/12566046
+
+ src/cmd/go/doc.go |  5 ++++-
+ src/cmd/go/get.go | 23 +++++++++++++++++++----
+ 2 files changed, 23 insertions(+), 5 deletions(-)

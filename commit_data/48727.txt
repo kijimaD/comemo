@@ -1,0 +1,19 @@
+commit 32de2b0d1cf4d60119d7c717acec2163342392b9
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Thu Mar 24 22:53:41 2022 +0800
+
+    cmd/compile: add MOVBE index load/store
+    
+    Fixes #51724
+    
+    Change-Id: I94e650a7482dc4c479d597f0162a6a89d779708d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395474
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   6 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go |  20 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  14 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 207 ++++++++++++++++++++++++
+ test/codegen/memcombine.go                      |  10 +-
+ 5 files changed, 250 insertions(+), 7 deletions(-)

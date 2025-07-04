@@ -1,0 +1,12 @@
+commit b68c0aec20776e85b8d71fc32ab788cec8979e4b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 13:59:17 2014 -0800
+
+    go/build: fix test on Windows
+    
+    Change-Id: Icba46194bcbfd86b512eef2599242c715ad4e7d3
+    Reviewed-on: https://go-review.googlesource.com/2041
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/go/build/build_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

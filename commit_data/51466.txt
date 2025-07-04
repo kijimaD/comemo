@@ -1,0 +1,38 @@
+commit c8057d85692c01e96d3c04815a0a364c7cfb4d90
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 29 15:00:11 2022 -0800
+
+    cmd/compile: disallow CMOV optimization with ptr arithmetic as an arg
+    
+        if q != nil {
+            p = &q.f
+        }
+    
+    Which gets rewritten to a conditional move:
+    
+        tmp := &q.f
+        p = Select q!=nil, tmp, p
+    
+    Unfortunately, we can't compute &q.f before we've checked if q is nil,
+    because if it is nil, &q.f is an invalid pointer (if f's offset is
+    nonzero but small).
+    
+    Normally this is not a problem because the tmp variable above
+    immediately dies, and is thus not live across any safepoint. However,
+    if later there is another &q.f computation, those two computations are
+    CSEd, causing tmp to be used at both use points. That will extend
+    tmp's lifetime, possibly across a call.
+    
+    Fixes #56990
+    
+    Change-Id: I3ea31be93feae04fbe3304cb11323194c5df3879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/branchelim.go |  14 +++-
+ test/fixedbugs/issue56990.go               | 119 +++++++++++++++++++++++++++++
+ test/fixedbugs/issue56990.out              |   1 +
+ 3 files changed, 133 insertions(+), 1 deletion(-)

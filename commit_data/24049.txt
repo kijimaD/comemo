@@ -1,0 +1,25 @@
+commit 85de30e72f62c41f21eb1eb2c8ad4a05a163c9c1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 20 17:53:41 2015 +0200
+
+    cmd/compile: allow huge rsh in constants arithmetic
+    
+    Currently an expression like
+    
+    var v = 0 >> 1000
+    
+    is rejected by gc with a "stupid shift" error, while gotype
+    compiles it successfully.
+    
+    As suggested by gri on the issue tracker, allow an rsh right
+    operand to be any valid uint value.
+    
+    Fixes #11328
+    
+    Change-Id: I6ccb3b7f842338d91fd26ae37dd4fa279d7fc440
+    Reviewed-on: https://go-review.googlesource.com/13777
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/mparith2.go | 2 +-
+ test/const.go                           | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

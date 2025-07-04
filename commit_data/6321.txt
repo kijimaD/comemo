@@ -1,0 +1,12 @@
+commit d4c8a545793eb5281aab67f19a4dd8fe019986d2
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Sep 20 10:51:05 2010 -0700
+
+    doc: fix typo in go_spec.html
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2250041
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

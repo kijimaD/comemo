@@ -1,0 +1,15 @@
+commit def3280eb4e4bc7fb058f98fa2993cb077db3f95
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Jul 24 15:07:01 2018 -0700
+
+    cmd/dist: support windows/arm
+    
+    Updates #26148
+    
+    Change-Id: I407481f9c0f8e3565dcfcbbc53e5aa7427d74680
+    Reviewed-on: https://go-review.googlesource.com/125646
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go       | 1 +
+ src/cmd/dist/sys_windows.go | 3 +++
+ 2 files changed, 4 insertions(+)

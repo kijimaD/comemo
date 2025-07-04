@@ -1,0 +1,20 @@
+commit 427a2401af088716bf5b394156e45fb4de54dc5a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 13 17:33:16 2024 -0500
+
+    cmd/go/testdata/script: update test_flags for new test output
+    
+    With CL 635856, an error for a package missing go files is now caught at
+    load time rather than at build time, so it's reported differently.
+    Update the test to check for the correct output unbreak the builders.
+    
+    For #70820
+    
+    Change-Id: I91fcac17961635b9a92782caa58c9a6f057a7e02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637115
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/test_flags.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 135c470b2277e1c9514ba8a5478408fea0dee8a2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Feb 14 00:15:43 2023 +0700
+
+    doc: add missing builtin functions not permitted in statement context
+    
+    The typechecker already enforces this semantic, but the spec is not
+    updated when unsafe.{SliceData,String,StringData} were added.
+    
+    Change-Id: I4ee8c564d5681b2a5fd31ff424a31bdf065d9f3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467756
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

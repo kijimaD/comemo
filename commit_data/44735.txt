@@ -1,0 +1,21 @@
+commit bdbba224040a0f079a80368d9956f85a10577045
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 5 19:47:34 2021 +0000
+
+    reflect: add tests for reflect.Value.Call for the new ABI
+    
+    This change adds tests for reflect.Value.Call for calling functions
+    using the new register-based ABI.
+    
+    For #40724.
+    
+    Change-Id: Ia9afd43e26dd80c7e36dd135a5b71acce8074801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299269
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/reflect/abi_test.go    | 447 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/export_test.go |  15 +-
+ 2 files changed, 461 insertions(+), 1 deletion(-)

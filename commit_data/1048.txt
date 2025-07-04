@@ -1,0 +1,15 @@
+commit e2eccf3bd07762ecbcae046a2e41e748f949f176
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 4 13:55:18 2008 -0800
+
+    install bignum as library
+    
+    R=r
+    DELTA=3501  (1752 added, 1749 deleted, 0 changed)
+    OCL=18460
+    CL=18471
+
+ {usr/gri/bignum => src/lib}/bignum.go   | 0
+ src/lib/make.bash                       | 1 +
+ {usr/gri/bignum => test}/bignum_test.go | 2 ++
+ 3 files changed, 3 insertions(+)

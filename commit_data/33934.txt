@@ -1,0 +1,16 @@
+commit f05c8b48ea2d249965418e76c9151a3d6bde7ed9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 12:59:09 2018 -0800
+
+    net: set CLOEXEC on sockets used for capability probes
+    
+    Fixes #22349
+    
+    Change-Id: I84ec4fa9fa95bac0f26bf4ca3e62a35dff4f7e00
+    Reviewed-on: https://go-review.googlesource.com/86015
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ipsock_posix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

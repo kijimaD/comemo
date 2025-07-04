@@ -1,0 +1,21 @@
+commit ffbf479ae1cc8d85022fd74b6ad35b419279b162
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Oct 17 09:36:06 2018 +0200
+
+    cmd/compile,cmd/link: remove statictmp variables from symbol table.
+    
+    Removes statictmp variables from debug_info and the final symbol table.
+    
+    Fixes #27800
+    
+    Change-Id: I302c59a04bc3f460e7085fef241f937bbf30421d
+    Reviewed-on: https://go-review.googlesource.com/c/142577
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go      |  4 +-
+ src/cmd/link/internal/ld/dwarf_test.go | 73 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/symtab.go     | 11 +++++
+ 3 files changed, 87 insertions(+), 1 deletion(-)

@@ -1,0 +1,34 @@
+commit 6a6a0734163567545aed2b558f24f2aafc6c9072
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Tue Mar 22 16:41:11 2016 +0100
+
+    crypto/hmac: simplify implementation
+    
+    Store already padded keys instead of storing key and padding it during
+    Reset and Sum. This simplifies code and makes Reset-Write-Sum sequences
+    faster, which helps /x/crypto/pbkdf2.
+    
+    HMAC benchmark:
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkHMACSHA256_1K-4     7669          7613          -0.73%
+    BenchmarkHMACSHA256_32-4     1880          1737          -7.61%
+    
+    benchmark                    old MB/s     new MB/s     speedup
+    BenchmarkHMACSHA256_1K-4     133.52       134.50       1.01x
+    BenchmarkHMACSHA256_32-4     17.02        18.41        1.08x
+    
+    PBKDF2 benchmark:
+    
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkPBKDF2HMACSHA256-4     1943196       1807699       -6.97%
+    
+    Change-Id: I6697028370c226715ab477b0844951a83eb3488c
+    Reviewed-on: https://go-review.googlesource.com/21024
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/hmac/hmac.go      | 34 +++++++++++++++-------------------
+ src/crypto/hmac/hmac_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 19 deletions(-)

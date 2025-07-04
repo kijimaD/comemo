@@ -1,0 +1,12 @@
+commit 0735e06cfd9b7e132589f555eca3ab72f26d6e91
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 15:30:36 2011 -0800
+
+    build: fix the build with USE_GO_TOOL=false
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5502051
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

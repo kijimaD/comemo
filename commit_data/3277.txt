@@ -1,0 +1,13 @@
+commit 67ab1b9faea59e08102a07dfe31a4b3d28faf0a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 15 13:53:10 2009 -0700
+
+    consider each case in a switch independent from the previous one for alignment purposes
+    
+    R=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=34654
+    CL=34656
+
+ src/pkg/go/printer/printer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

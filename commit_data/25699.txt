@@ -1,0 +1,14 @@
+commit 1ab900e5f14d01f34fad75131eaa4cebe3bbe6ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 29 16:44:16 2016 +1100
+
+    doc: link to block example in go1.6 doc
+    
+    Fixes #14143
+    
+    Change-Id: I2d77e55bc0b6bb42e11de291e0ddb5ad5d620646
+    Reviewed-on: https://go-review.googlesource.com/19110
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

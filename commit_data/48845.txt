@@ -1,0 +1,21 @@
+commit 824b0a34b7b4fbda1de9f5dbb39c3b33458bc541
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 11:17:16 2022 -0400
+
+    cmd/go: replace some calls to base.AppendPWD with cmd.Environ
+    
+    With #50599 implemented, base.AppendPWD is redundant if cmd.Env would
+    otherwise be nil, and calls to os.Environ followed by base.AppendPWD
+    can be replaced by a simpler call to cmd.Environ.
+    
+    Updates #50599.
+    
+    Change-Id: I94a22e2a4cc8e83c815ac41702ea0b1ee5034ecc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401534
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go   | 2 --
+ src/cmd/go/internal/work/exec.go | 6 ++----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

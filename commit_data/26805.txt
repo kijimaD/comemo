@@ -1,0 +1,15 @@
+commit 93368be61ebaf8069d0d70034097de580441c412
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 20:37:54 2016 +1000
+
+    cmd/internal/bio: embed bufio.{Reader,Writer} in bio.{Reader,Writer}
+    
+    Change-Id: Ie95b0b0d4f724f4769cf2d4f8063cb5019fa9bc9
+    Reviewed-on: https://go-review.googlesource.com/21781
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/internal/bio/buf.go           | 56 ++++++++---------------------------
+ src/cmd/internal/obj/objfile.go       |  2 +-
+ src/cmd/link/internal/ld/objfile.go   |  2 +-
+ 4 files changed, 16 insertions(+), 46 deletions(-)

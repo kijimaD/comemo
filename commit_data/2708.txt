@@ -1,0 +1,13 @@
+commit 4fb8f44ea75dcc36ab5ec906bc0c7fe53f1e9950
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 16:30:20 2009 -0700
+
+    - interface and comments cleanup
+    
+    R=rsc
+    DELTA=33  (1 added, 3 deleted, 29 changed)
+    OCL=31620
+    CL=31642
+
+ src/pkg/go/parser/parser.go | 54 ++++++++++++++++++++++-----------------------
+ 1 file changed, 26 insertions(+), 28 deletions(-)

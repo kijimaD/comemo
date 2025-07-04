@@ -1,0 +1,28 @@
+commit 466e6dae9570ac88ef15c5f1bda9a59d7253cfee
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 16:10:15 2023 +0000
+
+    Revert "internal/abi, runtime, cmd: merge StackSmall, StackBig consts into internal/abi"
+    
+    This reverts commit CL 486379.
+    
+    Submitted out of order and breaks bootstrap.
+    
+    Change-Id: Ie20a61cc56efc79a365841293ca4e7352b02d86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486917
+    TryBot-Bypass: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm/obj5.go     |  8 ++++----
+ src/cmd/internal/obj/arm64/obj7.go   | 10 +++++-----
+ src/cmd/internal/obj/loong64/obj.go  |  7 ++++---
+ src/cmd/internal/obj/mips/obj0.go    |  7 ++++---
+ src/cmd/internal/obj/ppc64/obj9.go   |  8 ++++----
+ src/cmd/internal/obj/riscv/obj.go    |  6 +++---
+ src/cmd/internal/obj/s390x/objz.go   |  8 ++++----
+ src/cmd/internal/obj/wasm/wasmobj.go |  5 ++---
+ src/cmd/internal/obj/x86/obj6.go     | 12 ++++++------
+ src/cmd/internal/objabi/stack.go     |  9 ++++-----
+ src/internal/abi/stack.go            | 25 -------------------------
+ src/runtime/stack.go                 | 14 +++++++++++++-
+ 12 files changed, 53 insertions(+), 66 deletions(-)

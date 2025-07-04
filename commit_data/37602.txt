@@ -1,0 +1,24 @@
+commit dc7808d4f2989fa0514fc0e4014616fdb8c4a764
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 14:42:47 2018 -0800
+
+    cmd/compile/internal/syntax: remove unused field in (scanner) source
+    
+    The source.offs field was intended for computing line offsets which
+    may allow a tiny optimization (see TODO in source.go). We haven't
+    done the optimization, so for now just remove the field to avoid
+    confusion. It's trivially added if needed.
+    
+    While at it, also:
+    
+    - Fix comment for ungetr2.
+    - Make sure sentinel is present even if reading from the io.Reader failed.
+    
+    Change-Id: Ib056c6478030b3fe5fec29045362c8161ff3d19e
+    Reviewed-on: https://go-review.googlesource.com/c/152763
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/source.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

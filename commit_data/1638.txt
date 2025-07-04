@@ -1,0 +1,13 @@
+commit 69c41d7f5f965ba8e4f6dea5b6cdbeb348f13ba1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 6 17:10:30 2009 -0800
+
+    fstat used wrong system call, lstat used wrong type of name
+    
+    R=rsc
+    DELTA=7  (4 added, 0 deleted, 3 changed)
+    OCL=24617
+    CL=24617
+
+ src/lib/syscall/file_darwin.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

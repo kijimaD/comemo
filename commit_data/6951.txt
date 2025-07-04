@@ -1,0 +1,12 @@
+commit add32466bfc36ebac93cc527c90fc3a61dbac22e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Dec 14 12:22:40 2010 -0500
+
+    build: remove intermediate yacc files in Make.ccmd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3545042
+
+ src/Make.ccmd | 2 ++
+ 1 file changed, 2 insertions(+)

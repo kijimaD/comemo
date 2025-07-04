@@ -1,0 +1,12 @@
+commit 12923e43f2741881d0300c4318ce81d14ea47735
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 28 11:46:10 2010 -0700
+
+    syscall: windows syscall trace to assist debugging
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1383041
+
+ src/pkg/syscall/mksyscall_windows.sh | 7 +++++++
+ 1 file changed, 7 insertions(+)

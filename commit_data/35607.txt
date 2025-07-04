@@ -1,0 +1,21 @@
+commit 88dc4aee7cf81f78a8da08691349bb394f0ba75c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 6 13:10:16 2018 +0200
+
+    cmd/compile: fix OffPtr with negative offset on wasm
+    
+    The wasm archtecture was missing a rule to handle OffPtr with a
+    negative offset. This commit makes it so OffPtr always gets lowered
+    to I64AddConst.
+    
+    Fixes #25741
+    
+    Change-Id: I1d48e2954e3ff31deb8cba9a9bf0cab7c4bab71a
+    Reviewed-on: https://go-review.googlesource.com/116595
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 37 +++++++++++++++--------------
+ test/fixedbugs/issue25741.go                | 14 +++++++++++
+ 3 files changed, 35 insertions(+), 20 deletions(-)

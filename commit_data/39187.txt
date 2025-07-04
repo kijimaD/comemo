@@ -1,0 +1,16 @@
+commit 9be2d46422c90068db8bb9d29cb025907c6100b0
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri May 17 03:27:15 2019 +0000
+
+    misc/android: fix a typo in README
+    
+    A cross C compiler should be specified when cross building go
+    for android on x86 host. This CL fixes the typo in README.
+    
+    Change-Id: Ideda915364d9f7f0fcd53146abc1e74506a8a8e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177777
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ misc/android/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

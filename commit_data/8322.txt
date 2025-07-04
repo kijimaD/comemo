@@ -1,0 +1,12 @@
+commit da39008a27794e4d216e8f027ba326d23f87144c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu May 5 10:16:59 2011 -0700
+
+    image: make AlphaColor.Set conform to usual signature
+    
+    R=nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/4471045
+
+ src/pkg/image/image.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

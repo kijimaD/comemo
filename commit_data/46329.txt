@@ -1,0 +1,21 @@
+commit e581ec07eed006e7a54306457ff8d9931b2aae7c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 7 10:51:14 2021 -0700
+
+    cmd/compile: fix lazy loading in reader2
+    
+    Calling reader2.obj fully loads the referenced object, which is
+    necessary in general; but for reading the package index, we just need
+    to setup the name->index mapping. This CL adds this, so that lazy
+    loading works as intended.
+    
+    Change-Id: Ie51d59e2247d99b46f9dc69fba7ce89e2584b7c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348011
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

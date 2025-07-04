@@ -1,0 +1,14 @@
+commit a0d1c9263e29f11a1da1b9c6e9fec4ac8c1dc256
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 20 19:53:28 2010 -0700
+
+    gobs: fix bug in singleton arrays
+    Fixes #934.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1869043
+
+ src/pkg/gob/encode.go       | 4 ----
+ src/pkg/gob/encoder_test.go | 5 ++++-
+ 2 files changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,30 @@
+commit 899d19ac8330648b4ced7a7787db41c04f07f79f
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jan 12 11:30:57 2022 -0800
+
+    cmd/compile: descend through types to find fully-instantiated types
+    
+    In order to make sure we export the dictionaries/shape methods for all
+    fully-instantiated types in inlineable functions, we need to descend
+    fully into types. For example, we may have a map type (e.g.
+    map[transactionID]Promise[*ByteBuffer]), where the key or value is a new
+    fully-instantiated type. So, I add a new checkFullyInst() traversal
+    function, which traverses all encountered types, but maintains a map, so
+    it only traverse it type once. We need to descend fully into interfaces,
+    structs, and methods, since a fully-instantiated type make occur in any
+    fields or arguments/results of methods, etc.
+    
+    Fixes #50561
+    
+    Change-Id: I88681a30384168539ed7229eed709f4e73ff0666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378154
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/crawler.go | 143 +++++++++++++++++---------
+ test/typeparam/issue50561.dir/diameter.go     |  86 ++++++++++++++++
+ test/typeparam/issue50561.dir/main.go         |  13 +++
+ test/typeparam/issue50561.go                  |   7 ++
+ 4 files changed, 203 insertions(+), 46 deletions(-)

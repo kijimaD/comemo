@@ -1,0 +1,23 @@
+commit d85072ff86e61752fb89363d7c929c850e0a8a8d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Aug 27 06:46:16 2019 -0600
+
+    runtime: monitor for suspend/resume to kick timeouts
+    
+    Starting in Windows 8, the wait functions don't take into account
+    suspend time, even though the monotonic counters do. This results in
+    timer buckets stalling on resume. Therefore, this commit makes it so
+    that on resume, we return from the wait functions and recalculate the
+    amount of time left to wait.
+    
+    Fixes: #31528
+    
+    Change-Id: I0db02cc72188cb620954e87a0180e0a3c83f4a56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191957
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go      | 83 +++++++++++++++++++++++++++++++++++++-----
+ src/runtime/syscall_windows.go | 12 ++++--
+ 2 files changed, 82 insertions(+), 13 deletions(-)

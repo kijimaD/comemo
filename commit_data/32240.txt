@@ -1,0 +1,29 @@
+commit 694875cbf27a70ce2f9b147a30a644380a82860e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 14:59:18 2017 -0700
+
+    archive/tar: remove writeHeader and writePAXHeaderLegacy
+    
+    Previous CLs (CL/54970, CL55231, and CL/55237) re-implemented tar.Writer
+    entirely using specialized methods (writeUSTARHeader, writePAXHeader,
+    and writeGNUHeader) allowing tar.Writer to entirely side-step the broken
+    and buggy logic in writeHeader.
+    
+    Since writeHeader and writePAXHeaderLegacy is now dead-code,
+    we can delete them.
+    
+    One minor change is that we call Writer.Flush at the start of WriteHeader.
+    This used to be performed by writeHeader, but doing so in WriteHeader
+    ensures each of the specialized methods can benefit from its effect.
+    
+    Fixes #17665
+    Fixes #12594
+    
+    Change-Id: Iff2ef8e7310d40ac5484d2f8852fc5df25201426
+    Reviewed-on: https://go-review.googlesource.com/55550
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/writer.go | 253 ++--------------------------------------------
+ 1 file changed, 11 insertions(+), 242 deletions(-)

@@ -1,0 +1,21 @@
+commit f821e3c7c3a309ebdc1e3dbf4026b41c54e99d28
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 16:53:46 2009 -0700
+
+    6g tweaks
+            * byteastring is no longer used
+            * do not generate ODCL, OAS for globals
+              (wasn't generating any code but might
+              save one or two init functions)
+            * do not call self from Init function
+    
+    R=ken
+    OCL=28309
+    CL=28309
+
+ src/cmd/gc/builtin.c.boot |  1 -
+ src/cmd/gc/dcl.c          | 10 +++++++---
+ src/cmd/gc/go.y           | 16 ++++++++++++----
+ src/cmd/gc/sys.go         |  1 -
+ src/runtime/string.c      |  8 --------
+ 5 files changed, 19 insertions(+), 17 deletions(-)

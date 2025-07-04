@@ -1,0 +1,22 @@
+commit 033390d9adb0e7a96d0558bb1702e270ef986c90
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 02:48:09 2020 +0100
+
+    cmd/link: recognize arm header of PE objects
+    
+    The linker recognizes headers for 386 and amd64 PE objects, but not arm
+    objects. This is easily overlooked, since its the same as the 386 header
+    value, except the two nibbles of the first word are swapped. This commit
+    simply adds the check for this. Without it, .syso objects are rejected,
+    which means Windows binaries can't have resources built into them. At
+    the same time, we add comments to better indicate which condition
+    applies to which arch.
+    
+    Change-Id: I210411d978504c1a9540e23abc5a180e24f159ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268237
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

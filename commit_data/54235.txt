@@ -1,0 +1,17 @@
+commit 50bd17205fd9540615c03461a0047e59d29e6efd
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Aug 26 23:07:27 2023 +0800
+
+    cmd/compile/internal/liveness: remove repetitive word
+    
+    Change-Id: I27789840d92cc2c1e799db5b58e1eb1570e264df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

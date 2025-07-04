@@ -1,0 +1,19 @@
+commit ad67a86626bc9fa73ec09c8355b91bcdcb916f2e
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 2 11:12:07 2009 -0800
+
+    Split constant time functions into crypto/subtle.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018020
+
+ src/pkg/Make.deps                           |   1 +
+ src/pkg/Makefile                            |   1 +
+ src/pkg/crypto/rsa/pkcs1v15.go              |  19 +--
+ src/pkg/crypto/rsa/rsa.go                   |  79 +++---------
+ src/pkg/crypto/rsa/rsa_test.go              | 189 +++++++---------------------
+ src/pkg/crypto/subtle/Makefile              |  11 ++
+ src/pkg/crypto/subtle/constant_time.go      |  59 +++++++++
+ src/pkg/crypto/subtle/constant_time_test.go | 106 ++++++++++++++++
+ 8 files changed, 249 insertions(+), 216 deletions(-)

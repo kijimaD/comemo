@@ -1,0 +1,15 @@
+commit 410974497365b2e6e23811dbc58475b00c69d0db
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 15:25:22 2016 -0700
+
+    syscall: delete unreachable code
+    
+    Change-Id: Iacedb792c73591b7fd75e836aab8e0e117c8e738
+    Reviewed-on: https://go-review.googlesource.com/27494
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/dll_windows.go  | 1 -
+ src/syscall/exec_plan9.go   | 5 -----
+ src/syscall/exec_windows.go | 2 --
+ 3 files changed, 8 deletions(-)

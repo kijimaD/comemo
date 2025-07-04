@@ -1,0 +1,22 @@
+commit d948b8633d4ae3d4501d0a5382b24431a96c0cba
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 12 14:50:57 2021 -0400
+
+    cmd/go: fix 'go help mod edit' JSON documentation
+    
+    The object representing a module directive may have a "Deprecated"
+    field but not a "Version" field. Other objects representing module
+    versions have "Path" and "Version" fields but not "Deprecated".
+    
+    For #40357
+    
+    Change-Id: Iad8063dfa6f7ceea22981a8a8f99e65fa3b7ffa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309337
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go              | 11 ++++++++---
+ src/cmd/go/internal/modcmd/edit.go | 11 ++++++++---
+ 2 files changed, 16 insertions(+), 6 deletions(-)

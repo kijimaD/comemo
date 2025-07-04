@@ -1,0 +1,14 @@
+commit d7518ac51879011a732440d4a49dc7043759e2c8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 27 17:25:28 2019 +0100
+
+    doc: add 1.10.8 and 1.11.5 to the releases list
+    
+    Fixes #30431
+    
+    Change-Id: I379e78a1c385942a19e1a10b91d732f9a73899e6
+    Reviewed-on: https://go-review.googlesource.com/c/164041
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

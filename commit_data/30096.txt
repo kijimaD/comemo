@@ -1,0 +1,18 @@
+commit 6aee6b895c219300c9c089b79f81c80f0e468dd7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 4 14:05:20 2017 -0800
+
+    runtime: remove markBits.clearMarkedNonAtomic
+    
+    It's not used, it's never been used, and it doesn't do what its doc
+    comment says it does.
+    
+    Fixes #18941.
+    
+    Change-Id: Ia89d97fb87525f5b861d7701f919e0d6b7cbd376
+    Reviewed-on: https://go-review.googlesource.com/36322
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mbitmap.go | 5 -----
+ 1 file changed, 5 deletions(-)

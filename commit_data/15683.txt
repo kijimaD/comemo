@@ -1,0 +1,14 @@
+commit f0396caf12abe7abb4ac6e29a743f0f6246f8f77
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 11:10:43 2013 -0700
+
+    net/http: add a test verifying header case preservation
+    
+    Fixes #5022
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7712043
+
+ src/pkg/net/http/requestwrite_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

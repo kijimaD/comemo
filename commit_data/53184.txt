@@ -1,0 +1,28 @@
+commit c7aa48ecedf1db2bfad4f50ee2e21d8daa8aa692
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 8 12:45:42 2023 -0700
+
+    cmd/cgo: recognize unsafe.{StringData,SliceData}
+    
+    A simple call to unsafe.StringData can't contain any pointers.
+    
+    When looking for field references, a call to unsafe.StringData or
+    unsafe.SliceData can be treated as a type conversion.
+    
+    In order to make unsafe.SliceData useful, recognize slice expressions
+    when calling C functions.
+    
+    Fixes #59954
+    
+    Change-Id: I08a3ace7882073284c1d46a5210582a2521b0b4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493556
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/cgo/gcc.go                          | 104 +++++++++++++++++++++++++++-
+ src/cmd/cgo/internal/testerrors/ptr_test.go |  24 ++++++-
+ 2 files changed, 124 insertions(+), 4 deletions(-)

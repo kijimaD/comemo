@@ -1,0 +1,15 @@
+commit 5ad3bd99b5f997c55fa7c3d01eeeddc835631ba0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 14:16:53 2016 -0400
+
+    api: sort except.txt
+    
+    Make it easier to find lines and update the file.
+    
+    Change-Id: I9db78ffd7316fbc17c5488e178e23777756d8f47
+    Reviewed-on: https://go-review.googlesource.com/32454
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/except.txt | 182 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 91 insertions(+), 91 deletions(-)

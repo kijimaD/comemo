@@ -1,0 +1,12 @@
+commit 6973e3813f68ff5feed5f4ec7680ad8f1c48b3b0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 16:30:53 2008 -0700
+
+    update golden
+    fix a comment
+    
+    SVN=125405
+
+ src/runtime/runtime.c | 2 +-
+ test/golden.out       | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

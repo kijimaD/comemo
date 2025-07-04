@@ -1,0 +1,29 @@
+commit 59865f1420b2b2c67ac31f88375c142713d1fac9
+Author: Pure White <wu.purewhite@gmail.com>
+Date:   Thu May 26 06:10:56 2022 +0000
+
+    internal/cpu: fix cpu cacheLineSize for arm64 darwin(a.k.a. M1)
+    
+    The existing value for M1 is 64, which is the same as other arm64 cpus.
+    But the correct cacheLineSize for M1 should be 128, which can be
+    verified using the following command:
+    
+    $ sysctl -a hw | grep cachelinesize
+    hw.cachelinesize: 128
+    
+    Fixes #53075
+    
+    Change-Id: Iaa8330010a4499b9b357c70743d55aed6ddb8588
+    GitHub-Last-Rev: df87eb9c503c6bc5220a92ef1bc4c4c89ef4658d
+    GitHub-Pull-Request: golang/go#53076
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408576
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ src/internal/cpu/cpu_arm64.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

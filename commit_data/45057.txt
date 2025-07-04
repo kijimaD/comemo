@@ -1,0 +1,24 @@
+commit 36c5f902f9049b82da50ac66049371830e6de031
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 7 17:47:14 2021 -0700
+
+    cmd/compile/internal/types2: factor out index/slice expr handling
+    
+    First step towards lightening the load of Checker.exprInternal by
+    factoring out the code for index and slice expressions; incl. moving
+    a couple of related methods (Checker.index, Checker.indexedElts).
+    
+    The code for handling index/slice expressions is copied 1:1 but
+    occurrences of "goto Error" are replaced by "x.mode = invalid"
+    followed by a "return".
+    
+    Change-Id: I44048dcc4851dc5e24f5f169c17f536a37a6a676
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308370
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go  | 376 +---------------------------
+ src/cmd/compile/internal/types2/index.go | 405 +++++++++++++++++++++++++++++++
+ 2 files changed, 407 insertions(+), 374 deletions(-)

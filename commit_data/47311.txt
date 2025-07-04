@@ -1,0 +1,22 @@
+commit d3a80c795e9368e9dfac4efb49e3ee041513d24a
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Nov 2 20:44:32 2021 +0100
+
+    net/netip: add Addr.AsSlice() method
+    
+    We have AddrFrom4, AddrFrom6, AddrFromSlice and As4, As6, but we are
+    missing AsSlice, so this commit adds the missing function. It also gets
+    rid of the less ergonomic and inconsistently named IPAddrParts.
+    
+    Updates #49298.
+    
+    Change-Id: I1c6a2c32fc6c69b244ab49765412ffe3bbe7e5c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360874
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/netip.go | 42 +++++++++++++++++-------------------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

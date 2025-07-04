@@ -1,0 +1,17 @@
+commit 0480bfe57f41b4f4746b0f9da2eb72e948b355a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 18 21:19:12 2017 -0700
+
+    runtime: remove handling of indirect key types in evacuate_fastX
+    
+    None of the mapfast key types are indirect.
+    
+    Change-Id: I1fb2682257567ee69504082a6cdad63c99916671
+    Reviewed-on: https://go-review.googlesource.com/59133
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap_fast.go | 36 ++++++------------------------------
+ 1 file changed, 6 insertions(+), 30 deletions(-)

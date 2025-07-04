@@ -1,0 +1,16 @@
+commit bff4b0edcbb6dee476f6f80b3c2e8b634a6aca4d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 8 09:35:19 2023 -0400
+
+    doc/go1.21: more crypto release notes
+    
+    Change-Id: I06981e13b89b3bde8f0d2fc9993240a372fb0457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501815
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.21.html | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

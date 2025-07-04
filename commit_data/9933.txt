@@ -1,0 +1,20 @@
+commit 77fac21e82b94a8c1f481e9eeaafc1bad6db274c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Oct 12 15:59:23 2011 +0200
+
+    runtime: append([]byte, string...)
+    
+    Fixes #2274
+    
+    R=rsc, gri, dsymonds, bradfitz, lvd
+    CC=golang-dev
+    https://golang.org/cl/5149045
+
+ doc/go_spec.html          | 11 +++++--
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/typecheck.c    |  8 +++--
+ src/cmd/gc/walk.c         | 74 +++++++++++++++++++++++++----------------------
+ src/pkg/runtime/slice.c   | 49 +++++++++++++++++++++----------
+ test/append.go            |  5 ++++
+ 7 files changed, 94 insertions(+), 55 deletions(-)

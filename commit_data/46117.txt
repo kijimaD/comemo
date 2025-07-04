@@ -1,0 +1,36 @@
+commit 86ee89225aea2326fd50dbeb233cfc622413a4cf
+Author: Ignacio Hagopian <jsign.uy@gmail.com>
+Date:   Tue Aug 17 23:52:00 2021 +0000
+
+    strings: smarter growth of temporal buffer and avoid copying on return
+    
+    The implementation for single strings had two optimization opportunities:
+    1. Grow the temporary buffer by known size before appending.
+    2. Avoid a full copy of the result since the underlying buffer won't be mutated afterward.
+    Both things were leveraged by using a Builder instead of a byte slice.
+    
+    Relevant benchmark results:
+    
+            name           old time/op    new time/op    delta
+            SingleMatch-8    32.0µs ± 3%    26.1µs ± 3%  -18.41%  (p=0.000 n=9+10)
+    
+            name           old speed      new speed      delta
+            SingleMatch-8   469MB/s ± 3%   574MB/s ± 3%  +22.56%  (p=0.000 n=9+10)
+    
+            name           old alloc/op   new alloc/op   delta
+            SingleMatch-8    81.3kB ± 0%    49.0kB ± 0%  -39.67%  (p=0.000 n=10+10)
+    
+            name           old allocs/op  new allocs/op  delta
+            SingleMatch-8      19.0 ± 0%      11.0 ± 0%  -42.11%  (p=0.000 n=10+10)
+    
+    Change-Id: I23af56a15875206c0ff4ce29a51bec95fd48bb11
+    GitHub-Last-Rev: 403cfc3c2794b5da27792c51999417a2a052b365
+    GitHub-Pull-Request: golang/go#47766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343089
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/strings/replace.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

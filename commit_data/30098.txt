@@ -1,0 +1,21 @@
+commit 91ad2a219445d6df3ddb796d0f44190da24f429d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 9 16:00:02 2016 -0500
+
+    runtime/pprof: add definitions of profile label types
+    
+    This change defines WithLabels, Labels, Label, and ForLabels.
+    This is the first step of the profile labels implemention for go 1.9.
+    
+    Updates #17280
+    
+    Change-Id: I2dfc9aae90f7a4aa1ff7080d5747f0a1f0728e75
+    Reviewed-on: https://go-review.googlesource.com/34198
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go       |  2 +-
+ src/runtime/pprof/label.go      | 77 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/pprof/label_test.go | 82 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+), 1 deletion(-)

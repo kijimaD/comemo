@@ -1,0 +1,24 @@
+commit 88cafe0f58cf7374722a2a98d8919c32bb8795e5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 5 14:20:30 2022 -0500
+
+    net/http: skip TestClientTimeout_h{1,2} on windows/arm and windows/arm64
+    
+    These tests are empirically flaky on the windows/arm and windows/arm64
+    builders, with a consistent (but rare) failure mode.
+    
+    This change skips the test if that particular failure mode is
+    encountered on those platforms; the skip can be removed if and when
+    someone has the time to pin down the root cause.
+    
+    For #43120
+    
+    Change-Id: Ie3a9a06bf47e3a907c7b07441acc1494a4631135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375635
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/client_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

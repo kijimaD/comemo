@@ -1,0 +1,14 @@
+commit 3c64c86412995e1e07424951551cd40d8cc0a2ad
+Author: Veselkov Konstantin <kostozyb@gmail.com>
+Date:   Fri Apr 6 22:54:29 2018 +0400
+
+    time: simplify comparison in test
+    
+    Found using go-simple.
+    
+    Change-Id: I349e80a8c083688539bb4267564f02e3d7913da5
+    Reviewed-on: https://go-review.googlesource.com/105195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/sleep_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

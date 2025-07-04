@@ -1,0 +1,22 @@
+commit 0e3d0c9581d1d31a94f5c70a528ff0bdba5c523d
+Author: Vojtěch Boček <vojtech.bocek@avast.com>
+Date:   Wed Jun 15 09:36:27 2022 +0000
+
+    syscall: clarify Pdeathsig documentation on Linux
+    
+    This is a rather large footgun, so let's mention that it sends the signal on thread termination and not process termination in the documentation.
+    
+    Updates #27505
+    
+    Change-Id: I489cf7136e34a1a7896067ae24187b0d523d987e
+    GitHub-Last-Rev: c8722b25d1fb8b0b3696257ec7e955eb421f15a6
+    GitHub-Pull-Request: golang/go#53365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412114
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/exec_linux.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

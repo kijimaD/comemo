@@ -1,0 +1,87 @@
+commit 17db6e042066e167f38513c06509c5043dcad002
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 4 16:55:31 2015 -0400
+
+    runtime: use heap scan size as estimate of GC scan work
+    
+    Currently, the GC uses a moving average of recent scan work ratios to
+    estimate the total scan work required by this cycle. This is in turn
+    used to compute how much scan work should be done by mutators when
+    they allocate in order to perform all expected scan work by the time
+    the allocated heap reaches the heap goal.
+    
+    However, our current scan work estimate can be arbitrarily wrong if
+    the heap topography changes significantly from one cycle to the
+    next. For example, in the go1 benchmarks, at the beginning of each
+    benchmark, the heap is dominated by a 256MB no-scan object, so the GC
+    learns that the scan density of the heap is very low. In benchmarks
+    that then rapidly allocate pointer-dense objects, by the time of the
+    next GC cycle, our estimate of the scan work can be too low by a large
+    factor. This in turn lets the mutator allocate faster than the GC can
+    collect, allowing it to get arbitrarily far ahead of the scan work
+    estimate, which leads to very long GC cycles with very little mutator
+    assist that can overshoot the heap goal by large margins. This is
+    particularly easy to demonstrate with BinaryTree17:
+    
+    $ GODEBUG=gctrace=1 ./go1.test -test.bench BinaryTree17
+    gc #1 @0.017s 2%: 0+0+0+0+0 ms clock, 0+0+0+0/0/0+0 ms cpu, 4->262->262 MB, 4 MB goal, 1 P
+    gc #2 @0.026s 3%: 0+0+0+0+0 ms clock, 0+0+0+0/0/0+0 ms cpu, 262->262->262 MB, 524 MB goal, 1 P
+    testing: warning: no tests to run
+    PASS
+    BenchmarkBinaryTree17   gc #3 @1.906s 0%: 0+0+0+0+7 ms clock, 0+0+0+0/0/0+7 ms cpu, 325->325->287 MB, 325 MB goal, 1 P (forced)
+    gc #4 @12.203s 20%: 0+0+0+10067+10 ms clock, 0+0+0+0/2523/852+10 ms cpu, 430->2092->1950 MB, 574 MB goal, 1 P
+           1       9150447353 ns/op
+    
+    Change this estimate to instead use the *current* scannable heap
+    size. This has the advantage of being based solely on the current
+    state of the heap, not on past densities or reachable heap sizes, so
+    it isn't susceptible to falling behind during these sorts of phase
+    changes. This is strictly an over-estimate, but it's better to
+    over-estimate and get more assist than necessary than it is to
+    under-estimate and potentially spiral out of control. Experiments with
+    scaling this estimate back showed no obvious benefit for mutator
+    utilization, heap size, or assist time.
+    
+    This new estimate has little effect for most benchmarks, including
+    most go1 benchmarks, x/benchmarks, and the 6g benchmark. It has a huge
+    effect for benchmarks that triggered the bad pacer behavior:
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            10.0s × (1.00,1.00)    3.5s × (0.98,1.01)  -64.93% (p=0.000)
+    Fannkuch11              2.74s × (1.00,1.01)   2.65s × (1.00,1.00)   -3.52% (p=0.000)
+    FmtFprintfEmpty        56.4ns × (0.99,1.00)  57.8ns × (1.00,1.01)   +2.43% (p=0.000)
+    FmtFprintfString        187ns × (0.99,1.00)   185ns × (0.99,1.01)   -1.19% (p=0.010)
+    FmtFprintfInt           184ns × (1.00,1.00)   183ns × (1.00,1.00)  (no variance)
+    FmtFprintfIntInt        321ns × (1.00,1.00)   315ns × (1.00,1.00)   -1.80% (p=0.000)
+    FmtFprintfPrefixedInt   266ns × (1.00,1.00)   263ns × (1.00,1.00)   -1.22% (p=0.000)
+    FmtFprintfFloat         353ns × (1.00,1.00)   353ns × (1.00,1.00)   -0.13% (p=0.035)
+    FmtManyArgs            1.21µs × (1.00,1.00)  1.19µs × (1.00,1.00)   -1.33% (p=0.000)
+    GobDecode              9.69ms × (1.00,1.00)  9.59ms × (1.00,1.00)   -1.07% (p=0.000)
+    GobEncode              7.89ms × (0.99,1.01)  7.74ms × (1.00,1.00)   -1.92% (p=0.000)
+    Gzip                    391ms × (1.00,1.00)   392ms × (1.00,1.00)     ~    (p=0.522)
+    Gunzip                 97.1ms × (1.00,1.00)  97.0ms × (1.00,1.00)   -0.10% (p=0.000)
+    HTTPClientServer       55.7µs × (0.99,1.01)  56.7µs × (0.99,1.01)   +1.81% (p=0.001)
+    JSONEncode             19.1ms × (1.00,1.00)  19.0ms × (1.00,1.00)   -0.85% (p=0.000)
+    JSONDecode             66.8ms × (1.00,1.00)  66.9ms × (1.00,1.00)     ~    (p=0.288)
+    Mandelbrot200          4.13ms × (1.00,1.00)  4.12ms × (1.00,1.00)   -0.08% (p=0.000)
+    GoParse                3.97ms × (1.00,1.01)  4.01ms × (1.00,1.00)   +0.99% (p=0.000)
+    RegexpMatchEasy0_32     114ns × (1.00,1.00)   115ns × (0.99,1.00)     ~    (p=0.070)
+    RegexpMatchEasy0_1K     376ns × (1.00,1.00)   376ns × (1.00,1.00)     ~    (p=0.900)
+    RegexpMatchEasy1_32    94.9ns × (1.00,1.00)  96.3ns × (1.00,1.01)   +1.53% (p=0.001)
+    RegexpMatchEasy1_1K     568ns × (1.00,1.00)   567ns × (1.00,1.00)   -0.22% (p=0.001)
+    RegexpMatchMedium_32    159ns × (1.00,1.00)   159ns × (1.00,1.00)     ~    (p=0.178)
+    RegexpMatchMedium_1K   46.4µs × (1.00,1.00)  46.6µs × (1.00,1.00)   +0.29% (p=0.000)
+    RegexpMatchHard_32     2.37µs × (1.00,1.00)  2.37µs × (1.00,1.00)     ~    (p=0.722)
+    RegexpMatchHard_1K     71.1µs × (1.00,1.00)  71.2µs × (1.00,1.00)     ~    (p=0.229)
+    Revcomp                 565ms × (1.00,1.00)   562ms × (1.00,1.00)   -0.52% (p=0.000)
+    Template               81.0ms × (1.00,1.00)  80.2ms × (1.00,1.00)   -0.97% (p=0.000)
+    TimeParse               380ns × (1.00,1.00)   380ns × (1.00,1.00)     ~    (p=0.148)
+    TimeFormat              405ns × (0.99,1.00)   385ns × (0.99,1.00)   -5.00% (p=0.000)
+    
+    Change-Id: I11274158bf3affaf62662e02de7af12d5fb789e4
+    Reviewed-on: https://go-review.googlesource.com/9696
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 53 +++++++++++++++--------------------------------------
+ 1 file changed, 15 insertions(+), 38 deletions(-)

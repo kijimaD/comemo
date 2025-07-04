@@ -1,0 +1,38 @@
+commit fac5338a6c788df948edafa055ed998c46ba545e
+Author: TomCao New Macbook Pro <jiepengthegreat@126.com>
+Date:   Tue Sep 27 04:18:15 2022 +0000
+
+    all: replace [0-9] with \d in regexps
+    
+    1. replace [0-9] with \d in regexps
+    2. replace [a-zA-Z0-9_] with \w in regexps
+    
+    Change-Id: I9e260538252a0c1071e76aeb1c5f885c6843a431
+    GitHub-Last-Rev: 286e1a4619c4bdda7f461afbd6d30b9f312c0486
+    GitHub-Pull-Request: golang/go#54874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go        | 2 +-
+ src/cmd/cgo/out.go                               | 2 +-
+ src/cmd/compile/internal/amd64/versions_test.go  | 4 ++--
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 4 ++--
+ src/cmd/compile/internal/ssa/debug_test.go       | 6 +++---
+ src/cmd/compile/internal/types/goversion.go      | 2 +-
+ src/cmd/dist/test.go                             | 2 +-
+ src/cmd/go/internal/work/exec.go                 | 2 +-
+ src/cmd/go/script_test.go                        | 2 +-
+ src/cmd/link/internal/ld/stackcheck_test.go      | 4 ++--
+ src/cmd/link/internal/wasm/asm.go                | 2 +-
+ src/cmd/vet/vet_test.go                          | 2 +-
+ src/go/internal/gccgoimporter/importer_test.go   | 2 +-
+ src/go/types/check_test.go                       | 2 +-
+ src/go/types/example_test.go                     | 2 +-
+ src/go/types/version.go                          | 2 +-
+ test/run.go                                      | 4 ++--
+ 17 files changed, 23 insertions(+), 23 deletions(-)

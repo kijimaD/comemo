@@ -1,0 +1,12 @@
+commit 40b7e814e5ed24227492900f2aa8f5d8865ea5a7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 2 15:18:33 2012 +1100
+
+    godoc: update metadata in appinit.go
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5619050
+
+ src/cmd/godoc/appinit.go | 3 +++
+ 1 file changed, 3 insertions(+)

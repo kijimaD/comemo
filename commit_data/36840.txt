@@ -1,0 +1,45 @@
+commit 9f78aa77443389d61a3ef910a1c3d4628999d82c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 14:54:43 2018 +0200
+
+    runtime: add AIX operating system
+    
+    This commit adds AIX operating system to runtime package for ppc64
+    architecture.
+    
+    Only new files and minor changes are in this commit. Others
+    modifications in files like asm_ppc64.s  will be in separate commits.
+    
+    Updates: #25893
+    
+    Change-Id: I9c5e073f5f3debb43b004ad1167694a5afd31cfd
+    Reviewed-on: https://go-review.googlesource.com/c/138716
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_unix_test.go   |   2 +-
+ src/runtime/defs_aix.go          | 170 ++++++++++++++
+ src/runtime/defs_aix_ppc64.go    | 203 +++++++++++++++++
+ src/runtime/env_posix.go         |   2 +-
+ src/runtime/export_unix_test.go  |   2 +-
+ src/runtime/lock_sema.go         |   2 +-
+ src/runtime/mem_aix.go           |  74 ++++++
+ src/runtime/mmap.go              |   1 +
+ src/runtime/netpoll.go           |   6 +-
+ src/runtime/netpoll_aix.go       | 247 ++++++++++++++++++++
+ src/runtime/os2_aix.go           | 479 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_aix.go            | 262 +++++++++++++++++++++
+ src/runtime/proc.go              |   4 +-
+ src/runtime/rt0_aix_ppc64.s      |  40 ++++
+ src/runtime/runtime_unix_test.go |   2 +-
+ src/runtime/signal_aix_ppc64.go  |  85 +++++++
+ src/runtime/signal_ppc64x.go     |   2 +-
+ src/runtime/signal_sighandler.go |   2 +-
+ src/runtime/signal_unix.go       |   2 +-
+ src/runtime/sigtab_aix.go        | 264 +++++++++++++++++++++
+ src/runtime/stubs2.go            |   1 +
+ src/runtime/stubs3.go            |   1 +
+ src/runtime/sys_aix_ppc64.s      | 201 ++++++++++++++++
+ src/runtime/timestub2.go         |   1 +
+ 24 files changed, 2042 insertions(+), 13 deletions(-)

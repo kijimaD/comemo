@@ -1,0 +1,47 @@
+commit 167e381f405d36f71ef152e45bb845b866592c80
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 14 10:01:05 2016 -0700
+
+    cmd/compile: make ssa compilation unconditional
+    
+    Rip out the code that allows SSA to be used conditionally.
+    
+    No longer exists:
+     ssa=0 flag
+     GOSSAHASH
+     GOSSAPKG
+     SSATEST
+    
+    GOSSAFUNC now only controls the printing of the IR/html.
+    
+    Still need to rip out all of the old backend.  It should no longer be
+    callable after this CL.
+    
+    Update #16357
+    
+    Change-Id: Ib30cc18fba6ca52232c41689ba610b0a94aa74f5
+    Reviewed-on: https://go-review.googlesource.com/29155
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go       |  10 +-
+ src/cmd/compile/internal/arm/ssa.go         |   8 +-
+ src/cmd/compile/internal/arm64/ssa.go       |   8 +-
+ src/cmd/compile/internal/gc/main.go         |   1 -
+ src/cmd/compile/internal/gc/pgen.go         |  82 +---------------
+ src/cmd/compile/internal/gc/ssa.go          | 144 +++++-----------------------
+ src/cmd/compile/internal/mips64/ssa.go      |   8 +-
+ src/cmd/compile/internal/ppc64/ssa.go       |   4 +-
+ src/cmd/compile/internal/s390x/ssa.go       |   8 +-
+ src/cmd/compile/internal/ssa/block.go       |   7 +-
+ src/cmd/compile/internal/ssa/config.go      |  13 +--
+ src/cmd/compile/internal/ssa/decompose.go   |   4 +-
+ src/cmd/compile/internal/ssa/export_test.go |   7 +-
+ src/cmd/compile/internal/ssa/func.go        |   3 -
+ src/cmd/compile/internal/ssa/lower.go       |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go    |   4 +-
+ src/cmd/compile/internal/ssa/value.go       |   3 -
+ src/cmd/compile/internal/x86/ssa.go         |   8 +-
+ 18 files changed, 68 insertions(+), 256 deletions(-)

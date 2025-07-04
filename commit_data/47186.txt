@@ -1,0 +1,19 @@
+commit 0b37bd9b3f7556d31061c6007afca59ffe2642d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 14:07:30 2021 -0700
+
+    net: add BenchmarkWriteToReadFromUDPAddrPort
+    
+    The main item of interest is the allocs.
+    
+    BenchmarkWriteToReadFromUDPAddrPort-8             237735              5152 ns/op              68 B/op          3 allocs/op
+    
+    Change-Id: I5cb3f2e1ebbb02acc51039c2266e99b90d388a99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360598
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/udpsock_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

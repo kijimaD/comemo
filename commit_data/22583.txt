@@ -1,0 +1,25 @@
+commit 6d3a7e79a4660b1ecce8cc9d930c3a9f6222a6f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 17 17:56:58 2015 +0900
+
+    net: clean up cgo
+    
+    This change adds a type addrinfoErrno to represent getaddrinfo,
+    getnameinfo-specific errors, and uses it in cgo-based lookup functions.
+    
+    Also retags cgo files for clarification and does minor cleanup.
+    
+    Change-Id: I6db7130ad7bf35bbd4e8839a97759e1364c43828
+    Reviewed-on: https://go-review.googlesource.com/9020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_android.go |  4 +--
+ src/net/cgo_bsd.go     |  6 ++--
+ src/net/cgo_linux.go   | 16 ++++-----
+ src/net/cgo_netbsd.go  |  4 +--
+ src/net/cgo_openbsd.go |  4 +--
+ src/net/cgo_stub.go    |  8 +++--
+ src/net/cgo_unix.go    | 93 +++++++++++++++++++++++++++++---------------------
+ src/net/cgo_windows.go | 13 +++++++
+ src/net/error_test.go  |  2 +-
+ 9 files changed, 86 insertions(+), 64 deletions(-)

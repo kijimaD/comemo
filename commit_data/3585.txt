@@ -1,0 +1,15 @@
+commit 21b41bec83b3fbeaacf4d36d55dc272db2313386
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 12:10:14 2009 -0700
+
+    test and fix http redirect handling
+    
+    BUG=2197242
+    R=r
+    DELTA=16  (16 added, 0 deleted, 0 changed)
+    OCL=35878
+    CL=35882
+
+ src/pkg/http/client.go       |  1 +
+ src/pkg/http/request_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

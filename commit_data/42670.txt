@@ -1,0 +1,28 @@
+commit 02a7b4b4a70d0574f82776309feaf28f109f5399
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 30 13:48:15 2020 -0400
+
+    cmd/go/internal/modload: don't initialize build cache
+    
+    modload.Init initialized the build cache with the intent of providing
+    a better error message in Go 1.12, when the build cache became
+    mandatory (in module mode, packages aren't installed outside the build
+    cache). Unfortunately, this didn't provide a more descriptive error
+    (the cache calls base.Fatalf with its own message), and it caused
+    errors for commands that don't use the cache (like 'go mod edit').
+    
+    This CL removes the cache initialization from modload.Init. The
+    builder will initialize it when it's needed.
+    
+    For #39882
+    
+    Change-Id: Ibc01ae4e59358dcd08a07ffc97bf556514d0366f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240548
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go                |  7 ----
+ .../go/testdata/script/build_cache_disabled.txt    | 46 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 7 deletions(-)

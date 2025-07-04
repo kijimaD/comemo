@@ -1,0 +1,12 @@
+commit c6f363b22abe905abb5f2c17f4b1356c6c74aef9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 7 09:14:21 2012 -0500
+
+    cmd/gc: fix go:nointerface export comment
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/6815073
+
+ src/cmd/gc/export.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

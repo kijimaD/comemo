@@ -1,0 +1,18 @@
+commit 8c74139cada0b7da5a0914ee0afd75837b6f682d
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 11 14:45:29 2016 -0700
+
+    crypto/tls: fix printing of OpenSSL output when updating a test fails.
+    
+    When updating the test data against OpenSSL, the handshake can fail and
+    the stdout/stderr output of OpenSSL is very useful in finding out why.
+    
+    However, printing that output has been broken for some time because its
+    no longer sent to a byte.Buffer. This change fixes that.
+    
+    Change-Id: I6f846c7dc80f1ccee9fa1be36f0b579b3754e05f
+    Reviewed-on: https://go-review.googlesource.com/30823
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

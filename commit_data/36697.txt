@@ -1,0 +1,32 @@
+commit d24ec86e4f64302e91d8062eabfcd21296bb9b04
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Aug 8 14:44:42 2018 -0700
+
+    runtime: support windows/arm
+    
+    Updates #26148
+    
+    Change-Id: I8f68b2c926c7b11dc86c9664ed7ff2d2f78b64b4
+    Reviewed-on: https://go-review.googlesource.com/128715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/whitelist/windows_386.txt   |    1 -
+ src/cmd/vet/all/whitelist/windows_amd64.txt |    1 -
+ src/runtime/asm_arm.s                       |    4 +
+ src/runtime/defs_windows_386.go             |    3 +
+ src/runtime/defs_windows_amd64.go           |    3 +
+ src/runtime/defs_windows_arm.go             |  149 +
+ src/runtime/os_windows.go                   |   30 +-
+ src/runtime/os_windows_arm.go               |   18 +
+ src/runtime/rt0_windows_arm.s               |   12 +
+ src/runtime/signal_windows.go               |   10 +-
+ src/runtime/sys_windows_arm.s               |  605 ++++
+ src/runtime/syscall_windows.go              |   24 +-
+ src/runtime/tls_arm.s                       |   43 +-
+ src/runtime/wincallback.go                  |   42 +-
+ src/runtime/zcallback_windows.go            |    2 +-
+ src/runtime/zcallback_windows.s             |    4 +-
+ src/runtime/zcallback_windows_arm.s         | 4012 +++++++++++++++++++++++++++
+ 17 files changed, 4942 insertions(+), 21 deletions(-)

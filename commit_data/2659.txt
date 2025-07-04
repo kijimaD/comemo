@@ -1,0 +1,17 @@
+commit 76fef1deec729e948053cb033d5c7ae2b05fa098
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Jul 9 17:10:12 2009 -0700
+
+    Process tracing interface.
+    
+    This is meant to be implemented per platform and used by
+    higher-level debugging libraries.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=211  (211 added, 0 deleted, 0 changed)
+    OCL=31003
+    CL=31423
+
+ usr/austin/process.go | 215 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 215 insertions(+)

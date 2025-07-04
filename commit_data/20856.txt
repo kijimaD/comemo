@@ -1,0 +1,13 @@
+commit 908dcab6f854503a4616b6a20aa1e9eba9ecea66
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 6 15:22:29 2014 +1100
+
+    bufio: remove unused 'panicked' variable from test
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/166230044
+
+ src/bufio/scan_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

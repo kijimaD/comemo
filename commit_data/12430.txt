@@ -1,0 +1,14 @@
+commit aeefe0fa6e667c3c9c26d6fc9dd8c7b3281d51ac
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 08:14:12 2012 +1100
+
+    path/filepath: disable AbsTest on windows
+    SameFile has a bug.
+    
+    R=golang-dev
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/5754055
+
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

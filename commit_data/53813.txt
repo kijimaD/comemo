@@ -1,0 +1,23 @@
+commit 42d2dfb4305aecb3a6e5494db6b8f6e48a09b420
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Thu Jul 27 01:21:48 2023 +0000
+
+    reflect: add TypeFor
+    
+    Fixes #60088
+    
+    Change-Id: I7b43d329def22c2524501ba1d6bfc73becc823d1
+    GitHub-Last-Rev: becd714c4562da4a3280c3a56ebaf246e48e9f37
+    GitHub-Pull-Request: golang/go#61598
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513478
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ api/next/60088.txt       |  1 +
+ src/reflect/type.go      |  5 +++++
+ src/reflect/type_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+)

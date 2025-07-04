@@ -1,0 +1,21 @@
+commit 66330d8c6c0a23b7eb48688f9954264e48b039da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 23:20:20 2016 +0000
+
+    go/types: rename Importer2 to ImporterFrom
+    
+    Per https://groups.google.com/forum/#!topic/golang-dev/javNmryAh0I
+    
+    Change-Id: I08d7cbc94da4fc61c848f3dbee4637bf8fcfeb01
+    Reviewed-on: https://go-review.googlesource.com/18630
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ api/go1.6.txt                 |  4 ++++
+ src/go/importer/importer.go   | 10 +++++-----
+ src/go/types/api.go           | 28 ++++++++++++++--------------
+ src/go/types/resolver.go      |  6 +++---
+ src/go/types/resolver_test.go |  8 ++++----
+ 5 files changed, 30 insertions(+), 26 deletions(-)

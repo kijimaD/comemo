@@ -1,0 +1,15 @@
+commit 4f42a9b76b2ca2c261a4afec986b9518a61626ee
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Nov 21 14:48:26 2020 +0800
+
+    net: add note about disabling loopback in ListenMulticastUDP()
+    
+    Fixes #41752
+    
+    Change-Id: I83520d2303e5fd2e5f6329f092b40e73c13771a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271908
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/udpsock.go | 3 +++
+ 1 file changed, 3 insertions(+)

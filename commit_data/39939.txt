@@ -1,0 +1,17 @@
+commit eb6ce1cff479b002712b1d587edba062146ed040
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 17 16:33:54 2019 -0400
+
+    cmd/go: support -trimpath with gccgo
+    
+    Fixes #32162
+    
+    Change-Id: I164665108fa8ae299229054bded82cb3b027bccb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196023
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/gccgo.go             |  9 +++++-
+ src/cmd/go/testdata/script/build_trimpath.txt | 43 +++++++++++++++++++--------
+ 2 files changed, 38 insertions(+), 14 deletions(-)

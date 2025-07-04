@@ -1,0 +1,30 @@
+commit 4f852b9734249c063928b34a02dd689e03a8ab2c
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Aug 28 20:32:37 2024 +0000
+
+    cmd: vendor golang.org/x/telemetry@a797f33
+    
+    Update x/telemetry to fix #68976 and #68946.
+    
+    Commands run:
+      go get golang.org/x/telemetry@a797f33
+      go mod tidy
+      go mod vendor
+    
+    Fixes #68946
+    Fixes #68946
+    
+    Change-Id: I321ce609b41ef210a19150dce1f07b204e7c118e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609237
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/go.mod                                      |  2 +-
+ src/cmd/go.sum                                      |  4 ++--
+ .../x/telemetry/internal/configstore/download.go    | 11 +++++++++++
+ .../x/telemetry/internal/crashmonitor/monitor.go    |  4 ++--
+ .../golang.org/x/telemetry/internal/upload/run.go   | 21 ++++++++++++++++++---
+ src/cmd/vendor/golang.org/x/telemetry/start.go      | 19 ++++++++++++++-----
+ src/cmd/vendor/modules.txt                          |  2 +-
+ 7 files changed, 49 insertions(+), 14 deletions(-)

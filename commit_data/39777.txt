@@ -1,0 +1,14 @@
+commit ea2fb678c0c0af7be23e0149532f1cd9c8858cdf
+Author: Andrew <andybons@golang.org>
+Date:   Mon Sep 2 16:33:07 2019 -0400
+
+    doc: document Go 1.13
+    
+    Change-Id: Icf7e1dab82aa48cc693eb4da8a564dff23312741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192745
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

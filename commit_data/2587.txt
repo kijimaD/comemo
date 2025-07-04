@@ -1,0 +1,13 @@
+commit 8a1bfe89b277383ea26f887432c44f8fbe1a315d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 3 13:33:00 2009 -0700
+
+    change bug163 to use actual non-letter in identifier
+    
+    R=r,iant
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31146
+    CL=31148
+
+ test/fixedbugs/bug163.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

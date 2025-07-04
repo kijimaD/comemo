@@ -1,0 +1,23 @@
+commit 13c912d19252b9225fa96b9a5557575bbaffb570
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jan 7 12:22:24 2022 -0800
+
+    cmd/compile: in typ0(), load base type before checking s.Def
+    
+    The loading of the base type in typ0() may cause s.Def to be defined for
+    the instantiated type, so load the base type before checking s.Def.
+    
+    Fixes #50486
+    
+    Change-Id: Ic039bc8f774dda534f4ccd1f920220b7a10dede6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377094
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/types.go     | 13 +++--
+ test/typeparam/issue50486.dir/goerror_fp.go | 75 +++++++++++++++++++++++++++++
+ test/typeparam/issue50486.dir/main.go       | 16 ++++++
+ test/typeparam/issue50486.go                |  7 +++
+ 4 files changed, 107 insertions(+), 4 deletions(-)

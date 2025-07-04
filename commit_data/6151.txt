@@ -1,0 +1,12 @@
+commit f8a67d79d19776efd43dc36d597bb3cbfdb779f3
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Wed Sep 1 15:15:37 2010 -0700
+
+    Fix incorrect reporting of error in Scanner.next() when Read reads > 0 bytes but returns os.EOF.
+    
+    R=golang-dev, gri1, gri
+    CC=golang-dev
+    https://golang.org/cl/2083042
+
+ src/pkg/scanner/scanner.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

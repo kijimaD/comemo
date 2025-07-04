@@ -1,0 +1,17 @@
+commit 3153395ed0d358fd0e4887bbe24c751cf4df32e5
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Oct 13 22:58:19 2011 -0400
+
+    crypto/tls: fetch root CA from Windows store
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5281044
+
+ src/pkg/crypto/tls/Makefile               |   2 +-
+ src/pkg/crypto/tls/root_windows.go        |  55 ++++++++
+ src/pkg/syscall/syscall_windows.go        |   3 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 223 ++++++++++++++++++------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 223 ++++++++++++++++++------------
+ src/pkg/syscall/ztypes_windows.go         |   8 ++
+ 6 files changed, 329 insertions(+), 185 deletions(-)

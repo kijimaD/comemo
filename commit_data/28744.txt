@@ -1,0 +1,25 @@
+commit 9927f25d711ec7aa0876e33e3bd174e09cc032bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:45:30 2016 -0400
+
+    math/big: test and optimize Exp(2, y, n) for large y, odd n
+    
+    The Montgomery multiply code is applicable to this case
+    but was being bypassed. Don't do that.
+    
+    The old test len(x) > 1 was really just a bad approximation to x > 1.
+    
+    name    old time/op  new time/op  delta
+    Exp-8   5.56ms ± 4%  5.73ms ± 3%     ~     (p=0.095 n=5+5)
+    Exp2-8  7.59ms ± 1%  5.66ms ± 1%  -25.40%  (p=0.008 n=5+5)
+    
+    This comes up especially when doing Fermat (Miller-Rabin)
+    primality tests with base 2.
+    
+    Change-Id: I4cc02978db6dfa93f7f3c8f32718e25eedb4f5ed
+    Reviewed-on: https://go-review.googlesource.com/30708
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/int_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/math/big/nat.go      |  2 +-
+ 2 files changed, 34 insertions(+), 1 deletion(-)

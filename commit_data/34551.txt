@@ -1,0 +1,19 @@
+commit 031f71efdf1fd72322247a92c2d1a56eac16fd45
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 9 08:24:10 2018 -0800
+
+    runtime: add TestSizeof
+    
+    Borrowed from cmd/compile, TestSizeof ensures
+    that the size of important types doesn't change unexpectedly.
+    It also helps reviewers see the impact of intended changes.
+    
+    Change-Id: If57955f0c3e66054de3f40c6bba585b88694c7be
+    Reviewed-on: https://go-review.googlesource.com/99837
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/sizeof_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

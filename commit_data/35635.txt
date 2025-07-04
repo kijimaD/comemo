@@ -1,0 +1,24 @@
+commit abeac0912a037ac557861e6522204627585d6517
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Jun 8 10:14:29 2018 +0200
+
+    cmd/cover: fix TestCoverHTML on Plan 9
+    
+    CL 116975 added TestCoverHTML. However, this test is failing
+    on Plan 9, because the GNU diff tool is called "ape/diff"
+    instead of "diff" on Plan 9.
+    
+    This change replaces the "diff" command by the "ape/diff"
+    command on Plan 9.
+    
+    Fixes #25795.
+    
+    Change-Id: I15b49868cd09f3f977aa13fffdfc430c882bf757
+    Reviewed-on: https://go-review.googlesource.com/117415
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

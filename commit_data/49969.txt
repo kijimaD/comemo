@@ -1,0 +1,68 @@
+commit 38edd9bd8da9d7fc7beeba5fd4fd9d605457b04e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 6 16:40:56 2022 -0700
+
+    cmd/compile/internal/noder: shape-based stenciling for unified IR
+    
+    This CL switches unified IR to use shape-based stenciling with runtime
+    dictionaries, like the existing non-unified frontend. Specifically,
+    when instantiating generic functions and types `X[T]`, we now also
+    instantiated shaped variants `X[shapify(T)]` that can be shared by
+    `T`'s with common underlying types.
+    
+    For example, for generic function `F`, `F[int](args...)` will be
+    rewritten to `F[go.shape.int](&.dict.F[int], args...)`.
+    
+    For generic type `T` with method `M` and value `t` of type `T[int]`,
+    `t.M(args...)` will be rewritten to `T[go.shape.int].M(t,
+    &.dict.T[int], args...)`.
+    
+    Two notable distinctions from the non-unified frontend:
+    
+    1. For simplicity, currently shaping is limited to simply converting
+    type arguments to their underlying type. Subsequent CLs will implement
+    more aggressive shaping.
+    
+    2. For generic types, a single dictionary is generated to be shared by
+    all methods, rather than separate dictionaries for each method. I
+    originally went with this design because I have an idea of changing
+    interface calls to pass the itab pointer via the closure
+    register (which should have zero overhead), and then the interface
+    wrappers for generic methods could use the *runtime.itab to find the
+    runtime dictionary that corresponds to the dynamic type. This would
+    allow emitting fewer method wrappers.
+    
+    However, this choice does have the consequence that currently even if
+    a method is unused and its code is pruned by the linker, it may have
+    produced runtime dictionary entries that need to be kept alive anyway.
+    
+    I'm open to changing this to generate per-method dictionaries, though
+    this would require changing the unified IR export data format; so it
+    would be best to make this decision before Go 1.20.
+    
+    The other option is making the linker smarter about pruning unneeded
+    dictionary entries, like how it already prunes itab entries. For
+    example, the runtime dictionary for `T[int]` could have a `R_DICTTYPE`
+    meta-relocation against symbol `.dicttype.T[go.shape.int]` that
+    declares it's a dictionary associated with that type; and then each
+    method on `T[go.shape.T]` could have `R_DICTUSE` meta-relocations
+    against `.dicttype.T[go.shape.T]+offset` indicating which fields
+    within dictionaries of that type need to be preserved.
+    
+    Change-Id: I369580b1d93d19640a4b5ecada4f6231adcce3fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421821
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../compile/internal/devirtualize/devirtualize.go  |   35 +
+ src/cmd/compile/internal/noder/reader.go           | 1257 ++++++++++++++++----
+ src/cmd/compile/internal/noder/unified.go          |   56 +-
+ src/cmd/compile/internal/noder/writer.go           |  339 +++++-
+ src/cmd/compile/internal/ssa/debug_lines_test.go   |    4 +-
+ src/cmd/compile/internal/typecheck/subr.go         |    5 +
+ src/cmd/compile/internal/walk/convert.go           |    9 +-
+ test/typeparam/nested.go                           |   26 +-
+ 8 files changed, 1450 insertions(+), 281 deletions(-)

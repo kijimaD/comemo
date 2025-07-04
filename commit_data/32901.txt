@@ -1,0 +1,23 @@
+commit ed815d0038d42d2c7359cc319babd6b289cedbef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Oct 1 14:39:04 2017 +1100
+
+    cmd/link/internal/ld: reduce the scope of some local declarations
+    
+    Move some local declarations closer to their use, reducing their
+    respective lifetimes. Spotted while reviewing CL 67318.
+    
+    Change-Id: I68db67fe8530344d95e50efb6587bc724e1171f5
+    Reviewed-on: https://go-review.googlesource.com/67370
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go    | 30 ++++++----------
+ src/cmd/link/internal/ld/elf.go     | 31 +++++------------
+ src/cmd/link/internal/ld/go.go      | 19 +++++-----
+ src/cmd/link/internal/ld/ldelf.go   | 69 +++++++++++++++----------------------
+ src/cmd/link/internal/ld/ldmacho.go | 21 +++++------
+ src/cmd/link/internal/ld/macho.go   | 14 +++-----
+ 6 files changed, 67 insertions(+), 117 deletions(-)

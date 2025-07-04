@@ -1,0 +1,14 @@
+commit 1b0bffa9737b906ebf9da3f5062c881431aa6397
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 13:21:15 2013 -0400
+
+    net/http: be clear that HTTPS is supported
+    
+    Fixes #6443.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14231045
+
+ src/pkg/net/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

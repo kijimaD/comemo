@@ -1,0 +1,18 @@
+commit 7ee22139796f8f4a7b588c444c6477a96acbc1ba
+Author: Michael Vogt <mvo@ubuntu.com>
+Date:   Wed May 1 07:52:44 2019 +0000
+
+    net: set DNSError.IsTemporary from addrinfoErrno errors
+    
+    Today it is not possible (AFAICT) to detect if a DNSError if of type EAI_AGAIN, i.e. if it is something temporary that should be retried. This information is available inside addrinfoErrno but when the DNSError is created this information is lost.
+    
+    This PR fixes this so that the addinfoErrno.Temporary information is added to DNSError as well. With that a user who gets a DNSError can check now is its a temporary error (for errors that resulted from a addrinfoErrno this is EAI_AGAIN).
+    
+    Change-Id: I64badb2ebd904e41fc2e0755416f7f32560534d8
+    GitHub-Last-Rev: ced7238a6597039fb23f36f372bd1cf33d60d4a6
+    GitHub-Pull-Request: golang/go#31676
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/cgo_unix.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

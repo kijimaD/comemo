@@ -1,0 +1,23 @@
+commit 4bf4c7d2e2aceeb9fe53642ab1f200064aff8163
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 12:39:32 2023 -0400
+
+    cmd/go: drop unnecessary Package argument to reportCmd
+    
+    Now that we've dropped the redundant Package arguments to many
+    functions, we can see that the Package argument to reportCmd is always
+    nil. That means we can drop it and always use a.Package.
+    
+    For #62067.
+    
+    Change-Id: I2e11e770f495d6f770047993358c76b08204e923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536096
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/cover.go |  4 ++--
+ src/cmd/go/internal/work/exec.go  | 31 +++++++++++++------------------
+ src/cmd/go/internal/work/gc.go    |  2 +-
+ src/cmd/go/internal/work/gccgo.go |  4 ++--
+ 4 files changed, 18 insertions(+), 23 deletions(-)

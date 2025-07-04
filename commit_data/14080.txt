@@ -1,0 +1,27 @@
+commit 0d9474206f2822f8a892a42bc36b2809a6be3184
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 7 18:02:19 2012 -0700
+
+    exp/types/staging: more flexible API, cleanups
+    
+    - Changed Check signature to take function parameters for
+      more flexibility: Now a client can interrupt type checking
+      early (via panic in one the upcalls) once the desired
+      type information or number of errors is reached. Default
+      use is still simple.
+    
+    - Cleaned up main typechecking loops. Now does not neglect
+      _ declarations anymore.
+    
+    - Various other cleanups.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6612049
+
+ src/pkg/exp/types/staging/check.go           | 320 +++++++++++++++------------
+ src/pkg/exp/types/staging/errors.go          |  49 ++--
+ src/pkg/exp/types/staging/gcimporter.go      |   3 +-
+ src/pkg/exp/types/staging/gcimporter_test.go |   3 +-
+ src/pkg/exp/types/staging/types.go           |  21 +-
+ 5 files changed, 212 insertions(+), 184 deletions(-)

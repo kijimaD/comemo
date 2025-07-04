@@ -1,0 +1,20 @@
+commit 8c05d67661c966f5130e51ca685b0c70a5a929ff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 23 18:57:16 2019 +0000
+
+    runtime: make mTreap.find actually find the best fit
+    
+    This change modifies the implementation of mTreap.find to find the
+    best-fit span with the lowest possible base address.
+    
+    Fixes #31616.
+    
+    Change-Id: Ib4bda0f85d7d0590326f939a243a6e4665f37d3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173479
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go   | 25 ++++++++++++++-----------
+ src/runtime/treap_test.go | 12 +++++-------
+ 2 files changed, 19 insertions(+), 18 deletions(-)

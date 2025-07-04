@@ -1,0 +1,23 @@
+commit 1901853098bbe25a1bbedc0ee53c6658d754151e
+Author: Changkun Ou <hi@changkun.de>
+Date:   Sun Feb 7 17:31:12 2021 +0100
+
+    runtime/metrics: fix panic in readingAllMetric example
+    
+    medianBucket can return if the total is greater than thresh.
+    However, if a histogram has no counts, total and thresh
+    will both be zero and cause panic.
+    
+    Adding an equal sign to prevent the potential panic.
+    
+    Fixes #44148
+    
+    Change-Id: Ifb8a781990f490d142ae7c035b4e01d6a07ae04d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290171
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/metrics/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

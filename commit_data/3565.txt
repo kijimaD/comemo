@@ -1,0 +1,16 @@
+commit 222a15c8405bf080a8bcdb2c4405c6742058248f
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 15 19:41:51 2009 -0700
+
+    test/64bit.go passes but doesn't generate properly yet.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=235  (98 added, 38 deleted, 99 changed)
+    OCL=35789
+    CL=35813
+
+ src/cmd/5g/cgen64.c        | 283 ++++++++++++++++++++++++++-------------------
+ src/cmd/5g/gsubr.c         |   5 +-
+ src/pkg/runtime/arm/vlrt.c |  12 +-
+ 3 files changed, 180 insertions(+), 120 deletions(-)

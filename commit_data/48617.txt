@@ -1,0 +1,24 @@
+commit 3334afd7609185574ad179cb030064f0825c2101
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 14 22:36:25 2022 +0000
+
+    runtime: remove old pacer and the PacerRedesign goexperiment
+    
+    Now that Go 1.18 has been released, remove the old pacer.
+    
+    Change-Id: Ie7a7596d67f3fc25d3f375a08fc75eafac2eb834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393396
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/buildcfg/exp.go                       |   1 -
+ src/internal/goexperiment/exp_pacerredesign_off.go |   9 -
+ src/internal/goexperiment/exp_pacerredesign_on.go  |   9 -
+ src/internal/goexperiment/flags.go                 |   6 -
+ src/runtime/export_test.go                         |   4 +-
+ src/runtime/mgc.go                                 |   8 +-
+ src/runtime/mgcmark.go                             |  30 +-
+ src/runtime/mgcpacer.go                            | 577 ++++++---------------
+ src/runtime/mgcpacer_test.go                       |  52 +-
+ 9 files changed, 192 insertions(+), 504 deletions(-)

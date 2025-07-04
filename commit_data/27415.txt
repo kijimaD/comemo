@@ -1,0 +1,14 @@
+commit 5ccd571f3e2798e4afe8affa354351b5055cb20d
+Author: Scott Bell <scott@sctsm.com>
+Date:   Mon May 16 12:51:52 2016 -0700
+
+    crypto/tls: document certificate chains in LoadX509KeyPair
+    
+    Fixes #15348
+    
+    Change-Id: I9e0e1e3a26fa4cd697d2c613e6b4952188b7c7e1
+    Reviewed-on: https://go-review.googlesource.com/23150
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/tls.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

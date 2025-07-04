@@ -1,0 +1,33 @@
+commit 4c5dac72029bb3dd4559a2fafe566bed71f22c42
+Author: korzhao <korzhao95@gmail.com>
+Date:   Wed Aug 2 17:39:09 2023 +0800
+
+    encoding/json: optimize Marshal for maps
+    
+    Optimize marshaling of maps by using slices.SortFunc.
+    
+    This drops an unnecessary field from reflectWithString,
+    which also reduces the cost of each swap operation.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkMarshalMap-10     228           139           -39.24%
+    
+    benchmark                  old allocs     new allocs     delta
+    BenchmarkMarshalMap-10     11             8              -27.27%
+    
+    benchmark                  old bytes     new bytes     delta
+    BenchmarkMarshalMap-10     432           232           -46.30%
+    
+    Change-Id: Ic2ba7a1590863c7536305c6f6536372b26ec9b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515176
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/bench_test.go | 16 ++++++++++++++++
+ src/encoding/json/encode.go     | 42 ++++++++++++++++++++---------------------
+ 2 files changed, 37 insertions(+), 21 deletions(-)

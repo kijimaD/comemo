@@ -1,0 +1,12 @@
+commit a0e57201c7fde56cf8362e9b164b4dd5483dde7f
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Sep 10 16:45:41 2008 -0700
+
+    bug in type of first argument to slice
+    
+    R=r
+    OCL=15113
+    CL=15113
+
+ src/cmd/gc/walk.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit ba10318607fc131a0c53aded88fd3da681b294c9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 19 11:19:11 2013 +1000
+
+    cmd/go: write the WORK=/tmp/... line to stderr
+    Unlike the other output from the -x flag, it was going to stdout.
+    Fixes #6362.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13746044
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

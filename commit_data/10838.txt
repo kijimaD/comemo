@@ -1,0 +1,12 @@
+commit 8fa8ebf834d2027cc598d68f46e0855b94ad63a1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 16 15:52:30 2011 +1100
+
+    go/build: make sure syslist.go is gofmted
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5490051
+
+ src/pkg/go/build/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

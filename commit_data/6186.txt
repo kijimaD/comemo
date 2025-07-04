@@ -1,0 +1,42 @@
+commit d4cc557b0d61ac02d0ff153ecd643867e803ed1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 7 09:57:22 2010 -0400
+
+    runtime: use manual stack for garbage collection
+    
+    Old code was using recursion to traverse object graph.
+    New code uses an explicit stack, cutting the per-pointer
+    footprint to two words during the recursion and avoiding
+    the standard allocator and stack splitting code.
+    
+    in test/garbage:
+    
+    Reduces parser runtime by 2-3%
+    Reduces Peano runtime by 40%
+    Increases tree runtime by 4-5%
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2150042
+
+ src/pkg/runtime/darwin/386/sys.s    |   7 ++
+ src/pkg/runtime/darwin/amd64/sys.s  |   9 +++
+ src/pkg/runtime/darwin/mem.c        |   4 +-
+ src/pkg/runtime/debug.go            |   9 ++-
+ src/pkg/runtime/freebsd/386/sys.s   |   7 ++
+ src/pkg/runtime/freebsd/amd64/sys.s |   9 +++
+ src/pkg/runtime/freebsd/mem.c       |   4 +-
+ src/pkg/runtime/linux/386/sys.s     |  10 +++
+ src/pkg/runtime/linux/amd64/sys.s   |  12 ++-
+ src/pkg/runtime/linux/arm/sys.s     |   8 ++
+ src/pkg/runtime/linux/mem.c         |   4 +-
+ src/pkg/runtime/malloc.h            |   2 +
+ src/pkg/runtime/mcache.c            |   7 +-
+ src/pkg/runtime/mgc0.c              | 154 +++++++++++++++++++++++++-----------
+ src/pkg/runtime/mheap.c             |  12 ++-
+ src/pkg/runtime/nacl/386/sys.s      |   4 +
+ src/pkg/runtime/nacl/mem.c          |   4 +-
+ src/pkg/runtime/runtime.h           |   2 +
+ src/pkg/runtime/tiny/mem.c          |  19 +++--
+ src/pkg/runtime/windows/mem.c       |  14 +++-
+ 20 files changed, 220 insertions(+), 81 deletions(-)

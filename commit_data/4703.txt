@@ -1,0 +1,12 @@
+commit 22a4952bd2dbafb2eda36bfb51bbc4cbda5e564e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 27 13:45:16 2010 -0800
+
+    note that ...T is not yet implemented.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194114
+
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

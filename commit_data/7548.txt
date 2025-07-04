@@ -1,0 +1,18 @@
+commit 4b376ef328c69a803bcb801b122b4bfc270a403d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 23 14:47:22 2011 -0500
+
+    runtime: traceback through active lessstack
+    
+    With this change, a panic trace due to a signal arriving while
+    running on the scheduler stack during a lessstack
+    (a stack unsplit) will trace through the lessstack to show
+    the state of the goroutine that was unsplitting its stack.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4206042
+
+ src/pkg/runtime/amd64/traceback.c | 12 ++++++++++++
+ src/pkg/runtime/arm/traceback.c   | 11 +++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,0 +1,19 @@
+commit 098f059d077d01d9151e2e76901f62a7f2d52fec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 17:47:52 2023 -0500
+
+    runtime: require cgo for cgo gdb test
+    
+    Fixes #64542.
+    
+    Change-Id: Ic0dc37dfefac83fd3aab6dacfec58b8ee9105fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/runtime-gdb_unix_test.go | 1 +
+ 1 file changed, 1 insertion(+)

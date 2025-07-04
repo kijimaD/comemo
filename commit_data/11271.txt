@@ -1,0 +1,16 @@
+commit 7b07310a698bec952fa5f1b9ca64cc92c5de6f0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 19 13:54:31 2012 -0800
+
+    go/parser: expressions may have comments
+    
+    Thanks to 0xE2.0x9A.0x9B for the patch suggestion.
+    
+    Fixes #2739.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5536071
+
+ src/pkg/go/parser/interface.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

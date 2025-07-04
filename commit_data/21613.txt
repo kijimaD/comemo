@@ -1,0 +1,24 @@
+commit ae3229ae5c12a2bfce2961e21c299f286e8b8cb1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 13 14:52:07 2015 -0500
+
+    cmd/ld: always mark tlsg STLSBSS
+    
+    Android apps build again.
+    
+    Defining TLSG in runtime/tls_arm.s gives it the type SNOPTRBSS, so its
+    type was never being set when GOOS=android. I considered modifying the
+    if statement, but I no longer understand the intention of the original
+    change (in d738c6b0cad). We were always setting it before, what
+    platform is this not valid for?
+    
+    Fixes #9829
+    
+    Change-Id: I3eaa4a9590893eff67695797eb22547a170cdbcd
+    Reviewed-on: https://go-review.googlesource.com/4834
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/ld/lib.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

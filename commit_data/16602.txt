@@ -1,0 +1,15 @@
+commit 90352972660db161a04c80ea1bc5f832613592a9
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jun 20 12:14:16 2013 -0400
+
+    crypto/x509: add function to marshal EC private keys.
+    
+    This complements the parsing function that we already have.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10426043
+
+ src/pkg/crypto/x509/sec1.go      | 14 ++++++++++++++
+ src/pkg/crypto/x509/sec1_test.go | 10 +++++++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)

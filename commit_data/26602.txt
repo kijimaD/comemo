@@ -1,0 +1,20 @@
+commit ca72f5f5df62181cfc8043e9064b4f847527ec2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 15:13:26 2016 +1100
+
+    internal/testenv: prefer to find go binary in GOROOT
+    
+    Partial revert of https://golang.org/cl/20967 which
+    I can't reproduce and actually breaks me more.
+    
+    Fixes #14901
+    
+    Change-Id: I8cce443fbd95f5f6f2a5b6a4b9f2faab36167a12
+    Reviewed-on: https://go-review.googlesource.com/21292
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/internal/testenv/testenv.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

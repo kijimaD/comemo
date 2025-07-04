@@ -1,0 +1,14 @@
+commit 4d5ac10f690bbc742a3cbf186ad8f3169a45ee26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 23:33:32 2016 +0000
+
+    cmd/vet: fix test's dependence on perl
+    
+    Change-Id: I774dbd4f90ef271a0969c3c8e65d145669312e3e
+    Reviewed-on: https://go-review.googlesource.com/22745
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ross Light <light@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/vet_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

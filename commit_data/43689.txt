@@ -1,0 +1,16 @@
+commit 974def803ee9fd03a755014dcb62d55105c846f1
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Fri Sep 4 16:56:54 2020 +0800
+
+    go/ast: add test for Filter
+    
+    Change-Id: Ia14659a9c44f9e1504eb88b5693932b9dd4bb286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252939
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/commentmap_test.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

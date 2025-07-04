@@ -1,0 +1,16 @@
+commit 8f7664123087d1800c214b7dc6fb8ea169208ad6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 17 14:03:05 2014 -0700
+
+    net/http/httputil: include Content-Length in DumpResponse output
+    
+    Fixes #5357
+    
+    LGTM=nigeltao
+    R=nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/87910050
+
+ src/pkg/net/http/httputil/dump.go      | 32 +++++++++++---
+ src/pkg/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit fdaf88ea5b7a3bc937e68875d55b5741ecb2f092
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 11 09:01:47 2013 -0700
+
+    cmd/yacc: replace units example with simpler expr example
+    
+    The units example is nice but is covered by the Lucent
+    license, which may be a concern for some people making a
+    commercial source code distribution of Go.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13283045
+
+ src/cmd/yacc/Makefile  |   8 +-
+ src/cmd/yacc/doc.go    |   6 +-
+ src/cmd/yacc/expr.y    | 205 +++++++++++++
+ src/cmd/yacc/units.txt | 576 -------------------------------------
+ src/cmd/yacc/units.y   | 768 -------------------------------------------------
+ 5 files changed, 211 insertions(+), 1352 deletions(-)

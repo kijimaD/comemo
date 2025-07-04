@@ -1,0 +1,40 @@
+commit 6a9c674a09b057a641527ac847cbdf1a3824b753
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 13:21:44 2022 -0700
+
+    runtime: redo heap bitmap
+    
+    [this is a retry of CL 407035 + its revert CL 422395. The content is unchanged]
+    
+    Use just 1 bit per word to record the ptr/nonptr bitmap.
+    Use word-sized operations to manipulate the bitmap, so we can operate
+    on up to 64 ptr/nonptr bits at a time.
+    
+    Use a separate bitmap, one bit per word of the ptr/nonptr bitmap,
+    to encode a no-more-pointers signal. Since we can check 64 ptr/nonptr
+    bits at once, knowing the exact last pointer location is not necessary.
+    
+    As a followon CL, we should make the gcdata bitmap an array of
+    uintptr instead of an array of byte, so we can load 64 bits of it at once.
+    Similarly for the processing of gc programs.
+    
+    Change-Id: Ica5eb622f5b87e647be64f471d67b02732ef8be6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422634
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/test/inl_test.go |    8 +-
+ src/reflect/all_test.go                   |   21 +-
+ src/runtime/cgocall.go                    |   11 +-
+ src/runtime/cgocheck.go                   |   18 +-
+ src/runtime/heapdump.go                   |   20 +-
+ src/runtime/malloc.go                     |   10 +-
+ src/runtime/mbitmap.go                    | 1492 +++++++++--------------------
+ src/runtime/mcache.go                     |    2 +-
+ src/runtime/mcentral.go                   |    2 +-
+ src/runtime/mgcmark.go                    |   31 +-
+ src/runtime/mheap.go                      |   19 +-
+ src/runtime/slice.go                      |    2 +
+ 12 files changed, 520 insertions(+), 1116 deletions(-)

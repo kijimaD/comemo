@@ -1,0 +1,15 @@
+commit 82e2db70f6a08f55dc7c9d216af9642336390eff
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 4 10:52:59 2014 -0800
+
+    spec: s/and/or/ for correctness and parallelism
+    No change to the meaning, just bad writing found by
+    Doug McIlroy.
+    Let's start the new year off with a bang.
+    
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/47110044
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

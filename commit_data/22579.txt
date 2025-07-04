@@ -1,0 +1,12 @@
+commit 223ab4dbcc4f44062e37bbe48be5ea6b1806ace8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 13:34:55 2015 -0700
+
+    doc/go1.5.txt: go generate: add $GOLINE
+    
+    Change-Id: I9968ce162996e71843eeaf9764d216c401427fed
+    Reviewed-on: https://go-review.googlesource.com/9040
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

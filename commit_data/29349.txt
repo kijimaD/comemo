@@ -1,0 +1,16 @@
+commit ced137fad48ad18518cdd4ed3a77e75d5e58c78c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 16:33:33 2016 -0400
+
+    misc/cgo/testsanitizers: skip tests when vm.overcommit_memory=2
+    
+    Fixes #17689.
+    
+    Change-Id: I45a14e6bf4b2647431105f3e0b63b7076b6655d2
+    Reviewed-on: https://go-review.googlesource.com/32635
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

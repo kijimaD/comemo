@@ -1,0 +1,15 @@
+commit ac0ba6707c1655ea4316b41d06571a0303cc60eb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Dec 7 11:33:00 2020 +0100
+
+    doc/go1.16: add missing </a> tag
+    
+    For #40700
+    
+    Change-Id: Ic4e16106cbbe18d0c9efffee81c5234ddeedfd32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275674
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

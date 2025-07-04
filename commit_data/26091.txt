@@ -1,0 +1,15 @@
+commit ed8116989d84ba50f16cf7a88b5c0a44aa650087
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Mar 5 11:14:51 2016 +1100
+
+    compress/flate: remove unused woffset field.
+    
+    Change-Id: Id0a12c76b0a6925f2926d38a1931157f9ef5f650
+    Reviewed-on: https://go-review.googlesource.com/20280
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/inflate.go | 2 --
+ 1 file changed, 2 deletions(-)

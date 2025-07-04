@@ -1,0 +1,22 @@
+commit c2fe6634db08902f078093f3ad9c7fa9cf7bb330
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 7 00:38:15 2012 -0200
+
+    cmd/dist: prevent race on VERSION creation
+    
+    Commands such as "dist version > VERSION" will cause
+    the shell to create an empty VERSION file and set dist's
+    stdout to its fd. dist in turn looks at VERSION and uses
+    its content if available, which is empty at this point.
+    
+    Fix that by ignoring VERSION if it's empty.
+    
+    Also prevent cmdversion from running findgoversion a
+    second time. It was already loaded by init.
+    
+    R=adg, gustavo, rsc
+    CC=golang-dev
+    https://golang.org/cl/5639044
+
+ src/cmd/dist/build.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

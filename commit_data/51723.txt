@@ -1,0 +1,23 @@
+commit 4ff074945a4848cd04c020b7f20ddaa1d78cc548
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 13:36:51 2023 -0800
+
+    cmd/compile: sort liveness variable reports
+    
+    Sort variables before display so that when there are multiple variables
+    to report, they are in a consistent order.
+    
+    Otherwise they are ordered in the order they appear in the fn.Dcl list,
+    which can vary. Particularly, they vary depending on regabi.
+    
+    Change-Id: I0db380f7cbe6911e87177503a4c3b39851ff1b5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462898
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 9 ++++++++-
+ test/live.go                               | 4 ++--
+ test/live_regabi.go                        | 2 +-
+ 3 files changed, 11 insertions(+), 4 deletions(-)

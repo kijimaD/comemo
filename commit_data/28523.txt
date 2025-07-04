@@ -1,0 +1,16 @@
+commit f05cd4cde5f7023b1db23b7499cf9b1a6f3ffdec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 25 12:37:00 2016 -0700
+
+    runtime: simplify conditions testing g.paniconfault
+    
+    Implement a comment by Ralph Corderoy on CL 29754.
+    
+    Change-Id: I22bbede211ddcb8a057f16b4f47d335a156cc8d2
+    Reviewed-on: https://go-review.googlesource.com/29756
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal_unix.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

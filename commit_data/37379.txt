@@ -1,0 +1,18 @@
+commit 8f7173dcdeb1a1c8af885bb2a267674b4f5fbfc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 15:15:02 2018 +0000
+
+    cmd/go: revert "remove unnecessary else conditions"
+    
+    This reverts CL 144137.
+    
+    Reason for revert: The justification for the original commit
+    was that golint said so, but golint is wrong. The code reads
+    more clearly the original way.
+    
+    Change-Id: I960f286ed66fec67aabd953e7b69993f60b00bca
+    Reviewed-on: https://go-review.googlesource.com/c/149339
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/semver/semver.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

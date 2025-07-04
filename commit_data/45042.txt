@@ -1,0 +1,21 @@
+commit 2698be4905c9d54a0d6a7d7d6e90284a9d76b82a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 8 17:41:24 2021 -0400
+
+    runtime: use sigpanic0 on all OSes
+    
+    With the register ABI, it's important to inject sigpanic0 instead of
+    sigpanic so we can set up function entry registers. This was already
+    happening on most OSes. This CL gets the remaining ones.
+    
+    Change-Id: I6bc4d912b6497e03ed54d0a9c1eae8fd099d2cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308930
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/os3_plan9.go      | 2 +-
+ src/runtime/signal_windows.go | 2 +-
+ src/runtime/stubs.go          | 6 ++++--
+ 3 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit 6e33a6376e5bbbfa34c72c34d61abcc3f5891772
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 27 12:24:59 2023 -0500
+
+    cmd/go: use local go cache for cover_statements script test
+    
+    Use a test-local directory for GOCACHE in "cover_statements" script
+    test, as a workaround for issue 64014.
+    
+    For the portion of this test that verifies that caching works
+    correctly, the cache should theoretically always behave
+    reliably/deterministically, however if other tests are concurrently
+    accessing the cache while this test is running, it can lead to cache
+    lookup failures, which manifest as a flaky failure. To avoid such
+    flakes, use a separate isolated GOCACHE for this test.
+    
+    For #64014.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: Ia66798215a75b7c41188ed15920c17b73f40152a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/cover_statements.txt | 8 ++++++++
+ 1 file changed, 8 insertions(+)

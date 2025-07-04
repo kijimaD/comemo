@@ -1,0 +1,12 @@
+commit 691a2d457ab1bf03bd46d4b69e0f93b8993c0055
+Author: spring1843 <yasser@yasser.ca>
+Date:   Sat Feb 2 21:09:55 2019 -0800
+
+    crypto/aes: replace broken extenal link to FIPS 197
+    
+    Change-Id: Ib0a0d04aaaaa3c213fdb8646bd9b7dfdadae40d4
+    Reviewed-on: https://go-review.googlesource.com/c/160831
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/aes/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

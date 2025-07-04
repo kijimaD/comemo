@@ -1,0 +1,17 @@
+commit 25ca686a0bef5da90367964236fec49ce45626e3
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu May 29 16:06:27 2025 -0400
+
+    cmd/compile/internal/noder: begin filling in SectionObj
+    
+    SectionObj has to encode the definition information for each object
+    type, so it will be a bit long.
+    
+    Change-Id: I9b9514d58a284a4e64020f99fd1b2a92f7752338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677377
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/doc.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

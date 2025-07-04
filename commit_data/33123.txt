@@ -1,0 +1,14 @@
+commit 001fe1d57a357225316d67f1516fde9e2c378bb0
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Oct 16 14:40:10 2017 +0900
+
+    net/http/httputil: extract duplicate code as removeConnectionHeaders
+    
+    Change-Id: I50389752dcbf5d058ce11256a414be7955cdb77f
+    Reviewed-on: https://go-review.googlesource.com/71070
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)

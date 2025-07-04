@@ -1,0 +1,26 @@
+commit b963149d4eddaf92d9e2a9d3bf5474c2d0a3b55d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 22 19:09:33 2019 +1000
+
+    net: do not call Windows TransmitFile for large files
+    
+    TransmitFile does not allow for number of bytes that can be
+    transmitted to be larger than 2147483646. See
+    
+    https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
+    
+    for details. So adjust sendFile accordingly.
+    
+    No test added, because this would require creating large file
+    (more than 2GB file).
+    
+    Fixes #33193.
+    
+    Change-Id: I82e0cb104d112264e4ea363bb20b6d02ac30b38e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187037
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/sendfile_windows.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

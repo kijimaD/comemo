@@ -1,0 +1,19 @@
+commit fcc164d783e04fbd330813f8e5622f0e70fe3877
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Feb 14 16:42:51 2015 +0300
+
+    runtime: cleanup chan code
+    
+    Move type definitions from chan1.go to chan.go and select.go.
+    Remove underscores from names.
+    Make c.buf unsafe.Pointer instead of *uint8.
+    
+    Change-Id: I75cf8385bdb9f79eb5a7f7ad319495abbacbe942
+    Reviewed-on: https://go-review.googlesource.com/4900
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/chan.go   |  27 +++++++++---
+ src/runtime/chan1.go  |  61 ---------------------------
+ src/runtime/select.go | 113 +++++++++++++++++++++++++++++++-------------------
+ 3 files changed, 93 insertions(+), 108 deletions(-)

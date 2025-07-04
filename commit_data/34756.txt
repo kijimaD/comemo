@@ -1,0 +1,21 @@
+commit 04e993f953060851adb604c6ccc7c96ef89b8c8d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 29 14:35:57 2018 +0200
+
+    test: update list of escape reasons
+    
+    The escape_because.go test file (which tests the "because" escape
+    explainations printed by `-m -m`) cointains a machine-generated list
+    of all the escape reasons seen in the escape tests.
+    
+    The list appears to be outdated; moreove a new escape reason was added
+    in CL 102895. This change re-generates the list.
+    
+    Change-Id: Idc721c6bbfe9516895b5cf1e6d09b77deda5a3dd
+    Reviewed-on: https://go-review.googlesource.com/103375
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/escape_because.go | 28 ++++++++--------------------
+ 1 file changed, 8 insertions(+), 20 deletions(-)

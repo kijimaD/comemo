@@ -1,0 +1,13 @@
+commit 4fd7a908bb5f904181cf7aaf3bcf6155c6ba5c8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 7 14:52:44 2009 -0700
+
+    do not import testing twice when testing testing.
+    
+    R=r
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=35443
+    CL=35445
+
+ src/cmd/gotest/gotest | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

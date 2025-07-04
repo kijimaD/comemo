@@ -1,0 +1,15 @@
+commit f947c4dcfe6f22e6c92e6e5a170096b518a18448
+Author: Darren Grant <darren.e.grant@gmail.com>
+Date:   Thu Mar 14 16:33:35 2019 -0400
+
+    builtin: spec correction for panic()
+    
+    Upon unrecovered panic and program termination, process exit code is hard-coded
+    to 2, not set to the parameter passed to panic().
+    
+    Change-Id: If64b75493227b4fd69c0bbb529f84e6df2d1b93f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167709
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/builtin/builtin.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

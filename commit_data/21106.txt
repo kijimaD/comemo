@@ -1,0 +1,12 @@
+commit 3b76b017cabb0ea29a184670e081edfe11afb8de
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Sun Dec 28 13:37:44 2014 -0800
+
+    doc: add net/smtp TLSConnectionState note in go1.5.txt
+    
+    Change-Id: Ia18f6ed0fa38dac297fc5fe1ca56e38ec37518ef
+    Reviewed-on: https://go-review.googlesource.com/2152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

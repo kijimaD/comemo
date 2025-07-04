@@ -1,0 +1,31 @@
+commit 7d4cca07d2c6890fb39635aaa5b3b8d902bf2cbf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 12 14:22:16 2017 -0400
+
+    cmd/asm: detect invalid DS form offsets for ppc64x
+    
+    While debugging a recent regression it was discovered that
+    the assembler for ppc64x was not always generating the correct
+    instruction for DS form loads and stores.  When an instruction
+    is DS form then the offset must be a multiple of 4, and if it
+    isn't then bits outside the offset field were being incorrectly
+    set resulting in unexpected and incorrect instructions.
+    
+    This change adds a check to determine when the opcode is DS form
+    and then verifies that the offset is a multiple of 4 before
+    generating the instruction, otherwise logs an error.
+    
+    This also changes a few asm files that were using unaligned offsets
+    for DS form loads and stores.  In the runtime package these were
+    instructions intended to cause a crash so using aligned or unaligned
+    offsets doesn't change that behavior.
+    
+    Change-Id: Ie3a7e1e65dcc9933b54de7a46a054da8459cb56f
+    Reviewed-on: https://go-review.googlesource.com/40476
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  8 ++--
+ src/cmd/internal/obj/ppc64/asm9.go        | 79 +++++++++++++++++++++++++------
+ src/runtime/asm_ppc64x.s                  |  4 +-
+ src/runtime/sys_linux_ppc64x.s            |  6 +--
+ 4 files changed, 73 insertions(+), 24 deletions(-)

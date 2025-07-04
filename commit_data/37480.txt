@@ -1,0 +1,31 @@
+commit 57c8eb92b78785d2bb8303b0ee7a7771d5df1be6
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 10:28:44 2018 -0800
+
+    cmd/compile: remove CLOBBERDEAD experiment
+    
+    This experiment is less effective and less needed since the
+    introduction of stack objects.
+    
+    We can't clobber stack objects because we don't know statically
+    whether they are live or not.
+    
+    We don't really need this experiment that much any more, as it was
+    primarily used to test the complicated ambiguously-live logic in the
+    liveness analysis, which has been removed in favor of stack objects.
+    
+    It is also ~infeasible to maintain once we have safepoints everywhere.
+    
+    Fixes #27326
+    
+    Change-Id: I3bdde480b93dd508d048703055d4586b496176af
+    Reviewed-on: https://go-review.googlesource.com/c/151317
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go  |   4 +-
+ src/cmd/compile/internal/gc/plive.go | 163 +----------------------------------
+ src/cmd/go/internal/work/gc.go       |   2 +-
+ src/cmd/internal/objabi/util.go      |   2 -
+ 4 files changed, 5 insertions(+), 166 deletions(-)

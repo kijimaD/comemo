@@ -1,0 +1,28 @@
+commit 6197104c14dc6e72a368f9b5d3d2a14381f5e456
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Feb 10 14:42:02 2020 -0500
+
+    cmd/go/internal/modfetch/zip_sum_test: remove dead versions
+    
+    * gitlab.com/yumeko/MumbleEmu: the go-import tag now points to
+      gitlab.com/yumeko/mumbleemu, but the module path hasn't changed
+      in go.mod.
+    * github.com/openshift/api: tag v3.9.0 was deleted.
+    * github.com/AlexStocks/log4go: tag v1.0.5 was deleted.
+    * github.com/belogik/goes: repository is no longer available.
+    * llvm.org/llvm: server times out and disconnects after 30-40 mins.
+    
+    Also, fix a typo in an error message.
+    
+    With these versions removed, zip_sum_test passes.
+    
+    Updates #35290
+    
+    Change-Id: Id3bdb8675a5582f88a6ff4c12dd7d1abe31aa56f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218917
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/zip_sum_test/testdata/zip_sums.csv | 5 -----
+ src/cmd/go/internal/modfetch/zip_sum_test/zip_sum_test.go       | 2 +-
+ 2 files changed, 1 insertion(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit e2c7e53dcf0202895ba1e472ff9729fba37251ab
+Author: Nicholas Waples <nwaples@gmail.com>
+Date:   Mon Aug 9 10:25:54 2010 -0400
+
+    asn1 incorrectly encoded signed integers. When determining the
+    encoded length it was not taking into account the sign bit.
+    
+    Fixes #997.
+    
+    R=agl1, gri
+    CC=golang-dev
+    https://golang.org/cl/1870047
+
+ src/pkg/asn1/marshal.go      | 17 ++++++++++++-----
+ src/pkg/asn1/marshal_test.go |  4 ++++
+ 2 files changed, 16 insertions(+), 5 deletions(-)

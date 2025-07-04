@@ -1,0 +1,14 @@
+commit ebb1c8b91262f89d944248a6048bdf35000ede89
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Mon May 31 14:55:30 2010 -0700
+
+    IntVector.Do now takes an f(int), and StringVector.Do now takes an f(string).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1433041
+
+ src/pkg/container/vector/defs.go              |  4 ++--
+ src/pkg/container/vector/intvector_test.go    | 15 ++++++---------
+ src/pkg/container/vector/stringvector_test.go | 21 +++++++++------------
+ 3 files changed, 17 insertions(+), 23 deletions(-)

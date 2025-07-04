@@ -1,0 +1,20 @@
+commit 84ca4949a71554265b3c8a99359a5fad6ca0cab1
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:08:51 2021 +0000
+
+    cmd/compile: remove 8-byte alignment requirement of stack slot on mips64
+    
+    This CL applies CL 267999 to mips64.
+    
+    Updates #42385
+    
+    Change-Id: Ideab21be0d8c1a36b3be7411b24adac70a3d16e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297771
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

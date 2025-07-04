@@ -1,0 +1,12 @@
+commit 9ad03484034fba96cc8979c3dc95f288ce9f3b2f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 21 16:02:39 2012 +1100
+
+    os: remove dead code
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6944066
+
+ src/pkg/os/file_windows.go | 7 -------
+ 1 file changed, 7 deletions(-)

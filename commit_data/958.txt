@@ -1,0 +1,12 @@
+commit e2fa41ab3bf3e6401e51711b3ac30e1c6bea02e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 16:43:12 2008 -0700
+
+    fix JMP main(SB)
+    
+    R=ken
+    OCL=17832
+    CL=17832
+
+ src/cmd/6l/pass.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

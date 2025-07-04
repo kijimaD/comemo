@@ -1,0 +1,35 @@
+commit 77cc7fbc842f221d54a635757eaf88d17fe67971
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Sat Jun 15 18:00:19 2024 -0400
+
+    doc/next: add motivation and details links for range-over-func iterators
+    
+    The "Changes to the language" section at the top of the release notes
+    will likely ultimately include more explanation about iterators, or at
+    least, the Go project will likely publish additional introductory
+    material on iterators on the blog and so on.
+    
+    As a perhaps temporary step given current interest, this CL updates the
+    release notes with two additional links for details and motivation.
+    
+    The new package documentation for the iter package is up-to-date,
+    precise, and also more accessible than the language spec, while the 2022
+    pre-proposal GitHub discussion starts with perhaps the most compelling
+    motivation writeup so far. (We purposefully include "2022" in the text
+    to help illustrate this was not the result of an overly hasty process).
+    
+    We also update the target of the existing language spec reference to be
+    closer to the new material.
+    
+    For #61405.
+    
+    Change-Id: I4bc0f99c40f31edfc5c0e635dca5f844b26b6eeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592935
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/2-language.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

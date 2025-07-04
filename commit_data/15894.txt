@@ -1,0 +1,12 @@
+commit dabe51065c6d77bb975b5aff639bfb4598d6401a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 12:57:34 2013 -0400
+
+    crypto/cipher: fix vet warning
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7973043
+
+ src/pkg/crypto/cipher/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

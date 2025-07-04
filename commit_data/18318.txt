@@ -1,0 +1,19 @@
+commit 20137eb4b9cdb2d71264e502333b1353f29a7e35
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 21 22:55:50 2014 -0500
+
+    cmd/gc: preserve qualified names of unexported methods in imports.
+    
+    Fixes #6295.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/20850043
+
+ src/cmd/gc/dcl.c                   |  2 --
+ test/fixedbugs/issue6295.dir/p0.go | 13 +++++++++++++
+ test/fixedbugs/issue6295.dir/p1.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue6295.dir/p2.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue6295.go        | 10 ++++++++++
+ 5 files changed, 68 insertions(+), 2 deletions(-)

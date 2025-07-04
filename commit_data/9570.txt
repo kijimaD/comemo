@@ -1,0 +1,15 @@
+commit 7c203b8bc1e4958a7e17d0149f7a86f112d123d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 31 17:59:35 2011 -0400
+
+    unsafe: update doc
+    
+    changeset: 8812:3fb3e88d5aa8
+    gc: unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4951051
+
+ src/pkg/unsafe/unsafe.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

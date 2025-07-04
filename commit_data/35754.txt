@@ -1,0 +1,42 @@
+commit 75d15a2082b9a9fcf30344062a6bfb8f4f51d79e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 26 17:35:01 2018 -0400
+
+    crypto: panic on illegal input and output overlap
+    
+    Normalized all panic checks and added inexact aliasing panics across
+    Stream, Block, BlockMode and AEAD implementations.
+    
+    Also, tweaked the aliasing docs of cipher.AEAD, as they did not account
+    for the append nature of the API.
+    
+    Fixes #21624
+    
+    Change-Id: I075c4415f59b3c06e3099bd9f76de6d12af086bf
+    Reviewed-on: https://go-review.googlesource.com/109697
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/aes_gcm.go                        |  15 ++-
+ src/crypto/aes/cbc_s390x.go                      |   4 +
+ src/crypto/aes/cipher.go                         |   7 ++
+ src/crypto/aes/cipher_amd64.go                   |   7 ++
+ src/crypto/aes/cipher_arm64.go                   |   7 ++
+ src/crypto/aes/cipher_ppc64le.go                 |   7 ++
+ src/crypto/aes/cipher_s390x.go                   |   7 ++
+ src/crypto/aes/ctr_s390x.go                      |   9 +-
+ src/crypto/aes/gcm_s390x.go                      |  29 ++++--
+ src/crypto/cipher/cbc.go                         |   8 ++
+ src/crypto/cipher/cfb.go                         |   8 ++
+ src/crypto/cipher/ctr.go                         |   8 ++
+ src/crypto/cipher/gcm.go                         |  23 +++--
+ src/crypto/cipher/ofb.go                         |   8 ++
+ src/crypto/des/cipher.go                         |  47 ++++++++-
+ src/crypto/internal/subtle/aliasing.go           |  34 +++++++
+ src/crypto/internal/subtle/aliasing_appengine.go |  37 +++++++
+ src/crypto/internal/subtle/aliasing_test.go      |  50 ++++++++++
+ src/crypto/rc4/rc4.go                            |   8 +-
+ src/crypto/rc4/rc4_asm.go                        |  10 +-
+ src/go/build/deps_test.go                        | 120 ++++++++++++-----------
+ 21 files changed, 366 insertions(+), 87 deletions(-)

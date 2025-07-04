@@ -1,0 +1,19 @@
+commit 21ac81192483e6b8135cec4c47e6f9fce890fb05
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jul 30 22:57:25 2018 +0200
+
+    internal/cpu: make all constants for s390x feature detection typed
+    
+    Only the first constant in the function and facility
+    constant declaration blocks were typed constants.
+    Make all other constants used for function codes and
+    named facilities also typed.
+    
+    Change-Id: I1814121de3733094da699c78b7311f99ba4772e1
+    Reviewed-on: https://go-review.googlesource.com/126776
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu_s390x.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

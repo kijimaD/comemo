@@ -1,0 +1,19 @@
+commit 8c0f9ed4ce0b56c13fb1e1c52a3f48298775937e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 28 18:03:20 2022 -0500
+
+    doc/go1.20: quote code in Bootstrap and Cgo sections
+    
+    Add code tag for environment variables and file paths in the
+    Bootstrap section.
+    
+    Add code tag for packages in the Cgo section.
+    
+    Change-Id: Ib0fad1c09fbc497a097ef43cbf5850a27b9a6532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453621
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

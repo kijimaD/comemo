@@ -1,0 +1,19 @@
+commit 2d136ae82e68bc820804b6a38262f240ea2bb5cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 13:03:54 2016 -0800
+
+    cmd/compile: correctly parse //line filename:line where filename contains ':'
+    
+    This was a regression from 1.7. See the issue for details.
+    
+    Fixes #18149.
+    
+    Change-Id: Ic8f5a35d14edf9254b1275400316cff7aff32a27
+    Reviewed-on: https://go-review.googlesource.com/33799
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go |  5 +++--
+ test/fixedbugs/issue18149.go         | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

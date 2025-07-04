@@ -1,0 +1,14 @@
+commit 9834a25d338c957e24f0f19236b8bf56addb2e9c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 16 09:43:58 2011 +1100
+
+    testing: trim spaces before comparing example output
+    bytes: add two Buffer examples
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5490048
+
+ src/pkg/bytes/example_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/testing/example.go    |  9 ++++-----
+ 2 files changed, 28 insertions(+), 5 deletions(-)

@@ -1,0 +1,21 @@
+commit b57ac333310e8b8ec01708dcca99430b641457c5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 15 12:49:30 2016 -0700
+
+    cmd/compile: forward-looking desired register biasing
+    
+    Improve forward-looking desired register calculations.
+    It is now inter-block and handles a bunch more cases.
+    
+    Fixes #14504
+    Fixes #14828
+    Fixes #15254
+    
+    Change-Id: Ic240fa0ec6a779d80f577f55c8a6c4ac8c1a940a
+    Reviewed-on: https://go-review.googlesource.com/22160
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 541 ++++++++++++++++++++++++-------
+ 1 file changed, 422 insertions(+), 119 deletions(-)

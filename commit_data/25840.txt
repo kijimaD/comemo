@@ -1,0 +1,15 @@
+commit 3ec0651539d481100b6e735d54072627276f48d3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 23 02:19:25 2016 -0800
+
+    cmd/compile: add copyright notice to util.go
+    
+    util.go was originally added in golang.org/cl/4851, and later moved to
+    its current location in golang.org/cl/10287.
+    
+    Change-Id: I10b4941d42ae1ff2e78990c497c1347bbbae4e3d
+    Reviewed-on: https://go-review.googlesource.com/19851
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/util.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,24 @@
+commit 50f1157760a3357f34520fd74c030dee0c44c8fd
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sun Oct 13 18:51:49 2019 +0800
+
+    cmd/compile: add math/bits.Mul64 intrinsic on mips64x
+    
+    Benchmark:
+    name   old time/op  new time/op  delta
+    Mul    36.0ns ± 1%   2.8ns ± 0%  -92.31%  (p=0.000 n=10+10)
+    Mul32  4.37ns ± 0%  4.37ns ± 0%     ~     (p=0.429 n=6+10)
+    Mul64  36.4ns ± 0%   2.8ns ± 0%  -92.37%  (p=0.000 n=10+9)
+    
+    Change-Id: Ic4f4e5958adbf24999abcee721d0180b5413fca7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200582
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go            |  4 ++--
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 14 ++++++++++++++
+ test/codegen/mathbits.go                      |  2 ++
+ 4 files changed, 19 insertions(+), 2 deletions(-)

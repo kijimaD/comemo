@@ -1,0 +1,13 @@
+commit 29df7bb7ecf311f3c863754fb8215396923a0261
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Aug 9 10:25:53 2011 -0700
+
+    http: add test to serve content in index.html
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4798071
+
+ src/pkg/http/fs_test.go          | 21 +++++++++++++++++++++
+ src/pkg/http/testdata/index.html |  1 +
+ 2 files changed, 22 insertions(+)

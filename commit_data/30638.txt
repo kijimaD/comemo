@@ -1,0 +1,17 @@
+commit 27492a2a549e4e03a6aed93811cdd458ce529e32
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Mar 13 13:56:41 2017 -0500
+
+    cmd/internal/obj/x86: remove unused const
+    
+    Since https://go-review.googlesource.com/24040 we no longer pad functions
+    in asm6, so funcAlign is unused. Delete it.
+    
+    Change-Id: Id710e545a76b1797398f2171fe7e0928811fcb31
+    Reviewed-on: https://go-review.googlesource.com/38134
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 1 -
+ 1 file changed, 1 deletion(-)

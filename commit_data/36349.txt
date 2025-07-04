@@ -1,0 +1,21 @@
+commit 0ca3203becb917b17a1a0b1903381b3d9690fcfc
+Author: Jan Lehnardt <jan@apache.org>
+Date:   Wed Aug 8 14:27:18 2018 +0000
+
+    syscall: add S_IRWXG and S_IRWXO to FreeBSD types
+    
+    Companion PR to https://github.com/golang/sys/pull/13
+    
+    Change-Id: I097fc97912840eb69ca232eded6ba939de0fead9
+    GitHub-Last-Rev: f8a8f7d96c96e3cb03010cb3d9607741f4bbc3a1
+    GitHub-Pull-Request: golang/go#26675
+    Reviewed-on: https://go-review.googlesource.com/126621
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/types_freebsd.go        | 2 ++
+ src/syscall/ztypes_freebsd_386.go   | 2 ++
+ src/syscall/ztypes_freebsd_amd64.go | 2 ++
+ src/syscall/ztypes_freebsd_arm.go   | 2 ++
+ 4 files changed, 8 insertions(+)

@@ -1,0 +1,12 @@
+commit cf6b60c2f1e058bb82f3143e9e1d368f12a7a84d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 11:20:55 2015 -0700
+
+    doc/go1.5.txt: new format for flag.PrintDefaults
+    
+    Change-Id: Ic78deaf91b437016b0a064c1f9ef49c9c29f4c32
+    Reviewed-on: https://go-review.googlesource.com/7510
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

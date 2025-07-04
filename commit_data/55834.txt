@@ -1,0 +1,18 @@
+commit 0e89b67ed22f8130f53dea41d73d7b254c0402bc
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 5 02:38:41 2024 +0000
+
+    database/sql: remove useless error check
+    
+    Change-Id: Id2d45a4b43b05deba4e2c31f7c03008c2f2c18a2
+    GitHub-Last-Rev: 587bed9a64da08d5b476d87333aed72649dad470
+    GitHub-Pull-Request: golang/go#66110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569075
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/sql_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

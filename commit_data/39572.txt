@@ -1,0 +1,14 @@
+commit 09c9d3a58a4aa1531ac516754f65c31aa8418d3f
+Author: Shivani Singhal <shivani.singhal2804@gmail.com>
+Date:   Sun Aug 4 12:47:55 2019 +0530
+
+    net/http: fix typo in Response.Body's doc
+    
+    Fixes #33453.
+    
+    Change-Id: If0aa48f953633690884ddcff033b3be6d1d66443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188541
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/response.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

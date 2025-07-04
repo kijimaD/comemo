@@ -1,0 +1,30 @@
+commit c02e1bfbdb7ff9d4c2ecf8a9859ccecd8eadfc59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 21 09:58:03 2023 -0700
+
+    go/types, types2: refactor assignVars
+    
+    Rather than using exprList and handle all cases together, split
+    apart the cases of n:n assignments and the cases of n:1 assignments.
+    For the former, the lhs types may (in a future CL) be used to infer
+    types on the rhs. This is a preparatory step.
+    
+    Because the two cases are handled separately, the code is longer
+    (but also more explicit).
+    
+    Some test cases were adjusted to avoifd (legitimate, but previously
+    supressed) "declared but not used" errors.
+    
+    Change-Id: Ia43265f84e423b0ad5594612ba5a0ddce31a4a37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478256
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 55 ++++++++++++++++++-------
+ src/cmd/compile/internal/types2/expr.go        |  1 +
+ src/go/types/assignments.go                    | 57 ++++++++++++++++++--------
+ src/go/types/expr.go                           |  1 +
+ 4 files changed, 83 insertions(+), 31 deletions(-)

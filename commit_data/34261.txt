@@ -1,0 +1,29 @@
+commit 7662e6588c9433f1219e0a0c46bc563ba3f93f98
+Author: David Url <david@urld.io>
+Date:   Tue Feb 13 22:03:05 2018 +0100
+
+    net/http: use RFC 723x as normative reference in docs
+    
+    Replace references to the obsoleted RFC 2616 with references to RFC
+    7230 through 7235, to avoid unnecessary confusion.
+    Obvious inconsistencies are marked with todo comments.
+    
+    Updates #21974
+    
+    Change-Id: I8fb4fcdd1333fc5193b93a2f09598f18c45e7a00
+    Reviewed-on: https://go-review.googlesource.com/94095
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go                |  2 +-
+ src/net/http/fs.go                    | 22 +++++++++----------
+ src/net/http/httptest/recorder.go     |  1 +
+ src/net/http/httputil/reverseproxy.go |  7 ++++--
+ src/net/http/readrequest_test.go      |  2 +-
+ src/net/http/request.go               | 20 +++++++++---------
+ src/net/http/request_test.go          |  4 ++--
+ src/net/http/response.go              |  4 ++--
+ src/net/http/response_test.go         |  4 ++--
+ src/net/http/server.go                | 40 +++++++++++++----------------------
+ src/net/http/transfer.go              | 10 ++++-----
+ src/net/http/transport.go             |  2 +-
+ 12 files changed, 56 insertions(+), 62 deletions(-)

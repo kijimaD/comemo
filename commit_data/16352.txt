@@ -1,0 +1,12 @@
+commit 4b0eb19a05133d4cc117fefe1e37ea1e35a64c73
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon May 20 23:19:41 2013 +0200
+
+    cmd/gc: eliminate a useless bounds check in inlined append().
+    
+    R=golang-dev, daniel.morsing, r
+    CC=golang-dev
+    https://golang.org/cl/9358043
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

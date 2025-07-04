@@ -1,0 +1,18 @@
+commit d5479e197d8a9eb98c30d7ec6ddc3fcbde459ebe
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 21:03:38 2024 +0100
+
+    net: document ParseIP always returns IPv6 addresses
+    
+    Fixes #65131
+    
+    Change-Id: I050c6459a8e0a6c99425759d3131cf775b05aac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598076
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/ip.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

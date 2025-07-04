@@ -1,0 +1,13 @@
+commit 952b91e4add36ad8a80f3dba96db1c200ba33a1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 08:24:14 2009 -0800
+
+    Add Shutdown to 32-bit GNU/Linux build.
+    
+    Submitting as a TBR to fix the build.
+    
+    R=dho, rsc
+    https://golang.org/cl/164078
+
+ src/pkg/syscall/syscall_linux_386.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,25 @@
+commit 98276d6abe97e50b2740e78a2b1e768abe6c7a33
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Aug 13 22:10:49 2017 +0530
+
+    encoding/hex: improve tests
+    
+    The tests for error scenarios were done by manually checking
+    error strings. Improved them by checking the actual error type
+    instead of just the string.
+    
+    Printing the actual error in case of failure instead of a
+    generic string.
+    
+    Also added a new scenario with both an invalid byte and an
+    invalid length string to verify that the length is checked first
+    before doing any computation.
+    
+    Change-Id: Ic2a19a6d6058912632d597590186ee2d8348cb45
+    Reviewed-on: https://go-review.googlesource.com/55256
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/hex/hex_test.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

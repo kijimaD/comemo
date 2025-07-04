@@ -1,0 +1,25 @@
+commit 704bc9d5c95858fd43151f19e7e4de6c99142f1c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 6 17:54:26 2009 -0800
+
+    portable stat for os
+    add name to os.FD
+    clean up some interfaces
+    
+    R=rsc
+    DELTA=318  (231 added, 44 deleted, 43 changed)
+    OCL=24624
+    CL=24627
+
+ src/lib/io/io.go                | 30 +++++++---------
+ src/lib/net/fd.go               | 10 +++---
+ src/lib/os/Makefile             | 22 ++++++++----
+ src/lib/os/os_file.go           | 66 +++++++++++++++++++++++++---------
+ src/lib/os/os_test.go           | 79 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/os/os_types.go          | 26 ++++++++++++++
+ src/lib/os/stat_amd64_darwin.go | 34 ++++++++++++++++++
+ src/lib/os/stat_amd64_linux.go  | 34 ++++++++++++++++++
+ src/lib/syscall/file_linux.go   | 40 +++++++--------------
+ src/lib/syscall/syscall.go      | 11 +++---
+ src/lib/utf8_test.go            | 11 +++---
+ 11 files changed, 277 insertions(+), 86 deletions(-)

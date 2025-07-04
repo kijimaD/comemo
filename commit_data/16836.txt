@@ -1,0 +1,12 @@
+commit 5d14b899333c0d59dd7414d328d622ece83ba61c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jul 22 20:08:58 2013 +0900
+
+    net: remove unnecessary bit masking
+    
+    R=dave
+    CC=golang-dev
+    https://golang.org/cl/11537044
+
+ src/pkg/net/ipraw_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

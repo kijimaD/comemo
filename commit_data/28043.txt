@@ -1,0 +1,20 @@
+commit 61d5daea0aca4fcb14f0090685327132a8e1a7f2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Aug 24 17:44:27 2016 -0400
+
+    runtime: use clock_gettime for time.now() on s390x
+    
+    This should improve the precision of time.now() from microseconds
+    to nanoseconds.
+    
+    Also, modify runtime.nanotime to keep it consistent with cleanup
+    done to time.now.
+    
+    Updates #11222 for s390x.
+    
+    Change-Id: I27864115ea1fee7299360d9003cd3a8355f624d3
+    Reviewed-on: https://go-review.googlesource.com/27710
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_linux_s390x.s | 28 ++++++++++++----------------
+ 1 file changed, 12 insertions(+), 16 deletions(-)

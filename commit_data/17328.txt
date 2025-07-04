@@ -1,0 +1,16 @@
+commit dccf651b24831a3f3f2657cf211129bb03c18ed4
+Author: Aaron France <aaron.l.france@gmail.com>
+Date:   Mon Aug 19 16:32:00 2013 -0400
+
+    misc/emacs: Detect stale coverage reports
+    
+    When the coverage report file is older than the file we're
+    showing the coverage report for, then we show a simple message
+    to state this fact.
+    
+    R=adonovan, dominik.honnef, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12919044
+
+ misc/emacs/go-mode.el | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

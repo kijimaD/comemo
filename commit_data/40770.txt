@@ -1,0 +1,22 @@
+commit 1fe33e3cb20295b5120f82b02b0a9ab4ad303cc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 12 09:48:38 2019 -0800
+
+    math/big: ensure correct test input
+    
+    There is a (theoretical, but possible) chance that the
+    random number values a, b used for TestDiv are 0 or 1,
+    in which case the test would fail.
+    
+    This CL makes sure that a >= 1 and b >= 2 at all times.
+    
+    Fixes #35523.
+    
+    Change-Id: I6451feb94241249516a821cd0066e95a0c65b0ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206818
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/nat_test.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

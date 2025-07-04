@@ -1,0 +1,19 @@
+commit 01c144c410b09d8b56d40e7e9c54fface204aa29
+Author: Terin Stock <terinjokes@gmail.com>
+Date:   Mon Oct 16 17:34:35 2017 -0700
+
+    net/http/pprof: attach handlers using http.HandleFunc
+    
+    Simplify how pprof attaches the handlers to the DefaultMux by using
+    http.HandleFunc instead of manually wrapping the handlers in
+    a http.HandlerFunc.
+    
+    Change-Id: I65db262ebb2e29e4b6f30df9d2688f5daf782c29
+    Reviewed-on: https://go-review.googlesource.com/71251
+    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/pprof/pprof.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

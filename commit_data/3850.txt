@@ -1,0 +1,14 @@
+commit 043486eb3e4365808e07e43e44b09ce55b8fde74
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 6 09:45:24 2009 -0800
+
+    require gofmt for all $GOROOT/src/.../*.go.
+    
+    try harder to post messages to rietveld.
+    
+    R=gri, r
+    CC=go-dev
+    http://go/go-review/1024006
+
+ lib/codereview/codereview.py | 39 +++++++++++++++++++++++++++++++--------
+ 1 file changed, 31 insertions(+), 8 deletions(-)

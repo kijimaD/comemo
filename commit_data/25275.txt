@@ -1,0 +1,22 @@
+commit 50d8d4e834039574602df287522a25bb70c101bb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 15:13:16 2015 -0500
+
+    runtime: simplify sigprof traceback interlocking
+    
+    The addition of stack barrier locking to copystack subsumes the
+    partial fix from commit bbd1a1c for SIGPROF during copystack. With the
+    stack barrier locking, this commit simplifies the rule in sigprof to:
+    the user stack can be traced only if sigprof can acquire the stack
+    barrier lock.
+    
+    Updates #12932, #13362.
+    
+    Change-Id: I1c1f80015053d0ac7761e9e0c7437c2aba26663f
+    Reviewed-on: https://go-review.googlesource.com/17192
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

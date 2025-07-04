@@ -1,0 +1,20 @@
+commit 369d1083a74b6a965a33510489ab381d937812ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 24 09:19:46 2017 -0700
+
+    spec: for non-constant map keys, add reference to evaluation order section
+    
+    The section on map literals mentions constant map keys but doesn't say
+    what happens for equal non-constant map keys - that is covered in the
+    section on evaluation order. Added respective link for clarity.
+    
+    Fixes #19689.
+    
+    Change-Id: If9a5368ba02e8250d4bb0a1d60d0de26a1f37bbb
+    Reviewed-on: https://go-review.googlesource.com/38598
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

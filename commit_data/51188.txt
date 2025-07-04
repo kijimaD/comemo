@@ -1,0 +1,21 @@
+commit bef5eca118fab6b7dd56c31fd1957c5edc214021
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon Aug 20 20:29:30 2018 +0200
+
+    encoding/xml: disallow empty namespace when prefix is set
+    
+    Non-regression tests are added.
+    
+    Fixes #8068
+    
+    Change-Id: Icb36c910bbf4955743b7aa8382002b2d9246fadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/105636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/xml/xml.go      |  4 ++++
+ src/encoding/xml/xml_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

@@ -1,0 +1,17 @@
+commit 0857045818d7cd31edfa54dec2c2b88af665c87c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 3 08:52:18 2013 +1000
+
+    encoding/json: add an example for RawMessage
+    
+    RawMessage is useful and mildly non-obvious.
+    Given the frequency with which RawMessage questions
+    show up on golang-nuts, and get answered with an example,
+    I suspect adding an example to the docs might help.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/14190044
+
+ src/pkg/encoding/json/example_test.go | 46 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

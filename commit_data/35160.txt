@@ -1,0 +1,19 @@
+commit ae2a2d12f6d8cde35637a13f384f6de524112768
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 26 15:25:36 2018 -0700
+
+    cmd/compile: cleaner solution for importing init functions
+    
+    Using oldname+resolve is how typecheck handles this anyway.
+    
+    Passes toolstash -cmp, with both -iexport enabled and disabled.
+    
+    Change-Id: I12b0f0333d6b86ce6bfc4d416c461b5f15c1110d
+    Reviewed-on: https://go-review.googlesource.com/109715
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/init.go  | 16 +++++++++++-----
+ src/cmd/compile/internal/gc/noder.go | 11 -----------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

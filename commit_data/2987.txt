@@ -1,0 +1,15 @@
+commit dc6b4f47674d92470bfbd50f8af1123b2d40e0c3
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 14 14:47:44 2009 -0700
+
+    Zero thread structure so we don't continue with a bogus
+    signal.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=33249
+    CL=33296
+
+ src/libmach/linux.c | 1 +
+ 1 file changed, 1 insertion(+)

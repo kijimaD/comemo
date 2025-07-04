@@ -1,0 +1,21 @@
+commit 51012314251a8b1f1dfe9737091a37c0e1f6b9d5
+Author: griesemer <gri@golang.org>
+Date:   Mon Apr 24 22:17:03 2017 -0700
+
+    cmd/compile: factor out access to thisT
+    
+    isifacemethod accessed thisT without checking if it was initialized,
+    opening the possibility for a bug during type checking. Give better
+    name, move it to package types, and provide accessor instead.
+    
+    Change-Id: I29ffc408252a4ba4ef1de218fa154397786c9be6
+    Reviewed-on: https://go-review.googlesource.com/41673
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go  |  2 +-
+ src/cmd/compile/internal/gc/dcl.go      | 25 ++++++++-----------------
+ src/cmd/compile/internal/gc/noder.go    |  2 +-
+ src/cmd/compile/internal/gc/universe.go |  2 +-
+ src/cmd/compile/internal/types/type.go  | 10 ++++++++++
+ 5 files changed, 21 insertions(+), 20 deletions(-)

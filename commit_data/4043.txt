@@ -1,0 +1,13 @@
+commit 4b13d1b9b5e8fd6e245a3da3257a3157930dc9a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 14 14:14:27 2009 -0800
+
+    gc: do not try to constant-evaluate (interface{})("bar")
+    
+    Fixes #183.
+    
+    R=ken
+    https://golang.org/cl/154139
+
+ src/cmd/gc/const.c | 1 +
+ 1 file changed, 1 insertion(+)

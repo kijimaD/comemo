@@ -1,0 +1,12 @@
+commit 8454e2c2878cbef57038c6603265d8baaae64a4e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 14 13:46:22 2014 -0800
+
+    runtime: Change size of map iter offset so 32-bit version compiles cleanly.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/52310043
+
+ src/pkg/runtime/hashmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

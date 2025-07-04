@@ -1,0 +1,29 @@
+commit 60ab197bc2bebb0ad25e7f4610c6e4aae71d29e4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 16 15:50:49 2021 -0500
+
+    runtime: refactor work stealing to dedicated function
+    
+    findrunnable has grown very large and hard to follow over the years.
+    Parts we can split out into logical chunks should help make it more
+    understandable and easier to change in the future.
+    
+    The work stealing loop is one such big chunk that is fairly trivial to
+    split out into its own function, and even has the advantage of
+    simplifying control flow by removing a goto around work stealing.
+    
+    This CL should have no functional changes.
+    
+    For #43997.
+    For #44313.
+    
+    Change-Id: Ie69670c7bc60bd6c114e860184918717829adb22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307913
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 180 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 105 insertions(+), 75 deletions(-)

@@ -1,0 +1,22 @@
+commit c2b7fb3902b9069e24a79343bcad464941e54625
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sun Sep 22 19:53:55 2013 -0700
+
+    net/http: send correct time in Date header.
+    
+    Date header indicated that it contained GMT time,
+    however it actually sent local time. Fixed by
+    converting time to UTC.
+    
+    Also fixes incorrect comment in appendTime().
+    
+    Regression since CL 9432046.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13386047
+
+ src/pkg/net/http/export_test.go |  2 ++
+ src/pkg/net/http/serve_test.go  | 13 +++++++++++++
+ src/pkg/net/http/server.go      |  3 ++-
+ 3 files changed, 17 insertions(+), 1 deletion(-)

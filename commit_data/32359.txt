@@ -1,0 +1,16 @@
+commit d52413d62dbfc6c6ee33a8a12b9b0cf27e6828a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 12:29:43 2017 -0400
+
+    cmd/go: document that BinaryOnly packages must have accurate import info
+    
+    Update BinaryOnly test by adding import _ "fmt".
+    
+    Change-Id: I3a1dcfb83a27d8ff50a658060a46e1a3f481f6c7
+    Reviewed-on: https://go-review.googlesource.com/56276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 6 ++++--
+ src/cmd/go/go_test.go               | 1 +
+ src/cmd/go/internal/help/helpdoc.go | 6 ++++--
+ 3 files changed, 9 insertions(+), 4 deletions(-)

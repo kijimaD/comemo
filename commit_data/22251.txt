@@ -1,0 +1,79 @@
+commit 94410c794e80a4dda1719299fe82dfc36c88ec56
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 8 15:30:02 2015 -0800
+
+    cmd/gc: teach componentgen about string constants
+    
+    This makes it cheaper to copy string literals.
+    This happens just about anywhere that they are used.
+    
+    Example:
+    
+    func f() string {
+            return "f"
+    }
+    
+    Using 6g, compiler output before:
+    
+    "".f t=1 size=32 value=0 args=0x10 locals=0x0
+            0x0000 00000 (p.go:3)   TEXT    "".f+0(SB),4,$0-16
+            0x0000 00000 (p.go:3)   FUNCDATA        $0,gclocals·d64e51a4c4bfeaa840e480961ec6b0b3+0(SB)
+            0x0000 00000 (p.go:3)   FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (p.go:4)   LEAQ    go.string."f"+0(SB),BX
+            0x0007 00007 (p.go:4)   MOVQ    (BX),BP
+            0x000a 00010 (p.go:4)   MOVQ    BP,"".~r0+8(FP)
+            0x000f 00015 (p.go:4)   MOVQ    8(BX),BP
+            0x0013 00019 (p.go:4)   MOVQ    BP,"".~r0+16(FP)
+            0x0018 00024 (p.go:4)   RET     ,
+    
+    After:
+    
+    "".f t=1 size=32 value=0 args=0x10 locals=0x0
+            0x0000 00000 (p.go:3)   TEXT    "".f+0(SB),4,$0-16
+            0x0000 00000 (p.go:3)   FUNCDATA        $0,gclocals·d64e51a4c4bfeaa840e480961ec6b0b3+0(SB)
+            0x0000 00000 (p.go:3)   FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (p.go:4)   MOVQ    $go.string."f"+16(SB),BX
+            0x0007 00007 (p.go:4)   MOVQ    BX,"".~r0+8(FP)
+            0x000c 00012 (p.go:4)   MOVQ    $1,"".~r0+16(FP)
+            0x0015 00021 (p.go:4)   RET     ,
+    
+    The leading MOVQ here will be converted into a LEAQ by the linker,
+    but there is still a net reduction of two MOVQs.
+    
+    Before:
+    
+    TEXT main.f(SB)
+            p.go:4  0x2000  488d1d49500500  LEAQ 0x55049(IP), BX
+            p.go:4  0x2007  488b2b          MOVQ 0(BX), BP
+            p.go:4  0x200a  48896c2408      MOVQ BP, 0x8(SP)
+            p.go:4  0x200f  488b6b08        MOVQ 0x8(BX), BP
+            p.go:4  0x2013  48896c2410      MOVQ BP, 0x10(SP)
+            p.go:4  0x2018  c3              RET
+    
+    After:
+    
+    TEXT main.f(SB)
+            p.go:4  0x2000  488d1dd94c0500          LEAQ 0x54cd9(IP), BX
+            p.go:4  0x2007  48895c2408              MOVQ BX, 0x8(SP)
+            p.go:4  0x200c  48c744241001000000      MOVQ $0x1, 0x10(SP)
+            p.go:4  0x2015  c3                      RET
+    
+    The performance improvement is small but widespread.
+    
+    As a nice small example, net/url's sole benchmark using 6g:
+    
+    benchmark           old ns/op     new ns/op     delta
+    BenchmarkString     16372         16118         -1.55%
+    
+    And with 8g:
+    
+    benchmark           old ns/op     new ns/op     delta
+    BenchmarkString     22034         21709         -1.47%
+    
+    Change-Id: I4ce202ee7dbd4057be869e2faaaa638c28a1fff0
+    Reviewed-on: https://go-review.googlesource.com/2587
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/gc/gen.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit c0bf96e6b10976274bf5ee7813845dc0eb590816
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 7 18:48:14 2014 +0400
+
+    runtime: fix bug in cpu profiler
+    Number of lost samples was overcounted (never reset).
+    Also remove unused variable (it's trivial to restore it for debugging if needed).
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/96060043
+
+ src/pkg/runtime/cpuprof.goc | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

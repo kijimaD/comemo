@@ -1,0 +1,21 @@
+commit d390283ff42c44230ac25800efca231b952fd3ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 21:34:19 2017 -0800
+
+    cmd/compile/internal/syntax: compiler directives must start at beginning of line
+    
+    - ignore them, if they don't.
+    - added tests
+    
+    Fixes #18393.
+    
+    Change-Id: I13f87b81ac6b9138ab5031bb3dd6bebc4c548156
+    Reviewed-on: https://go-review.googlesource.com/37020
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser_test.go |  2 +-
+ src/cmd/compile/internal/syntax/scanner.go     | 18 ++++++++++--------
+ test/fixedbugs/issue18393.go                   | 24 ++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit f84420c20daddf5f0a3e73f64bd2d39cebd22218
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 29 22:40:36 2015 -0400
+
+    runtime: clean up park messages
+    
+    This changes "mark worker (idle)" to "GC worker (idle)" so it's more
+    clear to users that these goroutines are GC-related. It changes "GC
+    assist" to "GC assist wait" to make it clear that the assist is
+    blocked.
+    
+    Change-Id: Iafbc0903c84f9250ff6bee14baac6fcd4ed5ef76
+    Reviewed-on: https://go-review.googlesource.com/16511
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 2 +-
+ src/runtime/mgcmark.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

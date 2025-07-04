@@ -1,0 +1,51 @@
+commit be2c2120d0abe8a269c1c96bd6bbaed26a190196
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 14 23:48:40 2010 -0400
+
+    5l, 6l, 8l: accumulate data image during import
+    
+    Using explicit relocations internally, we can
+    represent the data for a particular symbol as
+    an initialized block of memory instead of a
+    linked list of ADATA instructions.  The real
+    goal here is to be able to hand off some of the
+    relocations to the dynamic linker when interacting
+    with system libraries, but a pleasant side effect is
+    that the memory image is much more compact
+    than the ADATA list, so the linkers use less memory.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2512041
+
+ src/cmd/5l/Makefile |   1 +
+ src/cmd/5l/asm.c    | 427 ++++------------------------------
+ src/cmd/5l/l.h      |  43 ++--
+ src/cmd/5l/list.c   |   2 +-
+ src/cmd/5l/noop.c   |   2 +-
+ src/cmd/5l/obj.c    |  99 +++-----
+ src/cmd/5l/pass.c   | 339 ---------------------------
+ src/cmd/5l/span.c   | 149 +++++++-----
+ src/cmd/5l/symtab.c |  21 +-
+ src/cmd/5l/thumb.c  |   9 +-
+ src/cmd/6l/Makefile |   1 +
+ src/cmd/6l/asm.c    | 496 ++--------------------------------------
+ src/cmd/6l/l.h      |  47 ++--
+ src/cmd/6l/obj.c    |  71 ++----
+ src/cmd/6l/pass.c   | 207 -----------------
+ src/cmd/6l/span.c   |  88 ++++----
+ src/cmd/6l/symtab.c |  15 +-
+ src/cmd/8l/Makefile |   1 +
+ src/cmd/8l/asm.c    | 412 +++------------------------------
+ src/cmd/8l/l.h      |  45 ++--
+ src/cmd/8l/obj.c    |  70 ++----
+ src/cmd/8l/pass.c   | 189 +---------------
+ src/cmd/8l/span.c   | 108 ++++-----
+ src/cmd/8l/symtab.c |   9 +-
+ src/cmd/ld/data.c   | 641 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/go.c     |  51 +----
+ src/cmd/ld/lib.c    |  14 +-
+ src/cmd/ld/lib.h    |  15 ++
+ src/cmd/ld/macho.c  |  20 +-
+ src/cmd/ld/pe.c     |   6 +-
+ 30 files changed, 1129 insertions(+), 2469 deletions(-)

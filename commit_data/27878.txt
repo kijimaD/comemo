@@ -1,0 +1,18 @@
+commit 73fdba2601f1aeaa6565cfb03e4c5c8c98489b7a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 17 08:57:15 2016 -0700
+
+    cmd/compile/internal/s390x: cleanup betypeinit
+    
+    The Width{int,ptr,reg} assignments are no longer necessary since
+    golang.org/cl/21623. The other arch's betypeinit functions were
+    cleaned up, but apparently this one was missed.
+    
+    Change-Id: I1c7f074d7864a561659c1f98aef604f57f285fd0
+    Reviewed-on: https://go-review.googlesource.com/27272
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/s390x/galign.go | 3 ---
+ 1 file changed, 3 deletions(-)

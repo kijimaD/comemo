@@ -1,0 +1,32 @@
+commit 7585aa6ae591a7fecb806d230205f8d12d64c957
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 14:21:50 2012 -0800
+
+    utf8.String: move to exp/utf8string.String
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5528115
+
+ doc/go1.html                                       |  6 ++++-
+ doc/go1.tmpl                                       |  6 ++++-
+ src/buildscript/darwin_386.sh                      |  2 +-
+ src/buildscript/darwin_amd64.sh                    |  2 +-
+ src/buildscript/freebsd_386.sh                     |  2 +-
+ src/buildscript/freebsd_amd64.sh                   |  2 +-
+ src/buildscript/linux_386.sh                       |  2 +-
+ src/buildscript/linux_amd64.sh                     |  2 +-
+ src/buildscript/linux_arm.sh                       |  2 +-
+ src/buildscript/netbsd_386.sh                      |  2 +-
+ src/buildscript/netbsd_amd64.sh                    |  2 +-
+ src/buildscript/openbsd_386.sh                     |  2 +-
+ src/buildscript/openbsd_amd64.sh                   |  2 +-
+ src/buildscript/plan9_386.sh                       |  2 +-
+ src/buildscript/windows_386.sh                     |  2 +-
+ src/buildscript/windows_amd64.sh                   |  2 +-
+ src/pkg/exp/utf8string/Makefile                    | 11 +++++++++
+ src/pkg/{unicode/utf8 => exp/utf8string}/string.go | 26 +++++++++++++---------
+ .../utf8 => exp/utf8string}/string_test.go         | 15 ++++++++++---
+ src/pkg/unicode/utf8/Makefile                      |  1 -
+ test/alias.go                                      |  5 +----
+ 21 files changed, 63 insertions(+), 35 deletions(-)

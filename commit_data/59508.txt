@@ -1,0 +1,37 @@
+commit 3be537e663c39ead4c82ca4047d248ff66e132c3
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 13 13:31:22 2025 +0200
+
+    net: use closesocket when closing socket os.File's on Windows
+    
+    The WSASocket documentation states that the returned socket must be
+    closed by calling closesocket instead of CloseHandle. The different
+    File methods on the net package return an os.File that is not aware
+    that it should use closesocket. Ideally, os.NewFile should detect that
+    the passed handle is a socket and use the appropriate close function,
+    but there is no reliable way to detect that a handle is a socket on
+    Windows (see CL 671455).
+    
+    To work around this, we add a hidden function to the os package that
+    can be used to return an os.File that uses closesocket. This approach
+    is the same as used on Unix, which also uses a hidden function for other
+    purposes.
+    
+    While here, fix a potential issue with FileConn, which was using File.Fd
+    rather than File.SyscallConn to get the handle. This could result in the
+    File being closed and garbage collected before the syscall was made.
+    
+    Fixes #73683.
+    
+    Change-Id: I179405f34c63cbbd555d8119e0f77157c670eb3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672195
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/poll/fd_windows.go |  11 +-
+ src/net/fd_windows.go           |   8 +-
+ src/net/file_test.go            | 363 ++++++++++++++++++++--------------------
+ src/net/file_windows.go         |  23 ++-
+ src/os/file_windows.go          |  12 ++
+ 5 files changed, 229 insertions(+), 188 deletions(-)

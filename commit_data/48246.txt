@@ -1,0 +1,23 @@
+commit 6da16b6ad5787a043fc9978d2d009934e3b2e165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 27 21:08:29 2022 -0800
+
+    go/types, types2: clarify a comment and add an extra test
+    
+    Confirm that the current implementation of core type unification
+    looks correct and update the respective comment. Add an extra test.
+    
+    Fixes #51376.
+    
+    Change-Id: I6a603a4baeee2ede5bb4a1d60766204a808936d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388294
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../types2/testdata/fixedbugs/issue51376.go2       | 24 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/unify.go           | 12 +++++------
+ src/go/types/testdata/fixedbugs/issue51376.go2     | 24 ++++++++++++++++++++++
+ src/go/types/unify.go                              | 12 +++++------
+ 4 files changed, 60 insertions(+), 12 deletions(-)

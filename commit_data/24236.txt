@@ -1,0 +1,14 @@
+commit e216735dfad648b8ef26ffd389305a141c1dec75
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Mon Sep 7 22:31:04 2015 +0800
+
+    math/big: add example for RoundingMode
+    
+    Updates #11241
+    
+    Change-Id: I0614c5a9a7a4c399ad5d664f36c70c3210911905
+    Reviewed-on: https://go-review.googlesource.com/14356
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/floatexample_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

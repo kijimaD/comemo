@@ -1,0 +1,25 @@
+commit d79ec64fe107c0566ac38ad62dcae45c3fbe07fb
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Thu Mar 16 12:08:35 2017 +0000
+
+    mime/multipart: Allow ReadForm to process large non-file parts
+    
+    Allow the memory limit passed into ReadForm to be used as the
+    memory limit for processing non-file form data as well as file
+    form data, rather than the existing behaviour of the memory limit
+    only applying to the file parts and the non-file parts being
+    arbitrarily limited to 10MB.
+    
+    This ensures backwards compatibility while still providing the
+    user with control over the amount of non-file data that can be
+    processed instead of enforcing an arbitrary 10MB limit.
+    
+    Change-Id: I53c09eae00147d3ff2d6bdfd4e50949267932c3d
+    Reviewed-on: https://go-review.googlesource.com/38195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/multipart/formdata.go      | 21 ++++++++++++-----
+ src/mime/multipart/formdata_test.go | 45 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 57 insertions(+), 9 deletions(-)

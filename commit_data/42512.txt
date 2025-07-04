@@ -1,0 +1,16 @@
+commit 509ee7064207cc9c8ac81bc76f182a5fbb877e9b
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Thu Jun 11 15:57:18 2020 +0000
+
+    doc/go1.15: add code tags
+    
+    Other command line arguments are written in code tags, so add a code tag for consistency.
+    
+    For #37419
+    
+    Change-Id: I1948536c3a1860d93726484be2dc7bcb03dfdc2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237539
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

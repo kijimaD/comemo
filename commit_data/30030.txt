@@ -1,0 +1,21 @@
+commit 99e1e4f657c24769a2b42a4aa26c226b6e1db915
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 17 15:06:12 2017 +1100
+
+    cmd/link: assume that runtime.epclntab lives in .text section
+    
+    Sometimes STEXT symbols point to the first byte of .data
+    section, instead of the end of .text section. But, while writing
+    pe symbol table, we should treat them as if they belong to the
+    .text section. Change pe symbol table records for these symbols.
+    
+    Fixes #14710
+    
+    Change-Id: I1356e61aa8fa37d590d7b1677b2bac214ad0ba4e
+    Reviewed-on: https://go-review.googlesource.com/35272
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/pe.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

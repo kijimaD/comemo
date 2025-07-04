@@ -1,0 +1,16 @@
+commit 09da2801578519ee5597bdd4cbfa22d4d127cc6d
+Author: dupoxy <dupoxy@users.noreply.github.com>
+Date:   Wed Dec 12 22:49:31 2018 +0000
+
+    strings: add ReplaceAll example
+    
+    Change-Id: I6b0d470bdedb92844943c8e5823e214d6a7471cf
+    GitHub-Last-Rev: 4a135000ba9c23a588b960e5b2989710cc71e3e2
+    GitHub-Pull-Request: golang/go#29199
+    Reviewed-on: https://go-review.googlesource.com/c/153840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/example_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,23 @@
+commit 5c3cb64b2e6285b672bb6ec9e42946ac974491dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 19 09:16:25 2018 +0300
+
+    net: treat a nil *Resolver as a zero one, as documented
+    
+    Add accessors that handle nil without crashing.
+    
+    Fixes #24330
+    
+    Change-Id: If5fbbb6015ca8d65f620a06bad6e52de8cd896ad
+    Reviewed-on: https://go-review.googlesource.com/101315
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/conf.go           |  2 +-
+ src/net/dnsclient_unix.go |  4 ++--
+ src/net/lookup.go         |  3 +++
+ src/net/lookup_test.go    | 24 ++++++++++++++++++++++++
+ src/net/lookup_unix.go    | 12 ++++++------
+ src/net/lookup_windows.go |  2 +-
+ 6 files changed, 37 insertions(+), 10 deletions(-)

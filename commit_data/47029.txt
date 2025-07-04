@@ -1,0 +1,18 @@
+commit 0ec1b62ee28c633265036664c21a5cb22086f231
+Author: gosoon <tianfeiyu0@gmail.com>
+Date:   Wed Oct 20 11:13:29 2021 +0000
+
+    doc/go1.18.html: fix a typo
+    
+    gofmt -> <code>gofmt</code>
+    
+    Change-Id: Idc01b01d8eb185f5e378000d11d622935b14db6e
+    GitHub-Last-Rev: 8d55dc7b86ce0f7dfbdbd57c349b4c472eccf907
+    GitHub-Pull-Request: golang/go#49084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357251
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

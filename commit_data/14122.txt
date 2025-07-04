@@ -1,0 +1,21 @@
+commit dad1228cc378f5860a111201ed24ba88cf992a73
+Author: Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+Date:   Thu Oct 11 13:07:34 2012 +1100
+
+          doc/articles/wiki: numerous fixes
+    
+    Fixes #3733
+    Fixes #2149
+    Updated Syntax
+    Added part3.go example program
+    Added part3-errorhandling.go example program
+    Improved wording in some places
+    
+    R=golang-dev, adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6636048
+
+ doc/articles/wiki/index.html             | 208 ++++++++++++++++---------------
+ doc/articles/wiki/part3-errorhandling.go |  75 +++++++++++
+ doc/articles/wiki/part3.go               |  59 +++++++++
+ 3 files changed, 243 insertions(+), 99 deletions(-)

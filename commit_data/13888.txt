@@ -1,0 +1,20 @@
+commit 31758b2c1a4fef9c387d039190e55c640bda9408
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Sep 21 12:51:39 2012 +1000
+
+    cmd/{ld,5l,6l,8l}: add support for OpenBSD ELF signatures
+    
+    OpenBSD now requires ELF binaries to have a PT_NOTE that identifies
+    it as an OpenBSD binary. Refactor the existing NetBSD ELF signature
+    code and implement support for OpenBSD ELF signatures.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6489131
+
+ src/cmd/5l/asm.c | 25 ++++++++++----
+ src/cmd/6l/asm.c | 25 ++++++++++----
+ src/cmd/8l/asm.c | 25 ++++++++++----
+ src/cmd/ld/elf.c | 99 +++++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/ld/elf.h |  2 ++
+ 5 files changed, 136 insertions(+), 40 deletions(-)

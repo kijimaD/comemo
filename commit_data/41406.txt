@@ -1,0 +1,15 @@
+commit 28c501b7b3405cf2afa7b9a440c9fc835d5276a0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Feb 24 21:08:27 2020 +0100
+
+    doc/go1.14: document that freebsd/arm64 requires FreeBSD 12.0 or later
+    
+    Updates #24715
+    Updates #37345
+    
+    Change-Id: I787a9b2ab1c68e1d379aac0a31bdf6217f04f911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220426
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

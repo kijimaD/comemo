@@ -1,0 +1,19 @@
+commit 61fc5df6897544d8ecf8efd5b39648a6bd121ec8
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon May 23 08:58:51 2022 +0800
+
+    runtime: add missing {TOPFRAME,NOFRAME} flag for linux/loong64
+    
+    Co-authored-by: limeidan <limeidan@loongson.cn>
+    Change-Id: I0011a10f831e6c2b0da96265682212b0747f0e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407774
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/asm_loong64.s | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

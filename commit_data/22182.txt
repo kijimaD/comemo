@@ -1,0 +1,17 @@
+commit a3a193c01855fc15429d5376f4dad11796b2b7bd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 24 11:45:29 2015 +1100
+
+    image/internal/imageutil: inline the color.YCbCrToRGB calls.
+    
+    The image/draw benchmark:
+    benchmark          old ns/op     new ns/op     delta
+    BenchmarkYCbCr     1198605       978647        -18.35%
+    
+    Change-Id: Iacfc21e6f641ecb05adc00b3aec0048f1f43d265
+    Reviewed-on: https://go-review.googlesource.com/7952
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/internal/imageutil/gen.go  |  32 +++++++--
+ src/image/internal/imageutil/impl.go | 121 ++++++++++++++++++++++++++++++-----
+ 2 files changed, 131 insertions(+), 22 deletions(-)

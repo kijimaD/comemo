@@ -1,0 +1,13 @@
+commit 0def13ac3f5a5e9f8e5540d3f5469cd469bddfad
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Mar 27 18:05:13 2015 +1100
+
+    image/color: have CMYK.RGBA work in 16-bit color, per the Color interface.
+    
+    Change-Id: I3621527c924a43724032f80a072505c60d929ab3
+    Reviewed-on: https://go-review.googlesource.com/8180
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/ycbcr.go      | 20 +++++++++------
+ src/image/color/ycbcr_test.go | 58 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 63 insertions(+), 15 deletions(-)

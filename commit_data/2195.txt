@@ -1,0 +1,15 @@
+commit b66d7039414cb0c2724f467e9cb5022ae6c7222f
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 12 16:16:52 2009 -0700
+
+    change name of reflect.NewInitValue to the more descriptive NewZeroValue.
+    
+    R=rsc
+    DELTA=10  (0 added, 0 deleted, 10 changed)
+    OCL=28717
+    CL=28720
+
+ src/lib/json/struct.go      | 2 +-
+ src/lib/reflect/all_test.go | 8 ++++----
+ src/lib/reflect/value.go    | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)

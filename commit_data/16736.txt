@@ -1,0 +1,14 @@
+commit 63f54ae3c25735aa8558f0f2d281032b46f45a53
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 11 14:41:46 2013 -0700
+
+    spec: move decl in example closer to use
+    
+    Fixes #5862.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/11168043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

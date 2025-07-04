@@ -1,0 +1,30 @@
+commit 449b6abbacc464443a7faf166bf4db3df3e0f8da
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Oct 24 21:29:30 2019 -0400
+
+    cmd/compile/internal/gc: reword "declared and not used" error message
+    
+    "declared and not used" is technically correct, but might confuse
+    the user. Switching "and" to "but" will hopefully create the
+    contrast for the users: they did one thing (declaration), but
+    not the other --- actually using the variable.
+    
+    This new message is still not ideal (specifically, declared is not
+    entirely precise here), but at least it matches the other parsers
+    and is one step in the right direction.
+    
+    Change-Id: I725c7c663535f9ab9725c4b0bf35b4fa74b0eb20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203282
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go  | 2 +-
+ src/cmd/compile/internal/gc/walk.go | 4 ++--
+ test/fixedbugs/bug373.go            | 2 +-
+ test/fixedbugs/issue21317.go        | 4 ++--
+ test/fixedbugs/issue23116.go        | 2 +-
+ test/fixedbugs/issue29870b.go       | 2 +-
+ test/typeswitch2b.go                | 4 ++--
+ 7 files changed, 10 insertions(+), 10 deletions(-)

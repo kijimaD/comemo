@@ -1,0 +1,16 @@
+commit a61bb954977f2b8a6439943e2a580d21715ee825
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 14:13:07 2008 -0700
+
+    get rid of per-G Note, avoids per-G kernel semaphore on Mac.
+    
+    2.14u 19.82s 22.17r      6.out 100000   # old
+    1.87u 0.43s 2.31r        6.out 100000   # new
+    
+    R=r
+    OCL=15762
+    CL=15772
+
+ src/runtime/proc.c    | 30 +++++++++++++++++-------------
+ src/runtime/runtime.h |  2 +-
+ 2 files changed, 18 insertions(+), 14 deletions(-)

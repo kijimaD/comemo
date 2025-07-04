@@ -1,0 +1,12 @@
+commit bcb7a8533422f013c48a362e46dab89bb05878fa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 20 11:43:34 2012 +1100
+
+    html/template: minor tweak to docs to improve HTML typography.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5684046
+
+ src/pkg/html/template/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 00547235b7c324cbad108ded016c14d789d7727d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Nov 6 09:33:02 2019 -0800
+
+    cmd/go: fix spelling error
+    
+    Change-Id: Ib29da1ad77c9a243a623d25113c6f8dd0261f42a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205601
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

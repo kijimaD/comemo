@@ -1,0 +1,38 @@
+commit 60a9e5d613d6de21735e54ca62246e3f8ef8c8d3
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 18 17:33:04 2018 -0500
+
+    runtime: ensure abort actually crashes the process
+    
+    On all non-x86 arches, runtime.abort simply reads from nil.
+    Unfortunately, if this happens on a user stack, the signal handler
+    will dutifully turn this into a panicmem, which lets user defers run
+    and which user code can even recover from.
+    
+    To fix this, add an explicit check to the signal handler that turns
+    faults in abort into hard crashes directly in the signal handler. This
+    has the added benefit of giving a register dump at the abort point.
+    
+    Change-Id: If26a7f13790745ee3867db7f53b72d8281176d70
+    Reviewed-on: https://go-review.googlesource.com/93661
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/vet/all/whitelist/386.txt           |  2 --
+ src/cmd/vet/all/whitelist/amd64.txt         |  1 -
+ src/cmd/vet/all/whitelist/arm.txt           |  1 -
+ src/cmd/vet/all/whitelist/arm64.txt         |  1 -
+ src/cmd/vet/all/whitelist/mips64x.txt       |  1 -
+ src/cmd/vet/all/whitelist/mipsx.txt         |  1 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  2 --
+ src/cmd/vet/all/whitelist/ppc64x.txt        |  1 -
+ src/cmd/vet/all/whitelist/s390x.txt         |  1 -
+ src/runtime/crash_test.go                   | 17 +++++++++++++++++
+ src/runtime/os3_plan9.go                    |  4 ++++
+ src/runtime/signal_sighandler.go            |  5 +++++
+ src/runtime/signal_windows.go               |  5 +++++
+ src/runtime/stubs.go                        |  7 +++++++
+ src/runtime/testdata/testprog/abort.go      | 23 +++++++++++++++++++++++
+ src/runtime/testdata/testprog/empty.s       |  5 +++++
+ 16 files changed, 66 insertions(+), 11 deletions(-)

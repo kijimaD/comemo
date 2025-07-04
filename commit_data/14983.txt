@@ -1,0 +1,13 @@
+commit 09899d3b355a2e34d01751cdbeeeb36418be37d1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jan 24 17:21:48 2013 -0500
+
+    exp/ssa: API and documentation.
+    
+    R=gri, iant, crawshaw, bradfitz, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/7071058
+
+ src/pkg/exp/ssa/doc.go |  113 +++++
+ src/pkg/exp/ssa/ssa.go | 1121 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1234 insertions(+)

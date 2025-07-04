@@ -1,0 +1,26 @@
+commit 5d6eba80f8df74df46dd68e58ae1ce9097d7f20a
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Apr 2 20:23:01 2008 -0700
+
+    generate an error if the foreward
+    declaration of a func does not exactly
+    match the actual (or another foreward)
+    declaration. the reason is that when
+    there are 2 declarations of a function,
+    the names of the parameters are taken
+    from the first. thus
+       func x(a int);
+    followed by
+       func x(b int) { ... }
+    will have the parameter named "a" and
+    "b" will be undefined.
+    
+    SVN=114788
+
+ src/c/dcl.c  |  9 +++++++++
+ src/c/gen.c  | 29 +++++++++++++++++++----------
+ src/c/go.h   | 11 ++++++-----
+ src/c/go.y   | 35 +++++++++--------------------------
+ src/c/subr.c | 50 ++++++++++++++++++++++++++++++++++++++++++++------
+ src/c/walk.c | 31 +++++++++++++++++++++----------
+ 6 files changed, 108 insertions(+), 57 deletions(-)

@@ -1,0 +1,19 @@
+commit f5bdbf311c3c28fd7cdb8ce31b272deb3feb6f64
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 21 04:30:29 2021 +0000
+
+    cmd/internal/obj/riscv: simplify rewriteMOV
+    
+    Rewrite and simplify the rewriteMOV function in preparation for eliminating it
+    entirely. Improve some error messages in the process.
+    
+    Change-Id: Id9a77be5174d46cc23651930c2e9068ee6555690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344458
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++---
+ src/cmd/internal/obj/riscv/obj.go                | 66 +++++++++---------------
+ 2 files changed, 30 insertions(+), 48 deletions(-)

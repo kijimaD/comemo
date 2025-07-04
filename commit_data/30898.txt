@@ -1,0 +1,17 @@
+commit f0a3018b00bb535259e7d46f0f1503048130f51c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 12:12:02 2017 -0400
+
+    cmd/go: fix bug in test of go get ./path needing to download path
+    
+    rsc.io/toolstash is gone; use rsc.io/pprof_mac_fix.
+    
+    This fixes a bug in the test. It turns out the code being tested here
+    is also broken, so the test still doesn't pass after this CL (filed #19769).
+    
+    Change-Id: Ieb725c321d7fab600708e133ae28f531e55521ad
+    Reviewed-on: https://go-review.googlesource.com/38743
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/go_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit de2184f3a8e7a7a55beb9293125a24a8de6933f1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jan 20 19:18:04 2011 +1100
+
+    net: get tests working to fix windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4089041
+
+ src/pkg/net/resolv_windows.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

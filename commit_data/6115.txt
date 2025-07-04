@@ -1,0 +1,14 @@
+commit 91a141675f2110267030e22bba0650808ff9e4e7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 27 11:02:54 2010 +1000
+
+    doc: fix wiki codelab title and srcextract.go
+    
+    R=r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1953048
+
+ doc/codelab/wiki/index.html    | 7 +------
+ doc/codelab/wiki/srcextract.go | 2 +-
+ doc/codelab/wiki/wiki.html     | 7 +------
+ 3 files changed, 3 insertions(+), 13 deletions(-)

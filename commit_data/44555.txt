@@ -1,0 +1,35 @@
+commit fee3cd4250843a0a7c056fed3d3e6e1a423f3120
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Mar 9 01:52:10 2021 +0700
+
+    cmd/compile: fix width not calculated for imported type
+    
+    The compiler currently has problem that some imported type is missing
+    size calculation. The problem is not triggered until CL 283313 merged,
+    due to the compiler can compile the functions immediately when it sees
+    them, so during SSA generation, size calculation is still ok.
+    
+    CL 283313 makes the compiler always push functions to compile queue,
+    then drain from it for compiling function. During this process, the
+    types calculation size is disabled, so calculating size during SSA now
+    make the compiler crashes.
+    
+    To fix this, we can just always calculate type size during typechecking,
+    when importing type from other packages.
+    
+    Fixes #44732
+    
+    Change-Id: I8d00ea0b5aadd432154908280e55d85c75f3ce92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299689
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go |  6 ++++++
+ test/fixedbugs/issue44732.dir/bar/bar.go      | 11 +++++++++++
+ test/fixedbugs/issue44732.dir/foo/foo.go      | 13 +++++++++++++
+ test/fixedbugs/issue44732.dir/main.go         | 15 +++++++++++++++
+ test/fixedbugs/issue44732.go                  |  7 +++++++
+ 5 files changed, 52 insertions(+)

@@ -1,0 +1,104 @@
+commit 3d40062c68b046546aab464185b1ebd24ac8da07
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 2 00:17:21 2012 -0400
+
+    cmd/gc, cmd/ld: struct field tracking
+    
+    This is an experiment in static analysis of Go programs
+    to understand which struct fields a program might use.
+    It is not part of the Go language specification, it must
+    be enabled explicitly when building the toolchain,
+    and it may be removed at any time.
+    
+    After building the toolchain with GOEXPERIMENT=fieldtrack,
+    a specific field can be marked for tracking by including
+    `go:"track"` in the field tag:
+    
+            package pkg
+    
+            type T struct {
+                    F int `go:"track"`
+                    G int // untracked
+            }
+    
+    To simplify usage, only named struct types can have
+    tracked fields, and only exported fields can be tracked.
+    
+    The implementation works by making each function begin
+    with a sequence of no-op USEFIELD instructions declaring
+    which tracked fields are accessed by a specific function.
+    After the linker's dead code elimination removes unused
+    functions, the fields referred to by the remaining
+    USEFIELD instructions are the ones reported as used by
+    the binary.
+    
+    The -k option to the linker specifies the fully qualified
+    symbol name (such as my/pkg.list) of a string variable that
+    should be initialized with the field tracking information
+    for the program. The field tracking string is a sequence
+    of lines, each terminated by a \n and describing a single
+    tracked field referred to by the program. Each line is made
+    up of one or more tab-separated fields. The first field is
+    the name of the tracked field, fully qualified, as in
+    "my/pkg.T.F". Subsequent fields give a shortest path of
+    reverse references from that field to a global variable or
+    function, corresponding to one way in which the program
+    might reach that field.
+    
+    A common source of false positives in field tracking is
+    types with large method sets, because a reference to the
+    type descriptor carries with it references to all methods.
+    To address this problem, the CL also introduces a comment
+    annotation
+    
+            //go:nointerface
+    
+    that marks an upcoming method declaration as unavailable
+    for use in satisfying interfaces, both statically and
+    dynamically. Such a method is also invisible to package
+    reflect.
+    
+    Again, all of this is disabled by default. It only turns on
+    if you have GOEXPERIMENT=fieldtrack set during make.bash.
+    
+    R=iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6749064
+
+ src/cmd/5a/lex.c       |   2 +
+ src/cmd/5g/gg.h        |   1 +
+ src/cmd/5g/gsubr.c     |  11 ++
+ src/cmd/5l/5.out.h     |   2 +
+ src/cmd/5l/l.h         |   2 +
+ src/cmd/5l/obj.c       |   3 +
+ src/cmd/5l/optab.c     |   2 +
+ src/cmd/5l/span.c      |   1 +
+ src/cmd/6a/lex.c       |   3 +-
+ src/cmd/6g/gg.h        |   1 +
+ src/cmd/6g/gsubr.c     |  11 ++
+ src/cmd/6l/6.out.h     |   2 +
+ src/cmd/6l/l.h         |   2 +
+ src/cmd/6l/obj.c       |   3 +
+ src/cmd/6l/optab.c     |   2 +
+ src/cmd/8a/lex.c       |   1 +
+ src/cmd/8g/gg.h        |   1 +
+ src/cmd/8g/gsubr.c     |  11 ++
+ src/cmd/8l/8.out.h     |   2 +
+ src/cmd/8l/l.h         |   2 +
+ src/cmd/8l/obj.c       |   3 +
+ src/cmd/8l/optab.c     |   2 +
+ src/cmd/gc/dcl.c       |   3 +-
+ src/cmd/gc/export.c    |   2 +
+ src/cmd/gc/go.h        |  16 ++-
+ src/cmd/gc/go.y        |   5 +-
+ src/cmd/gc/lex.c       |  48 +++++++--
+ src/cmd/gc/pgen.c      |   5 +
+ src/cmd/gc/reflect.c   |  15 ++-
+ src/cmd/gc/subr.c      |   2 +-
+ src/cmd/gc/typecheck.c |   3 +-
+ src/cmd/gc/walk.c      |  50 +++++++++-
+ src/cmd/gc/y.tab.c     | 265 +++++++++++++++++++++++++------------------------
+ src/cmd/ld/data.c      |   4 +
+ src/cmd/ld/go.c        | 112 ++++++++++++++-------
+ src/cmd/ld/lib.h       |   1 +
+ 36 files changed, 413 insertions(+), 188 deletions(-)

@@ -1,0 +1,15 @@
+commit 9475cafa7340df9b86c359fa16ce03c005283229
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 11 14:52:06 2010 -0700
+
+    gc: distinguish fatal compiler bug from error+exit
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/902044
+
+ src/cmd/gc/lex.c       | 31 ++++++++++++++++++++-----------
+ src/cmd/gc/obj.c       |  7 +++++--
+ src/cmd/gc/subr.c      | 30 ++++++++++++++++++++++--------
+ src/cmd/gc/typecheck.c |  4 ++--
+ 4 files changed, 49 insertions(+), 23 deletions(-)

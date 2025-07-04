@@ -1,0 +1,16 @@
+commit 86e31bc5fdde06d406b95cf8b5971755c78ec549
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 4 13:04:31 2019 -0500
+
+    doc/go1.12: remove known issue note
+    
+    A workaround has been submitted.
+    
+    Updates #27993
+    
+    Change-Id: Ife6443c32673b38000b90dd2efb2985db37ab773
+    Reviewed-on: https://go-review.googlesource.com/c/156318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 6 ------
+ 1 file changed, 6 deletions(-)

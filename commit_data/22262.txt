@@ -1,0 +1,27 @@
+commit 8b0e38ffb44cd9a000db38510925a2cada074e26
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 29 20:19:20 2015 +0900
+
+    net: deflake TestDialTimeout
+    
+    This change makes TestDialTimeout work on almost all the supported
+    platforms.
+    
+    Updates #3016.
+    Updates #3307.
+    Updates #3867.
+    Updates #5380.
+    Updates #5349.
+    
+    Change-Id: Iacf0ebea23cdd8f6c0333d70c667a5a5f5eb0ed2
+    Reviewed-on: https://go-review.googlesource.com/8220
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_gen.go      | 10 ++----
+ src/net/dial_gen_test.go | 11 -------
+ src/net/dial_test.go     | 83 ------------------------------------------------
+ src/net/hook_plan9.go    |  9 ++++++
+ src/net/hook_unix.go     |  2 ++
+ src/net/hook_windows.go  |  7 +++-
+ src/net/timeout_test.go  | 48 ++++++++++++++++++++++++++++
+ 7 files changed, 67 insertions(+), 103 deletions(-)

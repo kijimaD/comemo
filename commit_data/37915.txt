@@ -1,0 +1,17 @@
+commit 8b7cf898af3ab21c9e07e5b24d59c16b9fcf295a
+Author: yo-tak <yo.tak0812@gmail.com>
+Date:   Wed Jan 23 00:11:33 2019 +0900
+
+    cmd/compile, cmd/link: document more flags
+    
+    Fixes #26533
+    
+    Change-Id: I5a48d667d474f3f222f9055e51131561a0cf45b6
+    Reviewed-on: https://go-review.googlesource.com/c/138757
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/doc.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/link/doc.go    | 21 +++++++++++++++++++
+ 2 files changed, 74 insertions(+), 2 deletions(-)

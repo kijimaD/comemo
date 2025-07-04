@@ -1,0 +1,12 @@
+commit ab05a855c6d5122dfe996b6b36bd39ee85a30b10
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Tue Dec 17 14:53:31 2013 -0800
+
+    database/sql: Fix inaccurate comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/40370051
+
+ src/pkg/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

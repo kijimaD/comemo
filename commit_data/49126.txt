@@ -1,0 +1,61 @@
+commit bf68170c638e7e69bedcc64fadfd83354fd06c10
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun May 8 23:29:23 2022 +0100
+
+    go/printer: align expression list elements containing tabs
+    
+    A user noticed that, given the input
+    
+            {
+                    S:       "Hello World",
+                    Integer: 42,
+            },
+            {
+                    S:       "      ", // an actual <tab>
+                    Integer: 42,
+            },
+    
+    gofmt would incorrectly format the code as
+    
+            {
+                    S:       "Hello World",
+                    Integer: 42,
+            },
+            {
+                    S: "    ", // an actual <tab>
+                    Integer: 42,
+            },
+    
+    The problem was in the nodeSize method, used to get the printed length
+    of a node before it's actually printed to the final buffer.
+    The exprList method calls nodeSize to see if one expression in a list
+    changes too drastically in size from the previous, which means the
+    vertical alignment should be broken.
+    
+    It is worth noting that nodeSize only reports valid lengths if the node
+    fits into a single line; otherwise, it returns a large number, larger
+    than an "infinity" currently set to 1e6.
+    
+    However, the "does it fit in a single line" logic was broken;
+    it checked if any of the to-be-printed characters is less than ' ',
+    which does include '\n' and '\f' (the latter used by tabwriter as well),
+    but also includes '\t', which would make nodeSize incorrectly conclude
+    that our key-value expression with a tab does not fit into a single line.
+    
+    While here, make the testdata test cases run as sub-tests,
+    as I used "-run TestRewrite/tabs.input" to help debug this.
+    
+    Fixes #51910.
+    
+    Change-Id: Ib7936e02652bc58f99772b06384ae271fddf09e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404955
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/gofmt/gofmt_test.go        | 21 ++++++++++++---------
+ src/cmd/gofmt/testdata/tabs.golden | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/tabs.input  | 33 +++++++++++++++++++++++++++++++++
+ src/go/printer/nodes.go            |  5 +++--
+ 4 files changed, 81 insertions(+), 11 deletions(-)

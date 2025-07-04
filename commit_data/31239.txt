@@ -1,0 +1,29 @@
+commit 565807566e08907d8b37569c8d044c0ef220b45b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 15:39:04 2017 -0700
+
+    runtime: improve ExampleFrames
+    
+    CL 40876 changed ExampleFrames so that the output
+    was stable with and without mid-stack inlining.
+    
+    However, that change lost some of the
+    pedagogical and copy/paste value of the example.
+    It was unclear why both more and i were being tracked,
+    and whether the 5 in i < 5 is related to len(pc),
+    and if so, why and how.
+    
+    This CL rewrites the example with lots more comments,
+    and such that the core structure more closely matches
+    normal usage, and such that it is obvious
+    which lines of code should be deleted when copying.
+    As a bonus, it also now illustrates Frame.File.
+    
+    Change-Id: Iab73541dd096657ddf79c5795337e8b596d89740
+    Reviewed-on: https://go-review.googlesource.com/41136
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/example_test.go | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 4e201c7f20913405dfcee7eb4ff70e5673d8da8e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 19 11:51:23 2009 -0800
+
+    os.ReadAt doesn't return EOF at EOF.
+    thanks to lionkov for the fix.
+    
+    Fixes #262.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156097
+
+ src/pkg/os/file.go | 3 +++
+ 1 file changed, 3 insertions(+)

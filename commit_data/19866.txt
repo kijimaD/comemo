@@ -1,0 +1,13 @@
+commit fe513d8b3e4a24897fa3c03002121819cf03a801
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Fri Aug 1 16:45:33 2014 -0700
+
+    cmd/go: use correct link flags if main package contains C++/ObjC files
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/117470043
+
+ src/cmd/go/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

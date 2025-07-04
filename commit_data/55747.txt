@@ -1,0 +1,24 @@
+commit 77f0bd01fbc9cc7e77d86756d273b69a5855c2c3
+Author: Russ Cox <rsc@swtch.com>
+Date:   Tue Feb 13 22:31:33 2024 -0500
+
+    runtime: delete clearDeletedTimers
+    
+    adjusttimers already contains the same logic. Use it instead.
+    This avoids having two copies of the code and is faster.
+    
+    adjusttimers was formerly O(n log n) but is now O(n).
+    clearDeletedTimers was formerly O(n² log n) and is now gone!
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I32bf24817a589033dc304b359f8df10ea21f48fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go |  13 +++----
+ src/runtime/time.go | 102 +++++-----------------------------------------------
+ 2 files changed, 13 insertions(+), 102 deletions(-)

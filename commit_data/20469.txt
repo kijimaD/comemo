@@ -1,0 +1,16 @@
+commit 98a5f52ef0658f1e1ad823bfad91dd5bbc261a75
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 14:48:47 2014 -0400
+
+    os: avoid error result when dir is removed out from under RemoveAll
+    
+    Fixes #7776.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, r
+    https://golang.org/cl/145860043
+
+ src/os/os_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/path.go    |  5 ++++-
+ 2 files changed, 46 insertions(+), 1 deletion(-)

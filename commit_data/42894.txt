@@ -1,0 +1,25 @@
+commit e6583dc95375c4e266bffab6f8888e8e557b6355
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Mon Aug 3 15:33:47 2020 +0800
+
+    runtime: add file copyright header declaration
+    
+    Some files have no copyright notice.
+    The copyright time is the earliest modification record of the file.
+    
+    Change-Id: I5698bae16b6b73543e074415877a03348f792951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246378
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/defs_linux_arm.go        | 4 ++++
+ src/runtime/defs_linux_mips64x.go    | 4 ++++
+ src/runtime/defs_openbsd_arm64.go    | 4 ++++
+ src/runtime/defs_plan9_386.go        | 4 ++++
+ src/runtime/defs_plan9_amd64.go      | 4 ++++
+ src/runtime/rt0_linux_ppc64.s        | 4 ++++
+ src/runtime/rt0_linux_ppc64le.s      | 4 ++++
+ src/runtime/trace/annotation.go      | 4 ++++
+ src/runtime/trace/annotation_test.go | 4 ++++
+ 9 files changed, 36 insertions(+)

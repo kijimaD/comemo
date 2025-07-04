@@ -1,0 +1,21 @@
+commit ad1644943ba691740c3bec29280f350f9d81c1b1
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Dec 29 23:16:01 2018 +0300
+
+    cmd/compile/internal/gc: remove unused methodbyname type
+    
+    methodbyname was used for sorting in bexport.go, until
+    https://golang.org/cl/139338 removed the code that
+    invoked sorting function.
+    
+    R=1.13
+    
+    Change-Id: I13e313fb60111a142ed3883d81916af254445fdc
+    Reviewed-on: https://go-review.googlesource.com/c/155959
+    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,0 +1,24 @@
+commit c907a75494f0d828a9afa5f849684f3c09c4afa2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 10 09:28:04 2018 +0200
+
+    cmd/compile: refactor appendslice to use newer gc code style
+    
+    - add comments with builtin function signatures that are instantiated
+    - use Nodes type from the beginning instead of
+      []*Node with a later conversion to Nodes
+    - use conv(x, y) helper function instead of nod(OCONV, x, y)
+    - factor out repeated calls to Type.Elem()
+    
+    This makes the function style similar to newer functions like extendslice.
+    
+    passes toolstash -cmp
+    
+    Change-Id: Iedab191af9e0884fb6762c9c168430c1d2246979
+    Reviewed-on: https://go-review.googlesource.com/112598
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 71 +++++++++++++++++++------------------
+ 1 file changed, 36 insertions(+), 35 deletions(-)

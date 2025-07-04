@@ -1,0 +1,12 @@
+commit 646e54106d915b7305f327849e61ef8100d6fa39
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 15:54:22 2013 -0700
+
+    database/sql: doc cleanup on the DB type
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7865044
+
+ src/pkg/database/sql/sql.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

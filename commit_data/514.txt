@@ -1,0 +1,12 @@
+commit cbaca0be24eae02587da6a0e269a4ecf5df19a13
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 13:08:16 2008 -0700
+
+    code in bug was wrong; correct and improve.  works now.
+    
+    R=gri
+    OCL=14088
+    CL=14088
+
+ test/fixedbugs/bug012.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit 28fa1da9db8eedf079f1b83fd39383e17b3d7e68
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Oct 4 16:46:22 2018 +0800
+
+    cmd/api: explicit tagKey with GOOS and GOARCH
+    
+    The origin tagKey is just dirname if no tags input which will cause
+    pkgCache missmatch if other imported pkg explicit on GOARCH or GOOS
+    
+    This CL will add GOOS and GOARCH to tagKey
+    
+    Fixes #8425
+    Fixes #21181
+    
+    Change-Id: Ifc189cf6746d753ad7c7e5bb60621297fc0a4e35
+    Reviewed-on: https://go-review.googlesource.com/c/138315
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ api/except.txt                                     |  2 ++
+ src/cmd/api/goapi.go                               | 14 ++++++++++----
+ src/cmd/api/goapi_test.go                          | 15 +++++++++++++++
+ src/cmd/api/testdata/src/issue21181/dep/p.go       |  5 +++++
+ src/cmd/api/testdata/src/issue21181/dep/p_amd64.go |  1 +
+ src/cmd/api/testdata/src/issue21181/indirect/p.go  |  5 +++++
+ src/cmd/api/testdata/src/issue21181/p/p.go         |  9 +++++++++
+ src/cmd/api/testdata/src/issue21181/p/p_amd64.go   |  7 +++++++
+ src/cmd/api/testdata/src/issue21181/p/p_generic.go | 11 +++++++++++
+ 9 files changed, 65 insertions(+), 4 deletions(-)

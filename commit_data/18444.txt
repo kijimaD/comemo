@@ -1,0 +1,18 @@
+commit ae5bed04c3b2d2bd752485794557021b6ce954b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 11 09:26:34 2014 +1100
+
+    doc: restore race detector manual
+    
+    This got deleted mistakenly during the content re-org.
+    
+    Fixes #7275.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, minux.ma, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/60850043
+
+ doc/articles/race_detector.html | 388 ++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                   |   3 +-
+ 2 files changed, 390 insertions(+), 1 deletion(-)

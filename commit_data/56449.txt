@@ -1,0 +1,16 @@
+commit 99283b81f4753fd7bb2acd70949f324cb7b603ab
+Author: Tim King <taking@google.com>
+Date:   Thu Apr 18 13:48:18 2024 -0700
+
+    cmd/go: add module information to vet actions
+    
+    Update golang/go#66315
+    
+    Change-Id: Ica9b7e010ea9a0a12f80cc83b8ace51f22822ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580076
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/exec.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

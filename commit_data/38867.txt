@@ -1,0 +1,44 @@
+commit 68819fb6d2bab59e4eadcdf62aa4a2a54417d640
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Sun Mar 17 23:11:00 2019 -0600
+
+    cmd/compile: add signed divisibility by power of 2 rules
+    
+    For powers of two (c=1<<k), the divisibility check x%c == 0 can be made
+    just by checking the trailing zeroes via a mask x&(c-1)==0 even for signed
+    integers.  This avoids division fixups when just divisibility check is needed.
+    
+    To apply this rule the generic divisibility rule for  A%B = A-(A/B*B) is disabled
+    on the "opt" pass, but this does not affect generated code as this rule is applied
+    later.
+    
+    The speed up on amd64 due to elimination of unneccessary fixup code is ~55%:
+    
+    name                     old time/op  new time/op  delta
+    DivconstI64-4            2.08ns ± 0%  2.07ns ± 0%     ~     (p=0.079 n=5+5)
+    DivisiblePow2constI64-4  1.78ns ± 1%  0.81ns ± 1%  -54.55%  (p=0.008 n=5+5)
+    DivconstU64-4            2.08ns ± 0%  2.08ns ± 0%     ~     (p=1.000 n=5+5)
+    DivconstI32-4            1.53ns ± 0%  1.53ns ± 0%     ~     (all equal)
+    DivisiblePow2constI32-4  1.79ns ± 1%  0.81ns ± 4%  -54.75%  (p=0.008 n=5+5)
+    DivconstU32-4            1.78ns ± 1%  1.78ns ± 1%     ~     (p=1.000 n=5+5)
+    DivconstI16-4            1.54ns ± 2%  1.53ns ± 0%     ~     (p=0.333 n=5+4)
+    DivisiblePow2constI16-4  1.78ns ± 0%  0.79ns ± 1%  -55.39%  (p=0.000 n=4+5)
+    DivconstU16-4            1.00ns ± 5%  0.99ns ± 1%     ~     (p=0.730 n=5+5)
+    DivconstI8-4             1.54ns ± 0%  1.53ns ± 0%     ~     (p=0.714 n=4+5)
+    DivisiblePow2constI8-4   1.78ns ± 0%  0.80ns ± 0%  -55.06%  (p=0.000 n=5+4)
+    DivconstU8-4             0.93ns ± 1%  0.95ns ± 1%   +1.72%  (p=0.024 n=5+5)
+    
+    A follow-up CL will address the general case of x%c == 0 for signed integers.
+    
+    Updates #15806
+    
+    Change-Id: I0d284863774b1bc8c4ce87443bbaec6103e14ef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168038
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/arith_test.go | 291 +++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules     |  19 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 348 ++++++++++++++++++++-
+ src/cmd/compile/internal/test/divconst_test.go     |  26 ++
+ test/codegen/arithmetic.go                         |  11 +
+ 5 files changed, 679 insertions(+), 16 deletions(-)

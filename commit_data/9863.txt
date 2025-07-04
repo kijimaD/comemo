@@ -1,0 +1,22 @@
+commit 528ccdc513b76143154c52ebb9d93b79faeaa0b1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Oct 5 12:07:44 2011 -0400
+
+    runtime: fix Plan 9 build
+    
+    This change adds the osyield and usleep
+    functions and code to read the number of
+    processors from /dev/sysstat.
+    
+    I also changed SysAlloc to return nil
+    when brk fails (it was returning -1).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5177049
+
+ src/pkg/runtime/plan9/386/sys.s | 21 +++++++++++++++++--
+ src/pkg/runtime/plan9/mem.c     |  2 +-
+ src/pkg/runtime/plan9/os.h      | 16 +++++++++------
+ src/pkg/runtime/plan9/thread.c  | 45 +++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 73 insertions(+), 11 deletions(-)

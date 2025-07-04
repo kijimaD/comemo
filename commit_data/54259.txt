@@ -1,0 +1,20 @@
+commit ad74bc4a92d0c903308b2e40fa07446a735dbbd2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 28 05:43:51 2023 -0700
+
+    cmd/internal/obj: add Func type to replace "curfn any"
+    
+    This adds a modicum of type safety to these APIs, which are otherwise
+    quite confusing to follow.
+    
+    Change-Id: I268a9a1a99a47dcfef6dc1e9e5be13673af3fb85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523396
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  4 ++--
+ src/cmd/internal/obj/dwarf.go              | 20 +++++++++-----------
+ src/cmd/internal/obj/link.go               |  7 ++++++-
+ src/cmd/internal/obj/plist.go              |  2 +-
+ 4 files changed, 18 insertions(+), 15 deletions(-)

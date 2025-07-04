@@ -1,0 +1,14 @@
+commit 2a20f5c47456dbe648100d37831ca439cc79a9ff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 01:13:39 2020 -0400
+
+    cmd/link: update comment for deadcode
+    
+    Update the comment to be in sync with the code.
+    
+    Change-Id: I19586767a37347c4da1b4d3f7c6dc6cc2292a90f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

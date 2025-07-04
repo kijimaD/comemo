@@ -1,0 +1,28 @@
+commit a7a0f0305035948f4c86e08e6e64409ab11a6f67
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Apr 1 03:21:03 2020 -0700
+
+    cmd/compile: mark 'store multiple' as clobbering flags on s390x
+    
+    Store multiple instructions can clobber flags on s390x when the
+    offset passed into the assembler is outside the range representable
+    with a signed 20 bit integer. This is because the assembler uses
+    the agfi instruction to implement the large offset. The assembler
+    could use a different sequence of instructions, but for now just
+    mark the instruction as 'clobberFlags' since this is risk free.
+    
+    Noticed while investigating #38195.
+    
+    No test yet since I'm not sure how to get this bug to trigger and
+    I haven't seen it affect real code.
+    
+    Change-Id: I4a6ab96455a3ef8ffacb76ef0166b97eb40ff925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226759
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 6 ++++++
+ src/cmd/compile/internal/ssa/opGen.go        | 6 ++++++
+ 2 files changed, 12 insertions(+)

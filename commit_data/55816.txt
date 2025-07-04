@@ -1,0 +1,40 @@
+commit 4c08c125936b4ae3daff04cecf5309dd5dd1e2c5
+Author: Pouriya <pouriya.jahanbakhsh@gmail.com>
+Date:   Tue Feb 27 21:51:31 2024 +0000
+
+    runtime: use .Pointers() instead of manual checking
+    
+    Change-Id: Ib78c1513616089f4942297cd17212b1b11871fd5
+    GitHub-Last-Rev: f97fe5b5bffffe25dc31de7964588640cb70ec41
+    GitHub-Pull-Request: golang/go#65819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565515
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/abi/type.go            |  1 +
+ src/internal/reflectlite/swapper.go |  2 +-
+ src/reflect/deepequal.go            |  2 +-
+ src/reflect/export_test.go          |  2 +-
+ src/reflect/swapper.go              |  2 +-
+ src/reflect/type.go                 | 12 ++++++------
+ src/reflect/value.go                |  4 ++--
+ src/runtime/arena.go                |  4 ++--
+ src/runtime/cgocall.go              |  6 +++---
+ src/runtime/cgocheck.go             |  6 +++---
+ src/runtime/chan.go                 |  2 +-
+ src/runtime/checkptr.go             |  2 +-
+ src/runtime/export_test.go          |  2 +-
+ src/runtime/heapdump.go             |  2 +-
+ src/runtime/malloc.go               |  4 ++--
+ src/runtime/map.go                  | 14 +++++++-------
+ src/runtime/map_fast32.go           | 10 +++++-----
+ src/runtime/map_fast64.go           | 10 +++++-----
+ src/runtime/map_faststr.go          |  6 +++---
+ src/runtime/mbarrier.go             | 12 ++++++------
+ src/runtime/mfinal.go               |  2 +-
+ src/runtime/slice.go                |  8 ++++----
+ 22 files changed, 58 insertions(+), 57 deletions(-)

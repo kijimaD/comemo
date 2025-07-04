@@ -1,0 +1,20 @@
+commit e960302410fafaf595c1ad92c28c61da3a254d63
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 21 13:56:08 2016 -0500
+
+    runtime: when crash with panic, call user Error/String methods before freezing the world
+    
+    Fixes #14432.
+    
+    Change-Id: I0a92ef86de95de39217df9a664d8034ef685a906
+    Reviewed-on: https://go-review.googlesource.com/19792
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go                |  9 +++++++++
+ src/runtime/crash_test.go                    | 16 +++++++++++++++
+ src/runtime/panic.go                         | 19 ++++++++++++++++++
+ src/runtime/testdata/testprog/deadlock.go    | 25 +++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/deadlock.go | 30 ++++++++++++++++++++++++++++
+ 5 files changed, 99 insertions(+)

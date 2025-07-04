@@ -1,0 +1,14 @@
+commit b9b6e86c796f1ab9494d09381671e0e8d3c1d1aa
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Sun Aug 9 10:12:38 2015 +0200
+
+    io/ioutil: add examples to functions
+    
+    Change-Id: Ica0cf1ba01ba73bd7e2fe38d653503738a962720
+    Reviewed-on: https://go-review.googlesource.com/13450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/example_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

@@ -1,0 +1,31 @@
+commit 8438a5779b76620237d608282a99d17467b91f4c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 11 21:27:56 2020 -0500
+
+    runtime: use _exit on darwin
+    
+    On darwin, where we use libc for syscalls, when the runtime exits,
+    it calls libc exit function, which may call back into user code,
+    e.g. invoking functions registered with atexit. In particular, it
+    may call back into Go. But at this point, the Go runtime is
+    already exiting, so this wouldn't work.
+    
+    On non-libc platforms we use exit syscall directly, which doesn't
+    invoke any callbacks. Use _exit on darwin to achieve the same
+    behavior.
+    
+    No test for now, as it doesn't pass on all platforms (see trybot
+    run of PS2).
+    
+    May fix #42465.
+    May fix #43294.
+    
+    Change-Id: Ia1ada22b5da8cb64fdd598d0541eb90e195367eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269378
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

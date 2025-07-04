@@ -1,0 +1,14 @@
+commit f113a629b2bf6ca31ebd3acd7afc7352a0186342
+Author: Dhruvdutt Jadhav <dhruvdutt.jadhav@gmail.com>
+Date:   Tue Apr 3 17:08:45 2018 +0000
+
+    README: update number of contributors
+    
+    Change-Id: I5a1c7ed83a430a509d8f61f4aba8772d5d16ad48
+    GitHub-Last-Rev: fed86d88691c8a62bafac18a4e5c0944a4e59050
+    GitHub-Pull-Request: golang/go#24664
+    Reviewed-on: https://go-review.googlesource.com/104515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

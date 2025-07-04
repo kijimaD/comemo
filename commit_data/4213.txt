@@ -1,0 +1,14 @@
+commit 2cbeb1dbb18050ea33a9b8553eb7f71636afa7fd
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 14:04:43 2009 -0800
+
+    change the rules for maintaining AUTHORS and CONTRIBUTORS files.
+    the current system is too painful, so instead let's just have the coders tell us the details.
+    we can update the files ourselves.
+    
+    R=rsc, r1
+    CC=golang-dev
+    https://golang.org/cl/157158
+
+ doc/contribute.html | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

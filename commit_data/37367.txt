@@ -1,0 +1,24 @@
+commit b52db19b983d9b92c013184f7699bba2d0166c10
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 12 16:31:47 2018 -0500
+
+    cmd/compile: create "init" symbol earlier
+    
+    We create the "init" symbol and mark it as a function before compiling
+    to SSA because SSA can initialize this symbol, but it turns out we do
+    it slightly too late. peekitabs, at least, can also create the "init"
+    LSym. Move this initialization to just after type-checking.
+    
+    Fixes the linux-amd64-ssacheck and the android-arm64-wiko-fever
+    builders.
+    
+    Updates #27539.
+    
+    Change-Id: If145952c79d39f75c93b24e35e67fe026dd08329
+    Reviewed-on: https://go-review.googlesource.com/c/149137
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

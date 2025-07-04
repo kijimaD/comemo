@@ -1,0 +1,20 @@
+commit f439a762533f3a75eb928b67d0415010aa8a81d7
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Apr 27 06:19:57 2021 +0000
+
+    cmd/internal/obj/arm64: fix the wrong error message of out-of-range checking
+    
+    The error message of checking whether the offset value of load/store
+    instruction is out of range is wrong. The right range is [-256, 255], not
+    [-255, 254]. The CL fixes it.
+    
+    Change-Id: Ia342957f1f6bcec65eceb45944221d3972641bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313891
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 4 ++--
+ src/cmd/internal/obj/arm64/asm7.go             | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

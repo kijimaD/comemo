@@ -1,0 +1,13 @@
+commit 8a9e395f5f5977f17d1c51b085948aad30a4c5dc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 10 13:50:44 2009 -0700
+
+    one more piece of testing: 2nd send should not send type info.
+    
+    R=rsc
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=31460
+    CL=31460
+
+ src/pkg/gob/encoder_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

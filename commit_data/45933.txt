@@ -1,0 +1,22 @@
+commit 9e26569293c13974d210fd588ebfd29b857d8525
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 18 13:58:13 2021 -0700
+
+    cmd/go: don't add C compiler ID to hash for standard library
+    
+    No test because a real test requires installing two different compilers.
+    
+    For #40042
+    For #47251
+    
+    Change-Id: Iefddd67830d242a119378b7ce20be481904806e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335409
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go            | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go | 11 +++++++++--
+ 2 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit d4ab73d1dfd60bfe1cf24c3682ba8110994b49dd
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Jun 13 12:35:20 2017 -0700
+
+    doc: add go1.9 release notes for database/sql changes
+    
+    Change-Id: I9b0f17e123805ad9f526f5ea44b23cf4dbadcdcc
+    Reviewed-on: https://go-review.googlesource.com/45611
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

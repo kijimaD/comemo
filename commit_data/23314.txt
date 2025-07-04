@@ -1,0 +1,16 @@
+commit 1f029fa6d35e5ab6322ffae6562c0c6a3c23a2f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 10 11:19:14 2015 -0700
+
+    archive/zip: clarify that CreateHeader takes ownership of FileHeader
+    
+    Fixes #11144
+    
+    Change-Id: I1da0b72ef00a84c9b5751be0e72ad07d664bc98b
+    Reviewed-on: https://go-review.googlesource.com/10883
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/archive/zip/writer.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 374a56ca33d48f0a70adbf3d94763fbcab5dd5a4
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed Nov 8 12:10:13 2023 +0000
+
+    internal/zstd: use dynamic path resolution for zstd in tests
+    
+    Abstract the hardcoded '/usr/bin/zstd' paths in fuzz and unit tests
+    to support systems where zstd may be installed at different locations.
+    The `findZstd` function uses `exec.LookPath` to locate the binary,
+    enhancing test portability.
+    
+    Fixes #64000
+    
+    Change-Id: I0ebe5bbcf3ddc6fccf176c13639ca9d855bcab87
+    GitHub-Last-Rev: c4dfe1139bdc2f4f3200f80b314a02b5df5cd995
+    GitHub-Pull-Request: golang/go#64002
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540522
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/zstd/fuzz_test.go | 12 ++++--------
+ src/internal/zstd/zstd_test.go | 23 ++++++++++++-----------
+ 2 files changed, 16 insertions(+), 19 deletions(-)

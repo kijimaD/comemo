@@ -1,0 +1,48 @@
+commit 6c230fbc6710b80982b3082064292fefae4a4790
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 18:33:13 2011 -0400
+
+    regexp: move to old/regexp, replace with exp/regexp
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5127042
+
+ src/cmd/godoc/codewalk.go                          |   2 +-
+ src/cmd/godoc/format.go                            |   2 +-
+ src/cmd/godoc/godoc.go                             |   2 +-
+ src/cmd/godoc/index.go                             |   2 +-
+ src/cmd/godoc/main.go                              |   2 +-
+ src/pkg/Makefile                                   |   4 +-
+ src/pkg/exp/norm/normregtest.go                    |   2 +-
+ src/pkg/index/suffixarray/suffixarray.go           |   2 +-
+ src/pkg/index/suffixarray/suffixarray_test.go      |   2 +-
+ src/pkg/{exp => old}/regexp/Makefile               |   5 +-
+ src/pkg/{exp => old}/regexp/all_test.go            |   7 +-
+ src/pkg/{exp => old}/regexp/find_test.go           |  32 +-
+ src/pkg/{exp => old}/regexp/regexp.go              | 999 ++++++++++++++++-----
+ src/pkg/regexp/Makefile                            |   3 +-
+ src/pkg/regexp/all_test.go                         |   7 +-
+ src/pkg/{exp => }/regexp/exec.go                   |   2 +-
+ src/pkg/{exp => }/regexp/exec_test.go              |   2 +-
+ src/pkg/regexp/find_test.go                        |  32 +-
+ src/pkg/regexp/regexp.go                           | 999 +++++----------------
+ src/pkg/{exp => }/regexp/syntax/Makefile           |   6 +-
+ src/pkg/{exp => }/regexp/syntax/compile.go         |   0
+ .../{exp => }/regexp/syntax/make_perl_groups.pl    |   0
+ src/pkg/{exp => }/regexp/syntax/parse.go           |   0
+ src/pkg/{exp => }/regexp/syntax/parse_test.go      |   0
+ src/pkg/{exp => }/regexp/syntax/perl_groups.go     |   0
+ src/pkg/{exp => }/regexp/syntax/prog.go            |   0
+ src/pkg/{exp => }/regexp/syntax/prog_test.go       |   0
+ src/pkg/{exp => }/regexp/syntax/regexp.go          |   0
+ src/pkg/{exp => }/regexp/syntax/simplify.go        |   0
+ src/pkg/{exp => }/regexp/syntax/simplify_test.go   |   0
+ src/pkg/{exp => }/regexp/testdata/README           |   0
+ src/pkg/{exp => }/regexp/testdata/basic.dat        |   0
+ src/pkg/{exp => }/regexp/testdata/nullsubexpr.dat  |   0
+ .../regexp/testdata/re2-exhaustive.txt.bz2         | Bin
+ src/pkg/{exp => }/regexp/testdata/re2-search.txt   |   0
+ src/pkg/{exp => }/regexp/testdata/repetition.dat   |   0
+ src/pkg/{exp => }/regexp/testdata/testregex.c      |   0
+ 37 files changed, 1057 insertions(+), 1057 deletions(-)

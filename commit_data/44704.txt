@@ -1,0 +1,22 @@
+commit 2f3db220d1ff1610e315d95d276782d4533f052b
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Wed Mar 17 14:13:35 2021 +0000
+
+    crypto/tls: remove flaky cancellation test
+    
+    This will be reintroduced again once the source of the
+    flakiness has been determined and fixed.
+    
+    Fixes #45084
+    
+    Change-Id: I6677b27fcd71e8c9bb8edbe8e3be70e5a271ebd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302569
+    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 36 ---------------------------------
+ 1 file changed, 36 deletions(-)

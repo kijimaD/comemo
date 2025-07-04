@@ -1,0 +1,17 @@
+commit dbe2eacf04898a9c77684424ec7c62700d08fb0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 18 16:52:44 2013 -0400
+
+    cmd/cgo: fix line number in an error message
+    
+    Fixes #6563.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14870046
+
+ misc/cgo/errors/err1.go   |  6 +++++-
+ misc/cgo/errors/err2.go   | 13 +++++++++++++
+ misc/cgo/errors/test.bash | 38 +++++++++++++++++++++++++-------------
+ src/cmd/cgo/gcc.go        | 12 +++++++++++-
+ 4 files changed, 54 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 90dca98d33055b8365d9e7e40ebb4ca478daf77e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 07:08:38 2018 -0800
+
+    doc: clarify change to File.Sync on macOS
+    
+    Updates #26650
+    
+    Change-Id: I0ec070127dcacc7fc68dd5baf125eb762e1ea846
+    Reviewed-on: https://go-review.googlesource.com/c/155038
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.12.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

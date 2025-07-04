@@ -1,0 +1,14 @@
+commit ad21c42f05237a586d01885824a3b7dd76d823c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 19:55:38 2010 -0800
+
+    godoc: compute search index for all file systems under godoc's observation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3209041
+
+ src/cmd/godoc/godoc.go | 83 ++++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/godoc/index.go | 29 ++++++++++++------
+ src/cmd/godoc/main.go  | 11 ++++---
+ 3 files changed, 92 insertions(+), 31 deletions(-)

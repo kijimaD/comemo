@@ -1,0 +1,19 @@
+commit 5af4b3487011f8e88accf06131c3f6e64e58cb2a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 15:16:12 2023 -0700
+
+    cmd/compile: move IsDeadcodeClosure check into enqueueFunc
+    
+    Keeps the top-level loop in Main slightly cleaner.
+    
+    Change-Id: I9c8d38d4bbb34d53edc0796893534763e9eef2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518957
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/gc/compile.go | 5 +++++
+ src/cmd/compile/internal/gc/main.go    | 4 ----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit ececbe89d4d5ab151333cbadae725619c0ad9dd8
+Author: Peter Waller <p@pwaller.net>
+Date:   Tue Dec 30 12:19:43 2014 +0000
+
+    net/http/httputil: ReverseProxy request cancellation
+    
+    If an inbound connection is closed, cancel the outbound http request.
+    
+    This is particularly useful if the outbound request may consume resources
+    unnecessarily until it is cancelled.
+    
+    Fixes #8406
+    
+    Change-Id: I738c4489186ce342f7e21d0ea3f529722c5b443a
+    Signed-off-by: Peter Waller <p@pwaller.net>
+    Reviewed-on: https://go-review.googlesource.com/2320
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 46 ++++++++++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 56 ++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)

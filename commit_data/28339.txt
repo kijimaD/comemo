@@ -1,0 +1,83 @@
+commit 37d452c3e9c1fe354375ad41ae0b952b563dfbe4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 13:44:43 2016 -0700
+
+    cmd/compile: reduce allocs to c85b77c (pre-fmt.go change) levels
+    
+    Linker and reflect info generation (reflect.go) relies on formatting
+    of types (tconv). The fmt.Format based approach introduces extra
+    allocations, which matter in those cases. Resurrected sconv and tconv
+    code from commit c85b77c (fmt.go only); and adjusted it slightly.
+    The formatter-based approach is still used throughout the rest of the
+    compiler, but reflect.go now uses the tconv method that simply returns
+    the desired string.
+    
+    (The timing data below may not be accurate; I've included it only for
+    comparison with the numbers in issue #16897).
+    
+    name       old time/op     new time/op     delta
+    Template       297ms ± 2%      288ms ± 3%  -3.12%        (p=0.000 n=27+29)
+    Unicode        155ms ± 5%      150ms ± 5%  -3.26%        (p=0.000 n=30+30)
+    GoTypes        1.00s ± 3%      0.95s ± 3%  -4.51%        (p=0.000 n=28+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      46.8MB ± 0%     46.5MB ± 0%  -0.65%        (p=0.000 n=28+30)
+    Unicode       37.9MB ± 0%     37.8MB ± 0%  -0.24%        (p=0.000 n=29+30)
+    GoTypes        144MB ± 0%      143MB ± 0%  -0.68%        (p=0.000 n=30+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        469k ± 0%       446k ± 0%  -5.01%        (p=0.000 n=29+30)
+    Unicode         375k ± 0%       369k ± 0%  -1.62%        (p=0.000 n=30+28)
+    GoTypes        1.47M ± 0%      1.37M ± 0%  -6.29%        (p=0.000 n=30+30)
+    
+    The code for sconv/tconv in fmt.go now closely match the code from c85b77c
+    again; except that the functions are now methods. Removing the use of
+    the bytes.Buffer in tconv and special-caseing interface{} has helped a
+    small amount as well:
+    
+    name       old time/op     new time/op     delta
+    Template       299ms ± 3%      288ms ± 3%  -3.83%        (p=0.000 n=29+29)
+    Unicode        156ms ± 5%      150ms ± 5%  -3.56%        (p=0.000 n=30+30)
+    GoTypes        960ms ± 2%      954ms ± 3%  -0.58%        (p=0.037 n=26+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      46.6MB ± 0%     46.5MB ± 0%  -0.22%        (p=0.000 n=30+30)
+    Unicode       37.8MB ± 0%     37.8MB ± 0%    ~           (p=0.075 n=30+30)
+    GoTypes        143MB ± 0%      143MB ± 0%  -0.31%        (p=0.000 n=30+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        447k ± 0%       446k ± 0%  -0.28%        (p=0.000 n=30+30)
+    Unicode         369k ± 0%       369k ± 0%  -0.03%        (p=0.032 n=30+28)
+    GoTypes        1.38M ± 0%      1.37M ± 0%  -0.35%        (p=0.000 n=29+30)
+    
+    Comparison between c85b77c and now (see issue #16897):
+    
+    name       old time/op     new time/op     delta
+    Template       307ms ± 4%      288ms ± 3%  -6.24%  (p=0.000 n=29+29)
+    Unicode        164ms ± 4%      150ms ± 5%  -8.20%  (p=0.000 n=30+30)
+    GoTypes        1.01s ± 3%      0.95s ± 3%  -5.72%  (p=0.000 n=30+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      46.8MB ± 0%     46.5MB ± 0%  -0.66%  (p=0.000 n=29+30)
+    Unicode       37.8MB ± 0%     37.8MB ± 0%  -0.13%  (p=0.000 n=30+30)
+    GoTypes        143MB ± 0%      143MB ± 0%  -0.11%  (p=0.000 n=30+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        444k ± 0%       446k ± 0%  +0.48%  (p=0.000 n=30+30)
+    Unicode         369k ± 0%       369k ± 0%  +0.09%  (p=0.000 n=30+28)
+    GoTypes        1.35M ± 0%      1.37M ± 0%  +1.47%  (p=0.000 n=30+30)
+    
+    There's still a small increase (< 1.5%) for GoTypes but pending a complete
+    rewrite of fmt.go, this seems ok again.
+    
+    Fixes #16897.
+    
+    Change-Id: I7e0e56cd1b9f981252eded917f5752259d402354
+    Reviewed-on: https://go-review.googlesource.com/29087
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go     | 207 +++++++++++++++------------------
+ src/cmd/compile/internal/gc/reflect.go |  14 +--
+ 2 files changed, 103 insertions(+), 118 deletions(-)

@@ -1,0 +1,18 @@
+commit 8eee153bc81680a6115dc8e1f2661ee51d5c7383
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 14 22:09:02 2012 -0200
+
+    runtime: fix grsec support
+    
+    Changeset 36c9c7810f14 broke support for grsec-patched kernels.
+    Those do not give back the address requested without MAP_FIXED,
+    so when verifying an mmap without this flag for success, the
+    resulting address must not be compared against the requested
+    address since it may have succeeded at a different location.
+    
+    R=golang-dev, rsc, gustavo, iant
+    CC=golang-dev
+    https://golang.org/cl/5650072
+
+ src/pkg/runtime/mem_linux.c | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

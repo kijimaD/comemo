@@ -1,0 +1,29 @@
+commit 1e95429c3fbfb9a30bd8a68e95bce4f882b40aec
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 7 09:38:35 2012 +0800
+
+    misc/cgo/{life,stdio}, test/run.go: use test/run.go to do the cgo tests
+       Enhances test/run.go to support testing other directories
+       Will enable stdio tests on Windows in a follow-up CL.
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/6220049
+
+ misc/cgo/life/life.go                  |  2 +
+ misc/cgo/life/main.go                  |  2 +
+ misc/cgo/life/{golden.out => main.out} |  1 -
+ misc/cgo/life/test.bash                | 14 ------
+ misc/cgo/stdio/chain.go                |  2 +
+ misc/cgo/stdio/chain.out               | 55 ++++++++++++++++++++
+ misc/cgo/stdio/fib.go                  |  2 +
+ misc/cgo/stdio/fib.out                 | 91 ++++++++++++++++++++++++++++++++++
+ misc/cgo/stdio/file.go                 |  2 +
+ misc/cgo/stdio/hello.go                |  2 +
+ misc/cgo/stdio/hello.out               |  1 +
+ misc/cgo/stdio/{golden.out => run.out} |  0
+ misc/cgo/stdio/test.bash               | 20 --------
+ src/run.bash                           |  4 +-
+ src/run.bat                            | 16 ++++++
+ test/run.go                            | 17 +++++--
+ 16 files changed, 189 insertions(+), 42 deletions(-)

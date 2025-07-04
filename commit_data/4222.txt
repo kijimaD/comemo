@@ -1,0 +1,11 @@
+commit 28f1914023e7e8a5b37b698436c1278ffc1ace59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 17:34:08 2009 -0800
+
+    Handle presence of illegal semicolon after package clause better.
+    
+    R=r, r1
+    https://golang.org/cl/157167
+
+ src/pkg/go/parser/parser.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

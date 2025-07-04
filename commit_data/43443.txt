@@ -1,0 +1,14 @@
+commit f1aa0b081e9a75b7757a8e08378aba0326911916
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 21 16:04:07 2020 +0200
+
+    doc/go1.16: document ASLR support for -buildmode=c-shared on windows
+    
+    Change-Id: I89c61e444b3ab36f0081a5252d210cb265344122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.16.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

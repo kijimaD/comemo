@@ -1,0 +1,24 @@
+commit c5f694a5c9d210b83b82f52931e1d46b3e25393d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 08:30:11 2013 -0500
+
+    runtime: fix new scheduler on freebsd, windows
+    
+    R=devon.odell
+    CC=golang-dev
+    https://golang.org/cl/7443046
+
+ src/pkg/runtime/runtime.h           | 4 ++--
+ src/pkg/runtime/sys_freebsd_386.s   | 7 ++++++-
+ src/pkg/runtime/sys_freebsd_amd64.s | 8 +++++++-
+ src/pkg/runtime/sys_freebsd_arm.s   | 6 +++++-
+ src/pkg/runtime/sys_windows_386.s   | 5 ++++-
+ src/pkg/runtime/sys_windows_amd64.s | 6 +++++-
+ src/pkg/runtime/thread_darwin.c     | 2 +-
+ src/pkg/runtime/thread_freebsd.c    | 8 +++++---
+ src/pkg/runtime/thread_linux.c      | 2 +-
+ src/pkg/runtime/thread_netbsd.c     | 2 +-
+ src/pkg/runtime/thread_openbsd.c    | 2 +-
+ src/pkg/runtime/thread_plan9.c      | 2 +-
+ src/pkg/runtime/thread_windows.c    | 8 ++++++--
+ 13 files changed, 45 insertions(+), 17 deletions(-)

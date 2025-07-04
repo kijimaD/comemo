@@ -1,0 +1,29 @@
+commit ed2442a0e1d1871f3210f26a1e3adb722ea2467d
+Author: Nont Thanonchai <nontkrub@gmail.com>
+Date:   Wed Mar 22 01:04:45 2023 +0000
+
+    os: avoid creating a new file in Truncate on Windows
+    
+    Truncate() a non existent file on Windows currently creates a new blank
+    file. This behavior is not consistent with other OSes where a file not
+    found error would instead be returned. This change makes Truncate on
+    Windows return a file-not-found error when the specified file doesn't
+    exist, bringing the behavior consistent.
+    
+    New test cases have been added to prevent a regression.
+    
+    Fixes #58977
+    
+    Change-Id: Iaf7b41fc4ea86a2b2ccc59f8be81be42ed211b5c
+    GitHub-Last-Rev: 636b6c37c1685096281ad506f3cfe35fd5810cb2
+    GitHub-Pull-Request: golang/go#59085
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477215
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/os/file_windows.go |  2 +-
+ src/os/os_test.go      | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

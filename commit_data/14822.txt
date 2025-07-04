@@ -1,0 +1,18 @@
+commit c863db4e8762d24df791025314ceb4241df921a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 7 18:02:58 2013 -0800
+
+    spec: s/char_lit/rune_lit/
+    
+    The spec talks explicitly about rune literals but the
+    respective production is still called char_lit for
+    historic reasons. Updated the two occurences.
+    
+    Fixes #4602.
+    
+    R=rsc, iant, r, ken
+    CC=golang-dev
+    https://golang.org/cl/7070048
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

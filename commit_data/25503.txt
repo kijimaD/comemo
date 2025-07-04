@@ -1,0 +1,31 @@
+commit 81adfa508a81e24b8257571dd717845647607cbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 10:19:55 2016 -0500
+
+    runtime: allow signal.Ignore of user-generated throwing signals
+    
+    Today, signal.Ignore(syscall.SIGTRAP) does nothing
+    while signal.Notify(make(chan os.Signal), syscall.SIGTRAP)
+    correctly discards user-generated SIGTRAPs.
+    The same applies to any signal that we throw on.
+    
+    Make signal.Ignore work for these signals.
+    
+    Fixes #12906.
+    
+    Change-Id: Iba244813051e0ce23fa32fbad3e3fa596a941094
+    Reviewed-on: https://go-review.googlesource.com/18348
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_unix_test.go             |  8 ++++++++
+ src/runtime/signal_386.go                  |  4 ++++
+ src/runtime/signal_amd64x.go               |  4 ++++
+ src/runtime/signal_arm.go                  |  4 ++++
+ src/runtime/signal_arm64.go                |  4 ++++
+ src/runtime/signal_mips64x.go              |  4 ++++
+ src/runtime/signal_ppc64x.go               |  4 ++++
+ src/runtime/sigqueue.go                    | 20 ++++++++++++++------
+ src/runtime/testdata/testprognet/signal.go | 26 ++++++++++++++++++++++++++
+ 9 files changed, 72 insertions(+), 6 deletions(-)

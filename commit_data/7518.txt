@@ -1,0 +1,29 @@
+commit ca0d48301440aab64ae15316472969190702a59e
+Author: Mikael Tillenius <mikti42@gmail.com>
+Date:   Tue Feb 22 10:04:32 2011 +1100
+
+    image/png: support for more formats
+    
+    Added support for reading images with grayscale + alpha and
+    for images with depth 1, 2 or 4.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4174053
+
+ src/pkg/image/png/reader.go                        | 174 +++++++++++++++++----
+ src/pkg/image/png/reader_test.go                   |  57 +++++--
+ src/pkg/image/png/testdata/pngsuite/README         |  11 +-
+ .../image/png/testdata/pngsuite/basn0g01-30.png    | Bin 0 -> 162 bytes
+ .../image/png/testdata/pngsuite/basn0g01-30.sng    |  39 +++++
+ src/pkg/image/png/testdata/pngsuite/basn0g01.sng   |  66 ++++----
+ .../image/png/testdata/pngsuite/basn0g02-29.png    | Bin 0 -> 110 bytes
+ .../image/png/testdata/pngsuite/basn0g02-29.sng    |  38 +++++
+ src/pkg/image/png/testdata/pngsuite/basn0g02.sng   |  66 ++++----
+ .../image/png/testdata/pngsuite/basn0g04-31.png    | Bin 0 -> 153 bytes
+ .../image/png/testdata/pngsuite/basn0g04-31.sng    |  40 +++++
+ src/pkg/image/png/testdata/pngsuite/basn0g04.sng   |  66 ++++----
+ src/pkg/image/png/testdata/pngsuite/basn3p02.sng   |  11 +-
+ src/pkg/image/png/testdata/pngsuite/basn3p04.sng   |   7 +-
+ src/pkg/image/png/testdata/pngsuite/basn4a08.sng   |  66 ++++----
+ 15 files changed, 454 insertions(+), 187 deletions(-)

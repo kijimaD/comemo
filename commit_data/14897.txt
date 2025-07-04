@@ -1,0 +1,16 @@
+commit 1e095b76229a8faa329dbdee6de246faabc3cf53
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 17 18:45:49 2013 +0800
+
+    testing: introduce (*B).ReportAllocs()
+    Calling it will show memory allocation statistics for that
+    single benchmark (if -test.benchmem is not provided)
+    
+    R=golang-dev, rsc, kevlar, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7027046
+
+ src/pkg/exp/html/parse_test.go |  8 +-------
+ src/pkg/exp/html/token_test.go |  8 +-------
+ src/pkg/testing/benchmark.go   | 20 ++++++++++++++------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

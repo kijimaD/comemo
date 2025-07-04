@@ -1,0 +1,22 @@
+commit 23ad56311977b4a4bfff78fb5f674616e0272445
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 15 18:35:05 2013 +0400
+
+    runtime: transfer whole span from MCentral to MCache
+    Finer-grained transfers were relevant with per-M caches,
+    with per-P caches they are not relevant and harmful for performance.
+    For few small size classes where it makes difference,
+    it's fine to grab the whole span (4K).
+    
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkMalloc           42           40   -4.45%
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9374043
+
+ src/pkg/runtime/malloc.h   |  6 +-----
+ src/pkg/runtime/mcache.c   |  5 ++---
+ src/pkg/runtime/mcentral.c | 34 ++++++++--------------------------
+ src/pkg/runtime/msize.c    | 11 -----------
+ 4 files changed, 11 insertions(+), 45 deletions(-)

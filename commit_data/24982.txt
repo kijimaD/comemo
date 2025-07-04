@@ -1,0 +1,21 @@
+commit 402e37d4a9dba9dfcfb106c2dc4ff1c264f7b6b7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:28:35 2015 -0500
+
+    cmd/compile: special case nowritebarrierrec for allocm
+    
+    allocm is a very unusual function: it is specifically designed to
+    allocate in contexts where m.p is nil by temporarily taking over a P.
+    Since allocm is used in many contexts where it would make sense to use
+    nowritebarrierrec, this commit teaches the nowritebarrierrec analysis
+    to stop at allocm.
+    
+    Updates #10600.
+    
+    Change-Id: I8499629461d4fe25712d861720dfe438df7ada9b
+    Reviewed-on: https://go-review.googlesource.com/17005
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 3 +++
+ src/runtime/proc.go                | 3 +++
+ 2 files changed, 6 insertions(+)

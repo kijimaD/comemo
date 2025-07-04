@@ -1,0 +1,21 @@
+commit df380693f3eddf0a4ae7d195042b48b40e651d0e
+Author: Alex Buchanan <buchanae@gmail.com>
+Date:   Wed Dec 5 22:31:53 2018 -0800
+
+    mime/multipart: add Part.NextRawPart to avoid QP decoding
+    
+    NextPart has automatic handling of quoted-printable encoding,
+    which is sometimes undesirable. NextRawPart adds a method
+    for reading a part while bypassing such automatic handling.
+    
+    Fixes #29090
+    
+    Change-Id: I6a042a4077c64091efa3f5dbecce0d9a34ac7065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/152877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/multipart/multipart.go      | 38 ++++++++++++++++-------
+ src/mime/multipart/multipart_test.go | 60 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 11 deletions(-)

@@ -1,0 +1,25 @@
+commit fdb200834feb8bd8e5d0073d83c51f68e364d0fd
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jan 31 03:51:34 2024 +0000
+
+    runtime: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
+    
+    For #59670
+    
+    Change-Id: I9265e033bf3a84c3dc7b4a5d52c0df9672435f0d
+    GitHub-Last-Rev: 8e4099095cec9e774abe9b72212a1eab6f6f9fdb
+    GitHub-Pull-Request: golang/go#64774
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550117
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/walk/walk.go |   4 +-
+ src/internal/abi/map.go               |   9 ++-
+ src/runtime/export_test.go            |   4 +-
+ src/runtime/map.go                    | 108 ++++++++++++++++------------------
+ src/runtime/map_fast32.go             |  42 ++++++-------
+ src/runtime/map_fast64.go             |  42 ++++++-------
+ src/runtime/map_faststr.go            |  68 ++++++++++-----------
+ 7 files changed, 137 insertions(+), 140 deletions(-)

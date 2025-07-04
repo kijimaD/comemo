@@ -1,0 +1,12 @@
+commit 0f706d39d4ece12aff931fe2656107864c398e5c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 30 08:54:53 2013 -0700
+
+    doc/go1.2.html: stack sizes, thread limits
+    
+    R=golang-dev, minux.ma, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/19600043
+
+ doc/go1.2.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

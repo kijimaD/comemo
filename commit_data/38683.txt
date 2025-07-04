@@ -1,0 +1,17 @@
+commit f70d457a366a498ff91c4fb8dd03eca576b898bb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 8 09:54:33 2019 +0200
+
+    strings: unindent Fields
+    
+    CL 56470 unindented bytes.Fields, but not strings.Fields. Do so now to
+    make it easier to diff the two functions for potential differences.
+    
+    Change-Id: Ifef81f50cee64e8277e91efa5ec5521d8d21d3bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170951
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/strings.go | 54 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

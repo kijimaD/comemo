@@ -1,0 +1,12 @@
+commit c026c91b5c628a3bdcda85e7238e165a4f2b2780
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 15:35:37 2010 -0400
+
+    arm: fix typo in softfloat
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/2608041
+
+ src/pkg/runtime/arm/softfloat.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

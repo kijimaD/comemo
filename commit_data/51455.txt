@@ -1,0 +1,16 @@
+commit fd22b0bf89e83aabce915ae86a677c10513de20f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 28 14:22:10 2022 +0100
+
+    net: gofmt after CL 382996
+    
+    Change-Id: Ic1302eb02f4369bf6758be9fb91379fd9a992e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453575
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/hosts.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

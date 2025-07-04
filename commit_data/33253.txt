@@ -1,0 +1,14 @@
+commit 186872f3dacd017aed86fd57bb0bbbdaca35cd66
+Author: Christopher Koch <chrisko@google.com>
+Date:   Thu Oct 26 05:14:50 2017 +0000
+
+    syscall: remove unnecessary use of unsafe.Pointer.
+    
+    Change-Id: I43b32fbca8761d33927e7d0541bba123df0e0122
+    Reviewed-on: https://go-review.googlesource.com/73556
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_linux.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

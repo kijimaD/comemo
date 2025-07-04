@@ -1,0 +1,16 @@
+commit be9ed03f1aa5f348aa836c4ffe1904d8e37a629a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 2 22:10:15 2020 +0700
+
+    cmd/compile/internal/gc: remove unparen
+    
+    CL 197120 removed the last use of it.
+    
+    Change-Id: I5fe4f57a47acc712208d831e72cd79205a534c28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252697
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 7 -------
+ 1 file changed, 7 deletions(-)

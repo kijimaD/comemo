@@ -1,0 +1,132 @@
+commit 6ca324f2837db696dff8e7d7342280dd5cdf6bca
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 26 10:32:15 2019 -0400
+
+    index/suffixarray: index 3-10X faster in half the memory
+    
+    This CL changes the index/suffixarray construction algorithm from QSufSort to SAIS.
+    
+    For an N-byte input, QSufSort runs in O(N log N) time and requires
+    an N-int temporary work space in addition to the N-int output.
+    
+    In contrast, SAIS runs in O(N) time and, for essentially all real inputs,
+    is able to use the N-int output buffer as its temporary work space.
+    (In pathological cases, SAIS must allocate a temporary work space of
+    at most N/2 ints. There exist more complex variants that guarantee
+    to avoid the work space in all cases, but they hardly seem worth the cost
+    given how rare these pathological cases are.)
+    
+    The SAIS code therefore uses 50% of the memory across the board.
+    It also runs 3-10X faster on real input text.
+    
+    This CL also adds more extensive algorithmic tests, including an
+    exhaustive test over small inputs to catch corner case problems.
+    
+    name                                   old speed      new speed        delta
+    New/text=opticks/size=100K/bits=32-12  6.15MB/s ± 1%   26.79MB/s ± 1%   +335.89%  (p=0.008 n=5+5)
+    New/text=opticks/size=100K/bits=64-12  5.90MB/s ± 2%   27.29MB/s ± 2%   +362.23%  (p=0.008 n=5+5)
+    New/text=opticks/size=500K/bits=32-12  4.99MB/s ± 3%   25.37MB/s ± 2%   +408.01%  (p=0.008 n=5+5)
+    New/text=opticks/size=500K/bits=64-12  4.88MB/s ± 1%   25.66MB/s ± 4%   +425.52%  (p=0.008 n=5+5)
+    New/text=go/size=100K/bits=32-12       5.81MB/s ± 1%   26.49MB/s ± 2%   +355.85%  (p=0.008 n=5+5)
+    New/text=go/size=100K/bits=64-12       5.76MB/s ± 2%   26.65MB/s ± 3%   +362.60%  (p=0.008 n=5+5)
+    New/text=go/size=500K/bits=32-12       4.91MB/s ± 1%   25.12MB/s ± 2%   +411.86%  (p=0.008 n=5+5)
+    New/text=go/size=500K/bits=64-12       4.83MB/s ± 2%   25.79MB/s ± 2%   +434.44%  (p=0.008 n=5+5)
+    New/text=go/size=1M/bits=32-12         4.62MB/s ± 2%   24.87MB/s ± 2%   +438.78%  (p=0.008 n=5+5)
+    New/text=go/size=1M/bits=64-12         4.39MB/s ± 2%   24.61MB/s ± 2%   +460.68%  (p=0.008 n=5+5)
+    New/text=go/size=5M/bits=32-12         2.85MB/s ± 2%   24.78MB/s ± 7%   +768.33%  (p=0.008 n=5+5)
+    New/text=go/size=5M/bits=64-12         2.28MB/s ± 1%   18.70MB/s ± 7%   +719.63%  (p=0.008 n=5+5)
+    New/text=go/size=10M/bits=32-12        2.08MB/s ± 1%   21.04MB/s ± 6%   +909.60%  (p=0.008 n=5+5)
+    New/text=go/size=10M/bits=64-12        1.83MB/s ± 1%   16.64MB/s ± 2%   +809.18%  (p=0.008 n=5+5)
+    New/text=go/size=50M/bits=32-12        1.51MB/s ± 0%   10.58MB/s ± 1%   +602.52%  (p=0.008 n=5+5)
+    New/text=go/size=50M/bits=64-12        1.34MB/s ± 4%    9.00MB/s ± 1%   +569.35%  (p=0.008 n=5+5)
+    New/text=zero/size=100K/bits=32-12     4.17MB/s ± 0%  157.56MB/s ± 1%  +3678.42%  (p=0.016 n=4+5)
+    New/text=zero/size=100K/bits=64-12     4.19MB/s ± 2%  162.72MB/s ± 2%  +3783.63%  (p=0.008 n=5+5)
+    New/text=zero/size=500K/bits=32-12     3.72MB/s ± 5%  159.17MB/s ± 1%  +4176.57%  (p=0.008 n=5+5)
+    New/text=zero/size=500K/bits=64-12     3.77MB/s ± 3%  164.95MB/s ± 4%  +4277.60%  (p=0.008 n=5+5)
+    New/text=zero/size=1M/bits=32-12       3.46MB/s ± 3%  158.42MB/s ± 1%  +4476.08%  (p=0.008 n=5+5)
+    New/text=zero/size=1M/bits=64-12       3.41MB/s ± 4%  163.70MB/s ± 2%  +4700.65%  (p=0.008 n=5+5)
+    New/text=zero/size=5M/bits=32-12       3.12MB/s ± 2%  151.92MB/s ± 4%  +4775.48%  (p=0.008 n=5+5)
+    New/text=zero/size=5M/bits=64-12       3.09MB/s ± 2%  166.19MB/s ± 2%  +5274.84%  (p=0.008 n=5+5)
+    New/text=zero/size=10M/bits=32-12      2.97MB/s ± 1%  157.75MB/s ± 1%  +5211.38%  (p=0.008 n=5+5)
+    New/text=zero/size=10M/bits=64-12      2.92MB/s ± 1%  162.75MB/s ± 2%  +5473.77%  (p=0.008 n=5+5)
+    New/text=zero/size=50M/bits=32-12      2.67MB/s ± 1%  144.43MB/s ± 5%  +5305.39%  (p=0.008 n=5+5)
+    New/text=zero/size=50M/bits=64-12      2.61MB/s ± 1%  125.19MB/s ± 2%  +4700.33%  (p=0.016 n=5+4)
+    New/text=rand/size=100K/bits=32-12     8.69MB/s ± 6%   27.60MB/s ± 1%   +217.73%  (p=0.008 n=5+5)
+    New/text=rand/size=100K/bits=64-12     8.92MB/s ± 1%   26.37MB/s ± 4%   +195.50%  (p=0.008 n=5+5)
+    New/text=rand/size=500K/bits=32-12     7.11MB/s ± 2%   25.23MB/s ± 2%   +254.78%  (p=0.008 n=5+5)
+    New/text=rand/size=500K/bits=64-12     7.08MB/s ± 1%   25.45MB/s ± 2%   +259.56%  (p=0.008 n=5+5)
+    New/text=rand/size=1M/bits=32-12       6.45MB/s ± 2%   24.47MB/s ± 3%   +279.11%  (p=0.008 n=5+5)
+    New/text=rand/size=1M/bits=64-12       6.09MB/s ± 4%   23.00MB/s ± 4%   +277.85%  (p=0.008 n=5+5)
+    New/text=rand/size=5M/bits=32-12       3.68MB/s ± 3%   10.34MB/s ± 5%   +181.08%  (p=0.008 n=5+5)
+    New/text=rand/size=5M/bits=64-12       3.25MB/s ± 1%    6.23MB/s ± 1%    +91.93%  (p=0.008 n=5+5)
+    New/text=rand/size=10M/bits=32-12      3.03MB/s ± 1%    5.61MB/s ± 2%    +85.28%  (p=0.008 n=5+5)
+    New/text=rand/size=10M/bits=64-12      2.80MB/s ± 1%    4.29MB/s ± 2%    +53.40%  (p=0.008 n=5+5)
+    New/text=rand/size=50M/bits=32-12      2.11MB/s ± 0%    2.45MB/s ± 1%    +16.23%  (p=0.029 n=4+4)
+    New/text=rand/size=50M/bits=64-12      2.04MB/s ± 1%    2.24MB/s ± 1%    +10.03%  (p=0.016 n=5+4)
+    SaveRestore/bits=32-12                  327MB/s ± 5%     319MB/s ± 2%       ~     (p=0.310 n=5+5)
+    SaveRestore/bits=64-12                  306MB/s ± 3%     306MB/s ± 2%       ~     (p=0.841 n=5+5)
+    
+    name                                   old alloc/op   new alloc/op     delta
+    New/text=opticks/size=100K/bits=32-12     811kB ± 0%       401kB ± 0%    -50.51%  (p=0.008 n=5+5)
+    New/text=opticks/size=100K/bits=64-12    1.62MB ± 0%      0.80MB ± 0%    -50.51%  (p=0.008 n=5+5)
+    New/text=opticks/size=500K/bits=32-12    4.04MB ± 0%      2.01MB ± 0%    -50.37%  (p=0.008 n=5+5)
+    New/text=opticks/size=500K/bits=64-12    8.07MB ± 0%      4.01MB ± 0%    -50.36%  (p=0.016 n=4+5)
+    New/text=go/size=100K/bits=32-12          811kB ± 0%       401kB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=go/size=100K/bits=64-12         1.62MB ± 0%      0.80MB ± 0%    -50.50%  (p=0.008 n=5+5)
+    New/text=go/size=500K/bits=32-12         4.04MB ± 0%      2.01MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=go/size=500K/bits=64-12         8.07MB ± 0%      4.01MB ± 0%    -50.36%  (p=0.000 n=4+5)
+    New/text=go/size=1M/bits=32-12           8.07MB ± 0%      4.01MB ± 0%    -50.36%  (p=0.008 n=5+5)
+    New/text=go/size=1M/bits=64-12           16.1MB ± 0%       8.0MB ± 0%    -50.36%  (p=0.008 n=5+5)
+    New/text=go/size=5M/bits=32-12           40.2MB ± 0%      20.0MB ± 0%    -50.18%  (p=0.008 n=5+5)
+    New/text=go/size=5M/bits=64-12           80.3MB ± 0%      40.0MB ± 0%    -50.18%  (p=0.008 n=5+5)
+    New/text=go/size=10M/bits=32-12          80.2MB ± 0%      40.0MB ± 0%    -50.09%  (p=0.000 n=5+4)
+    New/text=go/size=10M/bits=64-12           160MB ± 0%        80MB ± 0%    -50.09%  (p=0.000 n=5+4)
+    New/text=go/size=50M/bits=32-12           402MB ± 0%       200MB ± 0%    -50.29%  (p=0.000 n=5+4)
+    New/text=go/size=50M/bits=64-12           805MB ± 0%       400MB ± 0%    -50.29%  (p=0.000 n=5+4)
+    New/text=zero/size=100K/bits=32-12       1.46MB ± 0%      0.40MB ± 0%    -72.46%  (p=0.008 n=5+5)
+    New/text=zero/size=100K/bits=64-12       3.02MB ± 0%      0.80MB ± 0%    -73.45%  (p=0.008 n=5+5)
+    New/text=zero/size=500K/bits=32-12       8.66MB ± 0%      2.01MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=zero/size=500K/bits=64-12       19.7MB ± 0%       4.0MB ± 0%    -79.63%  (p=0.008 n=5+5)
+    New/text=zero/size=1M/bits=32-12         19.7MB ± 0%       4.0MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=zero/size=1M/bits=64-12         39.0MB ± 0%       8.0MB ± 0%    -79.48%  (p=0.000 n=5+4)
+    New/text=zero/size=5M/bits=32-12         85.2MB ± 0%      20.0MB ± 0%    -76.52%  (p=0.008 n=5+5)
+    New/text=zero/size=5M/bits=64-12          169MB ± 0%        40MB ± 0%    -76.27%  (p=0.008 n=5+5)
+    New/text=zero/size=10M/bits=32-12         169MB ± 0%        40MB ± 0%    -76.26%  (p=0.000 n=5+4)
+    New/text=zero/size=10M/bits=64-12         333MB ± 0%        80MB ± 0%    -75.99%  (p=0.008 n=5+5)
+    New/text=zero/size=50M/bits=32-12         739MB ± 0%       200MB ± 0%    -72.93%  (p=0.000 n=4+5)
+    New/text=zero/size=50M/bits=64-12        1.63GB ± 0%      0.40GB ± 0%    -75.42%  (p=0.008 n=5+5)
+    New/text=rand/size=100K/bits=32-12        807kB ± 0%       401kB ± 0%    -50.25%  (p=0.008 n=5+5)
+    New/text=rand/size=100K/bits=64-12       1.61MB ± 0%      0.80MB ± 0%    -50.25%  (p=0.008 n=5+5)
+    New/text=rand/size=500K/bits=32-12       4.04MB ± 0%      2.01MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=rand/size=500K/bits=64-12       8.07MB ± 0%      4.01MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=rand/size=1M/bits=32-12         8.07MB ± 0%      4.01MB ± 0%    -50.36%  (p=0.000 n=5+4)
+    New/text=rand/size=1M/bits=64-12         16.1MB ± 0%       8.0MB ± 0%    -50.36%  (p=0.008 n=5+5)
+    New/text=rand/size=5M/bits=32-12         40.3MB ± 0%      20.0MB ± 0%    -50.35%  (p=0.029 n=4+4)
+    New/text=rand/size=5M/bits=64-12         80.7MB ± 0%      40.0MB ± 0%       ~     (p=0.079 n=4+5)
+    New/text=rand/size=10M/bits=32-12        80.7MB ± 0%      40.0MB ± 0%    -50.41%  (p=0.008 n=5+5)
+    New/text=rand/size=10M/bits=64-12         161MB ± 0%        80MB ± 0%    -50.44%  (p=0.029 n=4+4)
+    New/text=rand/size=50M/bits=32-12         403MB ± 0%       200MB ± 0%    -50.36%  (p=0.000 n=5+4)
+    New/text=rand/size=50M/bits=64-12         806MB ± 0%       400MB ± 0%       ~     (p=0.079 n=4+5)
+    SaveRestore/bits=32-12                   5.28MB ± 0%      5.28MB ± 0%       ~     (p=1.000 n=5+5)
+    SaveRestore/bits=64-12                   9.47MB ± 0%      9.47MB ± 0%       ~     (p=0.286 n=5+5)
+    
+    https://perf.golang.org/search?q=upload:20190426.1
+    
+    Fixes #15480.
+    
+    Change-Id: I0790f6edf67f5a9c02b4462632b4942e0c37988b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174100
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Eric Roshan-Eisner <edre@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/index/suffixarray/gen.go              |   92 ++
+ src/index/suffixarray/gen64.go            |   31 -
+ src/index/suffixarray/qsufsort.go         |  170 ---
+ src/index/suffixarray/qsufsort64.go       |  173 ---
+ src/index/suffixarray/sais.go             |  899 +++++++++++++++
+ src/index/suffixarray/sais2.go            | 1741 +++++++++++++++++++++++++++++
+ src/index/suffixarray/suffixarray.go      |    8 +-
+ src/index/suffixarray/suffixarray_test.go |  152 +++
+ 8 files changed, 2889 insertions(+), 377 deletions(-)

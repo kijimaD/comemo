@@ -1,0 +1,19 @@
+commit bb0b511738713c7a8cc4c194e037a7ea852751ca
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 25 13:03:30 2021 -0700
+
+    cmd/compile: use right line number for conversion expression
+    
+    Use the position of the actual conversion operation instead of base.Pos.
+    
+    Fixes #47880
+    
+    Change-Id: I56adc134e09cb7fd625adc0a847c1a6b3e254b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345095
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/walk/convert.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

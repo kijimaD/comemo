@@ -1,0 +1,16 @@
+commit a7f1af81bd9e3e7d94dee5398dea01bbc101f65c
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 1 14:37:32 2008 -0700
+
+    minor bugs
+    
+    R=r
+    OCL=14702
+    CL=14702
+
+ src/cmd/6g/align.c   | 13 +++++--------
+ src/cmd/gc/go.y      |  2 ++
+ src/lib/math/pow.go  |  2 +-
+ src/lib/math/sqrt.go |  6 ++++--
+ src/lib/math/tan.go  |  2 +-
+ 5 files changed, 13 insertions(+), 12 deletions(-)

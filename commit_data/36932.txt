@@ -1,0 +1,17 @@
+commit daf6f254336844ad8cf538640d81f0193988b62a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 11 13:13:03 2018 +1100
+
+    unsafe: document that Alignof, Offsetof, and Sizeof return a constant
+    
+    Nothing is changing but the documentation, which did not mention
+    this property of these functions.
+    
+    Fixes #27587.
+    
+    Change-Id: I75bcee4a1dd9ec8cd82826c9a6e02ba7d599f719
+    Reviewed-on: https://go-review.googlesource.com/c/141377
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unsafe/unsafe.go | 3 +++
+ 1 file changed, 3 insertions(+)

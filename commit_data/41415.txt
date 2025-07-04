@@ -1,0 +1,17 @@
+commit 5abab1da2c619815937f20ae2dba1e42196bca75
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:28:40 2020 -0800
+
+    cmd/compile: use ellipses in dec64 rules
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I1b56c3b00e7fb7875165b337a93d5fce158b9df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217010
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/dec64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go | 14 ++------------
+ 2 files changed, 3 insertions(+), 13 deletions(-)

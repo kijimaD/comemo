@@ -1,0 +1,24 @@
+commit 9c28a50fd18b2e69c43dec9b871e96bab6ec4ede
+Author: hitzhangjie <hit.zhangjie@gmail.com>
+Date:   Wed Oct 21 05:09:26 2020 +0000
+
+    cmd/go: when module enabled, `go clean` removes built binary
+    
+    Now "go clean" can remove binary as expected, when module enabled and the module name isn't  "main" or the name of folder.
+    
+    Fixes issue #41656
+    
+    Change-Id: I54b9435ece045e03a12dc230efe84c8dd381a07c
+    GitHub-Last-Rev: f4ea2d8c765a6e3a2b89fe2c9fb5b2c80551efa5
+    GitHub-Pull-Request: golang/go#41999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262677
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/clean/clean.go          | 18 ++++++-
+ src/cmd/go/testdata/script/clean_binary.txt | 78 +++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 2 deletions(-)

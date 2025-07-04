@@ -1,0 +1,18 @@
+commit 6afa0ae4e54ec049f291050b82c2a770bb3644b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 28 18:00:16 2021 -0700
+
+    cmd/compile/internal/types2: match compiler error for invalid type alias decl
+    
+    Fixes #45594.
+    
+    Change-Id: I2fcc784e6908403dd96b009546e1ac2f53b9f0e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314776
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/decl.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 44eaaaaa78ae0e716018b203bebd9821c52ba05d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 21:48:13 2010 -0700
+
+    ld: fix handling of "". names in #pragma dynimport/dynexport
+    
+    Fixes #728.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1706053
+
+ src/cmd/ld/go.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

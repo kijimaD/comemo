@@ -1,0 +1,28 @@
+commit e7173dfdfd1c74b1d301da9b6f295ef99b9cc11c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 10:34:12 2014 -0800
+
+    test: migrate remaining tests to run.go
+    
+    * bug248, bug345, bug369, and bug429 were ported from bash commands to run scripts. bug369 remains disabled.
+    * bug395 is a test for issue 1909, which is still open. It is marked as skip now and will be usable with compile with run.go when issue 1909 is fixed.
+    
+    Fixes #4139
+    
+    Updates #1909
+    
+    Change-Id: Ibb5fbfb5cf72ddc285829245318eeacd3fb5a636
+    Reviewed-on: https://go-review.googlesource.com/1774
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/bugs/bug395.go               |   7 +-
+ test/fixedbugs/bug248.go          |  61 ++++++++++++++---
+ test/fixedbugs/bug345.go          |  48 +++++++++++--
+ test/fixedbugs/bug369.dir/main.go |  54 +++++++++++++++
+ test/fixedbugs/bug369.go          |  74 +++++++++-----------
+ test/fixedbugs/bug429.go          |   6 +-
+ test/fixedbugs/bug429_run.go      |  34 ++++++++++
+ test/golden.out                   |  24 -------
+ test/run                          | 138 --------------------------------------
+ test/run.go                       |  15 +----
+ 10 files changed, 222 insertions(+), 239 deletions(-)

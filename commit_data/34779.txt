@@ -1,0 +1,14 @@
+commit befd5c44cc5e970dd4b021229d6162d8b56f111b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Mar 30 17:00:39 2018 -0400
+
+    syscall: remove double Unlock from Dup2 on nacl
+    
+    Fixes #24610
+    
+    Change-Id: I76dee97db7cd77fe03e4a224f679a5efd061a2b5
+    Reviewed-on: https://go-review.googlesource.com/103775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/fd_nacl.go | 1 -
+ 1 file changed, 1 deletion(-)

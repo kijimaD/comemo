@@ -1,0 +1,16 @@
+commit 9d3b3416a4a1fe6778370d7ec050355cbaf30dfe
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 20 12:37:28 2023 -0400
+
+    cmd/compile/internal/inl: remove some spurious debugging code
+    
+    Remove a bit of debugging code accidentally left in as
+    part of CL 521819.
+    
+    Change-Id: I5c8aa490a00136360fb52d72f3f92d72e150ec0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530577
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 71a9c4430fb822e0116471fe17a339db04d5a6c6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 28 13:42:04 2017 -0800
+
+    cmd/compile: fix infinite recursion in isdirectiface
+    
+    Fixes #22904.
+    
+    Change-Id: Id504504eda7275c10d3c665add8b7ccd23f65820
+    Reviewed-on: https://go-review.googlesource.com/80301
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  4 ++++
+ test/fixedbugs/issue22904.go        | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)

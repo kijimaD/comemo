@@ -1,0 +1,23 @@
+commit 5d4267e4803436e17b87e88b13dc79e528299634
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Apr 23 17:07:12 2018 -0400
+
+    cmd/link: fix TestRuntimeTypeAttr on ppc64,solaris
+    
+    For ppc64, skip -linkmode=external per
+    https://go-review.googlesource.com/c/go/+/106775#message-f95b9bd716e3d9ebb3f47a50492cde9f2972e859
+    
+    For Solaris, apparently type.* isn't the same as runtime.types. I don't
+    know why, but runtime.types is what goes into moduledata, and so it's
+    definitely the more correct thing to use.
+    
+    Fixes: #24983
+    
+    Change-Id: I6b465ac7b8f91ce55a63acbd7fe76e4a2dbb6f22
+    Reviewed-on: https://go-review.googlesource.com/108955
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

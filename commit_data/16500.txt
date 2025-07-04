@@ -1,0 +1,14 @@
+commit 26d43a0f22e4d19350bd5243253ce76018651861
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 10:38:52 2013 -0400
+
+    cmd/6l: accept NOP of $x+10(SP) and of X0
+    
+    Needed to link code compiled with 6c -N.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/10043044
+
+ src/cmd/6l/optab.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

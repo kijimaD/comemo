@@ -1,0 +1,17 @@
+commit e471ad9189d1eba54c8cb5414c47e413cea78df2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 8 06:56:40 2017 -0500
+
+    cmd/compile: remove duplicated zeroing of outgoing args
+    
+    Outgoing arg zeroing code is inserted at walk.go:paramstoheap.
+    Don't do it twice.
+    
+    Change-Id: I70afac6af9e39b3efce0a6a79d6193428d922708
+    Reviewed-on: https://go-review.googlesource.com/37863
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 8877a2dfee4cd37825f0df2fa7bb53573d04ae5b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 28 09:37:32 2013 -0700
+
+    cmd/ld: when using host linker pass -r option as -rpath
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/8070043
+
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

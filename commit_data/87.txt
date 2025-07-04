@@ -1,0 +1,11 @@
+commit 5624e3449494131bb93ed3ca92421d21fe170ba1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 5 14:20:24 2008 -0700
+
+    rearrange tree to reflect design based on $GOROOT $GOOS $GOARCH
+    
+    SVN=121291
+
+ src/lib/runtime/runtime.c | 595 ----------------------------------------------
+ src/lib/runtime/runtime.h | 107 ---------
+ 2 files changed, 702 deletions(-)

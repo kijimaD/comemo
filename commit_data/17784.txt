@@ -1,0 +1,14 @@
+commit 96648e019567d9e50c147638f104f0bf4a381350
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 15:55:50 2013 -0700
+
+    go/build: fix test if built with CGO_ENABLED=0
+    
+    Fixes #6567.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/14502060
+
+ src/pkg/go/build/deps_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

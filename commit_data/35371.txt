@@ -1,0 +1,16 @@
+commit e6a9335c7fbdcfbf5fd715ffe73873cd391368df
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 11 18:11:51 2018 -0400
+
+    runtime: skip GDB tests on Windows
+    
+    Updates #22687.
+    
+    Change-Id: Iedccd9d2416ae7150cd2febe81c8bc9493d8d65c
+    Reviewed-on: https://go-review.googlesource.com/112915
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

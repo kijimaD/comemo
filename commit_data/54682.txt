@@ -1,0 +1,23 @@
+commit a5943e9de13b050c20aa2490082206232af4615c
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Oct 10 22:54:39 2023 +0200
+
+    io/fs: add godoc links
+    
+    Change-Id: Icde42bd33d58f75acdede439f7525f9d06554140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534096
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/io/fs/format.go   |  2 +-
+ src/io/fs/fs.go       | 14 +++++++-------
+ src/io/fs/glob.go     |  8 ++++----
+ src/io/fs/readdir.go  |  6 +++---
+ src/io/fs/readfile.go |  8 ++++----
+ src/io/fs/stat.go     |  6 +++---
+ src/io/fs/sub.go      | 10 +++++-----
+ src/io/fs/walk.go     | 32 ++++++++++++++++----------------
+ 8 files changed, 43 insertions(+), 43 deletions(-)

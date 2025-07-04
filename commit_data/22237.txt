@@ -1,0 +1,15 @@
+commit 6262192cd0fb98d6bb80752de70ae33fc10dc33e
+Author: John Potocny <johnp@vividcortex.com>
+Date:   Wed Mar 25 21:08:04 2015 -0400
+
+    strings: Add benchmark test for trim function
+    
+    The strings.Trim function and variants allocate memory on the heap when creating a function to pass into TrimFunc.
+    Add a benchmark to document the behavior; an issue will be submitted to address this behavior in the compiler if possible.
+    
+    Change-Id: I8b66721f077951f7e7b8cf3cf346fac27a9b68c0
+    Reviewed-on: https://go-review.googlesource.com/8200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/strings_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

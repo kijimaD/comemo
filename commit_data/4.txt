@@ -1,0 +1,11 @@
+commit d82b11e4a46307f1f1415024f33263e819c222b8
+Author: Brian Kernighan <bwk@research.att.com>
+Date:   Fri Apr 1 02:03:04 1988 -0500
+
+    last-minute fix: convert to ANSI C
+    
+    R=dmr
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+
+ src/pkg/debug/macho/testdata/hello.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit fd54936ea523f44835adc39f0a2cebccbcb742c3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat May 18 08:05:08 2024 +0800
+
+    doc: simplify links for release notes
+    
+    Change-Id: If9e3c5a58726ae3628d2e835d71f1a4708594c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/next/6-stdlib/2-unique.md                   |  2 +-
+ doc/next/6-stdlib/3-iter.md                     | 10 ++++------
+ doc/next/6-stdlib/99-minor/sync/atomic/61395.md |  4 ++--
+ 3 files changed, 7 insertions(+), 9 deletions(-)

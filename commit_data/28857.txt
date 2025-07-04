@@ -1,0 +1,18 @@
+commit cbf28ff87c0aab519cd87a27c168d433f2404764
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Oct 1 14:01:09 2016 +0200
+
+    strconv: make FormatFloat slowpath a little faster
+    
+    The relevant benchmark (on an Intel i7-4510U machine):
+    
+    name                      old time/op  new time/op  delta
+    FormatFloat/Slowpath64-4  68.6µs ± 0%  44.1µs ± 2%  -35.71%  (p=0.000 n=13+15)
+    
+    Change-Id: I67eb0e81ce74ed57752d0280059f91419f09e93b
+    Reviewed-on: https://go-review.googlesource.com/30099
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/decimal.go   | 6 ++++--
+ src/strconv/ftoa_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

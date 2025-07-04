@@ -1,0 +1,15 @@
+commit 16d8b411b2f6d652e4e27c3ea8391d9c1e5ce8c2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 02:23:22 2015 -0400
+
+    nacltest.bash: reduce test time by using bootstrapping Go to build fstest_nacl.go
+    
+    One full round of make.bash is saved with this change.
+    
+    Change-Id: I8ad1442e9e1255b9abe14dbfec4c903d897d6015
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/nacltest.bash | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

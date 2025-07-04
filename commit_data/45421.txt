@@ -1,0 +1,23 @@
+commit c8a92d454c74d89f172f6d534395a0553eff8f20
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 15:49:17 2021 -0400
+
+    go/types: ensure that error code values do not change in 1.17
+    
+    Over this cycle some error code values have changed due to codes being
+    added/removed. This is probably OK to do once more before we export
+    error codes in a later Go version, but for now let's keep them stable.
+    
+    Move things around to correct the changes, and update comments in
+    errorcodes.go to make it clearer that new codes should be added at the
+    end.
+    
+    Change-Id: Id32827ef1a72cfd876ccc039da11d0a1be7470e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314830
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/errorcodes.go | 150 ++++++++++++++-------------------------------
+ 1 file changed, 47 insertions(+), 103 deletions(-)

@@ -1,0 +1,24 @@
+commit f39997b2bebd54416bfb437fa1484fd8a5f43abb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 6 12:24:32 2021 -0400
+
+    cmd/link: split large text sections on Darwin/ARM64 when external linking
+    
+    The Darwin linker does not like text sections that are larger
+    than the jump limit (even if we already inserted trampolines).
+    Split the text section to multiple smaller sections.
+    
+    Now external linking very large binaries works on Darwin/ARM64.
+    
+    Updates #40492.
+    
+    Change-Id: I584f1ec673170c5e4d2dc1e00c701964d6f14333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316050
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go    | 63 ++++++++++++++++++++++++-------------
+ src/cmd/link/internal/ld/ld_test.go | 22 ++++++++-----
+ src/cmd/link/internal/ld/macho.go   |  6 +++-
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ 4 files changed, 61 insertions(+), 32 deletions(-)

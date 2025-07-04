@@ -1,0 +1,20 @@
+commit 0d1e90be17239b7711aad51a9f5af4b87c2e7e7d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 11 18:07:22 2008 -0700
+
+    - added 'nil' keyword to lang doc
+      (did not add 'true' and 'false' because I think these don't need to be
+      keywords, they can be recreated from whole cloth)
+    - added 'new' syntax to expressions
+      (this is needed because of the type as 1st argument - the expression
+      list is probably not yet implemented, but I think we may want it
+      eventually)
+    - removed optional ';'s in sieve example - make it more concise
+    - fixed several bugs in go.atg, no parses sieve
+    - added sieve as test case
+    
+    SVN=112135
+
+ doc/go_lang.txt | 13 +++++++------
+ tests/sieve.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 6 deletions(-)

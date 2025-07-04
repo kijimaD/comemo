@@ -1,0 +1,17 @@
+commit ea51dd23b4029649427d3bcb681879808923805b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 10:14:57 2011 -0800
+
+    sql: add Rows.Columns
+    
+    Also, fix package name in error messages.
+    
+    Fixes #2453
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5483088
+
+ src/pkg/exp/sql/sql.go      | 41 +++++++++++++++++++++++++++--------------
+ src/pkg/exp/sql/sql_test.go | 25 +++++++++++++++++++++----
+ 2 files changed, 48 insertions(+), 18 deletions(-)

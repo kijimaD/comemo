@@ -1,0 +1,12 @@
+commit 5b79aa82ff136e789287cea43e3e49542a9be215
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 13:48:19 2013 +0400
+
+    runtime: revert UseSpanType back to 1
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7812043
+
+ src/pkg/runtime/runtime.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

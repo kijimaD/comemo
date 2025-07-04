@@ -1,0 +1,16 @@
+commit ad9fabd769d6c705ea5808dc59a3b18390994627
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Sep 1 17:21:44 2009 -0700
+
+    Interpreter unit tests for statements and expressions
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1003  (1003 added, 0 deleted, 0 changed)
+    OCL=34223
+    CL=34227
+
+ usr/austin/eval/eval_test.go | 333 +++++++++++++++++++++++++++++++++++++++++
+ usr/austin/eval/expr_test.go | 345 +++++++++++++++++++++++++++++++++++++++++++
+ usr/austin/eval/stmt_test.go | 337 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 1015 insertions(+)

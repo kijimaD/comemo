@@ -1,0 +1,16 @@
+commit 039b3ebeba63e22d1db1a4d1926e405b3110c198
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Oct 25 11:16:18 2024 +0800
+
+    runtime: use ABIInternal on syscall and other sys.stuff for loong64
+    
+    Change-Id: I6b2942c413eab58c457980131022dace036cd76c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623475
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/runtime/sys_linux_loong64.s | 226 +++++++++++++---------------------------
+ 1 file changed, 75 insertions(+), 151 deletions(-)

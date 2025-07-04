@@ -1,0 +1,15 @@
+commit 3e804ba7a71576ec042cf7c22bf3b53b92b0eb60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 17 11:40:57 2009 -0700
+
+    There should not be a prohibition against embedding an
+    interface type in a struct.  It is meaningful and the
+    compilers support it.
+    
+    R=gri
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=33378
+    CL=33384
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

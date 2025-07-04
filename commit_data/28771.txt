@@ -1,0 +1,17 @@
+commit 8fc9c504968be0bbea4c8317998813782d077cf4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 12 19:41:29 2016 +0900
+
+    net: update doc for unimplemented feature on Plan 9
+    
+    Also removes unnecessary allocation.
+    
+    Change-Id: I3406cf75a7b64d93b2b99c7f1f5c78f580452b60
+    Reviewed-on: https://go-review.googlesource.com/30891
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface.go       | 4 ++--
+ src/net/interface_plan9.go | 5 ++---
+ 2 files changed, 4 insertions(+), 5 deletions(-)

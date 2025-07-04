@@ -1,0 +1,14 @@
+commit e676dbbdaf20e00609ba4cddfd55619a1e530b21
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Dec 19 15:06:57 2017 -0500
+
+    doc/diagnostics: update gc flags recommended for debugging
+    
+    After 1.10, gcflags apply to only the immediate target.
+    
+    Change-Id: I3bf331c76041e7b533076cb2f3274e44aafff58a
+    Reviewed-on: https://go-review.googlesource.com/84775
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/diagnostics.html | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

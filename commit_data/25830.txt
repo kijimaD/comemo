@@ -1,0 +1,31 @@
+commit e7f6d8b2d7baf2aa299c8bce778e2b0dab3a3798
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Feb 20 23:23:01 2016 -0300
+
+    cmd/cover: don't overskip children nodes when adding counters
+    
+    When visiting the AST to add counters, there are special cases in which
+    the code calls cuts the walking short by returning nil. In some cases
+    certain nodes are ignored, e.g. Init and Cond inside IfStmt.
+    
+    The fix is to explicitly walk all the children nodes (not only
+    Body and Else) when cutting the current walk. Similar approach
+    was taken with SwitchStmt and TypeSwitchStmt.
+    
+    While the existing test code doesn't handle different counters in the
+    same line, the generated HTML report does it correctly (because it takes
+    column into account).
+    
+    The previous behavior caused lines in function literals to not be
+    tracked when those literals were inside Init or Cond of an IfStmt for
+    example.
+    
+    Fixes #14039.
+    
+    Change-Id: Iad591363330843ad833bd79a0388d709c8d0c8aa
+    Reviewed-on: https://go-review.googlesource.com/19775
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover.go         | 14 ++++++++++++++
+ src/cmd/cover/testdata/test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

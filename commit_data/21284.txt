@@ -1,0 +1,16 @@
+commit d5d4e82fb28f506701791f622ec0b03b984e41a5
+Author: Hyang-Ah Hana Kim <hakim@google.com>
+Date:   Thu Jan 15 16:47:41 2015 -0500
+
+    misc/android: choose the right subdirectory for bin under GOPATH.
+    
+    This change includes the cleanup of temporary files created during
+    the binary execution as well.
+    
+    Change-Id: Ic01a0a537d1daafcaa3acda1ec344aff5dcddfc2
+    Reviewed-on: https://go-review.googlesource.com/2903
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/android/README             |  4 +-
+ misc/android/go_android_exec.go | 82 +++++++++++++++++++++++++++++------------
+ 2 files changed, 61 insertions(+), 25 deletions(-)

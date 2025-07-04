@@ -1,0 +1,14 @@
+commit 176e256b264fcbd1be1c30a56b720b5437ec1041
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 7 18:31:50 2008 -0800
+
+    Added missing Set method for Vector
+    
+    BUG=1474670
+    TBR=r
+    DELTA=6  (6 added, 0 deleted, 0 changed)
+    OCL=18839
+    CL=18843
+
+ src/lib/container/vector.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

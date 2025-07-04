@@ -1,0 +1,18 @@
+commit 2e1f98e3a17510c73d71bc4fc61a2bdbf20f92aa
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 7 04:06:46 2022 +0000
+
+    go/parser: use strings.Builder
+    
+    Change-Id: Ic8078543eb80470505a3cc2da8ea9fb8fb1369aa
+    GitHub-Last-Rev: 7b358c685aec10afcdb98eb7de703e8e46ff0ecf
+    GitHub-Pull-Request: golang/go#54919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428922
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/parser/parser_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

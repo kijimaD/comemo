@@ -1,0 +1,24 @@
+commit 61d6817c832e318a8a69c4b48e6b823010b9da96
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 14:28:09 2024 -0500
+
+    cmd/compile: compile cap(ch) as call to runtime.chancap
+    
+    An upcoming CL will give this call more to do.
+    For now, separate out the compiler change that
+    stops inlining the computation.
+    
+    For #37196.
+    
+    Change-Id: I965426d446964b9b4958e4613246002a7660e7eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go                 |  3 +++
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go |  1 +
+ src/cmd/compile/internal/typecheck/builtin.go          |  1 +
+ src/cmd/compile/internal/walk/builtin.go               | 14 +++++++++-----
+ src/runtime/chan.go                                    | 12 ++++++++----
+ 5 files changed, 22 insertions(+), 9 deletions(-)

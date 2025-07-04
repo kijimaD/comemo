@@ -1,0 +1,24 @@
+commit 80e7832733fd245181af3394077f2df21303a4aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 12:19:57 2019 -0400
+
+    cmd/go: change -tags to a comma-separated list
+    
+    Using commas makes it possible to put multiple tags into GOFLAGS.
+    The space-separated form is still recognized and will be maintained.
+    
+    Alleviates #26849 somewhat.
+    Fixes #18800 (again).
+    
+    Change-Id: I6f4cf28ea31e53e21ccbdad6ef1a0aee63b007d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173438
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
+
+ src/cmd/go/alldocs.go                         |  6 ++++--
+ src/cmd/go/go_test.go                         |  2 +-
+ src/cmd/go/internal/work/build.go             | 31 ++++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_build_tags.txt |  3 +++
+ 4 files changed, 36 insertions(+), 6 deletions(-)

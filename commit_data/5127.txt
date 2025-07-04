@@ -1,0 +1,12 @@
+commit a24cf69fd80de1d2ffb0d1860b000b1841f6c01a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 24 18:03:10 2010 -0700
+
+    runtime: fix mingw build, implement missing destroylock()
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/747041
+
+ src/pkg/runtime/mingw/thread.c | 5 +++++
+ 1 file changed, 5 insertions(+)

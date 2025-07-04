@@ -1,0 +1,20 @@
+commit a89e6be5e409960da744626c27e24c130aa6e076
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 16:51:07 2017 -0400
+
+    runtime: clean up mheap.allocLarge
+    
+    mheap.allocLarge just calls bestFitTreap and is the only caller of
+    bestFitTreap. Flatten these into a single function. Also fix their
+    comments: allocLarge claims to return exactly npages but can in fact
+    return a larger span, and h.freelarge is not in fact indexed by span
+    start address.
+    
+    Change-Id: Ia20112bdc46643a501ea82ea77c58596bc96f125
+    Reviewed-on: https://go-review.googlesource.com/47315
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

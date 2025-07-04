@@ -1,0 +1,29 @@
+commit ebf182c82de21858a1a167cc8d252ae85de806a7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jul 27 23:19:40 2022 -0700
+
+    reflect: avoid TypeOf in init
+    
+    Calling TypeOf to initialize variables forces any import of "reflect"
+    to link in the declared types of "reflect" even if they are unused.
+    TypeOf operates on Type and which will pull in
+    all transitive dependencies of Type, which includes Value as well.
+    Avoid this problem by declaring a rtypeOf function that
+    directly extracts the *rtype from an interface value
+    without going through Type as an intermediate type.
+    
+    For a program that blank imports "reflect",
+    this reduces the binary size by ~34 KiB.
+    
+    Updates #54097
+    
+    Change-Id: I8dc7d8da8fedc48cc0dd842b69f510d17144827e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419757
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/type.go  | 6 ++++++
+ src/reflect/value.go | 6 +++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

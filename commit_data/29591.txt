@@ -1,0 +1,25 @@
+commit 277bcbbdcd26f2d64493e596238e34b47782f98e
+Author: Özgür Kesim <oec-go@kesim.org>
+Date:   Fri Oct 21 13:14:57 2016 +0200
+
+    text/template: handle option missingkey=error consistently
+    
+    The existing implementation of text/template handles the option
+    "missingkey=error" in an inconsitent manner:  If the provided data is
+    a nil-interface, no error is returned (despite the fact that no key
+    can be found in it).
+    
+    This patch makes text/template return an error if "missingkey=error"
+    is set and the provided data is a not a valid reflect.Value.
+    
+    Fixes #15356
+    
+    Change-Id: Ia0a83da48652ecfaf31f18bdbd78cb21dbca1164
+    Reviewed-on: https://go-review.googlesource.com/31638
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/exec.go      | 3 +++
+ src/text/template/exec_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

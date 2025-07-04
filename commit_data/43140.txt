@@ -1,0 +1,35 @@
+commit 0e85fd7561de869add933801c531bf25dee9561c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 29 02:11:10 2020 -0700
+
+    cmd/compile: report type loop for invalid recursive types
+    
+    Similar to how we report initialization loops in initorder.go and type
+    alias loops in typecheck.go, this CL updates align.go to warn about
+    invalid recursive types. The code is based on the loop code from
+    initorder.go, with minimal changes to adapt from detecting
+    variable/function initialization loops to detecting type declaration
+    loops.
+    
+    Thanks to Cuong Manh Le for investigating this, helping come up with
+    test cases, and exploring solutions.
+    
+    Fixes #41575
+    Updates #41669.
+    
+    Change-Id: Idb2cb8c5e1d645e62900e178fcb50af33e1700a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258177
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/align.go | 98 ++++++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/subr.go  | 10 ++++
+ test/fixedbugs/bug195.go             | 16 +++---
+ test/fixedbugs/issue22904.go         |  4 +-
+ test/fixedbugs/issue23823.go         |  3 +-
+ test/fixedbugs/issue41575.go         | 36 +++++++++++++
+ 6 files changed, 147 insertions(+), 20 deletions(-)

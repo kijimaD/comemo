@@ -1,0 +1,19 @@
+commit 3e7d804749f02fc4c4eac2194252a665c9aa30c8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 16 20:05:39 2012 +0100
+
+    path, path/filepath: polish documentation.
+    
+    Fixes #2950.
+    Fixes #2951.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/5672044
+
+ src/pkg/path/filepath/match.go     |  6 +++---
+ src/pkg/path/filepath/path.go      | 19 ++++++++++++-------
+ src/pkg/path/filepath/path_test.go |  5 +++++
+ src/pkg/path/match.go              |  4 +++-
+ src/pkg/path/path.go               | 21 ++++++++++++---------
+ 5 files changed, 35 insertions(+), 20 deletions(-)

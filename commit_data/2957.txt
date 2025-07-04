@@ -1,0 +1,18 @@
+commit 7dbb68704877e46b827347b158dd43b2d6dfb176
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 15:17:47 2009 -0700
+
+    rm gobuild
+    
+    R=r
+    DELTA=827  (0 added, 826 deleted, 1 changed)
+    OCL=33117
+    CL=33120
+
+ src/cmd/clean.bash          |   2 +-
+ src/cmd/gobuild/Makefile    |  79 ----------
+ src/cmd/gobuild/gobuild.go  | 344 --------------------------------------------
+ src/cmd/gobuild/main.go     |  12 --
+ src/cmd/gobuild/makefile.go | 120 ----------------
+ src/cmd/gobuild/util.go     | 279 -----------------------------------
+ 6 files changed, 1 insertion(+), 835 deletions(-)

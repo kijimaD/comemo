@@ -1,0 +1,40 @@
+commit 311c0b48079826e433f73bef990044dffd0624f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 13 14:41:42 2009 -0700
+
+    6g/6l: add go type information to symbol table.
+      archive size +70%
+      binary size +30%
+    
+    old
+    
+    wreck.mtv=; ls -l /Users/rsc/bin/{godoc,gofmt}
+    -rwxr-xr-x  1 rsc  eng  1487922 Aug 13 13:21 /Users/rsc/bin/godoc
+    -rwxr-xr-x  1 rsc  eng   995995 Aug 13 13:21 /Users/rsc/bin/gofmt
+    wreck.mtv=; du -sh $GOROOT/pkg/
+    9.5M    /home/rsc/go/pkg/
+    wreck.mtv=;
+    
+    new
+    
+    wreck.mtv=; ls -l /Users/rsc/bin/{godoc,gofmt}
+    -rwxr-xr-x  1 rsc  eng  2014390 Aug 13 14:25 /Users/rsc/bin/godoc
+    -rwxr-xr-x  1 rsc  eng  1268705 Aug 13 14:25 /Users/rsc/bin/gofmt
+    wreck.mtv=; du -sh $GOROOT/pkg
+     16M    /home/rsc/go/pkg
+    wreck.mtv=;
+    
+    R=ken
+    OCL=33217
+    CL=33220
+
+ src/cmd/6g/gsubr.c   |  3 ++-
+ src/cmd/6l/l.h       |  3 ++-
+ src/cmd/6l/obj.c     | 15 +++++++++++++--
+ src/cmd/6l/span.c    | 28 ++++++++++++++++------------
+ src/cmd/8l/l.h       |  1 +
+ src/cmd/gc/dcl.c     |  5 ++++-
+ src/cmd/gc/obj.c     |  2 ++
+ src/cmd/gc/reflect.c |  8 ++++++--
+ src/cmd/ld/go.c      |  2 ++
+ 9 files changed, 48 insertions(+), 19 deletions(-)

@@ -1,0 +1,18 @@
+commit 4e9fc0df4837d6c786fd79344019b25ac4b06eea
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 17:56:14 2015 -0400
+
+    runtime: implement GC scan work estimator
+    
+    This implements tracking the scan work ratio of a GC cycle and using
+    this to estimate the scan work that will be required by the next GC
+    cycle. Currently this estimate is unused; it will be used to drive
+    mutator assists.
+    
+    Change-Id: I8685b59d89cf1d83eddfc9b30d84da4e3a7f4b72
+    Reviewed-on: https://go-review.googlesource.com/8833
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go    | 47 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/mstats.go |  6 ++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

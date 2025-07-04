@@ -1,0 +1,20 @@
+commit c3db9af3a68f1a12d97d5cebaa434cd6e10dd11f
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Wed Apr 26 09:36:53 2023 +0200
+
+    runtime: remove unused skip arg from fpTracebackPCs
+    
+    This was accidentally left behind when moving the logic to set the skip
+    sentinel in pcBuf to the caller.
+    
+    Change-Id: Id7565f6ea4df6b32cf18b99c700bca322998d182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489095
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/callers_test.go | 2 +-
+ src/runtime/export_test.go  | 6 +++---
+ src/runtime/trace.go        | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

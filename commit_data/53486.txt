@@ -1,0 +1,30 @@
+commit 5b6e6d2b3d4d6877c86471209e249f1b6e36d0ca
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 6 13:02:29 2023 -0400
+
+    runtime: make GODEBUG=dontfreezetheworld=1 safer
+    
+    GODEBUG=dontfreezetheworld=1 allows goroutines to continue execution
+    during fatal panic. This increases the chance that tracebackothers will
+    encounter running goroutines that it must skip, which is expected and
+    fine. However, it also introduces the risk that a goroutine transitions
+    from stopped to running in the middle of traceback, which is unsafe and
+    may cause traceback crashes.
+    
+    Mitigate this by halting M execution if it naturally enters the
+    scheduler. This ensures that goroutines cannot transition from stopped
+    to running after freezetheworld. We simply deadlock rather than using
+    gcstopm to continue keeping disturbance to scheduler state to a minimum.
+    
+    Change-Id: I9aa8d84abf038ae17142f34f4384e920b1490e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501255
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/extern.go | 13 +++++++------
+ src/runtime/panic.go  |  3 ---
+ src/runtime/proc.go   | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 9 deletions(-)

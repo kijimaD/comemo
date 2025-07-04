@@ -1,0 +1,17 @@
+commit e656aebb5b9e0437e050c3050e50a658c0244777
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Apr 23 13:03:44 2018 +0900
+
+    os: os: make Stat("*.txt") fail on windows
+    
+    Fixes #24999
+    
+    Change-Id: Ie0bb6a6e0fa3992cdd272d42347af65ae7c95463
+    Reviewed-on: https://go-review.googlesource.com/108755
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/syscall_windows.go | 1 +
+ src/os/os_windows_test.go                       | 8 ++++++++
+ src/os/types_windows.go                         | 8 ++++++++
+ 3 files changed, 17 insertions(+)

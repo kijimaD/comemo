@@ -1,0 +1,27 @@
+commit d812e8c994a2ef15c0f2819581db51fa07fe5b05
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 4 17:34:16 2011 -0800
+
+    go/printer, gofmt: smarter handling of multi-line raw strings
+    
+    If a multi-line raw string is the first token on a line, it
+    should not be indented because the following lines (belonging
+    to the raw string) are not indented either.
+    
+    Adjusted src of ebnf/ebnf_test.go manually as it now is formatted
+    as expected.
+    
+    gofmt -w src misc
+    
+    Fixes #1072.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4119056
+
+ src/pkg/ebnf/ebnf_test.go                      | 50 +++++++--------
+ src/pkg/go/printer/printer.go                  | 87 ++++++++++++++++++++------
+ src/pkg/go/printer/testdata/expressions.golden | 71 +++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 79 +++++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 72 ++++++++++++++++++++-
+ 5 files changed, 315 insertions(+), 44 deletions(-)

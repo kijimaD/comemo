@@ -1,0 +1,18 @@
+commit 962dade46b07a7d914b23de0bc8cc66e0c5b7ced
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Dec 10 18:38:08 2023 +0100
+
+    doc: document SetUnhandledExceptionFilter interop
+    
+    For #50951.
+    For #61422.
+    
+    Change-Id: Ib9038a00de8f4d8606443e9acd414402023cde63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548319
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.22.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

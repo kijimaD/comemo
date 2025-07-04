@@ -1,0 +1,30 @@
+commit 727ebce6ce4fab9aeb089f89d5c4b32bb69be403
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 10 21:09:33 2023 -0700
+
+    cmd/compile: separate out unsafe mark for end-of-block instructions
+    
+    Even if a block is empty, we need to keep track of whether the
+    end-of-block instructions are preemptible.
+    
+    This CL allows us to not mark the load+compare in instruction
+    sequences like
+    
+    CMPL $0, runtime·writeBarrier(SB)
+    JEQ  ...
+    
+    Before, we had to mark the CMPL as uninterruptible because there
+    was no way to mark just the JEQ. Now there is, so there is no need
+    to mark the CMPL itself.
+    
+    Change-Id: I4c27c0dc211c03b14637d420899cd2c2cccf3493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518539
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/liveness/plive.go | 99 ++++++++++++++++++++----------
+ src/cmd/compile/internal/objw/prog.go      | 46 +++++---------
+ src/cmd/compile/internal/ssagen/ssa.go     | 16 ++---
+ 3 files changed, 93 insertions(+), 68 deletions(-)

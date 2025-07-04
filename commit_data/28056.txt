@@ -1,0 +1,27 @@
+commit 6af7639ae147689cbabd06287bf4ff15a4dfd896
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Aug 20 01:46:32 2016 -0700
+
+    archive/tar: isolate regular and sparse file handling as methods
+    
+    Factor out the regular file handling logic into handleRegularFile
+    from nextHeader. We will need to reuse this logic when fixing #15573
+    in a future CL.
+    
+    Factor out the sparse file handling logic into handleSparseFile.
+    Currently this logic is split between nextHeader (for GNU sparse
+    files) and Next (for PAX sparse files). Instead, we move this
+    related code into a single method.
+    
+    There is no overall logic change. Thus, no unit tests.
+    
+    Updates #15573 #15564
+    
+    Change-Id: I3b8270d8b4e080e77d6c0df6a123d677c82cc466
+    Reviewed-on: https://go-review.googlesource.com/27454
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go | 135 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 77 insertions(+), 58 deletions(-)

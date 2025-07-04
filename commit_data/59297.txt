@@ -1,0 +1,18 @@
+commit 005d7f29d1d797fc9afbae870ceb180ecf4e15ce
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Apr 10 09:59:21 2025 +0800
+
+    cmd/internal/obj/loong64: add support for {V,XV}SET{EQ,NE}Z.V series instructions
+    
+    Change-Id: If3794dfde3ff461662c8a493ff51d0c779e81bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 23 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 21 ++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 20 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 65 +++++++++++++++++++++++++
+ 4 files changed, 129 insertions(+)

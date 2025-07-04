@@ -1,0 +1,12 @@
+commit c3552a90506bbf944f17882511b75f3e84c2af63
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:21:31 2017 +1000
+
+    cmd/link: introduce and use peSection.checkSegment
+    
+    Change-Id: Idaab6516dae609e1707d4bce7bf7809ebfc8ec40
+    Reviewed-on: https://go-review.googlesource.com/56315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)

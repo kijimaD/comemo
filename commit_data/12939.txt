@@ -1,0 +1,13 @@
+commit d1ab10b4ff5123e366e200d5205d7e62a3dd2847
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Apr 24 01:27:19 2012 +0200
+
+    net: fix typo in Listener.File() documentation
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6097044
+
+ src/pkg/net/tcpsock_posix.go  | 2 +-
+ src/pkg/net/unixsock_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

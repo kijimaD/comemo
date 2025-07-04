@@ -1,0 +1,17 @@
+commit 6c9b655ac1ab99eb2d3f944deb09b0339717f8cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 31 15:06:59 2018 -0700
+
+    os: don't create files in local directory
+    
+    Also, use a random temporary directory rather than os.TempDir.  Defer
+    removal of existing random temporary directories.
+    
+    Change-Id: Id7549031cdf78a2bab28c07b6eeff621bdf6e49c
+    Reviewed-on: https://go-review.googlesource.com/c/146457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/removeall_test.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 508bfda6d3dd40e2906fb6538b5e4db0ba129645
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 1 10:34:58 2012 -0400
+
+    cmd/go: be clear that import loops are bad
+    
+    There was mail on golang-nuts a few weeks ago
+    from someone who understood the message perfectly
+    and knew he had a cyclic dependency but assumed
+    that Go, like Python or Java, was supposed to handle it.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/6488069
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

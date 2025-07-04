@@ -1,0 +1,17 @@
+commit 172f27652e4e2e8c8f6f5f22cab7aa5542d38651
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat May 2 14:47:27 2015 +0300
+
+    go/ast: fix formatting of error message
+    
+    There are three problems:
+    1. There is no CR at the end of the message.
+    2. The message is unconditionally printed.
+    3. The message is printed to stdout.
+    
+    Change-Id: Ib2d880eea03348e8a69720aad7752302a75bd277
+    Reviewed-on: https://go-review.googlesource.com/9622
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/ast/walk.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

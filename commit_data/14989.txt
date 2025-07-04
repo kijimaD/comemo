@@ -1,0 +1,25 @@
+commit 75104237c82f943bffc41334acd179cf28f30ea2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jan 27 00:24:09 2013 +0100
+
+    all: make tests able to run multiple times.
+    
+    It is now possible to run "go test -cpu=1,2,4 std"
+    successfully.
+    
+    Fixes #3185.
+    
+    R=golang-dev, dave, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7196052
+
+ src/pkg/debug/gosym/pclntab_test.go              |  12 +-
+ src/pkg/exp/locale/collate/build/builder_test.go |   5 +-
+ src/pkg/expvar/expvar_test.go                    |   5 +
+ src/pkg/flag/flag_test.go                        |  21 ++--
+ src/pkg/go/parser/error_test.go                  |   9 +-
+ src/pkg/go/types/check_test.go                   |   9 +-
+ src/pkg/net/http/responsewrite_test.go           | 138 +++++++++++------------
+ src/pkg/net/http/serve_test.go                   |   5 +-
+ src/pkg/os/exec/exec_test.go                     |  13 ++-
+ 9 files changed, 124 insertions(+), 93 deletions(-)

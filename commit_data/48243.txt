@@ -1,0 +1,19 @@
+commit d40e7bb1744507be421b80c19372b9411c9856b4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 1 12:58:20 2022 -0800
+
+    internal/pkgbits: add version number
+    
+    Especially once this code gets copied into x/tools, we need a way to
+    evolve the file format, so add an explicit version number.
+    
+    Change-Id: I9cc2e357c3ca3f07fd8d0c0ba4e4a95f89edeac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388914
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/pkgbits/decoder.go | 4 ++++
+ src/internal/pkgbits/encoder.go | 2 ++
+ 2 files changed, 6 insertions(+)

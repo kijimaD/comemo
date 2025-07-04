@@ -1,0 +1,19 @@
+commit 46f99ce7ea97d11b0a1a079da8dda0f51df2a2d2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 6 13:12:23 2019 -0400
+
+    cmd/go: look for __go_buildinfo section when looking for Mach-O version
+    
+    This mirrors the ELF fix in CL 188957. TestScript/version failed on
+    darwin after that change.
+    
+    Fixes #31861
+    
+    Change-Id: I4ce953ebec8dd5fa47e26d373c59d7e290b75a34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189159
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/version/exe.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

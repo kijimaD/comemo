@@ -1,0 +1,15 @@
+commit b28802d2f1ba9ef49fc3608d7026a524a98bdddb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 8 12:28:44 2015 -0700
+
+    math/big: make ErrNaN actually implement the error interface (oversight)
+    
+    There was no way to get to the error message before.
+    
+    Change-Id: I4aa9d3d9f468c33f9996295bafcbed097de0389f
+    Reviewed-on: https://go-review.googlesource.com/8660
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 5 +++++
+ src/math/big/float_test.go | 3 +++
+ 2 files changed, 8 insertions(+)

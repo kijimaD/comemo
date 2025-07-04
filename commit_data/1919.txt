@@ -1,0 +1,12 @@
+commit 941ed00b1dc3773fce5fdb2dcade35c20d123b91
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 19:21:36 2009 -0700
+
+    closure bug: carry along outnamed flag.
+    
+    R=ken
+    OCL=26930
+    CL=26930
+
+ src/cmd/gc/dcl.c | 1 +
+ 1 file changed, 1 insertion(+)

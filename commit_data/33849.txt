@@ -1,0 +1,20 @@
+commit 29cb57c5bda37f1c5a58b315fc5619835cc53467
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 8 16:05:22 2017 -0800
+
+    runtime: don't use MAP_STACK in SigStack test
+    
+    On DragonFly mmap with MAP_STACK returns the top of the region, not
+    the bottom. Rather than try to cope, just don't use the flag anywhere.
+    
+    Fixes #23061
+    
+    Change-Id: Ib5df4dd7c934b3efecfc4bc87f8989b4c37555d7
+    Reviewed-on: https://go-review.googlesource.com/83035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/testdata/testprogcgo/sigstack.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

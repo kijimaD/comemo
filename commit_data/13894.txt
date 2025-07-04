@@ -1,0 +1,12 @@
+commit 413fbed34194e4ff0da2a088fa589b33cae7e941
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Sep 21 20:20:26 2012 +0200
+
+    cmd/6g: cosmetic improvements to regopt debugging.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6528044
+
+ src/cmd/6g/reg.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit ca831135b34d13fe5b774a6b23867dd1a277786a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 17 07:07:58 2016 +0900
+
+    net: simplify interfaceTable for BSD variants
+    
+    This change drops parseInterfaceTable which becomes unnecessary by the
+    golang.org/x/net/route plumbing.
+    
+    Change-Id: I05f96e347de950bb1e9292bb3eeff01bb40e292f
+    Reviewed-on: https://go-review.googlesource.com/23125
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/interface_bsd.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 60c724c55a5cc9925e63c5b8383f6d24ae06a658
+Author: Frediano Ziglio <freddy77@gmail.com>
+Date:   Thu May 4 11:25:29 2023 +0100
+
+    syscall: reduce memory allocated by UTF16FromString
+    
+    The function allocated a buffer larger than needed.
+    Fixes #59967.
+    
+    Signed-off-by: Frediano Ziglio <frediano.ziglio@nextdlp.com>
+    Change-Id: I5f30a135acf5f27d6c2ef4bc4abef5144da4dc94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492575
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/syscall/syscall_windows.go      | 10 +++++++---
+ src/syscall/syscall_windows_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 3 deletions(-)

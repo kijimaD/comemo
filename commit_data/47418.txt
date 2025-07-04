@@ -1,0 +1,28 @@
+commit 3e94140465984ff6c8d658051d022e8eacf057c3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 10 22:03:28 2021 +0000
+
+    runtime/debug: make TestFreeOSMemory more robust
+    
+    FreeOSMemory relies on the function FreeOSMemory increasing HeapReleased
+    as opposed to the background scavenger, because it reads memory stats
+    *after* the free of a large allocation. However, before that even
+    happens, the background scavenger can swoop in and release all that
+    memory, making it appear as if FreeOSMemory didn't do anything.
+    
+    This change modifies the test to just make sure that the large
+    allocation's memory is returned to the OS *somehow*, by the end of the
+    test. It doesn't really care which happens. It also increases the size
+    of that large allocation to increase the likelihood that the test isn't
+    relying 100% on the background scavenger, and that FreeOSMemory is doing
+    some of the work.
+    
+    Fixes #49478.
+    
+    Change-Id: Ief1d839753720ebb88cbb616c46302293ee2d19c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363414
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/debug/garbage_test.go | 65 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 55 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit a81b0dc6ee9096e3885e083e2dea2c743c0f4540
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 18:18:41 2021 -0700
+
+    cmd/compile: rename instType -> instanceType
+    
+    This is to keep in alignment with the naming in go/types.
+    
+    Change-Id: I19ded29b39665d7b892fdbc8e92c7f15caf7ab66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350950
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

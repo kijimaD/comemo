@@ -1,0 +1,15 @@
+commit 7471eab96f3a842cff4b65316c1d8ecf6f19cad5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 27 14:51:24 2009 -0800
+
+    - added missing sections on comparisons for some types
+    - clarified legal map key types (must support comparison)
+    - updated open issues/todo list
+    
+    R=r
+    DELTA=81  (48 added, 19 deleted, 14 changed)
+    OCL=23580
+    CL=23621
+
+ doc/go_spec.txt | 100 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 60 insertions(+), 40 deletions(-)

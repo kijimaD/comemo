@@ -1,0 +1,12 @@
+commit bed481d683f89d9902d893b61181264d7b9c9353
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 23:49:26 2015 -0500
+
+    cmd/gc: correct errors in constant parsing
+    
+    Change-Id: I36f77e7ac7f727d8f3b51133f4b3ef93c35b09f6
+    Reviewed-on: https://go-review.googlesource.com/4640
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/mparith1.c | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

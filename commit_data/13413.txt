@@ -1,0 +1,14 @@
+commit 8357dc90152ff27670fd9dd880a455802e5abc7a
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Wed Jun 27 18:21:48 2012 -0500
+
+    syscall: add missing argument type
+    
+    And update implementation location comment.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6352046
+
+ src/pkg/syscall/dll_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

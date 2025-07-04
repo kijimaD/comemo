@@ -1,0 +1,15 @@
+commit 7603aa7907fa92336fd9f7702b709e559ee0191b
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Feb 21 11:23:04 2017 -0800
+
+    doc: use appropriate type to describe return value
+    
+    Fixes #19223.
+    
+    Change-Id: I4cc8e81559a1313e1477ee36902e1b653155a888
+    Reviewed-on: https://go-review.googlesource.com/37374
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

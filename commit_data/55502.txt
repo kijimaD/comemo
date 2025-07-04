@@ -1,0 +1,37 @@
+commit 287f791845ac0311012814f4419d5e043c212d17
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 21 20:26:38 2023 +0000
+
+    runtime: fix trace EvGoStop Gosched reason to match function
+    
+    Currently the stop reason for runtime.Gosched is labeled
+    "runtime.GoSched" which doesn't actually match the function name. Fix
+    the label to match the function name.
+    
+    This change doesn't regenerate the internal/trace/v2 tests, because
+    regenerating the tests breaks summarization tests in internal/trace that
+    rely on very specific details in the example traces that aren't
+    guaranteed. Also, go122-gc-trace.test isn't generated at all, as it
+    turns out. I'll fix this all up in a follow-up CL. For now, just replace
+    runtime.GoSched with runtime.Gosched in the traces so we don't have a
+    problem later if a test wants to look for that string.
+    
+    This change does regenerate the cmd/trace/v2 test, but it turns out the
+    cmd/trace/v2 tests are way too strict about network unblock events, and
+    3 usually pop up instead of 1 or 2, which is what the test expects.
+    AFAICT this looks plausible to me, so just lift the restriction on
+    "up to 2" events entirely.
+    
+    Change-Id: Id7350132be19119c743c259f2f5250903bf41a04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552275
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/v2/jsontrace_test.go                 |    4 +-
+ src/cmd/trace/v2/testdata/go122.test               | 8423 ++++++++++----------
+ .../testdata/tests/go122-annotations-stress.test   |    2 +-
+ .../trace/v2/testdata/tests/go122-annotations.test |    2 +-
+ .../trace/v2/testdata/tests/go122-gc-stress.test   |    2 +-
+ src/internal/trace/v2/trace_test.go                |    2 +-
+ src/runtime/trace2runtime.go                       |    2 +-
+ 7 files changed, 4355 insertions(+), 4082 deletions(-)

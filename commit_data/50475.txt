@@ -1,0 +1,19 @@
+commit a7e9a379e970f0c48aae47da1778213f646b5f45
+Author: Ali Yousefi Sabzevar <aysabzevar@gmail.com>
+Date:   Tue Sep 13 09:39:19 2022 +0200
+
+    go/types, types2: improve readability of _InvalidUntypedConversion docs
+    
+    Remove an unnecessary 'an' from errorcodes.go.
+    
+    Change-Id: Iabe8ce479077cbfff936d57c788a9b39d7e5b34e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430495
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/types2/errorcodes.go | 2 +-
+ src/go/types/errorcodes.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

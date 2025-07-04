@@ -1,0 +1,23 @@
+commit 91cb9edd5e4d203c6f82332acdac73beb9936283
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 25 10:28:20 2017 -0700
+
+    cmd/compile: improve static map initialization
+    
+    When static maps are large, we try to initialize them
+    by iterating over an array of key/value pairs.
+    
+    Currently this optimization only works if the keys and values
+    are of primitive type.  This CL improves this optimization
+    by allowing any static composite literals as well.
+    
+    Fixes #22010
+    
+    Change-Id: Ie493e02ab8b8a228a3472b5c6025a33f7b92daf3
+    Reviewed-on: https://go-review.googlesource.com/66050
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 26 ++++++++------------------
+ 1 file changed, 8 insertions(+), 18 deletions(-)

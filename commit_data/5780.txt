@@ -1,0 +1,13 @@
+commit b5b6ce08043daf13f22e4250d3bafea7eb826eda
+Author: Micah Stetson <micah.stetson@gmail.com>
+Date:   Mon Jul 12 11:26:41 2010 -0700
+
+    json: Add HTMLEscape
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1496042
+
+ src/pkg/json/decode_test.go | 10 ++++++++++
+ src/pkg/json/encode.go      | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

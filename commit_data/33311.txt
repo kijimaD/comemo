@@ -1,0 +1,17 @@
+commit 6c8418f560f076da570b70ac645df7cdb01db188
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:07:38 2017 -0400
+
+    cmd/dist: log timing to $GOBUILDTIMELOGFILE
+    
+    We can't make all.bash faster if we can't measure it.
+    Measure it.
+    
+    Change-Id: Ia5da791d4cfbfa1fd9a8e905b3188f63819ade73
+    Reviewed-on: https://go-review.googlesource.com/73990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go  | 21 +++++++++++++++++++++
+ src/make.bash         |  8 ++++++++
+ 3 files changed, 80 insertions(+)

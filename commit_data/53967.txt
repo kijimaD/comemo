@@ -1,0 +1,22 @@
+commit 7087b8ac4c2eeab4fe52e498fa55a0c95ea89933
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 30 16:06:10 2023 -0400
+
+    cmd/compile/internal/ir: export 'reassigned', handle OASOP
+    
+    Rename the ir-local function "reassigned" to "Reassigned" so that it
+    can be used as part of inline heuristic analysis. Fix up the header
+    comment along that way, which had some stale material. Add support for
+    detecting reassignments via OASOP (as opposed to just simple
+    assignments).
+    
+    Updates #61502.
+    
+    Change-Id: I50f40f81263c0d7f61f30fcf0258f0b0f93acdca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511560
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ir/expr.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

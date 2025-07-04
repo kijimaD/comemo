@@ -1,0 +1,14 @@
+commit 07c9a925644ad2c6f6742be09371c0556f3beb91
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 16:05:38 2011 +1000
+
+    os: fix documentation for FileInfo.Name.
+    It's the base name, not the full name.
+    Fixes #2047.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4680041
+
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

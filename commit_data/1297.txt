@@ -1,0 +1,13 @@
+commit be629138ab5a81ccfbeeebb4ca942ac08d873820
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 8 17:14:08 2008 -0800
+
+    use Note sched.stopped correctly
+    
+    R=r
+    DELTA=6  (5 added, 0 deleted, 1 changed)
+    OCL=20777
+    CL=20779
+
+ src/runtime/proc.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

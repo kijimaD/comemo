@@ -1,0 +1,15 @@
+commit 9838774622ed18cf449a0e10b1946104e917408d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 17:06:30 2012 -0500
+
+    pprof: fix https URLs and 'profiler in use' errors
+    
+    Fixes #3666.
+    Fixes #3680.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6899054
+
+ misc/pprof | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

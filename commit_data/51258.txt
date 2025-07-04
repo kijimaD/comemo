@@ -1,0 +1,19 @@
+commit f977ffe82dad0d8d296e898141b37c8af22f2eef
+Author: Tim King <taking@google.com>
+Date:   Mon Nov 14 14:56:13 2022 -0800
+
+    cmd/vet: enable timeformat analyzer
+    
+    Fixes #48801
+    
+    Change-Id: I6230b62f77252a9a694b79caacb38ef15af36e39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+
+ .../go/analysis/passes/timeformat/timeformat.go    | 129 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   1 +
+ src/cmd/vet/main.go                                |   2 +
+ 3 files changed, 132 insertions(+)

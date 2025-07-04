@@ -1,0 +1,14 @@
+commit ba8e61d8330db63c99dcc6c731d2a97d25901d44
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 30 13:35:40 2011 +1000
+
+    os: use a different symbol from syscall in mkunixsignals.sh.
+    
+    Open is more likely to be present than Syscall.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4645073
+
+ src/pkg/os/mkunixsignals.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

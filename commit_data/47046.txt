@@ -1,0 +1,19 @@
+commit 80be4a4f90836a33ab5b3d09c6f529de8ee628ea
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 26 14:47:07 2021 -0700
+
+    crypto/x509: generate new-style build tags for iOS
+    
+    Make the input match gofmt's output,
+    to make our lives easier as we phase out
+    old style build tags.
+    
+    Change-Id: I95dc5a77058bf17cb02e289703f60784616db006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358934
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/x509/root_ios_gen.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

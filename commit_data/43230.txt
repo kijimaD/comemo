@@ -1,0 +1,19 @@
+commit 23e9e0c7f09bb50a870cbd1a2543a33df49b37b6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 18:26:26 2020 -0400
+
+    syscall: support ptrace on macOS/ARM64
+    
+    Updates #38485.
+    
+    Change-Id: I853966d934a8ee05cf62c7321f3e6271811d47b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260718
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_darwin_arm64.go  | 14 ++++----------
+ src/syscall/zsyscall_darwin_arm64.go | 16 ++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  2 ++
+ 3 files changed, 22 insertions(+), 10 deletions(-)

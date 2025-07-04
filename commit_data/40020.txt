@@ -1,0 +1,44 @@
+commit 867ea9c17f1031e27f4a2d17d9f7dfb270f73fa1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 20 15:27:14 2019 -0700
+
+    cmd/compile: use proper work queue for escape graph walking
+    
+    The old escape analysis code used to repeatedly walk the entire flow
+    graph until it reached a fixed point. With escape.go, I wanted to
+    avoid this if possible, so I structured the walking code with two
+    constraints:
+    
+    1. Always walk from the heap location last.
+    
+    2. If an object escapes, ensure it has flow edge to the heap location.
+    
+    This works, but it precludes some graph construction
+    optimizations. E.g., if there's an assignment "heap = &x", then we can
+    immediately tell that 'x' escapes without needing to visit it during
+    the graph walk. Similarly, if there's a later assignment "x = &y", we
+    could immediately tell that 'y' escapes too. However, the natural way
+    to implement this optimization ends up violating the constraints
+    above.
+    
+    Further, the constraints above don't guarantee that the 'transient'
+    flag is handled correctly. Today I think that's handled correctly
+    because of the order that locations happen to be constructed and
+    visited based on the AST, but I've felt uneasy about it for a little
+    while.
+    
+    This CL changes walkAll to use a proper work queue (technically a work
+    stack) to track locations that need to be visited, and allows walkOne
+    to request that a location be re-visited.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iaa6f4d3fe4719c04d67009fb9a2a3e4930b3d7c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196958
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/escape.go | 44 +++++++++++++++++++++++++----------
+ 1 file changed, 32 insertions(+), 12 deletions(-)

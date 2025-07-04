@@ -1,0 +1,8 @@
+commit 258f53dee33b9055ea168cb186f8c076edee5905
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 13:50:49 2014 +1100
+
+    remove .hgtags.
+
+ .hgtags | 140 ----------------------------------------------------------------
+ 1 file changed, 140 deletions(-)

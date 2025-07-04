@@ -1,0 +1,14 @@
+commit b2259dcef0ba93f11e63b0bc55930c150ac1b610
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Nov 5 16:35:24 2015 -0500
+
+    runtime: add syscalls needed for android/386 logging
+    
+    Update golang/go#9327.
+    
+    Change-Id: I27ef973190d9ae652411caf3739414b5d46ca7d2
+    Reviewed-on: https://go-review.googlesource.com/16679
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/sys_linux_386.s | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

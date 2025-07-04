@@ -1,0 +1,33 @@
+commit 819087624072fe8ca5914668e837d18eb231f04e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 20:41:14 2022 -0700
+
+    go/types, types2: replace typecheck with mustTypecheck almost everywhere (cleanup)
+    
+    Replace even in places where before we have a specific error message
+    or different control-flow (except in TestTypeString or TestObjectString)
+    because failing to type-check in virtually all cases represents an error
+    in the test itself.
+    
+    Change-Id: I9f1e6d25bddd92c168353409b281b5a3f29a747c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443915
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 49 +++++++---------------
+ .../compile/internal/types2/instantiate_test.go    | 25 +++--------
+ src/cmd/compile/internal/types2/issues_test.go     | 12 ++----
+ src/cmd/compile/internal/types2/named_test.go      |  5 +--
+ src/cmd/compile/internal/types2/sizes_test.go      | 10 ++---
+ src/cmd/compile/internal/types2/typestring_test.go |  4 +-
+ src/go/types/api_test.go                           | 49 +++++++---------------
+ src/go/types/instantiate_test.go                   | 25 +++--------
+ src/go/types/issues_test.go                        | 10 +----
+ src/go/types/methodset_test.go                     |  6 +--
+ src/go/types/named_test.go                         |  5 +--
+ src/go/types/sizes_test.go                         | 11 ++---
+ src/go/types/typestring_test.go                    |  4 +-
+ 13 files changed, 60 insertions(+), 155 deletions(-)

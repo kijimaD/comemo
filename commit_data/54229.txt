@@ -1,0 +1,18 @@
+commit 7e7dd4dcd9a73ed9e832cd873b8fad7b87ddf029
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Aug 26 11:56:38 2023 +0000
+
+    cmd/compile/internal/ir: remove redundant not in doc
+    
+    Change-Id: Ia4fc2ceafa92f38742d3a017e37350875fdcc25e
+    GitHub-Last-Rev: 482f5e4fe626bfe97058ea052324cca68b91263d
+    GitHub-Pull-Request: golang/go#62299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522940
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/stmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

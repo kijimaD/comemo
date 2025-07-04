@@ -1,0 +1,15 @@
+commit cfe336770b684ba1a4806772d23e9d178f9b4003
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 6 20:02:03 2013 -0700
+
+    runtime: replace union in MHeap with a struct
+    Unions break precise GC.
+    Update #5193.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8368044
+
+ src/pkg/runtime/malloc.h  | 4 ++--
+ src/pkg/runtime/mprof.goc | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

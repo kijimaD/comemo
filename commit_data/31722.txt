@@ -1,0 +1,28 @@
+commit 4d6b08de709f0914f640e0bc738e094443687bbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:19:54 2017 -0400
+
+    cmd/compile: add -importcfg to specify import resolution
+    
+    Allows reading -importmap options from a file instead of putting
+    them all on the command line, and adds the ability to specify the
+    file location of specific packages. In effect, -importcfg is a generalization
+    of and supersedes -importmap, -importsuffix, and -I.
+    Of course, those flags will continue to be supported,
+    for compatibility with other tools.
+    
+    Having this flag in Go 1.9 will let us try some experiments involving
+    package management without needing guinea pigs to build a
+    custom Go toolchain.
+    
+    This flag also helps with #14271 at some later point.
+    
+    For #20579.
+    
+    Change-Id: If005dbc2b01d8fd16cbfd3687dfbe82499f4bc56
+    Reviewed-on: https://go-review.googlesource.com/44850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 67 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 64 insertions(+), 3 deletions(-)

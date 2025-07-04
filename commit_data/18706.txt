@@ -1,0 +1,16 @@
+commit 9d1940bc7423bf95def174a595bb014b3daa33ac
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 3 12:50:29 2014 +1100
+
+    misc/makerelease: use windows installer resources from local goroot
+    
+    This broke when we renamed the tool, and I missed this fix when I
+    fixed darwin last week.
+    
+    LGTM=minux.ma, bradfitz
+    R=golang-codereviews, minux.ma, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/70670043
+
+ misc/makerelease/makerelease.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

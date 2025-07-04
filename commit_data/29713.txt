@@ -1,0 +1,13 @@
+commit 2cfb6d54421956e27836b728a5c36e470d9cb0f1
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 1 12:12:23 2016 -0800
+
+    doc: document go1.7.4 and go1.6.4
+    
+    Change-Id: I0728afe6a1d1e0aee4701e51a5548fa9fd637b66
+    Reviewed-on: https://go-review.googlesource.com/33795
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

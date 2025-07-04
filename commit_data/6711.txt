@@ -1,0 +1,12 @@
+commit 23c41a1ef2157da8df646a78f93d9b6e39a85a87
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Thu Nov 4 13:45:18 2010 -0700
+
+    Small addition to previous optimization of memequal as discussed here: http://groups.google.com/group/golang-nuts/browse_thread/thread/f591ba36d83723c0/9aba02d344045f38
+    
+    R=golang-dev, r, r2
+    CC=golang-dev
+    https://golang.org/cl/2880041
+
+ src/pkg/runtime/runtime.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit e0aa36147d7cf0a127815d5941a8e43162b1093e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 28 13:39:42 2012 +0800
+
+    encoding/gob: fix "// +build" comment for debug.go
+    
+    R=golang-dev, rsc, adg, r, r
+    CC=golang-dev
+    https://golang.org/cl/5693060
+
+ src/pkg/encoding/gob/Makefile | 9 ---------
+ src/pkg/encoding/gob/debug.go | 5 +++--
+ src/pkg/encoding/gob/dump.go  | 1 +
+ 3 files changed, 4 insertions(+), 11 deletions(-)

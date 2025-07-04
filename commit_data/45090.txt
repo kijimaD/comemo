@@ -1,0 +1,21 @@
+commit 841bc142160aacde729a983243a0231c8612903d
+Author: Grace Han <hgrace503@gmail.com>
+Date:   Fri Apr 9 15:49:22 2021 +1000
+
+    os: restore testErrNotExist's working directory on os.Chdir success
+    
+    The existing implementation calls os.Chdir expecting the call not to
+    succeed. This change restores the original working directory in the
+    case that the call does succeed.
+    
+    Fixes #45407
+    
+    Change-Id: I61c57f6858b9a9058226e45e24276c7af8913048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308849
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/error_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

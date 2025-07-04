@@ -1,0 +1,23 @@
+commit c69515c9fd19d9cca5f509cedd3de0aafd2d487f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 17:15:05 2021 -0700
+
+    cmd/compile/internal/types2: review of expr.go
+    
+    The changes between (equivalent, and reviewed) go/types/expr.go
+    and expr.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences to go/types/expr.go are:
+    - use of package syntax rather than ast
+    - no reporting of error codes in errors
+    - implicit conversions of untyped nil lead to a typed nil
+      (in go/types, nil remains untyped)
+    
+    Change-Id: I1e235b20ebda597eb7ce597d1749f26431addde2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303092
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 1 -
+ 1 file changed, 1 deletion(-)

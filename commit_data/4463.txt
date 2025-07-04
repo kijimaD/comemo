@@ -1,0 +1,15 @@
+commit 5dc6c80843ffecd2430f5f60d583e0375344ed10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 18 10:52:11 2009 -0800
+
+    report an error for illegal octal numbers instead of treating them as floats
+    added more test cases
+    some capitalization cleanups
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180085
+
+ src/pkg/go/scanner/scanner.go      | 28 +++++++-----
+ src/pkg/go/scanner/scanner_test.go | 90 +++++++++++++++++++++++++++++++++-----
+ 2 files changed, 95 insertions(+), 23 deletions(-)

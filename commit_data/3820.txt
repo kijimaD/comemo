@@ -1,0 +1,13 @@
+commit 6f762f54105486f5f81b764338851cd34898b862
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:33:26 2009 -0800
+
+    gofmt'ed 6l 8l cgo
+    
+    R=r
+    http://go/go-review/1020002
+
+ src/cmd/6l/doc.go  |  2 +-
+ src/cmd/8l/doc.go  |  2 +-
+ src/cmd/cgo/gcc.go | 52 +++++++++++++++++++++++++++-------------------------
+ 3 files changed, 29 insertions(+), 27 deletions(-)

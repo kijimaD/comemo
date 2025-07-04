@@ -1,0 +1,77 @@
+commit 29d5272da8ca0ba8291ba8c83ed8bb5c802a1d9e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 10 15:18:04 2023 -0600
+
+    all: generate NOTOC shared code on power10/PPC64/linux
+    
+    An explicit TOC pointer is not needed when building with GOPPC64=power10
+    on linux/PPC64 as all addressing is PC relative.
+    
+    Apply changes to the compiler, assembler, and linker to remove R2/TOC
+    maintenance in these build configurations.
+    
+    This results in noticeably smaller PIC binaries. For example the size
+    (in bytes) of the k8s binaries before and with this patch:
+    
+            GOFLAGS="-buildmode=pie" \
+            FORCE_HOST_GO=y \
+            GOPPC64=power10 \
+            CGO_CFLAGS="-mcpu=power10 -O2 -g" \
+            make all
+    
+             apiextensions-apiserver   66060288   64487424   -1572864  -2.38%
+                       e2e_node.test  163520856  159850760   -3670096  -2.24%
+                            e2e.test  178167304  174890432   -3276872  -1.83%
+                              ginkgo   11010048   10747904    -262144  -2.38%
+                           go-runner    2162688    2162688          0      0%
+                           k8s-tests  170182216  166970880   -3211336  -1.88%
+                             kubeadm   52625408   51314688   -1310720  -2.49%
+                     kube-aggregator   62849024   61341696   -1507328  -2.39%
+                      kube-apiserver  147783680  144375808   -3407872  -2.30%
+             kube-controller-manager  131137536  127991808   -3145728  -2.39%
+                             kubectl   53608448   52363264   -1245184  -2.32%
+                     kubectl-convert   52625408   51314688   -1310720  -2.49%
+                             kubelet  120913920  118095872   -2818048  -2.33%
+                     kube-log-runner    1900544    1835008     -65536  -3.44%
+                            kubemark  119078912  116326400   -2752512  -2.31%
+                          kube-proxy   58392576   56885248   -1507328  -2.58%
+                      kube-scheduler   60751872   59244544   -1507328  -2.48%
+                             mounter    1835008    1769472     -65536  -3.57%
+                   watch-termination   38076416   37158912    -917504  -2.40%
+    
+    And text size changes:
+    
+             apiextensions-apiserver   30243288   28654116   -1589172  -5.25%
+                       e2e_node.test   71132064   67520288   -3611776  -5.07%
+                            e2e.test   61843984   58635088   -3208896  -5.18%
+                              ginkgo    4975916    4769304    -206612  -4.15%
+                           go-runner     896532     858400     -38132  -4.25%
+                           k8s-tests   60925792   57752032   -3173760  -5.20%
+                             kubeadm   24643240   23404100   -1239140  -5.02%
+                     kube-aggregator   28688060   27160976   -1527084  -5.32%
+                      kube-apiserver   65627332   62259460   -3367872  -5.13%
+             kube-controller-manager   56773844   53706532   -3067312  -5.40%
+                             kubectl   24344276   23080640   -1263636  -5.19%
+                     kubectl-convert   23733764   22521768   -1211996  -5.10%
+                             kubelet   52494580   49720340   -2774240  -5.28%
+                     kube-log-runner     787128     753232     -33896  -4.30%
+                            kubemark   51576580   48837380   -2739200  -5.31%
+                          kube-proxy   26541092   25124080   -1417012  -5.33%
+                      kube-scheduler   27448512   25976172   -1472340  -5.36%
+                             mounter     744100     712628     -31472  -4.22%
+                   watch-termination   18047276   17139912    -907364  -5.02%
+    
+    Change-Id: Ib4872823b06f93861e46a00679b5d4e5e30b538a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495416
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go |  2 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |  8 +++++++-
+ src/cmd/internal/obj/ppc64/obj9.go    | 10 +++++-----
+ src/cmd/link/internal/ld/symtab.go    | 19 ++++++++++--------
+ src/cmd/link/internal/ppc64/asm.go    | 37 +++++++++++++++++++++--------------
+ 5 files changed, 46 insertions(+), 30 deletions(-)

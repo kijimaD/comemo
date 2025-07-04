@@ -1,0 +1,13 @@
+commit d9254d00f9fdb3499bee4347e7eb3de53f673bc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 12 14:28:27 2010 -0700
+
+    gc: zero unnamed return values on entry if func has defer
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/891050
+
+ src/cmd/gc/walk.c        | 14 ++++++++++----
+ test/fixedbugs/bug266.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

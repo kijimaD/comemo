@@ -1,0 +1,17 @@
+commit 17a7f21790440255db6eebf5793e54f913379576
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Apr 28 03:08:37 2019 +1000
+
+    runtime: correct exitThread on openbsd/arm64
+    
+    The notdead argument to sys___threxit() is a pointer, hence requires a 64-bit
+    move rather than a 32-bit one.
+    
+    Updates #31656
+    
+    Change-Id: I52ad31ed5afaf43ccc3d934025288216e8052528
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174124
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_openbsd_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

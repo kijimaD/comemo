@@ -1,0 +1,23 @@
+commit db923390a01d4c992116161bed1328bd5bb32a24
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 14:59:59 2014 -0500
+
+    cmd/9l: support internal linking
+    
+    This implements the ELF relocations and dynamic linking tables
+    necessary to support internal linking on ppc64.  It also marks ppc64le
+    ELF files as ABI v2; failing to do this doesn't seem to confuse the
+    loader, but it does confuse libbfd (and hence gdb, objdump, etc).
+    
+    Change-Id: I559dddf89b39052e1b6288a4dd5e72693b5355e4
+    Reviewed-on: https://go-review.googlesource.com/2006
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ include/link.h     |   9 +
+ src/cmd/9l/asm.c   | 511 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/9l/obj.c   |   3 +-
+ src/cmd/ld/data.c  |  37 +++-
+ src/cmd/ld/elf.c   |  83 +++++++--
+ src/cmd/ld/elf.h   |  16 ++
+ src/cmd/ld/ldelf.c |  29 +++
+ 7 files changed, 651 insertions(+), 37 deletions(-)

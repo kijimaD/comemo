@@ -1,0 +1,31 @@
+commit 87c475c2276977a0bf1208f95884261b0426fddc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 6 13:30:40 2017 -0800
+
+    cmd/compile/internal/ssa: use obj.LSym instead of gc.Sym
+    
+    Gc's Sym type represents a package-qualified identifier, which is a
+    frontend concept and doesn't belong in SSA. Bonus: we can replace some
+    interface{} types with *obj.LSym.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I456eb9957207d80f99f6eb9b8eab4a1f3263e9ed
+    Reviewed-on: https://go-review.googlesource.com/36415
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/arm/ssa.go          |  6 +++---
+ src/cmd/compile/internal/arm64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go           | 10 +++++-----
+ src/cmd/compile/internal/mips/ssa.go         |  6 +++---
+ src/cmd/compile/internal/mips64/ssa.go       |  6 +++---
+ src/cmd/compile/internal/ppc64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/s390x/ssa.go        |  6 +++---
+ src/cmd/compile/internal/ssa/config.go       |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go  | 12 ++++--------
+ src/cmd/compile/internal/ssa/writebarrier.go | 10 +++++-----
+ src/cmd/compile/internal/x86/ssa.go          |  6 +++---
+ 12 files changed, 39 insertions(+), 43 deletions(-)

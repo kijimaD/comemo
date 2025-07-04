@@ -1,0 +1,17 @@
+commit e1077420807882bd52fd4857100a199b9afc5909
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 3 13:28:05 2012 -0400
+
+    crypto/tls: remove flakey tests
+    
+    This removes some (non-short only) tests that involved connections to
+    the outside world and thus were flakey. This does remove some test
+    coverage of the root fetchers on non-Windows platforms, but the right
+    place for that is crypto/x509.
+    
+    R=golang-dev, krautz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6455085
+
+ src/pkg/crypto/tls/root_test.go | 61 -----------------------------------------
+ 1 file changed, 61 deletions(-)

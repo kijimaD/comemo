@@ -1,0 +1,21 @@
+commit 7b77ff4c88befb1da9fb8b1cc7128a44ffb8a64f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:39:30 2020 -0400
+
+    cmd/go: add IgnoredOtherFiles to go list; pass IgnoredFiles to vet
+    
+    Show constraint-ignored non-.go files in go list, as Package.IgnoredOtherFiles
+    (same as go/build's IgnoredOtherFiles).
+    
+    Pass full list of ignored files to vet, to help buildtag checker.
+    
+    For #41184.
+    
+    Change-Id: I749868de9082cbbc1efbc59370783c8c82fe735f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240553
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go  | 29 ++++++++++++++++-------------
+ src/cmd/go/internal/work/exec.go | 34 +++++++++++++++++++---------------
+ 2 files changed, 35 insertions(+), 28 deletions(-)

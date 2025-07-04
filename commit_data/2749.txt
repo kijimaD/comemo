@@ -1,0 +1,20 @@
+commit 3321470488e489e88adc7d01c213a28a467c8d0a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 17 16:12:29 2009 -0700
+
+    Recognize gccgo error message.
+    
+       explicit.go:21:5: error: incompatible types in assignment (need explicit conversion)
+       explicit.go:26:5: error: incompatible types in assignment (type has no methods)
+       explicit.go:27:5: error: incompatible types in assignment (need explicit conversion)
+       explicit.go:30:6: error: incompatible types in assignment (need explicit conversion; missing method ‘N’)
+       explicit.go:33:7: error: invalid type conversion (need explicit conversion; missing method ‘N’)
+       explicit.go:36:5: error: incompatible types in assignment
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31805
+    CL=31807
+
+ test/interface/explicit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

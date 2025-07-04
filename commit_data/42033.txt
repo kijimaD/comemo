@@ -1,0 +1,16 @@
+commit 925516309128f20bb11a38f3e5265f23360a28ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 04:28:23 2020 +0000
+
+    Revert "cmd/compile: use cheaper implementation of oneBit"
+    
+    This reverts commit 066c47ca5fac1c49f754029f1e61323f74f6d93d.
+    
+    Reason for revert: This appears to have broken a bunch of builders.
+    
+    Change-Id: I68b4decf3c1892766e195d8eb018844cdff69443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229177
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit 9c3ffbf424bd1d02ea1187c6f744ca9635d9ef11
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 10 21:42:00 2023 +0200
+
+    os: remove unused func itox
+    
+    It was added by CL 288792 but was never used.
+    
+    Change-Id: I0c21237c0c32ee5df2ebe99b6ecd8831f9c28649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518316
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/os/str.go | 8 --------
+ 1 file changed, 8 deletions(-)

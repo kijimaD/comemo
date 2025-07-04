@@ -1,0 +1,12 @@
+commit 8b9d6e38be40d509b91b67df5ddf99f86bb6b76d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Feb 3 17:29:09 2011 -0800
+
+    gopack: unused variable.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4121057
+
+ src/cmd/gopack/ar.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit ebd1eef41e656b47cc7ecf2ae8ec64b40da8136a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 13:47:59 2008 -0700
+
+    implement spec: when main.main returns, the program exits
+    
+    R=r
+    DELTA=9  (7 added, 2 deleted, 0 changed)
+    OCL=15628
+    CL=15643
+
+ src/runtime/rt0_amd64.s | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

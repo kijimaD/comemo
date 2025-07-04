@@ -1,0 +1,15 @@
+commit 67cd77b88f2fdf620556cd698752aa2ed53fee1b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 7 12:41:58 2022 -0400
+
+    cmd/go/internal/modload: remove unused moduleHasRootPackage function
+    
+    Change-Id: Iaf118150b8cf48aa42db3477bffdb92bd39f632a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440295
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/query.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,0 +1,17 @@
+commit 94df1a067caed13602ae5dd0cd2c2c6d1b8ffae2
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 5 13:12:30 2011 -0500
+
+    gc: return constant floats for parts of complex constants
+    
+    Fixes #1369.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3731046
+
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/subr.c        | 15 +++++++++++++++
+ src/cmd/gc/typecheck.c   |  6 ++++++
+ test/fixedbugs/bug316.go | 17 +++++++++++++++++
+ 4 files changed, 39 insertions(+)

@@ -1,0 +1,16 @@
+commit 67539f6c532414bff9eca1a1d56f5e0192dd6fca
+Author: Draven <i@draveness.me>
+Date:   Fri Jan 24 10:56:15 2020 +0000
+
+    runtime: update deltimer comments
+    
+    Change-Id: I5f4c21bf650b9825ebd98330ac9faa7371a562be
+    GitHub-Last-Rev: 4a2e9aabe91935001300619b6f58c67f05e9f3c7
+    GitHub-Pull-Request: golang/go#36728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216223
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/time.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

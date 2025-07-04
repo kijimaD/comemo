@@ -1,0 +1,20 @@
+commit d2db8267f4b5dfc11ea062a4fecac1308e8d521a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 22 09:04:27 2023 -0700
+
+    go/types, types2: keep inferring type arguments from constraints for -lang < go1.21
+    
+    Fixes #60346.
+    
+    Change-Id: I14834858d53fd80f8261ec0c8d0eccdd75a1bc2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496917
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go             | 17 +++++++++++++----
+ src/go/types/call.go                                | 17 +++++++++++++----
+ src/internal/types/testdata/fixedbugs/issue60346.go | 17 +++++++++++++++++
+ 3 files changed, 43 insertions(+), 8 deletions(-)

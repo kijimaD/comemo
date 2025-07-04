@@ -1,0 +1,12 @@
+commit e8e89347cd44c67d97fc0973ec2f15bf137b2d77
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jan 11 12:23:52 2015 +1100
+
+    runtime: remove duplicate copyright notice
+    
+    Change-Id: Ibe3ba6426cc6e683ff3712faf6119922d0f88b5a
+    Reviewed-on: https://go-review.googlesource.com/2680
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os_linux_arm.go | 4 ----
+ 1 file changed, 4 deletions(-)

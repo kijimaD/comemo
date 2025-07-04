@@ -1,0 +1,25 @@
+commit a400eb3261ee3798e0715d2ba6a4083abe59150a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 1 14:43:24 2021 +0000
+
+    Revert "cmd/compile: check frame offsets against abi"
+    
+    This reverts CL 293392.
+    
+    Reason for revert: broke most non-x86 builders
+    
+    Fixes #44675
+    
+    Change-Id: I1e815c3ab27a02e83a2f0d221a617909dd021403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297549
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go          | 43 ++----------------
+ src/cmd/compile/internal/gc/compile.go            |  3 --
+ src/cmd/compile/internal/ssa/op.go                | 18 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go            | 55 +++++++++--------------
+ src/cmd/compile/internal/test/abiutilsaux_test.go | 32 +++++++++++++
+ 5 files changed, 66 insertions(+), 85 deletions(-)

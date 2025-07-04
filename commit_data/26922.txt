@@ -1,0 +1,21 @@
+commit 0ec6d7c0bbfceb7b8e4857b775686ae5cf699e54
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Apr 14 15:44:48 2016 +0800
+
+    testing: removed flakey test
+    
+    The synchronization in this test is a bit complicated and likely
+    incorrect, judging from the sporadically hanging trybots.
+    Most of what this is supposed to test is already tested in
+    TestTestContext, so I'll just remove it.
+    
+    Fixes #15170
+    
+    Change-Id: If54db977503caa109cec4516974eda9191051888
+    Reviewed-on: https://go-review.googlesource.com/22080
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/sub_test.go | 51 -------------------------------------------------
+ 1 file changed, 51 deletions(-)

@@ -1,0 +1,13 @@
+commit 3ead7fb5dceedceeb978e05f9c742d0b4b5a3f67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 31 15:52:15 2012 -0700
+
+    A+C: adding Dan Callahan (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6815062
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

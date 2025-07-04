@@ -1,0 +1,32 @@
+commit c2ba0ca80454d0d9fdf801619279bbbbe8f50748
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 13 15:55:50 2018 -0400
+
+    cmd/go: handle relative temp dir
+    
+    Most programs seem to accept a relative temp dir, as weird as that might be.
+    
+    Also, the meaning of relative is a little more fluid on Windows:
+    TMP=\temp is relative (to the current drive) but will work well enough.
+    
+    Also, Windows GetTempPath automatically converts a relative
+    %TMP% into an absolute path, so we'd be imposing different
+    behavior for GOTMPDIR vs TMP.
+    
+    It seems easier and more consistent to just impose the obvious
+    meaning than to add an error we can only implement some of
+    the time.
+    
+    Originally got here because "cmd/go:" should be"go:" in error message,
+    but the error message is gone now.
+    
+    Fixes #23264.
+    
+    Change-Id: I3c3fb801cbd5e652364f1f62bb3881e9317e3581
+    Reviewed-on: https://go-review.googlesource.com/123876
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go              | 17 ++++++++---------
+ src/cmd/go/internal/work/action.go | 14 +++++++++-----
+ 2 files changed, 17 insertions(+), 14 deletions(-)

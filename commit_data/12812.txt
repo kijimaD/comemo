@@ -1,0 +1,12 @@
+commit e7095851518b7a9796ad532860412cefb43a6ae1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 2 12:59:02 2012 -0400
+
+    C: add Peter Weinberger (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5976059
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

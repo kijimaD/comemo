@@ -1,0 +1,12 @@
+commit bcd747204d840e8368f42a0f7f7ef5fa10aed2bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 16 15:20:46 2011 +1100
+
+    gofix: fix godoc doc
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4290049
+
+ src/cmd/gofix/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

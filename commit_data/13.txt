@@ -1,0 +1,10 @@
+commit 5009237adbaccbaca89eed21f6cb69193b213fbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 21:24:57 2008 -0800
+
+    - fixed a couple of grammar errors
+    
+    SVN=111685
+
+ doc/go_lang.txt | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit eb6ee75add2c9eaffd52fe572230a3fa08080f50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 16:13:17 2016 -0800
+
+    cmd/compile: convert select, sinit, ssa to nodeSeq
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I1b50fe981e7a266d4b14f31d849eb91afccdfda3
+    Reviewed-on: https://go-review.googlesource.com/20270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/select.go | 151 ++++++++++++++++------------------
+ src/cmd/compile/internal/gc/sinit.go  |  96 ++++++++++-----------
+ src/cmd/compile/internal/gc/ssa.go    |  30 +++----
+ 3 files changed, 134 insertions(+), 143 deletions(-)

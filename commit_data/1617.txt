@@ -1,0 +1,15 @@
+commit 58c277955a824942824d5a12b1d28ca34d2e5580
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 5 12:54:15 2009 -0800
+
+    Rename function to avoid function redefinition error.  Remove
+    .* from regexp since it confuses DejaGNU which runs gcc's
+    testsuite.
+    
+    R=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=24435
+    CL=24438
+
+ test/escape1.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit 24192bbd001385ca15ed1f769ddb467e41f4bf9c
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Apr 7 08:40:13 2014 -0700
+
+    libbio, libmach: warnings from the Plan 9 tool chain
+    
+    Superficial inconsistencies that trigger warnings in
+    Plan 9.  Small enough to be considered trivial and
+    seemingly benign outside of the Plan 9 environment.
+    
+    LGTM=iant
+    R=golang-codereviews, 0intro, iant
+    CC=golang-codereviews
+    https://golang.org/cl/73460043
+
+ include/bio.h         |  2 +-
+ src/libbio/bputrune.c |  3 ++-
+ src/libmach/8db.c     | 57 +++++++++++++++++++++++++++------------------------
+ 3 files changed, 33 insertions(+), 29 deletions(-)

@@ -1,0 +1,12 @@
+commit db07c9ecb617117a86364e9e03acd6f7937e1732
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Dec 22 17:21:31 2016 -0800
+
+    net: Fix spelling of function name in doc
+    
+    Change-Id: I24c6d312f7d0ce52e1958e8031fc8249af0dfca9
+    Reviewed-on: https://go-review.googlesource.com/34669
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

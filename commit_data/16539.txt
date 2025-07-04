@@ -1,0 +1,15 @@
+commit e7657de7177f92207b2a4f601996529bf415e3f2
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Jun 11 21:19:29 2013 +0200
+
+    cmd/gc: avoid creating circular lists when compiling with race detector.
+    
+    Fixes #5431.
+    
+    R=dvyukov, remyoudompheng, rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9910043
+
+ src/cmd/gc/racewalk.c                            |  6 +++++-
+ src/pkg/runtime/race/testdata/regression_test.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

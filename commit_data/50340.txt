@@ -1,0 +1,29 @@
+commit efa357ce3c1a8ef0ce94347fef533c87673a598a
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 27 01:55:05 2022 +0800
+
+    net: add benchmark test for SendFile
+    
+    BenchmarkSendFile/1024-4                  716760              1582 ns/op         647.31 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/2048-4                  624632              2057 ns/op         995.55 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/4096-4                  429459              2665 ns/op        1537.06 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/8192-4                  275941              4996 ns/op        1639.56 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/16384-4                 149577              8522 ns/op        1922.58 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/32768-4                  75427             14791 ns/op        2215.47 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/65536-4                  43912             28402 ns/op        2307.41 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/131072-4                 23509             48657 ns/op        2693.82 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/262144-4                 12512             91791 ns/op        2855.87 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/524288-4                  5760            579891 ns/op         904.12 MB/s           0 B/op          0 allocs/op
+    BenchmarkSendFile/1048576-4                 3020            344129 ns/op        3047.05 MB/s           0 B/op          0 allocs/op
+    
+    Change-Id: Iaf75e19c9ae8d77b89b3eabb2e9142f59c124536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425878
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/sendfile_linux_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

@@ -1,0 +1,38 @@
+commit 26ba61dfad46f24a2a3138a40f738ecd22536edf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 15:14:30 2025 -0800
+
+    go/types, types2: remove most remaining references to coreType in builtin.go
+    
+    For now, use commonUnder (formerly called sharedUnder) and update
+    error messages and comments. We can provide better error messages
+    in individual cases eventually.
+    
+    Kepp using coreType for make built-in for now because it must accept
+    different channel types with non-conflicting directions and identical
+    element types. Added extra test cases.
+    
+    While at it, rename sharedUnder, sharedUnderOrChan to commonUnder
+    and commonUnderOrChan, respectively (per suggestion from rfindley).
+    
+    For #70128.
+    
+    Change-Id: I11f3d5ce858746574f4302271d8cb763c2cdcf98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653139
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    |  8 ++++----
+ src/cmd/compile/internal/types2/call.go        |  4 ++--
+ src/cmd/compile/internal/types2/lookup.go      |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go        |  4 ++--
+ src/cmd/compile/internal/types2/under.go       | 18 +++++++++++-------
+ src/go/types/builtins.go                       |  8 ++++----
+ src/go/types/call.go                           |  4 ++--
+ src/go/types/lookup.go                         |  4 ++--
+ src/go/types/stmt.go                           |  4 ++--
+ src/go/types/under.go                          | 18 +++++++++++-------
+ src/internal/types/testdata/check/builtins1.go | 12 ++++++++----
+ 11 files changed, 50 insertions(+), 38 deletions(-)

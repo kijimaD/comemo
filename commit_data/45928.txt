@@ -1,0 +1,15 @@
+commit 6298cfe6724e3ca24dedd3f62b2b358aafe17276
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Jul 11 11:46:26 2021 +0800
+
+    cmd/compile: fix typo in fatal message of builtinCall
+    
+    Change-Id: I523d5fd810b82154a204670d46fc250a0fc66791
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333849
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

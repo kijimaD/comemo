@@ -1,0 +1,13 @@
+commit 76959e2cc6841fddcca21987c6fc0d47181fd789
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 19:11:29 2013 +0400
+
+    runtime: do not memprofile settype_flush
+    Fixes #4850.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7745044
+
+ src/pkg/runtime/malloc.goc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

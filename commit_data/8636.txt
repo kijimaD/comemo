@@ -1,0 +1,18 @@
+commit 9e857dbdcc66b8fa2da927e07531c6b8dc894cae
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 6 21:33:02 2011 +0000
+
+    template: rearrange the code into separate files.
+    The single file was getting unwieldy.
+    Also remove use of vector; a slice works fine - although
+    it's an unusual one.
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/4576042
+
+ src/pkg/template/Makefile                  |   4 +-
+ src/pkg/template/doc.go                    |  91 ++++++
+ src/pkg/template/execute.go                | 346 ++++++++++++++++++++
+ src/pkg/template/{template.go => parse.go} | 486 ++---------------------------
+ 4 files changed, 474 insertions(+), 453 deletions(-)

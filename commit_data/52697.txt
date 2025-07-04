@@ -1,0 +1,21 @@
+commit 2c64b50d3abbf3f96b3923827776747f2048d8df
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 18 11:20:58 2023 -0400
+
+    cmd/go: stub out gotoolchain.go for wasip1 os build tag
+    
+    There's a stub for gotoolchain.go for the js build tag because js/wasm
+    doesn't define syscall.Exec. But there are builders that are wasm but
+    not js, which also don't have syscall.Exec. The wasip1 GOOS is one
+    example. Stub out gotoolchain.go for wasip1 also.
+    
+    Change-Id: I224bb385474ad9c5d3c28a83a000f450dfb43c0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/gotoolchain.go                             | 2 +-
+ src/cmd/go/{gotoolchain_js.go => gotoolchain_stub.go} | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

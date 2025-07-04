@@ -1,0 +1,12 @@
+commit 58aac1d0ffe9e1c00347626306c30caa5dfb44e3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 20 14:11:17 2012 +1100
+
+    doc: remove defunct playground.html
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5846071
+
+ doc/playground.html | 29 -----------------------------
+ 1 file changed, 29 deletions(-)

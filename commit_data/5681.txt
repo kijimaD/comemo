@@ -1,0 +1,12 @@
+commit 37c531f51fe20a81f911f9b218e5d0125f91ec11
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 12:05:43 2010 -0700
+
+    errchk: fix build - allow matches in multiline error messages
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1734042
+
+ test/errchk | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

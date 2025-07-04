@@ -1,0 +1,13 @@
+commit 96a2a2effd2ca5956bab82bbd8833a49299d03a6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 12 13:51:02 2009 -0700
+
+    fix linux build for whole package compilation
+    
+    R=rsc
+    OCL=33103
+    CL=33103
+
+ src/cmd/gotest/gotest            | 9 +++++++--
+ src/pkg/syscall/syscall_linux.go | 8 --------
+ 2 files changed, 7 insertions(+), 10 deletions(-)

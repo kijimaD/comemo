@@ -1,0 +1,87 @@
+commit ce8146ed3361f584ba79427ac6c6d6fe9c297bea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:16:58 2023 -0400
+
+    cmd/go: maintain go and toolchain lines in go.work
+    
+    go work init / sync / use need to maintain the invariant that the
+    go version and toolchain in go.work are up-to-date with respect
+    to the modules in the workspace.
+    
+    go get also preserves the invariant when running in a module.
+    
+    go work use (including with no arguments) reestablishes the invariant.
+    
+    Replaces the ToolchainTrySwitch func in PackageOpts with a new
+    gover.Switcher interface implemented by toolchain.Switcher.
+    Until now, the basic sketch of a particular phase of the go command
+    has been to call base.Error repeatedly, to report as many problems
+    as possible, and then call base.ExitIfErrors at strategic places where
+    continuing in the presence of errors is no longer possible.
+    A Switcher is similar: you call sw.Error repeatedly and then, when
+    all the errors from a given phase have been identified, call sw.Switch
+    to potentially switch toolchains, typically before calling base.ExitIfErrors.
+    
+    One effect of the regularization of errors reported by the modload.loader
+    is to add a "go: " prefix to errors showing import stacks. That seems fine.
+    
+    For #57001.
+    
+    Change-Id: Id49ff7a28a969d3475c70e6a09d40d7aa529afa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499984
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                              |  13 ++-
+ src/cmd/go/internal/gover/toolchain.go             |   8 ++
+ src/cmd/go/internal/gover/version.go               |  20 ++++
+ src/cmd/go/internal/modcmd/graph.go                |   3 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |   5 +-
+ src/cmd/go/internal/modget/get.go                  |  53 ++++++-----
+ src/cmd/go/internal/modload/init.go                |  88 +++++++++++++----
+ src/cmd/go/internal/modload/load.go                | 105 ++++++++++-----------
+ src/cmd/go/internal/modload/modfile.go             |  10 +-
+ src/cmd/go/internal/toolchain/reqs.go              | 105 +++++++++++++++++++++
+ src/cmd/go/internal/toolchain/toolchain.go         |  19 ----
+ src/cmd/go/internal/workcmd/edit.go                |   8 +-
+ src/cmd/go/internal/workcmd/init.go                |  37 ++------
+ src/cmd/go/internal/workcmd/sync.go                |  46 ++++-----
+ src/cmd/go/internal/workcmd/use.go                 | 104 +++++++++++++-------
+ src/cmd/go/testdata/script/godebug_default.txt     |   7 +-
+ src/cmd/go/testdata/script/goline_order.txt        |  74 +++++++++++++++
+ src/cmd/go/testdata/script/gotoolchain_modcmds.txt |   8 +-
+ src/cmd/go/testdata/script/mod_bad_domain.txt      |   2 +-
+ src/cmd/go/testdata/script/mod_build_info_err.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_e.txt               |  16 ++--
+ .../testdata/script/mod_get_ambiguous_import.txt   |   2 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_get_errors.txt      |   2 +-
+ .../go/testdata/script/mod_get_exec_toolchain.txt  |  24 ++---
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt     |   2 +-
+ src/cmd/go/testdata/script/mod_get_split.txt       |   2 +-
+ src/cmd/go/testdata/script/mod_go_version.txt      |   4 +-
+ src/cmd/go/testdata/script/mod_goline.txt          |   4 -
+ src/cmd/go/testdata/script/mod_goline_too_new.txt  |   5 +-
+ .../go/testdata/script/mod_import_toolchain.txt    |  25 +++--
+ src/cmd/go/testdata/script/mod_replace_import.txt  |   4 +-
+ .../go/testdata/script/mod_tidy_compat_added.txt   |   4 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   2 +-
+ .../go/testdata/script/mod_tidy_compat_deleted.txt |   4 +-
+ .../testdata/script/mod_tidy_compat_implicit.txt   |   2 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   2 +-
+ .../go/testdata/script/mod_tidy_convergence.txt    |   6 +-
+ .../testdata/script/mod_tidy_convergence_loop.txt  |  12 +--
+ src/cmd/go/testdata/script/mod_tidy_error.txt      |   8 +-
+ .../go/testdata/script/mod_tidy_replace_old.txt    |   2 +-
+ src/cmd/go/testdata/script/work.txt                |   5 +-
+ src/cmd/go/testdata/script/work_get_toolchain.txt  |  24 +++++
+ src/cmd/go/testdata/script/work_goline_order.txt   |  34 +++++++
+ src/cmd/go/testdata/script/work_init_toolchain.txt |  35 +++++++
+ src/cmd/go/testdata/script/work_sync_toolchain.txt |  45 +++++++++
+ src/cmd/go/testdata/script/work_use.txt            |   4 +
+ src/cmd/go/testdata/script/work_use_issue55952.txt |   2 +-
+ src/cmd/go/testdata/script/work_use_noargs.txt     |  11 ---
+ src/cmd/go/testdata/script/work_use_only_dirs.txt  |   8 +-
+ src/cmd/go/testdata/script/work_use_toolchain.txt  |  51 ++++++++++
+ 51 files changed, 773 insertions(+), 297 deletions(-)

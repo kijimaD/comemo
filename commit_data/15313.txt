@@ -1,0 +1,12 @@
+commit 5c3fb96be957c6bf3199d6d460de11b2ba5093eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 19 11:21:18 2013 -0800
+
+    exp/README: update README
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7323073
+
+ src/pkg/exp/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 5c7ae10f66eae34b8a786fc2fdf753bf48a3d116
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 15:19:12 2016 +1000
+
+    runtime: merge 64bit lfstack impls
+    
+    Merge all the 64bit lfstack impls into one file, adjust build tags to
+    match.
+    
+    Merge all the comments on the various lfstack implementations for
+    posterity.
+    
+    lfstack_amd64.go can probably be merged, but it is slightly different so
+    that will happen in a followup.
+    
+    Change-Id: I5362d5e127daa81c9cb9d4fa8a0cc5c5e5c2707c
+    Reviewed-on: https://go-review.googlesource.com/21591
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ .../{lfstack_linux_ppc64x.go => lfstack_64bit.go}  |  7 +++--
+ src/runtime/lfstack_darwin_arm64.go                | 25 -----------------
+ src/runtime/lfstack_linux_arm64.go                 | 25 -----------------
+ src/runtime/lfstack_linux_mips64x.go               | 32 ----------------------
+ 4 files changed, 5 insertions(+), 84 deletions(-)

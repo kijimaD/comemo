@@ -1,0 +1,18 @@
+commit 35e1deaebf1b765f20e1692581804a3bf49d95fa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 03:04:24 2013 +0800
+
+    cmd/5l: use BLX for BL (Rx).
+    Fixes #5111.
+    Update #4718
+    This CL makes BL (Rx) to use BLX Rx instead of:
+    MOV LR, PC
+    MOV PC, Rx
+    
+    R=cshapiro, rsc
+    CC=dave, gobot, golang-dev
+    https://golang.org/cl/9669045
+
+ src/cmd/5l/asm.c   | 18 ++++++++----------
+ src/cmd/5l/optab.c |  4 ++--
+ 2 files changed, 10 insertions(+), 12 deletions(-)

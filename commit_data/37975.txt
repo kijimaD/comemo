@@ -1,0 +1,17 @@
+commit ffd096db2b1cff6399eb1f86e5652564ee8ee362
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 12 20:45:45 2019 -0800
+
+    doc: don't use "go tool vet" as an example
+    
+    Fixes #30199
+    
+    Change-Id: Ib4586e3facb8c0985c8882482d94843b648b9d2f
+    Reviewed-on: https://go-review.googlesource.com/c/162257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/cmd.html            |  8 +++-----
+ doc/install-source.html | 20 +-------------------
+ 2 files changed, 4 insertions(+), 24 deletions(-)

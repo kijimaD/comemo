@@ -1,0 +1,18 @@
+commit 0b66310924ace48c15a3140843576d5b069762de
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 19 05:33:01 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for store instructions
+    
+    Rather than rewriting the obj.Prog for a store instruction, generate the
+    appropriate machine instruction sequence directly.
+    
+    Change-Id: I026250ca3d249a1013243948a4e567b708b72d0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344452
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 75 ++++++++++++++++++++-------------------
+ 1 file changed, 38 insertions(+), 37 deletions(-)

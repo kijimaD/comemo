@@ -1,0 +1,17 @@
+commit f8be906d7437f2528abc7cd1a57fe46aa9348b97
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu May 20 02:23:04 2021 +1000
+
+    test: re-enable test on riscv64 now that it supports external linking
+    
+    Update #36739
+    
+    Change-Id: I14ab2cd0e29966b9a2f992e8c3bcb415203e63e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321449
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/issue10607.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

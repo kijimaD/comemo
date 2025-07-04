@@ -1,0 +1,20 @@
+commit 11677d983e873459b1cdded7be534a9edf3b6eac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 16:13:21 2023 -0700
+
+    go/types, types2: enable range over int w/o need for goexperiment
+    
+    For #61405.
+    
+    Change-Id: I047ec31bc36b1707799ffef25506070613477d1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538718
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go       |  2 +-
+ src/go/types/stmt.go                          |  2 +-
+ src/internal/types/testdata/spec/range_int.go | 65 +++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 2 deletions(-)

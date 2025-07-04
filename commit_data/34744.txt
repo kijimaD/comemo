@@ -1,0 +1,51 @@
+commit dafca7de0f71a06d23ad31f397c2f054b670b822
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 15 22:40:23 2018 -0700
+
+    cmd/compile: prefer rematerialization to copying
+    
+    Fixes #24132
+    
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              2.18s ± 2%     2.15s ± 2%  -1.28%  (p=0.000 n=25+26)
+    Fannkuch11-8                2.16s ± 3%     2.13s ± 3%  -1.54%  (p=0.000 n=27+30)
+    FmtFprintfEmpty-8          29.9ns ± 3%    29.6ns ± 3%  -1.08%  (p=0.001 n=29+26)
+    FmtFprintfString-8         53.6ns ± 2%    54.0ns ± 4%    ~     (p=0.193 n=28+29)
+    FmtFprintfInt-8            56.8ns ± 3%    57.0ns ± 3%    ~     (p=0.330 n=29+29)
+    FmtFprintfIntInt-8         85.3ns ± 2%    85.8ns ± 3%  +0.56%  (p=0.042 n=30+29)
+    FmtFprintfPrefixedInt-8    94.1ns ± 5%    99.0ns ± 8%  +5.20%  (p=0.000 n=27+30)
+    FmtFprintfFloat-8           183ns ± 4%     182ns ± 3%    ~     (p=0.619 n=30+26)
+    FmtManyArgs-8               369ns ± 2%     369ns ± 2%    ~     (p=0.748 n=27+29)
+    GobDecode-8                4.78ms ± 2%    4.75ms ± 1%    ~     (p=0.051 n=28+27)
+    GobEncode-8                4.06ms ± 3%    4.07ms ± 3%    ~     (p=0.781 n=29+30)
+    Gzip-8                      178ms ± 2%     177ms ± 2%    ~     (p=0.171 n=29+30)
+    Gunzip-8                   28.2ms ± 7%    28.0ms ± 4%    ~     (p=0.155 n=30+30)
+    HTTPClientServer-8         71.5µs ± 3%    71.3µs ± 1%    ~     (p=0.913 n=25+27)
+    JSONEncode-8               9.71ms ± 5%    9.86ms ± 4%  +1.55%  (p=0.015 n=28+30)
+    JSONDecode-8               38.8ms ± 2%    39.3ms ± 2%  +1.41%  (p=0.000 n=28+29)
+    Mandelbrot200-8            3.47ms ± 6%    3.44ms ± 3%    ~     (p=0.183 n=28+28)
+    GoParse-8                  2.55ms ± 2%    2.54ms ± 3%  -0.58%  (p=0.003 n=27+29)
+    RegexpMatchEasy0_32-8      66.0ns ± 5%    65.3ns ± 4%    ~     (p=0.124 n=30+30)
+    RegexpMatchEasy0_1K-8       152ns ± 2%     152ns ± 3%    ~     (p=0.881 n=30+30)
+    RegexpMatchEasy1_32-8      62.9ns ± 9%    62.7ns ± 7%    ~     (p=0.717 n=30+30)
+    RegexpMatchEasy1_1K-8       263ns ± 3%     263ns ± 4%    ~     (p=0.909 n=30+29)
+    RegexpMatchMedium_32-8     93.4ns ± 3%    89.3ns ± 2%  -4.32%  (p=0.000 n=29+29)
+    RegexpMatchMedium_1K-8     27.5µs ± 3%    27.1µs ± 2%  -1.46%  (p=0.000 n=30+27)
+    RegexpMatchHard_32-8       1.33µs ± 3%    1.31µs ± 3%  -1.50%  (p=0.000 n=27+28)
+    RegexpMatchHard_1K-8       39.4µs ± 2%    39.1µs ± 2%  -0.54%  (p=0.027 n=28+28)
+    Revcomp-8                   274ms ± 4%     276ms ± 2%  +0.67%  (p=0.048 n=29+28)
+    Template-8                 45.1ms ± 5%    44.6ms ± 7%  -1.22%  (p=0.029 n=30+29)
+    TimeParse-8                 227ns ± 3%     224ns ± 3%  -1.25%  (p=0.000 n=28+27)
+    TimeFormat-8                248ns ± 3%     245ns ± 3%  -1.33%  (p=0.002 n=30+29)
+    [Geo mean]                 36.6µs         36.5µs       -0.32%
+    
+    
+    Change-Id: I24083f0013506b77e2d9da99c40ae2f67803285e
+    Reviewed-on: https://go-review.googlesource.com/101076
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

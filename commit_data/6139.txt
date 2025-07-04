@@ -1,0 +1,24 @@
+commit 09977734cd63aa31563cd11a3786e8951758b041
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 31 14:12:23 2010 -0700
+
+    test: gccgo and gc print the error on different lines.
+    
+    This introduces GC_ERROR to mark an error only issued by the
+    gc compiler.  GCCGO_ERROR already exists to mark errors only
+    issued by the gccgo compiler.  Obviously these should be used
+    sparingly.
+    
+    bug195.go:9: error: interface contains embedded non-interface
+    bug195.go:12: error: interface contains embedded non-interface
+    bug195.go:15: error: interface contains embedded non-interface
+    bug195.go:18: error: invalid recursive interface
+    bug195.go:22: error: invalid recursive interface
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2040043
+
+ test/errchk              | 4 ++--
+ test/fixedbugs/bug195.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

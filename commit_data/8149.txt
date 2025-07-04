@@ -1,0 +1,24 @@
+commit c24c6d8340bbfc86e003eea9c79c56d3aab8dfcc
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 19 09:57:58 2011 -0400
+
+    crypto: move certificate verification into x509.
+    
+    People have a need to verify certificates in situations other than TLS
+    client handshaking. Thus this CL moves certificate verification into
+    x509 and expands its abilities.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4407046
+
+ src/pkg/crypto/tls/Makefile            |   1 -
+ src/pkg/crypto/tls/ca_set.go           |  89 --------
+ src/pkg/crypto/tls/common.go           |  12 +-
+ src/pkg/crypto/tls/conn.go             |   3 +
+ src/pkg/crypto/tls/handshake_client.go |  47 ++--
+ src/pkg/crypto/x509/Makefile           |   2 +
+ src/pkg/crypto/x509/cert_pool.go       |  89 ++++++++
+ src/pkg/crypto/x509/verify.go          | 233 ++++++++++++++++++++
+ src/pkg/crypto/x509/verify_test.go     | 390 +++++++++++++++++++++++++++++++++
+ 9 files changed, 737 insertions(+), 129 deletions(-)

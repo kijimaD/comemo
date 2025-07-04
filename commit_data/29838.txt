@@ -1,0 +1,16 @@
+commit 7799022cddf440f79463afdad969360a2ca86a9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 16 18:45:55 2016 +0900
+
+    net: clarify IP.IsGlobalUnicast docs
+    
+    Fixes #18181.
+    
+    Change-Id: I5eed99dfb7b013aa4d4e668e95a97f5bb643d307
+    Reviewed-on: https://go-review.googlesource.com/34531
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

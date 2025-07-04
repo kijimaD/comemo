@@ -1,0 +1,24 @@
+commit abe4e7a4469248aabd25ef0e1010d5f2c69cc39d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 27 22:24:28 2023 +0200
+
+    internal/syscall/unix: fix PosixFallocate on 32-bit freebsd
+    
+    Follow-up for CL 478035 which broke the freebsd/396 builders:
+    
+    https://build.golang.org/log/e6e442cd353024c4fdb64111ad0bcbf5b25b8ecd
+    
+    64-bit syscall arguments need to be passed as two 32-bit arguments on
+    32-bit freebsd.
+    
+    Change-Id: Idf4fdf4ab7d112bc2cf95b075a5a29f221bffcb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479715
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/syscall/unix/fallocate_freebsd_32bit.go | 20 ++++++++++++++++++++
+ ...llocate_freebsd.go => fallocate_freebsd_64bit.go} |  2 ++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,41 @@
+commit 54c948de9a18949c88b1453d3288253f86256ce9
+Author: Alexander Cyon <alex.cyon@gmail.com>
+Date:   Tue Aug 20 17:54:39 2024 +0000
+
+    src: fix typos
+    
+    Fix typos in ~30 files
+    
+    Change-Id: Ie433aea01e7d15944c1e9e103691784876d5c1f9
+    GitHub-Last-Rev: bbaeb3d1f88a5fa6bbb69607b1bd075f496a7894
+    GitHub-Pull-Request: golang/go#68964
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606955
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/testerrors/argposition_test.go               | 8 ++++----
+ src/cmd/compile/internal/inline/inl.go                            | 2 +-
+ src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go | 4 ++--
+ src/cmd/compile/internal/liveness/mergelocals.go                  | 2 +-
+ src/cmd/compile/internal/pgoir/irgraph.go                         | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go                            | 2 +-
+ src/cmd/compile/internal/types2/signature.go                      | 2 +-
+ src/cmd/go/testdata/script/mod_list_direct_work.txt               | 2 +-
+ src/cmd/internal/obj/loong64/doc.go                               | 2 +-
+ src/cmd/internal/obj/loong64/obj.go                               | 2 +-
+ src/cmd/link/internal/ld/elf_test.go                              | 2 +-
+ src/compress/flate/huffman_code.go                                | 2 +-
+ src/go/types/signature.go                                         | 2 +-
+ src/internal/trace/event.go                                       | 2 +-
+ src/internal/trace/internal/oldtrace/parser.go                    | 4 ++--
+ .../testdata/generators/go122-create-syscall-reuse-thread-id.go   | 2 +-
+ .../trace/testdata/generators/go122-create-syscall-with-p.go      | 2 +-
+ .../testdata/generators/go122-syscall-steal-proc-ambiguous.go     | 2 +-
+ src/math/bits/bits_test.go                                        | 4 ++--
+ src/runtime/gc_test.go                                            | 2 +-
+ src/runtime/mprof.go                                              | 2 +-
+ src/runtime/os_linux.go                                           | 2 +-
+ src/syscall/js/js_test.go                                         | 4 ++--
+ 23 files changed, 30 insertions(+), 30 deletions(-)

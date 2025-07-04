@@ -1,0 +1,17 @@
+commit 9a476028c0f109723026ff7880f14e306429128c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 5 09:55:44 2015 +1300
+
+    cmd/go, cmd/link: enable -buildmode=shared on linux/ppc64le
+    
+    Change-Id: Ifba76413b8aa78a221385bf505b92a3a5fbc3d24
+    Reviewed-on: https://go-review.googlesource.com/16713
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go                | 4 ++--
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ src/cmd/link/internal/ld/symtab.go | 2 +-
+ src/cmd/link/internal/ppc64/obj.go | 6 +++++-
+ 4 files changed, 9 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 350a5ce64fc17d229137f66e855a9d733dc76e2e
+Author: Jan Newmarch <jan.newmarch@gmail.com>
+Date:   Mon Oct 31 11:33:14 2011 -0400
+
+    misc/emacs/go-lang.el: Fix restoration of multiple windows in a frame after gofmt
+    If a frame has multiple windows then the windows must all be restored
+    after gofmt has finished and the old windows must be restored.
+    Before this fix, only the Go code edit window would be left.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5280050
+
+ misc/emacs/go-mode.el | 78 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 40 insertions(+), 38 deletions(-)

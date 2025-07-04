@@ -1,0 +1,23 @@
+commit cdee8004ab5fa71d705979eaaee0948200256ed0
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 7 15:30:34 2022 -0500
+
+    cmd/link: resolve __CTOR_LIST__/__DTOR_LIST__ refs for PE
+    
+    When doing an internal link on Windows, it's possible to see
+    unresolved references to the symbols "__CTOR_LIST__" and/or
+    "__DTOR_LIST__" (which are needed in some circumstances). If these are
+    still unresolved at the point where we're done reading host objects,
+    then synthesize dummy versions of them.
+    
+    Updates #35006.
+    
+    Change-Id: I408bf18499bba05752710cf5a41621123bd84a3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383836
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

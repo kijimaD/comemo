@@ -1,0 +1,17 @@
+commit 2d393034290661f5e78cf9b481aa8255b39eb488
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 8 10:22:37 2011 -0800
+
+    runtime: Restore scheduler stack position if cgo callback panics.
+    
+    If we don't do this, then when C code calls back to Go code
+    which panics, we lose space on the scheduler stack.  If that
+    happens a lot, eventually there is no space left on the
+    scheduler stack.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3898042
+
+ src/pkg/runtime/proc.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

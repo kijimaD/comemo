@@ -1,0 +1,22 @@
+commit 9b3d9230aac0e8433add721a67f22ad6c27267ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 15:25:06 2015 -0700
+
+    math/big: rename (*Float).Format to (*Float).Text
+    
+    This paves the way for a fmt-compatible (*Float).Format method.
+    A better name then Text is still desirable (suggestions welcome).
+    
+    This is partly fixing issue #10938.
+    
+    Change-Id: I59c20a8cee11f5dba059fe0f38b414fe75f2ab13
+    Reviewed-on: https://go-review.googlesource.com/10493
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/bits_test.go         |  2 +-
+ src/math/big/float.go             |  2 +-
+ src/math/big/float_test.go        | 50 +++++++++++++++++++--------------------
+ src/math/big/floatconv_test.go    |  8 +++----
+ src/math/big/floatexample_test.go |  6 ++---
+ src/math/big/ftoa.go              | 14 +++++------
+ 6 files changed, 40 insertions(+), 42 deletions(-)

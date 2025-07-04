@@ -1,0 +1,20 @@
+commit 9a49b26bdf771ecdfa2d3bc3ee5175eed5321f20
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Mon Apr 17 12:32:12 2023 +0300
+
+    internal/coverage: fix comment dupword, error typo
+    
+    - Correct duplicated word in comments.
+    - Fix typo in error message.
+    
+    Change-Id: I688d723ea3ac4d0b1981afd747e4b2df00c81448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485016
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/coverage/defs.go           | 4 ++--
+ src/internal/coverage/pods/pods_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

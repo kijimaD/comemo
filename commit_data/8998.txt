@@ -1,0 +1,14 @@
+commit 1fe9c9a78f1fe1f0d59428c2475053dd22a6c0fd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 09:36:17 2011 +1000
+
+    exp/eval: delete binary
+    Mistakenly checked in.
+    Fixes #2058.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4670057
+
+ src/pkg/exp/eval/eval | Bin 3500057 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

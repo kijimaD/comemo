@@ -1,0 +1,19 @@
+commit 32dbaac572f9aed4fbaa6aa359bdc821fa02e9d4
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Apr 29 14:28:43 2021 +0000
+
+    cmd/compile/internal/walk: merge operations when calling ir.NewSlic…
+    
+    Change-Id: I55ef35a9d8157063c4a41b23cd1ac0002838d30a
+    GitHub-Last-Rev: e716c5200545a944313ae0d995fcb6eb17d2720e
+    GitHub-Pull-Request: golang/go#45814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314569
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/builtin.go | 35 ++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 22 deletions(-)

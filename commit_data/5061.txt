@@ -1,0 +1,18 @@
+commit c75f891a720f00d4ce1c44e12ab7337cf7efc118
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 18:44:37 2010 -0700
+
+    utf16: new package
+    
+    needed for interacting with various legacy interfaces,
+    like Windows and the Mac OS clipboard.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/595041
+
+ src/pkg/Makefile            |  1 +
+ src/pkg/utf16/Makefile      | 11 ++++++
+ src/pkg/utf16/utf16.go      | 74 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/utf16/utf16_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 167 insertions(+)

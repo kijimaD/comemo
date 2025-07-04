@@ -1,0 +1,15 @@
+commit 5527d7ff7935d8a58a693be5d1ec4a5312f0f07d
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Tue Nov 16 15:36:37 2021 +0800
+
+    doc/go1.18: add Clone doc
+    
+    For #47694
+    
+    Change-Id: I3b135f6ff199d7a9746726b131fbe7dd97a8e95e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364254
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

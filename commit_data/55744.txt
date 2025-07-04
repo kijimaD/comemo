@@ -1,0 +1,14 @@
+commit ed07e16ffd899e6473cd7a4700d38a9054ecbcf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 28 10:30:16 2024 -0500
+
+    cmd/go: fix TestScript/mod_vendor_goversion for CL 567476
+    
+    Change-Id: I00b9934a4942a662a2eb14941c9d07e8750aa1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

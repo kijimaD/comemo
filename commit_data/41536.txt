@@ -1,0 +1,31 @@
+commit 5e4da0adac18aad82b85e6ce3f928392b7998994
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 1 13:09:09 2020 -0800
+
+    cmd/compile: add streamlined Block Reset+AddControl routines
+    
+    For use in rewrite rules. Shrinks cmd/compile:
+    
+    compile 20082104  19967416  -114688 -0.571%
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ic856508b27ec5b7fb9b6ca63e955a7139ae7dc30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221780
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/block.go          |  28 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  16 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 189 +++----
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 705 +++++++++----------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 429 +++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  75 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  63 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 183 +++----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |   3 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 133 ++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +-
+ 12 files changed, 675 insertions(+), 1275 deletions(-)

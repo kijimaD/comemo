@@ -1,0 +1,14 @@
+commit f5ff5b4fcb4098eb16e7b2390cd3553dc3a51373
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 07:43:16 2012 +1100
+
+    test/hashmap.go: delete
+    It's in an odd style and it's unclear what true purpose it serves as
+    a test other than to be another Go program.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5674111
+
+ test/hashmap.go | 181 --------------------------------------------------------
+ 1 file changed, 181 deletions(-)

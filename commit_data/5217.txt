@@ -1,0 +1,12 @@
+commit 2379fdec04c7a9c351b78ae365413082900c2a16
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 4 23:27:26 2010 -0700
+
+    gc: good syntax error for defer func() {} - missing final ()
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/855044
+
+ src/cmd/gc/go.errors | 4 ++++
+ 1 file changed, 4 insertions(+)

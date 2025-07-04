@@ -1,0 +1,18 @@
+commit 1913fdab98b0eb5ca965146d986ddb0fc2100f74
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Sep 16 11:27:05 2011 +0200
+
+    exp/norm: changed trie to produce smaller tables.
+    Trie now uses sparse block when this makes sense.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5010043
+
+ src/pkg/exp/norm/maketesttables.go |    1 +
+ src/pkg/exp/norm/tables.go         | 6030 +++++++++++++++++++-----------------
+ src/pkg/exp/norm/trie.go           |   83 +-
+ src/pkg/exp/norm/trie_test.go      |   39 +-
+ src/pkg/exp/norm/triedata_test.go  |   76 +-
+ src/pkg/exp/norm/triegen.go        |  159 +-
+ 6 files changed, 3377 insertions(+), 3011 deletions(-)

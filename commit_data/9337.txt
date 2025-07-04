@@ -1,0 +1,14 @@
+commit 6ca968c791587cd70a1c0fcc5ddc21cdc7be60ad
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 11 14:36:51 2011 +1000
+
+    exp/template: find the String method by taking the address if we need to.
+    Also simplify nil handling in printing.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4869042
+
+ src/pkg/exp/template/exec.go      | 13 +++++++------
+ src/pkg/exp/template/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit dad94e7c39e748a4134efc67ff9256a5addf34b7
+Author: Robert Kuska <rkuska@gmail.com>
+Date:   Fri Mar 13 19:21:19 2020 +0100
+
+    net/http: use atomicBool for inShutdown
+    
+    This removes the TODO leftover by replacing the original int32 for
+    atomicBool that mimicks atomic operations for boolean.
+    
+    Change-Id: I1b2cac0c9573c890c7315e9906ce6bfccee3d770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,24 @@
+commit d4fb93be87c38aaf0f68ad91852f9f83be726262
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 10:33:01 2022 -0700
+
+    go/types, types2: use | rather than ∪ when printing term lists
+    
+    With this change, the termlist String() function prints termlists
+    in the usual Go notation and thus we can use it in error reporting.
+    Preparation for fixing #40350.
+    
+    For #40350.
+    
+    Change-Id: Ia28318841305de234a71af3146ce0c59f5e601a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410894
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/termlist.go      |   2 +-
+ src/cmd/compile/internal/types2/termlist_test.go | 140 +++++++++++------------
+ src/cmd/compile/internal/types2/typeset_test.go  |   6 +-
+ src/go/types/termlist.go                         |   2 +-
+ src/go/types/termlist_test.go                    | 140 +++++++++++------------
+ src/go/types/typeset_test.go                     |   6 +-
+ 6 files changed, 148 insertions(+), 148 deletions(-)

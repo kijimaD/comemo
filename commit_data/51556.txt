@@ -1,0 +1,18 @@
+commit bd42aa86d32f1c29859151520647175e07f3fbca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 13:59:12 2022 -0800
+
+    spec: describe new semantics for comparable and constraint satisfaction
+    
+    For #56548.
+    Fixes #57012.
+    
+    Change-Id: I44f850522e52b1811025fb31bcef289da8f8089d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457437
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 80 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 57 insertions(+), 23 deletions(-)

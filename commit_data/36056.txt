@@ -1,0 +1,14 @@
+commit 407eb30f9f237fb8d8d352bec37f89409e6e5e1a
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Wed Jul 18 16:26:13 2018 -0400
+
+    doc/go1.11: update runtime/trace to use region instead of span
+    
+    The final API uses 'region' instead of 'span' from the proposal.
+    
+    Change-Id: I305da891a360596fff89b10bc6de3090289b5396
+    Reviewed-on: https://go-review.googlesource.com/124815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

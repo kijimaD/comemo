@@ -1,0 +1,20 @@
+commit b91aea55366d3f72c6f16a2cb5651b4e3aa5fb0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 18:00:06 2014 -0400
+
+    encoding/xml: add InputOffset method to Decoder
+    
+    Among other things, this allows users to match the decoded
+    pieces with the original XML, which can be necessary for
+    implementing standards like XML signatures.
+    
+    Fixes #8484.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/122960043
+
+ src/pkg/encoding/xml/xml.go      | 11 +++++++++++
+ src/pkg/encoding/xml/xml_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 38 insertions(+), 4 deletions(-)

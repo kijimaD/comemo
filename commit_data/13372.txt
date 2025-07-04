@@ -1,0 +1,17 @@
+commit 93b7d1bf1eefbc3ff33ec935b3c15601820bd4f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 24 10:41:12 2012 -0700
+
+    net/http: fix doc inaccuracy and typo; tighten test
+    
+    Note url.Error wrapping, and s/issue/issuing/.
+    
+    Fixes #3724
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6294093
+
+ src/pkg/net/http/client.go      | 3 ++-
+ src/pkg/net/http/client_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

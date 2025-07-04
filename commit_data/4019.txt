@@ -1,0 +1,11 @@
+commit a23746ea65249ffde38290709d9ab0873a28b19e
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Nov 12 16:12:28 2009 -0800
+
+    fix style nit ignored in previous cl
+    
+    R=rsc
+    https://golang.org/cl/152110
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

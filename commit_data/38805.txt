@@ -1,0 +1,32 @@
+commit 3b37ff453edd9664045e656d1c02e63703517399
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Apr 16 02:49:09 2019 +0000
+
+    cmd/link: increase the reserved space for ELF relocations
+    
+    Currently the offset values of ELF relocations and Macho relocations
+    are 256 and 512 respectively, which means that the space reserved for
+    ELF relocations is only 256. But AARCH64 has more than 256 ELF relocation
+    types, in fact the maximum AARCH64 ELF relocation type recorded in file
+    src/debug/elf/elf.go is 1032 currently. So this CL increases the offset
+    of Macho relocations to 2048 to leave enough space for AARCH64 ELF
+    relocations.
+    
+    Change-Id: I784ac38aeb3e102ac7825f6d621086849c8d3146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172497
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objabi/util.go            |  5 +++
+ src/cmd/link/internal/amd64/asm.go         | 40 +++++++++---------
+ src/cmd/link/internal/arm/asm.go           | 26 ++++++------
+ src/cmd/link/internal/ld/data.go           |  4 +-
+ src/cmd/link/internal/ld/pe.go             |  2 +-
+ src/cmd/link/internal/loadelf/ldelf.go     |  2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go |  4 +-
+ src/cmd/link/internal/ppc64/asm.go         | 30 +++++++-------
+ src/cmd/link/internal/s390x/asm.go         | 66 +++++++++++++++---------------
+ src/cmd/link/internal/sym/reloc.go         |  8 ++--
+ src/cmd/link/internal/x86/asm.go           | 23 ++++++-----
+ 11 files changed, 109 insertions(+), 101 deletions(-)

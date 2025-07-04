@@ -1,0 +1,13 @@
+commit f18ced3fc9bdb36029d81eb73a1848959e5a84ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 02:15:23 2012 -0400
+
+    cmd/gc: delete dead code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6307050
+
+ src/cmd/gc/dcl.c | 17 +----------------
+ src/cmd/gc/go.h  |  1 -
+ 2 files changed, 1 insertion(+), 17 deletions(-)

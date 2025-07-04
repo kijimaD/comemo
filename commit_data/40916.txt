@@ -1,0 +1,33 @@
+commit e4c01f088bec6cc504a1e9dc85c97741c06b3868
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 25 14:07:59 2019 -0500
+
+    cmd/link: additional fixes for -newobj and "ld -r" ELF host objects
+    
+    The previous fix for this issue (CL 208479) was not general enough;
+    this patch revises it to handle more cases.
+    
+    The problem with the original fix was that once a sym.Symbol is
+    created for a given static symbol and given a bogus anonymous version
+    of -1, we hit problems if some other non-anonymous symbol (created by
+    host object loading) had relocations targeting the static symbol.
+    
+    In this patch instead of assigning a fixed anonymous version of -1 to
+    such symbols, each time loader.Create is invoked we create a new
+    (unique) anonymous version for the sym.Symbol, then enter the result
+    into the loader's extStaticSyms map, permitting it to be found in
+    lookups when processing relocation targets.
+    
+    NB: this code will hopefully get a lot simpler once we can move host
+    object loading away from early sym.Symbol creation.
+    
+    Updates #35779.
+    
+    Change-Id: I450ff577e17549025565d355d6707a2d28a5a617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208778
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 51 ++++++++++++++++++++++------------
+ 1 file changed, 33 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit cd319092e04da04554f23d6c91cd3e5f9d915c93
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Tue Dec 7 12:05:00 2010 -0500
+
+    sync: small naming fix for armv5
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3268042
+
+ src/pkg/sync/asm_arm5.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit cbd7200167292b62792272bda46887bdf1b62fb0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 28 13:23:08 2021 -0700
+
+    cmd/compile: test to ensure we guard GOAMD64>v1 instructions
+    
+    When compiling with GOAMD64=v1, clobber all the >v1 instructions
+    with faulting instructions. Run the binary with the corresponding
+    feature flags off. We shouldn't try to execute any of the clobbered
+    instructions.
+    
+    Change-Id: I295acaf9fd0eafd037192aa6f933365c794cc76e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352831
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 335 ++++++++++++++++++++++++
+ 1 file changed, 335 insertions(+)

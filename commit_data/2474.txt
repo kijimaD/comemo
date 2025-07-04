@@ -1,0 +1,25 @@
+commit 5d2ee9d90afc8277d20a1f40056caa047fae695b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 21:44:26 2009 -0700
+
+    add Addr() string to net.Listener interface.
+    use it to avoid use of fixed ports in tests.
+    convert google/net/rpc to gotest
+    
+    R=r
+    DELTA=523  (275 added, 229 deleted, 19 changed)
+    OCL=30458
+    CL=30460
+
+ src/pkg/Makefile                         |  2 ++
+ src/pkg/net/fd.go                        |  9 ++++++++
+ src/pkg/net/net.go                       | 35 +++++++++++++++++++-------------
+ src/pkg/net/server_test.go               | 25 +++++++++++++++--------
+ src/pkg/syscall/syscall_darwin.go        | 22 ++++++++++++++++++--
+ src/pkg/syscall/syscall_linux.go         | 18 ++++++++++++++++
+ src/pkg/syscall/syscall_linux_386.go     | 13 +++++++++++-
+ src/pkg/syscall/syscall_linux_amd64.go   |  2 ++
+ src/pkg/syscall/zsyscall_darwin_386.go   | 12 +++++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 12 +++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go  | 12 +++++++++++
+ 11 files changed, 136 insertions(+), 26 deletions(-)

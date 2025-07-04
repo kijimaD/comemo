@@ -1,0 +1,12 @@
+commit c638813ef68a691aeafc0aefe36739bc0650d0db
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 18 12:41:25 2011 -0500
+
+    Add huin@google.com to the CONTRIBUTORS
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5413049
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

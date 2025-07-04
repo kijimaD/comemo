@@ -1,0 +1,14 @@
+commit 6ca1fa625c2377071163399f1579a440e7d29502
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 2 15:42:06 2013 -0700
+
+    net/http: new server Handler benchmarks
+    
+    For all the Content-Type & Content-Length cases.
+    
+    R=golang-dev, pabuhr
+    CC=golang-dev
+    https://golang.org/cl/8280046
+
+ src/pkg/net/http/serve_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

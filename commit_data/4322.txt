@@ -1,0 +1,16 @@
+commit d1740bb3a6e9868c2d0786438b907b96b80f1a0f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 4 10:57:01 2009 -0800
+
+    Remove global chanlock.
+    
+    On a microbenchmark that ping-pongs on lots of channels, this makes
+    the multithreaded case about 20% faster and the uniprocessor case
+    about 1% slower. (Due to cache effects, I expect.)
+    
+    R=rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/166043
+
+ src/pkg/runtime/chan.c | 108 ++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 75 insertions(+), 33 deletions(-)

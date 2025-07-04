@@ -1,0 +1,22 @@
+commit df6072b41c76f2ac839d248b7c706fa554f483ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 16:24:01 2013 -0400
+
+    cmd/ld: include full symbol table in Mach-O output
+    
+    This makes binaries work with OS X nm.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7558044
+
+ src/cmd/6l/asm.c         |  58 +-----------
+ src/cmd/8l/asm.c         |  58 +-----------
+ src/cmd/ld/data.c        |  14 ++-
+ src/cmd/ld/go.c          |  28 +-----
+ src/cmd/ld/lib.c         |   1 -
+ src/cmd/ld/lib.h         |   8 +-
+ src/cmd/ld/macho.c       | 232 ++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/ld/macho.h       |   1 +
+ src/libmach/executable.c |   1 -
+ 9 files changed, 231 insertions(+), 170 deletions(-)

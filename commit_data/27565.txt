@@ -1,0 +1,19 @@
+commit 795809b5c7d7e281e392399b9a366cbe92aa9e98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 23 17:43:09 2016 -0700
+
+    go/types: better debugging output for init order computation
+    
+    Also: Added some test cases for issue #10709.
+    No impact when debugging output is disabled (default).
+    
+    For #10709.
+    
+    Change-Id: I0751befb222c86d46225377a674f6bad2990349e
+    Reviewed-on: https://go-review.googlesource.com/23442
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/go/types/initorder.go | 45 +++++++++++++++++++++++++++++++++------------
+ src/go/types/resolver.go  |  2 +-
+ 3 files changed, 75 insertions(+), 13 deletions(-)

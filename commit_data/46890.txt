@@ -1,0 +1,24 @@
+commit 85a068fdf21bd2e4475a87ee049af4fbe797bcbe
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 30 10:46:03 2021 -0700
+
+    runtime/debug: add GoVersion to BuildInfo
+    
+    BuildInfo now includes the version of Go used to build a binary, as
+    reported by runtime.Version() or 'go version'.
+    
+    For #37475
+    
+    Change-Id: Id07dda357dc70599d64a9202dab894c7288de1de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353888
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ api/next.txt                          |  1 +
+ src/cmd/go/internal/load/pkg.go       |  3 +++
+ src/debug/buildinfo/buildinfo.go      |  3 ++-
+ src/debug/buildinfo/buildinfo_test.go |  7 ++++---
+ src/runtime/debug/mod.go              | 20 ++++++++++++++++----
+ 5 files changed, 26 insertions(+), 8 deletions(-)

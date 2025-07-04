@@ -1,0 +1,17 @@
+commit 7673e30503e3864265a842ec3e4200b317fc571d
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Mon Mar 19 06:52:28 2018 +0000
+
+    cmd/asm: fix bug about VMOV instruction (move register to vector element) on ARM64
+    
+    This change fixes index error when encoding VMOV instruction which pattern is
+    VMOV Rn, V.<T>[index]. For example VMOV R1, V1.S[1] is assembled as VMOV R1, V1.S[0]
+    
+    Fixes #24400
+    Change-Id: I82b5edc8af4e06862bc4692b119697c6bb7dc3fb
+    Reviewed-on: https://go-review.googlesource.com/101297
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

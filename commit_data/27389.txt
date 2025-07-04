@@ -1,0 +1,29 @@
+commit 19619c21c36d1695000f5b798241971dfdb2cc2d
+Author: Tom Bergan <tombergan@google.com>
+Date:   Thu May 12 22:03:46 2016 -0700
+
+    net, net/http: don't trace DNS dials
+    
+    This fixes change https://go-review.googlesource.com/#/c/23069/, which
+    assumes all DNS requests are UDP. This is not true -- DNS requests can
+    be TCP in some cases. See:
+    https://tip.golang.org/src/net/dnsclient_unix.go#L154
+    https://en.wikipedia.org/wiki/Domain_Name_System#Protocol_transport
+    
+    Also, the test code added by the above change doesn't actually test
+    anything because the test uses a faked DNS resolver that doesn't
+    actually make any DNS queries. I fixed that by adding another test
+    that uses the system DNS resolver.
+    
+    Updates #12580
+    
+    Change-Id: I6c24c03ebab84d437d3ac610fd6eb5353753c490
+    Reviewed-on: https://go-review.googlesource.com/23101
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/nettrace/nettrace.go | 12 +++++-----
+ src/net/dial.go                   | 23 ++++++++++----------
+ src/net/http/transport_test.go    | 46 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 18 deletions(-)

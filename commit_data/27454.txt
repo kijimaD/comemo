@@ -1,0 +1,15 @@
+commit 2a12035f8ec18f0a577853fda78faf2826397131
+Author: Scott Bell <scott@sctsm.com>
+Date:   Wed May 18 18:44:46 2016 -0700
+
+    expvar: slightly expand documentation for Var's String method
+    
+    Fixes #15088.
+    
+    Change-Id: I7727829a4062e15c0e5e3beff4d0bfc1fa327b0f
+    Reviewed-on: https://go-review.googlesource.com/23232
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/expvar/expvar.go | 2 ++
+ 1 file changed, 2 insertions(+)

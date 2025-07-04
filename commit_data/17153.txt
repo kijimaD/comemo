@@ -1,0 +1,14 @@
+commit 6b706cf50d128cd49192d4815bc25fec06514fe8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 12 12:55:33 2013 +1000
+
+    bufio: make it clear that the client must call Writer.Flush
+    
+    Fixes #5530.
+    
+    R=golang-dev, iant, com.liigo
+    CC=golang-dev
+    https://golang.org/cl/12688044
+
+ src/pkg/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

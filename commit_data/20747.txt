@@ -1,0 +1,11 @@
+commit 18c7fbdfd7a0842ca601231266b6582f957c982b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 19 10:33:50 2014 -0700
+
+    doc/go1.4.txt: flags can now be set at most once
+    
+    CC=golang-codereviews
+    https://golang.org/cl/161820043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

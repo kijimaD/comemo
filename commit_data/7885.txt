@@ -1,0 +1,25 @@
+commit 7f9acb53cb15ecea79dd6ed5ec117429b5919abb
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 26 11:25:22 2011 -0700
+
+    testing: shorten some more tests
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4314044
+
+ src/pkg/archive/tar/writer_test.go            |  3 +++
+ src/pkg/big/int_test.go                       | 11 +++++++++--
+ src/pkg/container/vector/numbers_test.go      |  9 +++++++++
+ src/pkg/crypto/elliptic/elliptic_test.go      |  3 +++
+ src/pkg/crypto/tls/handshake_messages_test.go |  6 +++++-
+ src/pkg/exp/eval/eval_test.go                 |  8 ++++++--
+ src/pkg/fmt/fmt_test.go                       |  3 +++
+ src/pkg/go/printer/printer_test.go            |  7 +++++--
+ src/pkg/image/png/reader_test.go              | 12 +++++++++++-
+ src/pkg/image/png/writer_test.go              |  6 +++++-
+ src/pkg/json/decode_test.go                   |  1 +
+ src/pkg/json/scanner_test.go                  | 25 ++++++++++++++++++++-----
+ src/pkg/netchan/netchan_test.go               |  2 +-
+ src/pkg/utf8/string_test.go                   | 11 ++++++++---
+ 14 files changed, 89 insertions(+), 18 deletions(-)

@@ -1,0 +1,13 @@
+commit ddc7bc5aba8239ae1f83261ce1afb27f0ab0889e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 17:39:29 2008 -0700
+
+    test program to generate multiples of a set of factors
+    (as written, factors are 2, 3, and 5)
+    
+    R=r
+    OCL=15286
+    CL=15286
+
+ test/235.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

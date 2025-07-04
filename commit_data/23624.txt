@@ -1,0 +1,16 @@
+commit 7b5d536786a1cb03e017dffc6dc693b55c1ddb0d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 7 12:10:15 2015 +0900
+
+    net: ensure that ResolveIPAddr(addr.String()) reproduces addr
+    
+    Updates #6465.
+    
+    Change-Id: I5babbcf4c92dae47c823a41628b01e4ceb2332eb
+    Reviewed-on: https://go-review.googlesource.com/11951
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ipraw_test.go | 2 ++
+ src/net/iprawsock.go  | 5 +++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

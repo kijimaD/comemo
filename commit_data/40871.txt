@@ -1,0 +1,44 @@
+commit 0e02cfb369b62c7747d7623cf21ff55f7cabde07
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 19 13:23:35 2019 -0500
+
+    cmd/compile: try harder to not use an empty src.XPos for a bogus line
+    
+    The fix for #35652 did not guarantee that it was using a non-empty
+    src position to replace an empty one.  The new code checks again
+    and falls back to a more certain position.  (The input in question
+    compiles to a single empty infinite loop, and none of the actual instructions
+    had any source position at all.  That is a bug, but given the pathology
+    of this input, not one worth dealing with this late in the release cycle,
+    if ever.)
+    
+    Literally:
+    
+    00000 (5) TEXT "".f(SB), ABIInternal
+    00001 (5) PCDATA $0, $-2
+    00002 (5) PCDATA $1, $-2
+    00003 (5) FUNCDATA $0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+    00004 (5) FUNCDATA $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+    00005 (5) FUNCDATA $2, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+    b2
+    00006 (?) XCHGL AX, AX
+    b6
+    00007 (+1048575) JMP 6
+    00008 (?) END
+    
+    TODO: Add runtime.InfiniteLoop(), replace infinite loops with a call to
+    that, and use an eco-friendly runtime.gopark instead.  (This was Cherry's
+    excellent idea.)
+    
+    Updates #35652
+    Fixes #35695
+    
+    Change-Id: I4b9a841142ee4df0f6b10863cfa0721a7e13b437
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207964
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go |  3 +++
+ test/fixedbugs/issue35652.go       | 15 ++++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

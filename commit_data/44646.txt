@@ -1,0 +1,16 @@
+commit 3224990dad27d5a06961a168c3760b13a6d140c1
+Author: zfCode <zfcode@qq.com>
+Date:   Sat Mar 13 18:00:30 2021 +0000
+
+    fmt: use “truncateString” not “truncate” in method doc
+    
+    Change-Id: If1acb6a8533a782f80c7d1f0ad5155e98e1134dd
+    GitHub-Last-Rev: 03384a3d99dd89d802635f7ef48ce4456ec338b0
+    GitHub-Pull-Request: golang/go#44375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293629
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Rob Pike <r@golang.org>
+
+ src/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

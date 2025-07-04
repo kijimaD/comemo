@@ -1,0 +1,16 @@
+commit f8aecbbff5b85e67fee95033b3a14f3df665ea18
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 20 14:21:07 2020 +0200
+
+    runtime: move s390x HWCap CPU feature detection to internal/cpu
+    
+    Change-Id: I7d9e31c3b342731ddd7329962426fdfc80e9ed87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263803
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/cpu/cpu_s390x.go | 15 +++++++++++++--
+ src/runtime/os_linux_s390x.go |  9 ++-------
+ 2 files changed, 15 insertions(+), 9 deletions(-)

@@ -1,0 +1,23 @@
+commit 55ecc3a88670c14bbbfc9d6c96cf65891cc608f5
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Aug 15 23:09:00 2022 +0800
+
+    net: allow single dot in resolv.conf search statement
+    
+    A single dot in a search statement doesn't affect DNS lookup, so just ignore it and a syntax error.
+    
+    Fixes #54124
+    
+    Change-Id: Idd43bd34c5c16af50cba51f0b6e24f992eec6e57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423875
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsconfig_unix.go                      | 10 +++++++---
+ src/net/dnsconfig_unix_test.go                 | 13 +++++++++++++
+ src/net/testdata/search-single-dot-resolv.conf |  5 +++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)

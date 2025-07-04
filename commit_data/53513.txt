@@ -1,0 +1,24 @@
+commit bd00528d0415a8b8f4ca08e61856e843b7d8672b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:41:06 2023 +0000
+
+    Revert "net: remove fallback path in sysSocket"
+    
+    This reverts CL 40364.
+    
+    Reason for revert: Fallback path is still required on Solaris.
+    
+    For #45964
+    For #59359
+    
+    Change-Id: I4b8c8af77ee987cad6617221793b90c9a8829c3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501276
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/sock_cloexec.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

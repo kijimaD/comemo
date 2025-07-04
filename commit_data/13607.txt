@@ -1,0 +1,15 @@
+commit af92b29fe63bd68b3892f6773b3da5896db52e6e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 9 08:47:43 2012 +0800
+
+    cmd/5l: add PT_PAX_FLAGS ELF header
+    Although I don't use PAX enabled ARM kernels, PAX
+    does have support for ARM, so we're better off add
+    PT_PAX_FLAGS now in case people use PAX kernels.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6453092
+
+ src/cmd/5l/asm.c | 5 +++++
+ 1 file changed, 5 insertions(+)

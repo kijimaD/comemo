@@ -1,0 +1,29 @@
+commit 268d2f7cf2217447e0995597384a0bcd29e0b638
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 18 08:50:02 2023 -0700
+
+    net/http: handle WriteHeader(101) as a non-informational header
+    
+    Prior to Go 1.19 adding support for sending 1xx informational headers
+    with ResponseWriter.WriteHeader, WriteHeader(101) would send a 101
+    status and disable further writes to the response. This behavior
+    was not documented, but is intentional: Writing to the response
+    body explicitly checks to see if a 101 status has been sent before
+    writing.
+    
+    Restore the pre-1.19 behavior when writing a 101 Switching Protocols
+    header: The header is sent, no subsequent headers are sent, and
+    subsequent writes to the response body fail.
+    
+    For #59564
+    
+    Change-Id: I72c116f88405b1ef5067b510f8c7cff0b36951ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485775
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  7 +++--
+ 2 files changed, 74 insertions(+), 2 deletions(-)

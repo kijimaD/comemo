@@ -1,0 +1,18 @@
+commit db5f2b415399da9b653e68aa03f23ce661cc5339
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 23 17:30:02 2024 -0700
+
+    spec: clarify when a range expression is evaluated
+    
+    If the range expression is a numeric constant, the
+    range expression is also not evaluated.
+    
+    Change-Id: I97201e5c136d3d1a87ed1500b19b7199b30bc9ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581298
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

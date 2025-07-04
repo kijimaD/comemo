@@ -1,0 +1,17 @@
+commit 446524269ee152b8053d44117887bc3cc8d5ef9d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 17:01:54 2014 -0700
+
+    net/http: check for CloseWrite interface, not TCPConn implementation
+    
+    Fixes #8724
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/148040043
+
+ src/net/http/export_test.go |  4 ++++
+ src/net/http/serve_test.go  | 23 +++++++++++++++++++++++
+ src/net/http/server.go      | 10 ++++++++--
+ 3 files changed, 35 insertions(+), 2 deletions(-)

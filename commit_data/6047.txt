@@ -1,0 +1,19 @@
+commit ca9098ee942e0697260ff56dbb0e0f0ec7f71aa5
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Aug 18 16:53:22 2010 +0200
+
+    Dwarf output for 6l.
+    Part 1, general scaffolding and pc/lc sections.
+    
+    R=rsc, r, ken2
+    CC=golang-dev
+    https://golang.org/cl/1987042
+
+ src/cmd/6l/Makefile     |   2 +
+ src/cmd/6l/asm.c        |  59 ++--
+ src/cmd/6l/l.h          |   1 +
+ src/cmd/6l/obj.c        |   3 +-
+ src/cmd/ld/dwarf.c      | 815 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/dwarf.h      |  28 ++
+ src/cmd/ld/dwarf_defs.h | 454 +++++++++++++++++++++++++++
+ 7 files changed, 1337 insertions(+), 25 deletions(-)

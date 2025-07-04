@@ -1,0 +1,16 @@
+commit 744da64947188fa849ab6228f9d5fded5f7a1bef
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Oct 21 12:07:55 2017 -0700
+
+    encoding/csv: fix error documentation
+    
+    We should be referring to ParseError.Err, which is the underlying error,
+    not ParseError.Error, which is the error method.
+    
+    Change-Id: Ic3cef5ecbe1ada5fa14b9573222f29da8fc9a8d5
+    Reviewed-on: https://go-review.googlesource.com/72450
+    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/csv/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

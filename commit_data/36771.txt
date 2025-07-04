@@ -1,0 +1,15 @@
+commit 75f4aa86bacb668348e788692974aa554cc61915
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 27 14:52:41 2018 -0700
+
+    doc: mention -compressdwarf=false on gdb page
+    
+    Update #11799
+    
+    Change-Id: I2646a52bfb8aecb67a664a7c6fba25511a1aa49f
+    Reviewed-on: https://go-review.googlesource.com/138182
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/debugging_with_gdb.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

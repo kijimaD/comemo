@@ -1,0 +1,22 @@
+commit e069587c8d530ec912614d138bbf59a1d1788fb9
+Author: Jin Lin <jinl@uber.com>
+Date:   Tue Jan 23 19:40:38 2024 -0800
+
+    cmd/preprofile: Implement a tool to preprocess the PGO profile.
+    
+    It fixes the issue https://github.com/golang/go/issues/65220.
+    It also includes  https://go.dev/cl/557458 from Michael.
+    
+    Change-Id: Ic6109e1b6a9045459ff4a54dea11cbfe732b01e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557918
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/flag.go              |   2 +-
+ src/cmd/compile/internal/pgo/irgraph.go            | 205 +++++++++++++++----
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 ++
+ src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
+ .../internal/graph => internal/profile}/graph.go   |  13 +-
+ 6 files changed, 448 insertions(+), 44 deletions(-)

@@ -1,0 +1,21 @@
+commit 3f571d1dea775417a171c17632ac3c1fbc84b0fd
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Sat May 21 10:47:25 2022 +0000
+
+    cmd/link: set coverage counters as expected by the fuzz package
+    
+    Set _counters and _ecounters to the start and end locations of
+    libfuzzer's 8-bit counters section
+    
+    Change-Id: Icadb503af1ba22495b1d88b69aad26d89843baa4
+    GitHub-Last-Rev: 4ca6216b7600a3187732ae6d0dc7a5ce60cd5655
+    GitHub-Pull-Request: golang/go#53022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407674
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 4 ++++
+ 1 file changed, 4 insertions(+)

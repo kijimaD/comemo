@@ -1,0 +1,16 @@
+commit 90f9426573e80bb072c80d7bf9fe3abd6d9a81ce
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Jul 30 10:02:09 2019 +0300
+
+    context: mention asynchronous cancellation propagation
+    
+    Fixes #33185
+    
+    Change-Id: I0adcffa5d1c9e55ae52309c59f961b0710166098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187921
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go | 2 ++
+ 1 file changed, 2 insertions(+)

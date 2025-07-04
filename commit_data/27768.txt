@@ -1,0 +1,20 @@
+commit 519b469795287dc81ab3b994f8809f61a0c802da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 1 15:44:12 2016 -0700
+
+    cmd/compile: mark live heap-allocated pparamout vars as needzero
+    
+    If we don't mark them as needzero, we have a live pointer variable
+    containing possible garbage, which will baffle the GC.
+    
+    Fixes #16249.
+    
+    Change-Id: I7c423ceaca199ddd46fc2c23e5965e7973f07584
+    Reviewed-on: https://go-review.googlesource.com/24715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go |  1 +
+ test/fixedbugs/issue16249.go         | 58 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

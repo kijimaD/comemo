@@ -1,0 +1,16 @@
+commit 66afbf1010fa492fb9a266f9019f707bd09f066d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 13 10:06:12 2016 -0400
+
+    cmd/link: use a switch for name prefix switching
+    
+    Minor cleanup.
+    
+    Change-Id: I7574f58a7e55c2bb798ebe9c7c98d36b8c258fb8
+    Reviewed-on: https://go-review.googlesource.com/21982
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 61 +++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 40 deletions(-)

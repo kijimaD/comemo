@@ -1,0 +1,24 @@
+commit e198a5086a2039ab88737f9b047b88e3e42c6838
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Mon Nov 1 14:32:48 2010 -0700
+
+    strings: Contains
+    
+    Tiny helper to avoid strings.Index(s, sub) != -1
+    
+    R=rsc, r2, r
+    CC=golang-dev
+    https://golang.org/cl/2265044
+
+ src/pkg/exec/lp_unix.go         |  2 +-
+ src/pkg/exec/lp_windows.go      |  2 +-
+ src/pkg/fmt/fmt_test.go         |  2 +-
+ src/pkg/http/request.go         |  4 ++--
+ src/pkg/http/server.go          |  4 ++--
+ src/pkg/http/transfer.go        |  4 ++--
+ src/pkg/http/url.go             |  2 +-
+ src/pkg/smtp/smtp.go            |  2 +-
+ src/pkg/strconv/quote.go        |  2 +-
+ src/pkg/strings/strings.go      |  5 +++++
+ src/pkg/strings/strings_test.go | 21 +++++++++++++++++++++
+ 11 files changed, 38 insertions(+), 12 deletions(-)

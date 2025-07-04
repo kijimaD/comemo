@@ -1,0 +1,13 @@
+commit 96b906498abad3eea2d6ea7e401917ec431bef83
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 09:43:21 2008 -0700
+
+    out of bounds bug
+    
+    R=r
+    DELTA=9  (9 added, 0 deleted, 0 changed)
+    OCL=15223
+    CL=15223
+
+ test/bugs/bug102.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

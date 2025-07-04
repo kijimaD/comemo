@@ -1,0 +1,12 @@
+commit 87a0d395c3d454c6efa560c406b5b3d8ad71c8f6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 19:54:09 2015 -0500
+
+    os: set TMPDIR on darwin/arm
+    
+    Change-Id: Iee25f4b0a31ece0aae79c68aec809e1e4308f865
+    Reviewed-on: https://go-review.googlesource.com/6311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_darwin_arm.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

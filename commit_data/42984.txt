@@ -1,0 +1,31 @@
+commit e3063636124d0e5b2d0fad7912a9c6810629f486
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 2 13:14:36 2020 -0400
+
+    cmd/go: implement 'go install pkg@version'
+    
+    With this change, 'go install' will install executables in module mode
+    without using or modifying the module in the current directory, if
+    there is one.
+    
+    For #40276
+    
+    Change-Id: I922e71719b3a4e0c779ce7a30429355fc29930bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254365
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.16.html                                    |  12 ++
+ src/cmd/go/alldocs.go                              |  27 +++
+ src/cmd/go/internal/modload/init.go                |  46 ++++-
+ src/cmd/go/internal/work/build.go                  | 192 +++++++++++++++++++++
+ .../mod/example.com_cmd_v1.0.0-exclude.txt         |  28 +++
+ .../mod/example.com_cmd_v1.0.0-newerself.txt       |  28 +++
+ .../mod/example.com_cmd_v1.0.0-replace.txt         |  28 +++
+ src/cmd/go/testdata/mod/example.com_cmd_v1.0.0.txt |  27 +++
+ src/cmd/go/testdata/mod/example.com_cmd_v1.9.0.txt |  30 ++++
+ .../go/testdata/script/mod_install_pkg_version.txt | 187 ++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_outside.txt         |   8 +-
+ 11 files changed, 605 insertions(+), 8 deletions(-)

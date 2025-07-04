@@ -1,0 +1,16 @@
+commit 417683c3d36005754c79fe8246528d6608ab48d6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 10:13:58 2009 -0700
+
+    clean up the code a bit
+    start a log of progress
+    
+    R=rsc
+    DELTA=222  (185 added, 17 deleted, 20 changed)
+    OCL=32701
+    CL=32718
+
+ test/bench/fasta.go   |  58 +++++++----------
+ test/bench/fasta.out  | 171 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/timing.log |  13 ++++
+ 3 files changed, 205 insertions(+), 37 deletions(-)

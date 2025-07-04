@@ -1,0 +1,14 @@
+commit a54cbcec88ed750c42e48793b1f0cf66cd548561
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 16 16:24:59 2011 +1100
+
+    syscall: implement chmod() for win32.
+    
+    R=golang-dev, rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4175049
+
+ src/pkg/syscall/syscall_windows.go      | 31 ++++++++++++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go | 15 +++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   |  1 +
+ 3 files changed, 42 insertions(+), 5 deletions(-)

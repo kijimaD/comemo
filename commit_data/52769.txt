@@ -1,0 +1,27 @@
+commit c2c787d73e6fadd57ebcc9fb07532332637b9164
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Wed Apr 12 11:09:01 2023 +0200
+
+    runtime/metrics: set /sched/latencies:seconds as cumulative
+    
+    The current implementation for this metric populates a histogram
+    that is never reset, i.e. where each bucket count increases
+    monotonically.
+    
+    The comment in the definition of the Cumulative attribute calls
+    out that cumulative means that if the metric is a distribution,
+    then each bucket count increases monotonically.
+    
+    In that sense, the cumulative attribute should be set to true for
+    this metric.
+    
+    Change-Id: Ifc34e965a62f2d7881b5c8e8cbb8b7207a4d5757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/description.go | 1 +
+ 1 file changed, 1 insertion(+)

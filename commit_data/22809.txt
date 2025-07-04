@@ -1,0 +1,12 @@
+commit 6c0f9c9e306bc2005f2a14fd682265868b745042
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 30 12:08:46 2015 -0700
+
+    cmd/go: support -buildmode=c-shared for gccgo
+    
+    Change-Id: I4cdfd5a59e0468e9e5400aa06334b21cc80913cd
+    Reviewed-on: https://go-review.googlesource.com/9550
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/build.go | 97 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 67 insertions(+), 30 deletions(-)

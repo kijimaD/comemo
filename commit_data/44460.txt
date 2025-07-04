@@ -1,0 +1,23 @@
+commit 580636a78a8e2462f4c5cbbac04c6403c81401ff
+Author: John Bampton <jbampton@gmail.com>
+Date:   Mon Mar 1 09:47:09 2021 +0000
+
+    all: fix spelling
+    
+    Change-Id: Iad14571c3e19b01740cd744f0b3025b3e2f1cb72
+    GitHub-Last-Rev: e8064019299f4e593116060ce2bbd14d62830af7
+    GitHub-Pull-Request: golang/go#44685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297409
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ir/visit.go       | 8 ++++----
+ src/cmd/compile/internal/types2/call.go    | 4 ++--
+ src/cmd/compile/internal/types2/typexpr.go | 4 ++--
+ src/go/types/call.go                       | 4 ++--
+ src/go/types/examples/types.go2            | 2 +-
+ src/go/types/typexpr.go                    | 4 ++--
+ src/reflect/abi.go                         | 2 +-
+ src/syscall/exec_windows_test.go           | 2 +-
+ test/run.go                                | 2 +-
+ 9 files changed, 16 insertions(+), 16 deletions(-)

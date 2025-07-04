@@ -1,0 +1,23 @@
+commit 15ed37d7b79721ad2077290f844d25e3e42a7821
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 16 21:51:17 2016 -0700
+
+    cmd/compile: enforce nowritebarrier in SSA compiler
+    
+    Make sure we don't generate write barriers in runtime
+    code that is marked to forbid write barriers.
+    
+    Implement the optimization that if we're writing a sliced
+    slice back to the location it came from, we don't need a
+    write barrier.
+    
+    Fixes #14784
+    
+    Change-Id: I04b6a3b2ac303c19817e932a36a3b006de103aaa
+    Reviewed-on: https://go-review.googlesource.com/20791
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go  | 23 +++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go |  7 +++++++
+ test/writebarrier.go                | 13 +++++++++++++
+ 3 files changed, 43 insertions(+)

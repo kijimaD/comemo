@@ -1,0 +1,22 @@
+commit d91c3bc20393cab601d372547471468c869320af
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 31 13:21:57 2020 -0500
+
+    doc/go1.14: move "Minor changes to the library" heading up
+    
+    This heading was below the minor changes to the standard library.
+    It should be on top.
+    
+    Many of the minor changes have been documented, so remove the broad
+    TODO comment. It is still a TODO to highlight more prominent changes
+    to the library, if there are any, under the "Core library" heading.
+    
+    Updates #36878
+    
+    Change-Id: If7fd9af9a933af917523e33fd2922c5f3c02c98b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217277
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.14.html | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

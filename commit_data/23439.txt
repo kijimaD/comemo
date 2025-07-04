@@ -1,0 +1,46 @@
+commit f5d494bbdf945f2662eb4da45cdb75de2b7d43d4
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 15 12:30:23 2015 -0400
+
+    runtime: ensure GC sees type-safe memory on weak machines
+    
+    Currently its possible for the garbage collector to observe
+    uninitialized memory or stale heap bitmap bits on weakly ordered
+    architectures such as ARM and PPC. On such architectures, the stores
+    that zero newly allocated memory and initialize its heap bitmap may
+    move after a store in user code that makes the allocated object
+    observable by the garbage collector.
+    
+    To fix this, add a "publication barrier" (also known as an "export
+    barrier") before returning from mallocgc. This is a store/store
+    barrier that ensures any write done by user code that makes the
+    returned object observable to the garbage collector will be ordered
+    after the initialization performed by mallocgc. No barrier is
+    necessary on the reading side because of the data dependency between
+    loading the pointer and loading the contents of the object.
+    
+    Fixes one of the issues raised in #9984.
+    
+    Change-Id: Ia3d96ad9c5fc7f4d342f5e05ec0ceae700cd17c8
+    Reviewed-on: https://go-review.googlesource.com/11083
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Martin Capitanio <capnm9@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/asm_386.s         |  5 +++++
+ src/runtime/asm_amd64.s       |  5 +++++
+ src/runtime/asm_amd64p32.s    |  5 +++++
+ src/runtime/asm_arm.s         | 11 +++++++++++
+ src/runtime/atomic_arm64.s    |  4 ++++
+ src/runtime/atomic_ppc64x.s   |  7 +++++++
+ src/runtime/malloc.go         |  8 ++++++++
+ src/runtime/stubs.go          | 17 +++++++++++++++++
+ src/runtime/sys_darwin_arm.s  |  3 +++
+ src/runtime/sys_freebsd_arm.s |  4 ++++
+ src/runtime/sys_linux_arm.s   | 16 ++++++++++++++++
+ src/runtime/sys_nacl_arm.s    |  4 ++++
+ src/runtime/sys_netbsd_arm.s  |  4 ++++
+ src/runtime/sys_openbsd_arm.s |  3 +++
+ 14 files changed, 96 insertions(+)

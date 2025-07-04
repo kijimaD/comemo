@@ -1,0 +1,13 @@
+commit f5425dc80052a3826880718198bed9bfdb2df128
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jul 20 11:00:28 2018 +0200
+
+    doc/go1.11: fix unclosed html and typos in net section
+    
+    Change-Id: I3bcf8850ad3873f2627ba017cbfb8b7a8c9cf467
+    Reviewed-on: https://go-review.googlesource.com/125256
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

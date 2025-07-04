@@ -1,0 +1,16 @@
+commit 4e7dd9fc08fb5aa86773b65d865719d96f67f49d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Oct 19 11:17:53 2021 -0500
+
+    bytes: test for page boundary crosses on sep of Index
+    
+    Improve TestIndexNearPageBoundary to verify needles
+    ending on a page boundary don't cause a segfault.
+    
+    Change-Id: I2edb13db63a71dc9955e266f6b97026ee13bf76e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356889
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/bytes/boundary_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

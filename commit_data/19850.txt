@@ -1,0 +1,13 @@
+commit 58241bfdf7be488f8d55b604146bbb788104f6ae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 30 17:08:33 2014 -0700
+
+    runtime: fix cmallocgc's C prototype
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/121910043
+
+ src/pkg/runtime/malloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

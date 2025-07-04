@@ -1,0 +1,21 @@
+commit 462aa7ec7b854f5a1bb4f633cb439eb67bced625
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 18:14:52 2016 +0000
+
+    encoding/json: update docs to not use misuse the term "object"
+    
+    In JSON terminology, "object" is a collect of key/value pairs. But a
+    JSON object is only one type of JSON value (others are string, number,
+    array, true, false, null).
+    
+    This updates the Go docs (at least the public godoc) to not use
+    "object" when we mean any JSON value.
+    
+    Change-Id: Ieb1c456c703693714d63d9d09d306f4d9e8f4597
+    Reviewed-on: https://go-review.googlesource.com/22003
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/json/decode.go |  2 +-
+ src/encoding/json/encode.go | 12 ++++++------
+ src/encoding/json/stream.go |  8 ++++----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

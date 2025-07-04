@@ -1,0 +1,19 @@
+commit fe5b4a2f9be7f87b1b44cd172b4403e95c5bf00d
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Feb 21 22:15:03 2012 -0600
+
+    misc/dist/windows: fix broken icon, other misc
+    
+    fix, and shrink, the gopher icon, txt extensions
+    for license and readme files, minor format changes
+    in the wxs file
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5683054
+
+ misc/dist/windows/{LICENSE => LICENSE.rtf} | Bin
+ misc/dist/windows/{README => README.txt}   |   8 +++-----
+ misc/dist/windows/images/gopher.ico        | Bin 42929 -> 22486 bytes
+ misc/dist/windows/installer.wxs            |  21 ++++++++++-----------
+ 4 files changed, 13 insertions(+), 16 deletions(-)

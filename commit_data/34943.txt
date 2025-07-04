@@ -1,0 +1,14 @@
+commit 641c32264cbdfab2564bef72cd66b6806fc8dd11
+Author: bontequero <bontequero@gmail.com>
+Date:   Sat Apr 7 20:43:45 2018 +0300
+
+    container/heap: fix comments style
+    
+    Fixes golint warning about comment on exported function.
+    
+    Change-Id: Ia6a910e2dca2cd31d8de64419e36add6191e804d
+    Reviewed-on: https://go-review.googlesource.com/105495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/container/heap/heap.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

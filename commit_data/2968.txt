@@ -1,0 +1,51 @@
+commit 91173b893007fa90489fb5a8c1f80342297325a6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 13 09:42:28 2009 -0700
+
+    Recognize gccgo error messages.
+    
+    bug039.go:6:7: error: redefinition of 'x'
+    bug039.go:5:1: note: previous definition of 'x' was here
+    
+    bug049.go:6:9: error: incompatible types in binary expression
+    
+    bug062.go:6:7: error: incompatible type in initialization
+    
+    bug086.go:5:1: error: control reaches end of non-void function
+    
+    bug103.go:8:2: error: variable has no type
+    
+    bug121.go:9:2: error: expected signature or type name
+    
+    bug131.go:7:7: error: incompatible type in initialization
+    
+    bug165.go:10:8: error: expected complete type
+    
+    bug171.go:5:1: error: control reaches end of non-void function
+    bug171.go:6:1: error: control reaches end of non-void function
+    
+    bug172.go:7:6: error: expected integer type
+    
+    bug182.go:7:2: error: if statement expects boolean expression
+    
+    bug183.go:10:5: error: incompatible types in assignment
+    bug183.go:19:5: error: incompatible types in assignment
+    
+    R=rsc
+    DELTA=15  (0 added, 0 deleted, 15 changed)
+    OCL=33168
+    CL=33175
+
+ test/fixedbugs/bug039.go | 4 ++--
+ test/fixedbugs/bug049.go | 2 +-
+ test/fixedbugs/bug062.go | 2 +-
+ test/fixedbugs/bug086.go | 2 +-
+ test/fixedbugs/bug103.go | 2 +-
+ test/fixedbugs/bug121.go | 2 +-
+ test/fixedbugs/bug131.go | 2 +-
+ test/fixedbugs/bug165.go | 2 +-
+ test/fixedbugs/bug171.go | 4 ++--
+ test/fixedbugs/bug172.go | 2 +-
+ test/fixedbugs/bug182.go | 2 +-
+ test/fixedbugs/bug183.go | 4 ++--
+ 12 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,34 @@
+commit e3de852f3e776ca426d1d7af243dd698f0fee960
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 27 17:51:58 2020 -0400
+
+    cmd/go: don't copy cgo files to objdir when overlay is present
+    
+    The previous cl (golang.org/cl/262618) copied non-overlaid cgo files
+    to objdir, mostly to get around the issue that otherwise cgo-generated
+    files were written out with the wrong names (they'd get the base path
+    of the overlay file containing the replaced contents, instead of the
+    base path of the path whose contents are being replaced). So that CL
+    it would copy the files to objdir with the base path of the file
+    being replaced to circumvent that.
+    
+    This CL changes cmd/go and cmd/cgo so that instead of copying
+    files, it passes the actual path of the file on disk either of
+    the original file (if it is not overlaid) or its replacement
+    file (if it is) as well as a flag --path_rewrite, newly added to
+    cmd/cgo, that specifies the actual original file path that corresponds
+    to the replaced files.
+    
+    Updates #39958
+    
+    Change-Id: Ic4aae5ef77fe405011fcdce7f6c162488d13daa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265758
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go             | 14 +++++++++++
+ src/cmd/go/testdata/script/build_overlay.txt | 36 ++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

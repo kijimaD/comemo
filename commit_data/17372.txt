@@ -1,0 +1,17 @@
+commit f3442a80c3fb2089b5b65e4bd264c4e73d41dc8f
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 01:52:33 2013 +1000
+
+    syscall: dragonfly/amd64 z-files
+    
+    Add generated z-files for dragonfly/amd64.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13056045
+
+ src/pkg/syscall/zerrors_dragonfly_amd64.go  | 1523 +++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go | 1303 +++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_dragonfly_amd64.go  |  303 ++++++
+ src/pkg/syscall/ztypes_dragonfly_amd64.go   |  435 ++++++++
+ 4 files changed, 3564 insertions(+)

@@ -1,0 +1,12 @@
+commit 8545ea9cee087fd0fbac41bba7616d2fc4f2bc19
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 01:34:16 2015 -0500
+
+    doc/go1.6.txt: remove fmt.Scanf change (reverted)
+    
+    Change-Id: I26fc120e66f559e4da90883ed5c8457a99426a25
+    Reviewed-on: https://go-review.googlesource.com/17729
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.txt | 1 -
+ 1 file changed, 1 deletion(-)

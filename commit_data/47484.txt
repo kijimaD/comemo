@@ -1,0 +1,16 @@
+commit fdd67930a0f2fec891e4be9c2b62996eb8b06ce5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 13 14:36:35 2021 -0800
+
+    sync: in TryLock try to acquire mutex even if state is not 0
+    
+    For #45435
+    
+    Change-Id: I728accd9a53c1826243f52aa04dc2a0a1dfdaadf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363672
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/mutex.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

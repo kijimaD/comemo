@@ -1,0 +1,20 @@
+commit 4267974c0ba2d30b499f208a97efc53e3bcf5a26
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 02:27:15 2012 -0500
+
+    cmd/gc: unnamed struct types can have methods
+    
+    Fixes #3143.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5752070
+
+ src/cmd/gc/dcl.c         |  22 +++++---
+ src/cmd/gc/go.h          |   4 +-
+ src/cmd/gc/reflect.c     |   6 +--
+ src/cmd/gc/subr.c        |  16 +++---
+ src/cmd/gc/typecheck.c   |   6 +--
+ test/fixedbugs/bug424.go |  24 +++++++++
+ test/method.go           | 132 ++++++++++++++++++++++++++++++++++++++++++++---
+ 7 files changed, 179 insertions(+), 31 deletions(-)

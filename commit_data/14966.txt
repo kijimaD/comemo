@@ -1,0 +1,12 @@
+commit 379f5fc7f14074ec6ab6e937b4217686022bf3da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 22 17:50:12 2013 -0800
+
+    go/build: fix TestBogusDirectory format and maybe Windows failure
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7183046
+
+ src/pkg/go/build/build_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

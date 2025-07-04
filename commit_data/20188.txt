@@ -1,0 +1,32 @@
+commit 3d128dbf96fdc5a8b6e9eccca8381fc93f685133
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 28 19:08:09 2014 -0700
+
+    runtime: remove holes in FUNCDATA tables
+    
+    Shrinks the text segment size by about 1.5% for the "go", "gofmt",
+    and "camlistored" commands on linux/amd64.
+    
+    Before:
+    $ size go gofmt camlistored
+       text    data     bss     dec     hex filename
+    6506842  136996  105784 6749622  66fdb6 go
+    2376046   85232   90984 2552262  26f1c6 gofmt
+    17051050         190256  130320 17371626        10911ea camlistored
+    
+    After:
+    $ size go gofmt camlistored
+       text    data     bss     dec     hex filename
+    6403034  136996  105784 6645814  656836 go
+    2331118   85232   90984 2507334  264246 gofmt
+    16842586         190256  130320 17163162        105e39a camlistored
+    
+    Fixes #8604.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/137790043
+
+ src/pkg/runtime/funcdata.h | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

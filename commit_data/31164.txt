@@ -1,0 +1,17 @@
+commit fc2d9cdf50c968dd07c1b76ad9e5a316b39a28b5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 17 14:01:07 2017 -0400
+
+    cmd/compile: remove underscore from variable names in constant comparison test
+    
+    The leading underscores aren't necessary.
+    
+    Change-Id: I1d4c4b681e2a29ef40a0a6cf705c3b17a49c9f65
+    Reviewed-on: https://go-review.googlesource.com/40873
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/cmpConst.go   | 1836 ++++++++++----------
+ .../internal/gc/testdata/gen/cmpConstGen.go        |   14 +-
+ 2 files changed, 925 insertions(+), 925 deletions(-)

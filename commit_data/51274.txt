@@ -1,0 +1,17 @@
+commit 678cd71d11f927fcde0c1fa5d380860ce77f8391
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 15 13:56:48 2022 -0500
+
+    crypto/rsa: fix loop variable capture in test
+    
+    Should fix builds.
+    
+    Change-Id: I309eccec8d08931b1ef8fee9327a08a97c6bf871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450738
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/rsa/rsa_test.go | 1 +
+ 1 file changed, 1 insertion(+)

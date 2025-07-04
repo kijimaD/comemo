@@ -1,0 +1,30 @@
+commit f30cd520516037b2fdb367ddd8e0851019bf3440
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 9 15:40:36 2023 -0700
+
+    go/types, types2: control type inference in Checker.funcInst via infer argument
+    
+    If the infer argument is true, funcInst behaves as before.
+    If infer is false and there are not enough type arguments,
+    rather then inferring the missing arguments and instantiating
+    the function, funcInst returns the found type arguments.
+    
+    This permits the use of funcInst (and all the checks it does)
+    to collect the type arguments for partially instantiated
+    generic functions used as arguments to other functions.
+    
+    For #59338.
+    
+    Change-Id: I049034dfde52bd7ff4ae72964ff1708e154e5042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494118
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 38 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/types2/expr.go |  4 ++--
+ src/go/types/call.go                    | 38 ++++++++++++++++++++++++---------
+ src/go/types/expr.go                    |  4 ++--
+ 4 files changed, 60 insertions(+), 24 deletions(-)

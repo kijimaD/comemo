@@ -1,0 +1,14 @@
+commit 0f8f5d2140120d00fee53c633e82265d6d4e6784
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Sep 17 17:18:16 2012 -0400
+
+    math: Faster Tanh
+    
+    From 159 to 47.6 ns/op; slightly more accurate.
+    
+    R=rsc, golang-dev, mtj, dave, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6500121
+
+ src/pkg/math/tanh.go | 89 +++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 77 insertions(+), 12 deletions(-)

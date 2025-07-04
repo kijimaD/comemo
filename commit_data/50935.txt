@@ -1,0 +1,19 @@
+commit 54ad7f33e4981a87bdd7dfac4d61ac5d21e195c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 11:12:48 2022 -0700
+
+    go/types, types2: add test verifying types/values of type parameter "constants"
+    
+    Fixes #51093.
+    
+    Change-Id: Ida4025a125243159a2107dcc064a0d9addf0a675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443756
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 53 ++++++++++++++++++++++++++
+ src/go/types/issues_test.go                    | 53 ++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+)

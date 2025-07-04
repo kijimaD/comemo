@@ -1,0 +1,19 @@
+commit 7497ccb9b41f1247b4c4d38f6d36aa6b337c5b0c
+Author: Luka Krmpotić <luka.krmpotic@gmail.com>
+Date:   Mon Aug 21 23:17:31 2023 +0000
+
+    strconv: add missing function name, avoid unnecessary raw string
+    
+    Change-Id: Iecd68f69f5265f1a4ea41b90aa819ce68fe55908
+    GitHub-Last-Rev: 4d1f4a1bc2740fc19bbb4768009ccfea1c8eb5bc
+    GitHub-Pull-Request: golang/go#62177
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521277
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/strconv/atob_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

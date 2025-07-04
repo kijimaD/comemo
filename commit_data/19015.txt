@@ -1,0 +1,18 @@
+commit 059c10b552d8e8331a5621fa73d1fcb914cc913e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 2 19:46:47 2014 -0700
+
+    cmd/ld: get rid of map.bucket's data field from dwarf info.
+    
+    The data field is the generic array that acts as a standin
+    for the keys and values arrays for the generic runtime code.
+    We want to substitute the keys and values arrays for the data
+    array, not just add keys and values in addition to it.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/81160044
+
+ src/cmd/ld/dwarf.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

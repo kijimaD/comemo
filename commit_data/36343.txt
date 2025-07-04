@@ -1,0 +1,19 @@
+commit 539ff607a70bb6f7f12b1bca6b365ab0af448fcf
+Author: Jeet Parekh <jeetparekh96@gmail.com>
+Date:   Wed Aug 1 02:47:01 2018 +0000
+
+    archive/zip: return error from NewReader when negative size is passed
+    
+    Fixes #26589
+    
+    Change-Id: I180883a13cec229093654004b42c48d76ee20272
+    GitHub-Last-Rev: 2d9879de43fbcfb413116d69accdade6bc042c97
+    GitHub-Pull-Request: golang/go#26667
+    Reviewed-on: https://go-review.googlesource.com/126617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/reader.go      | 3 +++
+ src/archive/zip/reader_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

@@ -1,0 +1,17 @@
+commit 8efd059f10d98643bc464bb1e6ce4cf3b225b7b5
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Wed Apr 27 10:25:29 2022 +0000
+
+    A+C: add YunHao Zhang
+    
+    Change-Id: I898733dff529a40eeec9f9db2a0a59a6757c3827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402515
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

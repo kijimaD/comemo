@@ -1,0 +1,17 @@
+commit 0ae2e032f2d42575cb64d0759a6d31a71f39412f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 30 15:49:06 2020 -0500
+
+    misc/cgo/test: enable TestCrossPackageTests on darwin/arm64
+    
+    Somehow I missed that one. It works fine.
+    
+    Change-Id: I0b1286bf1e6a8f40b9f3f114f49b3034079e0b85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280156
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/pkg_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

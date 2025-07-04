@@ -1,0 +1,18 @@
+commit 45055f21ab4b6005446e8d680f315ece410e75b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 13:18:55 2017 -0800
+
+    go/types: implement SizesFor convenience function
+    
+    SizesFor returns a Sizes implementation for a supported architecture.
+    Use functionality in srcimporter.
+    
+    Change-Id: I197e641b419c678030dfaab5c5b8c569fd0410f3
+    Reviewed-on: https://go-review.googlesource.com/37583
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go | 19 +------------------
+ src/go/types/api.go                        |  2 +-
+ src/go/types/sizes.go                      | 28 +++++++++++++++++++++++++++-
+ 3 files changed, 29 insertions(+), 20 deletions(-)

@@ -1,0 +1,51 @@
+commit ee379d2b08ce12c24042da18d711e2a1bd7943f0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 4 00:35:09 2020 -0400
+
+    all: treat all files as binary, but check in .bat with CRLF
+    
+    This is a followup to CL 96495.
+    
+    It should be simpler and more robust to achieve .bat files having
+    CRLF line endings by treating it as a binary file, like all other
+    files, and checking it in with the desired CRLF line endings.
+    
+    A test is used to check the entire Go tree, short of directories
+    starting with "." and named "testdata", for any .bat files that
+    have anything other than strict CRLF line endings. This will help
+    catch any accidental modifications to existing .bat files or check
+    ins of new .bat files.
+    
+    Importantly, this is compatible with how Gerrit serves .tar.gz files,
+    making it so that CRLF line endings are preserved.
+    
+    The Go project is supported on many different environments, some of
+    which may have limited git implementations available, or none at all.
+    Relying on fewer git features and special rules makes it easier to
+    have confidence in the exact content of all files. Additionally, Go
+    development started in Subversion, moved to Perforce, then Mercurial,
+    and now uses Git.¹ Reducing its reliance on git-specific features will
+    help if there will be another transition in the project's future.
+    
+    There are only 5 .bat files in the entire Go source tree, so a new one
+    being added is a rare event, and we prefer to do things in Go instead.
+    We still have the option of improving the experience for developers by
+    adding a pre-commit converter for .bat files to the git-codereview tool.
+    
+    ¹ https://groups.google.com/d/msg/golang-dev/sckirqOWepg/YmyT7dWJiocJ
+    
+    Fixes #39391.
+    For #37791.
+    
+    Change-Id: I6e202216322872f0307ac96f1b8d3f57cb901e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236437
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .gitattributes   |  20 ++--
+ src/all.bat      |  54 +++++-----
+ src/clean.bat    |  64 ++++++------
+ src/make.bat     | 305 +++++++++++++++++++++++++++----------------------------
+ src/race.bat     | 102 +++++++++----------
+ src/run.bat      | 118 ++++++++++-----------
+ test/winbatch.go |  54 ++++++++--
+ 7 files changed, 377 insertions(+), 340 deletions(-)

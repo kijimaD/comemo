@@ -1,0 +1,19 @@
+commit 5bd37b8e78980beed2861bbdc7f8f28fc3f72671
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon May 9 02:13:03 2016 +1000
+
+    runtime: stop using sigreturn on openbsd/386
+    
+    In future releases of OpenBSD, the sigreturn syscall will no longer
+    exist. As such, stop using sigreturn on openbsd/386 and just return
+    from the signal trampoline (as we already do for openbsd/amd64 and
+    openbsd/arm).
+    
+    Change-Id: Ic4de1795bbfbfb062a685832aea0d597988c6985
+    Reviewed-on: https://go-review.googlesource.com/23024
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_openbsd_386.s | 8 --------
+ 1 file changed, 8 deletions(-)

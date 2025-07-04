@@ -1,0 +1,15 @@
+commit a8b4a1e63a55f55bfbb9edc34be841d802444874
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 28 19:49:17 2013 +0900
+
+    net: BUG section for ReadFrom, ReadFromIP methods of IPConn on "ip4" network
+    
+    Fixes #3944.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13263043
+
+ src/pkg/net/ipraw_test.go      |  2 +-
+ src/pkg/net/iprawsock_posix.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

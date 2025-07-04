@@ -1,0 +1,23 @@
+commit 7bc03718f432c7b6cb0e61141013f9b24733dd7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 7 15:49:39 2010 -0700
+
+    go spec: clean-up and consolidation of spec with implementation
+    
+    Specifically:
+    - introduced notion of "underlying type"
+    - removed notion of type compatibility
+    - consolidated rules about assignment compatibility in
+      assignment compatibility section
+    - be consistent with specyfing that nil is the value
+      for uninitialized variables that can be nil (this
+      was not specified clearly for pointers, functions, interfaces)
+    - added/fixed various related links throughout
+    - clarify language on conversions
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/1536041
+
+ doc/go_spec.html | 243 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 125 insertions(+), 118 deletions(-)

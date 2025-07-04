@@ -1,0 +1,32 @@
+commit dfbbe06a205e7048a8541c4c97b250c24c40db96
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 10 11:06:46 2016 +1000
+
+    cmd/link, cmd/go: delay linking of mingwex and mingw32 until very end
+    
+    cmd/go links mingwex and mingw32 libraries to every package it builds.
+    This breaks when 2 different packages call same gcc standard library
+    function pow. gcc linker appends pow implementation to the compiled
+    package, and names that function "pow". But when these 2 compiled
+    packages are linked together into the final executable, linker
+    complains, because it finds two "pow" functions with the same name.
+    
+    This CL stops linking of mingwex and mingw32 during package build -
+    that leaves pow function reference unresolved. pow reference gets
+    resolved as final executable is built, by having both internal and
+    external linker use mingwex and mingw32 libraries.
+    
+    Fixes #8756
+    
+    Change-Id: I50ddc79529ea5463c67118d668488345ecf069bc
+    Reviewed-on: https://go-review.googlesource.com/26670
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go            |  1 +
+ misc/cgo/test/issue8756.go           | 17 ++++++++++
+ misc/cgo/test/issue8756/issue8756.go | 11 ++++++
+ src/cmd/go/build.go                  |  7 ----
+ src/cmd/link/internal/ld/lib.go      | 65 ++++++++++++++++++++++++++----------
+ 5 files changed, 76 insertions(+), 25 deletions(-)

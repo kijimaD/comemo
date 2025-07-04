@@ -1,0 +1,14 @@
+commit e90a49a0f5380c6f68502b1febfb73f696c2f610
+Author: Steve Phillips <steve@tryingtobeawesome.com>
+Date:   Thu Jun 2 02:40:37 2016 -0700
+
+    doc/go1.7.html: typo fix; replace "," at end of sentence with "."
+    
+    Signed-off-by: Steven Phillips <steve@tryingtobeawesome.com>
+    
+    Change-Id: Ie7c3253a5e1cd43be8fa12bad340204cc6c5ca76
+    Reviewed-on: https://go-review.googlesource.com/23677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

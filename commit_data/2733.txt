@@ -1,0 +1,14 @@
+commit e1b8cb8cf0fef8b10e59f0e4b23fd39fc29500f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 16 20:31:41 2009 -0700
+
+    - renamed SimpleVarDecl -> ShortVarDecl, in sync with terminology used in prose
+    - added a few TODOs
+    
+    R=r
+    DELTA=4  (2 added, 0 deleted, 2 changed)
+    OCL=31751
+    CL=31756
+
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,35 @@
+commit 54bd1ccce240ca4d0efbbaf4af34339ac3ee5180
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 12:35:01 2021 -0800
+
+    cmd: update to latest golang.org/x/tools
+    
+    In particular bring in CL 201973, which reverts support for multiple
+    keys in a struct tag.
+    
+    For #40281
+    For #43083
+    For #43226
+    
+    Change-Id: I66e76639cbbca55bdbff6956acdb0a97650fdd31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282412
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |  4 +
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |  4 +
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  4 +
+ .../go/analysis/internal/analysisflags/help.go     |  4 +
+ .../analysis/passes/internal/analysisutil/util.go  |  4 +
+ .../x/tools/go/analysis/passes/printf/types.go     |  4 +
+ .../go/analysis/passes/structtag/structtag.go      | 94 +++++++++-------------
+ .../go/analysis/unitchecker/unitchecker112.go      |  4 +
+ .../golang.org/x/tools/go/analysis/validate.go     |  4 +
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  4 +
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |  4 +
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 14 files changed, 82 insertions(+), 60 deletions(-)

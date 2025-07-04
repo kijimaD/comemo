@@ -1,0 +1,16 @@
+commit 3c3ce8e7fbe98a233cadbc59a05afdbbcacb0fe5
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jul 5 16:11:22 2013 +0200
+
+    cmd/6g, cmd/8g: prevent constant propagation of non-constant LEA.
+    
+    Fixes #5809.
+    
+    R=golang-dev, dave, rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/10785043
+
+ src/cmd/6g/peep.c           |  1 +
+ src/cmd/8g/peep.c           |  1 +
+ test/fixedbugs/issue5809.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+)

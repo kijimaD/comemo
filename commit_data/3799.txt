@@ -1,0 +1,12 @@
+commit e57acdca4d45f3ba9e764dbb6fb76044f5e9c30c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 08:59:03 2009 -0800
+
+    gofmt-ify parts of xml
+    
+    R=rsc
+    http://go/go-review/1017049
+
+ src/pkg/xml/read.go      | 15 +++++++-------
+ src/pkg/xml/read_test.go | 54 ++++++++++++++++++++++++------------------------
+ 2 files changed, 35 insertions(+), 34 deletions(-)

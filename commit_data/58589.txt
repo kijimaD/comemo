@@ -1,0 +1,34 @@
+commit 530c829270bef744b3acae7891a0635874af3fd4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 17 09:59:50 2025 -0800
+
+    syscall: use consistent message for ESTALE on Linux
+    
+    For some reason the ESTALE error message differed on Linux systems.
+    On Linux strerror normally returns "Stale file handle" for ESTALE,
+    except possibly in the en_GB locale. The mkerrors.sh script sets
+    LC_ALL=C, so it should always produces "stale file handle".
+    However, for some reason, several targets use "stale NFS file handle"
+    instead.
+    
+    Clean this up so that we use the same string on all Linux systems.
+    This is also consistent with golang.org/x/sys/unix.
+    
+    Fixes #71309
+    
+    Change-Id: Ic2ffaf114c85112bc6d0831e43dd5fd2f4237bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643335
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/zerrors_linux_386.go      | 2 +-
+ src/syscall/zerrors_linux_amd64.go    | 2 +-
+ src/syscall/zerrors_linux_arm.go      | 2 +-
+ src/syscall/zerrors_linux_mips64.go   | 2 +-
+ src/syscall/zerrors_linux_mips64le.go | 2 +-
+ src/syscall/zerrors_linux_ppc64.go    | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

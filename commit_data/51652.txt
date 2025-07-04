@@ -1,0 +1,24 @@
+commit 6bb003d0323648d5f11689dab40ba4b158d7d6b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 10:21:56 2023 -0500
+
+    cmd/go: do not confuse files for standard library packages
+    
+    I often create dummy files holding various data named things like 'z'.
+    If a file (not directory) GOROOT/src/z exists, it confuses cmd/go into
+    thinking z is a standard library package, which breaks the test
+    Script/mod_vendor.
+    
+    This CL fixes internal/goroot to only report that something is a standard
+    library package when a directory with that name exists, not just a file.
+    
+    Change-Id: I986c9a425e78d23c7e033aeadb8e9f71aab2b878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/src_file.txt | 9 +++++++++
+ src/internal/goroot/gc.go               | 4 ++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

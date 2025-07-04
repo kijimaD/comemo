@@ -1,0 +1,13 @@
+commit 8cb040771bc9ef65834669b7924b87ef76d9b092
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Jul 23 10:35:04 2014 -0700
+
+    misc/pprof: support web profiles on windows/MinGW
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/117060043
+
+ misc/pprof | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

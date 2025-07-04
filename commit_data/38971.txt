@@ -1,0 +1,18 @@
+commit 55d690d02c30a415319d592f932bf748054539f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 30 17:49:54 2019 +0000
+
+    encoding/gob: adding missing fuzz skip to one of the fuzz tests
+    
+    It's slow & often times out randomly on longtest builders. Not useful.
+    
+    Fixes #31517
+    
+    Change-Id: Icedbb0c94fbe43d04e8b47d5785ac61c5e2d8750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174522
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/gob/codec_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

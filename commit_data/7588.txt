@@ -1,0 +1,15 @@
+commit a3ef19825c5d798f18eb62e7fe326fa33bfceafa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 28 14:55:27 2011 -0500
+
+    build: move $GOBIN ahead of /bin, /usr/bin in build $PATH
+    
+    Otherwise if there is an installed /usr/bin/6g the build
+    will use that one instead of the one it builds.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4249045
+
+ src/env.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

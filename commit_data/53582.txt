@@ -1,0 +1,18 @@
+commit 60876717b402f0dd6b4f585827779a9e435400c8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 15 17:41:37 2023 -0400
+
+    cmd/go/internal/test: don't wait for previous test actions when interrupted
+    
+    Fixes #60203.
+    
+    Change-Id: I59a3320ede1eb3cf4443d7ea37b8cb39d01f222a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503936
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/go_unix_test.go       | 86 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go | 10 ++++-
+ 2 files changed, 94 insertions(+), 2 deletions(-)

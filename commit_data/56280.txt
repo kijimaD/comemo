@@ -1,0 +1,18 @@
+commit 08e73e61521d7b83198407211aa232ed4f572f18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 9 14:11:39 2024 -0800
+
+    debug/elf: remove incorrect doc link
+    
+    Here Version is a field in Symbol, not the elf.Version type.
+    
+    Change-Id: I0285937d806d1a9b53b49420b45a07744be244c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/debug/elf/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

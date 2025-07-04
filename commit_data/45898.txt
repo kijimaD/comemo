@@ -1,0 +1,22 @@
+commit 03761ede028d811dd7d7cf8a2690d4bfa2771d85
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 30 14:28:18 2021 -0700
+
+    net: don't reject null mx records
+    
+    Bypass hostname validity checking when a null mx record is returned as,
+    defined in RFC 7505.
+    
+    Updates #46979
+    
+    Change-Id: Ibe683bd6b47333a8ff30909fb2680ec8e10696ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332094
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/net/dnsclient_unix_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go              |  4 +++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)

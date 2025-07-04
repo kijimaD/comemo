@@ -1,0 +1,14 @@
+commit 1ba13a5ae8e36a346000d72e8cb9cfe349602265
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Dec 18 07:52:21 2014 +0100
+
+    cmd/gc: fix warning on Plan 9
+    
+    warning: src/cmd/gc/bits.c:101 non-interruptable temporary
+    
+    Change-Id: I74661fefab50455b912b8085d913fc45ba13c5c8
+    Reviewed-on: https://go-review.googlesource.com/1780
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gc/bits.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

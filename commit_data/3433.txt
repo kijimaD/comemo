@@ -1,0 +1,18 @@
+commit 2d72b39fd3f26549b363b7633c869750c3891dfd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 3 11:33:51 2009 -0700
+
+    add cgo test that doesn't depend on
+    non-standard libraries and add to build.
+    
+    R=r
+    DELTA=211  (210 added, 0 deleted, 1 changed)
+    OCL=35293
+    CL=35307
+
+ misc/cgo/stdio/Makefile   |   2 +-
+ misc/cgo/stdio/chain.go   |  43 +++++++++++++
+ misc/cgo/stdio/golden.out | 150 ++++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/stdio/test.bash  |  15 +++++
+ src/run.bash              |   5 ++
+ 5 files changed, 214 insertions(+), 1 deletion(-)

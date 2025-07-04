@@ -1,0 +1,15 @@
+commit 6ad16c4a48accddee2e711b565e9214eae945da4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 09:37:04 2014 -0500
+
+    runtime: fix initial gp->sched.pc in newextram
+    
+    CL 170720043 missed this one when adding +PCQuantum.
+    
+    LGTM=iant
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/168090043
+
+ src/runtime/proc.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

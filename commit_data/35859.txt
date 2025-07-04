@@ -1,0 +1,24 @@
+commit 869884daead156d0e5a4093d91968ed172d4d2d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 1 15:01:09 2018 -0700
+
+    strings: do much less redundant testing in TestCompareStrings
+    
+    On the OpenBSD builder this reduces the test time from 213 seconds to
+    60 seconds, without loss of testing.
+    
+    Not sure why the test is so much slower on OpenBSD, so not closing the
+    issues.
+    
+    Updates #26155
+    Updates #26174
+    
+    Change-Id: I13b58bbe3b209e591c308765077d2342943a3d2a
+    Reviewed-on: https://go-review.googlesource.com/121820
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/compare_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

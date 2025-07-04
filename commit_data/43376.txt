@@ -1,0 +1,26 @@
+commit d4da735091986868015369e01c63794af9cc9b84
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 09:49:20 2020 -0400
+
+    io/fs: move FileInfo, FileMode, PathError, ErrInvalid, ... from os to io/fs
+    
+    First step of creating the new io/fs package.
+    
+    For #41190.
+    
+    Change-Id: I1339b1abdd533b0f1deab283628088b2f706fb5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243906
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ api/except.txt       | 228 ++++++++++++++++++++++++++++++---------------------
+ api/next.txt         |  88 +++++++++++++++++++-
+ src/cmd/api/goapi.go |  20 ++++-
+ src/io/fs/fs.go      | 140 +++++++++++++++++++++++++++++++
+ src/os/error.go      |  32 ++------
+ src/os/types.go      |  91 ++++----------------
+ 6 files changed, 406 insertions(+), 193 deletions(-)

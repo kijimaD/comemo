@@ -1,0 +1,38 @@
+commit 041d31b8820b62996cf1aa7b6fff77a818f2d94d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 17 15:35:52 2019 -0800
+
+    cmd/compile: don't mix internal float/complex constants of different precision
+    
+    There are several places where a new (internal) complex constant is allocated
+    via new(Mpcplx) rather than newMpcmplx(). The problem with using new() is that
+    the Mpcplx data structure's Real and Imag components don't get initialized with
+    an Mpflt of the correct precision (they have precision 0, which may be adjusted
+    later).
+    
+    In all cases but one, the components of those complex constants are set using
+    a Set operation which "inherits" the correct precision from the value that is
+    being set.
+    
+    But when creating a complex value for an imaginary literal, the imaginary
+    component is set via SetString which assumes 64bits of precision by default.
+    As a result, the internal representation of 0.01i and complex(0, 0.01) was
+    not correct.
+    
+    Replaced all used of new(Mpcplx) with newMpcmplx() and added a new test.
+    
+    Fixes #30243.
+    
+    Change-Id: Ife7fd6ccd42bf887a55c6ce91727754657e6cb2d
+    Reviewed-on: https://go-review.googlesource.com/c/163000
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     |  8 ++++----
+ src/cmd/compile/internal/gc/mpfloat.go   |  2 ++
+ src/cmd/compile/internal/gc/noder.go     |  2 +-
+ src/cmd/compile/internal/gc/swt_test.go  |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue30243.go             | 27 +++++++++++++++++++++++++++
+ 6 files changed, 36 insertions(+), 7 deletions(-)

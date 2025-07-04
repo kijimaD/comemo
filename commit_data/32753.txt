@@ -1,0 +1,14 @@
+commit 0bbb6665d85c1e80c3b479a4c00dc8a0a1b83ec8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 19 16:31:03 2017 +0900
+
+    cmd/go: fix file leak in TestBuildmodePIE
+    
+    Change-Id: Ifeb93f6dc75fb5f90d595211fb0f97a89bf74526
+    Reviewed-on: https://go-review.googlesource.com/64530
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

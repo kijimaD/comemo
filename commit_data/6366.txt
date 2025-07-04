@@ -1,0 +1,15 @@
+commit 6cf1a344026ce065dd1696c72d1932470b41dbdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 11:55:16 2010 -0400
+
+    build: use full path when compiling libraries
+    
+    Makes gdb display full paths in backtrace.
+    Dropped during the most recent reorg.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2216047
+
+ src/Make.clib | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

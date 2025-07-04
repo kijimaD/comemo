@@ -1,0 +1,25 @@
+commit 923299a6b85d22160dfdacca18f24ac6517ec1de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 30 20:00:54 2017 +1100
+
+    cmd/link: restore windows stack commit size back to 4KB
+    
+    CL 49331 increased windows stack commit size to 2MB by mistake.
+    Revert that change.
+    
+    Fixes #22439
+    
+    Change-Id: I919e549e87da326f4ba45890b4d32f6d7046186f
+    Reviewed-on: https://go-review.googlesource.com/74490
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/pe.go                    | 11 ++++-
+ src/internal/syscall/windows/mksyscall.go         |  2 +-
+ src/internal/syscall/windows/psapi_windows.go     | 20 +++++++++
+ src/internal/syscall/windows/zsyscall_windows.go  | 14 ++++++
+ src/runtime/crash_cgo_test.go                     | 18 ++++++++
+ src/runtime/syscall_windows_test.go               |  4 ++
+ src/runtime/testdata/testprog/syscall_windows.go  | 45 ++++++++++++++++++-
+ src/runtime/testdata/testprogcgo/stack_windows.go | 54 +++++++++++++++++++++++
+ 8 files changed, 164 insertions(+), 4 deletions(-)

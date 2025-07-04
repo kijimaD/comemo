@@ -1,0 +1,14 @@
+commit e73680aec0f6d6de3a8cd0f48c01c854703a5b72
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 4 07:33:55 2011 -0400
+
+    template: format errors
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5340043
+
+ src/pkg/text/template/exec.go      | 4 ++--
+ src/pkg/text/template/exec_test.go | 4 ++++
+ src/pkg/text/template/funcs.go     | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

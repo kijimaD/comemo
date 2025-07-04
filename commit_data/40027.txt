@@ -1,0 +1,28 @@
+commit eb96f8a57444d174bba500b3a5d2a8b21b7e6d1e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 25 19:06:57 2019 +0000
+
+    runtime: scavenge on growth instead of inline with allocation
+    
+    Inline scavenging causes significant performance regressions in tail
+    latency for k8s and has relatively little benefit for RSS footprint.
+    
+    We disabled inline scavenging in Go 1.12.5 (CL 174102) as well, but
+    we thought other changes in Go 1.13 had mitigated the issues with
+    inline scavenging. Apparently we were wrong.
+    
+    This CL switches back to only doing foreground scavenging on heap
+    growth, rather than doing it when allocation tries to allocate from
+    scavenged space.
+    
+    Fixes #32828.
+    
+    Change-Id: I1f5df44046091f0b4f89fec73c2cde98bf9448cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183857
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

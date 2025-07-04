@@ -1,0 +1,16 @@
+commit bdcf1f8125be37d3b56b2e9f93fa2e3234a36ada
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 27 11:17:14 2009 -0700
+
+    add and use Make.cmd
+    
+    R=r
+    DELTA=63  (23 added, 31 deleted, 9 changed)
+    OCL=33932
+    CL=33959
+
+ src/Make.cmd              | 27 +++++++++++++++++++++++++++
+ src/cmd/ebnflint/Makefile | 16 +++-------------
+ src/cmd/godoc/Makefile    | 17 +++--------------
+ src/cmd/gofmt/Makefile    | 16 +++-------------
+ 4 files changed, 36 insertions(+), 40 deletions(-)

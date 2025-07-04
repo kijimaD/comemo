@@ -1,0 +1,34 @@
+commit 24bc4731739d55826a8adfcdb2aa1217f9db3bc8
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 21 13:09:58 2024 -0400
+
+    cmd/link: reduce Wasm initial memory size
+    
+    Currently, for Wasm, the linker sets the initial memory size to
+    the size of global data plus 16 MB. The intention is that it
+    covers the global data and runtime initialization without growing
+    the linear memory. However, the code accounts only the data
+    "section", not the bss "section", therefore the extra 16 MB is
+    actually used to cover bss variables. Also, as seen on the
+    previous CL, the runtime actually didn't use the extra space,
+    which means the program can start without that space.
+    
+    This CL corrects the global data size calculation, and reduces the
+    extra to 1 MB. Currently the runtime's allocation pattern at
+    startup is that it allocates a few pages for the page allocator's
+    metadata, the an 8 MB reservation for the first 4 MB size, 4 MB
+    aligned heap arena (it may be possible to reduce that, but we'll
+    leave that for later). Here we use 1 MB extra space to cover the
+    small allocations, but let the runtime allocate the heap arena, so
+    the linker code and the runtime's allocator are not tightly
+    coupled.
+    
+    For #69018.
+    
+    Change-Id: I39fe1172382ecc03f4b537e43ec710af8075eab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621636
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/wasm/asm.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

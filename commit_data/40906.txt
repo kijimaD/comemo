@@ -1,0 +1,21 @@
+commit 95c9a656ae2e690c82ca339605a79f88f407fa9b
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Wed Nov 27 00:10:47 2019 +0000
+
+    doc: clarify interaction of ioutil.WriteFile with umask
+    
+    Note that ioutil.WriteFile's perm argument is the value before the
+    umask is applied.
+    
+    Fixes #35835
+    
+    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
+    
+    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
+    GitHub-Last-Rev: 0069abb7c5d904fb11448148f44db023dbcf74aa
+    GitHub-Pull-Request: golang/go#35836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208838
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/ioutil/ioutil.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

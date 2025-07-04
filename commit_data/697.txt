@@ -1,0 +1,24 @@
+commit 8231e94520e497ad8bba565f3c42b9749da5a644
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 22 12:16:19 2008 -0700
+
+    now method/interface code
+    
+    R=r
+    OCL=15627
+    CL=15627
+
+ src/cmd/6g/cgen.c      |  18 +-
+ src/cmd/6g/gen.c       |   6 +-
+ src/cmd/6g/gsubr.c     |  43 +----
+ src/cmd/6g/obj.c       |  42 ++--
+ src/cmd/gc/go.h        |   6 +-
+ src/cmd/gc/subr.c      |  58 +++++-
+ src/cmd/gc/sys.go      |  11 +-
+ src/cmd/gc/sysimport.c | 509 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      | 154 ++++++++++-----
+ src/runtime/Makefile   |   1 +
+ src/runtime/iface.c    | 211 ++++++++++++++++++++
+ src/runtime/runtime.c  | 170 -----------------
+ src/runtime/runtime.h  |  27 ---
+ 13 files changed, 667 insertions(+), 589 deletions(-)

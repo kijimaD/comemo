@@ -1,0 +1,85 @@
+commit 2715956f137463c0466c221352e61860942c6bb3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 16:48:57 2011 -0400
+
+    build: add build comments to core packages
+    
+    The go/build package already recognizes
+    system-specific file names like
+    
+            mycode_darwin.go
+            mycode_darwin_386.go
+            mycode_386.s
+    
+    However, it is also common to write files that
+    apply to multiple architectures, so a recent CL added
+    to go/build the ability to process comments
+    listing a set of conditions for building.  For example:
+    
+            // +build darwin freebsd openbsd/386
+    
+    says that this file should be compiled only on
+    OS X, FreeBSD, or 32-bit x86 OpenBSD systems.
+    
+    These conventions are not yet documented
+    (hence this long CL description).
+    
+    This CL adds build comments to the multi-system
+    files in the core library, a step toward making it
+    possible to use go/build to build them.
+    
+    With this change go/build can handle crypto/rand,
+    exec, net, path/filepath, os/user, and time.
+    
+    os and syscall need additional adjustments.
+    
+    R=golang-dev, r, gri, r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5011046
+
+ src/pkg/crypto/rand/rand_unix.go   | 2 ++
+ src/pkg/exec/lp_unix.go            | 2 ++
+ src/pkg/net/cgo_bsd.go             | 2 ++
+ src/pkg/net/cgo_stub.go            | 2 ++
+ src/pkg/net/cgo_unix.go            | 2 ++
+ src/pkg/net/dnsclient_unix.go      | 2 ++
+ src/pkg/net/dnsconfig.go           | 2 ++
+ src/pkg/net/fd.go                  | 2 ++
+ src/pkg/net/file.go                | 2 ++
+ src/pkg/net/interface_bsd.go       | 2 ++
+ src/pkg/net/interface_stub.go      | 2 ++
+ src/pkg/net/iprawsock_posix.go     | 2 ++
+ src/pkg/net/ipsock_posix.go        | 2 ++
+ src/pkg/net/lookup_unix.go         | 4 +++-
+ src/pkg/net/newpollserver.go       | 2 ++
+ src/pkg/net/port.go                | 2 ++
+ src/pkg/net/sendfile_stub.go       | 2 ++
+ src/pkg/net/sock.go                | 2 ++
+ src/pkg/net/sock_bsd.go            | 2 ++
+ src/pkg/net/tcpsock_posix.go       | 2 ++
+ src/pkg/net/udpsock_posix.go       | 2 ++
+ src/pkg/net/unixsock_posix.go      | 2 ++
+ src/pkg/os/dir_unix.go             | 2 ++
+ src/pkg/os/env_unix.go             | 2 ++
+ src/pkg/os/error_posix.go          | 2 ++
+ src/pkg/os/exec_posix.go           | 2 ++
+ src/pkg/os/exec_unix.go            | 2 ++
+ src/pkg/os/file_posix.go           | 2 ++
+ src/pkg/os/file_unix.go            | 2 ++
+ src/pkg/os/path_unix.go            | 2 ++
+ src/pkg/os/str.go                  | 2 ++
+ src/pkg/os/sys_bsd.go              | 2 ++
+ src/pkg/os/user/lookup_stubs.go    | 2 ++
+ src/pkg/os/user/lookup_unix.go     | 2 ++
+ src/pkg/path/Makefile              | 2 --
+ src/pkg/path/filepath/path_unix.go | 2 ++
+ src/pkg/syscall/bpf_bsd.go         | 2 ++
+ src/pkg/syscall/exec_unix.go       | 2 ++
+ src/pkg/syscall/route_bsd.go       | 2 ++
+ src/pkg/syscall/sockcmsg_unix.go   | 2 ++
+ src/pkg/syscall/syscall_bsd.go     | 2 ++
+ src/pkg/syscall/syscall_unix.go    | 2 ++
+ src/pkg/time/sys_unix.go           | 2 ++
+ src/pkg/time/zoneinfo_posix.go     | 2 ++
+ src/pkg/time/zoneinfo_unix.go      | 2 ++
+ 45 files changed, 89 insertions(+), 3 deletions(-)

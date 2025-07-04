@@ -1,0 +1,17 @@
+commit 8aa2591b130520e9f30d83e672f976e9c7590d7e
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 29 09:35:13 2011 -0400
+
+    runtime: openbsd thread tweaks
+    
+    - Rename sys_sched_yield() to osyield() as this is now defined in asm.h.
+    - Only print kern.rtheads message if rfork_thread() failed with ENOTSUP.
+    - Remove unused variables.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4973043
+
+ src/pkg/runtime/openbsd/amd64/sys.s | 10 +++++-----
+ src/pkg/runtime/openbsd/thread.c    | 16 ++++++++--------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,0 +1,19 @@
+commit 8623c0ba95f01387c2d705349722b5fcb2b3e77d
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun May 12 06:32:11 2024 +0000
+
+    internal/chacha8rand: use internal/byteorder
+    
+    Change-Id: Ia5bcaba47da949583a720ca3506d6bd9e3794824
+    GitHub-Last-Rev: 1ed3dad2bf43df5526572f7fdc4c3b02ab977a01
+    GitHub-Pull-Request: golang/go#67320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584996
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/objabi/pkgspecial.go |  1 +
+ src/go/build/deps_test.go             | 10 +++---
+ src/internal/chacha8rand/chacha8.go   | 60 +++++++----------------------------
+ 3 files changed, 17 insertions(+), 54 deletions(-)

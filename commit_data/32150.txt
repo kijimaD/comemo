@@ -1,0 +1,21 @@
+commit 60b9ae4cf3a0428668748a53f278a80d41fbfc38
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Jul 21 01:19:42 2017 -0700
+
+    crypto/rsa: drop uneeded parameter in modInverse
+    
+    The current modInverse implementation allocates a big.Int
+    for the second parameter of GCD, while only the first is needed.
+    This is unnecessary and can lead to a speed up for optimizations
+    of GCD where the second parameter is not calculated at all.
+    
+    Change-Id: I3f042e140ff643311bc3d0b8d192992d4d2c4c70
+    Reviewed-on: https://go-review.googlesource.com/50531
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filosottile.wiki@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/rsa/rsa.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

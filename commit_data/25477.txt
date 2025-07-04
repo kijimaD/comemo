@@ -1,0 +1,24 @@
+commit 67fa7970c50f2a5b48fbdd38f8dff9b6d935131a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 00:51:13 2016 +0000
+
+    net/http: update bundled http2; fixes TestTransportAndServerSharedBodyRace_h2
+    
+    Update bundled http2 to git rev d1ba260648 (https://golang.org/cl/18288).
+    
+    Fixes the flaky TestTransportAndServerSharedBodyRace_h2.
+    
+    Also adds some debugging to TestTransportAndServerSharedBodyRace_h2
+    which I hope won't ever be necessary again, but I know will be.
+    
+    Fixes #13556
+    
+    Change-Id: Ibcf2fc23ec0122dcac8891fdc3bd7f8acddd880e
+    Reviewed-on: https://go-review.googlesource.com/18289
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go  | 53 ++++++++++++++++++++++++++++++++++++++++------
+ src/net/http/serve_test.go | 53 +++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 95 insertions(+), 11 deletions(-)

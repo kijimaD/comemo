@@ -1,0 +1,27 @@
+commit dc98ccd836da7d22a5d270b9778fb055826fa07b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 7 23:00:14 2022 +0100
+
+    net/netip: use slice-to-array conversions
+    
+    Resend of CL 432735 (with one additional conversion that the original CL
+    missed) after it broke the longtest builder on x/tools and was reverted
+    in CL 433478. Now that x/tools/go/ssa has support for this, the longtest
+    x/tools build passes as well.
+    
+    Use slice-to-array conversions in AddrFromSlice and
+    (*Addr).UnmarshalBinary. This allows using AddrFrom16 and drop the
+    redundant ipv6Slice helper.
+    
+    For #46505
+    
+    Change-Id: I4d8084b7a97f162e4f7d685c86aac56d960ff693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448396
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/netip.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

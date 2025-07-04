@@ -1,0 +1,29 @@
+commit 11c7b4491bd2cd1deb7b50433f431be9ced330db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 24 21:49:26 2017 -0700
+
+    os: fix race between file I/O and Close
+    
+    Now that the os package uses internal/poll on Unix and Windows systems,
+    it can rely on internal/poll reference counting to ensure that the
+    file descriptor is not closed until all I/O is complete.
+    
+    That was already working. This CL completes the job by not trying to
+    modify the Sysfd field when it might still be used by the I/O routines.
+    
+    Fixes #7970
+    
+    Change-Id: I7a3daa1a6b07b7345bdce6f0cd7164bd4eaee952
+    Reviewed-on: https://go-review.googlesource.com/41674
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go   |  4 ++--
+ src/os/dir_windows.go  |  3 ---
+ src/os/file.go         |  4 ++++
+ src/os/file_posix.go   |  3 ---
+ src/os/file_unix.go    |  3 +--
+ src/os/file_windows.go |  5 +----
+ src/os/pipe_test.go    | 37 +++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go |  2 +-
+ src/os/types_unix.go   |  2 --
+ 9 files changed, 46 insertions(+), 17 deletions(-)

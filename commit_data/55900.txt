@@ -1,0 +1,17 @@
+commit ec4baaca390ac884c1f55fa1171d2b1eac571b0a
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Mar 9 04:09:45 2024 +0000
+
+    time: fix typo in BenchmarkReset
+    
+    Change-Id: I1dbd1c5aa26f458cdac7a3f0ca974254a069311f
+    GitHub-Last-Rev: da481ba7a9082a5fae5cc7c72821167d9879f54f
+    GitHub-Pull-Request: golang/go#66219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569897
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/time/sleep_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

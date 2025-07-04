@@ -1,0 +1,22 @@
+commit 646939c0e3b68c24908692696356a0b048a6ba69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 3 18:26:36 2016 -0800
+
+    cmd/compile: re-vendor math/big to pick up bug fix
+    
+    The changes to internal/big are completely automatic
+    by running vendor.bash in that directory.
+    
+    Also added respective test case.
+    
+    For #14553.
+    
+    Change-Id: I98b124bcc9ad9e9bd987943719be27864423cb5d
+    Reviewed-on: https://go-review.googlesource.com/20199
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/big/float.go      | 26 ++++++++++-------
+ src/cmd/compile/internal/big/float_test.go | 47 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/big/floatconv.go  |  2 +-
+ test/fixedbugs/issue14553.go               | 42 ++++++++++++++++++++++++++
+ 4 files changed, 105 insertions(+), 12 deletions(-)

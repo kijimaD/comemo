@@ -1,0 +1,19 @@
+commit a131a66e63d805db05bb320146815ee053a1c258
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 13:05:35 2016 -0800
+
+    cmd/compile: create test binary in temp directory
+    
+    The new TestDashS was leaving a dreg "test" file in
+    cmd/compile/internal/gc.  Create it in the temporary directory instead.
+    
+    Also change path.Join to filepath.Join throughout global_test.go.
+    
+    Change-Id: Ib7707fada2b3ab5e8abc2ba74e4c402821c1408b
+    Reviewed-on: https://go-review.googlesource.com/19965
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/global_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

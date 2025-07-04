@@ -1,0 +1,14 @@
+commit 8fd1634f443cebcb176c7a95104b61240733e420
+Author: Matt Bostock <matt@mattbostock.com>
+Date:   Tue Feb 16 18:53:46 2016 +0000
+
+    sort: Fix typo in stable sort comment
+    
+    Fix `reverences`, which I believe should read as `references`.
+    
+    Change-Id: I450efcbeee0f8861a84b209f2e6636764034232a
+    Reviewed-on: https://go-review.googlesource.com/19469
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

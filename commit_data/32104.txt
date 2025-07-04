@@ -1,0 +1,14 @@
+commit 78d74fc2cdd66f7c3387d81af01a49bb2e3273ec
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Aug 4 09:47:06 2017 -0700
+
+    doc: clarify that Gogland is for paid IntelliJ platform IDEs
+    
+    Fixes #21213.
+    
+    Change-Id: I7b8a84de92bbd1d3f78f8a9612f3af8cd092cb94
+    Reviewed-on: https://go-review.googlesource.com/53351
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

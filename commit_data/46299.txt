@@ -1,0 +1,23 @@
+commit 9f69a44308f4f9cbdae68925202dfef2027a7d20
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 5 16:11:28 2021 +1000
+
+    image/draw: add RGBA64Image fast path
+    
+    name               old time/op  new time/op  delta
+    GenericOver-4      15.0ms ± 1%   2.9ms ± 1%  -80.56%  (p=0.008 n=5+5)
+    GenericMaskOver-4  7.82ms ± 4%  1.69ms ± 2%  -78.38%  (p=0.008 n=5+5)
+    GenericSrc-4       6.13ms ± 3%  1.66ms ± 1%  -72.90%  (p=0.008 n=5+5)
+    GenericMaskSrc-4   11.5ms ± 1%   2.0ms ± 0%  -82.77%  (p=0.008 n=5+5)
+    
+    Updates #44808.
+    
+    Change-Id: I131cf6fad01708540390a8012d8f2a21e849fe9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340049
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
+
+ doc/go1.18.html             |  13 +++
+ src/image/draw/draw.go      |  81 +++++++++++++++++-
+ src/image/draw/draw_test.go | 201 +++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 272 insertions(+), 23 deletions(-)

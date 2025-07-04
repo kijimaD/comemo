@@ -1,0 +1,30 @@
+commit d4df63c3e8f37aa6ea033bae8937673460915279
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 30 08:40:56 2014 +0400
+
+    runtime: convert type algorithms to Go
+    Actually it mostly deletes code -- alg.print and alg.copy go away.
+    There was only one usage of alg.print for debug purposes.
+    Alg.copy is used in chan.goc, but Keith replaces them with
+    memcopy during conversion, so alg.copy is not needed as well.
+    Converting them would be significant amount of work
+    for no visible benefit.
+    
+    LGTM=crawshaw, rsc, khr
+    R=golang-codereviews, crawshaw, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/139930044
+
+ src/cmd/gc/reflect.c           |  19 +--
+ src/pkg/runtime/alg.go         | 160 ++++++++++++++++-------
+ src/pkg/runtime/alg.goc        | 289 -----------------------------------------
+ src/pkg/runtime/asm_386.s      |   1 -
+ src/pkg/runtime/asm_amd64.s    |   1 -
+ src/pkg/runtime/asm_amd64p32.s |   1 -
+ src/pkg/runtime/asm_arm.s      |   1 -
+ src/pkg/runtime/chan.goc       |  30 ++---
+ src/pkg/runtime/hashmap.go     |   2 +-
+ src/pkg/runtime/runtime.h      |  88 -------------
+ src/pkg/runtime/stubs.go       |  17 ---
+ src/pkg/runtime/type.h         |   2 +-
+ 12 files changed, 130 insertions(+), 481 deletions(-)

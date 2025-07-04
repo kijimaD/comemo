@@ -1,0 +1,31 @@
+commit cb95819cf6e969dc7dcc64ec7820d3995379c9f4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 11 14:14:30 2020 -0500
+
+    runtime: detect netbsd netpoll overrun in sysmon
+    
+    The netbsd kernel has a bug [1] that occassionally prevents netpoll from
+    waking with netpollBreak, which could result in missing timers for an
+    unbounded amount of time, as netpoll can't restart with a shorter delay
+    when an earlier timer is added.
+    
+    Prior to CL 232298, sysmon could detect these overrun timers and
+    manually start an M to run them. With this fallback gone, the bug
+    actually prevents timer execution indefinitely.
+    
+    As a workaround, we add back sysmon detection only for netbsd.
+    
+    [1] https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094
+    
+    Updates #42515
+    
+    Change-Id: I8391f5b9dabef03dd1d94c50b3b4b3bd4f889e66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277332
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

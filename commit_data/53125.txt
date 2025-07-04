@@ -1,0 +1,24 @@
+commit 3ebbaf3a4dbde6f0298978f502f5058fb0e9e948
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 16:02:06 2023 -0400
+
+    cmd/dist: drop remaining conditions on default cgo tests
+    
+    Currently, dist registers cmd/cgo/internal{test,testtls,testnocgo}
+    specially, so they're opted out of "go test std cmd". It has to
+    register these test packages to run in various non-default build
+    configurations, but at this point they can also run with the default
+    build configuration (and for test and testtls, we intentionally want
+    to test them in the default configuration; this is pointless but
+    harmless for testnocgo). Hence, this CL drops the special registration
+    of their default build configurations from registerCgoTests and lets
+    them be registered as part of registerStdTests.
+    
+    Change-Id: Id283f3cdcdb202955a854648c0ed1e3c4aa554d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496179
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

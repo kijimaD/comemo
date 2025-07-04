@@ -1,0 +1,19 @@
+commit f3c1070fa4cb02c55b47b874076fe74879288a4c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 12 21:46:33 2013 +0400
+
+    sync/atomic: specify argsize for asm routines
+    Fixes #6098.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12717043
+
+ src/pkg/sync/atomic/asm_386.s         | 46 +++++++++++++++++------------------
+ src/pkg/sync/atomic/asm_amd64.s       | 46 +++++++++++++++++------------------
+ src/pkg/sync/atomic/asm_arm.s         | 16 ++++++------
+ src/pkg/sync/atomic/asm_freebsd_arm.s |  4 +--
+ src/pkg/sync/atomic/asm_linux_arm.s   | 16 ++++++------
+ src/pkg/sync/atomic/asm_netbsd_arm.s  |  4 +--
+ src/pkg/sync/atomic/atomic_test.go    | 37 ++++++++++++++++++++++++++++
+ 7 files changed, 103 insertions(+), 66 deletions(-)

@@ -1,0 +1,21 @@
+commit c0dd9f526bbf4a8cc21fe47b9476f2fde7c2d46e
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Aug 27 11:21:52 2009 -0700
+
+    Make the statement compiler not use the AST visitor.
+    
+    In the process, I made error handling in the statement
+    compiler much saner.  Instead of separately tracking various
+    error flags with weird relations, I just track if any error
+    messages have been produced.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=308  (98 added, 135 deleted, 75 changed)
+    OCL=33870
+    CL=33961
+
+ usr/austin/eval/compiler.go |   9 +-
+ usr/austin/eval/expr.go     |  11 +-
+ usr/austin/eval/stmt.go     | 315 +++++++++++++++++++-------------------------
+ 3 files changed, 149 insertions(+), 186 deletions(-)

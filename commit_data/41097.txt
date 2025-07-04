@@ -1,0 +1,16 @@
+commit 56d6b87972c9852570fe017ac5fa153314c21992
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 9 14:01:41 2020 -0800
+
+    runtime: change checkptr to use throw instead of panic
+    
+    Updates #34964.
+    
+    Change-Id: I5afb2c1e77a9a47358a1d0d108c4a787d7172b94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/checkptr.go | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)

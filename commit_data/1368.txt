@@ -1,0 +1,13 @@
+commit 92f74ca7e27ba252645ca5ef6fa35aa86605a506
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 21:11:56 2008 -0800
+
+    [] fixes
+    
+    R=ken
+    OCL=21565
+    CL=21565
+
+ src/cmd/gc/subr.c |  2 +-
+ src/cmd/gc/walk.c | 10 ++++++----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

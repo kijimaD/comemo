@@ -1,0 +1,43 @@
+commit decd810945e22642df5db99a616af3cc5d53bf8d
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 2 21:04:10 2014 +1000
+
+    liblink, runtime: preliminary support for plan9/amd64
+    
+    A TLS slot is reserved by _rt0_.*_plan9 as an automatic and
+    its address (which is static on Plan 9) is saved in the
+    global _privates symbol. The startup linkage now is exactly
+    like that from Plan 9 libc, and the way we access g is
+    exactly as if we'd have used privalloc(2).
+    
+    Aside from making the code more standard, this change
+    drastically simplifies it, both for 386 and for amd64, and
+    makes the Plan 9 code in liblink common for both 386 and
+    amd64.
+    
+    The amd64 runtime code was cleared of nxm assumptions, and
+    now runs on the standard Plan 9 kernel.
+    
+    Note handling fixes will follow in a separate CL.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, bradfitz, dave
+    CC=0intro, ality, golang-codereviews, jas, minux.ma, mischief
+    https://golang.org/cl/101510049
+
+ include/link.h                       |  2 +-
+ src/liblink/asm6.c                   | 14 ++++++++++-
+ src/liblink/asm8.c                   |  6 ++---
+ src/liblink/obj6.c                   |  6 ++++-
+ src/liblink/obj8.c                   |  4 +--
+ src/liblink/sym.c                    |  2 --
+ src/pkg/runtime/arch_amd64.h         |  4 +++
+ src/pkg/runtime/defs_plan9_amd64.h   |  2 +-
+ src/pkg/runtime/memclr_plan9_amd64.s | 49 ++++++++----------------------------
+ src/pkg/runtime/os_plan9.c           | 29 +++++++++++++++++++++
+ src/pkg/runtime/rt0_plan9_386.s      | 41 ++++++++----------------------
+ src/pkg/runtime/rt0_plan9_amd64.s    | 13 +++++++---
+ src/pkg/runtime/sys_plan9_386.s      |  2 +-
+ src/pkg/runtime/sys_plan9_amd64.s    | 26 +++----------------
+ src/pkg/runtime/time_plan9_386.c     | 36 --------------------------
+ 15 files changed, 94 insertions(+), 142 deletions(-)

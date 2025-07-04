@@ -1,0 +1,10 @@
+commit ad073b1cf14acccef7284fbfea20bad651ec42e1
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 8 16:16:17 2008 -0700
+
+    asdf
+    
+    SVN=121608
+
+ test/float_lit.go | 144 +++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 83 insertions(+), 61 deletions(-)

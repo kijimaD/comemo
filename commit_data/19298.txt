@@ -1,0 +1,15 @@
+commit 65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 8 08:35:49 2014 -0700
+
+    runtime: write memory profile statistics to the heap dump.
+    
+    LGTM=rsc
+    R=rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/97010043
+
+ src/pkg/runtime/heapdump.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/malloc.h   |  1 +
+ src/pkg/runtime/mprof.goc  | 12 ++++++++
+ 3 files changed, 84 insertions(+)

@@ -1,0 +1,18 @@
+commit c812b97ec67ae2d674b5bb4e2fd29c7ab7fa08dc
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 18:08:08 2021 -0400
+
+    go/types: comp literals to accept type sets with single underlying types
+    
+    This is a clean port of CL 357915 to go/types.
+    
+    Change-Id: Idf5850a8bdcf3596c561c97bcd60539945139743
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359877
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go                         |  2 +-
+ src/go/types/testdata/check/compliterals.go2 | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 253e605af4533fd9f1276291225c27e972417e97
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 1 09:37:46 2017 +1200
+
+    cmd/link: shrink SymKind down to a uint8
+    
+    Change-Id: I54c73afd4fb2ad4d5854d2568524f57542c64fe5
+    Reviewed-on: https://go-review.googlesource.com/42182
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/sym/symkind.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

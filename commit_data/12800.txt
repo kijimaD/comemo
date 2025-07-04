@@ -1,0 +1,13 @@
+commit c24daa222fffda53e58f716f7dba81142e42eab3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 30 15:00:23 2012 +0800
+
+    doc/codewalk/markov: fix syntax and broken link
+            Part of issue 3424.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5955050
+
+ doc/codewalk/markov.xml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

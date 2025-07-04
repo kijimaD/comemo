@@ -1,0 +1,12 @@
+commit d14baee96eaf3dcad4a35ed2855840074885ba13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 15:30:53 2010 -0700
+
+    6g: avoid unnecessary conversion in shift bounds check
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1278042
+
+ src/cmd/6g/ggen.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

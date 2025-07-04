@@ -1,0 +1,16 @@
+commit 744fcfec4e94d9585d2be6f9efae8480a2f2fc8d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 19 15:56:37 2019 -0400
+
+    runtime: improve mstart comments
+    
+    Some of the comments were unclear or outdated.
+    
+    Change-Id: I02e01bf60def0074c1fa760e94aa992e9e4969b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172987
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

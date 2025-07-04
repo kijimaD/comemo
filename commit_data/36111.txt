@@ -1,0 +1,25 @@
+commit 416676f4d9bb2e14bce4e396c2ce67d091264751
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 23 23:42:10 2018 +0000
+
+    net/http: deflake TestRetryRequestsOnError
+    
+    There's a 50ms threshold in net/http.Transport that this test
+    sometimes hitting on slower devices. That was unrelated to what this
+    test was trying to test. So instead just t.Skip on RoundTrip errors
+    unless the failure was quick (under 25ms), in which case the error
+    must've been about something else. Our fast machines should catch
+    regressions there.
+    
+    Fixes #25366
+    
+    Change-Id: Ibe8e2716a5b68558b57d0b8b5c46f38e46a2cba2
+    Reviewed-on: https://go-review.googlesource.com/125555
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/export_test.go    | 2 ++
+ src/net/http/transport.go      | 7 ++++++-
+ src/net/http/transport_test.go | 9 ++++++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

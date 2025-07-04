@@ -1,0 +1,33 @@
+commit 8c74bfb491bc28d99b591eff0c062012e3717f68
+Author: Duco van Amstel <duco.vanamstel@gmail.com>
+Date:   Fri Oct 4 13:05:13 2019 +0000
+
+    cmd/go: fix listing of ambiguous paths
+    
+    Passing ambiguous patterns, ending in `.go`, to `go list` results in them
+    being interpreted as Go files despite potentially being package references.
+    This can then result in errors on other package references.
+    
+    The parsing logic is modified to check for a locally present file
+    corresponding to any pattern ending in `.go`. If no such file is present
+    the pattern is considered to be a package reference.
+    
+    We're also adding a variety of non-regression tests that fail with the
+    original parsing code but passes after applying the fix.
+    
+    Fixes #32483
+    Fixes #34653
+    
+    Change-Id: I073871da0dfc5641a359643f95ac14608fdca09b
+    GitHub-Last-Rev: 5abc200103ffc122df05422d79cf30c3ba0ee646
+    GitHub-Pull-Request: golang/go#34663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198459
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 11 +++++--
+ src/cmd/go/internal/modget/get.go                  |  9 ------
+ src/cmd/go/testdata/script/list_ambiguous_path.txt | 37 ++++++++++++++++++++++
+ .../go/testdata/script/mod_get_trailing_slash.txt  | 14 ++++----
+ 4 files changed, 51 insertions(+), 20 deletions(-)

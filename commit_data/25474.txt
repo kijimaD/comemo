@@ -1,0 +1,21 @@
+commit 24ef1d60f09314a84ce5915da9caa700cb51f816
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed Dec 30 11:15:38 2015 -0500
+
+    cmd/dist: improve isGitRepo to handle git "worktree"s
+    
+    Simply checking the exit code of `git rev-parse --git-dir` should
+    suffice here, but that requires deviating from the infrastructure
+    provided by `run`, so I've left that for a future change.
+    
+    Originally by Tamir Duberstein but updated by iant & rsc to add
+    the filepath.Join logic.
+    
+    Fixes #11211 (again).
+    
+    Change-Id: I6d29b5ae39ba456088ae1fb5d41014cb91c86897
+    Reviewed-on: https://go-review.googlesource.com/18323
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

@@ -1,0 +1,20 @@
+commit 9a7893550c506c2fb69711334ace1ae17176ccf4
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 14:59:09 2015 -0500
+
+    runtime/pprof: test that stack barriers never appear in profile
+    
+    This adds a test that runs CPU profiling with a high load of stack
+    barriers and stack barrier insertion/removal operations and checks
+    that both 1) the runtime doesn't crash and 2) stackBarrier itself
+    never appears in a profile. Prior to the fix for gentraceback starting
+    in the middle of stackBarrier, condition 2 often failed.
+    
+    Change-Id: Ic28860448859029779844c4bf3bb28ca84611e2c
+    Reviewed-on: https://go-review.googlesource.com/17037
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

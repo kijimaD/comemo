@@ -1,0 +1,14 @@
+commit 85ca578d4a71ef8d56bc828a38f42482ff264028
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 15:27:51 2015 -0500
+
+    os: add document for ErrInvalid
+    
+    Fixes #12391.
+    
+    Change-Id: I31211cd711c035151785c3083571594d15c7d93e
+    Reviewed-on: https://go-review.googlesource.com/16873
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

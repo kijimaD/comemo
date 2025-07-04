@@ -1,0 +1,22 @@
+commit 0b7b90cf198b17dd2d164e3bf013aa5846356b55
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 18 05:20:00 2024 +0000
+
+    database/sql: close rows in test
+    
+    This change invokes defer rows.Close() in TestQuery to properly close the rows.
+    
+    Change-Id: I1ab0d172ad2130e9caab7dbda93d671550c33c6b
+    GitHub-Last-Rev: 76883a3bceefb80873e57150356a4acc001ee1a3
+    GitHub-Pull-Request: golang/go#66371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572197
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/sql_test.go | 1 +
+ 1 file changed, 1 insertion(+)

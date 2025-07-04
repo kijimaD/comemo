@@ -1,0 +1,17 @@
+commit 0713293374ad75c0e92cac14f9c0d071bc45de83
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 28 12:06:25 2013 -0700
+
+    cmd/5g, cmd/6g, cmd/8g: fix comment
+    
+    Keeping the string "compactframe" because that's what
+    I always search for to find this code. But point to the real place too.
+    
+    TBR=iant
+    CC=golang-dev
+    https://golang.org/cl/10676047
+
+ src/cmd/5g/ggen.c | 2 +-
+ src/cmd/6g/ggen.c | 2 +-
+ src/cmd/8g/ggen.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit c1868bc89debde4b36577cc4b01513b7685fe0a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 21:04:26 2008 -0800
+
+    malloc fixes.
+    can run peano 10 in 100 MB (instead of 1+ GB) of memory
+    when linking against this.
+    can run peano 11 in 1 GB of memory now.
+    
+    R=r
+    DELTA=100  (44 added, 44 deleted, 12 changed)
+    OCL=20504
+    CL=20553
+
+ usr/rsc/mem/Makefile     |  4 +++
+ usr/rsc/mem/allocator.go |  1 +
+ usr/rsc/mem/malloc.c     | 73 ++++++++++++------------------------------------
+ usr/rsc/mem/malloc.h     |  4 +++
+ usr/rsc/mem/stack.c      | 22 +++++++++++++++
+ usr/rsc/mem/triv.c       | 12 +++++++-
+ 6 files changed, 60 insertions(+), 56 deletions(-)

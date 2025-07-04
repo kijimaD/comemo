@@ -1,0 +1,20 @@
+commit bc61026c3f60d0d449e1cb292ef202daa1c2d019
+Author: Max Riveiro <kavu13@gmail.com>
+Date:   Sun Dec 11 13:54:22 2016 +0300
+
+    time: parse WITA timezone correctly
+    
+    WITA stands for Asia/Makassar IANA timezone
+    https://en.wikipedia.org/wiki/Asia/Makassar
+    
+    Fixes #18251
+    
+    Change-Id: I5896efb8052593afb4e51ae4a34b574a8206d4dc
+    Reviewed-on: https://go-review.googlesource.com/34253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/format.go      | 5 +++--
+ src/time/format_test.go | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit f26c29723f372284ff7dc0dbf30bae5561a3e618
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 19:00:00 2024 -0700
+
+    cmd: use testenv.Executable helper
+    
+    Change-Id: I25ac0e8d25d760bfde3bb7700f0feaa23f3e8ab1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609302
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/addr2line/addr2line_test.go | 28 +++-------------------------
+ src/cmd/covdata/tool_test.go        | 13 +------------
+ src/cmd/cover/cover_test.go         | 11 +----------
+ src/cmd/nm/nm_test.go               | 27 +++------------------------
+ src/cmd/objdump/objdump_test.go     | 30 ++++--------------------------
+ src/cmd/pack/pack_test.go           | 18 +-----------------
+ src/cmd/pprof/pprof_test.go         | 18 +-----------------
+ src/cmd/vet/vet_test.go             | 18 +-----------------
+ 8 files changed, 15 insertions(+), 148 deletions(-)

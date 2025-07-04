@@ -1,0 +1,19 @@
+commit c68e3bcb035d25ce2df34618bd3ca2d1063dcad3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 17:46:36 2018 -0700
+
+    cmd/compile: remove -f flag
+    
+    This is supposed to print out function stack frames, but it's been
+    broken since golang.org/cl/38593, and no one has noticed.
+    
+    Change-Id: Iad428a9097d452b878b1f8c5df22afd6f671ac2e
+    Reviewed-on: https://go-review.googlesource.com/c/145199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go |  4 ----
+ src/cmd/compile/internal/gc/ssa.go  |  3 ---
+ src/cmd/compile/internal/gc/subr.go | 30 ------------------------------
+ 3 files changed, 37 deletions(-)

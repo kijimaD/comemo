@@ -1,0 +1,12 @@
+commit 054a0c338f59b792439d1de9629ad82409987418
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 23 14:23:05 2011 -0700
+
+    gotest: fix gofmt issue in generated _testmain.go
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4287074
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

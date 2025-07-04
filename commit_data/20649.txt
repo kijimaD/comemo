@@ -1,0 +1,21 @@
+commit 4731c382f6875863dc27f33088f53bce8f82c620
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 6 15:10:51 2014 -0700
+
+    strings: use fast path for IndexRune
+    
+    Noticed while reviewing https://golang.org/cl/147690043/
+    
+    I'd never seen anybody use IndexRune before, and
+    unsurprisingly it doesn't use the other fast paths in the
+    strings/bytes packages. IndexByte uses assembly.
+    
+    Also, less code this way.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/147700043
+
+ src/strings/strings.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

@@ -1,0 +1,78 @@
+commit d15525d596eb49eba058178e3b633b5a2ebb4766
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jul 23 15:16:02 2024 -0400
+
+    all: update vendored dependencies
+    
+    The Go 1.24 development tree has opened. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    For #36905.
+    
+    [git-generate]
+    go install golang.org/x/build/cmd/updatestd@latest
+    go install golang.org/x/tools/cmd/bundle@latest
+    updatestd -goroot=$(pwd) -branch=master
+    
+    Change-Id: I5a012af9f041f79ab4d5b30569a154e0c2d1617e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600535
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |   20 +-
+ src/cmd/go.sum                                     |   36 +-
+ src/cmd/vendor/golang.org/x/arch/LICENSE           |    4 +-
+ src/cmd/vendor/golang.org/x/build/LICENSE          |    4 +-
+ src/cmd/vendor/golang.org/x/mod/LICENSE            |    4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |   80 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go    |    2 +-
+ src/cmd/vendor/golang.org/x/sync/LICENSE           |    4 +-
+ src/cmd/vendor/golang.org/x/sys/LICENSE            |    4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    1 +
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   12 +
+ .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  |    5 +
+ .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  |    5 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |   48 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   10 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |   48 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   10 +
+ .../golang.org/x/sys/windows/security_windows.go   |    2 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |   12 +-
+ .../golang.org/x/sys/windows/types_windows.go      |   27 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   49 +-
+ src/cmd/vendor/golang.org/x/term/LICENSE           |    4 +-
+ src/cmd/vendor/golang.org/x/text/LICENSE           |    4 +-
+ src/cmd/vendor/golang.org/x/tools/LICENSE          |    4 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |    2 +-
+ .../go/analysis/passes/stringintconv/string.go     |   22 +-
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go |   24 +-
+ .../golang.org/x/tools/go/ast/astutil/util.go      |    1 +
+ .../x/tools/go/types/objectpath/objectpath.go      |   59 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |    8 +-
+ .../golang.org/x/tools/internal/bisect/bisect.go   |    6 +-
+ .../golang.org/x/tools/internal/typeparams/free.go |    3 +-
+ .../x/tools/internal/typesinternal/types.go        |   15 +
+ src/cmd/vendor/modules.txt                         |   18 +-
+ src/go.mod                                         |   10 +-
+ src/go.sum                                         |   16 +-
+ src/net/http/h2_bundle.go                          |    4 -
+ src/vendor/golang.org/x/crypto/LICENSE             |    4 +-
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |    2 +-
+ .../golang.org/x/crypto/cryptobyte/asn1/asn1.go    |    2 +-
+ .../golang.org/x/crypto/cryptobyte/string.go       |    2 +-
+ src/vendor/golang.org/x/crypto/hkdf/hkdf.go        |    2 +-
+ src/vendor/golang.org/x/crypto/sha3/doc.go         |    2 +-
+ src/vendor/golang.org/x/crypto/sha3/hashes.go      |    8 +
+ .../golang.org/x/crypto/sha3/keccakf_amd64.s       | 5787 ++++++++++++++++++--
+ src/vendor/golang.org/x/crypto/sha3/register.go    |   18 -
+ src/vendor/golang.org/x/net/LICENSE                |    4 +-
+ src/vendor/golang.org/x/sys/LICENSE                |    4 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |    2 +
+ src/vendor/golang.org/x/sys/cpu/cpu_arm64.go       |   12 +
+ src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go |    5 +
+ src/vendor/golang.org/x/text/LICENSE               |    4 +-
+ src/vendor/modules.txt                             |   10 +-
+ 53 files changed, 5908 insertions(+), 547 deletions(-)

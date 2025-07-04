@@ -1,0 +1,37 @@
+commit df777cfa15caccbec74b9f72d19af317e2870138
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 16:08:13 2023 +0000
+
+    Revert "runtime: tidy _Stack* constant naming"
+    
+    This reverts commit CL 486381.
+    
+    Submitted out of order and breaks bootstrap.
+    
+    Change-Id: Ia472111cb966e884a48f8ee3893b3bf4b4f4f875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486915
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
+
+ src/runtime/asm_386.s           |  2 +-
+ src/runtime/asm_amd64.s         |  2 +-
+ src/runtime/asm_arm.s           |  2 +-
+ src/runtime/asm_arm64.s         |  2 +-
+ src/runtime/asm_loong64.s       |  2 +-
+ src/runtime/asm_mips64x.s       |  2 +-
+ src/runtime/asm_mipsx.s         |  2 +-
+ src/runtime/asm_ppc64x.s        |  2 +-
+ src/runtime/asm_riscv64.s       |  2 +-
+ src/runtime/asm_s390x.s         |  2 +-
+ src/runtime/os_windows.go       |  2 +-
+ src/runtime/preempt.go          |  2 +-
+ src/runtime/proc.go             | 24 ++++++++---------
+ src/runtime/runtime1.go         |  2 +-
+ src/runtime/signal_unix.go      |  4 +--
+ src/runtime/signal_windows.go   |  2 +-
+ src/runtime/stack.go            | 60 ++++++++++++++++++++---------------------
+ src/runtime/sys_aix_ppc64.s     |  2 +-
+ src/runtime/sys_solaris_amd64.s |  2 +-
+ src/runtime/sys_windows_386.s   |  2 +-
+ src/runtime/sys_windows_amd64.s |  2 +-
+ 21 files changed, 62 insertions(+), 62 deletions(-)

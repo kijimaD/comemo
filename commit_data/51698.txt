@@ -1,0 +1,19 @@
+commit 1bef0707a537d19bbbfda09dde05e5874a2fb199
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 9 12:46:20 2023 +0000
+
+    cmd/link: use strings.LastIndexByte to fix a TODO
+    
+    Go 1.20 will require Go 1.17 to bootstrap, so we can stop worrying about
+    older Go bootstrap versions. https://go.dev/issues/44505 fixed most of
+    those TODOs, but this one was presumably forgotten about.
+    
+    Change-Id: I0c19ec4eec65cd807e7db9a57c5969845d915c07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461155
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

@@ -1,0 +1,51 @@
+commit 8ac23a1f151a9b1842797652ed7761f397055b5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 01:06:52 2021 -0500
+
+    runtime: document, clean up internal/sys
+    
+    Document what the values in internal/sys mean.
+    
+    Remove various special cases for arm64 in the code using StackAlign.
+    
+    Delete Uintreg - it was for GOARCH=amd64p32,
+    which was specific to GOOS=nacl and has been retired.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I40e8fa07b4e192298b6536b98a72a751951a4383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288795
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgocall.go                    |  9 +-------
+ src/runtime/export_test.go                |  2 --
+ src/runtime/internal/sys/arch.go          | 38 +++++++++++++++++++++++++++++++
+ src/runtime/internal/sys/arch_386.go      | 13 ++++-------
+ src/runtime/internal/sys/arch_amd64.go    | 13 ++++-------
+ src/runtime/internal/sys/arch_arm.go      | 13 ++++-------
+ src/runtime/internal/sys/arch_arm64.go    | 13 ++++-------
+ src/runtime/internal/sys/arch_mips.go     | 13 ++++-------
+ src/runtime/internal/sys/arch_mips64.go   | 13 ++++-------
+ src/runtime/internal/sys/arch_mips64le.go | 13 ++++-------
+ src/runtime/internal/sys/arch_mipsle.go   | 13 ++++-------
+ src/runtime/internal/sys/arch_ppc64.go    | 13 ++++-------
+ src/runtime/internal/sys/arch_ppc64le.go  | 13 ++++-------
+ src/runtime/internal/sys/arch_riscv64.go  | 15 ++++--------
+ src/runtime/internal/sys/arch_s390x.go    | 13 ++++-------
+ src/runtime/internal/sys/arch_wasm.go     | 13 ++++-------
+ src/runtime/internal/sys/stubs.go         | 16 -------------
+ src/runtime/os3_plan9.go                  |  4 ----
+ src/runtime/proc.go                       | 12 +++++-----
+ src/runtime/runtime2.go                   |  2 +-
+ src/runtime/runtime_test.go               |  4 ++--
+ src/runtime/signal_arm64.go               |  2 +-
+ src/runtime/stack.go                      |  4 ++--
+ src/runtime/sys_wasm.go                   |  4 ----
+ src/runtime/sys_x86.go                    |  4 ----
+ src/runtime/traceback.go                  | 20 +++++++---------
+ 26 files changed, 124 insertions(+), 168 deletions(-)

@@ -1,0 +1,13 @@
+commit 696515ee396566ba02da145cf71fe5913d65b9a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 20:56:33 2021 -0800
+
+    spec: type assertions and switches don't operate on type parameters
+    
+    Change-Id: I11111b3617673be94508128489aed6488d518537
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366834
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit f664d0e90421cf7b6257ce2f0ad197a7d76ff7a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 13:29:56 2009 -0700
+
+    explain selectsend problem
+    
+    R=ken
+    OCL=31865
+    CL=31867
+
+ src/cmd/gc/walk.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

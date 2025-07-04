@@ -1,0 +1,23 @@
+commit 7b5789b5848f88da067d27a5cfa4bd62a77b1c12
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 17:44:15 2010 -0800
+
+    gc: undo attempt at fixing recursive interface embedding
+    
+    Fixes #582.
+    
+    Update #287
+    Status: Accepted
+    Bug fix was too intrusive; undo and reopen issue.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/209044
+
+ src/cmd/gc/walk.c                  | 19 +------------------
+ test/{fixedbugs => bugs}/bug250.go |  0
+ test/{fixedbugs => bugs}/bug251.go |  0
+ test/fixedbugs/bug195.go           |  4 ++--
+ test/fixedbugs/bug256.go           | 16 ++++++++++++++++
+ test/golden.out                    | 14 ++++++++++++++
+ 6 files changed, 33 insertions(+), 20 deletions(-)

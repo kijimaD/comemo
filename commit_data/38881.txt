@@ -1,0 +1,31 @@
+commit e308d41fe51b691c4bb52edc0865ca49f938a0f9
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 27 13:27:01 2019 +0100
+
+    unicode: update table using new generator in x/text
+    
+    The changes in Unicode 11 exposes a bug in maketables.go.
+    We update the Unicode 10 tables using a new generator
+    to minimize the changes upgrading to Unicode 11.
+    
+    This change switches over the generation from core to that in
+    x/text. To properly update the tables one needs to run the generate
+    in x/text anyway, so this makes that official.
+    
+    The RangeTable generator in x/text also generates slightly compacter
+    tables.
+    
+    Updates golang/go#27945
+    
+    See CL 154443
+    
+    Change-Id: I6c59e082d5b8cd9e9332a32d8971061228581d66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169617
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/letter.go     |    3 -
+ src/unicode/maketables.go | 1452 ---------------------------------------------
+ src/unicode/tables.go     | 1218 ++++++++++++++++---------------------
+ 3 files changed, 507 insertions(+), 2166 deletions(-)

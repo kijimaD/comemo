@@ -1,0 +1,19 @@
+commit d3631955d454a8cfc0b63065ef1cc4c8db64ae46
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 15:54:11 2019 +0100
+
+    cmd/link: set correct sizes for XCOFF outer symbols
+    
+    This commit fixes the size of outer symbols like type.*.
+    Outer symbols cannot have a nil size on AIX or they will be
+    removed by ld as long as all their sub-symbols.
+    
+    Change-Id: I68ff3ce5a3a034e3c3eb23431aba31245073cf20
+    Reviewed-on: https://go-review.googlesource.com/c/163999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go  | 21 ++++++++++++++++
+ src/cmd/link/internal/ld/xcoff.go | 51 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+)

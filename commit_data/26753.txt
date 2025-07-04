@@ -1,0 +1,18 @@
+commit 5176a4b39b4595e5d9025e7aaf19146c29b7e349
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 6 15:01:50 2016 +0200
+
+    testing: fix flakey test on plan9
+    
+    allow for more than 0.00s.
+    
+    Fixes #15149
+    
+    Change-Id: I1d428a9b3c9bb3d1db8682c53b86e44cecc1dde1
+    Reviewed-on: https://go-review.googlesource.com/21602
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/sub_test.go | 59 ++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 32 deletions(-)

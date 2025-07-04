@@ -1,0 +1,17 @@
+commit 98d0634b7a50cf311de16606a9b56f6ae8ebf106
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 31 09:02:40 2017 -0700
+
+    runtime: remove bad field from itab
+    
+    Just use fun[0]==0 to indicate a bad itab.
+    
+    Change-Id: I28ecb2d2d857090c1ecc40b1d1866ac24a844848
+    Reviewed-on: https://go-review.googlesource.com/44473
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 6 ++----
+ src/reflect/value.go                   | 3 +--
+ src/runtime/iface.go                   | 4 ++--
+ src/runtime/runtime2.go                | 5 ++---
+ 4 files changed, 7 insertions(+), 11 deletions(-)

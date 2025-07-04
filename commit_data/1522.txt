@@ -1,0 +1,93 @@
+commit f48cbfdf5629526ed49534e55298a5a12216ea0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 16:12:14 2009 -0800
+
+    convert tests; nothing interesting.
+    
+    R=r
+    OCL=23012
+    CL=23014
+
+ src/lib/malloc.go                 |  4 +--
+ test/235.go                       |  4 +--
+ test/bigalg.go                    |  8 +++---
+ test/bugs/bug041.go               | 10 +++----
+ test/bugs/bug117.go               |  4 +--
+ test/bugs/bug121.go               |  6 ++---
+ test/bugs/bug123.go               |  2 +-
+ test/bugs/bug130.go               |  4 +--
+ test/chan/fifo.go                 |  8 +++---
+ test/chan/powser1.go              | 57 +++++++++++++++++++--------------------
+ test/chan/powser2.go              | 57 +++++++++++++++++++--------------------
+ test/chan/select.go               |  4 +--
+ test/chan/sieve.go                |  6 ++---
+ test/complit.go                   |  8 +++---
+ test/convlit1.go                  |  4 ++-
+ test/export.go                    |  4 +--
+ test/fixedbugs/bug007.go          |  2 +-
+ test/fixedbugs/bug011.go          |  2 +-
+ test/fixedbugs/bug023.go          |  4 +--
+ test/fixedbugs/bug025.go          |  4 +--
+ test/fixedbugs/bug026.go          |  2 +-
+ test/fixedbugs/bug027.go          |  6 ++---
+ test/fixedbugs/bug028.go          |  2 +-
+ test/fixedbugs/bug044.go          |  2 +-
+ test/fixedbugs/bug045.go          |  2 +-
+ test/fixedbugs/bug046.go          |  2 +-
+ test/fixedbugs/bug054.go          |  6 ++---
+ test/fixedbugs/bug057.go          |  2 +-
+ test/fixedbugs/bug058.go          |  2 +-
+ test/fixedbugs/bug059.go          |  2 +-
+ test/fixedbugs/bug066.go          | 10 +++----
+ test/fixedbugs/bug075.go          |  2 +-
+ test/fixedbugs/bug083.dir/bug0.go |  5 ++--
+ test/fixedbugs/bug084.go          |  2 +-
+ test/fixedbugs/bug088.dir/bug0.go |  6 ++---
+ test/fixedbugs/bug088.dir/bug1.go |  6 ++---
+ test/fixedbugs/bug089.go          |  4 +--
+ test/fixedbugs/bug093.go          |  4 +--
+ test/fixedbugs/bug096.go          |  2 +-
+ test/fixedbugs/bug097.go          |  2 +-
+ test/fixedbugs/bug098.go          |  4 +--
+ test/fixedbugs/bug099.go          |  8 +++---
+ test/fixedbugs/bug110.go          |  8 +++---
+ test/fixedbugs/bug112.go          |  2 +-
+ test/fixedbugs/bug113.go          |  2 +-
+ test/fixedbugs/bug114.go          |  6 ++---
+ test/fixedbugs/bug120.go          |  2 +-
+ test/func.go                      |  2 +-
+ test/golden.out                   | 13 ++++-----
+ test/hashmap.go                   | 14 +++++-----
+ test/hilbert.go                   | 14 +++++-----
+ test/interface.go                 |  8 +++---
+ test/interface1.go                |  8 +++---
+ test/interface2.go                |  6 ++---
+ test/interface3.go                |  8 +++---
+ test/interface4.go                | 14 +++++-----
+ test/interface5.go                |  4 +--
+ test/interface6.go                | 12 ++++-----
+ test/iota.go                      |  4 +--
+ test/ken/array.go                 |  8 +++---
+ test/ken/chan.go                  | 10 +++----
+ test/ken/embed.go                 | 16 +++++------
+ test/ken/interbasic.go            |  2 +-
+ test/ken/interfun.go              |  6 ++---
+ test/ken/intervar.go              |  8 +++---
+ test/ken/ptrfun.go                |  2 +-
+ test/ken/rob1.go                  |  8 +++---
+ test/ken/rob2.go                  | 28 +++++++++----------
+ test/ken/robfunc.go               |  2 +-
+ test/mallocrand.go                |  6 ++---
+ test/mallocrep.go                 | 14 +++++-----
+ test/mallocrep1.go                | 22 +++++++--------
+ test/map.go                       |  2 +-
+ test/method.go                    | 14 +++++-----
+ test/method1.go                   |  2 +-
+ test/method2.go                   |  6 ++---
+ test/method3.go                   |  4 +--
+ test/nil.go                       |  4 +--
+ test/peano.go                     |  2 +-
+ test/sieve.go                     |  6 ++---
+ test/test0.go                     |  2 +-
+ test/vectors.go                   |  2 +-
+ 82 files changed, 292 insertions(+), 296 deletions(-)

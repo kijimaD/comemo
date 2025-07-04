@@ -1,0 +1,22 @@
+commit d54902ece907d55d937b7b2fa294e0cc22b57a32
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Mar 13 00:25:06 2018 +0100
+
+    cmd/compile: in prove, shortcircuit self-facts
+    
+    Sometimes, we can end up calling update with a self-relation
+    about a variable (x REL x). In this case, there is no need
+    to record anything: the relation is unsatisfiable if and only
+    if it doesn't contain eq.
+    
+    This also helps avoiding infinite loop in next CL that will
+    introduce transitive closure of relations.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic408452ec1c13653f22ada35466ec98bc14aaa8e
+    Reviewed-on: https://go-review.googlesource.com/100276
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

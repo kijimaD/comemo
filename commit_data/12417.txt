@@ -1,0 +1,15 @@
+commit 36708a40e0511d7654f30615e9ca4452a4d90cc4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 6 17:21:39 2012 +1100
+
+    cmd/dist: use correct hg tag for go version
+    
+    When looking for suitable tag always start
+    from current version, not the tip.
+    
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/5731059
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

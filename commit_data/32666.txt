@@ -1,0 +1,16 @@
+commit 43807e0f47e62fe5a33c3f0ebcaf9fafbb46b80d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 9 19:09:07 2017 +0900
+
+    cmd/internal/goobj: skip tests on some $GOOS/arm
+    
+    Updates #21817
+    
+    Change-Id: I77ffaf8a7e54465a5b73691b896edcb20c29440f
+    Reviewed-on: https://go-review.googlesource.com/62351
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/goobj_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

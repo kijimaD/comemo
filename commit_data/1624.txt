@@ -1,0 +1,25 @@
+commit b0009bef20badeb3716ed94c8291accc75cf769e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 15:22:49 2009 -0800
+
+    bug064
+    
+    make f(g()) work when g returns multiple
+    args with names different than f expects.
+    
+    func swap(a, b int) (c, d int) {
+            return b, a
+    }
+    
+    swap(swap(1,2))
+    
+    R=ken
+    OCL=24474
+    CL=24476
+
+ src/cmd/gc/go.h                    |  3 +--
+ src/cmd/gc/subr.c                  | 19 +++++++++++++++++++
+ src/cmd/gc/walk.c                  |  4 ++--
+ test/{bugs => fixedbugs}/bug064.go |  0
+ test/golden.out                    |  6 ------
+ 5 files changed, 22 insertions(+), 10 deletions(-)

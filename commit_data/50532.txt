@@ -1,0 +1,19 @@
+commit 0857633f8b4ca4b28aad160d1dd1dbb1fe5a4d7d
+Author: Sasha Melentyev <sasha@melentyev.io>
+Date:   Sat Sep 3 18:56:43 2022 +0000
+
+    runtime/pprof: set labelMap length
+    
+    Change-Id: If09094e72161f2c5da9102706781524e32f87782
+    GitHub-Last-Rev: 89949bc6ee8622be31c4e4db45ea6da11fd9053f
+    GitHub-Pull-Request: golang/go#54855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428234
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/pprof/label.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

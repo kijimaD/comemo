@@ -1,0 +1,19 @@
+commit 52d277906da573cd58e174b5ed783634c01e29fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 19 16:26:14 2015 -0500
+
+    liblink: arrange for Prog* argument in vaddr
+    
+    The argument is unused in the C code but will be used in the Go translation,
+    because the Prog holds information needed to invoke the right meaning
+    of %A in the ctxt->diag calls in vaddr.
+    
+    Change-Id: I501830f8ea0e909aafd8ec9ef5d7338e109d9548
+    Reviewed-on: https://go-review.googlesource.com/3041
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/3310
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/liblink/asm6.c | 132 +++++++++++++++++++++++++++--------------------------
+ src/liblink/asm8.c | 106 +++++++++++++++++++++---------------------
+ 2 files changed, 123 insertions(+), 115 deletions(-)

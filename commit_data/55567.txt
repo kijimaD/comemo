@@ -1,0 +1,25 @@
+commit 644bc4a3e7095789843438648badb82a9a78abef
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 14:06:39 2024 -0500
+
+    internal/trace: run children in race mode during race testing
+    
+    This would have caught #65607.
+    
+    On my machine:
+    
+    internal/trace/v2:               ~13s
+    internal/trace/v2: -short:        ~4s
+    internal/trace/v2: -race -short: ~20s
+    internal/trace/v2: -race:        ~46s
+    
+    For #65607.
+    
+    Change-Id: I03a555ebaf8c761c98a82b6d35fa16d7a99aa9e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562998
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/v2/trace_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

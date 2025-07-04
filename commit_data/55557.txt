@@ -1,0 +1,34 @@
+commit 643d816c8b4348850a8a2a622d73256beea104cd
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 5 16:38:41 2024 -0500
+
+    runtime: traceback: include pc=0x%x for inline frames
+    
+    Crash monitoring tools may parse the PC values and feed them
+    to CallersFrames, which does not run the inline unwinder, since
+    Callers already did so. So, the GOTRACEBACK=system output
+    must also include PC values even for inlined frames.
+    (The actual values are just marker NOP instructions,
+    but that isn't important.)
+    
+    This CL also includes a test that the PC values can be
+    parsed out of the crash report and fed to CallersFrames
+    to yield a sensible result. (The logic is a distillation
+    of the x/telemetry crashmonitor.)
+    
+    The previously printed PCs were in fact slightly wrong
+    for frames containing inlined calls: instead of the
+    virtual CALL instruction (a NOP) to the first
+    inlined call, it would display the PC of the
+    CALL in the innermost inlined function.
+    
+    Change-Id: I64a06771fc191ba16c1383b8139b714f4f299703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_test.go            |  13 ++
+ src/runtime/traceback.go             |  24 +++-
+ src/runtime/traceback_system_test.go | 235 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 266 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit a41006f35a5931387a3111739e4c97ff3568bbcc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 14:15:35 2011 -0800
+
+    effective_go: redeclaration
+    
+    Fixes #2455.
+    Fixes #2013.
+    
+    R=rsc, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5498053
+
+ doc/effective_go.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/effective_go.tmpl | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+)

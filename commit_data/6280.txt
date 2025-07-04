@@ -1,0 +1,16 @@
+commit 7f0ddd682aaf2b4d36b5f35eef13860c85f8f4fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 18:58:09 2010 -0700
+
+    godoc: better handling of deep directory trees
+    
+    also: fix a logic error with filter use at startup
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2184044
+
+ src/cmd/godoc/dirtrees.go | 14 +++++++-------
+ src/cmd/godoc/godoc.go    | 13 +++++++------
+ src/cmd/godoc/main.go     |  4 ++--
+ 3 files changed, 16 insertions(+), 15 deletions(-)

@@ -1,0 +1,20 @@
+commit a744be42f9427a3b20e7e179e4b9831dbcf27f4c
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Feb 4 12:48:20 2020 -0500
+
+    doc: remove paragraph break for upgrading to modules
+    
+    Previously, the release notes broke up the sentences that modules
+    is now ready for production use and where to file issues for
+    migration problems into separate paragraphs. This made it look like
+    the migration paragraph was about upgrading to 1.14, not to modules,
+    and made the reading a bit confusing. Now the entire idea is in one
+    paragraph.
+    
+    Change-Id: I10bddfb8aba5f5909ac6842f25e3e97d505835e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217720
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 3 ---
+ 1 file changed, 3 deletions(-)

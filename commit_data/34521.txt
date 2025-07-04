@@ -1,0 +1,18 @@
+commit 7d654af5867ed8f89a7a7c88406c4213b2701324
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Fri Mar 9 01:31:50 2018 +0900
+
+    net/http: panic when a nil handler is passed to (*ServeMux)HandleFunc
+    
+    Fixes #24297
+    
+    Change-Id: I759e88655632fda97dced240b3f13392b2785d0a
+    Reviewed-on: https://go-review.googlesource.com/99575
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 12 ++++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 15 insertions(+)

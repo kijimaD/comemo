@@ -1,0 +1,13 @@
+commit 0e1a07167b2ba0e71487feea8e2e20a2e29fdf3a
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Sep 19 15:59:47 2014 -0400
+
+    cmd/go: fix typo
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/138700043
+
+ src/cmd/go/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

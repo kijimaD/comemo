@@ -1,0 +1,22 @@
+commit f93b668842ae3d6e96d7348dbd05592811ce3990
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 22:00:09 2022 -0700
+
+    test: add test for package-scope method value GC
+    
+    The Go 1.18 frontend handles package-scope generic method values by
+    spilling the receiver value to a global temporary variable, which pins
+    it into memory. This issue isn't present in unified IR, which uses
+    OMETHVALUE when the receiver type is statically known.
+    
+    Updates #54343.
+    
+    Change-Id: I2c4ffeb125a3cf338f949a93b0baac75fff6cd31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422198
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue54343.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ test/run.go                  |  1 +
+ 2 files changed, 46 insertions(+)

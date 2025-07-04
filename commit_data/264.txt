@@ -1,0 +1,11 @@
+commit dc1602ca23fdae332ca304e0c85b70985102dad7
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jun 28 13:58:00 2008 -0700
+
+    more line numbers
+    
+    SVN=125261
+
+ src/cmd/6g/gen.c   | 2 ++
+ src/cmd/6g/gsubr.c | 6 ++++++
+ 2 files changed, 8 insertions(+)

@@ -1,0 +1,25 @@
+commit 4bd77619b743c3c986742527236568e43db37c44
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sun Dec 4 15:06:45 2022 +0800
+
+    cmd/compile, cmd/dist, internal: enable buildmode=pie for linux/loong64
+    
+    This is actually not tied to the ELF psABI v2 upgrade, and can be
+    enabled "for free".
+    
+    Change-Id: I6906d9eb4bd8655c685b059283e200cb7e210369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455075
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ src/cmd/dist/test.go                  | 2 +-
+ src/internal/platform/supported.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

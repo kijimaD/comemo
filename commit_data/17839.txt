@@ -1,0 +1,16 @@
+commit 5644774ea5c954a08c1e068be9771429a232ca7c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 19:31:25 2013 -0400
+
+    net: handle single-line non-\n-terminated files correctly in readLine
+    
+    Fixes #6646.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/15960047
+
+ src/pkg/net/hosts_test.go             | 13 +++++++++++++
+ src/pkg/net/parse.go                  |  2 +-
+ src/pkg/net/testdata/hosts_singleline |  1 +
+ 3 files changed, 15 insertions(+), 1 deletion(-)

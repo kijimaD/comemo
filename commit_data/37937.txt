@@ -1,0 +1,14 @@
+commit 03a9f5a192149dc6f443eb0e1cee48cb4dd7e26f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 1 06:22:00 2019 -0800
+
+    doc: go1.12: update notes on go directive
+    
+    Fixes #30043
+    
+    Change-Id: I4ecfff7d8a9432240c1927f7484786fe1182b773
+    Reviewed-on: https://go-review.googlesource.com/c/160797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

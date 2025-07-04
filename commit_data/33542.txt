@@ -1,0 +1,31 @@
+commit 44877315efba1c3e98ae7cde96fa46376fbaf0fd
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Aug 8 06:13:43 2017 +0000
+
+    crypto/sha1: optimize arm64 sha1 implemention
+    
+    Optimize with ARMv8 SHA1 instructions.
+    Results (Cortex-A72)
+    
+    name             old time/op    new time/op     delta
+    Hash8Bytes-64      1.06µs ± 4%     0.56µs ± 4%   -47.19%  (p=0.008 n=5+5)
+    Hash320Bytes-64    3.92µs ± 1%     0.82µs ± 2%   -79.07%  (p=0.008 n=5+5)
+    Hash1K-64          10.2µs ± 2%      1.5µs ± 2%   -85.71%  (p=0.008 n=5+5)
+    Hash8K-64          73.9µs ± 1%      7.6µs ± 1%   -89.66%  (p=0.008 n=5+5)
+    
+    name             old speed      new speed       delta
+    Hash8Bytes-64    7.55MB/s ± 4%  14.29MB/s ± 4%   +89.27%  (p=0.008 n=5+5)
+    Hash320Bytes-64  81.6MB/s ± 1%  390.0MB/s ± 2%  +377.64%  (p=0.008 n=5+5)
+    Hash1K-64         100MB/s ± 2%    701MB/s ± 2%  +599.65%  (p=0.008 n=5+5)
+    Hash8K-64         111MB/s ± 1%   1072MB/s ± 1%  +867.44%  (p=0.008 n=5+5)
+    
+    Change-Id: I84397f980db9518f4150ac4c5ffa2c5a97a34444
+    Reviewed-on: https://go-review.googlesource.com/61550
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1block_arm64.go   |  28 +++++++
+ src/crypto/sha1/sha1block_arm64.s    | 152 +++++++++++++++++++++++++++++++++++
+ src/crypto/sha1/sha1block_generic.go |   2 +-
+ 3 files changed, 181 insertions(+), 1 deletion(-)

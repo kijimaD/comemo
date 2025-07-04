@@ -1,0 +1,14 @@
+commit 8620e2b04e0ca6296070fe36ca7f5952af3b90e9
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 6 10:12:47 2014 -0700
+
+    runtime: badreflectcall runs on the G stack - convert to Go.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/136260043
+
+ src/pkg/runtime/proc.c  | 6 ------
+ src/pkg/runtime/proc.go | 4 ++++
+ 2 files changed, 4 insertions(+), 6 deletions(-)

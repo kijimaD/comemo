@@ -1,0 +1,13 @@
+commit 0c247bf41b51b8528e592cdbeffbd237def72f69
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 18 17:01:55 2015 +1000
+
+    math/big: refine Fibonacci example
+    
+    Change-Id: Id9e8c3f89e021b9f389ab3c8403e6a8450fa9f5f
+    Reviewed-on: https://go-review.googlesource.com/11231
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/math/big/example_test.go | 38 +++++++++++++++++---------------------
+ 1 file changed, 17 insertions(+), 21 deletions(-)

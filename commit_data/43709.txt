@@ -1,0 +1,39 @@
+commit 05568315f2ae8fb86112e63966b46c2dcc8ab6e2
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Nov 3 17:54:24 2020 -0500
+
+    go/types: simplify error messages for untyped value assignability
+    
+    CL 242083 corrected an inaccurate error message related to the
+    assignability of untyped constant values. Previously the error message
+    was of the form "cannot convert ... to ...", which is misleading when
+    there is no explicit conversion in the syntax. The new error message
+    corrected this to "cannot use ... as ... in ...", but also appended an
+    inner error message that can be quite verbose. For example:
+    
+      cannot use "123" (untyped string constant) as int value in assignment:
+      cannot convert "123" (untyped string constant) to int"
+    
+    This might be more accurate, but is a regression in readability. Correct
+    this by only including the inner error message in the rare cases where
+    it is helpful: if the constant value overflows or is truncated.
+    
+    For golang/go#22070
+    
+    Change-Id: I8b8ee6ef713f64facc319894be09398b0b5ea500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267717
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/assignments.go        | 19 +++++++++++++------
+ src/go/types/errorcodes.go         |  5 ++++-
+ src/go/types/testdata/builtins.src |  4 ++--
+ src/go/types/testdata/decls1.src   |  2 ++
+ src/go/types/testdata/decls2b.src  |  8 ++++----
+ src/go/types/testdata/expr3.src    | 14 +++++++-------
+ src/go/types/testdata/issues.src   |  4 ++--
+ src/go/types/testdata/stmt0.src    | 12 ++++++------
+ 8 files changed, 40 insertions(+), 28 deletions(-)

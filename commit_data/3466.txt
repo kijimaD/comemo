@@ -1,0 +1,15 @@
+commit a2cf91437947ea379e64b703224edc5093ad5de1
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Oct 6 19:00:30 2009 -0700
+
+    5l library loading, 64 bit entry points
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=58  (52 added, 3 deleted, 3 changed)
+    OCL=35417
+    CL=35417
+
+ src/cmd/5l/obj.c           | 37 +++++++++++++++++++++++++++++++------
+ src/pkg/runtime/arm/vlrt.c | 24 ++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 6 deletions(-)

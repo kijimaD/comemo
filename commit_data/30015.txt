@@ -1,0 +1,17 @@
+commit 99fb0dc1b17b5f203334b92d8af4761aff51b5c1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 1 21:23:03 2017 +0000
+
+    Revert "testing: delete unused stopAlarm()"
+    
+    This reverts commit ed8c62b7fb47b717dc2adc9f6d0c90c924c67712.
+    
+    Turns out it was needed in later commits.
+    
+    Change-Id: I07a7bc2429976d8a5a89f915a11625c118b85500
+    Reviewed-on: https://go-review.googlesource.com/36113
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/testing/testing.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

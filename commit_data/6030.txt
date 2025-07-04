@@ -1,0 +1,14 @@
+commit 735356ca9a90d1698cc680046e2a082f6cd0c137
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 16 13:31:31 2010 -0700
+
+    test/garbage: do not try to parse package bignum, which is gone.
+    
+    Fixes #1023.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1968043
+
+ test/garbage/parser.go | 1 -
+ 1 file changed, 1 deletion(-)

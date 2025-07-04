@@ -1,0 +1,13 @@
+commit 6a48aab7474f40cd596089d5d0023542e7d08c59
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Nov 12 15:23:23 2009 -0800
+
+    add support for pre arm v6 cas. set GOARM=5 to enable.
+    
+    R=rsc
+    https://golang.org/cl/154101
+
+ src/pkg/runtime/Makefile              |  4 +++-
+ src/pkg/runtime/arm/cas5.s            | 43 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/arm/{cas.s => cas6.s} |  0
+ 3 files changed, 46 insertions(+), 1 deletion(-)

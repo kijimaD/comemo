@@ -1,0 +1,15 @@
+commit e538e1b627d16778134704310f39a1fec997184d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 09:50:40 2015 -0700
+
+    go/types: check that typed constant shift expressions are representable
+    
+    Fixes #12945.
+    
+    Change-Id: I08b44795fcd7ec59371aea8111f7febead54720b
+    Reviewed-on: https://go-review.googlesource.com/15900
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go             | 12 ++++++++++--
+ src/go/types/testdata/const1.src |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

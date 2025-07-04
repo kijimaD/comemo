@@ -1,0 +1,16 @@
+commit fc22fb8f0c6d88bb43d6ce8df606781db58b8408
+Author: Evan Phoenix <evan@phx.io>
+Date:   Fri Jan 30 15:31:47 2015 -0800
+
+    expvar: Add benchmarks for perf sensitive operations
+    
+    These benchmarks are only for functions commonly used in loops. The
+    other functions are typically used for inspection or setup and thus are
+    not performance sensitive.
+    
+    Change-Id: I8d0a0ba2d8234ecacb40fa3aa9077bf93c8fe89c
+    Reviewed-on: https://go-review.googlesource.com/3680
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/expvar/expvar_test.go | 217 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 217 insertions(+)

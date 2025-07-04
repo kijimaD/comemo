@@ -1,0 +1,13 @@
+commit bc55b41cbc53667656c4c72313314cd55ebc6b5b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 13 13:19:25 2010 +1000
+
+    arm tests: disable zerodivide.go: compilation fails.
+    Hope to fix the build.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2140048
+
+ test/arm-pass.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

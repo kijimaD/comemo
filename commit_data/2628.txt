@@ -1,0 +1,14 @@
+commit f1bc71203597feaf212fba89ad3e72a2a13f5607
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:26 2009 -0700
+
+    net: use new reflect interface (CL 31107)
+    
+    R=r
+    DELTA=186  (55 added, 8 deleted, 123 changed)
+    OCL=31117
+    CL=31287
+
+ src/pkg/net/dnsclient.go |   8 +-
+ src/pkg/net/dnsmsg.go    | 297 +++++++++++++++++++++++++++--------------------
+ 2 files changed, 176 insertions(+), 129 deletions(-)

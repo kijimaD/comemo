@@ -1,0 +1,12 @@
+commit 93f614ff86a6a582c4458182af2f0238f108b122
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 23:34:11 2010 -0700
+
+    codereview: allow multiple email addresses in CONTRIBUTORS
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1650041
+
+ lib/codereview/codereview.py | 50 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 33 insertions(+), 17 deletions(-)

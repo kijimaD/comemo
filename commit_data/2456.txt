@@ -1,0 +1,14 @@
+commit d45442ed65d8306cc6d8faddc931f03fd32fd52a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 09:39:57 2009 -0700
+
+    fix build
+    
+    R=rsc
+    DELTA=5  (0 added, 1 deleted, 4 changed)
+    OCL=30343
+    CL=30343
+
+ src/cmd/make.bash | 2 +-
+ src/make.bash     | 7 +++----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

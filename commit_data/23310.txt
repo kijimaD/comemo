@@ -1,0 +1,12 @@
+commit e861c9ba36186b223c2550556e279c3d9ba467fe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 9 14:15:41 2015 -0700
+
+    .gitignore: ignore y.output
+    
+    Change-Id: I95b72b6be39fbb923b5f0743d17d7f8bd3ee3814
+    Reviewed-on: https://go-review.googlesource.com/10860
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .gitignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

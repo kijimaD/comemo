@@ -1,0 +1,36 @@
+commit eafa29bdce13d535d0b121f9b7be5783092d1496
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 14:44:43 2017 -0500
+
+    reflect: fix interface to interface conversion in Call
+    
+    Call is meant to mirror the language semantics, which allow:
+    
+            var r io.ReadWriter
+            f := func(io.Reader){}
+            f(r)
+    
+    even though the conversion from io.ReadWriter to io.Reader is
+    being applied to a nil interface. This is different from an explicit
+    conversion:
+    
+            _ = r.(io.Reader)
+            f(r.(io.Reader))
+    
+    Both of those lines panic, but the implicit conversion does not.
+    
+    By using E2I, which is the implementation of the explicit conversion,
+    the reflect.Call equivalent of f(r) was inadvertently panicking.
+    Avoid the panic.
+    
+    Fixes #22143.
+    
+    Change-Id: I6b2f5b808e0cd3b89ae8bc75881e307bf1c25558
+    Reviewed-on: https://go-review.googlesource.com/80736
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 9 +++++++++
+ src/reflect/value.go    | 6 ++++++
+ 2 files changed, 15 insertions(+)

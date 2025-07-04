@@ -1,0 +1,14 @@
+commit a392cf4fd36728efe852d422d702cb23f5ba6d73
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 16 12:59:30 2013 -0500
+
+    runtime: fix test
+    
+    Was supposed to be in the nm CL.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/42870043
+
+ src/pkg/runtime/runtime_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

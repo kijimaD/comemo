@@ -1,0 +1,25 @@
+commit 68e86e6dfaf22d9295e3dc4d4387710b15224e93
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 22 16:22:21 2016 -0700
+
+    cmd/compile: MOVBload and MOVBQZXload are the same op
+    
+    No need to have both ops when they do the same thing.
+    Just declare MOVBload to zero extend and we can get rid
+    of MOVBQZXload.  Same for W and L.
+    
+    Kind of a followon cleanup for https://go-review.googlesource.com/c/19506/
+    Should enable an easier fix for #14920
+    
+    Change-Id: I7cfac909a8ba387f433a6ae75c050740ebb34d42
+    Reviewed-on: https://go-review.googlesource.com/21004
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |   5 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  44 +++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  15 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  45 ------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 220 +++++++++++++--------------
+ 5 files changed, 133 insertions(+), 196 deletions(-)

@@ -1,0 +1,21 @@
+commit e014cf0e545ca16abfd2a80d541750c6a3809082
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 24 13:17:26 2012 +1100
+
+    test: add cmpout to testlib
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5699060
+
+ test/deferprint.go       | 2 +-
+ test/fixedbugs/bug328.go | 2 +-
+ test/fixedbugs/bug409.go | 2 +-
+ test/goprint.go          | 2 +-
+ test/helloworld.go       | 2 +-
+ test/ken/cplx0.go        | 2 +-
+ test/ken/string.go       | 2 +-
+ test/printbig.go         | 2 +-
+ test/run.go              | 3 +++
+ test/testlib             | 4 ++++
+ 10 files changed, 15 insertions(+), 8 deletions(-)

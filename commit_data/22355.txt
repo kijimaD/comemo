@@ -1,0 +1,22 @@
+commit 6e3a2a3f9fcd476a50ec75f7dd2db7adfe12ab57
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:18 2015 -0400
+
+    cmd/internal/obj/arm64, cmd/internal/ld, cmd/7l: remove absolute addressing in .text
+    
+    This CL introduces R_ADDRARM64, which is similar to R_ADDRPOWER.
+    
+    Fixes #10112.
+    
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f1
+    Reviewed-on: https://go-review.googlesource.com/8438
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/7l/asm.go                  |  60 ++++
+ src/cmd/7l/obj.go                  |   3 +-
+ src/cmd/internal/ld/elf.go         | 556 +++++++++++++++++++------------------
+ src/cmd/internal/ld/link.go        |   1 +
+ src/cmd/internal/obj/arm64/asm7.go |  84 +++---
+ src/cmd/internal/obj/link.go       |   1 +
+ 6 files changed, 392 insertions(+), 313 deletions(-)

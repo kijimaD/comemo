@@ -1,0 +1,17 @@
+commit 7e583806d8135a59866ff329cc19a0bc4425aa80
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 7 15:22:53 2021 -0700
+
+    runtime/cgo: clarify Handle documentation
+    
+    Fixes #45427
+    
+    Change-Id: Ic67630a5f39d8789a4a30c6b4ee30946bc50382e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308230
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ainar Garipov <gugl.zadolbal@gmail.com>
+    Reviewed-by: Changkun Ou <euryugasaki@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/cgo/handle.go | 68 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 31 deletions(-)

@@ -1,0 +1,17 @@
+commit deb554934c0c2a87b24f4eb29cdcbbd4ea68a6d6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 17 16:55:06 2013 -0800
+
+    runtime, gc: call interface conversion routines by reference.
+    
+    Part of getting rid of vararg C calls.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/23310043
+
+ src/cmd/gc/builtin.c    |  4 ++--
+ src/cmd/gc/runtime.go   |  4 ++--
+ src/cmd/gc/walk.c       | 15 ++++++++++++++-
+ src/pkg/runtime/iface.c | 31 ++++++++++---------------------
+ 4 files changed, 28 insertions(+), 26 deletions(-)

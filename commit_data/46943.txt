@@ -1,0 +1,25 @@
+commit f92a3589fa04285dccab3ca7454eaaf2d0e7cde3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 19 16:34:43 2021 +0700
+
+    reflect: fix methodValueCall code pointer mismatched
+    
+    CL 322350 changed how to take address of assembly functions, using
+    abi.FuncPCABI0 intrinsic. But we forgot to update the code in
+    Value.UnsafePointer (was Value.Pointer) to reflect that change.
+    
+    This CL fixes that bug, and also add a test to make sure the code
+    pointer is in sync.
+    
+    Change-Id: I05ae7df31c706583a0f374d8af027066528f5ceb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356809
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/all_test.go    | 8 ++++++++
+ src/reflect/export_test.go | 2 ++
+ src/reflect/makefunc.go    | 6 +++++-
+ src/reflect/value.go       | 4 ++--
+ 4 files changed, 17 insertions(+), 3 deletions(-)

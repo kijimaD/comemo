@@ -1,0 +1,19 @@
+commit 0153137a3b40e58572ae9678e4733bb54827950a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 21:25:33 2015 -0500
+
+    cmd/internal/gc: clean up liveness code
+    
+    - use Bvec, not *Bvec, and bulk allocate backing store
+    - use range loops
+    - put Bvecs in BasicBlock struct instead of indexing into parallel slices
+    
+    Change-Id: I5cb30f50dccb4d38cc18fae422f7f132c52876be
+    Reviewed-on: https://go-review.googlesource.com/6602
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/bv.go    |  63 +++++---
+ src/cmd/internal/gc/go.go    |   5 -
+ src/cmd/internal/gc/plive.go | 365 ++++++++++++++++---------------------------
+ src/cmd/internal/gc/walk.go  |   4 +-
+ 4 files changed, 183 insertions(+), 254 deletions(-)

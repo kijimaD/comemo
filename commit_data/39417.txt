@@ -1,0 +1,17 @@
+commit b3399ac5d19c896452548ca8e99176bcdab78781
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 12 07:01:04 2019 -0700
+
+    cmd/go: add more docs for go directive in go.mod file
+    
+    Updates #30791
+    
+    Change-Id: I67efd7fd3b3a550428b16518bb27a3d81c178d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181840
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 7 +++++++
+ src/cmd/go/internal/modload/help.go | 7 +++++++
+ 2 files changed, 14 insertions(+)

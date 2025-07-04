@@ -1,0 +1,31 @@
+commit 7eed73f36f14cfb2f49b0ef95beb2ae94a64f66e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 12:40:19 2020 -0800
+
+    go/types, go/constant: handle infinities as unknown values
+    
+    With this change, constant literals (and results of constant
+    operations) that internally become infinities are represented
+    externally (to go/constant) as "unknown" values.
+    
+    The language has no provisions to deal with infinite constants,
+    and producing unknown values allows the typechecker to report
+    errors and avoid invalid operations (such as multiplication of
+    zero with infinity).
+    
+    Fixes #20583.
+    
+    Change-Id: I12f36a17d262ff7957b0d3880241b5a8b2984777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271706
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/constant/value.go              | 11 +++++++++++
+ src/go/constant/value_test.go         | 35 +++++++++++++++++++++++++++++------
+ src/go/types/expr.go                  | 12 ++++++++++--
+ src/go/types/fixedbugs/issue20583.src | 14 ++++++++++++++
+ src/go/types/stmt.go                  |  4 ++--
+ 5 files changed, 66 insertions(+), 10 deletions(-)

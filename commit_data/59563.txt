@@ -1,0 +1,33 @@
+commit df9888ea4e97feb755e452609be5078686370995
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 21 16:26:15 2025 +0000
+
+    runtime: prevent unnecessary zeroing of large objects with pointers
+    
+    CL 614257 refactored mallocgc but lost an optimization: if a span for a
+    large object is already backed by memory fresh from the OS (and thus
+    zeroed), we don't need to zero it. CL 614257 unconditionally zeroed
+    spans for large objects that contain pointers.
+    
+    This change restores the optimization from before CL 614257, which seems
+    to matter in some real-world programs.
+    
+    While we're here, let's also fix a hole with the garbage collector being
+    able to observe uninitialized memory of the large object is observed
+    by the conservative scanner before being published. The gory details are
+    in a comment in heapSetTypeLarge. In short, this change makes
+    span.largeType an atomic variable, such that the GC can only observe
+    initialized memory if span.largeType != nil.
+    
+    Fixes #72991.
+    
+    Change-Id: I2048aeb220ab363d252ffda7d980b8788e9674dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659956
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/malloc.go  | 48 +++++++++++++++++++++++++++----------------
+ src/runtime/mbitmap.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 83 insertions(+), 21 deletions(-)

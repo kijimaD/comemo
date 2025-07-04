@@ -1,0 +1,37 @@
+commit 8adfe35649691d1c9be1bfee3912d8619af6f210
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 6 12:31:57 2023 +0000
+
+    cmd/go/internal/cache: return and check errors from Trim
+    
+    It's fine to ignore errors when reading trim.txt, since it might not
+    exist or might be corrupted. However, if we encounter an error in
+    writing the file, we will end up trimming again at every cmd/go
+    invocation, which will cause invocations to become progressively
+    slower (because each command will check more and more cache files for
+    trimming).
+    
+    Although that situation would not cause the output of any 'go' command
+    to be invalid, it still seems better to escalate the problem to the
+    user to be fixed instead of proceeding in a degraded state.
+    
+    Returning an explicit error also allows TestCacheTrim to skip if the
+    Trim error indicates that a required operation (in this case, file
+    locking) is not supported by the platform or filesystem.
+    
+    For #58141.
+    Updates #35220.
+    Updates #26794.
+    
+    Change-Id: Iedb94bff4544fd9914f5ac779a783a116372c80f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482795
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cache/cache.go      |  8 +++++---
+ src/cmd/go/internal/cache/cache_test.go | 33 ++++++++++++++++++++++-----------
+ src/cmd/go/internal/work/exec.go        |  6 +++++-
+ 3 files changed, 32 insertions(+), 15 deletions(-)

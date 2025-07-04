@@ -1,0 +1,31 @@
+commit f22ef70254a6a79834ed3fa21c4d1ccadeb758bd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 23:52:04 2017 -0700
+
+    cmd/compile: allow := to shadow dot-imported names
+    
+    Historically, gc optimistically parsed the left-hand side of
+    assignments as expressions. Later, if it discovered a ":=" assignment,
+    it rewrote the parsed expressions as declarations.
+    
+    This failed in the presence of dot imports though, because we lost
+    information about whether an imported object was named via a bare
+    identifier "Foo" or a normal qualified "pkg.Foo".
+    
+    This CL fixes the issue by specially noding the left-hand side of ":="
+    assignments.
+    
+    Fixes #22076.
+    
+    Change-Id: I18190ecdb863112e7d009e1687e6112eec559921
+    Reviewed-on: https://go-review.googlesource.com/66810
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 76 ++++++++++++++++++++++++++++++------
+ test/fixedbugs/bug388.go             |  2 +-
+ test/fixedbugs/issue20250.go         |  4 +-
+ test/fixedbugs/issue22076.go         | 25 ++++++++++++
+ 4 files changed, 91 insertions(+), 16 deletions(-)

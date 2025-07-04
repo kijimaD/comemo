@@ -1,0 +1,27 @@
+commit aafad20b617ee63d58fcd4f6e0d98fe27760678c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Mar 6 23:14:21 2021 -0800
+
+    encoding/binary: limit bytes read by Uvarint to <= 10
+    
+    Limits the number of bytes that can be consumed by Uvarint
+    to MaxVarintLen64 (10) to avoid wasted computations.
+    With this change, if Uvarint reads more than MaxVarintLen64
+    bytes, it'll return the erroring byte count of n=-(MaxVarintLen64+1)
+    which is -11, as per the function signature.
+    
+    Updated some tests to reflect the new change in expectations of n
+    when the number of bytes to be read exceeds the limits..
+    
+    Fixes #41185
+    
+    Change-Id: Ie346457b1ddb0214b60c72e81128e24d604d083d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299531
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/encoding/binary/varint.go      |  7 ++++-
+ src/encoding/binary/varint_test.go | 63 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 66 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 74574623039f2369b3e4b3d717285a48c47b73c4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 10 11:41:04 2021 -0500
+
+    runtime/race: update dead link
+    
+    LLVM changed their main branch name, so this link didn't work anymore.
+    
+    Change-Id: I4c3a67b26e2bda012071281e29ea3c932c185130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300469
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/race/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

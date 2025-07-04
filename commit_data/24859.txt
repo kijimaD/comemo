@@ -1,0 +1,25 @@
+commit c3ba74931fe7770f011d114b1174875edebe8059
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 12 13:27:40 2015 -0800
+
+    runtime/internal/sys: remove Intptr
+    
+    Apparently its last use was removed in CL 8899.
+    
+    Change-Id: I4f3a789b3cc4c249582e81463af62b576a281e40
+    Reviewed-on: https://go-review.googlesource.com/16880
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/sys/arch_386.go      | 1 -
+ src/runtime/internal/sys/arch_amd64.go    | 1 -
+ src/runtime/internal/sys/arch_amd64p32.go | 1 -
+ src/runtime/internal/sys/arch_arm.go      | 1 -
+ src/runtime/internal/sys/arch_arm64.go    | 1 -
+ src/runtime/internal/sys/arch_mips64.go   | 1 -
+ src/runtime/internal/sys/arch_mips64le.go | 1 -
+ src/runtime/internal/sys/arch_ppc64.go    | 1 -
+ src/runtime/internal/sys/arch_ppc64le.go  | 1 -
+ 9 files changed, 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 84a51432a80686267e131f5d516559b3d82122b8
+Author: Mark Harrison <marhar@google.com>
+Date:   Mon May 8 22:48:08 2017 -0700
+
+    path: add examples
+    
+    This change adds several examples, with emphasis on special or edge
+    cases such as a directory parameter consisting of an empty string.
+    
+    Change-Id: Ib4ac3d0f6d503493eeed0c4fda7c12acf782e9e2
+    Reviewed-on: https://go-review.googlesource.com/43010
+    Reviewed-by: Steve Francia <spf@golang.org>
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/example_test.go | 40 ++++++++++++++++++++++++++++++++++------
+ 1 file changed, 34 insertions(+), 6 deletions(-)

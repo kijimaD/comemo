@@ -1,0 +1,23 @@
+commit ea3c546e9e2b507d497f8093f8414cb31c112062
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Thu Jan 27 15:29:04 2022 +0000
+
+    syscall: use RLIMIT_CPU instead of RLIMIT_NOFILE
+    
+    The latter is subject to kern.maxfilelimit restrictions on darwin which
+    are not reflected in the return value. This makes it difficult to
+    reliably restore the default after the test is complete. RLIMIT_CPU
+    should hopefully sidestep this problem.
+    
+    Updates #40564.
+    
+    Change-Id: Ifb33c7d46f2708130cef366dc245c643a2d5e465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383234
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+
+ src/syscall/syscall_unix_test.go | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)

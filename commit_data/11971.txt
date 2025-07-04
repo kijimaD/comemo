@@ -1,0 +1,17 @@
+commit 11f4a6c9df1616da9abe4f4ad1c2f41b4cf33fbf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 16 14:04:51 2012 -0500
+
+    os,syscall: fix plan 9 build
+    
+    NewFile take uintptr
+    make syscall.ProcAttr.Files be []uintptr
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5656073
+
+ src/pkg/os/exec_plan9.go      | 12 ++----------
+ src/pkg/os/file_plan9.go      | 19 ++++++++++---------
+ src/pkg/syscall/exec_plan9.go | 13 ++++++++-----
+ 3 files changed, 20 insertions(+), 24 deletions(-)

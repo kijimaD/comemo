@@ -1,0 +1,18 @@
+commit 416c953960a475b7418b5c6aef0f46dd102b9129
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 25 15:40:11 2022 -0700
+
+    test: add test that gofrontend gets wrong
+    
+    For #52856
+    
+    Change-Id: Iab3e8352f64d774058391f0422cd01c53c3e711d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414235
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue52856.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue52856.dir/main.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue52856.go          | 10 ++++++++++
+ 3 files changed, 38 insertions(+)

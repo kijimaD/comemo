@@ -1,0 +1,16 @@
+commit 9717a794f4696c7fd0b916544023746eedffd7bf
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Jul 30 16:58:19 2009 -0700
+
+    String method for token.Position.  Extracted from gri's tree.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=33  (20 added, 6 deleted, 7 changed)
+    OCL=32544
+    CL=32546
+
+ src/pkg/Make.deps            |  4 ++--
+ src/pkg/go/scanner/errors.go | 15 +++++----------
+ src/pkg/go/token/token.go    | 21 ++++++++++++++++++++-
+ 3 files changed, 27 insertions(+), 13 deletions(-)

@@ -1,0 +1,17 @@
+commit 3dfbfdabce926630af51f68cb2f6d7aec6491ec1
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Sep 1 14:16:51 2009 -0700
+
+    Clean up the statement and expression public interfaces.  The
+    only visible change is that evaluating an expression returns a
+    interface{} instead of a Value.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=60  (15 added, 26 deleted, 19 changed)
+    OCL=34206
+    CL=34208
+
+ usr/austin/eval/expr.go | 61 ++++++++++++++++++++-----------------------------
+ usr/austin/eval/stmt.go |  8 +++----
+ 2 files changed, 29 insertions(+), 40 deletions(-)

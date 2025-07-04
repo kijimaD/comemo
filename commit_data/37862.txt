@@ -1,0 +1,21 @@
+commit 8765a786b6e8199959bba8244ac5f95aa3eb9474
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 8 22:39:13 2019 -0800
+
+    go/types: don't create new context string for each argument of each call
+    
+    The argument context string is only used in error messages. Don't format
+    the function AST into a string for every single argument of every single
+    call that is type-checked. Instead do it once per call (still not great,
+    but much much better).
+    
+    Performance optimization.
+    
+    Change-Id: Iec87f9ad34128d7b3eee58577ad37dbaa8e6db44
+    Reviewed-on: https://go-review.googlesource.com/c/157037
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/call.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

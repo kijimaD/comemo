@@ -1,0 +1,18 @@
+commit 8c5de667d3b1349a3058e4c57b01f0309502a118
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 30 05:36:14 2019 +0000
+
+    cmd/compile: update README for rulegen
+    
+    Update cmd/compile/internal/ssa/gen/README, suggest using go-1.13
+    and above for rulegen.
+    
+    Change-Id: I5256d6f1bb4273b5eb7d5122a4364add52fc42c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192517
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

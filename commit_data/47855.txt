@@ -1,0 +1,20 @@
+commit ed766b6ffbf9f0b3efc5cb2790cb9bb3a4af856d
+Author: zhangjian <ZJ.Cosmos@gmail.com>
+Date:   Thu Dec 23 14:21:41 2021 +0000
+
+    cmd/compile/internal/ir: fix a typo in node.go
+    
+    README.md -> HACKING.md
+    
+    Change-Id: I63909b86b2e6f8d9a34622f5d2b05048c79cd698
+    GitHub-Last-Rev: afaab8f05eff1d66c796909ccf9912e0f4e99754
+    GitHub-Pull-Request: golang/go#50326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374274
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/ir/node.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

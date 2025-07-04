@@ -1,0 +1,17 @@
+commit 8567fb7a0a5c4d88a7bfb73ec1f0c4be4c58d1ff
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Dec 22 11:29:25 2015 +1100
+
+    net/http: add new HTTP 451 status code, Unavailable For Legal Reasons.
+    
+    Approved by the IETF.
+    
+    https://datatracker.ietf.org/doc/draft-ietf-httpbis-legally-restricted-status/
+    
+    Change-Id: I688597bb5f7ef7c7a9be660a4fcd2ef02d9dc9f4
+    Reviewed-on: https://go-review.googlesource.com/18112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+
+ src/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

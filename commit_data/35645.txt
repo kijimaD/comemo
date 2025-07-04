@@ -1,0 +1,22 @@
+commit 679690f348a38591ccf180d9f699fc40a544e6af
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 11 11:03:25 2018 +1000
+
+    net: add TestSendfileParts
+    
+    Add test for freebsd issue #25809.
+    
+    This test also fails on my Windows 10 Version 1803.
+    My hope is that adding new test will break one of our builders.
+    
+    Updates #25722
+    Updates #25809
+    
+    Change-Id: Ia103bc708b8fa3b9af57613acc44893f90b3fa18
+    Reviewed-on: https://go-review.googlesource.com/117775
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/sendfile_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)

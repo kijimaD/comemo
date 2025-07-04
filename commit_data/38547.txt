@@ -1,0 +1,22 @@
+commit e4ba40030f9ba4b61bb28dbf78bb41a7b14e6788
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 18 16:10:07 2019 -0700
+
+    math/big: accept non-decimal floats with Rat.SetString
+    
+    This fixes an old oversight. Rat.SetString already permitted
+    fractions a/b where both a and b could independently specify
+    a base prefix. With this CL, it now also accepts non-decimal
+    floating-point numbers.
+    
+    Fixes #29799.
+    
+    Change-Id: I9cc65666a5cebb00f0202da2e4fc5654a02e3234
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/math/big/floatconv.go    |  14 ++---
+ src/math/big/nat.go          |   7 +--
+ src/math/big/ratconv.go      | 124 ++++++++++++++++++++++++++++++++++---------
+ src/math/big/ratconv_test.go |  26 +++++++--
+ 4 files changed, 133 insertions(+), 38 deletions(-)

@@ -1,0 +1,13 @@
+commit bbb908fef0c46cdb76837a3c4008d08cb71cbda6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 14:49:10 2008 -0700
+
+    allow prof to launch the process
+    
+    R=rsc
+    DELTA=32  (30 added, 0 deleted, 2 changed)
+    OCL=16440
+    CL=16445
+
+ src/cmd/prof/main.c | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

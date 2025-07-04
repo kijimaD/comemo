@@ -1,0 +1,24 @@
+commit ea151041102692e52fbce353f12ca73bdc48cad7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Mar 25 20:57:36 2013 +0400
+
+    net: band-aid for windows network poller
+    Fixes performance of the current windows network poller
+    with the new scheduler.
+    Gives runtime a hint when GetQueuedCompletionStatus() will block.
+    Fixes #5068.
+    
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent        4004000        33906  -99.15%
+    BenchmarkTCP4Persistent-2        21790        17513  -19.63%
+    BenchmarkTCP4Persistent-4        44760        34270  -23.44%
+    BenchmarkTCP4Persistent-6        45280        43000   -5.04%
+    
+    R=golang-dev, alex.brainman, coocood, rsc
+    CC=golang-dev
+    https://golang.org/cl/7612045
+
+ src/pkg/net/fd_windows.go |  8 +++++++-
+ src/pkg/runtime/cgocall.c | 15 ++++++++++++++-
+ src/pkg/runtime/runtime.h |  1 +
+ 3 files changed, 22 insertions(+), 2 deletions(-)

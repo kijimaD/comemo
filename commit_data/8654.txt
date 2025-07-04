@@ -1,0 +1,13 @@
+commit bac24da2acec0fc3a6ef4c0243ac103e7a031de9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 7 21:49:24 2011 -0700
+
+    A+C: Jonathan Mark (individual CLA)
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4595042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

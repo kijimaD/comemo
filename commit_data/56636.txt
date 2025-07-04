@@ -1,0 +1,21 @@
+commit 27c302d5d55212eb3cf3797216b3cd4fe020e11c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue May 14 11:16:56 2024 -0700
+
+    crypto/internal/hpke: add basic implementation
+    
+    Only implements the sender role, since that's all we need for
+    client-side ECH for now.
+    
+    Change-Id: Ia7cba1bc3bad8e8dc801d98d5ea859738b1f2790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/hpke/hpke.go                   | 259 +++++++++++++++++++++
+ src/crypto/internal/hpke/hpke_test.go              | 168 +++++++++++++
+ .../internal/hpke/testdata/rfc9180-vectors.json    |   1 +
+ src/go/build/deps_test.go                          |   1 +
+ 4 files changed, 429 insertions(+)

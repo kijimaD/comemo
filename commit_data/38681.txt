@@ -1,0 +1,16 @@
+commit 9017b6149e0fcac8b60e5b755cddb98ea37daaf9
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 00:16:40 2019 +0200
+
+    misc/cgo/test: skip Setgid test on Android
+    
+    The setgid syscall is blocked on Android in app context.
+    
+    Change-Id: I1ff25840bbc25d472ad4e29eb1b51f183a6c4392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170949
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/cgo_linux_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

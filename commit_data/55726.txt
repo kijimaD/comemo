@@ -1,0 +1,17 @@
+commit 2b72395eadcc46120b27b9689bed84338de5141c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 24 00:36:26 2024 -0800
+
+    cmd/compile/internal/noder: add method wrapper comments
+    
+    Add commentary explaining why and how we create method wrappers.
+    
+    Change-Id: Idf35a77d0483f24c2163e11f5e001fd5536cca63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558395
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/reader.go | 56 +++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

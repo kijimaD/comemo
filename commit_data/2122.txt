@@ -1,0 +1,15 @@
+commit 68523603e16f7a0c8cd21d8c54be2c3e70d051e8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 30 14:43:06 2009 -0700
+
+    - incorporated feedback per rsc
+    - fixed a bug and added corresponding test case
+    
+    R=rsc
+    DELTA=114  (18 added, 29 deleted, 67 changed)
+    OCL=28114
+    CL=28128
+
+ src/lib/bignum.go      | 136 ++++++++++++++++++++-----------------------------
+ src/lib/bignum_test.go |  31 +++++++----
+ 2 files changed, 78 insertions(+), 89 deletions(-)

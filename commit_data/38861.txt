@@ -1,0 +1,15 @@
+commit d0fadb93c2cc5d067813a106e6679f8a3ffd9c0f
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Apr 23 14:19:04 2019 +0200
+
+    doc: update wording in contribution guide
+    
+    The top right menu in Gerrit is now a gear icon, and the link
+    has a slightly different title.
+    
+    Change-Id: I3f5d194f31ad09a99416a45db392aa4b5c7d98ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173400
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

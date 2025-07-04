@@ -1,0 +1,13 @@
+commit 4fe7a38be1b220ea30e748c7c54fa3c18ead4516
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 1 11:56:24 2009 -0700
+
+    added "Under construction" to package comment
+    
+    R=rsc
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=34196
+    CL=34199
+
+ src/pkg/big/nat.go | 2 ++
+ 1 file changed, 2 insertions(+)

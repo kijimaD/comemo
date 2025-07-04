@@ -1,0 +1,43 @@
+commit 15436da232d83674b1e58efd6310ca38310b2dc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 13:53:27 2012 -0400
+
+    crypto/md5: faster inner loop, 3x faster overall
+    
+    The speedup is a combination of unrolling/specializing
+    the actual code and also making the compiler generate better code.
+    
+    Go 1.0.1 (size: 1239 code + 320 data = 1559 total)
+    md5.BenchmarkHash1K   1000000      7178 ns/op    142.64 MB/s
+    md5.BenchmarkHash8K    200000     56834 ns/op    144.14 MB/s
+    
+    Partial unroll  (size: 1115 code + 256 data = 1371 total)
+    md5.BenchmarkHash1K   5000000      2513 ns/op    407.37 MB/s
+    md5.BenchmarkHash8K    500000     19406 ns/op    422.13 MB/s
+    
+    Complete unroll  (size: 1900 code + 0 data = 1900 code)
+    md5.BenchmarkHash1K   5000000      2442 ns/op    419.18 MB/s
+    md5.BenchmarkHash8K    500000     18957 ns/op    432.13 MB/s
+    
+    Comparing Go 1.0.1 and the complete unroll (this CL):
+    
+    benchmark               old MB/s     new MB/s  speedup
+    md5.BenchmarkHash1K       142.64       419.18    2.94x
+    md5.BenchmarkHash8K       144.14       432.13    3.00x
+    
+    On the same machine, 'openssl speed md5' reports 441 MB/s
+    and 531 MB/s for our two cases, so this CL is at 90% and 80% of
+    those speeds, which is at least in the right ballpark.
+    OpenSSL is using carefully engineered assembly, so we are
+    unlikely to catch up completely.
+    
+    Measurements on a Mid-2010 MacPro5,1.
+    
+    R=golang-dev, bradfitz, agl
+    CC=golang-dev
+    https://golang.org/cl/6220046
+
+ src/pkg/crypto/md5/gen.go      | 301 +++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/md5/md5_test.go |  25 +++
+ src/pkg/crypto/md5/md5block.go | 347 +++++++++++++++++++++++++----------------
+ 3 files changed, 538 insertions(+), 135 deletions(-)

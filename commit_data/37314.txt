@@ -1,0 +1,17 @@
+commit ef2c48659880c7e8a989e6721a21f018790f7793
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 8 18:46:34 2018 +0000
+
+    mime/multipart: check for quoted-printable case insensitively
+    
+    Fixes #28674
+    
+    Change-Id: Id88e0a4b86b50eb45f0d968d7e4bbe66b7f37f82
+    Reviewed-on: https://go-review.googlesource.com/c/148579
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/multipart/multipart.go      |  3 ++-
+ src/mime/multipart/multipart_test.go | 10 +++++++++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)

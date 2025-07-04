@@ -1,0 +1,28 @@
+commit 1fcad29341ba4daa8762f2ead932fd001a9d2476
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 24 14:33:22 2016 -0700
+
+    cmd/compile: remove OREGISTER, Node.Reg
+    
+    OREGISTER is unused.
+    
+    All remaining uses of Node.Reg use REGSP.
+    
+    Change-Id: I51cf06826867e576baabd568e04f96d2634f5cad
+    Reviewed-on: https://go-review.googlesource.com/31856
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go  |  3 ---
+ src/cmd/compile/internal/gc/bimport.go  |  3 ---
+ src/cmd/compile/internal/gc/fmt.go      |  8 ++------
+ src/cmd/compile/internal/gc/gsubr.go    |  3 +--
+ src/cmd/compile/internal/gc/opnames.go  |  3 +--
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go      | 16 ++++------------
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   | 10 ++--------
+ src/cmd/compile/internal/gc/walk.go     | 12 ++++++------
+ 10 files changed, 18 insertions(+), 44 deletions(-)

@@ -1,0 +1,55 @@
+commit e44b8b15b19058b7a22a859ab4159f924856f688
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 1 14:25:48 2023 -0500
+
+    cmd/go/internal/toolchain: make a best effort to parse 'go run' and 'go install' flags
+    
+    When the argument to 'go install' or 'go run' looks like a versioned
+    package, we make a best effort to switch to a toolchain compatible
+    with the module containing that package, by fetching its go.mod file
+    and checking the go version it specifies.
+    
+    At this point in the code, we have not yet parsed the arguments given
+    on the command line: instead, we just make a best effort to find one
+    we can use to select a toolchain version. Since that toolchain may be
+    newer, the command to install it may also include flags that are only
+    supported by that Go version — and we don't want to fail due to an
+    error that would be resolved by switching to a more appropriate
+    toolchain.
+    
+    So at this point in the code we can't parse the flags in a way that
+    will surface errors, but we want to make a best effort to parse the
+    ones that we know about. It turns out that “parse the flags we know
+    about” is already a familiar problem: that's also what we do in
+    'go test', so we can reuse the cmdflag library from that to do the
+    best-effort pass of parsing.
+    
+    If it turns out that we don't need to switch toolchains after all,
+    cmd/go's main function will parse the flags again, and will report any
+    errors at that point.
+    
+    This fixes a regression, introduced in CL 497879, which caused
+    'go install -modcacherw pkg@version' to unset the write bit for
+    directories created while selecting the toolchain to use.
+    
+    Fixes #64282.
+    Updates #57001.
+    
+    Change-Id: Icc409c57858aa15c7d58a97a61964b4bc2560547
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/base/goflags.go                | 10 ++--
+ src/cmd/go/internal/modfetch/fetch.go              | 20 ++++----
+ src/cmd/go/internal/test/testflag.go               |  2 +-
+ src/cmd/go/internal/toolchain/exec.go              |  6 +--
+ src/cmd/go/internal/toolchain/select.go            | 56 ++++++++++++++--------
+ src/cmd/go/internal/vet/vetflag.go                 |  2 +-
+ src/cmd/go/main.go                                 |  2 +-
+ .../script/install_modcacherw_issue64282.txt       | 32 +++++++++++++
+ .../testdata/script/malformed_gosum_issue62345.txt |  2 +-
+ src/cmd/go/testdata/script/work_sum_mismatch.txt   |  4 +-
+ 10 files changed, 91 insertions(+), 45 deletions(-)

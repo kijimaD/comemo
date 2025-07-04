@@ -1,0 +1,12 @@
+commit e5518feaf8536073372eab601cf20ad4e11c93c8
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Sun Aug 22 14:44:00 2010 +1000
+
+    http: fix typo in http.Request documentation
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/2004044
+
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

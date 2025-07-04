@@ -1,0 +1,29 @@
+commit 49588d0c555aaacb1354dced5e1fad0195ded7c6
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Mar 9 15:59:17 2023 -0800
+
+    internal/fuzz: avoid deadlock on duplicate entries with exec limit
+    
+    If there was a execution limit enabled, and a result put us beyond that
+    limit, but the result expanded coverage *and* was a duplicate of an
+    entry already in the cache, the check if we were passed the limit would
+    be skipped. Since this check was inside the result check body, and we
+    would no longer send any new inputs, we'd never get to that check again,
+    causing the coordinator to just sit in an infinite loop.
+    
+    This moves the check up to the top of the coordinator loop, so that it
+    is checked after every result is processed. Also add a cmd/go TestScript
+    regression test which triggered this case much more frequently.
+    
+    Updates #51484
+    
+    Change-Id: I7a2181051177acb853c1009beedd334a40796177
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475196
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../testdata/script/test_fuzz_limit_dup_entry.txt  | 37 ++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                          | 12 +++----
+ 2 files changed, 43 insertions(+), 6 deletions(-)

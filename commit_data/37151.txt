@@ -1,0 +1,45 @@
+commit 9ce87a63b9f440b452ada1ff89ccb1c4f3ca919f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue May 29 18:25:18 2018 +0200
+
+    cmd/compile: typecheck types and funcs before consts
+    
+    This way, once the constant declarations are typechecked, all named
+    types are fully typechecked and have all of their methods added.
+    
+    Usually this isn't important, as methods and interfaces cannot be used
+    in constant declarations. However, it can lead to confusing and
+    incorrect errors, such as:
+    
+            $ cat f.go
+            package p
+    
+            type I interface{ F() }
+            type T struct{}
+    
+            const _ = I(T{})
+    
+            func (T) F() {}
+            $ go build f.go
+            ./f.go:6:12: cannot convert T literal (type T) to type I:
+                    T does not implement I (missing F method)
+    
+    The error is clearly wrong, as T does have an F method. If we ensure
+    that all funcs are typechecked before all constant declarations, we get
+    the correct error:
+    
+            $ go build f2.go
+            # command-line-arguments
+            ./f.go:6:7: const initializer I(T literal) is not a constant
+    
+    Fixes #24755.
+    
+    Change-Id: I182b60397b9cac521d9a9ffadb11b42fd42e42fe
+    Reviewed-on: https://go-review.googlesource.com/c/115096
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 21 +++++++++++++++++----
+ test/fixedbugs/issue24755.go        | 16 ++++++++++++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)

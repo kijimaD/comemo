@@ -1,0 +1,12 @@
+commit d082e5976ef9d2d4a7a60659afc19ae2dc9456b3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 07:47:48 2012 +0900
+
+    text/template/parse: fix comment
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5644055
+
+ src/pkg/text/template/parse/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

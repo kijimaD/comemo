@@ -1,0 +1,19 @@
+commit a4c009f5ae65393f28129d6e40dd74a47c056360
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 6 18:51:12 2017 -0800
+
+    cmd/compile: don't put Noalg types in typelinks
+    
+    They could get picked up by reflect code, yielding the wrong type.
+    
+    Fixes #22605
+    
+    Change-Id: Ie11fb361ca7f3255e662037b3407565c8f0a2c4c
+    Reviewed-on: https://go-review.googlesource.com/76315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 13 ++++++++++++-
+ test/fixedbugs/issue22605.go           | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 47e205c344b88639fae2e9cced906fb8c72579d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 28 19:55:19 2023 -0800
+
+    cmd/link: make .dynamic section read-only for MIPS ELF
+    
+    For #36435
+    
+    Change-Id: Ie733b641f20ca5bcee3784c088eb27699890a151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463982
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/elf.go     | 11 ++++++++++-
+ src/cmd/link/internal/mips/obj.go   |  4 ++++
+ src/cmd/link/internal/mips64/obj.go |  4 ++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 68d50ca271ec160d8b1284b3aa294e876be1dc71
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 21 13:49:06 2023 -0400
+
+    cmd/dist: handle -json flag in runPending (minimal)
+    
+    The -json flag is new to Go 1.21, but missed skips in runPending.
+    This CL adds minimal code to fix that. CL 512115 cleans up a bit.
+    
+    For #37486.
+    Fixes (via backport) #61557.
+    
+    Change-Id: I53e426c9a5585b2703f0ff6661a0470e1993f960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512719
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

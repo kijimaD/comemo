@@ -1,0 +1,14 @@
+commit 7de48834122bda8b3ba1d52025eb53bdf19f1718
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 25 18:44:28 2009 -0700
+
+    cannot have interfaces refer to themselves as map keys
+    
+    R=rsc
+    DELTA=11  (11 added, 0 deleted, 0 changed)
+    OCL=30774
+    CL=30774
+
+ test/bugs/bug165.go | 11 +++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 15 insertions(+)

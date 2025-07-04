@@ -1,0 +1,25 @@
+commit f7a87e32997345b7acaabbf725d1b210e1cfe327
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 28 19:26:46 2023 +0000
+
+    runtime: fix bp restoration in panic recovery for arm64
+    
+    Previously, the frame pointer wouldn't be restored at all, which could
+    cause panics during frame pointer unwinding. As of CL 516157, the frame
+    pointer is restored, but it's restored incorrectly on arm64: on arm64,
+    the frame pointer points one word below SP, but here it's one below
+    panic.fp which is the stack pointer of the caller's frame (nothing to do
+    with the architectural bp).
+    
+    For #61766.
+    
+    Change-Id: I86504b85a4d741df5939b51c914d9e7c8d6edaad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523697
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/callers_test.go |  1 +
+ src/runtime/panic.go        | 33 +++++++++++++++++++--------------
+ 2 files changed, 20 insertions(+), 14 deletions(-)

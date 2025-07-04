@@ -1,0 +1,19 @@
+commit 5ef899111e581b1e57aa1546caa204d48bdf5503
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 10 10:41:08 2015 -0800
+
+    time: reject invalid day of month in Parse
+    
+    There was back-and-forth on this but it has been decided to fix the original
+    complaint, which was easy.
+    
+    Fixes #7268.
+    
+    Change-Id: I6b607c49ad44579086aba2c4f4c5424b97fbed64
+    Reviewed-on: https://go-review.googlesource.com/17710
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/time/format.go      |  5 +++++
+ src/time/format_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

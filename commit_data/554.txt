@@ -1,0 +1,13 @@
+commit 354be785c6b9df87eb6721a8db1d9fd7d249b441
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 29 17:16:47 2008 -0700
+
+    - removed 'iota' from the keyword list
+    - added missing operators
+    
+    R=r
+    OCL=14672
+    CL=14672
+
+ doc/go_spec.txt | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

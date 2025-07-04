@@ -1,0 +1,21 @@
+commit 212ce41d004cc9e33d35b64cc13c2c9baf843452
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 7 14:26:42 2012 +1000
+
+    runtime: arm: abort if hardware floating point missing
+    
+    Fixes #3911.
+    
+    Requires CL 6449127.
+    
+    dfc@qnap:~$ ./runtime.test
+    runtime: this CPU has no floating point hardware, so it cannot run
+    this GOARM=7 binary. Recompile using GOARM=5.
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6442109
+
+ src/pkg/runtime/asm_arm.s          |  1 +
+ src/pkg/runtime/signal_linux_arm.c | 16 ++++++++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

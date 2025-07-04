@@ -1,0 +1,17 @@
+commit fbf62beb4ed00bd4f93cf64316757be065c4249b
+Author: alandonovan <adonovan@google.com>
+Date:   Tue Oct 13 16:22:29 2020 -0400
+
+    sort: document requirements of Less relation
+    
+    Fixes #34915
+    
+    Change-Id: Ia62ff3b6f198ddcd79e8afc7b4f5514a44f2442c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261959
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/sort/sort.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

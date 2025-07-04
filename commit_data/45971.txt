@@ -1,0 +1,24 @@
+commit 46fd547d899286982971474b329d7a95da4f2a6b
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Aug 11 17:19:21 2021 -0400
+
+    internal/goversion: update Version to 1.18
+    
+    This is the start of the Go 1.18 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that
+    will soon open up for development (and eventually become released).
+    
+    Updates #40705
+    Updates #47351
+    
+    Change-Id: Icfb99e28529a3c9fb7394e114a34586f613dfcbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341590
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

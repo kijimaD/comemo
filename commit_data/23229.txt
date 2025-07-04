@@ -1,0 +1,15 @@
+commit 85069e9e9bf72d9152533434bc7f5aa7be8175dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 19 23:55:47 2015 -0400
+
+    cmd/dist: fix build tag parser
+    
+    It was mishandling conjunctions containing negations.
+    
+    Change-Id: Ife571b28416870ba2ceadbdac5ecb4670432bba1
+    Reviewed-on: https://go-review.googlesource.com/9151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

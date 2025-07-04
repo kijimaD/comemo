@@ -1,0 +1,13 @@
+commit 81f534b216942c386d320ca380413353517d0644
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 5 13:13:34 2012 -0400
+
+    A+C: Stéphane Travostino (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5991048
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit acdd111e320363c77eb04a761f0b7d4a9dd64c22
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 18:14:06 2020 -0400
+
+    doc/go1.15: document toolchain changes
+    
+    Updates #37419.
+    
+    Change-Id: I403cb12083d37359187b45c392046f307054a5b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236618
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.15.html | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

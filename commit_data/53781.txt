@@ -1,0 +1,20 @@
+commit 505e50b1e34cdf6dff29615a076e26fb0780d10d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 14 09:45:31 2023 -0700
+
+    cmd/compile: get rid of special case in scheduler for entry block
+    
+    It isn't needed.
+    
+    Fixes #61356
+    
+    Change-Id: Ib466a3eac90c3ea57888cf40c294513033fc6118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/schedule.go |  5 ---
+ test/codegen/issue61356.go               | 55 ++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 5 deletions(-)

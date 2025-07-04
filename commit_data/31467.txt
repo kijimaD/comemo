@@ -1,0 +1,53 @@
+commit f9bec9eb424b1d857745393796f87f8698b20d53
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Mar 24 08:13:17 2017 +0100
+
+    cmd/compile: use MOVL instead of MOVQ for small constants on amd64
+    
+    The encoding of MOVL to a register is 2 bytes shorter than for MOVQ.
+    The upper 32bit are automatically zeroed when MOVL to a register is used.
+    
+    Replaces 1657 MOVQ by MOVL in the go binary.
+    Reduces go binary size by 4 kilobyte.
+    
+    name                   old time/op    new time/op    delta
+    BinaryTree17              1.93s ± 0%     1.93s ± 0%  -0.32%  (p=0.000 n=9+9)
+    Fannkuch11                2.66s ± 0%     2.48s ± 0%  -6.60%  (p=0.000 n=9+9)
+    FmtFprintfEmpty          31.8ns ± 0%    31.6ns ± 0%  -0.63%  (p=0.000 n=10+10)
+    FmtFprintfString         52.0ns ± 0%    51.9ns ± 0%  -0.19%  (p=0.000 n=10+10)
+    FmtFprintfInt            55.6ns ± 0%    54.6ns ± 0%  -1.80%  (p=0.002 n=8+10)
+    FmtFprintfIntInt         87.7ns ± 0%    84.8ns ± 0%  -3.31%  (p=0.000 n=9+9)
+    FmtFprintfPrefixedInt    98.9ns ± 0%   102.0ns ± 0%  +3.10%  (p=0.000 n=10+10)
+    FmtFprintfFloat           165ns ± 0%     164ns ± 0%  -0.61%  (p=0.000 n=10+10)
+    FmtManyArgs               368ns ± 0%     361ns ± 0%  -1.98%  (p=0.000 n=8+10)
+    GobDecode                4.53ms ± 0%    4.58ms ± 0%  +1.08%  (p=0.000 n=9+10)
+    GobEncode                3.74ms ± 0%    3.73ms ± 0%  -0.27%  (p=0.000 n=10+10)
+    Gzip                      164ms ± 0%     163ms ± 0%  -0.48%  (p=0.000 n=10+10)
+    Gunzip                   26.7ms ± 0%    26.6ms ± 0%  -0.13%  (p=0.000 n=9+10)
+    HTTPClientServer         30.4µs ± 1%    30.3µs ± 1%  -0.41%  (p=0.016 n=10+10)
+    JSONEncode               10.9ms ± 0%    11.0ms ± 0%  +0.70%  (p=0.000 n=10+10)
+    JSONDecode               36.8ms ± 0%    37.0ms ± 0%  +0.59%  (p=0.000 n=9+10)
+    Mandelbrot200            3.20ms ± 0%    3.21ms ± 0%  +0.44%  (p=0.000 n=9+10)
+    GoParse                  2.35ms ± 0%    2.35ms ± 0%  +0.26%  (p=0.000 n=10+9)
+    RegexpMatchEasy0_32      58.3ns ± 0%    58.4ns ± 0%  +0.17%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_1K       138ns ± 0%     142ns ± 0%  +2.68%  (p=0.000 n=10+10)
+    RegexpMatchEasy1_32      55.1ns ± 0%    55.6ns ± 1%    ~     (p=0.104 n=10+10)
+    RegexpMatchEasy1_1K       242ns ± 0%     243ns ± 0%  +0.41%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32     87.4ns ± 0%    89.9ns ± 0%  +2.86%  (p=0.000 n=10+10)
+    RegexpMatchMedium_1K     27.4µs ± 0%    27.4µs ± 0%  +0.15%  (p=0.000 n=10+10)
+    RegexpMatchHard_32       1.30µs ± 0%    1.32µs ± 1%  +1.91%  (p=0.000 n=10+10)
+    RegexpMatchHard_1K       39.0µs ± 0%    39.5µs ± 0%  +1.38%  (p=0.000 n=10+10)
+    Revcomp                   316ms ± 0%     319ms ± 0%  +1.13%  (p=0.000 n=9+8)
+    Template                 40.6ms ± 0%    40.6ms ± 0%    ~     (p=0.123 n=10+10)
+    TimeParse                 224ns ± 0%     224ns ± 0%    ~     (all equal)
+    TimeFormat                230ns ± 0%     225ns ± 0%  -2.17%  (p=0.000 n=10+10)
+    
+    Change-Id: I32a099b65f9e6d4ad7288ed48546655c534757d8
+    Reviewed-on: https://go-review.googlesource.com/38630
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go   | 9 ++++++++-
+ src/cmd/compile/internal/gc/asm_test.go | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

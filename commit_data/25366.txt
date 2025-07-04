@@ -1,0 +1,12 @@
+commit e5ef5d46932d8f1fbe581ba22fb1d1144fedac5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 11:29:15 2015 -0500
+
+    doc: add mention of debug.SetTraceback
+    
+    Change-Id: I59829029769ae08c6c54208a1e38a0794868c5db
+    Reviewed-on: https://go-review.googlesource.com/18045
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.html | 37 ++++++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

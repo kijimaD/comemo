@@ -1,0 +1,28 @@
+commit 7d1b82dbf108d6cf80f959bb1558f365cee0ec0e
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Jan 3 04:18:15 2024 +0000
+
+    net/http: make Request.Clone create fresh copies for matches and otherValues
+    
+    This change fixes Request.Clone to correctly work with SetPathValue
+    by creating fresh copies for matches and otherValues so that
+    SetPathValue for cloned requests doesn't pollute the original request.
+    
+    While here, also added a doc for Request.SetPathValue.
+    
+    Fixes #64911
+    
+    Change-Id: I2831b38e135935dfaea2b939bb9db554c75b65ef
+    GitHub-Last-Rev: 1981db16475a49fe8d4b874a6bceec64d28a1332
+    GitHub-Pull-Request: golang/go#64913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553375
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/request.go      | 16 ++++++++++++++++
+ src/net/http/request_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

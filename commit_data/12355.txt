@@ -1,0 +1,12 @@
+commit 30f9c99e3e96c22c57a5ef120d442a1d186a4ade
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Mar 5 10:58:43 2012 +1100
+
+    html/template: fix comment typo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5730051
+
+ src/pkg/html/template/html.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

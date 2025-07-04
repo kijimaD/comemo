@@ -1,0 +1,42 @@
+commit 24b9ef1a7366fe751880ab2098cff630144b8ac8
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Fri Aug 25 17:06:31 2023 +0000
+
+    cmd/cgo: add #cgo noescape/nocallback annotations
+    
+    When passing pointers of Go objects from Go to C, the cgo command generate _Cgo_use(pN) for the unsafe.Pointer type arguments, so that the Go compiler will escape these object to heap.
+    
+    Since the C function may callback to Go, then the Go stack might grow/shrink, that means the pointers that the C function have will be invalid.
+    
+    After adding the #cgo noescape annotation for a C function, the cgo command won't generate _Cgo_use(pN), and the Go compiler won't force the object escape to heap.
+    
+    After adding the #cgo nocallback annotation for a C function, which means the C function won't callback to Go, if it do callback to Go, the Go process will crash.
+    
+    Fixes #56378
+    
+    Change-Id: Ifdca070584e0d349c7b12276270e50089e481f7a
+    GitHub-Last-Rev: f1a17b08b0590eca2670e404bbfedad5461df72f
+    GitHub-Pull-Request: golang/go#60399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497837
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/doc.go                                 | 24 +++++++
+ src/cmd/cgo/gcc.go                                 | 22 ++++--
+ src/cmd/cgo/internal/testerrors/errors_test.go     | 28 +++++---
+ .../testerrors/testdata/notmatchedcfunction.go     | 14 ++++
+ src/cmd/cgo/main.go                                | 63 ++++++++++++----
+ src/cmd/cgo/out.go                                 | 28 ++++++--
+ src/cmd/go/internal/modindex/build.go              |  5 ++
+ src/go/build/build.go                              |  5 ++
+ src/runtime/cgo.go                                 |  8 +++
+ src/runtime/cgocall.go                             |  4 ++
+ src/runtime/crash_cgo_test.go                      | 16 +++++
+ src/runtime/runtime2.go                            |  1 +
+ src/runtime/testdata/testprogcgo/cgonocallback.c   |  9 +++
+ src/runtime/testdata/testprogcgo/cgonocallback.go  | 32 +++++++++
+ src/runtime/testdata/testprogcgo/cgonoescape.go    | 84 ++++++++++++++++++++++
+ 15 files changed, 311 insertions(+), 32 deletions(-)

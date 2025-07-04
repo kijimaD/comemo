@@ -1,0 +1,14 @@
+commit 975c01342a25899962969833d8b2873dc8856a4f
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Feb 24 17:25:08 2020 -0500
+
+    crypto/x509: use new ecdsa.VerifyASN1 API
+    
+    Change-Id: Ia4f77d2965e34454e8dd3f2d8bf9c4f3065a9fbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220721
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

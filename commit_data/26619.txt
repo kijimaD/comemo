@@ -1,0 +1,19 @@
+commit 758447cdc94e4ae0b5d26a784a930403a633cd03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 13:51:17 2016 +1100
+
+    test/fixedbugs: add test for divide by zero being optimized away
+    
+    This only tests amd64 because it's currently broken on non-SSA
+    backends.
+    
+    Fixes #8613
+    
+    Change-Id: I6bc501c81c395e533bb9c7335789750e0c6b7a8f
+    Reviewed-on: https://go-review.googlesource.com/21325
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue8613.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

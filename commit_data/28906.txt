@@ -1,0 +1,20 @@
+commit 2b687a7df854f3c88b266b6cec59a207a45c2353
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 16:03:27 2016 -0700
+
+    cmd/compile: stop treating interface methods like actual functions
+    
+    Interface methods can't have function bodies, so there's no need to
+    process their parameter lists as variable declarations. The only
+    possible reason would be to check for duplicate parameter names and/or
+    invalid types, but we do that anyway, and have regression tests for it
+    (test/funcdup.go).
+    
+    Change-Id: Iedb15335467caa5d872dbab829bf32ab8cf6204d
+    Reviewed-on: https://go-review.googlesource.com/31430
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

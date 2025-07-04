@@ -1,0 +1,12 @@
+commit 0a9a3c128f0c0be026433f7b129d8192f001a154
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 22 08:54:32 2010 -0700
+
+    test: fail is for bad exit status only
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/1847043
+
+ test/run | 1 -
+ 1 file changed, 1 deletion(-)

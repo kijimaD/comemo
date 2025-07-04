@@ -1,0 +1,30 @@
+commit 85902b6786bbe40b297cbbf823f489b07c654bbd
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu May 14 17:01:11 2020 +0800
+
+    cmd/compile: convert rest ARM64.rules lines to typed aux mode
+    
+    This patch adds the ARM6464Bitfield auxInt to auxIntType() and
+    returns its Go type as "arm64Bitfield" type, which is defined
+    as int16 type.
+    
+    And the Go type of SymOff auxInt is int32, but some functions
+    (such as min(), areAdjacentOffsets() and read16/32/64(),etc.)
+    use SymOff as an input parameter and treat its type as int64,
+    this patch adds the type conversion for these rules.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ib234b48d0a97ef244dd37878e06b5825316dd782
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234378
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |    2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  722 ++++---
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |    2 +
+ src/cmd/compile/internal/ssa/op.go           |    6 +
+ src/cmd/compile/internal/ssa/rewrite.go      |   16 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go   |   12 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 2704 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/value.go        |   11 +-
+ 8 files changed, 1746 insertions(+), 1729 deletions(-)

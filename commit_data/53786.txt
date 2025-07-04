@@ -1,0 +1,28 @@
+commit 8a1ff5182780af72d08c3e6b91694425a1498014
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Jun 6 17:55:58 2023 +0800
+
+    cmd/asm: add the fifth argument of the instruction to Optab on arm64
+    
+    Currently the Optab structure contains four arguments of an instruction,
+    excludes the fifth argument p.RegTo2. It does not participate in
+    instruction matching and is usually handled separately.
+    
+    Instructions with five operands are common in the newer arm instruction
+    set, so this CL adds the fifth argument to Optab, so that instruction
+    matching is easier. This caused the oplook function also needs to be
+    updated synchronously, this CL also made some cleaning and modifications
+    to this function.
+    
+    Change-Id: I1d95ad99e72a44dfad1e00db182cfc369a0e55c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  176 ++--
+ src/cmd/internal/obj/arm64/a.out.go            |   30 +-
+ src/cmd/internal/obj/arm64/anames7.go          |    1 +
+ src/cmd/internal/obj/arm64/asm7.go             | 1104 ++++++++++++------------
+ 4 files changed, 656 insertions(+), 655 deletions(-)

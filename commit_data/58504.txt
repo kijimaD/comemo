@@ -1,0 +1,49 @@
+commit 7255b949202bb752b6525aa24cb636ceaf24e4d1
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Dec 18 13:26:20 2024 -0500
+
+    crypto/internal/fips140test: add ML-KEM ACVP tests
+    
+    Adds ACVP test coverage for ML-KEM based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html
+    
+    Notably we need to update the BoringSSL module version because the
+    acvptool was only recently updated to support testing ML-KEM.
+    
+    A few non-test updates are also required for the
+    crypto/internal/fips140/mlkem package:
+    
+    * For keyGen tests a new ExpandedBytes768() function is added that
+      converts a DecapsualtionKey768 struct into the expanded NIST
+      serialization. The existing Bytes() function returns the
+      key's seed, while ACVP testing requires the more cumbersome format.
+    * For decap tests a new TestingOnlyNewDecapsulationKey768()
+      constructor is added to produce a DecapsulationKey768 struct from the
+      expanded FIPS 203 serialization provided by the ACVP test vector. The
+      pre-existing NewDecapsulationKey768() function expects a seed as
+      input.
+    
+    The generate1024.go helper is updated to translate the above changes to
+    the generated mlkem1024.go implementation.
+    
+    Both of these new functions are exclusively for ACVP usage and so not
+    present in the public mlkem API. End users should always prefer to work
+    with seeds.
+    
+    Updates #69642
+    
+    Change-Id: I79784f8a8db00a2ddefdcece4b8de50b033c8f69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637439
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/mlkem/generate1024.go  |   9 +-
+ src/crypto/internal/fips140/mlkem/mlkem1024.go     |  74 +++++++++++
+ src/crypto/internal/fips140/mlkem/mlkem768.go      |  76 ++++++++++++
+ .../internal/fips140test/acvp_capabilities.json    |   7 +-
+ .../internal/fips140test/acvp_test.config.json     |   4 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 138 ++++++++++++++++++++-
+ 6 files changed, 300 insertions(+), 8 deletions(-)

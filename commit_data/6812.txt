@@ -1,0 +1,12 @@
+commit 4bafef81846dbfbcd5051ebd8515c32248166baf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 1 17:10:26 2010 -0800
+
+    roadmap: update gdb status
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3395041
+
+ doc/devel/roadmap.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

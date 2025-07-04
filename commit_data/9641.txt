@@ -1,0 +1,20 @@
+commit 041dc0a1c2ee8e34fb5e34f4b5fd3e2734889bf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 15:35:56 2011 -0700
+
+    godoc: show packages matching a query at the top
+    
+    Also: fix layout of textual search results and
+    fix a field reference in the respective template.
+    
+    Fixes #1987.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4962061
+
+ lib/godoc/search.html  | 11 +++++++++++
+ lib/godoc/search.txt   | 28 +++++++++++++++++-----------
+ src/cmd/godoc/godoc.go |  3 ++-
+ src/cmd/godoc/index.go | 25 ++++++++++++++++++-------
+ 4 files changed, 48 insertions(+), 19 deletions(-)

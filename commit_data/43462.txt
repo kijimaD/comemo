@@ -1,0 +1,23 @@
+commit 3931cc113f3f3e7d484842d6e4f53b7a78311e8e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 22 18:06:54 2020 -0400
+
+    cmd/go: replace some more stats with fsys.Stat
+    
+    To support overlays
+    
+    For #39958
+    
+    Change-Id: I5ffd72aeb7f5f30f6c60f6334a01a0a1383c7945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264478
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/imports/scan.go   | 3 +--
+ src/cmd/go/internal/modload/load.go   | 3 ++-
+ src/cmd/go/internal/modload/search.go | 2 +-
+ src/cmd/go/internal/search/search.go  | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,26 @@
+commit 9eb1d5317b2b87c379797edf0dea48e59c9ebc7d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 27 16:20:36 2023 -0700
+
+    runtime: refactor defer processing
+    
+    This CL refactors gopanic, Goexit, and deferreturn to share a common
+    state machine for processing pending defers. The new state machine
+    removes a lot of redundant code and does overall less work.
+    
+    It should also make it easier to implement further optimizations
+    (e.g., TODOs added in this CL).
+    
+    Change-Id: I71d3cc8878a6f951d8633505424a191536c8e6b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513837
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/objabi/funcid.go       |   4 +-
+ src/runtime/panic.go                    | 645 ++++++++++++--------------------
+ src/runtime/runtime-seh_windows_test.go |   2 +-
+ src/runtime/runtime2.go                 |  69 ++--
+ src/runtime/stack.go                    |   3 -
+ 5 files changed, 273 insertions(+), 450 deletions(-)

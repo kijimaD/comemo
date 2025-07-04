@@ -1,0 +1,18 @@
+commit 202de394f2f7864eb871d65b733479115cfabc39
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Jun 14 22:58:54 2015 +0200
+
+    cmd/trace: fix panic in goroutine profile
+    
+    In generateTrace we check that event timestamp is within the interesting range.
+    Then later in traceContext.time we double check event time.
+    However, for some events (e.g. emitSlice) we convert time of ev.Link (slice end) rather than ev itself (slice begin).
+    Slice end can be outside of the interesting time range, and so traceContext.time crashes.
+    Remove the check in traceContext.time, check in generateTrace loop is sufficient.
+    
+    Change-Id: If94e93b5653c5816c0a8dcdd920f15df97616835
+    Reviewed-on: https://go-review.googlesource.com/11100
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/trace/trace.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,19 @@
+commit ad3cef184e55ab53306a466bda100dc72c40fc3b
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 16:50:53 2020 +0000
+
+    Revert "runtime: release worldsema before Gosched in STW GC mode"
+    
+    This reverts commit 05511a5c0ae238325c10b0e4e44c3f66f928e4cf, CL 208379.
+    
+    Reason for revert: So that we can cleanly revert
+    https://golang.org/cl/182657.
+    
+    Change-Id: I4fdf4f864a093db7866b3306f0f8f856b9f4d684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216357
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mgc.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 1857bfca134261ab2e0fc1adcf6a974f550d430a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jan 20 15:47:54 2016 +0100
+
+    testing: implementation of subbenchmarks
+    
+    API is not exposed yet.
+    
+    Change-Id: I729360ef2be1d8ea683ca93cdb1763897cc8657c
+    Reviewed-on: https://go-review.googlesource.com/18895
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/benchmark.go | 135 +++++++++++++++++++++++++++++++++++++----------
+ src/testing/sub_test.go  |  97 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 205 insertions(+), 27 deletions(-)

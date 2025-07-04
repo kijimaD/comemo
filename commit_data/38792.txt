@@ -1,0 +1,16 @@
+commit 431b5c69ca214ce4291f008c1ce2a50b22bc2d2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 16 21:39:00 2019 +0000
+
+    crypto/tls, crypto/x509: update spelling of marshal*
+    
+    Per https://golang.org/wiki/Spelling and CL 33017.
+    
+    Change-Id: Ia813a81d25603883114c4e4b6997eb560d6a3690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172457
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/tls/handshake_messages.go | 2 +-
+ src/crypto/x509/pkcs8.go             | 4 ++--
+ src/crypto/x509/pkcs8_test.go        | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

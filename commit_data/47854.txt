@@ -1,0 +1,19 @@
+commit d2ce93960448559a7cb5685661502d8fc0c2ebc1
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Wed Dec 22 04:23:26 2021 +0000
+
+    doc/go1.18: fix broken HTML in net/http.MaxBytesHandler
+    
+    For #47694
+    
+    Sorry about that! I guess the autocompleter in VSCode auto-closed the paragraph and I didn't notice.
+    
+    Change-Id: I1e834e47deb708cd5285d26201a442305f8c3b24
+    GitHub-Last-Rev: ab8873155191072efd51270c85fc6feaed318cdc
+    GitHub-Pull-Request: golang/go#50305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374014
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f5f80368c4be5f477a46fb40d455b97890efda7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 21 14:55:05 2012 -0700
+
+    exp/norm/normalize.go: fix typo
+    
+    R=golang-dev, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5874045
+
+ src/pkg/exp/norm/normalize.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

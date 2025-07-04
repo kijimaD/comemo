@@ -1,0 +1,19 @@
+commit d33360571f46b46724b908a5603520dce1e8a81c
+Author: Erik Dubbelboer <erik@dubbelboer.com>
+Date:   Thu Aug 27 14:09:15 2015 +0800
+
+    net/http: Show more data for unsolicited response
+    
+    Show more than one character when we recieve a unsolicited
+    response on an idle HTTP channel. Showing more than one
+    byte is really useful when you want to debug your program
+    when you get this message.
+    
+    Change-Id: I3caf9f06420e7c2a2de3e4eb302c5dab95428fdb
+    Reviewed-on: https://go-review.googlesource.com/13959
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

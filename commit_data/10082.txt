@@ -1,0 +1,12 @@
+commit d72267ae23380cdec4fd84a66058772ae7f84da6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 19:29:44 2011 -0700
+
+    http: doc typo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5303067
+
+ src/pkg/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

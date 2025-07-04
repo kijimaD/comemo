@@ -1,0 +1,13 @@
+commit 0d92614c73b9aaa392a174d218342dce1af183a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 9 11:19:10 2012 -0800
+
+    C+A: added Jeremy Jackins (Individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5783063
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

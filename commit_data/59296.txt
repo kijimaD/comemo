@@ -1,0 +1,18 @@
+commit 57508059e80123499d2efbaeeed630f0263380e1
+Author: Alex S <hlcfan.yan@gmail.com>
+Date:   Mon Apr 14 13:37:21 2025 +0000
+
+    encoding/json: correct method comment to reflect actual argument
+    
+    Change-Id: I0e9040ee5b84463f0391e8e4ae1b64a036867913
+    GitHub-Last-Rev: 859c82a254f49fa4b5376c0e8fff6f62f5131f62
+    GitHub-Pull-Request: golang/go#73123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662015
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+
+ src/encoding/json/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

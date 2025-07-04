@@ -1,0 +1,20 @@
+commit 2e4a035995e6d22871a27b7ad7c4b688a982b835
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 22:17:54 2012 -0400
+
+    runtime: do not handle signals before configuring handler
+    
+    There was a small window during program initialization
+    where a signal could come in before the handling mechanisms
+    were set up to handle it.  Delay the signal-handler installation
+    until we're ready for the signals.
+    
+    Fixes #3314.
+    
+    R=golang-dev, dsymonds, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5833049
+
+ src/pkg/runtime/proc.c    | 8 +++++++-
+ src/pkg/runtime/runtime.c | 8 +++-----
+ 2 files changed, 10 insertions(+), 6 deletions(-)

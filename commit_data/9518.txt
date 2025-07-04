@@ -1,0 +1,19 @@
+commit a88994f804241b2dd7532394e180b0f94ed01de2
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Aug 26 17:45:19 2011 -0400
+
+    6l, 8l: remove JCXZ; add JCXZW, JCXZL, and JCXZQ
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4950050
+
+ src/cmd/6a/lex.c   | 4 ++--
+ src/cmd/6l/6.out.h | 3 ++-
+ src/cmd/6l/optab.c | 3 ++-
+ src/cmd/6l/span.c  | 9 ++++++++-
+ src/cmd/8a/lex.c   | 3 ++-
+ src/cmd/8l/8.out.h | 3 ++-
+ src/cmd/8l/optab.c | 3 ++-
+ src/cmd/8l/span.c  | 9 ++++++++-
+ 8 files changed, 28 insertions(+), 9 deletions(-)

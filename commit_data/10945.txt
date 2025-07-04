@@ -1,0 +1,26 @@
+commit 97853b46a08e984048e65f1d9c359bb48b8f22e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 21 08:45:00 2011 -0800
+
+    go/doc: steps towards collecting methods of embedded types
+    
+    No visible external changes yet. The current approach is
+    a stop-gap approach: For methods of anonymous fields to be
+    seen, the anonymous field's types must be exported.
+    
+    Missing: computing the actual MethodDocs and displaying them.
+    
+    (Depending on the operation mode of godoc, the input to go/doc
+    is a pre-filtered AST with all non-exported nodes removed. Non-
+    exported anonymous fields are not even seen by go/doc in this
+    case, and it is impossible to collect associated (even exported)
+    methods. A correct fix will require some more significant re-
+    engineering; AST filtering will have to happen later, possibly
+    inside go/doc.)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5500055
+
+ src/pkg/go/doc/doc.go | 101 +++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 68 insertions(+), 33 deletions(-)

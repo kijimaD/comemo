@@ -1,0 +1,36 @@
+commit fd3d27938afa1a5df94f1e056deeb5842855fbdc
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Mon Nov 6 13:59:51 2017 -0800
+
+    math/big: implement addMulVVW on arm64
+    
+    The lack of proper addMulVVW implementation for arm64 hurts RSA performance.
+    
+    This assembly implementation is optimized for arm64 based servers.
+    
+    name                  old time/op    new time/op     delta
+    pkg:math/big goos:linux goarch:arm64
+    AddMulVVW/1             55.2ns ± 0%     11.9ns ± 1%    -78.37%  (p=0.000 n=8+10)
+    AddMulVVW/2             67.0ns ± 0%     11.2ns ± 0%    -83.28%  (p=0.000 n=7+10)
+    AddMulVVW/3             93.2ns ± 0%     13.2ns ± 0%    -85.84%  (p=0.000 n=10+10)
+    AddMulVVW/4              126ns ± 0%       13ns ± 1%    -89.82%  (p=0.000 n=10+10)
+    AddMulVVW/5              151ns ± 0%       17ns ± 0%    -88.87%  (p=0.000 n=10+9)
+    AddMulVVW/10             323ns ± 0%       25ns ± 0%    -92.20%  (p=0.000 n=10+10)
+    AddMulVVW/100           3.28µs ± 0%     0.14µs ± 0%    -95.82%  (p=0.000 n=10+10)
+    AddMulVVW/1000          31.7µs ± 0%      1.3µs ± 0%    -96.00%  (p=0.000 n=10+8)
+    AddMulVVW/10000          313µs ± 0%       13µs ± 0%    -95.98%  (p=0.000 n=10+10)
+    AddMulVVW/100000        3.24ms ± 0%     0.13ms ± 1%    -96.13%  (p=0.000 n=9+9)
+    pkg:crypto/rsa goos:linux goarch:arm64
+    RSA2048Decrypt          44.7ms ± 0%      4.0ms ± 6%    -91.08%  (p=0.000 n=8+10)
+    RSA2048Sign             46.3ms ± 0%      5.0ms ± 0%    -89.29%  (p=0.000 n=9+10)
+    3PrimeRSA2048Decrypt    22.3ms ± 0%      2.4ms ± 0%    -89.26%  (p=0.000 n=10+10)
+    
+    Change-Id: I295f0bd5c51a4442d02c44ece1f6026d30dff0bc
+    Reviewed-on: https://go-review.googlesource.com/76270
+    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/arith_arm64.s | 83 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 82 insertions(+), 1 deletion(-)

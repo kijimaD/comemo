@@ -1,0 +1,20 @@
+commit 7f36ef0aff702f2598390d0349f9c9632942d40b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 17 11:12:31 2021 -0700
+
+    cmd/compile/internal/noder: hide TestUnifiedCompare behind -cmp flag
+    
+    This test is fragile and is starting to impede others' work. This CL
+    disables it until I have time to either find a solution for the issues
+    or decide to just delete the test altogether.
+    
+    Change-Id: Icefabb6d3fbedec5d16536de78be4ca20d63133c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350729
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/unified_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

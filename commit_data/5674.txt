@@ -1,0 +1,13 @@
+commit 3748d22672519f1126b7f18b006d970926c00d0d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 18 20:37:03 2010 -0700
+
+    fmt.Scanf: improve error message when input does not match format
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1693043
+
+ src/pkg/fmt/scan.go      | 10 ++++++----
+ src/pkg/fmt/scan_test.go |  1 +
+ 2 files changed, 7 insertions(+), 4 deletions(-)

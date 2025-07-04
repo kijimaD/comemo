@@ -1,0 +1,16 @@
+commit 3daf133f35d783bb60b9ad058b2116c69aebf705
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jan 12 14:33:28 2010 -0800
+
+    kate: Highlighting improvements
+    
+    * Highlight built in functions
+    * Add copy built in function
+    * Handle multi-line strings
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/184059
+
+ misc/kate/go.xml | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

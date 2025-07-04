@@ -1,0 +1,12 @@
+commit 27cbf06d502f9eb7be61d820fcf044a231527282
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 11 16:23:44 2011 +1000
+
+    mime/multipart: allow for temp files to be removed after tests are finished on Windows
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4605044
+
+ src/pkg/mime/multipart/formdata_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

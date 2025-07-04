@@ -1,0 +1,17 @@
+commit ed890e7414c1aa7040a5ff6bef6dffa2767b6df5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 15:52:23 2014 -0400
+
+    cmd/ld: attempt at fixing openbsd build
+    
+    OpenBSD is excluded from all the usual thread-local storage
+    code, not just emitting the tbss section in the external link .o
+    but emitting a PT_TLS section in an internally-linked executable.
+    I assume it just has no proper TLS support. Exclude it here too.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/87900045
+
+ src/cmd/ld/data.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

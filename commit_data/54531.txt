@@ -1,0 +1,23 @@
+commit d5138e580c2404f2b8f03d2e1e32b2226cb6bbbc
+Author: Kirill Che <g4s8.public@gmail.com>
+Date:   Fri Sep 8 07:51:47 2023 +0000
+
+    cmd/go: improve go build documentation
+    
+    The existing documentation for `go help build` does not match the current behavior of `go build`. This commit fixes inconsistency between documentation and behavior as suggested in #60836 ticket.
+    
+    Fixes #60836
+    
+    Change-Id: I22f24f84815f50fecfa8c51b7f1c24e8e0cd8bc8
+    GitHub-Last-Rev: 7613930a3d6eb10fc61f29e4bf1b7b0fc9584cf8
+    GitHub-Pull-Request: golang/go#61438
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511015
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/alldocs.go             | 15 ++++++++++-----
+ src/cmd/go/internal/work/build.go | 15 ++++++++++-----
+ 2 files changed, 20 insertions(+), 10 deletions(-)

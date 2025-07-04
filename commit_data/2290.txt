@@ -1,0 +1,21 @@
+commit 99128fc7abd8d300d6359fc645f001501617f3e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 21:42:16 2009 -0700
+
+    move pretty/comment.go into go/doc.
+    extract comment text code out of go/doc/doc.go into comment.go.
+    no code changes, just rearrangement.
+    
+    first step so i can write tests.
+    
+    R=gri
+    DELTA=633  (318 added, 301 deleted, 14 changed)
+    OCL=29269
+    CL=29293
+
+ src/lib/go/doc/Makefile                       |  12 ++-
+ {usr/gri/pretty => src/lib/go/doc}/comment.go | 101 ++++++++++++++++++++++++-
+ src/lib/go/doc/doc.go                         | 103 +++-----------------------
+ usr/gri/pretty/Makefile                       |   2 +-
+ usr/gri/pretty/godoc.go                       |   3 +-
+ 5 files changed, 119 insertions(+), 102 deletions(-)

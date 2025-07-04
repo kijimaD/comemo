@@ -1,0 +1,65 @@
+commit 979e1376096a4c1c7525f33dd4e76414f63c93fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 10:57:38 2020 -0400
+
+    cmd/go: add GOVCS setting to control version control usage
+    
+    The go command runs commands like git and hg to download modules.
+    In the past, we have had problems with security bugs in version
+    control systems becoming security bugs in “go get”.
+    
+    The original modules draft design removed use of these commands
+    entirely, saying:
+    
+    > We want to move away from invoking version control tools such as bzr,
+    > fossil, git, hg, and svn to download source code. These fragment the
+    > ecosystem: packages developed using Bazaar or Fossil, for example, are
+    > effectively unavailable to users who cannot or choose not to install
+    > these tools. The version control tools have also been a source of
+    > exciting security problems. It would be good to move them outside the
+    > security perimeter.
+    
+    The removal of these commands was not possible in the end: being able
+    to fetch directly from Git repos is too important, especially for
+    closed source. But the security exposure has not gone away.
+    We remain vulnerable to problems in VCS systems, especially the less
+    scrutinized ones.
+    
+    This change adds a GOVCS setting to let users control which version
+    control systems are allowed by default.
+    
+    It also changes the default allowed version control systems to git and hg
+    for public code and any version control system for private code
+    (import path or module path matched by the GOPRIVATE setting).
+    
+    See the changes in alldocs.go for detailed documentation.
+    See #41730 for proposal and discussion.
+    
+    Fixes #41730.
+    
+    [Replay of CL 266420. See changes from Patch Set 1 for updates to fix
+    a few long tests.]
+    
+    Change-Id: I4fe93804548956c42aea985368b4571bdb220f48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267888
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/alldocs.go                   | 177 +++++++++++++++++++++++---------
+ src/cmd/go/go_test.go                   |   8 ++
+ src/cmd/go/internal/cfg/cfg.go          |   1 +
+ src/cmd/go/internal/envcmd/env.go       |   1 +
+ src/cmd/go/internal/help/helpdoc.go     |   2 +-
+ src/cmd/go/internal/modfetch/fetch.go   |  13 ++-
+ src/cmd/go/internal/modget/get.go       |  76 ++++++++++++++
+ src/cmd/go/internal/modload/help.go     |   2 +-
+ src/cmd/go/internal/vcs/vcs.go          | 144 ++++++++++++++++++++++++++
+ src/cmd/go/internal/vcs/vcs_test.go     | 104 +++++++++++++++++++
+ src/cmd/go/main.go                      |   3 +-
+ src/cmd/go/script_test.go               |   1 +
+ src/cmd/go/testdata/script/govcs.txt    | 174 +++++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_auth.txt |   1 +
+ src/internal/cfg/cfg.go                 |   1 +
+ 15 files changed, 652 insertions(+), 56 deletions(-)

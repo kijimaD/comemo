@@ -1,0 +1,25 @@
+commit 923ab13f9bb6fccc362d5259e2f456abbeda0c51
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Sat Nov 18 04:16:04 2023 +0000
+
+    internal/zstd: avoid panic when windowSize is negative
+    
+    This change fixes an edge case in the zstd decompressor where
+    an int conversion could result in a negative window size.
+    
+    Fixes #63979
+    For #62513
+    
+    Change-Id: Ie714bf8fb51fa509b310deb8bd2c96bd87b52852
+    GitHub-Last-Rev: ab0be6578247da896f16d85e102b81994b8ee5c4
+    GitHub-Pull-Request: golang/go#63980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540415
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/zstd/fuzz_test.go |  1 +
+ src/internal/zstd/zstd.go      | 13 +++++++------
+ 2 files changed, 8 insertions(+), 6 deletions(-)

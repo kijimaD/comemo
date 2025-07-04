@@ -1,0 +1,17 @@
+commit acce8268b611613bef4c422a861bd4863e85b0f1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 27 08:33:45 2017 -0500
+
+    cmd/vendor/golang.org/x/arch: revendor at commit 98fd8d9
+    
+    Pick up CL 85476 to fix #23237.
+    
+    Updates #23237.
+    
+    Change-Id: I31a48ef39ce90bc1424334762452281ae706d273
+    Reviewed-on: https://go-review.googlesource.com/85495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../x/arch/arm64/arm64asm/objdumpext_test.go           |  8 ++++++++
+ src/cmd/vendor/vendor.json                             | 18 ++++++++++++------
+ 2 files changed, 20 insertions(+), 6 deletions(-)

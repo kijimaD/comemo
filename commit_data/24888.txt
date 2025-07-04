@@ -1,0 +1,22 @@
+commit f762d0d22070ba57dbcd74a7cc99cb124dabe667
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 13 15:19:07 2015 +0000
+
+    A+C: add Steve Newman (Google CLA)
+    
+    Steve Newman (Google CLA) was missing from the CONTRIBUTORS file,
+    presumably because his old commits (made prior to Go being open
+    source) in SVN/perforce were imported into hg/git later as
+    "devnull@localhost", which probably didn't match anything, and we
+    didn't start tracking CLA contributions prior to the Go
+    open source release.
+    
+    As a fun historical note, the initial HTTP client from Steve:
+    https://github.com/golang/go/commit/f315fb3
+    
+    Change-Id: I2b8da4564d99820504788ecc41495a62391078d5
+    Reviewed-on: https://go-review.googlesource.com/16864
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

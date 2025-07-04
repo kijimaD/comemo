@@ -1,0 +1,25 @@
+commit 6f6512bd6002fa9a20b46c4d6a3def03d4f0b2fa
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 8 22:25:21 2015 +1300
+
+    cmd/internal/gc, etc: remove dead code
+    
+    Found with https://github.com/opennota/check.
+    
+    Change-Id: I50c173382782fb16b15100e02c1c85610bc233a0
+    Reviewed-on: https://go-review.googlesource.com/7130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/5g/gsubr.go         |  5 -----
+ src/cmd/6g/gsubr.go         |  5 -----
+ src/cmd/7g/gsubr.go         |  5 -----
+ src/cmd/9g/gsubr.go         |  5 -----
+ src/cmd/internal/gc/go.go   |  9 ---------
+ src/cmd/internal/gc/lex.go  |  2 --
+ src/cmd/internal/gc/popt.go | 17 ++++++++---------
+ src/cmd/internal/gc/subr.go |  4 ----
+ 8 files changed, 8 insertions(+), 44 deletions(-)

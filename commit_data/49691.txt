@@ -1,0 +1,14 @@
+commit 9dbc0f3556b3401b0f3339d4c33cd32ea16d5241
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:20:48 2022 -0400
+
+    runtime: fix outdated g.m comment in traceback.go
+    
+    Change-Id: Idfd02781a9ee550da240ef53898943e8cd37dd64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418574
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/traceback.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

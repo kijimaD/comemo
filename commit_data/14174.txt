@@ -1,0 +1,22 @@
+commit 2a4818dd11a4fac1016b1ef2c2200a8e094272bd
+Author: Michael Chaten <mchaten@gmail.com>
+Date:   Fri Oct 19 11:22:51 2012 +1100
+
+    bufio: Implement io.ReaderFrom for (*Writer).
+    
+    This is part 2 of 2 for issue 4028.
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkWriterCopyOptimal           53293        28326  -46.85%
+    BenchmarkWriterCopyUnoptimal         53757        30537  -43.19%
+    BenchmarkWriterCopyNoReadFrom        53192        36642  -31.11%
+    
+    Fixes #4028.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6565056
+
+ src/pkg/bufio/bufio.go      |  29 +++++++++++++
+ src/pkg/bufio/bufio_test.go | 101 ++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 127 insertions(+), 3 deletions(-)

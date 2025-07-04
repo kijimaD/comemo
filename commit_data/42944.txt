@@ -1,0 +1,17 @@
+commit 07d19b2597af253ed78ef43ba6e7a49db9a8f4ba
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 10 13:21:41 2020 +0700
+
+    all: check GOROOT_BOOTSTRAP executable before bootsrappping
+    
+    Otherwise we’d still be writing that we're building cmd/dist
+    even if GOROOT_BOOTSTRAP we’re wrongly set.
+    
+    Change-Id: I940e18c3cebae5664f85babc9919e9eb215d5093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253877
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/make.bash | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

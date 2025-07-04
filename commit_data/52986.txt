@@ -1,0 +1,19 @@
+commit 7484dd30fd91829f995eed35eb72b90de75c959a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 11 15:27:12 2023 -0400
+
+    cmd/compile/internal/pgo/internal/graph: delete dead code
+    
+    We don't use large swaths of this package. Delete the code. We can
+    always bring it back later if needed.
+    
+    Change-Id: I6b39a73ed9c48d2d5b37c14763d7bb7956f3ef43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494438
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ .../compile/internal/pgo/internal/graph/graph.go   | 328 ---------------------
+ src/cmd/compile/internal/pgo/irgraph.go            |   1 -
+ 2 files changed, 329 deletions(-)

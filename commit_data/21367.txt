@@ -1,0 +1,19 @@
+commit f30a2b9ca7ccfd325a5ebcc8eb57e39d8e9c7af3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 18:11:27 2014 +0100
+
+    runtime: add execution tracing functionality
+    
+    This is first patch of series of patches that implement tracing functionality.
+    Design doc:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
+    
+    Change-Id: I84588348bb05a6f6a102c230f3bca6380a3419fe
+    Reviewed-on: https://go-review.googlesource.com/1450
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/runtime2.go |   3 +
+ src/runtime/trace.go    | 790 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 793 insertions(+)

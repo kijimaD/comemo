@@ -1,0 +1,12 @@
+commit c546e9d2c22f8d6149bc8050a94eb0a22153d3e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 20 17:20:58 2013 -0700
+
+    api: update next.txt; add io.ErrNoProgress
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8887043
+
+ api/next.txt | 1 +
+ 1 file changed, 1 insertion(+)

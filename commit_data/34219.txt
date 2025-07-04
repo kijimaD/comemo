@@ -1,0 +1,20 @@
+commit a90f9a00ca34251dcee80eacff241871c43ac18f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 4 10:58:15 2017 -0500
+
+    runtime: consolidate mheap.lookup* and spanOf*
+    
+    I think we'd forgotten about the mheap.lookup APIs when we introduced
+    spanOf*, but, at any rate, the spanOf* functions are used far more
+    widely at this point, so this CL eliminates the mheap.lookup*
+    functions in favor of spanOf*.
+    
+    Change-Id: I15facd0856e238bb75d990e838a092b5bef5bdfc
+    Reviewed-on: https://go-review.googlesource.com/85879
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 52 +++++++++++++++++++++-------------------------------
+ src/runtime/stack.go |  4 ++--
+ 2 files changed, 23 insertions(+), 33 deletions(-)

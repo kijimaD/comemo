@@ -1,0 +1,12 @@
+commit 988968262dcbd0d625d57f00714c655ffb7c56e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 00:59:01 2012 -0800
+
+    doc: fix links
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5671051
+
+ lib/godoc/package.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

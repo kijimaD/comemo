@@ -1,0 +1,12 @@
+commit 75cb084283558bf59e727096bf1c8f4e1ba137b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 17 15:55:06 2011 -0400
+
+    test: new nil semantics
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4644052
+
+ test/nil.go | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 142 insertions(+)

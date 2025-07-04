@@ -1,0 +1,16 @@
+commit ec0b5533c9cb77bac948171c49e62ab8c7500f18
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 19 12:19:13 2011 -0400
+
+    crypto/x509: fix names in certificate generation.
+    
+    I had a brain fart in af84b15fbae2 and messed up the names in
+    generated certificates.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5315046
+
+ src/pkg/crypto/x509/x509.go      |  4 ++--
+ src/pkg/crypto/x509/x509_test.go | 11 ++++++++++-
+ 2 files changed, 12 insertions(+), 3 deletions(-)

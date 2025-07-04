@@ -1,0 +1,28 @@
+commit 381e5eee39edfb3a43e294023957aff05e9ff349
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 04:35:37 2016 +0000
+
+    all: use new io.SeekFoo constants instead of os.SEEK_FOO
+    
+    Automated change.
+    
+    Fixes #15269
+    
+    Change-Id: I8deb2ac0101d3f7c390467ceb0a1561b72edbb2f
+    Reviewed-on: https://go-review.googlesource.com/21962
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go     |  5 ++---
+ src/archive/zip/reader.go     |  2 +-
+ src/bytes/reader_test.go      | 21 ++++++++++-----------
+ src/debug/elf/file.go         |  8 ++++----
+ src/debug/pe/file.go          |  8 ++++----
+ src/net/http/fs.go            | 10 +++++-----
+ src/net/sendfile_dragonfly.go |  2 +-
+ src/net/sendfile_freebsd.go   |  2 +-
+ src/net/sendfile_solaris.go   |  2 +-
+ src/os/exec/exec_test.go      |  2 +-
+ src/strings/reader_test.go    | 21 ++++++++++-----------
+ 11 files changed, 40 insertions(+), 43 deletions(-)

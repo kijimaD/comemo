@@ -1,0 +1,14 @@
+commit dd916be3d8b2361e6d60e6615f80db7b3143b85c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 10 14:25:17 2011 -0800
+
+    go spec: remove Maxalign from spec
+    
+    Fixes #1285.
+    
+    R=r, rsc, iant, ken2, r2
+    CC=golang-dev
+    https://golang.org/cl/3918041
+
+ doc/go_spec.html | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,27 @@
+commit 9ce47e66e8eb7348005f1e45a77a729e7f146a1e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 01:29:02 2024 +1000
+
+    cmd/internal/obj/arm64: add support for BTI instruction
+    
+    Add support for the `BTI' instruction to the arm64 assembler. This
+    instruction provides Branch Target Identification for targets of
+    indirect branches. A BTI can be marked with a target type of
+    'C' (call), 'J' (jump) or 'JC' (jump or call).
+    
+    Updates #66054
+    
+    Change-Id: I1cf31a0382207bb75b9b2deb49ac298a59c00d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646781
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Marvin Drees <marvin.drees@9elements.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s          |  6 ++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |  2 ++
+ src/cmd/internal/obj/arm64/a.out.go                |  9 +++++++--
+ src/cmd/internal/obj/arm64/anames.go               |  1 +
+ src/cmd/internal/obj/arm64/asm7.go                 | 23 +++++++++++++++++++++-
+ .../internal/obj/arm64/specialoperand_string.go    |  9 ++++++---
+ 6 files changed, 44 insertions(+), 6 deletions(-)

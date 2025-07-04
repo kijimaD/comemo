@@ -1,0 +1,14 @@
+commit 7e9a8546e4b6a703b102c074e5620390550d9706
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Feb 26 20:00:51 2018 +0900
+
+    time: avoid unnecessary type conversions
+    
+    Change-Id: Ic318c25b21298ec123eb27c814c79f637887713c
+    Reviewed-on: https://go-review.googlesource.com/97135
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

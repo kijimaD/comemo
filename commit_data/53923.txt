@@ -1,0 +1,20 @@
+commit 64c1be144fdf804c5cfc6cb06eb68cc9496eedba
+Author: montag451 <montag451@laposte.net>
+Date:   Fri Aug 4 22:04:10 2023 +0000
+
+    testing: improve the usage message of -benchtime
+    
+    Specify that -benchtime can take the form Nx.
+    
+    Change-Id: I1e711cdb2e19e3ff5eb2cea4e7c8843bc58696b1
+    GitHub-Last-Rev: 1cb13f7dba829497c5cbb3d4c578f4984e1cbd28
+    GitHub-Pull-Request: golang/go#61756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515801
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

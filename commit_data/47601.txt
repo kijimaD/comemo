@@ -1,0 +1,13 @@
+commit 003e7faf53a3e7d0e280871447c60922bff89bcf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 20 13:29:02 2021 -0800
+
+    spec: adjust representability rules for type parameters
+    
+    Change-Id: I4423a059527066c4418c195911f8184dfd3f5a15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit a9a24d4d8a207edeff5009fc185faf77b43a90f7
+Author: Vinu Rajashekhar <vinutheraj@gmail.com>
+Date:   Sat Jul 10 14:40:48 2010 -0700
+
+    Corrected a print statement from printing netfd to fd.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1805041
+
+ src/pkg/net/fd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

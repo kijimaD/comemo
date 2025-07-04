@@ -1,0 +1,18 @@
+commit 9cfa41c826ba358dc6f911f72dfbfda8c13d27fe
+Author: Seebs <seebs@sourcegraph.com>
+Date:   Fri Aug 3 11:50:55 2018 -0500
+
+    os: use Println instead of Printf in example
+    
+    This message has no format specifiers and no trailing newline.
+    It should use Println for consistency with other examples.
+    
+    Change-Id: I49bd1652f9449fcbdd79c6b689c123090972aab3
+    Reviewed-on: https://go-review.googlesource.com/127836
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

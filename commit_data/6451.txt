@@ -1,0 +1,12 @@
+commit 454f03ff0b00ad59c2b20d08cd4cc4ea5f2641d1
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Oct 5 21:17:16 2010 +0200
+
+    6g: set kind to KindUnsafePointer where appropriate in reflect structures.
+    
+    R=rsc, ken2, r
+    CC=golang-dev
+    https://golang.org/cl/2355043
+
+ src/cmd/gc/reflect.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

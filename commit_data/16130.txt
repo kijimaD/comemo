@@ -1,0 +1,12 @@
+commit f9af491307df56c821c38e3cfc6586c436976916
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Mon Apr 8 12:04:50 2013 +1000
+
+    doc: fix typos in go1.1.html
+    
+    R=golang-dev, adg, adg
+    CC=golang-dev
+    https://golang.org/cl/8488047
+
+ doc/go1.1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

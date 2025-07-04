@@ -1,0 +1,17 @@
+commit 2cbe27a27202dca5a643b75c79e25d4cccc3ae67
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 1 01:10:39 2015 -0500
+
+    runtime: skip TestCgoExternalThreadSIGPROF on OS X 10.6
+    
+    The test program requires static constructor, which in turn needs
+    external linking to work, but external linking never works on 10.6.
+    
+    This should fix the darwin-{386,amd64} builders.
+    
+    Change-Id: I714fdd3e35f9a7e5f5659cf26367feec9412444f
+    Reviewed-on: https://go-review.googlesource.com/2235
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_cgo_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

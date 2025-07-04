@@ -1,0 +1,23 @@
+commit 05390a07931771b14bcd5c6eb4e5410cf9c2bbfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 22:51:03 2015 -0500
+
+    misc/cgo/stdio: reenable tests
+    
+    The build tags are necessary to keep "go build" in that directory
+    building only stdio.go, but we have to arrange for test/run.go to
+    treat them as satisfied.
+    
+    Fixes #12625.
+    
+    Change-Id: Iec0cb2fdc2c9b24a4e0530be25e940aa0cc9552e
+    Reviewed-on: https://go-review.googlesource.com/17454
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/life/main.go   | 2 +-
+ misc/cgo/stdio/chain.go | 5 +++--
+ misc/cgo/stdio/fib.go   | 5 +++--
+ misc/cgo/stdio/hello.go | 2 +-
+ test/run.go             | 4 ++++
+ 5 files changed, 12 insertions(+), 6 deletions(-)

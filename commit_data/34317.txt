@@ -1,0 +1,23 @@
+commit f5de42001df2e61233c7ec7bbbd014bbaeaee242
+Author: erifan01 <eric.fang@arm.com>
+Date:   Fri Jan 26 10:18:50 2018 +0000
+
+    cmd/asm: add arm64 instructions for math optimization
+    
+    Add arm64 HW instructions FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS,
+    FNMSUBD, FNMSUBS, VFMLA, VFMLS, VMOV (element) for math optimization.
+    
+    Add check on register element index and test cases.
+    
+    Change-Id: Ice07c50b1a02d488ad2cde2a4e8aea93f3e3afff
+    Reviewed-on: https://go-review.googlesource.com/90876
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go             |  21 +++
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  39 +++--
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  56 ++++++--
+ src/cmd/internal/obj/arm64/a.out.go            |   2 +
+ src/cmd/internal/obj/arm64/anames.go           |   2 +
+ src/cmd/internal/obj/arm64/asm7.go             | 188 +++++++++++++++++++++----
+ src/cmd/internal/obj/arm64/doc.go              |  54 +++++++
+ 7 files changed, 314 insertions(+), 48 deletions(-)

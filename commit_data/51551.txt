@@ -1,0 +1,22 @@
+commit b16e94d13d0f9b84ed92563a12984190f91ead66
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Dec 12 09:31:59 2022 -0600
+
+    syscall: skip TestUseCgroupFD if cgroupfs mounted RO
+    
+    The skipping logic should also trigger if /sys/fs/cgroup is
+    mounted read-only too. This is how it is mounted on the
+    ppc64le/p10 containers today.
+    
+    Fixes #57262
+    
+    Change-Id: Idc0ab050052ebf5777ac09f9519215b437b0ee7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/syscall/exec_linux_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

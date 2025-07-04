@@ -1,0 +1,19 @@
+commit 65896f68fc347cb3734922c5dd3576156bf06a49
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 20 16:13:02 2023 -0400
+
+    cmd/go: make get_dash_t test more specific
+    
+    Currently it uses "go list ...", which includes all packages in
+    the known universe, and may include unresolved dependencies. The
+    test for issue #8181 is specifically for that the test dependency
+    of package b is downloaded. Test that specifically.
+    
+    Change-Id: Icfbd7e197698b10ae4bc7c8aa3b0f2c477ca6b8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477837
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/testdata/script/get_dash_t.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

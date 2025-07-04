@@ -1,0 +1,14 @@
+commit 6d9fd7e65b29af8227a763d754ac7a2fbf8be6f9
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 15:44:08 2015 +0300
+
+    test: add tests for indirection level computation in escape analysis
+    
+    The false positive (var incorrectly escapes to heap) is marked with BAD.
+    
+    Change-Id: I11877fa8e976094b31a221abd88ae32d351c85ee
+    Reviewed-on: https://go-review.googlesource.com/5292
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_level.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 108 insertions(+)

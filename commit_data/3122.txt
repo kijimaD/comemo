@@ -1,0 +1,14 @@
+commit b291fc31fcdaf69f1253b46c85ebb797ab099787
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 28 11:39:25 2009 -0700
+
+    - don't associate factory methods to basic types (which have no explicit declarations)
+    - be more robust in the presence of absent type declarations
+    
+    R=rsc
+    DELTA=81  (63 added, 14 deleted, 4 changed)
+    OCL=34033
+    CL=34036
+
+ src/pkg/go/doc/doc.go | 73 ++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 61 insertions(+), 12 deletions(-)

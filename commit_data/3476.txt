@@ -1,0 +1,14 @@
+commit 55edf49a015f1448a374875a89040ef71104157f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 7 22:19:42 2009 -0700
+
+    add & fix bug207: rewritten if condition
+    was discarding initialization work.
+    
+    R=ken
+    OCL=35454
+    CL=35457
+
+ src/cmd/gc/walk.c        | 11 +++++++++--
+ test/fixedbugs/bug207.go | 23 +++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

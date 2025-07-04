@@ -1,0 +1,15 @@
+commit a7186dc3035dffef8ac9033966da52e4cc935ef0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 26 17:16:43 2014 -0700
+
+    runtime: improve scheduler trace
+    Output number of spinning threads,
+    this is useful to understanding whether the scheduler
+    is in a steady state or not.
+    
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/103540045
+
+ src/pkg/runtime/proc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

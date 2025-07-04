@@ -1,0 +1,14 @@
+commit 232991e8a75011a7ae6afd41c62a1f556749ebd6
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Tue Dec 13 23:01:15 2016 -0500
+
+    net: change "mask" to "prefix length" in ParseCIDR comment
+    
+    Fixes #18175
+    
+    Change-Id: I0074109fa885976b22c2be9fa39641d4d0657dee
+    Reviewed-on: https://go-review.googlesource.com/34375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

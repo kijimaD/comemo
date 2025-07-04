@@ -1,0 +1,19 @@
+commit d18057917003970322335bd1ad73a68ae6994ccd
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Jan 4 00:29:20 2014 +1100
+
+    syscall: handle varied path lengths for unix sockets
+    
+    Most BSDs include the trailing NUL character of the socket path in the
+    length, however some do not (such as NetBSD 6.99). Handle this by only
+    subtracting the family and length bytes from the returned length, then
+    scanning the path and removing any terminating NUL bytes.
+    
+    Fixes #6627.
+    
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/46420044
+
+ src/pkg/syscall/syscall_bsd.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

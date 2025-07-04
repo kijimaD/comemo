@@ -1,0 +1,19 @@
+commit fc2eee87edd1ffbe6afd3b742760d29ac3983d3b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 17:56:20 2015 -0700
+
+    database/sql: make Register safe for concurrent use
+    
+    Adding a mutex was easier than documenting it, and is consistent with
+    gob.
+    
+    Fixes #9847
+    
+    Change-Id: Ifa94c17e7c11643add81b35431ef840b794d78b1
+    Reviewed-on: https://go-review.googlesource.com/11682
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

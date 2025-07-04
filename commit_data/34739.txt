@@ -1,0 +1,16 @@
+commit f8b28e28f8e41d988ff1c08721e6f7d33f3fa7ff
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 27 15:21:49 2018 -0500
+
+    internal/bytealg: remove dependency on runtime·support_avx2
+    
+    Use internal/cpu instead.
+    
+    Change-Id: I8670440389cbd88951fee61e352c4a10ac7eee6e
+    Reviewed-on: https://go-review.googlesource.com/102737
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/bytealg/count_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

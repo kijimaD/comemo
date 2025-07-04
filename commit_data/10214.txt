@@ -1,0 +1,12 @@
+commit 33f1d47b38f9c48b326642e2005e24ec06176172
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 2 22:33:15 2011 +0100
+
+    gc: package paths in symbol names: don't escape periods before last slash, always escape >=0x7f.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5323071
+
+ src/cmd/gc/subr.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

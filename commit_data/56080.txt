@@ -1,0 +1,23 @@
+commit bb523c9542e2848dfa403d0d84c759ad771e9d69
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 28 22:33:37 2024 +0800
+
+    net/http: correct doc for ServeFileFS
+    
+    The documentation of ServeFileFS was partly copied from ServeFile
+    in CL 513956, however it's not exact. This CL fixes some typos, also
+    removes obsolete comment for name param.
+    
+    For consistency, also adds godoc link for ServeFile and ServeContent.
+    
+    Fixes #66578
+    
+    Change-Id: I87147d72c533d46284f06ef20b37fdafa8706710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575016
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/net/http/fs.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

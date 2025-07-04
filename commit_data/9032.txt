@@ -1,0 +1,12 @@
+commit 88e0c0517aa0dfdb45441bb361009cd4866afb22
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 12 09:26:05 2011 -0700
+
+    runtime: fix comment (lost in shuffle)
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4710041
+
+ src/pkg/runtime/proc.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

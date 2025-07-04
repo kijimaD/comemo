@@ -1,0 +1,16 @@
+commit bae1e70ac4a963bfb167136fc6b40988bc9cd546
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 6 13:54:07 2018 -0500
+
+    runtime: print pointers being put in checkPut
+    
+    In order to further diagnose #27993, I need to see exactly what
+    pointers are being added to the gcWork buffer too late.
+    
+    Change-Id: I8d92113426ffbc6e55d819c39e7ab5eafa68668d
+    Reviewed-on: https://go-review.googlesource.com/c/152957
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcwork.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 1f523e2579e8e10b8d9de7f989b711f6d2ee0eb2
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Sep 5 10:56:39 2011 +1000
+
+    websocket: fix incorrect prints found by govet
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4963059
+
+ src/pkg/websocket/websocket_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

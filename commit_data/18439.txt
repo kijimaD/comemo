@@ -1,0 +1,15 @@
+commit 373e1e94d8bf4985bb1e0452d95ed500106dc631
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 10 20:24:47 2014 +0400
+
+    runtime: fix crash during cpu profiling
+    mp->mcache can be concurrently modified by runtime·helpgc.
+    In such case sigprof can remember mcache=nil, then helpgc sets it to non-nil,
+    then sigprof restores it back to nil, GC crashes with nil mcache.
+    
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/58860044
+
+ src/pkg/runtime/proc.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

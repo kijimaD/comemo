@@ -1,0 +1,20 @@
+commit c0740fed377109526e61955af612efba8ec3f3dc
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 3 22:06:57 2016 -0800
+
+    cmd/compile: more ssa config flags
+    
+    To turn ssa compilation on or off altogether, use
+    -ssa=1 or -ssa=0.  Default is on.
+    
+    To turn on or off consistency checks, do
+    -d=ssa/check/on or -d=ssa/check/off.  Default is on for now.
+    
+    Change-Id: I277e0311f538981c8b9c62e7b7382a0c8755ce4c
+    Reviewed-on: https://go-review.googlesource.com/20217
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/lex.go      |  1 +
+ src/cmd/compile/internal/gc/ssa.go      |  5 +++++
+ src/cmd/compile/internal/ssa/compile.go | 19 +++++++++++++++++--
+ 3 files changed, 23 insertions(+), 2 deletions(-)

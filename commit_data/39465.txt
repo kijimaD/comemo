@@ -1,0 +1,25 @@
+commit e301e165ac3bd591a2c8b52dcc5bdd2b0ef68191
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 26 17:09:14 2019 +0000
+
+    Revert "syscall: use Ctty before fd shuffle"
+    
+    This reverts commit 103b5b66921b351f8db4fc6e83bf147b1a0d7580.
+    
+    Reason for revert: Breaks valid existing programs.
+    
+    Updates #29458
+    
+    Change-Id: I7ace4ae404cf2a8b0e15e646663c50115f74b758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183939
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Greg Thelen <gthelen@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_cgo_test.go | 11 -----------
+ src/syscall/exec_bsd.go          | 32 +++++++++++++++---------------
+ src/syscall/exec_darwin.go       | 32 +++++++++++++++---------------
+ src/syscall/exec_libc.go         | 42 ++++++++++++++++++++--------------------
+ src/syscall/exec_linux.go        | 32 +++++++++++++++---------------
+ 5 files changed, 69 insertions(+), 80 deletions(-)

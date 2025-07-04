@@ -1,0 +1,14 @@
+commit 51a6d3e074e66ad9018779892d967ecd758e3440
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 7 11:06:34 2016 -0800
+
+    test: add bug501.go, a gccgo compiler crash
+    
+    Change-Id: I271707dee03fd97cd37bfb116eb00a5532034b57
+    Reviewed-on: https://go-review.googlesource.com/34020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug501.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

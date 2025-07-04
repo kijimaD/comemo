@@ -1,0 +1,15 @@
+commit 6c4d8f830965d04854dd42294c939c48d3d61d83
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 11:21:56 2008 -0800
+
+    gobuild:
+            recognize "// package foo" in non-go files
+            recognize "gobuild: ignore" to exclude from build
+    
+    R=r
+    DELTA=10  (7 added, 2 deleted, 1 changed)
+    OCL=19878
+    CL=19905
+
+ src/cmd/gobuild/gobuild.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

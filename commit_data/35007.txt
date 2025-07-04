@@ -1,0 +1,25 @@
+commit ea3f329613c28cf8d8e955135616ee061ce0a012
+Author: David Url <david@urld.io>
+Date:   Mon Apr 2 12:57:59 2018 +0200
+
+    net/http: omit forbidden Trailer headers from response
+    
+    Use the vendored ValidTrailerHeader function from x/net/http/httpguts to
+    check Trailer headers according to RFC 7230. The previous implementation
+    only omitted illegal Trailer headers defined in RFC 2616.
+    
+    This CL adds x/net/http/httpguts from CL 104042 (git rev a35a21de97)
+    
+    Fixes #23908
+    
+    Change-Id: Ib2329a384040494093c18e209db9b62aaf86e921
+    Reviewed-on: https://go-review.googlesource.com/104075
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go                         | 14 ++++---
+ src/net/http/httptest/recorder.go                 | 13 +++---
+ src/net/http/server.go                            |  7 ++--
+ src/vendor/golang_org/x/net/http/httpguts/guts.go | 50 +++++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 17 deletions(-)

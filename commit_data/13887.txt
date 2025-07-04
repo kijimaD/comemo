@@ -1,0 +1,15 @@
+commit 9773ac1d08312e376d0741791545ca21cd0332d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Sep 21 07:13:36 2012 +0900
+
+    net: fix comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6546044
+
+ src/pkg/net/dial.go       | 2 +-
+ src/pkg/net/fd_unix.go    | 2 +-
+ src/pkg/net/fd_windows.go | 2 +-
+ src/pkg/net/sock_posix.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 3dac914b772f7c99bb749839946ca68878a65f35
+Author: Adam Pritchard <pritchard.adam@gmail.com>
+Date:   Fri Mar 25 19:08:19 2022 +0000
+
+    net/netip: fix uses of "IPv4-mapped IPv6" in doc comments
+    
+    The correct (or at least mostly commonly used) name for addresses of the
+    form ::ffff:192.0.2.128 is "IPv4-mapped IPv6". Some of the comments in
+    the netip package used that name, but others used "IPv6-mapped IPv4" or
+    "v6-mapped". This change makes the usage of the term consistent.
+    
+    Change-Id: Ic01309ddf9252705a2387322d940b777e88800a5
+    GitHub-Last-Rev: 56044dcb97aeae1aa09bde635118ad46c979bbaf
+    GitHub-Pull-Request: golang/go#51950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395914
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/net/netip/netip.go      | 10 +++++-----
+ src/net/netip/netip_test.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

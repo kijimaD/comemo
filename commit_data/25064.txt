@@ -1,0 +1,14 @@
+commit 240144a3a3e2ea142abbc87aac6e4f48f2e32e2d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 25 15:08:00 2015 -0800
+
+    doc: update go1.6.txt for cmd/cgo's C.complexfloat and C.complexdouble fix
+    
+    Updates #13402.
+    
+    Change-Id: Ia7b729d81fb78206d214444911f2e6573b88717a
+    Reviewed-on: https://go-review.googlesource.com/17240
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

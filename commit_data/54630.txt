@@ -1,0 +1,24 @@
+commit 10da3b64af1aebfd146fa3b7ecf765ee1b0f0d7d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 3 22:51:03 2023 +0700
+
+    cmd/compile: some cleanup with old irgen code
+    
+     - Un-export Convertop: it's only used by tcConv.
+     - Remove AssignOp1: introduced in CL 349614, only used by irgen.
+     - Un-export Assignop: it was exported to be used by irgen only.
+    
+    Change-Id: I7e78b35d90f165c537cf32a104156bf2a13ca8b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532516
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/typecheck/expr.go      |  6 +++---
+ src/cmd/compile/internal/typecheck/stmt.go      |  4 ++--
+ src/cmd/compile/internal/typecheck/subr.go      | 11 ++++-------
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ 4 files changed, 10 insertions(+), 13 deletions(-)

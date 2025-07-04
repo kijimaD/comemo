@@ -1,0 +1,13 @@
+commit 58de26810ccfd20d3c430a20483b171938337aed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 17:49:49 2016 -0700
+
+    cmd/compile: remove superfluous returns in fmt.go
+    
+    Change-Id: Ie73fb460a3838c6d1b9348965a8b69c1bfa6a882
+    Reviewed-on: https://go-review.googlesource.com/28341
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/fmt.go | 60 +++++---------------------------------
+ 1 file changed, 7 insertions(+), 53 deletions(-)

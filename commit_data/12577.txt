@@ -1,0 +1,14 @@
+commit 0af08d825343431594421aec06fec4c96052257b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 16:29:33 2012 -0400
+
+    log: fix doc comment for Ldate
+    
+    Fixes #3303.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5795062
+
+ src/pkg/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

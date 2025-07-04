@@ -1,0 +1,19 @@
+commit 28e0052ee7f3623c28aa08afc41416b29cbddebc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 28 01:28:43 2024 -0800
+
+    cmd/compile/internal/inline: refactor fixpoint algorithm
+    
+    This CL refactors the interleaved fixpoint algorithm so that calls can
+    be inlined in any order. This has no immediate effect, but it will
+    allow a subsequent CL to prioritize calls by inlheur score.
+    
+    Change-Id: I11a84d228e9c94732ee75f0d3c99bc90d83fea09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ .../internal/inline/interleaved/interleaved.go     | 117 ++++++++++++++++-----
+ src/cmd/compile/internal/ir/expr.go                |  20 ++--
+ 2 files changed, 106 insertions(+), 31 deletions(-)

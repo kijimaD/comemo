@@ -1,0 +1,13 @@
+commit a60b91d5ad7522813ecc2b67df0b321723dffc9b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 5 10:45:56 2014 -0700
+
+    tag go1.2.2
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96000043
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

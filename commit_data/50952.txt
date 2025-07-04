@@ -1,0 +1,26 @@
+commit 160bb0e66b96e24120deba5fed927acc47b59b1a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 20 19:06:05 2022 +0200
+
+    runtime: fix TestVectoredHandlerExceptionInNonGoThread
+    
+    This test is failing on the windows-arm64-10 builder
+    https://build.golang.org/log/c161c86be1af83c349ee02c1b12eff5828818f50.
+    
+    It is not failing on windows-arm64-11, so I guess it has something to
+    do with the compiler.
+    
+    This CL simplifies the test so is easier to build.
+    
+    Change-Id: I6e0e1cf237277628f8ebf892c70ab54cd0077680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444438
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/signal_windows_test.go           |  4 +--
+ src/runtime/testdata/testwinlibthrow/main.go |  4 ---
+ src/runtime/testdata/testwinlibthrow/veh.c   | 26 ++++++++++++++
+ src/runtime/testdata/testwinlibthrow/veh.cpp | 53 ----------------------------
+ 4 files changed, 28 insertions(+), 59 deletions(-)

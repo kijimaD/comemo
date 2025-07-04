@@ -1,0 +1,14 @@
+commit 86cfaf66a747cc89fea5942c4c82107b744d76a4
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 10 12:29:06 2009 -0700
+
+    reallocate library, libraryobj: 50 isn't nearly enough
+    
+    R=rsc
+    DELTA=7  (2 added, 0 deleted, 5 changed)
+    OCL=35569
+    CL=35569
+
+ src/cmd/ld/lib.c | 7 ++++---
+ src/cmd/ld/lib.h | 5 +++--
+ 2 files changed, 7 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 7531e8cb39c5d67c46a60f017671f7b3d03f497d
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Sun Feb 12 12:38:51 2012 -0200
+
+    pprof: fix import path in the documentation
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5649072
+
+ src/pkg/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

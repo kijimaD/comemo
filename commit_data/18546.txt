@@ -1,0 +1,25 @@
+commit 5c604f844a058223e9b13d602e53e14d5f199ad6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Feb 18 08:04:01 2014 +1100
+
+    undo CL 64820044 / 4f9dee8402af
+    
+    Callers of md5.Sum should do so to avoid allocations, the example did not demonstate this property.
+    
+    ««« original CL description
+    crypto/md5: add example for Sum
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/64820044
+    
+    »»»
+    
+    LGTM=minux.ma
+    R=r, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/65180043
+
+ src/pkg/crypto/md5/example_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,29 @@
+commit 6d00e8c478431b32b38ac5849a703a86df8e5298
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sun Apr 29 15:12:50 2018 +0100
+
+    cmd/compile: convert memmove call into Move when arguments are disjoint
+    
+    Move ops can be faster than memmove calls because the number of bytes
+    to be moved is fixed and they don't incur the overhead of a call.
+    This change allows memmove to be converted into a Move op when the
+    arguments are disjoint.
+    
+    The optimization is only enabled on s390x at the moment, however
+    other architectures may also benefit from it in the future. The
+    memmove inlining rule triggers an extra 12 times when compiling the
+    standard library. It will most likely make more of a difference as the
+    disjoint function is improved over time (to recognize fresh heap
+    allocations for example).
+    
+    Change-Id: I9af570dcfff28257b8e59e0ff584a46d8e248310
+    Reviewed-on: https://go-review.googlesource.com/110064
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 ++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go        | 17 +++++++++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  8 ++++----
+ test/codegen/copy.go                           | 27 ++++++++++++++++++++++++--
+ 4 files changed, 48 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit be8025604e1175ef3e0718ca70d5ba38c928b976
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 10 10:02:24 2011 +0900
+
+    runtime: fix freebsd build
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5370050
+
+ src/pkg/runtime/freebsd/thread.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

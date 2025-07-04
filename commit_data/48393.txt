@@ -1,0 +1,30 @@
+commit 5fd0ed7aaf39f783ea6f505a3f2ac7d9da7cb03b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jun 7 14:24:45 2021 +0800
+
+    cmd/compile: set conversions to unsafe.Pointer as an escaping operation when -asan is enabled
+    
+    When ASan is enabled, treat conversions to unsafe.Pointer as
+    an escaping operation. In this way, all pointer operations on
+    the stack objects will become operations on the escaped heap
+    objects. As we've already supported ASan detection of error
+    memory accesses to heap objects. With this trick, we can use
+    -asan option to report errors on bad stack operations.
+    
+    Add test cases.
+    
+    Updates #44853.
+    
+    CustomizedGitHooks: yes
+    Change-Id: I4e7fe46a3ce01f0d219e6a67dc50f4aff7d2ad87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325629
+    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/testsanitizers/asan_test.go               |  3 +++
+ .../testsanitizers/testdata/asan_unsafe_fail1.go   | 27 +++++++++++++++++++++
+ .../testsanitizers/testdata/asan_unsafe_fail2.go   | 28 ++++++++++++++++++++++
+ .../testsanitizers/testdata/asan_unsafe_fail3.go   | 21 ++++++++++++++++
+ src/cmd/compile/internal/escape/expr.go            |  6 ++---
+ src/cmd/compile/internal/ir/expr.go                |  6 +++++
+ 6 files changed, 88 insertions(+), 3 deletions(-)

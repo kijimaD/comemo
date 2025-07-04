@@ -1,0 +1,12 @@
+commit 13d6414e9dd070e6479d3244ca376cbb891c8751
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 11:43:45 2016 -0800
+
+    doc/go1.7: mention CallersFrames and Frames
+    
+    Change-Id: I73ae6a6837a6dcf75b3b8f431d97a18348e01a42
+    Reviewed-on: https://go-review.googlesource.com/19921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

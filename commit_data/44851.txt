@@ -1,0 +1,17 @@
+commit 4e16422da0b444794b45396519d45eec800a540e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 24 15:50:54 2021 -0500
+
+    cmd/internal/obj/ppc64: remove bogus MOVBU optab entry
+    
+    This was missed in https://golang.org/cl/303329 . It is another
+    impossible usage of MOVBU as a load like "MOVBU 0(rX), rY, rZ" or
+    "MOVBU rX(rB), rY, rZ".
+    
+    Change-Id: Ib3dd984b6424907498ed65b798649f0b990d50a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304471
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 1 -
+ 1 file changed, 1 deletion(-)

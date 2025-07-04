@@ -1,0 +1,11 @@
+commit b1a3463a7bafae2e2acdeb3788e1b61088689bed
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 10 13:23:19 2008 -0700
+
+    made fp numbers from integers and
+    checked values
+    
+    SVN=121972
+
+ test/float_lit.go | 128 ++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 72 insertions(+), 56 deletions(-)

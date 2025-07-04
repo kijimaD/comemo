@@ -1,0 +1,12 @@
+commit e023d5b0ac37310ce8a06e33e751a9a7c632046d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 10:15:56 2018 +0200
+
+    net/http: fix typo in comment
+    
+    Change-Id: Ibb21c12bf67b2648eb7606bee8ec1b54e6c70dd5
+    Reviewed-on: https://go-review.googlesource.com/115237
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/net/http/socks_bundle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

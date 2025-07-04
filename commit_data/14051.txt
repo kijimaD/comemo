@@ -1,0 +1,13 @@
+commit f8485954bf06546675ac779f18fa7e8fb561113a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 00:13:28 2012 +0800
+
+    syscall: fix Statfs and Fstatfs on Linux/ARM
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6615055
+
+ src/pkg/syscall/syscall_linux_arm.go  | 24 ++++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_linux_arm.go | 25 -------------------------
+ 2 files changed, 22 insertions(+), 27 deletions(-)

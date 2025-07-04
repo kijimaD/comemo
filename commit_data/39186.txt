@@ -1,0 +1,14 @@
+commit 29f14f058d2ad7ebce4a6bbcd1909c0e1986eaaa
+Author: Joey <22430354@qq.com>
+Date:   Fri May 17 04:26:16 2019 +0000
+
+    runtime: remove redundant "//"
+    
+    Change-Id: I44af6cd8baa8fcd2a666429467fae4bed5f21fa0
+    GitHub-Last-Rev: d0c9722f082114b356de55fc79ce138ede019636
+    GitHub-Pull-Request: golang/go#32052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177277
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

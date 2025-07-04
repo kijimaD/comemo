@@ -1,0 +1,27 @@
+commit 0f64c21d90c7017df4f199a5852d60d4b474c03c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 19 13:28:49 2021 -0800
+
+    cmd/compile: special packages must not have any path separators
+    
+    We want to distinguish special compiler-generated package paths,
+    like go.shape, from user paths, like go.opentelemetry.io/otel/semconv.
+    The former have no slash in them.
+    
+    Writing a test for this seems hard, as the dependency we'd need to
+    add would be non-hermetic. (Or it would need a new tricky run.go mode.)
+    
+    This CL does fix the example in the issue.
+    
+    Fixes #49606
+    
+    Change-Id: I38f1b970b6dd31e0617763a27ff227e3afee74d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365834
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

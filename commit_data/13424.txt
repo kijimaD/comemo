@@ -1,0 +1,13 @@
+commit f06b12f0c7e0ce9435e9d8b0faf79c192c470e4e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jun 30 12:26:06 2012 -0700
+
+    net/http: ignore malicious or dumb Range requests
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6356050
+
+ src/pkg/net/http/fs.go      | 14 ++++++++++++++
+ src/pkg/net/http/fs_test.go |  1 +
+ 2 files changed, 15 insertions(+)

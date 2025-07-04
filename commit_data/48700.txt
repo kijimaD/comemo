@@ -1,0 +1,19 @@
+commit dbb52cc9f3e83a3040f46c2ae7650c15ab342179
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 31 13:21:39 2022 -0700
+
+    net/url: preserve a trailing slash in JoinPath
+    
+    Fixes #52074
+    
+    Change-Id: I30897f32e70a6ca0c4e11aaf07088c27336efaba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397256
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
+
+ src/net/url/url.go      |  9 ++++++++-
+ src/net/url/url_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,0 +1,10 @@
+commit 73f85f8a533ace4bfe23fcea42810693871c7c49
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 27 16:30:20 2008 -0700
+
+    map index of index bug
+    
+    SVN=125213
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

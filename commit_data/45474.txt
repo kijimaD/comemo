@@ -1,0 +1,19 @@
+commit c23a32284a5a1e45855915a7401ebb715b837d10
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat May 1 04:47:00 2021 +1000
+
+    runtime: work around vet asmdecl checks for openbsd/386 mstart_stub
+    
+    Include a NOP with the SP in order to disable/bypass vet asmdecl checks
+    for runtime.mstart_stub on openbsd/386. Without this we get:
+    
+    runtime/sys_openbsd_386.s:33:1: [386] mstart_stub: use of 32(SP) points beyond argument frame
+    
+    Change-Id: I834ae3dbceffcb5776481b076ec2afe3700671cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315789
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/runtime/sys_openbsd_386.s | 2 ++
+ 1 file changed, 2 insertions(+)

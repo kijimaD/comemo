@@ -1,0 +1,18 @@
+commit d37d3bdcfc429168adac5bf046172fd9c07bfdc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 21 14:41:16 2016 -0400
+
+    net/http, internal/testenv: find go binary in PATH
+    
+    Fixes #14901
+    
+    Change-Id: Ia32e09767374a341c9a36c5d977d47d7d1a82315
+    Reviewed-on: https://go-review.googlesource.com/20967
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/go/build/deps_test.go       |  2 +-
+ src/internal/testenv/testenv.go | 17 +++++++++++++++++
+ src/net/http/http_test.go       | 14 +++-----------
+ 3 files changed, 21 insertions(+), 12 deletions(-)

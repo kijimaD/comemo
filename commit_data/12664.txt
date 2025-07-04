@@ -1,0 +1,16 @@
+commit 8009542f559cee2a2c17af1bdafb46666778feac
+Author: Christopher Redden <christopher.redden@gmail.com>
+Date:   Fri Mar 16 14:30:43 2012 +1100
+
+    make.bat: Fix for old files
+    
+    Same fix as applied here: https://golang.org/cl/5761044
+    
+    Fixes #3222.
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5838043
+
+ src/make.bat | 3 +++
+ 1 file changed, 3 insertions(+)

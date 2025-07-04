@@ -1,0 +1,26 @@
+commit 21e1ffe7bc7793a8f1c1fca4dfa32f1f3f70681c
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Fri Jan 21 14:21:38 2022 +0900
+
+    bufio: implement large write forwarding in Writer.WriteString
+    
+    Currently bufio.Writer implements forwarding to the underlying Writer
+    for large writes via Write, but it does not do the same for large
+    writes via WriteString.
+    
+    If the underlying Writer is also a StringWriter, use the same "large
+    writes" logic also in WriteString while taking care to only check
+    once per call to WriteString whether the underlying Writer implements
+    StringWriter.
+    
+    Change-Id: Id81901c07b035936816b9e41b1f5688e699ee8e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380074
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/bufio/bufio.go      | 21 ++++++++++++++---
+ src/bufio/bufio_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 59315fbfb5cc24fc130ed683c8be10bc659d3808
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 2 10:58:27 2010 -0700
+
+    netchan: fix locking bug.
+    There's no need to hold the client mutex when calling encode, since encode itself
+    uses a mutex to make the writes atomic.  However, we need to keep
+    the messages ordered, so add a mutex for that purpose alone.
+    Fixes #1244.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2833041
+
+ src/pkg/netchan/export.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

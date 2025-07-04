@@ -1,0 +1,55 @@
+commit 2d3599e57daf5816ee5b74553afd11decc611d44
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jul 7 15:59:20 2018 +0100
+
+    encoding/json: encode struct field names ahead of time
+    
+    Struct field names are static, so we can run HTMLEscape on them when
+    building each struct type encoder. Then, when running the struct
+    encoder, we can select either the original or the escaped field name to
+    write directly.
+    
+    When the encoder is not escaping HTML, using the original string works
+    because neither Go struct field names nor JSON tags allow any characters
+    that would need to be escaped, like '"', '\\', or '\n'.
+    
+    When the encoder is escaping HTML, the only difference is that '<', '>',
+    and '&' are allowed via JSON struct field tags, hence why we use
+    HTMLEscape to properly escape them.
+    
+    All of the above lets us encode field names with a simple if/else and
+    WriteString calls, which are considerably simpler and faster than
+    encoding an arbitrary string.
+    
+    While at it, also include the quotes and colon in these strings, to
+    avoid three WriteByte calls in the loop hot path.
+    
+    Also added a few tests, to ensure that the behavior in these edge cases
+    is not broken. The output of the tests is the same if this optimization
+    is reverted.
+    
+    name           old time/op    new time/op    delta
+    CodeEncoder-4    7.12ms ± 0%    6.14ms ± 0%  -13.85%  (p=0.004 n=6+5)
+    
+    name           old speed      new speed      delta
+    CodeEncoder-4   272MB/s ± 0%   316MB/s ± 0%  +16.08%  (p=0.004 n=6+5)
+    
+    name           old alloc/op   new alloc/op   delta
+    CodeEncoder-4    91.9kB ± 0%    93.2kB ± 0%   +1.43%  (p=0.002 n=6+6)
+    
+    name           old allocs/op  new allocs/op  delta
+    CodeEncoder-4      0.00           0.00          ~     (all equal)
+    
+    Updates #5683.
+    
+    Change-Id: I6f6a340d0de4670799ce38cf95b2092822d2e3ef
+    Reviewed-on: https://go-review.googlesource.com/122460
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode_test.go |  2 +-
+ src/encoding/json/encode.go      | 27 +++++++++++++++++++++++----
+ src/encoding/json/encode_test.go | 15 +++++++++++++++
+ src/encoding/json/stream_test.go |  9 +++++++++
+ 4 files changed, 48 insertions(+), 5 deletions(-)

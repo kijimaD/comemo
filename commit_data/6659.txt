@@ -1,0 +1,12 @@
+commit 75855a8f5ea4376fb05ec1b05c1c462187ca9d2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 21:23:04 2010 -0700
+
+    tabwriter: use append
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2798041
+
+ src/pkg/tabwriter/tabwriter.go | 78 +++++++++++++++++++-----------------------
+ 1 file changed, 35 insertions(+), 43 deletions(-)

@@ -1,0 +1,17 @@
+commit 8c6876e9a481a2ea48070d3285a07163f564877b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 13:58:27 2019 -0700
+
+    cmd/compile: disable checkptr for //go:cgo_unsafe_args functions
+    
+    Fixes #34968.
+    
+    Change-Id: I538d653fab6cf7cf9b9b7022a1c2d4ae6ee497b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201823
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go |  2 +-
+ test/fixedbugs/issue34968.go       | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

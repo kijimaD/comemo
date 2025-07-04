@@ -1,0 +1,15 @@
+commit 7db472fd342dd93394a61ea39b583eedf78d21e2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 17 08:49:00 2010 +1100
+
+    The prefix optimization applies only to the first iteration.
+    
+    Fixes #596.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206101
+
+ src/pkg/regexp/all_test.go |  5 ++++-
+ src/pkg/regexp/regexp.go   | 18 +++++++++++++-----
+ 2 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,37 @@
+commit 210e3677f997fcce48e749437853203358f1b7b4
+Author: Wang Xuerui <git@xen0n.name>
+Date:   Mon Nov 4 13:29:20 2019 +0000
+
+    runtime: use vDSO clock_gettime on linux/mips64x
+    
+    Speed up nanotime1 and walltime1 on MIPS64 with vDSO, just like the
+    other vDSO-enabled targets.
+    
+    Benchmark numbers on Loongson 3A3000 (GOARCH=mips64le, 1.4GHz) against
+    current master:
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkNow             868           293           -66.24%
+    BenchmarkNowUnixNano     851           296           -65.22%
+    
+    Performance hit on fallback case, tested by using a wrong vDSO symbol name:
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkNow             868           889           +2.42%
+    BenchmarkNowUnixNano     851           893           +4.94%
+    
+    Change-Id: Ibfb48893cd060536359863ffee7624c00def646b
+    GitHub-Last-Rev: 03a58ac2e4e036a4f61227cfd013082871e92863
+    GitHub-Pull-Request: golang/go#35181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/os_linux_novdso.go    |  2 +-
+ src/runtime/sys_linux_mips64x.s   | 78 +++++++++++++++++++++++++++++++++++++--
+ src/runtime/vdso_elf64.go         |  2 +-
+ src/runtime/vdso_in_none.go       |  2 +-
+ src/runtime/vdso_linux.go         |  2 +-
+ src/runtime/vdso_linux_mips64x.go | 28 ++++++++++++++
+ 6 files changed, 106 insertions(+), 8 deletions(-)

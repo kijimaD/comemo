@@ -1,0 +1,35 @@
+commit 5e43dc943a9265ec65690242eb8076727c18a958
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Thu Jun 23 19:46:13 2016 -0400
+
+    math/big: special-case a 0 mantissa during Rat parsing
+    
+    Previously, a 0 mantissa was special-cased during big.Float
+    parsing, but not during big.Rat parsing. This meant that a value
+    like 0e9999999999 would parse successfully in big.Float.SetString,
+    but would hang in big.Rat.SetString. This discrepancy became an
+    issue in https://golang.org/src/go/constant/value.go?#L250,
+    where the big.Float would report an exponent of 0, so
+    big.Rat.SetString would be used and would subsequently hang.
+    
+    A Go Playground example of this is https://play.golang.org/p/3fy28eUJuF
+    
+    The solution is to special-case a zero mantissa during big.Rat
+    parsing as well, so that neither big.Rat nor big.Float will hang when
+    parsing a value with 0 mantissa but a large exponent.
+    
+    This was discovered using go-fuzz on CockroachDB:
+    https://github.com/cockroachdb/go-fuzz/blob/master/examples/parser/main.go
+    
+    Fixes #16176
+    
+    Change-Id: I775558a8682adbeba1cc9d20ba10f8ed26259c56
+    Reviewed-on: https://go-review.googlesource.com/24430
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/constant/value_test.go | 1 +
+ src/math/big/ratconv.go       | 6 ++++++
+ src/math/big/ratconv_test.go  | 1 +
+ 3 files changed, 8 insertions(+)

@@ -1,0 +1,26 @@
+commit b16501c08b37235a67e2fc5b506f169152db57ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 26 12:47:41 2022 -0700
+
+    go/types, types2: use "unknown field f in struct literal of type S" in error messages
+    
+    This is a compromise of the error reported by the compiler (quotes
+    around field name removed) and the error reported by the type checkers
+    (added mention of struct type).
+    
+    For #55326.
+    
+    Change-Id: Iac4fb5c717f17c6713e90d327d39e68d3be40074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434815
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 6 +-----
+ src/go/types/expr.go                    | 2 +-
+ test/fixedbugs/issue17631.go            | 2 +-
+ test/fixedbugs/issue19482.go            | 8 ++++----
+ test/fixedbugs/issue24339.go            | 2 +-
+ test/fixedbugs/issue25727.go            | 6 +++---
+ 6 files changed, 11 insertions(+), 15 deletions(-)

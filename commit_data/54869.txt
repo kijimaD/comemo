@@ -1,0 +1,16 @@
+commit 1764da77c2562061533922f9f6354e53d37ebdbc
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 1 15:34:27 2023 +0000
+
+    cmd/link/internal/ld: use strings.TrimPrefix in expandFile
+    
+    Change-Id: Iea00d1951fa222a6e4e54320d204958dbdeabfe4
+    GitHub-Last-Rev: f9a1e4415cdfb8f61e57142e5a2e182465fa5cda
+    GitHub-Pull-Request: golang/go#63874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538863
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

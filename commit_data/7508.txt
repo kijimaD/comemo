@@ -1,0 +1,12 @@
+commit 3173821a8cf20096532e9457213aef99bb307998
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sat Feb 19 05:44:53 2011 +1100
+
+    .hgignore: add doc/codelab/wiki/*.bin
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4173063
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

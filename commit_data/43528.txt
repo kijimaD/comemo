@@ -1,0 +1,24 @@
+commit 36c5edd8d9e6c13af26733e5c820eae0598203fe
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 20:36:49 2020 +0000
+
+    runtime: add timeHistogram type
+    
+    This change adds a concurrent HDR time histogram to the runtime with
+    tests. It also adds a function to generate boundaries for use by the
+    metrics package.
+    
+    For #37112.
+    
+    Change-Id: Ifbef8ddce8e3a965a0dcd58ccd4915c282ae2098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247046
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go    |  24 +++++++
+ src/runtime/histogram.go      | 148 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/histogram_test.go |  58 +++++++++++++++++
+ src/runtime/metrics.go        |   2 +
+ 4 files changed, 232 insertions(+)

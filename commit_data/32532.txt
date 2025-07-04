@@ -1,0 +1,16 @@
+commit b7397c81006457b15e99a7898f69a2b3f6636a82
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 29 12:21:15 2017 +1000
+
+    cmd/link: make it compile again (fixes build)
+    
+    CL 59375 changed Reloc.Done to bool, but that change
+    got lost in pe.go while merging. Restore that change.
+    
+    Change-Id: Ie5a89e85579cdc9282f504fefd56355cfeb49389
+    Reviewed-on: https://go-review.googlesource.com/59711
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/pe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit ce7534ff06df5b3148aa325deedcb94ac5b30ec0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 8 11:39:08 2019 +0100
+
+    bytes: use Rabin-Karp algorithm for LastIndex
+    
+    Implement LastIndex using the Rabin-Karp algorithm akin to
+    strings.LastIndex
+    
+    name              old time/op  new time/op  delta
+    LastIndexHard1-8  3.16ms ± 1%  1.44ms ± 0%  -54.35%  (p=0.008 n=5+5)
+    LastIndexHard2-8  3.17ms ± 1%  1.45ms ± 0%  -54.27%  (p=0.008 n=5+5)
+    LastIndexHard3-8  3.05ms ± 1%  1.44ms ± 1%  -52.58%  (p=0.008 n=5+5)
+    
+    Change-Id: Ie8ddd179cd84dfa00e3e4e2327ef932975c88670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166258
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go | 47 +++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 43 insertions(+), 4 deletions(-)

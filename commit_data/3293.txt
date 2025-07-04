@@ -1,0 +1,14 @@
+commit 11df49c43f356760c5849b6bc26ece9435eb7c17
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 16 16:56:20 2009 -0700
+
+    publish doc.CommentText
+    
+    R=gri
+    DELTA=29  (10 added, 12 deleted, 7 changed)
+    OCL=34709
+    CL=34712
+
+ src/pkg/go/doc/comment.go | 14 ++++++++++++--
+ src/pkg/go/doc/doc.go     | 22 +++++-----------------
+ 2 files changed, 17 insertions(+), 19 deletions(-)

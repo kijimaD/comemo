@@ -1,0 +1,22 @@
+commit cadd4f81a8a637bda2ea22176e11604ceea14a0d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 13:09:30 2015 -0400
+
+    runtime: combine gcWorkProducer into gcWork
+    
+    The distinction between gcWorkProducer and gcWork (producer and
+    consumer) is not serving us as originally intended, so merge these
+    into just gcWork.
+    
+    The original intent was to replace the currentwbuf cache with a
+    gcWorkProducer. However, with gchelpwork (aka mutator assists),
+    mutators can both produce and consume work, so it will make more sense
+    to cache a whole gcWork.
+    
+    Change-Id: I6e633e96db7cb23a64fbadbfc4607e3ad32bcfb3
+    Reviewed-on: https://go-review.googlesource.com/7733
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 18 ++++++------
+ src/runtime/mgcwork.go | 74 +++++++++++++++++---------------------------------
+ 2 files changed, 34 insertions(+), 58 deletions(-)

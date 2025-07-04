@@ -1,0 +1,18 @@
+commit a5386f3c7dc7735aa4695647896ba94bab0341e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 18 13:55:40 2016 -0700
+
+    cmd/compile: fix internal consistency check with binary exporter
+    
+    Per feedback from mdempsky from https://go-review.googlesource.com/22096.
+    
+    Also fix emitted position info.
+    
+    Change-Id: I7ff1967430867d922be8784832042c75d81df28b
+    Reviewed-on: https://go-review.googlesource.com/22198
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

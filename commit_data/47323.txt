@@ -1,0 +1,21 @@
+commit 4f083c7dcf6ace3e837b337e10cf2f4e3160677e
+Author: hanpro <hanssccv@gmail.com>
+Date:   Fri Nov 5 09:47:54 2021 +0800
+
+    cmd/compile: avoid adding LECall to the entry block when has opendefers
+    
+    The openDeferRecord always insert vardef/varlive pairs into the entry block, it may destroy the mem chain when LECall's args are writing into the same block. So create a new block before that happens.
+    
+    Fixes #49282
+    
+    Change-Id: Ibda6c4a45d960dd412a641f5e02276f663c80785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361410
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 12 ++++++++++
+ test/fixedbugs/issue49282.go           | 44 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

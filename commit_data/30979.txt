@@ -1,0 +1,34 @@
+commit 26308fb4813377def1391ad4ea383f9178c2d16a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 3 07:50:56 2017 -0700
+
+    cmd/internal/obj: use string instead of LSym in Pcln
+    
+    In a concurrent backend, Ctxt.Lookup will need some
+    form of concurrency protection, which will make it
+    more expensive.
+    
+    This CL changes the pcln table builder to track
+    filenames as strings rather than LSyms.
+    Those strings are then converted into LSyms
+    at the last moment, for writing the object file.
+    
+    This CL removes over 85% of the calls to Ctxt.Lookup
+    in a run of make.bash.
+    
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I3c53deff6f16f2643169f3bdfcc7aca2ca58b0a4
+    Reviewed-on: https://go-review.googlesource.com/39291
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/line.go      |  4 ++--
+ src/cmd/internal/obj/line_test.go |  2 +-
+ src/cmd/internal/obj/link.go      |  4 ++--
+ src/cmd/internal/obj/objfile.go   | 12 ++++++++----
+ src/cmd/internal/obj/pcln.go      |  5 -----
+ 5 files changed, 13 insertions(+), 14 deletions(-)

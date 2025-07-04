@@ -1,0 +1,12 @@
+commit 0141fd3b654c5cc432d69853636ab1505cd47920
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 11:36:44 2010 -0800
+
+    dashboard: avoid seeing cron's sh -c in ps check
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/196091
+
+ misc/dashboard/buildcron.sh | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

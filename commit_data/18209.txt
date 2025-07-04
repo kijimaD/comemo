@@ -1,0 +1,18 @@
+commit 8449863d3173f59c11b477dc93d5eb00452e80e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 9 19:29:29 2014 -0500
+
+    cmd/link: Mach-O (OS X) file formatter
+    
+    See CL 48870044 for basic structure.
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/48910043
+
+ src/cmd/link/macho.go                     | 385 ++++++++++++++++++++++++++++
+ src/cmd/link/macho_test.go                | 403 ++++++++++++++++++++++++++++++
+ src/cmd/link/testdata/macho.amd64.exit9   | Bin 0 -> 4109 bytes
+ src/cmd/link/testdata/macho.amd64.hello   | Bin 0 -> 8204 bytes
+ src/cmd/link/testdata/macho.amd64.helloro | Bin 0 -> 8204 bytes
+ 5 files changed, 788 insertions(+)

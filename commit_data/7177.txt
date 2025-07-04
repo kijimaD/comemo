@@ -1,0 +1,13 @@
+commit 7963b04a181b9cab7bf9a0d7414a206402a98a96
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jan 19 16:30:13 2011 -0800
+
+    arm bug with stack adjust
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3980043
+
+ src/cmd/5g/opt.h |  1 -
+ src/cmd/5g/reg.c | 68 ++++++++++++++++++++++++++++++++++++++------------------
+ 2 files changed, 46 insertions(+), 23 deletions(-)

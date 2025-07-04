@@ -1,0 +1,26 @@
+commit 4012fea822763ef3aa66dd949fa95b9f8d89450a
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jul 23 22:28:26 2021 +0900
+
+    all: fix typos
+    
+    Change-Id: I83180c472db8795803c1b9be3a33f35959e4dcc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336889
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go                                | 2 +-
+ .../mod/example.com_split-incompatible_v2.0.0+incompatible.txt      | 2 +-
+ .../mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt  | 2 +-
+ src/cmd/go/testdata/script/mod_lazy_import_allmod.txt               | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat.txt                      | 2 +-
+ src/crypto/ed25519/internal/edwards25519/tables.go                  | 2 +-
+ src/crypto/x509/parser.go                                           | 6 +++---
+ src/math/sinh_s390x.s                                               | 4 ++--
+ src/math/tan_s390x.s                                                | 2 +-
+ src/net/lookup.go                                                   | 2 +-
+ src/reflect/value.go                                                | 2 +-
+ src/runtime/traceback.go                                            | 2 +-
+ src/strconv/ftoaryu.go                                              | 2 +-
+ test/typeparam/slices.go                                            | 2 +-
+ 14 files changed, 17 insertions(+), 17 deletions(-)

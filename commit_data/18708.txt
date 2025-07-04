@@ -1,0 +1,16 @@
+commit 2ad72ecf341d553fe9b698343f9bae6d26344619
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 2 20:39:20 2014 -0800
+
+    net/http: add Client.Timeout for end-to-end timeouts
+    
+    Fixes #3362
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=adg, dsymonds, golang-codereviews, n13m3y3r
+    https://golang.org/cl/70120045
+
+ src/pkg/net/http/client.go      | 91 ++++++++++++++++++++++++++++++++++-------
+ src/pkg/net/http/client_test.go | 67 ++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 14 deletions(-)

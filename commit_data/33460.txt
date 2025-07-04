@@ -1,0 +1,19 @@
+commit 17ff23f7c8d6a3310e1fa59fced2fc584b68ac7c
+Author: griesemer <gri@golang.org>
+Date:   Mon Nov 6 15:01:33 2017 -0800
+
+    cmd/compile/internal/syntax: better syntax errors for typos in if/switch/for headers
+    
+    Be more pessimistic when parsing if/switch/for headers for better error
+    messages when things go wrong.
+    
+    Fixes #22581.
+    
+    Change-Id: Ibb99925291ff53f35021bc0a59a4c9a7f695a194
+    Reviewed-on: https://go-review.googlesource.com/76290
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go |  4 ++--
+ test/fixedbugs/issue22581.go              | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

@@ -1,0 +1,33 @@
+commit 978cfa8e46d71992395d67382e96036596520cb6
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Wed Jun 20 09:09:03 2018 +0000
+
+    cmd,runtime: enable race detector on arm64
+    
+    Changes include:
+    1. enable compiler option -race for arm64
+    2. add runtime/race_arm64.s to manage the calls from Go to the compiler-rt runtime
+    3. change racewalk.go to call racefuncenterfp instead of racefuncenter on arm64 to
+       allow the caller pc to be obtained in the asm code before calling the tsan version
+    4. race_linux_arm64.syso comes from compiler-rt which just supports 48bit VA, compiler-rt
+       is fetched from master branch which latest commit is 3aa2b775d08f903f804246af10b
+    
+    Fixes #25682
+    
+    Change-Id: I04364c580b8157fd117deecae74a4656ba16e005
+    Reviewed-on: https://go-review.googlesource.com/c/138675
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/racewalk.go |   4 +-
+ src/cmd/go/internal/work/init.go        |   2 +-
+ src/cmd/internal/sys/supported.go       |   2 +-
+ src/cmd/link/internal/ld/config.go      |   4 +-
+ src/race.bash                           |   4 +-
+ src/runtime/asm_arm64.s                 |   3 +-
+ src/runtime/race/README                 |   1 +
+ src/runtime/race/race.go                |   2 +-
+ src/runtime/race/race_linux_arm64.syso  | Bin 0 -> 418080 bytes
+ src/runtime/race_arm64.s                | 445 ++++++++++++++++++++++++++++++++
+ 10 files changed, 457 insertions(+), 10 deletions(-)

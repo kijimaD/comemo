@@ -1,0 +1,21 @@
+commit 325c2aa5b6f12ccc82e8472beec0e1511e975bd4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 17 09:28:06 2016 -0700
+
+    database/sql: update the conversion errors to be clearer
+    
+    There was some ambiguity over which argument was referred to when
+    a conversion error was returned. Now refer to the argument by
+    either explicit ordinal position or name if present.
+    
+    Fixes #15676
+    
+    Change-Id: Id933196b7e648baa664f4121fa3fb1b07b3c4880
+    Reviewed-on: https://go-review.googlesource.com/31262
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go  | 33 +++++++++++++++++++++------------
+ src/database/sql/sql_test.go |  4 ++--
+ 2 files changed, 23 insertions(+), 14 deletions(-)

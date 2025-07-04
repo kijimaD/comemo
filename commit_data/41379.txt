@@ -1,0 +1,14 @@
+commit ebe49b2c2999a7d4128c44aed9602a69fdc53d16
+Author: Sam Chen <chenxsan@gmail.com>
+Date:   Sat Feb 22 11:42:19 2020 +0000
+
+    doc: remove extra br tags
+    
+    Change-Id: I6db784c67dde058ddaae8d73b295ee02583a1ed4
+    GitHub-Last-Rev: fea8e66c8ac26809ad1d7f04462cdbde9a41020a
+    GitHub-Pull-Request: golang/go#37375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/cmd.html | 1 -
+ 1 file changed, 1 deletion(-)

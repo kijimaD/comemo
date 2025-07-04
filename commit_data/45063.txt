@@ -1,0 +1,17 @@
+commit 424abc8d3be8b2b90f0259465c21ef95dc70f866
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Sun Apr 11 21:06:24 2021 +0200
+
+    os/signal: replace os.MkdirTemp with T.TempDir
+    
+    Updates #45402.
+    
+    Change-Id: I6fe356b51bc825a907f979d9c44432a4d43d1f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308996
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_windows_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

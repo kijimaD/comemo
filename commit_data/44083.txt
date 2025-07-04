@@ -1,0 +1,26 @@
+commit d2131704a6fda781bd3b823dbe8f57741663f466
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Thu May 7 10:08:08 2020 +0000
+
+    net/http/httputil: fix deadlock in DumpRequestOut
+    
+    Fix a deadlock in DumpRequestOut which can occur if the request is
+    cancelled between response being sent and it being processed.
+    
+    Also:
+    * Ensure we don't get a reader leak when an error is reported by the
+      transport before the body is consumed.
+    * Add leaked goroutine retries to avoid false test failures.
+    
+    Fixes #38352
+    
+    Change-Id: I83710791b2985b997f61fe5b49eadee0bb51bdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232798
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/dump.go      | 15 +++++--
+ src/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 87 insertions(+), 8 deletions(-)

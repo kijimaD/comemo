@@ -1,0 +1,13 @@
+commit 2155a0408eb50ce8ae47d5b3b53c3363498cd716
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 14:53:07 2012 +1100
+
+    net: add diagnostic to try to catch selfConnect bug earlier
+    TBR=dsymonds
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5683057
+
+ src/pkg/net/tcpsock_posix.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,21 @@
+commit b9f6b22a0100716db1f196a395f9ded8456337f8
+Author: Alexey Neganov <neganovalexey@gmail.com>
+Date:   Tue Mar 14 21:11:42 2017 +0300
+
+    mime: handling invalid mime media parameters
+    
+    Sometimes it's necessary to deal with emails that do not follow the specification; in particular, it's possible to download such email via gmail.
+    When the existing implementation handle invalid mime media parameters, it returns nils and error, although there is a valid media type, which may be returned.
+    If this behavior changes, it may not affect any existing programs, but it will help to parse some emails.
+    
+    Fixes #19498
+    
+    Change-Id: Ieb2fdbddfd93857faee941d2aa49d59e286d57fd
+    Reviewed-on: https://go-review.googlesource.com/38190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/mediatype.go      | 10 +++++++++-
+ src/mime/mediatype_test.go | 18 +++++++++++++-----
+ 2 files changed, 22 insertions(+), 6 deletions(-)

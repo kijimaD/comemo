@@ -1,0 +1,13 @@
+commit 39361170d40a8d846d5065a614bd5a722a6aceb4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 23 14:15:20 2013 -0700
+
+    misc/pprof: support block profile
+    Fixes #6347.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13845044
+
+ misc/pprof | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

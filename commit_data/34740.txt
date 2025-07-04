@@ -1,0 +1,21 @@
+commit 360c19157ae5465c9548bd9e050263b9e336c9bf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 28 12:19:46 2018 +0200
+
+    cmd/compile: print accurate escape reason for non-const-length slices
+    
+    This change makes `-m -m` print a better explanation for the case
+    where a slice is marked as escaping and heap-allocated because it
+    has a non-constant len/cap.
+    
+    Fixes #24578
+    
+    Change-Id: I0ebafb77c758a99857d72b365817bdba7b446cc0
+    Reviewed-on: https://go-review.googlesource.com/102895
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/gc/esc.go | 19 +++++++++++++++----
+ test/escape_array.go               |  7 +++++++
+ test/escape_because.go             |  7 +++++++
+ 3 files changed, 29 insertions(+), 4 deletions(-)

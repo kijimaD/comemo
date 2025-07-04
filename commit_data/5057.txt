@@ -1,0 +1,12 @@
+commit 0b986316b8c1c2ed7fc9a13b61e0db90f4644a16
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 14:16:33 2010 -0700
+
+    net: fix IPMask.String not to crash on all-0xff mask
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/438042
+
+ src/pkg/net/ip.go | 59 +++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 38 insertions(+), 21 deletions(-)

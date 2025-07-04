@@ -1,0 +1,12 @@
+commit 20760e43356472f7c596ab2632fc069231af3ba0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 15:08:57 2012 -0400
+
+    go/build: do not report Target for local imports
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5820064
+
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

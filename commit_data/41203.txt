@@ -1,0 +1,15 @@
+commit 400a5af19bb5af842342757864f3fb303867adc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 18:55:11 2020 -0800
+
+    doc/go1.14: mention new method mime/multipart.(*Reader).NextRawPart
+    
+    Updates #29090
+    Updates #36878
+    
+    Change-Id: I63f0eb583285d5c12f591cb704097cdf6a67b64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217128
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

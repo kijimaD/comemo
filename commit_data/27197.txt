@@ -1,0 +1,18 @@
+commit d954f9c4d19bbe459ad4a6de95af47349da1d40b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 28 14:24:19 2016 -0700
+
+    test: added test case for (fixed) issue 15470
+    
+    Follow-up to https://golang.org/cl/22543.
+    
+    Change-Id: I873b4fa6616ac2aea8faada2fccd126233bbc07f
+    Reviewed-on: https://go-review.googlesource.com/22583
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue15470.dir/a.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue15470.dir/b.go |  3 +++
+ test/fixedbugs/issue15470.go       | 10 ++++++++++
+ 3 files changed, 37 insertions(+)

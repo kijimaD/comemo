@@ -1,0 +1,15 @@
+commit b8d4d0218bae8881db2e1e2ea1de7b9f43d6c14d
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri Jun 22 05:31:06 2018 +0000
+
+    runtime: fix comments style typo
+    
+    Code comments should have a space between comments characters and
+    actual words.
+    
+    Change-Id: I6274baf1fc09b37a32ec6c69ddbb8edca9eb5469
+    Reviewed-on: https://go-review.googlesource.com/120475
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

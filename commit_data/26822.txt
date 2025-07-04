@@ -1,0 +1,19 @@
+commit 0fd270ab7abec08c050f29a3bbeb83d7740d0a47
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 8 15:39:32 2016 +1000
+
+    text/template: emit field error over nil pointer error where appropriate
+    
+    When evaluating "{{.MissingField}}" on a nil *T, Exec returns
+    "can't evaluate field MissingField in type *T" instead of
+    "nil pointer evaluating *T.MissingField".
+    
+    Fixes golang/go#15125
+    
+    Change-Id: I6e73f61b8a72c694179c1f8cdc808766c90b6f57
+    Reviewed-on: https://go-review.googlesource.com/21705
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      | 12 +++++++-----
+ src/text/template/exec_test.go | 17 +++++++++++++++++
+ 2 files changed, 24 insertions(+), 5 deletions(-)

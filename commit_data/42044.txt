@@ -1,0 +1,22 @@
+commit 65c9b575664a1012c4fa91c9736aa1f1d324cdb4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 21 13:04:59 2020 +0700
+
+    cmd/compile: remove nlz function
+    
+    Use nlzX variants instead. While at it, also remove tests involve
+    nlz/nlo/nto/log2, since when we are calling directly "math/bits"
+    functions.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I83899741a29e05bc2c19d73652961ac795001781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229138
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/fmtmap_test.go               |  1 -
+ src/cmd/compile/internal/ssa/rewrite.go      |  3 +-
+ src/cmd/compile/internal/ssa/rewrite_test.go | 98 ----------------------------
+ 3 files changed, 1 insertion(+), 101 deletions(-)

@@ -1,0 +1,18 @@
+commit 7dc3d9f85f424445a49577aad33e576992c1f67d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:05:33 2019 -0800
+
+    misc/cgo/testplugin: let TestMain run deferred functions
+    
+    Split TestMain into two functions so that we can defer cleanups.
+    
+    Updates #30500
+    
+    Change-Id: I4a5c7ddb8218a8bd056c8733c3cb9feb895e77a0
+    Reviewed-on: https://go-review.googlesource.com/c/164859
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ misc/cgo/testplugin/plugin_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

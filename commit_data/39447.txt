@@ -1,0 +1,21 @@
+commit adf888376deb749bc95a2717989eb0f2db001f8d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 15:46:23 2019 -0700
+
+    go/types: avoid race condition with dot-imported objects
+    
+    It would be nice to have a test, but it requires running
+    this under the race detector which is a bit complicated
+    to set up; yet the fix is trivial. Verified manually that
+    it doesn't trip the race detector.
+    
+    Fixes #32154.
+    
+    Change-Id: I20bd746a07945c802f0476a1d8b1dfd83c87dae8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183849
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/resolver.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

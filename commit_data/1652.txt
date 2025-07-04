@@ -1,0 +1,15 @@
+commit cad7a3aefcdfed3176a64a16b2a6151b2fabfd4e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 12:50:54 2009 -0800
+
+    simple accessors for Dir mode bits
+    
+    R=rsc
+    DELTA=71  (71 added, 0 deleted, 0 changed)
+    OCL=24687
+    CL=24694
+
+ src/lib/os/os_types.go                | 34 ++++++++++++++++++++++++++++++++++
+ src/lib/syscall/types_amd64_darwin.go | 19 +++++++++++++++++++
+ src/lib/syscall/types_amd64_linux.go  | 18 ++++++++++++++++++
+ 3 files changed, 71 insertions(+)

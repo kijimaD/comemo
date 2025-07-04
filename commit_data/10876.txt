@@ -1,0 +1,22 @@
+commit 384329592a72e8ce7cfdacb1f3cf2d05af07562a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 12:57:49 2011 -0800
+
+    net, syscall, os: set CLOEXEC flag on epoll/kqueue descriptor
+    Enable new test in os.
+    
+    R=dave, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/5494061
+
+ src/pkg/net/fd_darwin.go                |  1 +
+ src/pkg/net/fd_freebsd.go               |  1 +
+ src/pkg/net/fd_linux.go                 | 16 +++++++++++-----
+ src/pkg/net/fd_netbsd.go                |  1 +
+ src/pkg/net/fd_openbsd.go               |  1 +
+ src/pkg/os/exec/exec_test.go            |  6 ------
+ src/pkg/syscall/syscall_linux.go        |  1 +
+ src/pkg/syscall/zsyscall_linux_386.go   | 11 +++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 11 +++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 11 +++++++++++
+ 10 files changed, 49 insertions(+), 11 deletions(-)

@@ -1,0 +1,24 @@
+commit dc65c489cc5a795a68d844ed7a45e5d16562401d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 6 17:25:34 2021 -0500
+
+    cmd/go: fix tests broken in CL 358539
+    
+    CL 358539 revised the build-stamp format, and updated the git and hg
+    tests to match. However, the fossil and bzr tests were missed, and
+    were not caught on the builders due to the fact that none of the
+    builder images have the necessary VCS tools installed.
+    
+    Updates #48802
+    Updates #49168
+    
+    Change-Id: I6b9fd0e19b81cb539864c94ab0860f74e7be6748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369743
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ .../go/testdata/script/version_buildvcs_bzr.txt    | 33 ++++++++++++----------
+ .../go/testdata/script/version_buildvcs_fossil.txt | 21 ++++++++------
+ 2 files changed, 30 insertions(+), 24 deletions(-)

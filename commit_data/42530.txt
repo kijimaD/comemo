@@ -1,0 +1,21 @@
+commit 9ca2474fd274d7bce8da454d1a7da074e40944ad
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Jun 15 13:04:05 2020 -0400
+
+    cmd/go: fix mod_gomodcache and generate_env TestScripts on Plan 9
+    
+    Adjust these two tests for Plan 9,
+    which uses $path instead of $PATH,
+    and $home instead of $HOME.
+    
+    Fixes #39599
+    
+    Change-Id: Idba95e07d307e76f0f61acd904905b417c52d43a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237941
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/generate_env.txt   | 3 ++-
+ src/cmd/go/testdata/script/mod_gomodcache.txt | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

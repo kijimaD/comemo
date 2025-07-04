@@ -1,0 +1,17 @@
+commit eb4f33243ece5874d2690c4b9bc72cb47f8da772
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 11:26:27 2018 -0700
+
+    runtime: document that LockOSThread in init locks to thread
+    
+    This is more or less implied by the spec language on initialization,
+    but restate it for clarity.
+    
+    Fixes #23112
+    
+    Change-Id: Ibe5385acafe4eac38823de98a025cd37f7a77d3b
+    Reviewed-on: https://go-review.googlesource.com/103399
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

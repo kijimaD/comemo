@@ -1,0 +1,17 @@
+commit 164aceea08a4c56b9bf451e315c5dbe3f4727971
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 23 18:52:31 2023 +0700
+
+    log/slog: fix broken link to AnyValue in comment
+    
+    Change-Id: Ida52a2bf6a415017942bf9ccd74a1ea9ed02bc46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505535
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/log/slog/attr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

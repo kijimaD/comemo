@@ -1,0 +1,31 @@
+commit ae4aac00bba5d1d616408a1c07bd4ef5691e3a00
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 2 14:41:53 2016 +0900
+
+    encoding/asn1: reduce allocations in Marshal
+    
+    Current code uses trees of bytes.Buffer as data representation.
+    Each bytes.Buffer takes 4k bytes at least, so it's waste of memory.
+    The change introduces trees of lazy-encoder as
+    alternative one which reduce allocations.
+    
+    name       old time/op    new time/op    delta
+    Marshal-4    64.7µs ± 2%    42.0µs ± 1%  -35.07%   (p=0.000 n=9+10)
+    
+    name       old alloc/op   new alloc/op   delta
+    Marshal-4    35.1kB ± 0%     7.6kB ± 0%  -78.27%  (p=0.000 n=10+10)
+    
+    name       old allocs/op  new allocs/op  delta
+    Marshal-4       503 ± 0%       293 ± 0%  -41.75%  (p=0.000 n=10+10)
+    
+    Change-Id: I32b96c20b8df00414b282d69743d71a598a11336
+    Reviewed-on: https://go-review.googlesource.com/27030
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/asn1/asn1_test.go    |   6 +-
+ src/encoding/asn1/marshal.go      | 615 +++++++++++++++++++-------------------
+ src/encoding/asn1/marshal_test.go |  10 +
+ 3 files changed, 317 insertions(+), 314 deletions(-)

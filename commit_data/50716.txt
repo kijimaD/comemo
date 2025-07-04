@@ -1,0 +1,19 @@
+commit 972496ae6e63bc2985cc1b827389f3216a54d083
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Sep 28 22:08:28 2022 +0800
+
+    all: use strings.Builder where appropriate
+    
+    Change-Id: I164d350ca480640996055dedf38d962921c474a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435975
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/pem/pem_test.go         | 12 ++++++------
+ src/os/signal/signal_windows_test.go | 10 +++++-----
+ src/runtime/syscall_windows_test.go  |  5 ++---
+ 3 files changed, 13 insertions(+), 14 deletions(-)

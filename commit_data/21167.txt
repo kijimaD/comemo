@@ -1,0 +1,13 @@
+commit a6a30fefd9b798597f95ff1024f263c64f3a39a9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 5 20:16:10 2015 -0500
+
+    runtime: fix build for ARM
+    
+    Change-Id: Ia18b8411bebc47ea71ac1acd9ff9dc570ec15dea
+    Reviewed-on: https://go-review.googlesource.com/2341
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/asm_arm.s     | 2 +-
+ src/runtime/atomic_arm.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

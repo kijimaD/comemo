@@ -1,0 +1,18 @@
+commit fa1ea497d5d9ef16ba12fd3d99a495b7b836569d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 20:50:51 2015 -0400
+
+    cmd/compile: define func value symbols at declaration
+    
+    These used to be defined at use, but that breaks when shared libraries
+    are involved.
+    
+    For #11480.
+    
+    Change-Id: I416a848754fb615c0d75f9f0ccc00723d07f7f01
+    Reviewed-on: https://go-review.googlesource.com/12145
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  1 +
+ src/cmd/compile/internal/gc/dcl.go     | 20 ++++++++++++++------
+ 2 files changed, 15 insertions(+), 6 deletions(-)

@@ -1,0 +1,25 @@
+commit 3d7042fba341180e63ea27fdfafbbab2499314aa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 11:26:28 2017 -0700
+
+    cmd/pack: fix export data truncation bug
+    
+    The binary export data format includes escaping to prevent "\n$$" from
+    appearing internally, but not "\n!\n". This could result in a false
+    positive when cmd/pack searched for "\n!\n" as the delimiter between
+    package definition and linker object.
+    
+    To address this, this CL changes cmd/pack to also be aware of the
+    "\n$$" markers, and to ignore "\n!\n" within the export data.
+    
+    Fixes #21703.
+    
+    Change-Id: I71ea8ba49dbd066c7afb7717ddc0190e38fe5649
+    Reviewed-on: https://go-review.googlesource.com/60773
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/pack/pack.go      | 12 +++++++++++-
+ src/cmd/pack/pack_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

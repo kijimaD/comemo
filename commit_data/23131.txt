@@ -1,0 +1,16 @@
+commit 8017ace496f5a21bcd55377e250e325f8ba11d45
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 23 11:26:22 2015 +0200
+
+    runtime: don't always block all signals on OpenBSD
+    
+    Implement the changes from CL 10173 on OpenBSD.
+    
+    Change-Id: I2db1cd8141fd392a34753a1b8113e2e0401173b9
+    Reviewed-on: https://go-review.googlesource.com/10342
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_openbsd.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

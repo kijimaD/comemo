@@ -1,0 +1,25 @@
+commit 5e7f0b947c3907bd23a13864c3fea2b204f11567
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu Apr 10 11:27:29 2025 -0400
+
+    go/types, types2: set up recording of positions for declarations
+    
+    This creates the infrastructure needed to record compiler panics
+    induced somewhere beneath a declaration. For now, this is turned
+    off via a flag.
+    
+    This does not yet use the position information for better error
+    messages. That is moved off to a separate CL.
+    
+    Change-Id: I6b44135a84ebd2f4c0141408ba9228d72c497d55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664475
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/check.go | 17 ++++++++++++++++-
+ src/cmd/compile/internal/types2/decl.go  | 11 +++++++++++
+ src/go/types/check.go                    | 17 ++++++++++++++++-
+ src/go/types/decl.go                     | 11 +++++++++++
+ 4 files changed, 54 insertions(+), 2 deletions(-)

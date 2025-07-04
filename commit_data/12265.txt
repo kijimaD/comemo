@@ -1,0 +1,14 @@
+commit 2c9e1637d2388005dc4d71dd4990b73b13c79ad0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 17:44:24 2012 -0800
+
+    go spec: inside functions, variables must be evaluated.
+    
+    Fixes #1612.
+    
+    R=r, rsc, iant, ken, remyoudompheng, ken, r
+    CC=golang-dev
+    https://golang.org/cl/5700068
+
+ doc/go_spec.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

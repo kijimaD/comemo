@@ -1,0 +1,18 @@
+commit 7bebccb9725977e7730f0ff11db8c6641902d0b3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 1 15:10:24 2015 +0000
+
+    Revert "runtime/pprof: write heap statistics to heap profile always"
+    
+    This reverts commit c26fc88d56ee4f93c98fc8923fe256121e6199cf.
+    
+    This broke pprof. See the comments at 9491.
+    
+    Change-Id: Ic99ce026e86040c050a9bf0ea3024a1a42274ad1
+    Reviewed-on: https://go-review.googlesource.com/9565
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.5.txt              |  1 -
+ src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++++----------------------
+ 2 files changed, 29 insertions(+), 28 deletions(-)

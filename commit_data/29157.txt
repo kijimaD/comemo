@@ -1,0 +1,21 @@
+commit 23d762c1298f6e3f0507debc9bfba83c66a8796e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 26 23:40:14 2016 -0700
+
+    cmd/compile: combine slice allocations in newblock
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         394k ± 0%        391k ± 0%  -0.80%        (p=0.000 n=10+10)
+    Unicode          350k ± 0%        349k ± 0%  -0.27%        (p=0.000 n=10+10)
+    GoTypes         1.18M ± 0%       1.17M ± 0%  -0.92%        (p=0.000 n=10+10)
+    Compiler        4.18M ± 0%       4.14M ± 0%  -1.05%        (p=0.000 n=10+10)
+    
+    
+    Change-Id: I838a4e2110afe6496c535b9a0ec5aa882d63a707
+    Reviewed-on: https://go-review.googlesource.com/32223
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

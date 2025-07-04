@@ -1,0 +1,18 @@
+commit e952e241ae2f8b33fe60da7640c90afbf0f4307f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 21:35:26 2012 -0800
+
+    gotype: provide -comments flag
+    
+    When debugging ASTs, it's useful to also
+    see the comments on occasion. Usage:
+    
+    gotype -ast -comments file.go
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5703043
+
+ src/pkg/exp/gotype/doc.go    | 2 ++
+ src/pkg/exp/gotype/gotype.go | 8 ++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

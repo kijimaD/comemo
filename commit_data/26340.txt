@@ -1,0 +1,16 @@
+commit 4e75932cf7148c6ed10f93bbc07a79a7f89e8bd2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 17:06:10 2016 -0700
+
+    cmd/compile: make sinit consts Go-ish
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie11912a16d2cd54500e2f6e84316519b80e7c304
+    Reviewed-on: https://go-review.googlesource.com/20672
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

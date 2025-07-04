@@ -1,0 +1,27 @@
+commit e4d95d0de3c26d1cc5685e35cddb42657948057b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 11:14:48 2023 -0400
+
+    cmd: go get golang.org/x/mod@fc83a8f
+    
+    cd src/cmd
+    go get golang.org/x/mod@fc83a8f  # CL 497400
+    go mod vendor
+    go mod tidy
+    
+    For #57001.
+    
+    Change-Id: I46b8584e493934883cc4148a16e287f667dcab7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497295
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                    |  2 +-
+ src/cmd/go.sum                                    |  4 +-
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt |  2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/print.go  | 14 +++-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go   | 96 +++++++++++++++++++++--
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go   | 61 ++++++++++++--
+ src/cmd/vendor/modules.txt                        |  2 +-
+ 7 files changed, 161 insertions(+), 20 deletions(-)

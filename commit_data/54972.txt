@@ -1,0 +1,23 @@
+commit e8298c09b1154e3eb3560352ebbea6d11d87772e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 18:48:41 2023 +0000
+
+    internal/trace/v2: don't enforce batch order on Ms
+    
+    Currently the trace parser enforces that the timestamps for a series of
+    a batches on the same M come in order. We cannot actually assume this in
+    general because we don't trust timestamps. The source of truth on the
+    batch order is the order in which they were emitted. If that's wrong, it
+    should quickly become evident in the trace.
+    
+    For #60773.
+    For #64061.
+    
+    Change-Id: I7d5a407c9568dd1ce0b79d51b2b538ed6072b26d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/v2/generation.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

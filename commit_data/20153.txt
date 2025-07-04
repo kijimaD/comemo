@@ -1,0 +1,15 @@
+commit 997809c809d9bb1016947d9e0bed7d4753496eeb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 14:52:25 2014 -0400
+
+    runtime: fix solaris build
+    
+    nanotime1 is not a Go function and must not store its result at 0(FP).
+    That overwrites some data owned by the caller.
+    
+    TBR=aram
+    CC=golang-codereviews
+    https://golang.org/cl/138730043
+
+ src/pkg/runtime/sys_solaris_amd64.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

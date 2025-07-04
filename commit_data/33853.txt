@@ -1,0 +1,14 @@
+commit 0da486dc72743faa6e601444dcc35728704a1545
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 11 00:37:19 2017 +0000
+
+    doc: update NetBSD status
+    
+    Fixes #23073
+    
+    Change-Id: Ia43b28beeff9e57579caf5dcb76146ee29d5033b
+    Reviewed-on: https://go-review.googlesource.com/82918
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

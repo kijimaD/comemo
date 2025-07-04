@@ -1,0 +1,20 @@
+commit 761e10be8805bf0b3afd015cf9f09856a6066ad2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Dec 17 17:51:25 2023 +0100
+
+    cmd/link/internal/loadpe: update comment about @feat.00 symbol handling
+    
+    The @feat.00 comment is outdated, as Go does support SEH on
+    windows/amd64. While here, simplify it and add a link to the
+    relevant documentation.
+    
+    Change-Id: I6e3c786ca4f4809baf46015edf569d06b12f1239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550635
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

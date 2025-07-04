@@ -1,0 +1,23 @@
+commit 9fedec79ed2da83fe33cad8e6cf6a28d23948f27
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 11 17:25:09 2019 -0400
+
+    go/build: bypass importGo if srcDir is in GOROOT/src
+    
+    This fixes the builder flake observed in
+    https://build.golang.org/log/84fe80f8f091b9cef639b3ae2422a673f1462810,
+    which could be replicated by running
+    
+            GOPROXY=off GOPATH=$(mktemp -d) go test go/internal/srcimporter
+    
+    Updates #30228
+    Fixes #30760
+    
+    Change-Id: Ibf8b7a2e211611960b074b74af91acd4f0196edb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166977
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

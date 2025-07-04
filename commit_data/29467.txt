@@ -1,0 +1,20 @@
+commit 41027cc460b8db8fe2c23fa6fb97eb1ddab44799
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 12:58:16 2016 -0800
+
+    cmd/go: remove "x" in TestImportMain
+    
+    Interestingly, this only became a problem when CL 32850 marked
+    TestImportMain as parallel.  Before that, "x" was overwritten and remove
+    in a later test, TestGoBuildOutput.  The latter test is not marked as
+    parallel, so now it is run first.  It is rather fragile for two tests to
+    compete over the same filename, but this change is correct regardless.
+    
+    Change-Id: I1db7929c0bc20a2fd0cc6a02999bef2dca9e0cc0
+    Reviewed-on: https://go-review.googlesource.com/33092
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

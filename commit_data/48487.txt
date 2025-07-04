@@ -1,0 +1,16 @@
+commit 38707059ab76a28a4d156797deada7626b9bd13c
+Author: Ben Shi <ben.shi@streamcomputing.com>
+Date:   Tue Mar 22 14:29:39 2022 +0000
+
+    A+C: change email of Ben Shi (individual CLA)
+    
+    Change-Id: Icff75d5fbbeae7aa5003a848ea49b79ddde9933a
+    GitHub-Last-Rev: 489a69fc6bb02a57689a43ae8fb718e5e0177ae6
+    GitHub-Pull-Request: golang/go#51869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

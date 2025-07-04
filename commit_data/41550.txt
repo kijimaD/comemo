@@ -1,0 +1,21 @@
+commit 52b457d6f320c3491ab14a71afc3c7416b36430c
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Thu Nov 21 07:46:37 2019 +0000
+
+    runtime: use CBZ/CBNZ in linux/arm64 assembly code
+    
+    Replace compare and branch on zero/non-zero instructions in linux/arm64
+    assembly files with CBZ/CBNZ.
+    
+    Change-Id: I4dbf56678f85827e83b5863804368bc28a4603b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209617
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/asm_arm64.s       | 36 ++++++++++++------------------------
+ src/runtime/race_arm64.s      |  3 +--
+ src/runtime/rt0_linux_arm64.s |  3 +--
+ src/runtime/sys_linux_arm64.s |  3 +--
+ src/runtime/tls_arm64.s       |  6 ++----
+ 5 files changed, 17 insertions(+), 34 deletions(-)

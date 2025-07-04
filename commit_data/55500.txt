@@ -1,0 +1,17 @@
+commit 3b0d39c5da3f2ad290048f13cb204a1e81ed4faf
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Feb 1 16:28:07 2024 +0000
+
+    sync: update doc for Map.Clear
+    
+    Change-Id: I9bcc5c82321cbc93f1c7aafd1dadf4f6b862ccbd
+    GitHub-Last-Rev: 818b95528f6beb6178b385953b49fbfbaeb31a82
+    GitHub-Pull-Request: golang/go#65429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560396
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sync/map.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

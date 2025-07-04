@@ -1,0 +1,30 @@
+commit 49580db149b177b0bbebb9fc61094b1e6c5a38d2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 10:37:07 2015 -0700
+
+    asm: give error message for unadorned symbol reference
+    
+    On amd64, the program
+    
+    TEXT    foo0(SB),7,$-8
+        ADDQ R520, R1
+        RET
+    
+    used to trigger this error because R520 was being passed through to obj:
+    
+    asm: doasm: notfound ft=23 tt=23 00000 (x.s:2)  ADDQ    0, 0 23 23
+    
+    Now it gets this one, as it is indeed a parse error:
+    
+    x.s:2: illegal addressing mode for symbol R520
+    
+    This couldn't be fixed until #12632 had been fixed for arm64.
+    
+    Fixes #12470.
+    
+    Change-Id: I19830c4ae9337887b93f85d9a239e2b89dbb2219
+    Reviewed-on: https://go-review.googlesource.com/14691
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/cmd/asm/internal/asm/parse.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

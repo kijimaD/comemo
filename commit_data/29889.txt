@@ -1,0 +1,15 @@
+commit af7bc070490fb2024102ac9a2c8f598bcb481bc7
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Jan 2 13:19:31 2017 -0800
+
+    database/sql: fix typo and wording
+    
+    Clean up the phrasing a little bit, make the comment fit in 80
+    characters, and fix the spelling of "guard."
+    
+    Change-Id: I688a3e760b8d67ea83830635f64dff04dd9a5911
+    Reviewed-on: https://go-review.googlesource.com/34792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

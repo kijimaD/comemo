@@ -1,0 +1,12 @@
+commit e38339e3d8e89b7dcffef41a2c373f3c48f032ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 16:17:06 2013 -0800
+
+    test: add test case miscompiled by gccgo
+    
+    R=golang-dev, bradfitz, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/7240043
+
+ test/fixedbugs/bug473.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

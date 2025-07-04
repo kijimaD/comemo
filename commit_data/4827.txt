@@ -1,0 +1,14 @@
+commit c5287ecb9c67eb731dd0bf7a5ffcaa1d3d23f52e
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Tue Feb 9 17:42:51 2010 -0800
+
+    http: protect io.WriteString in Request/Response.Write with error checking,
+    since they were causing a silent program exit (too many EPIPE's).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204062
+
+ src/pkg/http/request.go  |  5 ++++-
+ src/pkg/http/response.go | 12 +++++++++---
+ 2 files changed, 13 insertions(+), 4 deletions(-)

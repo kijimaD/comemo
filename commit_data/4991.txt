@@ -1,0 +1,13 @@
+commit e6cd011e6875000d652c2c6631f7fa5e8f2d869a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 4 16:16:56 2010 -0800
+
+    A+C: add Spring Mc (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/240041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

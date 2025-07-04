@@ -1,0 +1,24 @@
+commit bc942823069fd004166360164e13821ded38f11c
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Apr 4 22:36:43 2016 +0300
+
+    cmd/link: grow rdBuf lazily
+    
+    Counting the final buffer size usually doesn't result in the buffer growing,
+    so assume that it doesn't need to grow and only grow if necessary.
+    
+    name       old secs    new secs    delta
+    LinkCmdGo   0.49 ± 4%   0.48 ± 3%  -1.31%   (p=0.000 n=95+95)
+    
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   122k ± 4%   121k ± 5%    ~     (p=0.065 n=96+100)
+    
+    Change-Id: I85e7f5688a61ef5ef2b1b7afe56507e71c5bd5b1
+    Reviewed-on: https://go-review.googlesource.com/21509
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)

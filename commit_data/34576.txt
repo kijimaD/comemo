@@ -1,0 +1,12 @@
+commit 2086f3503e40305da650ac200913a8535c0317ab
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Mar 12 18:19:06 2018 -0400
+
+    C: add Filippo Valsorda's @golang.org email
+    
+    Change-Id: I3758a4350b600af304b2cff7ad59c7368a01ab5c
+    Reviewed-on: https://go-review.googlesource.com/100215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit f94bff7935d031f3114980715381af226ae3ac75
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 27 14:05:31 2014 -0400
+
+    cmd/dist: zero output variables on entry to goc2c functions
+    
+    Zeroing the outputs makes sure that during function calls
+    in those functions we do not let the garbage collector
+    treat uninitialized values as pointers.
+    
+    The garbage collector may still see uninitialized values
+    if a preemption occurs during the function prologue,
+    before the zeroing has had a chance to run.
+    
+    This reduces the number of 'bad pointer' messages when
+    that runtime check is enabled, but it doesn't fix all of them,
+    so the check is still disabled.
+    
+    It will also avoid leaks, although I doubt any of these were
+    particularly serious.
+    
+    LGTM=iant, khr
+    R=iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/80850044
+
+ src/cmd/dist/goc2c.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

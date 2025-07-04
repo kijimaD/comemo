@@ -1,0 +1,32 @@
+commit f481afae53f4b5c26ea69bf062a630e932b52e04
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 1 16:02:18 2010 -0400
+
+    Make.pkg: remove .so before installing new one
+    
+    On Linux, overwriting an mmap'ed file causes
+    all the MAP_PRIVATE pages to get refreshed
+    with the new content, even ones that have been
+    modified by the process that did the mmap.
+    
+    One specific instance of this is that after the
+    dynamic linker has relocated a page from a .so,
+    overwriting the .so will un-relocate it, making
+    the next use of one of the no-longer-relocated
+    addresses incorrect and probably crash the
+    program.
+    
+    Linux must go out of its way to break programs
+    in this way: the pages have already been copied
+    on write, so they're not shared with the file system
+    cache, and it trashes them anyway.  The manual
+    says the behavior when the file gets overwritten
+    is "undefined".  Removing before copy avoids the
+    undefined behavior.
+    
+    R=iant
+    CC=golang-dev, msolo
+    https://golang.org/cl/2333045
+
+ src/Make.pkg | 1 +
+ 1 file changed, 1 insertion(+)

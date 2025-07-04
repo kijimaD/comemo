@@ -1,0 +1,23 @@
+commit a3bafcf8ccb55b130c10cbf45e44ab77823672a1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 26 20:13:54 2018 +0200
+
+    doc: make chart.apis.google.com link not clickable
+    
+    The example in the 'A web server' section of the effective Go document
+    uses Google's image charts API (at chart.apis.google.com).
+    
+    The service is now deprecated (see developers.google.com/chart/image),
+    and visiting http://chart.apis.google.com gives a 404. The endpoint is
+    still active, so the Go code in the example still works, but there's
+    no point in making the link clickable by the user if the page returns
+    a 404.
+    
+    Change the element to `<code>`.
+    
+    Change-Id: Ie67f4723cfa636e3dc1460507055b6bbb2b0970c
+    Reviewed-on: https://go-review.googlesource.com/109576
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

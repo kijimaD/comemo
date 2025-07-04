@@ -1,0 +1,20 @@
+commit d39b54171a2702d5fe6fc427b60ee03c9c45da5a
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Mon Aug 8 14:13:52 2022 -0700
+
+    encoding/gob: change typeInfo.encoder type to atomic.Pointer[T]
+    
+    Replace loading and storing an atomic.Value of type pointer with
+    atomic.Pointer.
+    
+    Change-Id: I018ac1e18eee4f203ebca65c2833daf991075371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422174
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encode.go | 10 +++++-----
+ src/encoding/gob/type.go   |  4 ++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)

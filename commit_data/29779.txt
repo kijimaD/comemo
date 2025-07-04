@@ -1,0 +1,17 @@
+commit c6228ef7e2167a9330a822c48a6f134b92da1437
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Wed Dec 7 15:36:22 2016 -0800
+
+    runtime/pprof: track locations for goroutine profiles
+    
+    Must add locations to the profile when generating a profile.proto.
+    This fixes #18229
+    
+    Change-Id: I49cd63a30759d3fe8960d7b7c8bd5a554907f8d1
+    Reviewed-on: https://go-review.googlesource.com/34028
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

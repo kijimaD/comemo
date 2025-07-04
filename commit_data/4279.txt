@@ -1,0 +1,15 @@
+commit 9e55d0d01840555506f4fe90aca48826af644637
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 08:27:57 2009 -0800
+
+    time: another bug in SecondsToUTC.
+    added random test to look for more.
+    
+    Fixes #363.
+    
+    R=r, cw
+    https://golang.org/cl/163071
+
+ src/pkg/time/time.go      |  9 +++++++++
+ src/pkg/time/time_test.go | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+)

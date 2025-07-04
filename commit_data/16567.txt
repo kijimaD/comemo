@@ -1,0 +1,15 @@
+commit 92ea9fa108d608a4bd46dc4f51e251e99a2964c5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 13 13:12:58 2013 -0700
+
+    cmd/go: change to use struct in go test -cover
+    Go tool half of https://golang.org/cl/10271044
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/10272043
+
+ src/cmd/go/build.go | 9 ++++-----
+ src/cmd/go/pkg.go   | 5 ++---
+ src/cmd/go/test.go  | 7 +++----
+ 3 files changed, 9 insertions(+), 12 deletions(-)

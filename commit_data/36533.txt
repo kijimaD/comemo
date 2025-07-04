@@ -1,0 +1,21 @@
+commit c8545722a105f4a21583aeee00adcbd01436b98b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 29 11:55:55 2018 -0400
+
+    cmd/compile: only clobber dead slots at call sites
+    
+    We now have safepoints at nearly all the instructions. When
+    GOEXPERIMENT=clobberdead is on, it inserts clobbers nearly at
+    every instruction. Currently this doesn't work. (Maybe the stack
+    maps at non-call safepoints are still imprecise. I haven't
+    investigated.) For now, only use call-based safepoints if the
+    experiment is on.
+    
+    Updates #27326.
+    
+    Change-Id: I72cda9b422d9637cc5738e681502035af7a5c02d
+    Reviewed-on: https://go-review.googlesource.com/131956
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

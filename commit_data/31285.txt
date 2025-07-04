@@ -1,0 +1,15 @@
+commit 08db34927d134ead36a57a8595faaf639f69a741
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:25:25 2017 -0700
+
+    cmd/compile: convert GCProg generation to use obj.LSym
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0cc4fe608a50681845a92053cb3888ea127b521a
+    Reviewed-on: https://go-review.googlesource.com/41402
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 41 +++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

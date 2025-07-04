@@ -1,0 +1,19 @@
+commit 51a23d6681aef3736e09fbc61fc9ae03305efc2c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 18 08:51:32 2022 -0700
+
+    net/url: clarify RawPath documentation
+    
+    Consistently recommend using EscapedPath rather than RawPath directly.
+    
+    For #33596.
+    
+    Change-Id: Ibe5c2dfa7fe6b1fbc540efed6db1291fc6532726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418035
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/url/url.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

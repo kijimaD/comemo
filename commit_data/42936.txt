@@ -1,0 +1,29 @@
+commit cd91ab5d9601c975286f1ac83cd289e34aa117f8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 28 21:32:05 2020 -0400
+
+    cmd/go/internal/modload: fix spurious import resolution error
+    
+    Due to a bug in CL 173017, if QueryPackages found multiple candidates
+    for the given package and *at least* one of those candidates was not
+    available to add, we would reject *all* such candidates — even those
+    that were still viable.
+    
+    Now, we return the first viable candidate, and only return an error if
+    *no* candidate is viable given the current build list.
+    
+    Fixes #41113
+    
+    Change-Id: Idb2e77244be7c0f5dd511efb142c3059925d7336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251446
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/import.go              | 26 ++++++++++----------
+ ...xample.com_split-incompatible_subpkg_v0.1.0.txt | 14 +++++++++++
+ ....com_split-incompatible_v2.0.0+incompatible.txt | 10 ++++++++
+ ..._split-incompatible_v2.1.0-pre+incompatible.txt | 10 ++++++++
+ .../go/testdata/script/mod_import_issue41113.txt   | 28 ++++++++++++++++++++++
+ 5 files changed, 76 insertions(+), 12 deletions(-)

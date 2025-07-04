@@ -1,0 +1,24 @@
+commit 07525e16ba9fcb8924ed872b015dc217d1b01b6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 12:20:14 2022 -0500
+
+    math/big: fix spurious race in Rat.Denom, Float.SetRat
+    
+    Rat maintains the invariant that x.b.neg is always false,
+    but Rat.Denom was writing x.b.neg = false itself too.
+    That makes Rat.Denom a writing operation, when it should
+    be a read-only operation. That in turn makes it unsafe to
+    use from multiple goroutines, which is highly unexpected.
+    Make it read-only and therefore race-free again.
+    
+    Fixes #50473.
+    
+    Change-Id: I97b87913954511e5200c0665d16b9ed63422e505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375935
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/rat.go      |  2 +-
+ src/math/big/rat_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

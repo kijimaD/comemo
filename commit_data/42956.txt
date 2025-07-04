@@ -1,0 +1,17 @@
+commit 1ed4f12f4a6b9d783cf9a6fc3a292a433b8539c6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 10 11:14:27 2020 -0400
+
+    cmd/link: add a test to test RODATA is indeed read-only
+    
+    Updates #38830.
+    
+    Change-Id: Ie1f6ccef40a773f038aac587dfc26bf70a1a8536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253921
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/link_test.go         | 14 ++++++++++++++
+ src/cmd/link/testdata/testRO/x.go | 22 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

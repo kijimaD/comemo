@@ -1,0 +1,19 @@
+commit 161f50574a9a17e43f4fad88dae57201b5bc3af8
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Thu May 24 16:07:08 2012 -0700
+
+    net/rpc: fix race condition when request write partially fails
+    
+    When client fails to write a request is sends caller that error,
+    however server might have failed to read that request in the mean
+    time and replied with that error. When client then reads the
+    response the call would no longer be pending, so call will be nil
+    
+    Handle this gracefully by discarding such server responses
+    
+    R=golang-dev, r
+    CC=golang-dev, rsc
+    https://golang.org/cl/5956051
+
+ src/pkg/net/rpc/client.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

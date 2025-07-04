@@ -1,0 +1,46 @@
+commit fef5a153961fc314499f3c3208e001593f95a8e6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 18 17:03:50 2021 +0000
+
+    runtime: bypass ABI wrapper when calling needm on Windows
+    
+    On Windows, when calling into needm in cgocallback on a new thread that
+    is unknown to the Go runtime, we currently call through an ABI wrapper.
+    The ABI wrapper tries to restore the G register from TLS.
+    
+    On other platforms, TLS is set up just enough that the wrapper will
+    simply load a nil g from TLS, but on Windows TLS isn't set up at all, so
+    there's nowhere for the wrapper to load from.
+    
+    So, bypass the wrapper in the call to needm. needm takes no arguments
+    and returns no results so there are no special ABI considerations,
+    except that we must clear X15 which is used as a zero register in Go
+    code (a function normally performed by the ABI wrapper). needm is also
+    otherwise already special and carefully crafted to avoid doing anything
+    that would require a valid G or M, at least until it is able to create
+    one.
+    
+    While we're here, this change simplifies setg so that it doesn't set up
+    TLS on Windows and instead provides an OS-specific osSetupTLS to do
+    that.
+    
+    The result of this is that setg(nil) no longer clears the TLS space
+    pointer on Windows. There's exactly one place this is used (dropm) where
+    it doesn't matter anymore, and an empty TLS means that setg's wrapper
+    will crash on the return path. Another result is that the G slot in the
+    TLS will be properly cleared, however, which isn't true today.
+    
+    For #40724.
+    
+    Change-Id: I65c3d924a3b16abe667b06fd91d467d6d5da31d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303070
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_amd64.s          | 33 +++++++++++++++++++++------------
+ src/runtime/proc.go              |  4 ++++
+ src/runtime/sys_windows_amd64.s  |  8 ++++++++
+ src/runtime/tls_stub.go          | 11 +++++++++++
+ src/runtime/tls_windows_amd64.go | 10 ++++++++++
+ 5 files changed, 54 insertions(+), 12 deletions(-)

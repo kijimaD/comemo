@@ -1,0 +1,19 @@
+commit 451e4727ec825a7ce6f6e6f82761ff90c33fec83
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 16 15:22:44 2023 +1000
+
+    runtime: reword the documentation for Pinner
+    
+    I found the documentation for Pinner itself to contain too little information.
+    Rewrite it to give a summary and redirect to the relevant methods.
+    Also reformat the ragged comment for Pin.
+    
+    Change-Id: I9c786817f43dfc9c72178127c141c35dae221104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pinner.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

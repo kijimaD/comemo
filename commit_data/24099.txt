@@ -1,0 +1,18 @@
+commit a82ed3bc81f9f758230e38719a1c048a45a69021
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 27 12:16:09 2015 -0400
+
+    cmd/go: enable vendoring experiment by default
+    
+    If we're going to do this for Go 1.6 we might as well do it now
+    and find out what breaks.
+    
+    Change-Id: I8306b7829d8d13b564a1466c902ec6ba1a5a58c1
+    Reviewed-on: https://go-review.googlesource.com/13967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 28 +++++++++++++++++-----------
+ src/cmd/go/get.go     |  4 ++--
+ src/cmd/go/help.go    | 24 +++++++++++++++---------
+ src/cmd/go/pkg.go     |  6 ++++--
+ 4 files changed, 38 insertions(+), 24 deletions(-)

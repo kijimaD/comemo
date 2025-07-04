@@ -1,0 +1,12 @@
+commit fa5e5478c8791d644c3d7b07a73680f87eb5a43b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 5 09:37:13 2016 +0900
+
+    runtime: don't call testing.Fatal from worker goroutines
+    
+    Change-Id: I630d4d2d8a914d6c07f22351a56d5e44a937123e
+    Reviewed-on: https://go-review.googlesource.com/19245
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

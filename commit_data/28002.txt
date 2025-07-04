@@ -1,0 +1,19 @@
+commit d98de0c3d027815bc05f049a528687b436ce984c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 13:56:15 2016 -0700
+
+    cmd/compile: use two tables for table-driven map inserts
+    
+    This enables better packing when key and value
+    types have different alignments.
+    
+    Cuts 57k off cmd/go.
+    
+    Change-Id: Ifdd125264caccd7852d622382c94e4689e757978
+    Reviewed-on: https://go-review.googlesource.com/26669
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 117 ++++++++++++++---------------------
+ 1 file changed, 46 insertions(+), 71 deletions(-)

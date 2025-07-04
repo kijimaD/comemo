@@ -1,0 +1,12 @@
+commit 54191126e49bb6504012fc8aacdadf273683750a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 15:35:01 2012 -0400
+
+    cmd/gc: avoid crash in %N print
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6609052
+
+ src/cmd/gc/fmt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

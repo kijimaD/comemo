@@ -1,0 +1,14 @@
+commit f2d7e66e98d64941313147c0dfe2f31645830716
+Author: Roland Illig <roland.illig@gmx.de>
+Date:   Mon Aug 13 21:28:28 2018 +0200
+
+    runtime/pprof: fix resource leak in documentation
+    
+    Fixes #26970
+    
+    Change-Id: I0f2695434a53550cf84f702e9d8d02a37448d396
+    Reviewed-on: https://go-review.googlesource.com/129195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

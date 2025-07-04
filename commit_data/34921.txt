@@ -1,0 +1,19 @@
+commit 80bbad015d2f3f9407873c1657839a8a61d5f433
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 10 15:13:49 2018 -0700
+
+    cmd/compile: omit unnecessary interface method expression wrappers
+    
+    We'll always generate method expression wrappers for declared
+    interface types in their own package, so no need to generate them in
+    downstream packages.
+    
+    Noticed by gri@ while looking into #21282.
+    
+    Change-Id: I4fb7051b4e15297933da05fdd2b111d6b8f4178e
+    Reviewed-on: https://go-review.googlesource.com/106175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 5 +++++
+ 1 file changed, 5 insertions(+)

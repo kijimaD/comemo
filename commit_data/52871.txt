@@ -1,0 +1,30 @@
+commit 09a24a91b5aff200aa5fb8e75977c5a354702089
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 12:44:40 2023 -0400
+
+    cmd/go/internal/modfetch/codehost: initialize localGitURL lazily and clean up skips
+    
+    Previously localGitURL was initialized in TestMain, which creates
+    needless work if the test flags do not result in running a test that
+    requires localGitURL.
+    
+    We had also been skipping a bunch of tests that used
+    vcs-test.golang.org in order to avoid network traffic, but now that
+    that content is served through an in-process vcweb server that is no
+    longer necessary. (All of the 'git' tests together take less than a
+    second to run.)
+    
+    The 'hg' tests are much slower, so we do still skip those in short
+    mode.
+    
+    Updates #59940.
+    
+    Change-Id: Ie4f2d2bc825d7a011e25e754edf1a7c3c6010c77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491659
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git_test.go | 102 ++++++++++++----------
+ 1 file changed, 57 insertions(+), 45 deletions(-)

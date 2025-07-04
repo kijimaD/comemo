@@ -1,0 +1,13 @@
+commit 15068b6df752bd91ae1bbe7ac6d50f853f027d98
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 12 14:23:40 2014 -0700
+
+    doc: update go1.3.txt for regexp change
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72640043
+
+ doc/go1.3.txt | 1 +
+ 1 file changed, 1 insertion(+)

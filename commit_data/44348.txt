@@ -1,0 +1,20 @@
+commit 86deb459de6a309503aa445a7d686bd139354e5e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 17 11:38:14 2021 +0700
+
+    cmd/compile: remove selectnbrecv2
+    
+    Previous CL did remove selectnbrecv2 in runtime, the compiler now only
+    call selectnbrecv, so remove this. Make this as separated CL because it
+    adds much of noise to git stat.
+    
+    Change-Id: I06e89c823c0403e9bd66f2633409c455a46d6e79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292891
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/builtin.go      | 197 ++++++++++-----------
+ .../compile/internal/typecheck/builtin/runtime.go  |   1 -
+ 2 files changed, 97 insertions(+), 101 deletions(-)

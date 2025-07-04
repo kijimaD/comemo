@@ -1,0 +1,20 @@
+commit dfeecda91df3b0760fb380061f6af41e38f7938e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 29 14:27:55 2017 -0700
+
+    cmd/compile: checkwidth T when constructing *T
+    
+    Without this, T can sneak through to the backend
+    with its width unknown.
+    
+    Fixes #20174
+    
+    Change-Id: I9b21e0e2641f75e360cc5e45dcb4eefe8255b675
+    Reviewed-on: https://go-review.googlesource.com/42175
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  1 +
+ test/fixedbugs/issue20174.go             | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+)

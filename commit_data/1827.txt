@@ -1,0 +1,36 @@
+commit db3a21d7c68bad988b5238ef48ae491c782fb105
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Mar 13 15:03:07 2009 -0700
+
+    5a 5c 5l from inferno distribution
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=19042  (19042 added, 0 deleted, 0 changed)
+    OCL=26268
+    CL=26270
+
+ src/cmd/5a/a.h     |  212 ++++++
+ src/cmd/5a/a.y     |  703 ++++++++++++++++++++
+ src/cmd/5a/lex.c   |  719 +++++++++++++++++++++
+ src/cmd/5c/5.out.h |  227 +++++++
+ src/cmd/5c/cgen.c  | 1186 ++++++++++++++++++++++++++++++++++
+ src/cmd/5c/gc.h    |  379 +++++++++++
+ src/cmd/5c/list.c  |  334 ++++++++++
+ src/cmd/5c/mkenam  |   45 ++
+ src/cmd/5c/mul.c   |  639 ++++++++++++++++++
+ src/cmd/5c/peep.c  | 1471 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5c/reg.c   | 1187 ++++++++++++++++++++++++++++++++++
+ src/cmd/5c/sgen.c  |  643 ++++++++++++++++++
+ src/cmd/5c/swt.c   |  787 ++++++++++++++++++++++
+ src/cmd/5c/txt.c   | 1280 ++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/asm.c   | 1831 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/l.h     |  474 ++++++++++++++
+ src/cmd/5l/list.c  |  390 +++++++++++
+ src/cmd/5l/noop.c  |  924 ++++++++++++++++++++++++++
+ src/cmd/5l/obj.c   | 1588 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/optab.c |  283 ++++++++
+ src/cmd/5l/pass.c  |  972 ++++++++++++++++++++++++++++
+ src/cmd/5l/span.c  | 1292 ++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/thumb.c | 1667 +++++++++++++++++++++++++++++++++++++++++++++++
+ 23 files changed, 19233 insertions(+)

@@ -1,0 +1,13 @@
+commit 435a001d6880798931bad881e36cba820592bb3c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jul 1 23:12:42 2012 -0400
+
+    image: fix doc typo
+         Fixes #3789.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6357058
+
+ src/pkg/image/names.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

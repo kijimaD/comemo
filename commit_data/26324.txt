@@ -1,0 +1,22 @@
+commit 005140a77e535fa614fbdaa3c6c5d4c7f69f7a91
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 16 11:06:00 2016 -0500
+
+    runtime: put g.waiting list in lock order
+    
+    Currently the g.waiting list created by a select is in poll order.
+    However, nothing depends on this, and we're going to need access to
+    the channel lock order in other places shortly, so modify select to
+    put the waiting list in channel lock order.
+    
+    For #12967.
+    
+    Change-Id: If0d38816216ecbb37a36624d9b25dd96e0a775ec
+    Reviewed-on: https://go-review.googlesource.com/20037
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/runtime2.go |  2 +-
+ src/runtime/select.go   | 19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 2d1d54808131b09da768ec334b3387ccb70562ec
+Author: Jing维 <chalvern@users.noreply.github.com>
+Date:   Mon Dec 20 00:36:55 2021 +0000
+
+    reflect: update relative path in comment
+    
+    Fix it to avoid misunderstanding.
+    
+    Change-Id: I2a09cb9edfa8077c5c0c35e07000c0c7dc72755e
+    GitHub-Last-Rev: ae49d512eb7f58421ff2d3b9a8b04500a96ac831
+    GitHub-Pull-Request: golang/go#50260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373334
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

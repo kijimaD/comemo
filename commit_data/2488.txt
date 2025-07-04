@@ -1,0 +1,12 @@
+commit 2805eb9a5ee9927ab2ee73d5efa7b865a11944f4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 19 16:45:04 2009 -0700
+
+    fix build
+    
+    R=rsc
+    OCL=30542
+    CL=30542
+
+ src/pkg/io/Makefile | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

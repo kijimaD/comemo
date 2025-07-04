@@ -1,0 +1,14 @@
+commit 779dfea487ce59661a4199445e35d92d63b97f57
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 30 15:02:43 2010 -0400
+
+    gc: correct buffer size in sprint, add -L to show full paths
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2338041
+
+ src/cmd/gc/doc.go | 2 ++
+ src/cmd/gc/lex.c  | 4 +++-
+ src/cmd/gc/subr.c | 2 ++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

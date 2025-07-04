@@ -1,0 +1,16 @@
+commit 1f7e3cfdbcc4b12ba769bb5e9e09887145870187
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 3 21:49:45 2016 -0800
+
+    runtime: skip TestSignalExitStatus on Solaris
+    
+    Update #14063.
+    
+    Change-Id: Id13456deb15c90a8af282b77d78ff5cdbd1de8bf
+    Reviewed-on: https://go-review.googlesource.com/19208
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_unix_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

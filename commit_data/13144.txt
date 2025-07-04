@@ -1,0 +1,14 @@
+commit 83771afe1022da584767cbac988446497d683bae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 23 17:18:05 2012 -0700
+
+    encoding/json: documentation fix
+    
+    Fixes #3650
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6238046
+
+ src/pkg/encoding/json/encode.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,41 @@
+commit 5961134fa5530e8e07b5536b9577e4755ac1e04a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 30 10:25:11 2021 -0700
+
+    crypto: avoid escaping Hash.Sum on generic architectures
+    
+    For architectures without a specialized implementation (e.g. arm),
+    the generic implementation allocates because it does:
+    
+            var block = blockGeneric
+    
+    which causes the compiler to give up trying to analyze block
+    even though it is technically only ever one implementation.
+    Instead of a variable, declare a function that wraps blockGeneric.
+    
+    We apply this fix to md5, sha1, and sha256,
+    while sha512 already had the equivalent change.
+    We add a test to all hashing packages to ensure no allocations.
+    
+    Credit goes to Cuong Manh Le for more specifically identifying
+    the problem and Keith Randal for suggesting a concrete solution.
+    
+    Fixes #48055
+    
+    Change-Id: I1a6a2e028038e051c83fd72b10a8bf4d210df57d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346209
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/md5/md5_test.go               | 14 ++++++++++++++
+ src/crypto/md5/md5block_generic.go       |  4 +++-
+ src/crypto/sha1/sha1_test.go             | 14 ++++++++++++++
+ src/crypto/sha1/sha1block_generic.go     |  4 +++-
+ src/crypto/sha256/sha256_test.go         | 14 ++++++++++++++
+ src/crypto/sha256/sha256block_generic.go |  4 +++-
+ src/crypto/sha512/sha512_test.go         | 14 ++++++++++++++
+ 7 files changed, 65 insertions(+), 3 deletions(-)

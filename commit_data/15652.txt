@@ -1,0 +1,12 @@
+commit 30b89a84acc86fbb6c69b053eb00ce155084d164
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 8 21:18:06 2013 -0800
+
+    net: if accept4 returns EINVAL fall back to accept
+    
+    R=golang-dev, andybalholm, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7485045
+
+ src/pkg/net/sock_cloexec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

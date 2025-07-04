@@ -1,0 +1,27 @@
+commit 693def151adff1af707d82d28f55dba81ceb08e1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Oct 18 11:25:08 2023 -0400
+
+    crypto/rand,runtime: switch RtlGenRandom for ProcessPrng
+    
+    RtlGenRandom is a semi-undocumented API, also known as
+    SystemFunction036, which we use to generate random data on Windows.
+    It's definition, in cryptbase.dll, is an opaque wrapper for the
+    documented API ProcessPrng. Instead of using RtlGenRandom, switch to
+    using ProcessPrng, since the former is simply a wrapper for the latter,
+    there should be no practical change on the user side, other than a minor
+    change in the DLLs we load.
+    
+    Change-Id: Ie6891bf97b1d47f5368cccbe92f374dba2c2672a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/rand/rand.go                          |  2 +-
+ src/crypto/rand/rand_windows.go                  |  7 ++----
+ src/internal/syscall/windows/syscall_windows.go  |  2 +-
+ src/internal/syscall/windows/zsyscall_windows.go | 21 ++++++++--------
+ src/runtime/os_windows.go                        | 31 +++++++++---------------
+ 5 files changed, 27 insertions(+), 36 deletions(-)

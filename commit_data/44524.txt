@@ -1,0 +1,14 @@
+commit 2217e89ba326875470a856cd0da79f3ec9a896b8
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Mon Jan 18 19:56:26 2021 +0100
+
+    net/http/httptrace: fix doc typo
+    
+    Change-Id: I919d9c3968c0fcd33774e714f22182504790bd01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284143
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/net/http/httptrace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 137f2fba57034b61d70ca8a094d0a9d24d935ef5
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Jul 31 09:41:31 2018 +0530
+
+    doc/go1.11: add note to remove CLI support for godoc
+    
+    Updates #25443
+    
+    Change-Id: I5e2f84f3cee6582807b2756ffac91e8583a2baec
+    Reviewed-on: https://go-review.googlesource.com/126737
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

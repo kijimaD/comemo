@@ -1,0 +1,15 @@
+commit 957fd575fc2941402c964f088330e109d02740f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 14 20:45:45 2011 -0700
+
+    go/token: support to serialize file sets
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5024042
+
+ src/pkg/go/token/Makefile          |   1 +
+ src/pkg/go/token/position.go       |  20 ++++---
+ src/pkg/go/token/serialize.go      |  62 ++++++++++++++++++++++
+ src/pkg/go/token/serialize_test.go | 105 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 180 insertions(+), 8 deletions(-)

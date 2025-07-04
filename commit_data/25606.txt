@@ -1,0 +1,16 @@
+commit 92ba69d216e6b840b02ae4ecdc7fb425a94473b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 14:52:06 2016 -0800
+
+    cmd/compile: set importpkg.Direct correctly when using binary imports
+    
+    Fixes #13977.
+    
+    Change-Id: Icf54b4d2d746d30da207d1e17c975d18188b1cf8
+    Reviewed-on: https://go-review.googlesource.com/18702
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/lex.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

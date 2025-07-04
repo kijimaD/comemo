@@ -1,0 +1,19 @@
+commit 61945fc5022e36ae88758f2c4e8f7c29f0824ae0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 13 13:53:38 2019 -0700
+
+    cmd/compile: don't generate panicshift for masked int shifts
+    
+    We know that a & 31 is non-negative for all a, signed or not.
+    We can avoid checking that and needing to write out an
+    unreachable call to panicshift.
+    
+    Change-Id: I32f32fb2c950d2b2b35ac5c0e99b7b2dbd47f917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167499
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   5 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 232 +++++++++++++++++++++++++
+ test/codegen/shift.go                          |  28 +++
+ 3 files changed, 265 insertions(+)

@@ -1,0 +1,17 @@
+commit 0725410df5221fc6552298eec41548b0ab02ac6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 15:43:12 2023 -0700
+
+    cmd/compile/internal/inline/inlheur: remove ConstExpr assumption
+    
+    OLITERAL isn't always ConstExpr. It can also be BasicLit or Name.
+    
+    Change-Id: I44d595830f9e206eccf6fb37bd47ddf957db0866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526277
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ .../compile/internal/inline/inlheur/analyze_func_returns.go   | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 577538a282a95c48b543477bc569e7c80f898989
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Oct 25 22:52:44 2017 -0700
+
+    net/smtp: fix spelling mistake
+    
+    Change-Id: I3141076c0db7b70ea408c941a857ed1f82dcb2df
+    Reviewed-on: https://go-review.googlesource.com/73557
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/net/smtp/smtp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

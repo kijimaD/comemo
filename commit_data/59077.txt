@@ -1,0 +1,18 @@
+commit e0edd3e15519eb10a885d99422878596acd97899
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Jan 15 14:52:10 2024 +0800
+
+    html/template: replace end-of-life link
+    
+    Fix #65044
+    
+    Change-Id: I5bf9c1cf2e9d3ae1e4bbb8f2653512c710db370b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555815
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

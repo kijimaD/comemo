@@ -1,0 +1,23 @@
+commit 9a5a5043e10dbc8338e21b8c7f4081a56a019b7d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 9 21:32:11 2019 +0100
+
+    cmd/go: skip tests using Git on Plan 9
+    
+    TestScript/get_unicode, TestScript/get_dotfiles and
+    TestScript/get_brace are failing on Plan 9 since they
+    expect a full-featured git command, while the git tool
+    has been emulated as a simple rc script on Plan 9.
+    
+    This change skips tests using Git on Plan 9.
+    
+    Fixes #29640.
+    
+    Change-Id: Id7f6fdca552167f4631fe401f63167e5653daafa
+    Reviewed-on: https://go-review.googlesource.com/c/157119
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/script_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

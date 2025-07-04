@@ -1,0 +1,13 @@
+commit 6f9609ab3bafb62dcc224604fccdc4f75fc60906
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 13 16:50:44 2012 +0100
+
+    doc: link to Go coding screencast
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6849046
+
+ doc/code.html | 4 ++++
+ doc/docs.html | 6 ++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

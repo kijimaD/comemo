@@ -1,0 +1,12 @@
+commit 7e56eeeced897de63f8772cff3154837ef7c4b0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 30 10:01:49 2014 -0800
+
+    doc: add http server trailers support to go1.5.txt
+    
+    Change-Id: Ic15e40bb1ae0bf3a4e8c43a44daf7cc35a18da87
+    Reviewed-on: https://go-review.googlesource.com/2192
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 63a7ee78239953a15c67d4de3195655b5129eff6
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Dec 1 20:30:22 2016 +0100
+
+    net: fix writev tests on Android
+    
+    Change-Id: Iacced25363f54ee2cc1e00a71605dba7fb447162
+    Reviewed-on: https://go-review.googlesource.com/33772
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/writev_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

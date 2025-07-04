@@ -1,0 +1,19 @@
+commit 58035ec8ee68b288d9a0680919e2f4e4a9f28824
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 11 10:35:30 2015 -0400
+
+    cmd/go: run test binaries in original environment
+    
+    Fixes #12096.
+    Followup to CL 12483, which fixed #11709 and #11449.
+    
+    Change-Id: I9031ea36cc60685f4d6f65c39f770c89b3e3395a
+    Reviewed-on: https://go-review.googlesource.com/13449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go   |  2 +-
+ src/cmd/go/go_test.go | 15 +++++++++++++++
+ src/cmd/go/main.go    |  5 ++---
+ src/cmd/go/test.go    |  2 +-
+ src/cmd/go/vcs.go     |  2 +-
+ 5 files changed, 20 insertions(+), 6 deletions(-)

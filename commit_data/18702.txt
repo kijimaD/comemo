@@ -1,0 +1,23 @@
+commit 7124ee59d18fabe5494227b19250b4040a4aa8b6
+Author: Richard Crowley <r@rcrowley.org>
+Date:   Sat Mar 1 20:32:42 2014 -0800
+
+    net/http: ensure ConnState for StateNew fires before Server.Serve returns
+    
+    The addition of Server.ConnState provides all the necessary
+    hooks to stop a Server gracefully, but StateNew previously
+    could fire concurrently with Serve exiting (as it does when
+    its net.Listener is closed). This previously meant one
+    couldn't use a WaitGroup incremented in the StateNew hook
+    along with calling Wait after Serve. Now you can.
+    
+    Update #4674
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/70410044
+
+ src/pkg/net/http/serve_test.go | 21 +++++++++++++++++++++
+ src/pkg/net/http/server.go     |  2 +-
+ 2 files changed, 22 insertions(+), 1 deletion(-)

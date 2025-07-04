@@ -1,0 +1,16 @@
+commit 96e844393e489abaf37115100870f46f28fbae45
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 10:38:44 2009 -0700
+
+    Implement all unary and binary arithmetic operators.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=689  (497 added, 169 deleted, 23 changed)
+    OCL=31755
+    CL=31772
+
+ usr/austin/eval/decls.go |   2 +
+ usr/austin/eval/expr.go  | 690 ++++++++++++++++++++++++++++++++++-------------
+ usr/austin/eval/type.go  |   8 +
+ 3 files changed, 514 insertions(+), 186 deletions(-)

@@ -1,0 +1,14 @@
+commit 983a490ee972f7860c0eab08c4c3500c3174cbab
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Apr 17 14:50:07 2015 -0400
+
+    cmd/dist: include misc/cgo/testcshared test for linux/amd64
+    
+    Change-Id: Ia2c0c617df523482ba1a25b7492267eb80f0819a
+    Reviewed-on: https://go-review.googlesource.com/9033
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

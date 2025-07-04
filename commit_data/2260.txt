@@ -1,0 +1,16 @@
+commit a39bae095ae836102c96cbfa0adc2745c6fbbbf6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 15:09:50 2009 -0700
+
+    ifaceop was being called with integers
+    that came from two different enums.
+    spilt into ifacecvt and ifaceop depending
+    on which enum the argument is.
+    
+    R=ken
+    OCL=29122
+    CL=29122
+
+ src/cmd/gc/go.h   |  5 ++++-
+ src/cmd/gc/walk.c | 43 +++++++++++++++++++++++++++++--------------
+ 2 files changed, 33 insertions(+), 15 deletions(-)

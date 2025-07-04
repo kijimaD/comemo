@@ -1,0 +1,26 @@
+commit 36a81d5ec37904e44a9a2959c140687d558cd25f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 20:59:33 2019 -0500
+
+    strconv: accept underscores in ParseInt, ParseUint, ParseFloat
+    
+    This CL modifies ParseInt, ParseUint, and ParseFloat
+    to accept digit-separating underscores in their arguments.
+    For ParseInt and ParseUint, the underscores are only
+    allowed when base == 0.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #28493.
+    
+    Change-Id: I057ca2539d89314643f591ba8144c3ea7126651c
+    Reviewed-on: https://go-review.googlesource.com/c/160243
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/atof.go      | 22 ++++++++++++--
+ src/strconv/atof_test.go | 37 ++++++++++++++++++++++++
+ src/strconv/atoi.go      | 70 ++++++++++++++++++++++++++++++++++++++------
+ src/strconv/atoi_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 193 insertions(+), 11 deletions(-)

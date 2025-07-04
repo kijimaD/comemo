@@ -1,0 +1,14 @@
+commit 6c27114cedb47e8bd2723416ea0c63d047a2cefc
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jan 22 21:01:18 2018 -0500
+
+    doc: document Go 1.8.6
+    
+    Update golang/go#23515
+    
+    Change-Id: Id334d8663bf4cbb68f224d1bba4c9ad3855f8aae
+    Reviewed-on: https://go-review.googlesource.com/89155
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

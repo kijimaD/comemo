@@ -1,0 +1,23 @@
+commit 6f07ac2f280847ee0346b871b23cab90869f84a4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 7 09:25:23 2015 -0800
+
+    cmd/gc: pad structs which end in zero-sized fields
+    
+    For a non-zero-sized struct with a final zero-sized field,
+    add a byte to the size (before rounding to alignment).  This
+    change ensures that taking the address of the zero-sized field
+    will not incorrectly leak the following object in memory.
+    
+    reflect.funcLayout also needs this treatment.
+    
+    Fixes #9401
+    
+    Change-Id: I1dc503dc5af4ca22c8f8c048fb7b4541cc957e0f
+    Reviewed-on: https://go-review.googlesource.com/2452
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/align.c          | 17 +++++++++++++----
+ src/reflect/type.go         | 19 +++++++++++++++----
+ src/runtime/runtime_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+), 8 deletions(-)

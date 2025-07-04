@@ -1,0 +1,15 @@
+commit f1b7c140ffe42db59b51937037b2af6c48fa94b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 14:40:59 2013 -0700
+
+    cmd/godoc: provide a link from notes to source location
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8122043
+
+ lib/godoc/package.html   |  4 ++--
+ src/cmd/godoc/godoc.go   | 32 +++++++++++++++++++++++---------
+ src/pkg/go/doc/doc.go    |  6 +++---
+ src/pkg/go/doc/reader.go |  1 +
+ 4 files changed, 29 insertions(+), 14 deletions(-)

@@ -1,0 +1,20 @@
+commit 282493bbf6d6952335d97e1faa4e86585cdf04e6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 15:31:02 2008 -0700
+
+    update reflection library to int/int32 etc. split
+    
+    fmt still to come
+    
+    R=rsc
+    DELTA=168  (141 added, 19 deleted, 8 changed)
+    OCL=18064
+    CL=18071
+
+ src/lib/reflect/cast_amd64.s | 30 ++++++++++++++++
+ src/lib/reflect/gencast.sh   |  3 ++
+ src/lib/reflect/test.go      | 15 ++++++--
+ src/lib/reflect/tostring.go  | 35 ++++++-------------
+ src/lib/reflect/type.go      | 12 +++++++
+ src/lib/reflect/value.go     | 81 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 149 insertions(+), 27 deletions(-)

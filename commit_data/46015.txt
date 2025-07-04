@@ -1,0 +1,19 @@
+commit c2b4ec8f49184e02ea4832b4e495f206d4fc4b88
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:28:30 2021 -0400
+
+    go/types: add defined type to term/termlist tests
+    
+    This is a port of CL 339905 to go/types.
+    
+    Change-Id: I9afac9e84bde6f34bb65c7e3d726986d2c648a91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342436
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/termlist_test.go | 53 +++++++++++++++++++++++++++++++++++--------
+ src/go/types/typeterm.go      |  3 +++
+ src/go/types/typeterm_test.go | 37 +++++++++++++++++++++++++++++-
+ 3 files changed, 83 insertions(+), 10 deletions(-)

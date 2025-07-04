@@ -1,0 +1,18 @@
+commit 03fbd72ddb9cc81e28a36cba96423b64027bbb6d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 8 21:50:40 2009 -0700
+
+    Add new functions to the iterable package:
+    - Filter
+    - Find
+    - Partition
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=117  (92 added, 17 deleted, 8 changed)
+    OCL=27135
+    CL=27240
+
+ src/lib/container/iterable.go      | 64 +++++++++++++++++++++++++++++---------
+ src/lib/container/iterable_test.go | 59 +++++++++++++++++++++++++++++------
+ 2 files changed, 99 insertions(+), 24 deletions(-)

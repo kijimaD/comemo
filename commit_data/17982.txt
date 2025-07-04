@@ -1,0 +1,19 @@
+commit d270e6f28c803cc9fb53f5adc2b935f73b146f86
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 19:02:11 2013 -0800
+
+    test: match gccgo import error messages
+    
+    Gccgo doesn't have the same equivalent of file name and
+    package as the gc compiler, so the error messages are
+    necessarily different.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/40510048
+
+ test/fixedbugs/issue5957.dir/c.go | 10 +++++-----
+ test/import1.go                   |  2 +-
+ test/import4.dir/empty.go         |  2 +-
+ test/import4.dir/import4.go       |  4 ++--
+ 4 files changed, 9 insertions(+), 9 deletions(-)

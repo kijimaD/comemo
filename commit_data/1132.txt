@@ -1,0 +1,15 @@
+commit 7dee51f491af1f4aa115ba244306ffa815ffa7f1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 14 17:28:17 2008 -0800
+
+    The compilers should and do permit interface types to list
+    multiple method names with a single type.
+    
+    R=r,gri
+    DELTA=10  (0 added, 10 deleted, 0 changed)
+    OCL=19292
+    CL=19298
+
+ test/bugs/bug032.go | 11 -----------
+ test/golden.out     |  3 ---
+ 2 files changed, 14 deletions(-)

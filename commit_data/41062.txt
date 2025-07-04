@@ -1,0 +1,16 @@
+commit db66972359073ce2f83c9863d77444eca5a73006
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Mon Jan 6 16:58:37 2020 +0000
+
+    .github: add link to questions in ISSUE_TEMPLATE
+    
+    Add a link redirecting questions to the wiki page/forums
+    
+    Change-Id: I05b784e6bb0c260cb01c4535ad05fb17ba80110e
+    GitHub-Last-Rev: a927ce5c69df7854ae919013b0e55ab4d356fc4c
+    GitHub-Pull-Request: golang/go#36413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213440
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/ISSUE_TEMPLATE | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

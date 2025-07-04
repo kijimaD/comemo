@@ -1,0 +1,18 @@
+commit 7821be59519b65182e4399425b6e6d908252c11b
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Apr 18 10:47:27 2017 -0400
+
+    runtime: make example independent of inlining
+    
+    Otherwise, with -l=4, runtime.Callers gets inlined and the example
+    prints too many frames. Now the example passes with -l=4.
+    
+    Change-Id: I9e420af9371724ac3ec89efafd76a658cf82bb4a
+    Reviewed-on: https://go-review.googlesource.com/40876
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/example_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

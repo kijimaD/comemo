@@ -1,0 +1,12 @@
+commit a1a414e6f12f759adde426a5bdd8985d0ee7067d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 17 01:26:57 2012 +0800
+
+    run.bash: fix a typo (fix build)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6506121
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

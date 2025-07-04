@@ -1,0 +1,14 @@
+commit 46f9aea80197bfdf4c024c3f5a71be51a2facf59
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 15 20:26:56 2020 +0000
+
+    misc/wasm: avoid implicit boolean to number conversion
+    
+    Fixes #36561
+    
+    Change-Id: I20cbf95ef4fd7c5c255a93ed3ec3e027a0ce2bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214944
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

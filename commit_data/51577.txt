@@ -1,0 +1,29 @@
+commit de6abd78893e91f26337eb399644b7a6bc3ea583
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 17:26:18 2022 -0500
+
+    runtime/internal/startlinetest: work around shared buildmode linking issue
+    
+    The runtime/internal/startlinetest package contains a call to a
+    function defined in runtime_test. Generally this is fine as this
+    package is only linked in for runtime_test. Except that for "go
+    install -buildmode=shared std", which include all packages in std,
+    including this test-only internal package. In this mode, the
+    caller is included in the linking but the callee is not, causing
+    linking error. Work around it by calling
+    runtime_test.callerStartLine via a function pointer. The function
+    pointer is only set in runtime_test. In the shared std build, the
+    function pointer will not be set, and this is fine.
+    
+    Fixes #57334.
+    
+    Change-Id: I7d871c50ce6599c6ea2802cf6e14bb749deab220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458696
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/internal/startlinetest/func_amd64.go | 3 +++
+ src/runtime/internal/startlinetest/func_amd64.s  | 3 ++-
+ src/runtime/start_line_amd64_test.go             | 2 ++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

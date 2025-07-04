@@ -1,0 +1,32 @@
+commit b9153f6ef338baee5fe02a867c8fbc83a8b29dd1
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jul 19 10:30:46 2023 -0700
+
+    net/http: permit requests with invalid Host headers
+    
+    Historically, the Transport has silently truncated invalid
+    Host headers at the first '/' or ' ' character. CL 506996 changed
+    this behavior to reject invalid Host headers entirely.
+    Unfortunately, Docker appears to rely on the previous behavior.
+    
+    When sending a HTTP/1 request with an invalid Host, send an empty
+    Host header. This is safer than truncation: If you care about the
+    Host, then you should get the one you set; if you don't care,
+    then an empty Host should be fine.
+    
+    Continue to fully validate Host headers sent to a proxy,
+    since proxies generally can't productively forward requests
+    without a Host.
+    
+    For #60374
+    Fixes #61431
+    
+    Change-Id: If170c7dd860aa20eb58fe32990fc93af832742b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/request.go      | 23 ++++++++++++++++++++++-
+ src/net/http/request_test.go | 17 ++++++++++++-----
+ 2 files changed, 34 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 1591dad27484573ffee88a0c718c3d20da75fd54
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 16:42:03 2017 -0700
+
+    net: move some Linux-specific tests to unixsock_linux_test.go file
+    
+    Also changed name from TestUnix... to TestUnixgram....
+    
+    Updates #21965
+    
+    Change-Id: I2833110b77e9fe1b28d4a15feb3d70453ab98d3b
+    Reviewed-on: https://go-review.googlesource.com/66333
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/unixsock_linux_test.go | 104 +++++++++++++++++++++++++++++++++++++++++
+ src/net/unixsock_test.go       |  99 ---------------------------------------
+ 2 files changed, 104 insertions(+), 99 deletions(-)

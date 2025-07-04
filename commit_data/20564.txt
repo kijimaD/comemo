@@ -1,0 +1,44 @@
+commit 754cd5419ace8b1cdc615c3fe58febbcec7b61a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 17:09:11 2014 -0400
+
+    cmd/go: always build _test.go files and link into test
+    
+    go test's handling of _test.go files when the entire
+    package's set of files has no Test functions has varied
+    over the past few releases. There are a few interesting
+    cases (all contain no Test functions):
+            (1) x_test.go has syntax errors
+            (2) x_test.go has type errors
+            (3) x_test.go has runtime errors (say, a func init that panics)
+    
+    In Go 1.1, tests with (1) or (2) failed; (3) passed.
+    In Go 1.2, tests with (1) or (2) failed; (3) passed.
+    In Go 1.3, tests with (1) failed; (2) or (3) passed.
+    After this CL, tests with (1), (2), or (3) all fail.
+    
+    This is clearly a corner case, but it seems to me that
+    the behavior of the test should not change if you
+    add or remove a line like
+    
+            func TestAlwaysPasses(t *testing.T) {}
+    
+    That implies that the _test.go files must always
+    be built and always be imported into the test binary.
+    Doing so means that (1), (2), and (3) must all fail.
+    
+    Fixes #8337.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=adg, golang-codereviews, r
+    https://golang.org/cl/150980043
+
+ src/cmd/go/test.bash                                | 14 ++++++++++++++
+ src/cmd/go/test.go                                  |  6 ++++--
+ src/cmd/go/testdata/src/badtest/badexec/x_test.go   |  5 +++++
+ src/cmd/go/testdata/src/badtest/badsyntax/x.go      |  1 +
+ src/cmd/go/testdata/src/badtest/badsyntax/x_test.go |  3 +++
+ src/cmd/go/testdata/src/badtest/badvar/x.go         |  1 +
+ src/cmd/go/testdata/src/badtest/badvar/x_test.go    |  5 +++++
+ 7 files changed, 33 insertions(+), 2 deletions(-)

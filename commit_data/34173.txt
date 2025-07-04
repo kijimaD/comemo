@@ -1,0 +1,21 @@
+commit 7ac756f74b1a7dfc984152d863b3e3c86f90b2c7
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jan 29 16:09:11 2018 -0500
+
+    cmd/compile/internal/ssa: use math/bits for register sets
+    
+    Using bits.TrailingZeroes instead of iterating over each bit is a small
+    but easy win for the common case of only one or two registers being set.
+    
+    I copied in the implementation for use with pre-1.9 bootstraps.
+    
+    Change-Id: Ieaa768554d7d5239a5617fbf34f1ee0b32ce1de5
+    Reviewed-on: https://go-review.googlesource.com/92395
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/bits_bootstrap.go | 24 ++++++++
+ src/cmd/compile/internal/ssa/bits_go19.go      | 13 ++++
+ src/cmd/compile/internal/ssa/debug.go          | 82 +++++++++++++++-----------
+ 3 files changed, 85 insertions(+), 34 deletions(-)

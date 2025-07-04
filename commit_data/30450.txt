@@ -1,0 +1,17 @@
+commit 12b6c18139233abd7b1af1fc0a07279d56df3642
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 1 00:26:16 2017 +0000
+
+    cmd/vet/all: remove pprof from the whitelist
+    
+    Updates #19322
+    
+    Change-Id: I610f40d874f499e52db3356a3da54538dac55242
+    Reviewed-on: https://go-review.googlesource.com/37618
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/vet/all/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

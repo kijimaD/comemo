@@ -1,0 +1,21 @@
+commit b25dff2efeb8662d6c0e7711bed706a9ffdd6780
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 31 23:35:14 2023 +0200
+
+    doc/go1.21: document that os.DirFS implements fs.Read{File,Dir}FS
+    
+    Also add a missing </a> in the preceding section.
+    
+    For #53761
+    
+    Change-Id: I8e64b86b5b32067f954d58cf9adf86cb4d2eeb2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499735
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

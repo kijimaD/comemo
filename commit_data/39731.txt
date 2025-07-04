@@ -1,0 +1,19 @@
+commit 75198b9a9ccdacc3e9ed87a2406b0b87acb1fbac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 17 11:48:37 2019 -0700
+
+    cmd/compile: simplify postorder
+    
+    Use a bool instead of markKind;
+    it doesn't save space, but the semantics are more obvious.
+    Move type markKind closer to its only remaining use.
+    
+    Change-Id: I9945a7baaeb764295a2709f83120ce3a82fa3beb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177880
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/dom.go               | 33 ++++++++---------------
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 10 +++++++
+ 2 files changed, 21 insertions(+), 22 deletions(-)

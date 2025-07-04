@@ -1,0 +1,22 @@
+commit b3369063e52571be1cdf0e7a16f99b12c2a23914
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 16:48:54 2018 +0000
+
+    test: skip some tests on noopt builder
+    
+    Adds a new build tag "gcflags_noopt" that can be used in test/*.go
+    tests.
+    
+    Fixes #27833
+    
+    Change-Id: I4ea0ccd9e9e58c4639de18645fec81eb24a3a929
+    Reviewed-on: https://go-review.googlesource.com/136898
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/checkbce.go            |  2 +-
+ test/fixedbugs/issue7921.go |  1 +
+ test/nosplit.go             |  2 +-
+ test/run.go                 | 16 ++++++++++++----
+ 4 files changed, 15 insertions(+), 6 deletions(-)

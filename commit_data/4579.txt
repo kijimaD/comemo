@@ -1,0 +1,12 @@
+commit ba5d0f20988fbb19d32e879bed725fd6f3945c95
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 11 17:35:06 2010 -0800
+
+    delete debugging prints
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186079
+
+ src/cmd/prof/main.c | 16 ----------------
+ 1 file changed, 16 deletions(-)

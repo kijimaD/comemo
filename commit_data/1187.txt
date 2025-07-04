@@ -1,0 +1,12 @@
+commit aa1ede15ccaf89aa1aa16cc2e5d125c85a4092d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 13:01:32 2008 -0800
+
+    avoid problem overwriting read-only quietgcc
+    
+    TBR=r
+    OCL=19600
+    CL=19600
+
+ src/make.bash | 1 +
+ 1 file changed, 1 insertion(+)

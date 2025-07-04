@@ -1,0 +1,12 @@
+commit ffafad1919cea67eadd743b56f4768fd120e9883
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Nov 23 15:58:48 2008 -0800
+
+    setup for keywords in fieldnames
+    
+    R=r
+    OCL=19883
+    CL=19883
+
+ src/cmd/gc/go.y | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

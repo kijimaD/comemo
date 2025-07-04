@@ -1,0 +1,24 @@
+commit 0153a4130d99dace3b4fb0e1242aae30832fa742
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 28 10:14:08 2017 -0700
+
+    cmd/compile: fix runtime.KeepAlive
+    
+    KeepAlive needs to introduce a use of the spill of the
+    value it is keeping alive.  Without that, we don't guarantee
+    that the spill dominates the KeepAlive.
+    
+    This bug was probably introduced with the code to move spills
+    down to the dominator of the restores, instead of always spilling
+    just after the value itself (CL 34822).
+    
+    Fixes #22458.
+    
+    Change-Id: I94955a21960448ffdacc4df775fe1213967b1d4c
+    Reviewed-on: https://go-review.googlesource.com/74210
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 11 +++++++----
+ test/fixedbugs/issue22458.go             | 26 ++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)

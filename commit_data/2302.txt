@@ -1,0 +1,15 @@
+commit 5a12b1828d0e07079a6e4a8d1b1f44502e014639
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun May 24 15:04:43 2009 -0700
+
+    Add exvar.FuncInt for exporting indirect integer variables.
+    
+    R=r
+    APPROVED=r
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=29320
+    CL=29338
+
+ src/lib/exvar/exvar.go      |  8 ++++++++
+ src/lib/exvar/exvar_test.go | 13 +++++++++++++
+ 2 files changed, 21 insertions(+)

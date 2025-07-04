@@ -1,0 +1,18 @@
+commit dbe5f88804ad974a8c98d67421c9aac302873359
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 7 08:50:52 2014 -0700
+
+    spec: remove evaluation order inconsistency
+    
+    This is a clarification of what happens already.
+    Not a language change.
+    
+    Fixes #7137.
+    
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/96000044
+
+ doc/go_spec.html | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)

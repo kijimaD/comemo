@@ -1,0 +1,23 @@
+commit c203696aa5d11c05e66905526254ca39f8ad2fd2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jan 10 17:01:31 2018 +0000
+
+    go/importer,os/exec: use testenv.GoToolPath
+    
+    These were the last two occurences of exec.Command("go", ...) in all of
+    std cmd. Checked with:
+    
+            gogrep '$(f is(func))("go", $*_)' std cmd
+    
+    Also changed lp_windows_test to use a test package name to avoid a
+    circular dependency, since internal/testenv imports os/exec.
+    
+    Change-Id: I9a18948600dfecc8507ad76172e219e78b791ffd
+    Reviewed-on: https://go-review.googlesource.com/87200
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/importer/importer_test.go |  2 +-
+ src/os/exec/lp_windows_test.go   | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

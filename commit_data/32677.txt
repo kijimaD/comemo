@@ -1,0 +1,12 @@
+commit c6d019aa636e31beff1857fad562e1af89ed3569
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 10 08:52:33 2017 -0700
+
+    test: add test case that gccgo crashed on
+    
+    Change-Id: I4d5d40e1ed3f58b2cdecd6248cb25c8ae9a1b9a1
+    Reviewed-on: https://go-review.googlesource.com/62531
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ test/fixedbugs/bug503.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

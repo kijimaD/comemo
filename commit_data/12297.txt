@@ -1,0 +1,12 @@
+commit 532c1b451b0b3e0ca05a29d2d297438b6dc2cf87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 29 21:51:21 2012 -0800
+
+    test: add bug426.go: a gccgo crash on valid code
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5715044
+
+ test/fixedbugs/bug426.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

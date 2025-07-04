@@ -1,0 +1,16 @@
+commit 22c45c558b69e7f7bdb0ec37519e02d333188da4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 7 12:08:31 2011 -0800
+
+    gob: support GobEncoder for type T when the receiver is *T.
+    Still to do: **T.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4247061
+
+ src/pkg/gob/decode.go         | 18 +++++++--
+ src/pkg/gob/encode.go         | 18 +++++++--
+ src/pkg/gob/gobencdec_test.go | 26 ++++++++++++
+ src/pkg/gob/type.go           | 93 +++++++++++++++++++++----------------------
+ 4 files changed, 99 insertions(+), 56 deletions(-)

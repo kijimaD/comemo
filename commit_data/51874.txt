@@ -1,0 +1,20 @@
+commit 38d1a6665f20cb588810355ed4ea061c3b6a19ae
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 1 14:33:31 2023 +0100
+
+    syscall: regenerate zsyscall_windows.go
+    
+    This CL regenerates zsyscall_windows.go, which was incorrectly
+    hand-edited in CL 463842.
+    
+    Change-Id: Id556e69a282b2291a0b293b276ed4b9e0aeec105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463848
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/syscall/zsyscall_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

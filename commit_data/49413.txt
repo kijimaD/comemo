@@ -1,0 +1,19 @@
+commit 429a4041eb2657fad8870cad5662202f3bd0eeb6
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Jun 7 09:42:03 2022 -0400
+
+    doc/go1.19: complete TODOs for go/types
+    
+    Fill in the details of outstanding TODO items for go/types changes.
+    
+    For #51400
+    
+    Change-Id: Ib40d75fa1018aa164022cb49b293795dd597d49d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410815
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go1.19.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

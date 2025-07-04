@@ -1,0 +1,24 @@
+commit b397248168fcb26400ac6afb88bf6080497a819e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Dec 1 16:28:27 2018 +0000
+
+    cmd/compile: add Buffer.Grow to TestIntendedInlining
+    
+    golang.org/cl/151977 slightly decreased the cost of inlining an extra
+    call from 60 to 57, since it was a safe change that could help in some
+    scenarios.
+    
+    One notable change spotted in that CL is that bytes.Buffer.Grow is now
+    inlinable, meaning that a fixedbugs test needed updating.
+    
+    For consistency, add the test case to TestIntendedInlining too,
+    alongside other commonly used bytes.Buffer methods.
+    
+    Change-Id: I4fb402fc684ef4c543fc65aea343ca1a4d73a189
+    Reviewed-on: https://go-review.googlesource.com/c/151979
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 1 +
+ 1 file changed, 1 insertion(+)

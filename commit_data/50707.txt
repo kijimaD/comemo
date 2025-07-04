@@ -1,0 +1,16 @@
+commit 45c2421dc643f9e0274cb8630459d65942838f2d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:13:41 2022 +0800
+
+    archive/zip: use strings.TrimPrefix
+    
+    Change-Id: I2854b5e7b48c4c189df84cb7281b7b7de780eebd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435938
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/archive/zip/reader.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

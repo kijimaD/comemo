@@ -1,0 +1,47 @@
+commit b657c0024393643bd98c066cec6fbd3a057ae21c
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jan 7 13:23:59 2018 -0800
+
+    cmd/compile: add | operator to make rewrite rules more succinct
+    
+    Instead of
+    
+    (And64 x x) -> x
+    (And32 x x) -> x
+    (And16 x x) -> x
+    (And8  x x) -> x
+    
+    we can now do:
+    
+    (And(64|32|16|8) x x) -> x
+    
+    Any part of an opcode can have a parenthesized, |-separated list of possibilites.
+    The rule is then expanded using each piece of the | combo.
+    If there are multiple | clauses, they get expanded in tandem.
+    (All the first positions, then all the second positions, etc.)
+    All places | opcodes appear must have the same count.
+    
+    A more complicated example:
+    
+    (MOV(L|SS)load [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+            (MOV(L|SS)loadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+    
+    This meta-rule generates 2 rules, a MOVL and a MOVSS rule.
+    
+    This CL is carefully orchestrated to not change the generated rules file at all.
+    In some cases, this means we can't align the rules nicely because it changes
+    the whitespace in the generated code.  I'll clean that up as a separate step.
+    
+    There are many more opportunites to compactify rules using this new mechanism.
+    I've just done some examples, there's more to do.
+    
+    Change-Id: I8a5e748cd0761ccbb12d09b01925b2f1f4b2f608
+    Reviewed-on: https://go-review.googlesource.com/86595
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 237 +++++++------------------
+ src/cmd/compile/internal/ssa/gen/generic.rules | 206 +++++----------------
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  65 +++++--
+ 3 files changed, 156 insertions(+), 352 deletions(-)

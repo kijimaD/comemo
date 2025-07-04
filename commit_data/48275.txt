@@ -1,0 +1,22 @@
+commit 58804ea67a28c1d8e37ed548b685bc0c09638886
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 2 20:16:54 2022 -0500
+
+    runtime: count spill slot for frame size at finalizer call
+    
+    The finalizer is called using reflectcall. When register ABI is
+    used, the finalizer's argument is passed in register(s). But the
+    frame size calculation does not include the spill slot. When the
+    argument actually spills, it may clobber the caller's stack frame.
+    This CL fixes it.
+    
+    Change-Id: Ibcc7507c518ba65c1c5a7759e5cab0ae3fc7efce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389574
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mfinal.go      | 24 +++++++++---------------
+ src/runtime/mfinal_test.go |  9 +++++++++
+ 2 files changed, 18 insertions(+), 15 deletions(-)

@@ -1,0 +1,28 @@
+commit ea4e321d4daef32f4cd8df8ec799122ff3c6b9f0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 12 00:10:42 2015 +1000
+
+    cmd/compile/internal/gc: avoid allocation in bnum
+    
+    Although bnum was being called with a Bits value, a limitation
+    of the escape analyser (golang/go#12588) meant that taking the
+    address of the Bits.b array in the range statement caused the
+    formal parameter to escape to the heap.
+    
+    Passing the a pointer to a Bits, as with all the other Bits helper
+    methods avoids the allocation.
+    
+    Before:
+    BenchmarkBnum1-4        20000000                69.6 ns/op            32 B/op          1 allocs/op
+    
+    After:
+    BenchmarkBnum1-4        100000000               10.1 ns/op             0 B/op          0 allocs/op
+    
+    Change-Id: I673bd57ddc032ee67d09474156d795fb1ba72018
+    Reviewed-on: https://go-review.googlesource.com/14501
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reg.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

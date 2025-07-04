@@ -1,0 +1,14 @@
+commit 54d0b5ab6a45dd9c0d8cf27ada3200c2f5ec6b28
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:36:48 2014 -0400
+
+    nacltest.bash: set GOROOT before invoking cmd/go
+    The builder builds with GOROOT_FINAL=/usr/local/go set.
+    
+    TBR=rsc
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/112100043
+
+ src/nacltest.bash | 3 +++
+ 1 file changed, 3 insertions(+)

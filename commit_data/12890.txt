@@ -1,0 +1,12 @@
+commit 08f919f462f09fa38c62552a7f829829dd8c985c
+Author: Jongmin Kim <atomaths@gmail.com>
+Date:   Fri Apr 13 15:22:40 2012 +1000
+
+    doc/effective_go.html: fixed the Request channel parameter
+    
+    R=golang-dev, r
+    CC=golang-dev, gri
+    https://golang.org/cl/6010051
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

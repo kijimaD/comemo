@@ -1,0 +1,26 @@
+commit ceda47d08adaa1fa851c2aa52d511ac9430c4a33
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 27 10:57:14 2018 -0400
+
+    cmd/link: fix plugin on linux/arm64
+    
+    The init function and runtime.addmoduledata were not added when
+    building plugin, which caused the runtime could not find the
+    module.
+    
+    Testplugin is still not enabled on linux/arm64
+    (https://go.googlesource.com/go/+/master/src/cmd/dist/test.go#948)
+    because the gold linker on the builder is too old, which fails
+    with an internal error (see issue #17138). I tested locally and
+    it passes.
+    
+    Fixes #24940.
+    Updates #17138.
+    
+    Change-Id: I26aebca6c38a3443af0949471fa12b6d550e8c6c
+    Reviewed-on: https://go-review.googlesource.com/109917
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/arm64/asm.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

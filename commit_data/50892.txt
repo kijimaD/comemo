@@ -1,0 +1,21 @@
+commit a4b4717f23334547f40f90f1457f3dc086259fa3
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 8 10:56:36 2022 -0500
+
+    cmd/dist, misc/cgo/testsanitizers: enable msan tests on freebsd/amd64
+    
+    Adjust os/arch checks to enable msan tests on freebsd/amd64.
+    
+    R=go1.20
+    
+    For #53298
+    
+    Change-Id: I3d0f5259db73d526d006a12de5ba6284528cf819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411276
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/testsanitizers/cc_test.go   | 2 ++
+ misc/cgo/testsanitizers/msan_test.go | 6 +++++-
+ src/cmd/dist/test.go                 | 5 +++--
+ 3 files changed, 10 insertions(+), 3 deletions(-)

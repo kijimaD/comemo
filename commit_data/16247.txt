@@ -1,0 +1,13 @@
+commit b461c94cfaf79f2f84abd7513eb35218dc6235ed
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 13:17:37 2013 -0700
+
+    os/exec: disable TestExtraFilesFDShuffle
+    It's too hard to make portable just now.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9057043
+
+ src/pkg/os/exec/exec_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

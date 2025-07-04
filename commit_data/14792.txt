@@ -1,0 +1,16 @@
+commit a4e08183d56aa3e6c524cadb71671c40495f45a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 4 10:59:10 2013 -0500
+
+    cmd/dist: sse auto-detect
+    
+    R=golang-dev, dsymonds, minux.ma, iant, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7035055
+
+ src/cmd/dist/a.h       |  1 +
+ src/cmd/dist/build.c   |  8 ++++++--
+ src/cmd/dist/plan9.c   |  8 ++++++++
+ src/cmd/dist/unix.c    | 23 +++++++++++++++++++++++
+ src/cmd/dist/windows.c | 25 +++++++++++++++++++++++++
+ 5 files changed, 63 insertions(+), 2 deletions(-)

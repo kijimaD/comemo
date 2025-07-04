@@ -1,0 +1,18 @@
+commit 877574725ba251be743c47ecbe49958b6cf8b814
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 18:06:19 2017 -0700
+
+    cmd/compile: enforce that all nodes are used when generating DWARF
+    
+    No particular need for this,
+    but it's nice to enforce invariants
+    when they are available.
+    
+    Change-Id: Ia6fa88dc4116f65dac2879509746e123e2c1862a
+    Reviewed-on: https://go-review.googlesource.com/39201
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

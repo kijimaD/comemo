@@ -1,0 +1,25 @@
+commit 1970e3e3b7b6c42676acc22071ced887ac68b520
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 24 16:18:57 2021 -0800
+
+    go/types: restore original assignment error messages
+    
+    This is the missing portion of the port of CL 351669
+    from types2 to go/types, now that we have a local flag
+    to control for compiler error messages.
+    
+    Mostly a clean port but for adjustments to error reporting
+    which requires error codes in go/types.
+    
+    Prerequisite for port of CL 364874.
+    
+    Change-Id: I5fc8c83003e4396351f42e9adb08f4ebc8a05653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367195
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/assignments.go | 35 +++++++++++++++++++++++++++++++++--
+ src/go/types/expr.go        |  6 +++++-
+ 2 files changed, 38 insertions(+), 3 deletions(-)

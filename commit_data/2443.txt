@@ -1,0 +1,18 @@
+commit 61d6ad317856c85987b146ef6f65d0dd913f7bfa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 10 21:32:36 2009 -0700
+
+    Add support for the basic extension done by Schilling's star.
+    Compute checksums in both ways (unsigned and signed).
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=188  (145 added, 21 deleted, 22 changed)
+    OCL=30126
+    CL=30179
+
+ src/pkg/archive/tar/testdata/{test.tar => gnu.tar} | Bin
+ src/pkg/archive/tar/testdata/star.tar              | Bin 0 -> 3072 bytes
+ src/pkg/archive/tar/untar.go                       |  70 +++++++++--
+ src/pkg/archive/tar/untar_test.go                  | 133 ++++++++++++++++-----
+ 4 files changed, 163 insertions(+), 40 deletions(-)

@@ -1,0 +1,19 @@
+commit c367d1b789b0aed59e871aee588d776998a8f479
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 14:57:56 2009 -0700
+
+    Move sys.Reflect and sys.Unreflect into unsafe.
+    
+    R=rsc
+    DELTA=19  (4 added, 5 deleted, 10 changed)
+    OCL=28563
+    CL=28566
+
+ src/cmd/gc/builtin.c.boot   |  4 ++--
+ src/cmd/gc/sys.go           |  3 ---
+ src/cmd/gc/unsafe.go        |  2 ++
+ src/lib/reflect/all_test.go |  2 +-
+ src/lib/reflect/value.go    |  6 +++---
+ src/runtime/iface.c         | 10 +++++-----
+ test/convert.go             |  2 +-
+ 7 files changed, 14 insertions(+), 15 deletions(-)

@@ -1,0 +1,24 @@
+commit 34846aef78e2e27da8eaadff2d9ea78cd99d491d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 13:12:10 2015 -0400
+
+    cmd/link: fix -s with external linking
+    
+    This code used to only be run for ELF, with the predictable
+    result that using -s with external linking broke on Windows and OS X.
+    Moving it here should fix Windows and does fix OS X.
+    
+    CL 10835 also claims to fix the crash on Windows.
+    I don't know whether it does so correctly, but regardless,
+    this CL should make that one a no-op.
+    
+    Fixes #10254.
+    
+    Change-Id: I2e7b45ab0c28568ddbb1b50581dcc157ae0e7ffe
+    Reviewed-on: https://go-review.googlesource.com/11695
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go            | 19 ++++++++++---------
+ src/cmd/link/internal/ld/elf.go |  2 --
+ src/cmd/link/internal/ld/lib.go |  6 ++++++
+ 3 files changed, 16 insertions(+), 11 deletions(-)

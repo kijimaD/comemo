@@ -1,0 +1,23 @@
+commit cd6b2b7451c6feb277d38820f41f81ce4a036af2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 10 20:01:49 2016 -0400
+
+    cmd/internal/obj/s390x: add MULHD instruction
+    
+    Emulate 64-bit signed high multiplication ((a*b)>>64). To do this
+    we use the 64-bit unsigned high multiplication method and then
+    fix the result as shown in Hacker's Delight 2nd ed., chapter 8-3.
+    
+    Required to enable some division optimizations.
+    
+    Change-Id: I9194f428e09d3d029cb1afb4715cd5424b5d922e
+    Reviewed-on: https://go-review.googlesource.com/21774
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  4 ++++
+ src/cmd/internal/obj/s390x/a.out.go       |  1 +
+ src/cmd/internal/obj/s390x/anames.go      |  1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 34 +++++++++++++++++++++++--------
+ 4 files changed, 32 insertions(+), 8 deletions(-)

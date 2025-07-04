@@ -1,0 +1,14 @@
+commit 93c750d80ac6f49571971e1d69e6e69f505b2c4d
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Apr 19 15:41:40 2010 -0700
+
+    gc benchmark: Update package list
+    
+    Some old packages on the list were preventing this benchmark from working.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/820045
+
+ test/garbage/parser.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

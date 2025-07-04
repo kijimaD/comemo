@@ -1,0 +1,23 @@
+commit a6a69227f6b4905a9bd9fe1755a28c7a9e36df7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 27 11:05:09 2018 -0700
+
+    os: when looping in RemoveAll, close and re-open directory
+    
+    On some systems removing files can cause a directory to be re-shuffled,
+    so simply continuing to read files can cause us to miss some.
+    Close and re-open the directory when looping, to avoid that.
+    
+    Read more files each time through the loop, to reduce the chance of
+    having to re-open.
+    
+    Fixes #20841
+    
+    Change-Id: I98a14774ca63786ad05ba5000cbdb01ad2884332
+    Reviewed-on: https://go-review.googlesource.com/121255
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/path.go | 61 +++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 41 insertions(+), 20 deletions(-)

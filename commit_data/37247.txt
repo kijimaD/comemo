@@ -1,0 +1,37 @@
+commit 15265ec4217f8d9497d8d5079ac8996302dfd007
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 29 18:21:00 2018 -0400
+
+    cmd/compile: avoid duplicate GC bitmap symbols
+    
+    Currently, liveness produces a distinct obj.LSym for each GC bitmap
+    for each function. These are then named by content hash and only
+    ultimately deduplicated by WriteObjFile.
+    
+    For various reasons (see next commit), we want to remove this
+    deduplication behavior from WriteObjFile. Furthermore, it's
+    inefficient to produce these duplicate symbols in the first place.
+    
+    GC bitmaps are the only source of duplicate symbols in the compiler.
+    This commit eliminates these duplicate symbols by declaring them in
+    the Ctxt symbol hash just like every other obj.LSym. As a result, all
+    GC bitmaps with the same content now refer to the same obj.LSym.
+    
+    The next commit will remove deduplication from WriteObjFile.
+    
+    For #27539.
+    
+    Change-Id: I4f15e3d99530122cdf473b7a838c69ef5f79db59
+    Reviewed-on: https://go-review.googlesource.com/c/146557
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/gsubr.go | 18 -----------
+ src/cmd/compile/internal/gc/obj.go   | 12 ++++----
+ src/cmd/compile/internal/gc/plive.go | 59 +++++++++++++++++++++++++-----------
+ src/cmd/compile/internal/gc/ssa.go   |  2 +-
+ src/cmd/internal/obj/link.go         |  6 ++--
+ src/cmd/internal/obj/plist.go        | 12 --------
+ 6 files changed, 52 insertions(+), 57 deletions(-)

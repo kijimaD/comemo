@@ -1,0 +1,14 @@
+commit 1c71ab1808bfdfce34b317f9f7189d3150a76cbb
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Sep 18 19:09:12 2009 -0700
+
+    added emulator support for arm.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=7  (3 added, 0 deleted, 4 changed)
+    OCL=34661
+    CL=34820
+
+ test/run | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

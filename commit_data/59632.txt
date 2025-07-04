@@ -1,0 +1,37 @@
+commit e89791983a1330e467c8ba2cca9d7a581a5789cc
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Fri Apr 4 15:51:16 2025 -0400
+
+    cmd/compile/internal/escape: use an ir.ReassignOracle
+    
+    Using the new-ish ir.ReassignOracle is more efficient than calling
+    ir.StaticValue repeatedly.
+    
+    This CL now uses an ir.ReassignOracle for the recent
+    make constant propagation introduced in CL 649035.
+    
+    We also pull the main change from CL 649035 into a new function,
+    which we will update later in our stack. We will also use the
+    ReassignOracles introduced here later in our stack.
+    
+    (We originally did most of this work in CL 649077, but we abandoned
+    that in favor of CL 649035).
+    
+    We could also use an ir.ReassignOracle in the older processing of
+    ir.OCALLFUNC in (*escape).call, but for now, we just leave that
+    as a TODO.
+    
+    Updates #71359
+    
+    Change-Id: I6e02eeac269bde3a302622b4dfe0c8dc63ec9ffc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673795
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/escape/call.go   |  1 +
+ src/cmd/compile/internal/escape/escape.go | 93 ++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/escape/utils.go  | 23 ++------
+ 3 files changed, 96 insertions(+), 21 deletions(-)

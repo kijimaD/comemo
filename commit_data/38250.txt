@@ -1,0 +1,25 @@
+commit e90f572cd68adf11337faf30d1db0231d0c9d870
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Feb 20 13:33:30 2019 +0530
+
+    go/doc: add // while wrapping a line comment in ToText
+    
+    Currently, lineWrapper does not detect if it is printing a line comment or not.
+    Hence, while wrapping a comment, the new line does not get prefixed with a //.
+    
+    We add logic to lineWrapper to detect this case and add // accordingly. Block
+    comments do not need any such handling.
+    
+    Added tests for both cases.
+    
+    Fixes #20929
+    
+    Change-Id: I656037c2d865f31dd853cf9195f43ab7c6e6fc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163578
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/comment.go      |  8 ++++++++
+ src/go/doc/comment_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

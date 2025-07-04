@@ -1,0 +1,29 @@
+commit 1602e497012a27071e200d54ebfe13ca23d1f8af
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 12:59:54 2018 -0800
+
+    cmd/compile: don't constant-fold non-Go constants in the frontend
+    
+    Abort evconst if its argument isn't a Go constant. The SSA backend
+    will do the optimizations in question later. They tend to be weird
+    cases, like uintptr(unsafe.Pointer(uintptr(1))).
+    
+    Fix OADDSTR and OCOMPLEX cases in isGoConst.
+    OADDSTR has its arguments in n.List, not n.Left and n.Right.
+    OCOMPLEX might have a 2-result function as its arg in List[0]
+    (in which case it isn't a Go constant).
+    
+    Fixes #24760
+    
+    Change-Id: Iab312d994240d99b3f69bfb33a443607e872b01d
+    Reviewed-on: https://go-review.googlesource.com/c/151338
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go  | 25 ++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/fmt.go    |  9 ++++++++-
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ test/fixedbugs/issue17038.go          |  2 +-
+ test/fixedbugs/issue24760.go          | 12 ++++++++++++
+ 5 files changed, 44 insertions(+), 6 deletions(-)

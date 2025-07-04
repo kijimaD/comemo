@@ -1,0 +1,18 @@
+commit eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 9 17:35:29 2019 -0700
+
+    spec: clarify the difference between &T{} and new(T)
+    
+    Add a small paragraph and example pointing out
+    the difference for the case where T is a slice
+    or map. This is a common error for Go novices.
+    
+    Fixes #29425.
+    
+    Change-Id: Icdb59f25361e9f6a09b190fbfcc9ae0c7d90077b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176338
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,0 +1,17 @@
+commit 5f9254c11a2d4c137149dac38f3ebf493ebce8bc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 25 09:41:58 2008 -0800
+
+    make a (rudimentary) ByteBuffer and put it in package "io".
+    fix up protocol buffers to use it.
+    
+    R=rsc
+    DELTA=1232  (612 added, 572 deleted, 48 changed)
+    OCL=19964
+    CL=19981
+
+ src/lib/Makefile         | 12 +++----
+ src/lib/io/Makefile      | 56 ++++++++++++++++++++++++++++++
+ src/lib/io/bytebuffer.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/{ => io}/io.go   |  0
+ 4 files changed, 152 insertions(+), 6 deletions(-)

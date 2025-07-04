@@ -1,0 +1,15 @@
+commit a2b70ebf2db03bd0ddede1d37b0f05478c6a02af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 18 11:06:20 2017 -0400
+
+    cmd/dist: disable broken TestDeps
+    
+    Will debug soon but wanted to fix builders.
+    
+    Change-Id: I921d58d1272370f3102ba1f86ad535f4c0f6b8db
+    Reviewed-on: https://go-review.googlesource.com/56970
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/deps_test.go | 1 +
+ 1 file changed, 1 insertion(+)

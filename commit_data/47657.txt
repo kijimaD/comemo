@@ -1,0 +1,19 @@
+commit 6c4bf8fb8a2216a09d22ae0c87a04b7865f794c8
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Wed Dec 1 17:48:55 2021 +0800
+
+    cmd/go/internal/modfetch: remove legacy code
+    
+    ReadFileRevs function is no longer used.
+    
+    Change-Id: Ibac6319dca4cf8010195e7c2fb502655494fb728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367756
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Baokun Lee <bk@golangcn.org>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  15 ---
+ src/cmd/go/internal/modfetch/codehost/git.go      | 134 ----------------------
+ src/cmd/go/internal/modfetch/codehost/vcs.go      |  13 ---
+ 3 files changed, 162 deletions(-)

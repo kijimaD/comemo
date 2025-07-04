@@ -1,0 +1,20 @@
+commit 5a81570bf2dfd7698d8ae6b3f9f3addd4161d453
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Aug 6 20:16:42 2024 +0300
+
+    bytes,strings: use a more universal Cyrillic word
+    
+    The word "брат" (brother) is the same across Slavic languages that
+    use the Cyrillic script, such as Bulgarian, Macedonian, Russian,
+    Ukrainian, and others.
+    
+    Change-Id: I5155e6bb16a02dec5d93a01b79f9570f43f09444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603535
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/bytes/example_test.go   | 4 ++--
+ src/strings/example_test.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 9e3b1d53a012e98cfd02de2de8b1bd53522464d4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 2 18:48:26 2024 -0800
+
+    slices: document that Clone can return extra capacity
+    
+    Change-Id: I8b9aa1f36ce554d8855ee70e15f0dd0a8cf1097a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568342
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/slices/slices.go | 1 +
+ 1 file changed, 1 insertion(+)

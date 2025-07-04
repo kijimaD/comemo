@@ -1,0 +1,13 @@
+commit a90b3a5528bd366995eb76acc8811a7a3caf45aa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 31 10:11:04 2012 -0700
+
+    strconv: update to unicode 6.2.0
+    Fixes build, too.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6775088
+
+ src/pkg/strconv/isprint.go | 125 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 81 insertions(+), 44 deletions(-)

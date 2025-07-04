@@ -1,0 +1,17 @@
+commit 1a94431a78c4de5182dd43b438701cca80455746
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 13 15:51:16 2016 -0800
+
+    cmd/cgo: support multiple-value special form in VarDecl
+    
+    Fixes #13930.
+    
+    Change-Id: I124b7d31d1f2be05b7f23dafd1e52d9f3f02f3f0
+    Reviewed-on: https://go-review.googlesource.com/18623
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue13930.go | 13 +++++++++++++
+ src/cmd/cgo/ast.go          |  6 +++++-
+ src/cmd/cgo/doc.go          |  3 ++-
+ 3 files changed, 20 insertions(+), 2 deletions(-)

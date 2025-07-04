@@ -1,0 +1,29 @@
+commit d91d0762c7757c12c7d5f9e2ae3f170d5bd7ba84
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 20 14:22:30 2020 -0700
+
+    runtime/debug: provide Addr method for errors from SetPanicOnFault
+    
+    When we're building a panic that's triggered by a memory fault when
+    SetPanicOnFault has been called, include an Addr method. This
+    method reports the address at which the fault occurred.
+    
+    Fixes #37023
+    
+    RELNOTE=yes
+    
+    Change-Id: Idff144587d6b75070fdc861a36efec76f4ec7384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249677
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/debug/garbage.go    |  5 +++++
+ src/runtime/debug/panic_test.go | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/error.go            | 20 ++++++++++++++++++
+ src/runtime/os_plan9.go         |  5 ++++-
+ src/runtime/panic.go            |  5 +++++
+ src/runtime/signal_unix.go      |  4 ++--
+ src/runtime/signal_windows.go   |  5 ++++-
+ 7 files changed, 86 insertions(+), 4 deletions(-)

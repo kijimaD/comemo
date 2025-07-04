@@ -1,0 +1,14 @@
+commit 7c767fd709febcc6deb00751786799c4639f8696
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 12 10:18:32 2015 -0700
+
+    misc/cgo/testshared: unset GOBIN during test
+    
+    Fixes #11273.
+    
+    Change-Id: I409b6c4168711913076439036d65e8639ca3b06f
+    Reviewed-on: https://go-review.googlesource.com/12073
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

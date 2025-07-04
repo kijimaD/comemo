@@ -1,0 +1,29 @@
+commit 3b091bf6cceca868e2063a2c8b3cec90411ea18e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Oct 22 20:22:55 2018 +0200
+
+    runtime: use multiplication with overflow check for growslice
+    
+    This improves performance for slices with an element size larger
+    than 32 bytes and removes loading a value from the maxElems
+    array for smaller element sizes.
+    
+    name                 old time/op  new time/op  delta
+    GrowSlice/Byte       41.4ns ± 2%  41.5ns ± 1%    ~     (p=0.366 n=10+9)
+    GrowSlice/Int16      51.1ns ± 2%  51.0ns ± 2%    ~     (p=0.985 n=10+10)
+    GrowSlice/Int        64.0ns ± 1%  64.2ns ± 1%    ~     (p=0.180 n=10+10)
+    GrowSlice/Ptr        90.8ns ± 1%  90.7ns ± 1%    ~     (p=0.858 n=9+10)
+    GrowSlice/Struct/24   108ns ± 0%   108ns ± 2%    ~     (p=0.488 n=8+9)
+    GrowSlice/Struct/32   118ns ± 2%   117ns ± 2%    ~     (p=0.327 n=10+10)
+    GrowSlice/Struct/40   159ns ± 1%   148ns ± 1%  -6.87%  (p=0.000 n=10+9)
+    
+    Updates #21588
+    
+    Change-Id: I443b82972d379b1befa791f9ee468b3adc6bb760
+    Reviewed-on: https://go-review.googlesource.com/c/143798
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

@@ -1,0 +1,49 @@
+commit b419db6c15519a29ff3d7d2e56d8f115204f8c5d
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Jan 19 22:26:15 2023 +0000
+
+    all: fix typos in go file comments
+    
+    This is the second round to look for spelling mistakes. This time the
+    manual sifting of the result list was made easier by filtering out
+    capitalized and camelcase words.
+    
+    grep -r --include '*.go' -E '^// .*$' . | aspell list | grep -E -x '[A-Za-z]{1}[a-z]*' | sort | uniq
+    
+    This PR will be imported into Gerrit with the title and first
+    comment (this text) used to generate the subject and body of
+    the Gerrit change.
+    
+    Change-Id: Ie8a2092aaa7e1f051aa90f03dbaf2b9aaf5664a9
+    GitHub-Last-Rev: fc2bd6e0c51652f13a7588980f1408af8e6080f5
+    GitHub-Pull-Request: golang/go#57737
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461595
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ misc/cgo/testshared/shared_test.go                   | 2 +-
+ src/cmd/compile/internal/inline/inl.go               | 2 +-
+ src/cmd/compile/internal/ir/func.go                  | 2 +-
+ src/cmd/compile/internal/noder/expr.go               | 2 +-
+ src/cmd/compile/internal/pgo/irgraph.go              | 4 ++--
+ src/cmd/compile/internal/ssa/compile.go              | 2 +-
+ src/cmd/compile/internal/ssa/debug.go                | 2 +-
+ src/cmd/compile/internal/test/testdata/arith_test.go | 2 +-
+ src/cmd/compile/internal/typecheck/subr.go           | 2 +-
+ src/cmd/go/internal/modindex/read.go                 | 4 ++--
+ src/cmd/go/internal/script/state.go                  | 2 +-
+ src/cmd/go/internal/work/init.go                     | 2 +-
+ src/cmd/go/internal/workcmd/use.go                   | 2 +-
+ src/cmd/internal/goobj/objfile.go                    | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go                   | 2 +-
+ src/cmd/internal/obj/objfile.go                      | 4 ++--
+ src/crypto/internal/alias/alias.go                   | 2 +-
+ src/debug/pe/symbol.go                               | 2 +-
+ src/internal/types/testdata/check/typeinst0.go       | 2 +-
+ src/internal/types/testdata/check/typeparams.go      | 2 +-
+ src/runtime/metrics.go                               | 4 ++--
+ src/runtime/print.go                                 | 2 +-
+ 22 files changed, 26 insertions(+), 26 deletions(-)

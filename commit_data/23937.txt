@@ -1,0 +1,18 @@
+commit 296529b7341280b8beae2630eff4220fa6c1ac2b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 29 20:06:45 2015 +1000
+
+    os: add explicit tests for fchown(2) and lchown(2) on unix platforms
+    
+    Fixes #11919
+    
+    Issue #11918 suggested that os.File.Chown and os.Lchown were under tested.
+    
+    Change-Id: Ib41f7cb2d2fe0066d2ccb4d1bdabe1795efe80fc
+    Reviewed-on: https://go-review.googlesource.com/12834
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_unix_test.go | 110 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 108 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 57858b70fba9989785b318a1d5e0abe098b3c540
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 30 18:02:38 2010 -0700
+
+    code gen error for
+            lv += f()
+    fixes asn1 and maybe more
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2341042
+
+ src/cmd/5g/ggen.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

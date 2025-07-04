@@ -1,0 +1,15 @@
+commit afad827255748a9046c35d8ffa8267d7b4f3bdf3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 30 23:37:34 2008 -0700
+
+    - div and mod (arbitrary precision)
+    - more tests
+    - some global renames
+    
+    R=r
+    OCL=18219
+    CL=18219
+
+ usr/gri/bignum/bignum.go      | 293 +++++++++++++++++++++++++++++-------------
+ usr/gri/bignum/bignum_test.go |  89 ++++++++++---
+ 2 files changed, 278 insertions(+), 104 deletions(-)

@@ -1,0 +1,12 @@
+commit c97b49976d9251701ec6678689c794a352b9f890
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 14:05:59 2015 -0700
+
+    cmd/go: fix typo in comment
+    
+    Change-Id: I3d5e46d376953fbdd21ce8c161214eaed6378d84
+    Reviewed-on: https://go-review.googlesource.com/12490
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

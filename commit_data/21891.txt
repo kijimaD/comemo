@@ -1,0 +1,13 @@
+commit ea1fafbccdaee0632dbbdd610d24ab2e2ac25cb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 27 17:52:12 2015 -0800
+
+    math/big: modified MantExp semantics to enable fast exponent access
+    
+    Change-Id: I9a6ebb747d5b9756c214bdeb19f60820602d7a24
+    Reviewed-on: https://go-review.googlesource.com/6340
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 40 ++++++++++++++++++++++------------------
+ src/math/big/float_test.go | 23 ++++++++++++-----------
+ 2 files changed, 34 insertions(+), 29 deletions(-)

@@ -1,0 +1,28 @@
+commit cc08d9232c4875a11b9e2a8097e069467d79f31f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 17:11:44 2014 -0400
+
+    liblink: add leaf bit to object file format
+    
+    Without the leaf bit, the linker cannot record
+    the correct frame size in the symbol table, and
+    then stack traces get mangled. (Only for ARM.)
+    
+    Fixes #7338.
+    Fixes #7347.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/88550043
+
+ src/cmd/ld/pcln.c                   |   7 +++++--
+ src/cmd/link/testdata/autosection.6 | Bin 888 -> 889 bytes
+ src/cmd/link/testdata/autoweak.6    | Bin 425 -> 426 bytes
+ src/cmd/link/testdata/dead.6        | Bin 1054 -> 1060 bytes
+ src/cmd/link/testdata/hello.6       | Bin 271 -> 272 bytes
+ src/cmd/link/testdata/layout.6      | Bin 429 -> 430 bytes
+ src/cmd/link/testdata/pclntab.6     | Bin 4603 -> 4607 bytes
+ src/liblink/objfile.c               |   8 +++++++-
+ src/pkg/debug/goobj/read.go         |   2 ++
+ 9 files changed, 14 insertions(+), 3 deletions(-)

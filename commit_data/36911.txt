@@ -1,0 +1,16 @@
+commit d30d5a6b1e86e1bb62e159ffe8b8c698c04e945b
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Sat Oct 6 19:16:28 2018 +0530
+
+    go/doc: skip examples with no body
+    
+    Fixes #28044
+    
+    Change-Id: I0052e078dd34dc3546204416bcc5a99e3146c535
+    Reviewed-on: https://go-review.googlesource.com/c/140317
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/example.go | 3 +++
+ 1 file changed, 3 insertions(+)

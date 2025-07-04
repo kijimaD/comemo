@@ -1,0 +1,26 @@
+commit 854dea060e52e5eb8ba965ad7d85dafe7f36d2a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 17:00:29 2024 -0500
+
+    runtime: remove sched, allp < timers lockrank rule
+    
+    allp < timers has not been necessary since CL 258303.
+    
+    sched < timers was implied by allp < timers, and that
+    was still necessary, but only when the world is stopped.
+    Rewrite the code to avoid that lock since the world is stopped.
+    
+    Now timers and timer are independent of the scheduler,
+    so they could call into the scheduler (for example to ready
+    a goroutine) if we wanted them to.
+    
+    Change-Id: I12a93013c98e51c9e2f2148175b02afce8384a59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568337
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/lockrank.go   | 60 +++++++++++++++++++++++------------------------
+ src/runtime/mklockrank.go | 13 ++++------
+ src/runtime/time.go       | 30 ++++++++++--------------
+ 3 files changed, 48 insertions(+), 55 deletions(-)

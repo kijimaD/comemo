@@ -1,0 +1,12 @@
+commit 555e51f27b02c08db4e34a396d85d1cabbf221dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 12 04:34:04 2013 +0800
+
+    cmd/cgo: clarify the underscore prefix rule and C union representation in Go.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10981043
+
+ src/cmd/cgo/doc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

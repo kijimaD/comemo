@@ -1,0 +1,31 @@
+commit 0da7fafac4eabec799df40278f68ba86b574afea
+Author: Jesse Rittner <rittneje@gmail.com>
+Date:   Sat Jan 25 16:21:53 2025 -0500
+
+    net: fix ListenMulitcastUDP to work properly when interface has no IPv4
+    
+    The existing implementation would either fail or bind to the wrong interface
+    when the requested interface had no IPv4 address, such as when the Ethernet cable
+    was unplugged.
+    
+    Now on Linux, it will always bind to the requested interface.
+    On other operating systems, it will consistently fail if the requested interface
+    has no IPv4 address.
+    
+    Fixes #70132
+    
+    Change-Id: I22ec7f9d4adaa4b5afb21fc448050fb4219cacee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644375
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/sockopt_posix.go                           | 30 -------------
+ .../{sockoptip_bsdvar.go => sockoptip4_bsdvar.go}  |  0
+ .../{sockoptip_linux.go => sockoptip4_linux.go}    | 10 +++++
+ src/net/sockoptip4_posix_nonlinux.go               | 52 ++++++++++++++++++++++
+ ...{sockoptip_windows.go => sockoptip4_windows.go} |  0
+ .../{sockoptip_posix.go => sockoptip6_posix.go}    | 10 -----
+ 6 files changed, 62 insertions(+), 40 deletions(-)

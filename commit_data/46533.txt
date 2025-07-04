@@ -1,0 +1,26 @@
+commit 5efa8ff340d9fcc2dfc7a5136f1ed4067eb5e91e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 10:54:08 2021 -0700
+
+    cmd/compile/internal/types2: make ptrRecv a method hasPtrRecv of Func
+    
+    Reading the Func.hasPtrRecv field directly (without consulting a
+    possibly existing signature) caused some issues in an earlier CL.
+    The function ptrRecv (in lookup.go) does the right thing but is
+    not easily discoverable.
+    
+    Rename ptrRecv to hasPtrRecv and make it a method of Func; rename
+    Func.hasPtrRecv field to Func.hasPtrRecv_ to avoid name collisions.
+    Make it clear in field comment that it must not be read through the
+    hasPtrRecv method.
+    
+    Change-Id: Ida9856c4789e499538eb34377be781655958fd5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351310
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go   | 21 +--------------------
+ src/cmd/compile/internal/types2/named.go    |  4 ++--
+ src/cmd/compile/internal/types2/object.go   | 23 +++++++++++++++++++++--
+ src/cmd/compile/internal/types2/resolver.go |  2 +-
+ 4 files changed, 25 insertions(+), 25 deletions(-)

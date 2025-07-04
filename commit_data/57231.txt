@@ -1,0 +1,90 @@
+commit 6edc1c23ed078386bfbf7978f6cb5891cc2aa241
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Jun 3 17:04:53 2024 +0800
+
+    crypto/md5: implement md5block in hardware on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/md5
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                        │  bench.old   │              bench.new              │
+                        │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes             276.6n ± 0%   219.7n ± 0%  -20.57% (p=0.000 n=20)
+    Hash64                 445.8n ± 0%   339.9n ± 0%  -23.76% (p=0.000 n=20)
+    Hash128                632.0n ± 0%   468.1n ± 0%  -25.93% (p=0.000 n=20)
+    Hash256               1005.0n ± 0%   723.8n ± 0%  -27.98% (p=0.000 n=20)
+    Hash512                1.749µ ± 0%   1.238µ ± 0%  -29.22% (p=0.000 n=20)
+    Hash1K                 3.238µ ± 0%   2.265µ ± 0%  -30.05% (p=0.000 n=20)
+    Hash8K                 24.09µ ± 0%   16.66µ ± 0%  -30.83% (p=0.000 n=20)
+    Hash1M                 3.049m ± 0%   2.105m ± 0%  -30.97% (p=0.000 n=20)
+    Hash8M                 24.39m ± 0%   16.84m ± 0%  -30.97% (p=0.000 n=20)
+    Hash8BytesUnaligned    284.1n ± 0%   227.2n ± 0%  -20.03% (p=0.000 n=20)
+    Hash1KUnaligned        3.238µ ± 0%   2.265µ ± 0%  -30.05% (p=0.000 n=20)
+    Hash8KUnaligned        24.09µ ± 0%   16.66µ ± 0%  -30.82% (p=0.000 n=20)
+    geomean                7.142µ        5.164µ       -27.70%
+    
+                        │  bench.old   │              bench.new               │
+                        │     B/s      │     B/s       vs base                │
+    Hash8Bytes            27.58Mi ± 0%   34.73Mi ± 0%  +25.93% (p=0.000 n=20)
+    Hash64                136.9Mi ± 0%   179.6Mi ± 0%  +31.15% (p=0.000 n=20)
+    Hash128               193.1Mi ± 0%   260.8Mi ± 0%  +35.03% (p=0.000 n=20)
+    Hash256               243.0Mi ± 0%   337.3Mi ± 0%  +38.82% (p=0.000 n=20)
+    Hash512               279.1Mi ± 0%   394.3Mi ± 0%  +41.25% (p=0.000 n=20)
+    Hash1K                301.6Mi ± 0%   431.1Mi ± 0%  +42.94% (p=0.000 n=20)
+    Hash8K                324.3Mi ± 0%   468.9Mi ± 0%  +44.56% (p=0.000 n=20)
+    Hash1M                327.9Mi ± 0%   475.0Mi ± 0%  +44.86% (p=0.000 n=20)
+    Hash8M                328.0Mi ± 0%   475.1Mi ± 0%  +44.86% (p=0.000 n=20)
+    Hash8BytesUnaligned   26.86Mi ± 0%   33.58Mi ± 0%  +25.04% (p=0.000 n=20)
+    Hash1KUnaligned       301.6Mi ± 0%   431.1Mi ± 0%  +42.95% (p=0.000 n=20)
+    Hash8KUnaligned       324.3Mi ± 0%   468.9Mi ± 0%  +44.56% (p=0.000 n=20)
+    geomean               182.5Mi        252.4Mi       +38.31%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/md5
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                        │  bench.old   │              bench.new              │
+                        │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes             346.0n ± 0%   289.1n ± 0%  -16.45% (p=0.000 n=20)
+    Hash64                 521.2n ± 0%   409.3n ± 0%  -21.47% (p=0.000 n=20)
+    Hash128                707.1n ± 0%   537.8n ± 0%  -23.94% (p=0.000 n=20)
+    Hash256               1080.0n ± 0%   795.8n ± 0%  -26.31% (p=0.000 n=20)
+    Hash512                1.826µ ± 0%   1.311µ ± 0%  -28.20% (p=0.000 n=20)
+    Hash1K                 3.315µ ± 0%   2.342µ ± 0%  -29.35% (p=0.000 n=20)
+    Hash8K                 24.19µ ± 0%   16.78µ ± 0%  -30.65% (p=0.000 n=20)
+    Hash1M                 3.052m ± 0%   2.110m ± 0%  -30.86% (p=0.000 n=20)
+    Hash8M                 24.41m ± 0%   16.88m ± 0%  -30.85% (p=0.000 n=20)
+    Hash8BytesUnaligned    345.9n ± 0%   289.0n ± 0%  -16.45% (p=0.000 n=20)
+    Hash1KUnaligned        3.316µ ± 0%   2.342µ ± 0%  -29.37% (p=0.000 n=20)
+    Hash8KUnaligned        24.19µ ± 0%   16.78µ ± 0%  -30.66% (p=0.000 n=20)
+    geomean                7.673µ        5.648µ       -26.39%
+    
+                        │  bench.old   │              bench.new               │
+                        │     B/s      │     B/s       vs base                │
+    Hash8Bytes            22.05Mi ± 0%   26.39Mi ± 0%  +19.68% (p=0.000 n=20)
+    Hash64                117.1Mi ± 0%   149.1Mi ± 0%  +27.32% (p=0.000 n=20)
+    Hash128               172.6Mi ± 0%   227.0Mi ± 0%  +31.49% (p=0.000 n=20)
+    Hash256               226.0Mi ± 0%   306.8Mi ± 0%  +35.77% (p=0.000 n=20)
+    Hash512               267.4Mi ± 0%   372.5Mi ± 0%  +39.26% (p=0.000 n=20)
+    Hash1K                294.6Mi ± 0%   417.0Mi ± 0%  +41.53% (p=0.000 n=20)
+    Hash8K                322.9Mi ± 0%   465.7Mi ± 0%  +44.20% (p=0.000 n=20)
+    Hash1M                327.7Mi ± 0%   474.0Mi ± 0%  +44.64% (p=0.000 n=20)
+    Hash8M                327.8Mi ± 0%   474.1Mi ± 0%  +44.62% (p=0.000 n=20)
+    Hash8BytesUnaligned   22.06Mi ± 0%   26.40Mi ± 0%  +19.67% (p=0.000 n=20)
+    Hash1KUnaligned       294.5Mi ± 0%   417.0Mi ± 0%  +41.60% (p=0.000 n=20)
+    Hash8KUnaligned       322.9Mi ± 0%   465.7Mi ± 0%  +44.21% (p=0.000 n=20)
+    geomean               169.9Mi        230.8Mi       +35.85%
+    
+    Change-Id: Iffddd60e3fc0b3bb265289f836a2d875f0805f64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589540
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/crypto/md5/md5block_decl.go    |   2 +-
+ src/crypto/md5/md5block_generic.go |   2 +-
+ src/crypto/md5/md5block_loong64.s  | 180 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 182 insertions(+), 2 deletions(-)

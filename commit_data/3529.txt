@@ -1,0 +1,17 @@
+commit f6d67c9e95f61d17b62faaf1fc4c11fd1eba17e4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 22:48:03 2009 -0700
+
+    write stack traces and panics to stderr
+    
+    R=rsc
+    DELTA=31  (5 added, 3 deleted, 23 changed)
+    OCL=35700
+    CL=35700
+
+ src/pkg/runtime/print.c   | 32 ++++++++++++++++----------------
+ src/pkg/runtime/runtime.c |  3 +++
+ src/pkg/runtime/runtime.h |  4 +++-
+ test/ken/complit.go       |  2 ++
+ test/run                  | 11 ++++-------
+ 5 files changed, 28 insertions(+), 24 deletions(-)

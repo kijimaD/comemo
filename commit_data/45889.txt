@@ -1,0 +1,19 @@
+commit c080d0323bce56e25622a51dffecf756758c95a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 30 10:19:02 2021 -0700
+
+    cmd/dist: pass -Wno-unknown-warning-option in swig_callback_lto
+    
+    For #46557
+    Fixes #46991
+    
+    Change-Id: Ic88ebaa13d3edf904657dc19ada4fd4ff7f44a8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332010
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/dist/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

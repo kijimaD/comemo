@@ -1,0 +1,17 @@
+commit 20004ba889f9efe02e64b3c5a8287f7b50443ce7
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 19:43:23 2014 +0100
+
+    testing: add tracing support
+    
+    testing part of tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
+    
+    Change-Id: Ia3c2c4417106937d5775b0e7064db92c1fc36679
+    Reviewed-on: https://go-review.googlesource.com/1461
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/testing.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

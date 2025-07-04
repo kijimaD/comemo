@@ -1,0 +1,30 @@
+commit ed5e39a66dedbb21d6a48fe1a9885d4737292636
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 14:50:25 2008 -0700
+
+    Add 6db
+    
+    SVN=122505
+
+ include/bootexec.h            |  169 ++++
+ include/mach_amd64.h          |  403 ++++++++
+ include/ureg_amd64.h          |   58 ++
+ include/ureg_x86.h            |   53 +
+ src/cmd/make.bash             |    5 +
+ src/libmachamd64/6.c          |  145 +++
+ src/libmachamd64/6obj.c       |  175 ++++
+ src/libmachamd64/8.c          |  107 ++
+ src/libmachamd64/8db.c        | 2204 +++++++++++++++++++++++++++++++++++++++++
+ src/libmachamd64/Makefile     |   84 ++
+ src/libmachamd64/access.c     |  300 ++++++
+ src/libmachamd64/elf.h        |  182 ++++
+ src/libmachamd64/executable.c |  963 ++++++++++++++++++
+ src/libmachamd64/machdata.c   |  477 +++++++++
+ src/libmachamd64/map.c        |  205 ++++
+ src/libmachamd64/obj.c        |  356 +++++++
+ src/libmachamd64/obj.h        |   53 +
+ src/libmachamd64/setmach.c    |  203 ++++
+ src/libmachamd64/swap.c       |  107 ++
+ src/libmachamd64/sym.c        | 1402 ++++++++++++++++++++++++++
+ src/make.bash                 |    2 +-
+ 21 files changed, 7652 insertions(+), 1 deletion(-)

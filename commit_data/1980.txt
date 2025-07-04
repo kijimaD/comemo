@@ -1,0 +1,25 @@
+commit f95da9a639c53c5a932764d2649c22d154b66a01
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 8 22:45:33 2009 -0700
+
+    yet another attempt at auto-linking
+    
+    store only the original import path string (+ .a)
+    if 6g resolves it to an archive file.
+    let 6l re-resolve the .a at link time.
+    
+    this lets libraries build against an archive
+    in the current directory but get used
+    against an installed archive.
+    
+    R=r
+    OCL=27244
+    CL=27244
+
+ src/cmd/6l/obj.c  | 20 ++++++++++++++------
+ src/cmd/gc/go.h   |  2 +-
+ src/cmd/gc/lex.c  | 35 +++++++++++++++++++++--------------
+ src/cmd/gc/subr.c |  4 ++--
+ src/cmd/gc/walk.c |  4 ++--
+ src/lib/Makefile  |  6 ++++--
+ 6 files changed, 44 insertions(+), 27 deletions(-)

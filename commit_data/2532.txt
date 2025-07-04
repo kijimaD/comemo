@@ -1,0 +1,12 @@
+commit 70e232e668e459c9f730a2213f8270660b36558b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 20:15:56 2009 -0700
+
+    separate local path lookup from standard package directories
+    
+    R=ken
+    OCL=30760
+    CL=30779
+
+ src/cmd/gc/lex.c | 36 ++++++++++++++++++++++++++----------
+ 1 file changed, 26 insertions(+), 10 deletions(-)

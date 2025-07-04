@@ -1,0 +1,16 @@
+commit 46deaa297bcf76438ae17b070ef351d5b91d3d59
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 6 10:48:17 2011 -0500
+
+    gc: disallow map/func equality via interface comparison
+    
+    Missed when I removed direct map/func equality.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5452052
+
+ src/cmd/gc/subr.c           |  3 +--
+ src/pkg/reflect/all_test.go |  4 ++--
+ test/interface/noeq.go      | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 4 deletions(-)

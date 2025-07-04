@@ -1,0 +1,14 @@
+commit 6d93de2c110f66457f103c33ba496ff2e2bf33af
+Author: Benson Margulies <bimargulies@google.com>
+Date:   Thu Jun 13 22:47:18 2024 +0000
+
+    slices: add documentation on incomparable items in SortFunc
+    
+    Change-Id: Ib289008c0e9b5e83c37c9b6b316f3f5de8ac339a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592617
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/slices/sort.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

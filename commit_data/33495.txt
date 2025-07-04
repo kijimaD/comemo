@@ -1,0 +1,22 @@
+commit 821e3f7d85e4f05d83f5f93e99bf299a6bfc9034
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 10 10:26:05 2017 +1100
+
+    cmd/go: close unintentionally left open file
+    
+    cmd/go/internal/work.Builder.updateBuildID left a file opened.
+    But opened files cannot be deleted on Windows, so cmd/go just
+    leaves these files in %TMP% directory.
+    
+    Close the file so deletion can succeed.
+    
+    Fixes #22650
+    
+    Change-Id: Ia3ea62f6ec7208d73972eae2e17fb4a766407914
+    Reviewed-on: https://go-review.googlesource.com/76810
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/buildid.go | 1 +
+ 1 file changed, 1 insertion(+)

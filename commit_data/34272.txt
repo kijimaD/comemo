@@ -1,0 +1,33 @@
+commit 70fd25e4e1af56ae3102ea8f11e295391775d7f1
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 20 02:18:54 2018 +0100
+
+    cmd/compile: normalize spaces in rewrite rule comments.
+    
+    In addition to look nicer to the eye, this allows to reformat
+    and indent rules without causing spurious changes to the generated
+    file, making it easier to spot functional changes.
+    
+    After this CL, all CLs that will aggregate rules through
+    the new "|" functionality should cause no changes to the
+    generated files.
+    
+    Change-Id: Icec283585ba8d7b91c79d76513c1d83dca4b30aa
+    Reviewed-on: https://go-review.googlesource.com/95216
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  12 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 380 +++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 796 ++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  36 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 252 +++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  76 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  96 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 446 ++++++------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 946 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritedec.go     |  20 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  78 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 610 ++++++++--------
+ 12 files changed, 1876 insertions(+), 1872 deletions(-)

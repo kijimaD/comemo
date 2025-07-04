@@ -1,0 +1,12 @@
+commit 77f2763a6336fc86ba8d9aae4cfc890e46bc6e26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 16 16:53:57 2015 -0700
+
+    go/types: enable disabled test
+    
+    Change-Id: I101e9bc722f5ba4fa9941cb544d9c276fd4c0b8c
+    Reviewed-on: https://go-review.googlesource.com/14651
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/testdata/issues.src | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

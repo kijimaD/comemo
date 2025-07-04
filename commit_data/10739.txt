@@ -1,0 +1,14 @@
+commit 5fa18e10618d609ce2c272026e460c47ec864250
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 12 21:08:03 2011 -0800
+
+    doc/go1: time
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5477077
+
+ doc/go1.html     | 94 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ doc/go1.tmpl     | 61 ++++++++++++++++++++++++++++++++++++
+ doc/progs/go1.go | 42 +++++++++++++++++--------
+ 3 files changed, 173 insertions(+), 24 deletions(-)

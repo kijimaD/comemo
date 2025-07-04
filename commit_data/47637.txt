@@ -1,0 +1,20 @@
+commit 1ab677a797ab5cdb5c0248b2d63b753820e6ed49
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 12:43:06 2021 -0800
+
+    go/types: produce empty type set for invalid ~T
+    
+    This is a clean port of CL 366278 from types2 to go/types.
+    
+    For #49739.
+    
+    Change-Id: I2e2cb739c02fcc07e012499c7b65b13b057875ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367197
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/testdata/fixedbugs/issue49739.go2 | 23 +++++++++++++++++++++++
+ src/go/types/typeset.go                        | 16 ++++++++++------
+ 2 files changed, 33 insertions(+), 6 deletions(-)

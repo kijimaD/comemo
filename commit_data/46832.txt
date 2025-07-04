@@ -1,0 +1,19 @@
+commit d2d21d98e4f9181f92f3d484623ed4153444877c
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 9 15:17:03 2021 -0700
+
+    cmd/compile: used TESTL instead of TESTQ for cpu feature flag detection
+    
+    Uses one less byte when encoded. Performance is unchanged.
+    
+    Change-Id: If400c9c9fc07a033e5ae9bf975ec512e432f7825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354949
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

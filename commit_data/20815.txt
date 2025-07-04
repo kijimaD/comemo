@@ -1,0 +1,16 @@
+commit c88ba199e2cf24b6dff3d069b50d3bccda4c1552
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 20:19:03 2014 -0700
+
+    fmt: fix documentation for %g and %G
+    It now echoes what strconv.FormatFloat says.
+    
+    Fixes #9012.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169730043
+
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

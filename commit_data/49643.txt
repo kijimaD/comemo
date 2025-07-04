@@ -1,0 +1,21 @@
+commit dc00aed6de101700fd02b30f93789b9e9e1fe9a1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jul 14 13:00:05 2022 -0700
+
+    go/parser: skip TestParseDepthLimit for short tests
+    
+    Because it requires a not insignificant amount of memory to run. Also
+    remove the WASM-only skip from TestScopeDepthLimit, which is less
+    intensive.
+    
+    Fixes #53816
+    
+    Change-Id: I8463046510ce4dd3d8f6d66938828d5e6963c3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417657
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/go/parser/parser_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit f6615f1b5d7e2e3e621c32fa9f99521f1c3a5f2b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 13:19:23 2011 -0800
+
+    FAQ: rearrange and expand the discussion of testing
+    
+    R=gri, r, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5369052
+
+ doc/go_faq.html | 59 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 39 insertions(+), 20 deletions(-)

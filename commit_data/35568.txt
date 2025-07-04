@@ -1,0 +1,39 @@
+commit 462c182ce7d6ee16af9731e7d14da2cb9be6a91a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 30 13:48:13 2018 -0700
+
+    go/types: use color-marking based cycle detection at package level
+    
+    The existing cycle detection scheme passes around a (type name)
+    path; when a type name re-appears in the path, a cycle is reported.
+    Indirections (as in *T, func(T), etc.) are broken by starting a new
+    (nil) path. The problem with this approach is that it doesn't work
+    for cycles involving alias type names since they may be invalid
+    even if there is an indirection. Furthermore, the path must be
+    passed around through all functions which is currently not the
+    case, which leads to less optimial error reporting.
+    
+    The new code is using the previously introduced color marking
+    scheme and global object path for package-level cycle detection
+    (function-local cycle detection doesn't use the same code path
+    yet but is also much less important as cycles can only be created
+    using the type being declared).
+    
+    The new code is guarded with an internal flag (useCycleMarking)
+    so it can be disabled in short notice if this change introduced
+    unexpected new issues.
+    
+    Fixes #23139.
+    Fixes #25141.
+    
+    For #18640.
+    For #24939.
+    
+    Change-Id: I1bbf2d2d61a375cf5885b2de1df0a9819d63e5fa
+    Reviewed-on: https://go-review.googlesource.com/115455
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/decl.go              | 85 ++++++++++++++++++++++++++++++++++++++-
+ src/go/types/testdata/cycles5.src | 39 +++++++++++++++++-
+ src/go/types/typexpr.go           | 18 ++++++++-
+ 3 files changed, 137 insertions(+), 5 deletions(-)

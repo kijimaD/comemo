@@ -1,0 +1,15 @@
+commit d2252d9b0769867fa8a25ba8b274603ddf21c9e9
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Fri Feb 8 10:45:46 2013 -0800
+
+    syscall: check for invalid characters in Setenv on Unix
+    
+    On POSIX, '=' in key is explicitly invalid, and '\x00' in key/value is implicitly invalid.
+    
+    R=golang-dev, iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7311061
+
+ src/pkg/os/env_unix_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/env_unix.go | 10 ++++++++++
+ 2 files changed, 40 insertions(+)

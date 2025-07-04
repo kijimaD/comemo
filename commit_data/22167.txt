@@ -1,0 +1,12 @@
+commit 0e55f201d618b082b725c1792715d723b0783b5f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 24 13:16:03 2015 -0700
+
+    cmd/dist: add test to usage message's list of commands
+    
+    Change-Id: Id1edbed38c94e7c1c13a0200c44edf2b9ae5f087
+    Reviewed-on: https://go-review.googlesource.com/8040
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

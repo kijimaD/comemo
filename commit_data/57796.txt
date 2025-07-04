@@ -1,0 +1,26 @@
+commit efa43c57b109582d602eeb9b5fb690d38e4cf9aa
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 4 15:20:48 2024 -0400
+
+    internal/runtime/maps: reuse deleted slots on insert
+    
+    While walking the probe sequence, Put keeps track of the first deleted
+    slot it encountered. If it reaches the end of the probe sequence without
+    finding a match, then it will prefer to use the deleted slot rather than
+    a new empty slot.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I19356ef6780176506f57b42990ac15dc426f1b14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/runtime/maps/export_test.go | 36 +++++++++++++++++++
+ src/internal/runtime/maps/map.go         |  7 ++--
+ src/internal/runtime/maps/map_test.go    | 62 ++++++++++++++++++++++++++++++++
+ src/internal/runtime/maps/table.go       | 54 ++++++++++++++++++----------
+ 4 files changed, 137 insertions(+), 22 deletions(-)

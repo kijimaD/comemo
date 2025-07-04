@@ -1,0 +1,18 @@
+commit 4e61c516f4230df225172eb1bc409e2f0dd6edeb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 28 23:04:05 2015 -0400
+
+    cmd/cgo: fix a problem with 'go build -compiler gccgo'
+    
+    Port of https://golang.org/cl/154360045 to Git.
+    Original author is Xia Bin <snyh@snyh.org> (already a contributor).
+    
+    Fixes #8945.
+    
+    Change-Id: I28bcaf3348794202ca59fbc3466bd7b9670030e4
+    Reviewed-on: https://go-review.googlesource.com/11658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue8945.go | 16 ++++++++++++++++
+ src/cmd/cgo/out.go         |  4 ++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

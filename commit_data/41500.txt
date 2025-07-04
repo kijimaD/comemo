@@ -1,0 +1,23 @@
+commit 44286d09c5fcdb703624fad6ce24306294cab1fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Feb 27 22:53:18 2020 -0500
+
+    cmd/gofmt, go/format: sync internal.go
+    
+    Apply CL 40930 to src/cmd/gofmt/internal.go to bring
+    it into sync with src/go/format/internal.go.
+    
+    Also revert '\n' back to "\n\n" in one of the comments,
+    because the previous text was more accurate.
+    Gofmt replaces the "; " part of "package p; func _() {"
+    input with two newline characters, not one.
+    
+    Updates #11844
+    
+    Change-Id: I6bb8155a931b793311991d3cd8e006a2931b167a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221497
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/internal.go | 8 ++++----
+ src/go/format/internal.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

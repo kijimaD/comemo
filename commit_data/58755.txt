@@ -1,0 +1,24 @@
+commit 11f7ea8ce045c27956fcbffcc98e8987f9fb9743
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Wed Nov 27 20:47:58 2024 +0300
+
+    cmd/compile: add type-based alias analysis
+    
+    Make ssa.disjoint call ssa.disjointTypes to disambiguate Values based on
+    their types. Only one type-based rule is employed: a Type can't alias
+    with a pointer (https://pkg.go.dev/unsafe#Pointer).
+    
+    Fixes #70488
+    
+    Change-Id: I5a7e75292c2b6b5a01fb9048e3e2360e31dbcdd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/rttype/rttype.go    | 58 ++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewrite.go      | 39 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite_test.go | 69 +++++++++++++++++++++++++++-
+ 3 files changed, 144 insertions(+), 22 deletions(-)

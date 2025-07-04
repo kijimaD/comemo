@@ -1,0 +1,15 @@
+commit 0951939fd9e4a6bc83f23c42e8ddff02b29c997e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Jul 15 22:04:57 2020 -0600
+
+    doc/go1.15: add release notes for math/cmplx
+    
+    Updates #37419
+    
+    Change-Id: Id7c9aba518c826c1a6fccbbf82210072bd3346f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242903
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

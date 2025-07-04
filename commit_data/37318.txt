@@ -1,0 +1,41 @@
+commit 7d6b5e340c9c89416ffbf3e0bc997b77304c31f7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 1 16:39:34 2018 -0700
+
+    runtime: reduce linear search through pcvalue cache
+    
+    This change introduces two optimizations together,
+    one for recursive and one for non-recursive stacks.
+    
+    For recursive stacks, we introduce the new entry
+    at the beginning of the cache, so it can be found first.
+    This adds an extra read and write.
+    While we're here, switch from fastrandn, which does a multiply,
+    to fastrand % n, which does a shift.
+    
+    For non-recursive stacks, split the cache from [16]pcvalueCacheEnt
+    into [2][8]pcvalueCacheEnt, and add a very cheap associative lookup.
+    
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8       118ms ± 1%   106ms ± 2%  -9.56%  (p=0.000 n=17+18)
+    StackCopy-8         95.8ms ± 1%  87.0ms ± 3%  -9.11%  (p=0.000 n=19+20)
+    StackCopyNoCache-8   135ms ± 2%   139ms ± 1%  +3.06%  (p=0.000 n=19+18)
+    
+    During make.bash, the association function used has this return distribution:
+    
+    percent count  return value
+     53.23% 678797 1
+     46.74% 596094 0
+    
+    It is definitely not perfect, but it is pretty good,
+    and that's all we need.
+    
+    Change-Id: I2cabb1d26b99c5111bc28f427016a2a5e6c620fd
+    Reviewed-on: https://go-review.googlesource.com/c/110564
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl_test.go |  1 +
+ src/runtime/symtab.go                   | 24 +++++++++++++++++++-----
+ 2 files changed, 20 insertions(+), 5 deletions(-)

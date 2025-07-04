@@ -1,0 +1,15 @@
+commit c8ce844d5a8680cc4f22639f7c2eda4ee57cfcdd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 13 14:32:03 2012 +1100
+
+    doc/play: sync playground.js with go-playground repo
+    
+    Also add style for "Program exited." message.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6934047
+
+ doc/play/playground.js | 85 +++++++++++++++++++++++++++++++++++++++-----------
+ doc/style.css          |  3 ++
+ 2 files changed, 70 insertions(+), 18 deletions(-)

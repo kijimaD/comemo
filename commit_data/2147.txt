@@ -1,0 +1,13 @@
+commit c4de24981ae56b43841d4d71bf73ee9af00ee281
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue May 5 21:19:58 2009 -0700
+
+    signs on div and mod
+    
+    R=r
+    OCL=28319
+    CL=28319
+
+ src/cmd/gc/mparith2.c |  14 +++-
+ test/ken/divmod.go    | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 197 insertions(+), 1 deletion(-)

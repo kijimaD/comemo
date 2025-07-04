@@ -1,0 +1,12 @@
+commit e628144aeb2776f8d3a0be57d31a27d8fc470fb7
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Sun Dec 11 09:21:53 2011 -0800
+
+    pkg/runtime/Makefile: sorted object module names.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5479060
+
+ src/pkg/runtime/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

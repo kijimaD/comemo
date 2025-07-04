@@ -1,0 +1,35 @@
+commit 1492e7db059ea7903110b0725d5ced3134558e73
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 16:29:16 2016 -0400
+
+    cmd/compile, etc: use nameOff for rtype string
+    
+    linux/amd64:
+            cmd/go:   -8KB (basically nothing)
+    
+    linux/amd64 PIE:
+            cmd/go: -191KB (1.6%)
+            jujud:  -1.5MB (1.9%)
+    
+    Updates #6853
+    Fixes #15064
+    
+    Change-Id: I0adbb95685e28be92e8548741df0e11daa0a9b5f
+    Reviewed-on: https://go-review.googlesource.com/21777
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  58 +++++++++------
+ src/cmd/link/internal/ld/data.go       |   2 +-
+ src/cmd/link/internal/ld/decodesym.go  |  35 +++++----
+ src/reflect/all_test.go                |  40 +++++++++-
+ src/reflect/export_test.go             |   8 +-
+ src/reflect/type.go                    | 129 +++++++++++++++++----------------
+ src/runtime/alg.go                     |   8 +-
+ src/runtime/error.go                   |   2 +-
+ src/runtime/heapdump.go                |   2 +-
+ src/runtime/iface.go                   |  24 +++---
+ src/runtime/mbitmap.go                 |  10 +--
+ src/runtime/mfinal.go                  |  10 +--
+ src/runtime/mprof.go                   |   2 +-
+ src/runtime/type.go                    |  46 ++++++++----
+ 14 files changed, 231 insertions(+), 145 deletions(-)

@@ -1,0 +1,23 @@
+commit 8c8045fd381adf990ffc583ecabd9cf2a32a2a80
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 15 09:17:18 2020 -0700
+
+    cmd/compile: fix ordering problems in struct equality
+    
+    Make sure that if a field comparison might panic, we evaluate
+    (and short circuit if not equal) all previous fields, and don't
+    evaluate any subsequent fields.
+    
+    Add a bunch more tests to the equality+panic checker.
+    
+    Update #8606
+    
+    Change-Id: I6a159bbc8da5b2b7ee835c0cd1fc565575b58c46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237919
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go | 63 ++++++++++++++++++++++++++++++--------
+ test/fixedbugs/issue8606.go        | 59 ++++++++++++++++++++++++++++++-----
+ 2 files changed, 101 insertions(+), 21 deletions(-)

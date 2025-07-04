@@ -1,0 +1,16 @@
+commit cefe6ac9a1914864c66b8b3044c3e4755d309f80
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 13 21:18:47 2014 -0800
+
+    runtime/pprof: fix flaky TestCPUProfileMultithreaded test
+    
+    It's too sensitive.
+    
+    Fixes bug 7095
+    
+    R=golang-codereviews, iant, minux.ma, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/50470043
+
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

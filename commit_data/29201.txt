@@ -1,0 +1,15 @@
+commit 30651b3bbbfda86e8188dfd89cb326a4db085e25
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 12:22:16 2016 -0400
+
+    encoding/csv: document Read error behavior
+    
+    Fixes #17342.
+    
+    Change-Id: I76af756d7aff464554c5564d444962a468d0eccc
+    Reviewed-on: https://go-review.googlesource.com/32172
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/encoding/csv/reader.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

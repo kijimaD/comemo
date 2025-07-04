@@ -1,0 +1,14 @@
+commit e772c723665c098fb6a90b5e03a61d172e348703
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 17 08:30:31 2016 -0700
+
+    doc/go1.8: support "option ndots:0" in resolv.conf
+    
+    Updates #15419.
+    
+    Change-Id: If7c80adcb38b5731e337b2ae2d9d76fcf8513d8e
+    Reviewed-on: https://go-review.googlesource.com/27271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

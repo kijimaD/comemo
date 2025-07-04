@@ -1,0 +1,22 @@
+commit 41660d0086b302654fce0c948b84e464095398a1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 09:23:46 2018 -0500
+
+    cmd/vet: fix two failing test cases
+    
+    Select linux/arm64 for the asm test.
+    
+    Disable the cgo test for now.
+    Will fix properly in a follow-up.
+    Filed Issue 28829 to track it.
+    
+    Updates #28829
+    
+    Change-Id: Ic05f619700b06e91c43f8c150b089b8e77d92c85
+    Reviewed-on: https://go-review.googlesource.com/c/149937
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/vet_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

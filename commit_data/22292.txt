@@ -1,0 +1,13 @@
+commit 14bbab47584844d2c32534564f0f3f51b76df05a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 2 20:42:59 2015 -0700
+
+    cmd/internal/gc/big: gofmt vendored code
+    
+    Change-Id: I035e6f1cd159644db5eeef83056b9c34c401e60f
+    Reviewed-on: https://go-review.googlesource.com/8441
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/internal/gc/big/arith_decl.go | 2 --
+ src/cmd/internal/gc/big/vendor.bash   | 3 +++
+ 2 files changed, 3 insertions(+), 2 deletions(-)

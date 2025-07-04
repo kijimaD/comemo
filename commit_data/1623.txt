@@ -1,0 +1,13 @@
+commit 7a3877aa0c862927354e07a6919dd327e3f9aa03
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 15:09:08 2009 -0800
+
+    take advantage of methods on funcs
+    
+    R=r
+    DELTA=14  (0 added, 13 deleted, 1 changed)
+    OCL=24458
+    CL=24470
+
+ src/lib/http/server.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

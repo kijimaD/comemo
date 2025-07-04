@@ -1,0 +1,13 @@
+commit f2714e38a4fb1ca5b3b891c2891f8e541c97284c
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 28 13:04:01 2009 -0700
+
+    bug131 has been fixed with no change
+    
+    R=r
+    OCL=27980
+    CL=27980
+
+ test/{bugs => fixedbugs}/bug131.go |  0
+ test/golden.out                    | 10 +++++-----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

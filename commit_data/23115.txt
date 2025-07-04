@@ -1,0 +1,33 @@
+commit b19ec6842d3d3bdc6d7b67fa065121a9d317cff7
+Author: David Chase <drchase@google.com>
+Date:   Thu May 21 12:40:25 2015 -0400
+
+    cmd/internal/gc: make indirect calls properly escape-y
+    
+    Indirect function and method calls should leak everything,
+    but they didn't.
+    
+    This fix had no particular effect on the cost of running the
+    compiler on html/template/*.go and added a single new "escape"
+    to the standard library:
+    
+        syscall/syscall_unix.go:85: &b[0] escapes to heap
+    in
+            if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])),
+                                 uintptr(len(b))); errno != nil {
+    
+    Added specific escape testing to escape_calls.go
+    (and verified that it fails without this patch)
+    
+    I also did a little code cleanup around the changes in esc.c.
+    
+    Fixes #10925
+    
+    Change-Id: I9984b701621ad4c49caed35b01e359295c210033
+    Reviewed-on: https://go-review.googlesource.com/10295
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 67 ++++++++++++++++++++++++++------------
+ test/escape_calls.go               | 10 ++++++
+ test/fixedbugs/issue10925.go       | 23 +++++++++++++
+ 3 files changed, 79 insertions(+), 21 deletions(-)

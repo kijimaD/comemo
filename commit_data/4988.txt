@@ -1,0 +1,13 @@
+commit 6e3853e2945277e9ca741e372f64be601e8fd536
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 4 15:26:15 2010 -0800
+
+    add a test that structures pack.  6g fails.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/237041
+
+ test/bugs/bug260.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 46 insertions(+)

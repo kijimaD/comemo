@@ -1,0 +1,20 @@
+commit 6917529cc604bad3b7d67579ca8d569442e3d880
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 14 20:35:59 2020 -0800
+
+    testing: remove obsolete comment in testing.(*T) docs
+    
+    We now only accumulate logs when not using -v. Just drop the sentence
+    entirely rather than try to describe the current situation.
+    
+    Updates #24929
+    Updates #37203
+    
+    Change-Id: Ie3bf37894ab68b5b129eff54637893c7a129da03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219540
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 1 -
+ 1 file changed, 1 deletion(-)

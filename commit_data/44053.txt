@@ -1,0 +1,21 @@
+commit 0aa9b4709acd609c1a3e9cb028e7f4c4da3f0357
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 22 12:40:32 2020 -0500
+
+    cmd/pack: r command create output file if not exist
+    
+    Go 1.15 pack's r command creates the output file if it does not
+    exist. The system "ar" command does this as well. Do the same.
+    
+    For bazelbuild/rules_go#2762.
+    
+    Change-Id: Icd88396b5c714b735c859a29ab29851e4301f4d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279516
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/pack/pack.go      |  7 +++++--
+ src/cmd/pack/pack_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 3 deletions(-)

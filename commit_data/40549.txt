@@ -1,0 +1,38 @@
+commit 62e53b79227dafc6afcd92240c89acb8c0e1dd56
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 8 13:23:51 2019 -0400
+
+    runtime: use signals to preempt Gs for suspendG
+    
+    This adds support for pausing a running G by sending a signal to its
+    M.
+    
+    The main complication is that we want to target a G, but can only send
+    a signal to an M. Hence, the protocol we use is to simply mark the G
+    for preemption (which we already do) and send the M a "wake up and
+    look around" signal. The signal checks if it's running a G with a
+    preemption request and stops it if so in the same way that stack check
+    preemptions stop Gs. Since the preemption may fail (the G could be
+    moved or the signal could arrive at an unsafe point), we keep a count
+    of the number of received preemption signals. This lets stopG detect
+    if its request failed and should be retried without an explicit
+    channel back to suspendG.
+    
+    For #10958, #24543.
+    
+    Change-Id: I3e1538d5ea5200aeb434374abb5d5fdc56107e53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201760
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/os/signal/signal_test.go |  20 +++++-
+ src/runtime/mgcmark.go       |   6 +-
+ src/runtime/os_js.go         |   6 ++
+ src/runtime/os_plan9.go      |   8 +++
+ src/runtime/os_windows.go    |   8 +++
+ src/runtime/preempt.go       | 149 ++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime2.go      |  10 +++
+ src/runtime/signal_unix.go   |  70 ++++++++++++++++++++
+ src/runtime/stack.go         |   6 +-
+ src/runtime/symtab.go        |  19 ++++++
+ 10 files changed, 294 insertions(+), 8 deletions(-)

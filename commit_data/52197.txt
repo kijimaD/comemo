@@ -1,0 +1,26 @@
+commit 84609d874e19e9d2419e07b72e8c8e2d24dcfc3a
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Mon Mar 6 18:13:45 2023 +1030
+
+    crypto/ed25519: improve Ed25519ctx error for oversized contexts
+    
+    Previously if PrivateKey.Sign was called for Ed25519ctx with a context
+    longer than 255 bytes, the error message would mention Ed25519ph.
+    
+    For Ed25519ph, the order of message length vs context length errors now
+    matches VerifyWithOptions. A message length error will be surfaced in
+    preference to a context length error. It also preferences hash errors
+    ahead of context length errors which also matches the behaviour of
+    VerifyWithOptions.
+    
+    Change-Id: Iae380b3d879e0a9877ea057806fcd1e0ef7f7376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473595
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ed25519/ed25519.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

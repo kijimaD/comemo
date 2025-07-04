@@ -1,0 +1,28 @@
+commit db4cda2ec0955854c8ff556ac19ec5e67d48d090
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Aug 17 12:25:49 2020 -0700
+
+    testing/iotest: correct ErrReader signature and remove exported error
+    
+    Corrects ErrReader's signature to what was accepted in the approved
+    proposal, and also removes an exported ErrIO which wasn't part of
+    the proposal and is unnecessary.
+    
+    The new signature allows users to customize their own errors.
+    
+    While here, started examples, with ErrReader leading the way.
+    
+    Updates #38781
+    
+    Change-Id: Ia7f84721f11061343cfef8b1adc2b7b69bc3f43c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248898
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/iotest/example_test.go | 22 ++++++++++++++++++++++
+ src/testing/iotest/logger_test.go  |  4 ++--
+ src/testing/iotest/reader.go       | 17 ++++++++---------
+ src/testing/iotest/reader_test.go  | 27 +++++++++++++++++++++------
+ 4 files changed, 53 insertions(+), 17 deletions(-)

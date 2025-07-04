@@ -1,0 +1,12 @@
+commit 751eef83e0c0a28879cdcdc384d6810dad915e90
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 25 16:20:27 2015 +1000
+
+    doc: first cut at prose for big changes in go1.5.html
+    
+    Change-Id: Ie2aba3d5069d88548414f7d76b9b6efb9acf0393
+    Reviewed-on: https://go-review.googlesource.com/11477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 488 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 410 insertions(+), 78 deletions(-)

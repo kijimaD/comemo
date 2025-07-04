@@ -1,0 +1,13 @@
+commit 4f3506b4eebf2530b0f35bdba7be435ec85acf99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 19 14:32:00 2008 -0800
+
+    Update for source code changes.
+    
+    R=gri
+    DELTA=15  (13 added, 1 deleted, 1 changed)
+    OCL=21632
+    CL=21639
+
+ usr/gri/pretty/Makefile.iant | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

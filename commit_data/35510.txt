@@ -1,0 +1,29 @@
+commit c1d9d1f305df19c66e28a619e17f9f1d7563d977
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 25 14:27:29 2018 -0700
+
+    cmd/go: don't generate output for "go build -o /dev/null x.go"
+    
+    We look for "-o /dev/null", and, if found, pretend that there was no
+    "-o" option and don't generate an action to create the final executable.
+    
+    We look for "go build x.go", and, if found, and if -o was not used,
+    pretend that the user specified "-o x".
+    
+    Unfortunately, we were doing those in the wrong order, so that "go
+    build -o /dev/null x.go" would first clear the "-o" option and then
+    set it to "-o x".
+    
+    This CL flips the order so that the right thing happens.
+    
+    Fixes #25579
+    
+    Change-Id: Ic9556ac0a57f7b45b685951bc96ba5ea4633b860
+    Reviewed-on: https://go-review.googlesource.com/114715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go             | 11 +++++++++++
+ src/cmd/go/internal/work/build.go | 10 +++++-----
+ 2 files changed, 16 insertions(+), 5 deletions(-)

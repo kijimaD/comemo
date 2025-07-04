@@ -1,0 +1,23 @@
+commit 9901d9e87a47b775edd0e75edb19ba696091603e
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Mon Dec 20 17:47:42 2021 +1030
+
+    all: fix spelling errors found by misspell
+    
+    Change-Id: Icedd0c3d49259d5aee249ecb33374e9b78e0c275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373376
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/types2/assignments.go   | 2 +-
+ src/cmd/compile/internal/types2/decl.go          | 2 +-
+ src/cmd/compile/internal/types2/typeterm_test.go | 2 +-
+ src/cmd/internal/obj/ppc64/asm_test.go           | 2 +-
+ src/go/types/assignments.go                      | 2 +-
+ src/go/types/decl.go                             | 2 +-
+ src/go/types/typeterm_test.go                    | 2 +-
+ src/internal/fuzz/fuzz.go                        | 2 +-
+ src/testing/fuzz.go                              | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

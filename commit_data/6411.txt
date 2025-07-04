@@ -1,0 +1,14 @@
+commit 949985648875b8320dae724ae51e636ee08dd6f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 20:29:20 2010 -0400
+
+    codereview: fix upload of hg copied file
+    
+    Fixes #1134.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2264043
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 63e48ccd8ea9399b411bf092f53ad8cd606946a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 23 16:20:55 2011 -0800
+
+    go/ast: trivial cleanup (remove superfluous string conversion)
+    
+    R=iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5430059
+
+ src/pkg/go/ast/resolve.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

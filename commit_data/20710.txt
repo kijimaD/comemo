@@ -1,0 +1,15 @@
+commit a681749ab5b0f7dcb8aff4123e6e8a002e2b5d91
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 15 06:20:55 2014 -0700
+
+    crypto/x509: correct field name in comment
+    
+    Fixes #8936.
+    
+    LGTM=bradfitz
+    R=agl, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/152590043
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 4638545d85d7e10e49132ee94ff9a6778db1c893
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 19:10:22 2021 -0700
+
+    cmd/compile/internal/syntax: accept "~" and "|" interface elements
+    
+    Type lists continue to be accepted as before.
+    
+    While at it, print missing filenames in error tests
+    (which uses an ad-hoc position representation).
+    
+    Change-Id: I933b3acbc9cf1985ad8f70f6b206e3a1dbd64d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307371
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/error_test.go      |  4 +-
+ src/cmd/compile/internal/syntax/parser.go          | 92 ++++++++++++++++++----
+ src/cmd/compile/internal/syntax/printer_test.go    |  9 +++
+ .../compile/internal/syntax/testdata/interface.go2 | 36 +++++++++
+ 4 files changed, 125 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit 1099644f5208c9e7911783c0103d5dad0a2021cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 9 12:09:45 2023 -0400
+
+    cmd/compile: add ability to print extra information in bisect output
+    
+    Change-Id: I619c21ab9754f67b69215cfed238a3e489c7fbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493955
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/base/hashdebug.go       | 54 +++++++++++++-----------
+ src/cmd/compile/internal/base/hashdebug_test.go  | 24 +++++------
+ src/cmd/compile/internal/loopvar/loopvar.go      |  4 +-
+ src/cmd/compile/internal/loopvar/loopvar_test.go |  2 +-
+ src/cmd/compile/internal/ssa/func.go             |  2 +-
+ 5 files changed, 45 insertions(+), 41 deletions(-)

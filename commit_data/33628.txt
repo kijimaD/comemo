@@ -1,0 +1,12 @@
+commit 83634e9cf2fb7bf1d45737589291da8bdbee132b
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Sat Nov 18 20:48:08 2017 +0100
+
+    runtime/pprof: fix doc typo
+    
+    Change-Id: I6e814182d89c3e7ff184141af097af0afb844d00
+    Reviewed-on: https://go-review.googlesource.com/78620
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

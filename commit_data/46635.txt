@@ -1,0 +1,21 @@
+commit 850a4ffb6346dd53f6f5624c13410d99e6509cae
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 13:52:53 2021 -0400
+
+    cmd/internal/goobj: remove Pcdata from object file
+    
+    As of CL 247399 we use separate symbols for PCDATA. There is no
+    more need for writing PCDATA directly into the object file as a
+    separate block.
+    
+    Change-Id: I942d1a372540415e0cc07fb2a01f79718a264142
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352610
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/goobj/objfile.go |  2 --
+ src/cmd/internal/obj/objfile.go   | 19 -------------------
+ 2 files changed, 21 deletions(-)

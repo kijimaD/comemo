@@ -1,0 +1,20 @@
+commit 6db4950dc57deb899bf5550411c01ce32f16bdd0
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Oct 11 22:05:03 2017 -0300
+
+    encoding/hex: add NewEncoder, NewDecoder
+    
+    NewEncoder returns an io.Writer that writes all incoming bytes as
+    hexadecimal characters to the underlying io.Writer. NewDecoder returns an
+    io.Reader that does the inverse.
+    
+    Fixes #21590
+    
+    Change-Id: Iebe0813faf365b42598f19a9aa41768f571dc0a8
+    Reviewed-on: https://go-review.googlesource.com/70210
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/hex/hex.go      | 75 ++++++++++++++++++++++++++++++++++++++++++--
+ src/encoding/hex/hex_test.go | 60 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 2 deletions(-)

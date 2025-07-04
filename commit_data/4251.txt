@@ -1,0 +1,15 @@
+commit 99d0c3d85d750bbe6999e9d74867d46b359153d6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Nov 30 15:16:40 2009 -0800
+
+    change command-line argument to be
+    unnamed, not require -n, in line with other
+    entries.
+    
+    R=rsc
+    CC=r
+    https://golang.org/cl/162061
+
+ test/bench/chameneosredux.go | 18 +++++++++++-------
+ test/bench/timing.sh         |  4 ++--
+ 2 files changed, 13 insertions(+), 9 deletions(-)

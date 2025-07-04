@@ -1,0 +1,27 @@
+commit bd5595d7fa4eb3e234aabeac554f2ba8f2a95790
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Wed Apr 13 21:14:22 2022 +0800
+
+    runtime: refactor finalizer goroutine status
+    
+    Use an atomic.Uint32 to represent the state of finalizer goroutine.
+    fingStatus will only be changed to fingWake in non fingWait state,
+    so it is safe to set fingRunningFinalizer status in runfinq.
+    
+    name            old time/op  new time/op  delta
+    Finalizer-8      592µs ± 4%   561µs ± 1%  -5.22%  (p=0.000 n=10+10)
+    FinalizerRun-8   694ns ± 6%   675ns ± 7%    ~     (p=0.059 n=9+8)
+    
+    Change-Id: I7e4da30cec98ce99f7d8cf4c97f933a8a2d1cae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400134
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go |  5 +----
+ src/runtime/mfinal.go      | 49 ++++++++++++++++++++++++++--------------------
+ src/runtime/mprof.go       |  2 +-
+ src/runtime/proc.go        |  2 +-
+ src/runtime/traceback.go   |  2 +-
+ 5 files changed, 32 insertions(+), 28 deletions(-)

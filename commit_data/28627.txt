@@ -1,0 +1,18 @@
+commit 6879dbde4e6dceceb272b83fc6682e97b9de2fa1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 9 10:31:27 2016 -0400
+
+    runtime: introduce a type for span states
+    
+    Currently span states are untyped constants and the field is just a
+    uint8. Make this more type-safe by introducing a type for the span
+    state.
+    
+    Change-Id: I369bf59fe6e8234475f4921611424fceb7d0a6de
+    Reviewed-on: https://go-review.googlesource.com/30141
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

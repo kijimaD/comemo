@@ -1,0 +1,42 @@
+commit 807761f3345b264ceb6f5b6fdd804f5c34d4ee51
+Author: David Chase <drchase@google.com>
+Date:   Tue Apr 2 17:26:49 2019 -0400
+
+    cmd/link: revert/revise CL 98075 because LLDB is very picky now
+    
+    This was originally
+    
+    Revert "cmd/link: fix up debug_range for dsymutil (revert CL 72371)"
+    
+    which has the effect of no longer using Base Address Selection
+    Entries in DWARF.  However, the build-time costs of that are
+    about 2%, so instead the hacky fixup that generated technically
+    incorrect DWARF was removed from the linker, and the choice
+    is instead made in the compiler, dependent on platform, but
+    also under control of a flag so that we can report this bug
+    against LLDB/dsymutil/dwarfdump (really, the LLVM dwarf
+    libraries).
+    
+    This however does not solve #31188; debugging still fails,
+    but dwarfdump no longer complains.  There are at least two
+    LLDB bugs involved, and this change will at allow us
+    to report them without them being rejected because our
+    now-obsolete workaround for the first bug creates
+    not-quite-DWARF.
+    
+    Updates #31188.
+    
+    Change-Id: I5300c51ad202147bab7333329ebe961623d2b47d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170638
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/main.go   |  9 ++++-
+ src/cmd/compile/internal/ssa/debug.go | 24 +++++++----
+ src/cmd/internal/dwarf/dwarf.go       | 70 ++++++++++++++++++++------------
+ src/cmd/internal/obj/data.go          | 20 +++++++--
+ src/cmd/internal/obj/link.go          |  1 +
+ src/cmd/internal/obj/objfile.go       | 45 ++++++++++++---------
+ src/cmd/link/internal/ld/dwarf.go     | 76 ++++-------------------------------
+ src/cmd/link/internal/sym/symbol.go   | 12 +++++-
+ 8 files changed, 131 insertions(+), 126 deletions(-)

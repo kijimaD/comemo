@@ -1,0 +1,17 @@
+commit 1fe891a937eae62ce396f3d7c7c6c472701acf0a
+Author: Tim King <taking@google.com>
+Date:   Tue Dec 1 17:55:35 2020 -0800
+
+    doc/go1.16: add vet release note for CL 235677
+    
+    For #40700
+    Fixes #42895
+    
+    Change-Id: I05b60f0d000512d5dddb3d61e0e695aa01943d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274617
+    Trust: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 49 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 46 insertions(+), 3 deletions(-)

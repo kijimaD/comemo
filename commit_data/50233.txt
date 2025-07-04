@@ -1,0 +1,18 @@
+commit ef8414101fba959c8df220ca0e544781029ce111
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 1 18:07:33 2022 +0000
+
+    Revert "runtime: convert ncgocall to atomic type"
+    
+    This reverts CL 426075.
+    
+    Reason for revert: Import missing from cgocall.go.
+    
+    Change-Id: Iac17e914045b83da30484dbe2a624cde526fb175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427614
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/cgocall.go | 2 +-
+ src/runtime/debug.go   | 2 +-
+ src/runtime/proc.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

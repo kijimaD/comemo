@@ -1,0 +1,16 @@
+commit 2500ac20c0cfc38e84d9ac75771c881952ed8070
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:36:33 2019 +0000
+
+    image: add missing error check in test
+    
+    Change-Id: Ia42a4a658e4207cc1f036f2faeac011e71edad77
+    GitHub-Last-Rev: b384f81799fcd404f53647d8a3015487ea240c6f
+    GitHub-Pull-Request: golang/go#30012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160436
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/decode_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

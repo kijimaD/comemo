@@ -1,0 +1,25 @@
+commit 1647896aa227d8546de3dbe70a5049eecee964e3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 4 13:05:23 2025 -0700
+
+    cmd/compile: on 32-bit, bump up align for values that may contain 64-bit fields
+    
+    On 32-bit systems, these need to be aligned to 8 bytes, even though the
+    typechecker doesn't tell us that.
+    
+    The 64-bit allocations might be the target of atomic operations
+    that require 64-bit alignment.
+    
+    Fixes 386 longtest builder.
+    
+    Fixes #73173
+    
+    Change-Id: I68f6a4f40c7051d29c57ecd560c8d920876a56a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go       | 36 ++++++++++++++++++++++------
+ src/cmd/compile/internal/test/locals_test.go | 19 ++++++++++++++-
+ 2 files changed, 47 insertions(+), 8 deletions(-)

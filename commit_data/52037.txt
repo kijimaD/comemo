@@ -1,0 +1,23 @@
+commit ed33ae10a011c85f51be2c970f52d769722b0ec7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 21 10:14:20 2023 -0800
+
+    debug/macho: use saferio to read symbol table strings
+    
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
+    
+    For #47653
+    Fixes #58603
+    
+    Change-Id: I67fc45365c1a5b0b4b381f541bf2fee8ce8ddc3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/macho/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

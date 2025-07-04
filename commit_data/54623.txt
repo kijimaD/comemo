@@ -1,0 +1,23 @@
+commit 36ecff0893e8f30c2ff659acf8c62401f4dcebf7
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 18 17:14:03 2023 -0500
+
+    cmd/internal/obj/ppc64: generate small, shifted constants in register
+    
+    Check for shifted 16b constants, and transform them to avoid the load
+    penalty. This should be much faster than loading, and reduce binary
+    size by reducing the constant pool size.
+    
+    Change-Id: I6834e08be7ca88e3b77449d226d08d199db84299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531119
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 18 +++++++++++++-----
+ src/cmd/internal/obj/ppc64/obj9.go        | 30 +++++++++++++++++++++++-------
+ test/codegen/constants.go                 | 25 +++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 12 deletions(-)

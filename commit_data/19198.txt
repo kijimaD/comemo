@@ -1,0 +1,19 @@
+commit c45392bae0332e1407c4468ee35a5176651b03fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 17 13:28:40 2014 -0700
+
+    net: fix probabilities in DNS SRV shuffleByWeight
+    
+    Patch from msolo. Just moving it to a CL.
+    The test fails before and passes with the fix.
+    
+    Fixes #7098
+    
+    LGTM=msolo, rsc
+    R=rsc, iant, msolo
+    CC=golang-codereviews
+    https://golang.org/cl/88900044
+
+ src/pkg/net/dnsclient.go      |  4 +--
+ src/pkg/net/dnsclient_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 2 deletions(-)

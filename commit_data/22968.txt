@@ -1,0 +1,16 @@
+commit e92a7247faee31985680f110ff429df484963487
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 11 10:38:24 2015 -0700
+
+    fmt: skip malloc test under race detector
+    
+    Fixes #10778.
+    
+    Change-Id: I09aab55dec429ec4a023e5ad591b929563cef0d9
+    Reviewed-on: https://go-review.googlesource.com/9855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/fmt_test.go    | 8 +++++---
+ src/fmt/norace_test.go | 9 +++++++++
+ src/fmt/race_test.go   | 9 +++++++++
+ 3 files changed, 23 insertions(+), 3 deletions(-)

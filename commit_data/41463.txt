@@ -1,0 +1,18 @@
+commit 75619d199f88bc4d411cefcf5735cbbff78d1ae2
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Wed Feb 26 18:19:18 2020 +0000
+
+    bytes: deflake TestGrow by using testing.AllocsPerRun
+    
+    Fixes #36695
+    
+    Change-Id: I4392246015252018b49f321a5a839cc68cc611d7
+    GitHub-Last-Rev: c2fb1f7ddbe9b80059eed69f31781abe0a1db185
+    GitHub-Pull-Request: golang/go#36732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216237
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer_test.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

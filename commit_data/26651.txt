@@ -1,0 +1,61 @@
+commit b64f549ba95fb9115afb1db8ae594b9442c45a6e
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 30 14:14:00 2016 -0400
+
+    cmd/compile: ignore OXXX nodes in closure captured vars list
+    
+    Added a debug flag "-d closure" to explain compilation of
+    closures (should this be done some other way? Should we
+    rewrite the "-m" flag to "-d escapes"?)  Used this to
+    discover that cause was an OXXX node in the captured vars
+    list, and in turn noticed that OXXX nodes are explicitly
+    ignored in all other processing of captured variables.
+    
+    Couldn't figure out a reproducer, did verify that this OXXX
+    was not caused by an unnamed return value (which is one use
+    of these).  Verified lack of heap allocation by examining -S
+    output.
+    
+    Assembly:
+    (runtime/mgc.go:1371) PCDATA $0, $2
+    (runtime/mgc.go:1371) CALL "".notewakeup(SB)
+    (runtime/mgc.go:1377) LEAQ "".gcBgMarkWorker.func1·f(SB), AX
+    (runtime/mgc.go:1404) MOVQ AX, (SP)
+    (runtime/mgc.go:1404) MOVQ "".autotmp_2242+88(SP), CX
+    (runtime/mgc.go:1404) MOVQ CX, 8(SP)
+    (runtime/mgc.go:1404) LEAQ go.string."GC worker (idle)"(SB), AX
+    (runtime/mgc.go:1404) MOVQ AX, 16(SP)
+    (runtime/mgc.go:1404) MOVQ $16, 24(SP)
+    (runtime/mgc.go:1404) MOVB $20, 32(SP)
+    (runtime/mgc.go:1404) MOVQ $0, 40(SP)
+    (runtime/mgc.go:1404) PCDATA $0, $2
+    (runtime/mgc.go:1404) CALL "".gopark(SB)
+    
+    Added a check for compiling_runtime to ensure that this is
+    caught in the future.  Added a test to test the check.
+    Verified that 1.5.3 did NOT reject the test case when
+    compiled with -+ flag, so this is not a recently added bug.
+    
+    Cause of bug is two-part -- there was no leaking closure
+    detection ever, and instead it relied on capture-of-variables
+    to trigger compiling_runtime test, but closures improved in
+    1.5.3 so that mere capture of a value did not also capture
+    the variable, which thus allowed closures to escape, as well
+    as this case where the escape was spurious.  In
+    fixedbugs/issue14999.go, compare messages for f and g;
+    1.5.3 would reject g, but not f.  1.4 rejects both because
+    1.4 heap-allocates parameter x for both.
+    
+    Fixes #14999.
+    
+    Change-Id: I40bcdd27056810628e96763a44f2acddd503aee1
+    Reviewed-on: https://go-review.googlesource.com/21322
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 34 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/main.go    | 10 ++++++----
+ src/cmd/compile/internal/gc/sinit.go   |  7 ++++++-
+ test/fixedbugs/issue14999.go           | 18 ++++++++++++++++++
+ 4 files changed, 63 insertions(+), 6 deletions(-)

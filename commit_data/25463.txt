@@ -1,0 +1,14 @@
+commit d02193c628c1b442909950f310362d9e7b66e94a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:51:01 2016 -0500
+
+    doc: document linux/ppc64 kernel requirement (2.6.37 or later)
+    
+    Fixes #13269.
+    
+    Change-Id: I960d1825bda9d8873c2a9005872c45e4c7d30111
+    Reviewed-on: https://go-review.googlesource.com/18339
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

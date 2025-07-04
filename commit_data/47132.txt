@@ -1,0 +1,25 @@
+commit 30b5d6385e91ab557978c0024a9eb90e656623b7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 15 09:48:31 2021 -0400
+
+    crypto/elliptic: move P-521 group logic to internal/nistec
+    
+    This abstracts the clunky and not constant time math/big elliptic.Curve
+    compatibility layer away from the pure fiat-backed group logic.
+    
+    Change-Id: I3b7a7495034d0c569b21c442ae36958763b8b2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320074
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+
+ src/crypto/elliptic/elliptic.go                  |   9 +-
+ src/crypto/elliptic/elliptic_test.go             |  35 +++
+ src/crypto/elliptic/internal/fiat/p521.go        |  24 +-
+ src/crypto/elliptic/internal/fiat/p521_test.go   |   2 +-
+ src/crypto/elliptic/internal/nistec/p521.go      | 306 ++++++++++++++++++++
+ src/crypto/elliptic/internal/nistec/p521_test.go |  44 +++
+ src/crypto/elliptic/p521.go                      | 346 +++++++----------------
+ src/go/build/deps_test.go                        |   1 +
+ 8 files changed, 517 insertions(+), 250 deletions(-)

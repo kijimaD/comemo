@@ -1,0 +1,16 @@
+commit 67d40873adec0b70555840b2ef93e01716fe0730
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Mon Apr 20 18:43:29 2020 +0800
+
+    cmd/compile: adjust MIPS64x rewrite rules to use typed aux fields
+    
+    Pass toolstash-check
+    
+    Change-Id: I673c9a24bf69c09573be5aeddbd6072ef35d2d83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228937
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  814 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 1164 ++++++++++++-------------
+ 2 files changed, 989 insertions(+), 989 deletions(-)

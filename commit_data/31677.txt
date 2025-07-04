@@ -1,0 +1,24 @@
+commit 2cb3d1d8936b2aa009edbde7696dde48961c77b3
+Author: Tom Bergan <tombergan@google.com>
+Date:   Fri May 26 10:05:38 2017 -0700
+
+    net/http: update bundled x/net/http2
+    
+    This updates the bundled copy of x/net/http2 to x/net git rev
+    3470a06c1357df53 for:
+    
+    http2: fix typo in comment
+    https://golang.org/cl/44271
+    
+    http2: fix nil dereference after Read completes with an error
+    https://golang.org/cl/44330
+    
+    Fixes #20501
+    
+    Change-Id: Ie6a5fb092f77044f504f146721dae86299e04011
+    Reviewed-on: https://go-review.googlesource.com/44331
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

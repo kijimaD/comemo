@@ -1,0 +1,24 @@
+commit 49c688e45c9bb8782b3db4df9dcaf163a4965f6d
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 11:16:50 2021 -0400
+
+    cmd/compile/internal/types2: rename TypeParams to TParamList
+    
+    The 'TypeParams' name is too easily confused with the singular
+    'TypeParam', and does not say anything about what type of collection it
+    is. We decided that TTuple was not great. TParamList seems OK for now,
+    though perhaps a better name will emerge.
+    
+    Change-Id: I5eabdc91b1f666bb4c7ea8acdbebf7c372d19227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341861
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go     |  4 ++--
+ src/cmd/compile/internal/types2/decl.go      |  2 +-
+ src/cmd/compile/internal/types2/named.go     |  6 +++---
+ src/cmd/compile/internal/types2/signature.go |  8 ++++----
+ src/cmd/compile/internal/types2/typeparam.go | 14 +++++++-------
+ 5 files changed, 17 insertions(+), 17 deletions(-)

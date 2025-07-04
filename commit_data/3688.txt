@@ -1,0 +1,11 @@
+commit eef3fbb83ee0d654fbd3545bcd7e1734c3807ac9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 05:20:30 2009 -0800
+
+    more file patterns to ignore
+    
+    R=r
+    http://go/go-review/1016014
+
+ .hgignore | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

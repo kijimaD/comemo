@@ -1,0 +1,13 @@
+commit 34139ee155e303e13b8a648965840dd9ed907b4e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 11:08:51 2011 -0800
+
+    testing: fix wording in explanation of potential bug
+    TBR=rsc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5504075
+
+ src/pkg/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

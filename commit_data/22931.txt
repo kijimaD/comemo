@@ -1,0 +1,19 @@
+commit b6e178ed7ee4781020b5e2d2dbc5346e8de42ee2
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed May 6 15:58:20 2015 -0400
+
+    runtime: set heap minimum default based on GOGC
+    
+    Currently the heap minimum is set to 4MB which prevents our ability to
+    collect at every allocation by setting GOGC=0. This adjust the
+    heap minimum to 4MB*GOGC/100 thus reenabling collecting at every allocation.
+    Fixes #10681
+    
+    Change-Id: I912d027dac4b14ae535597e8beefa9ac3fb8ad94
+    Reviewed-on: https://go-review.googlesource.com/9814
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go      | 17 ++++++++++++++++-
+ src/runtime/runtime1.go | 12 ------------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

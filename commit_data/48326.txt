@@ -1,0 +1,24 @@
+commit c3c74777bc5dcd351af6dc4811011241efe07d21
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 8 14:55:26 2022 +0100
+
+    runtime, syscall: implement syscall.Pipe using syscall.Pipe2 on solaris
+    
+    All other platforms providing the pipe2 syscall already implement it
+    that way. Do so as well on solaris, which allows to drop
+    runtime.syscall_pipe and its dependencies as well.
+    
+    Change-Id: Icf04777f21d1804da74325d173fefdc87caa42eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390716
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os3_solaris.go      |  3 ---
+ src/runtime/sys_solaris_amd64.s | 12 ------------
+ src/runtime/syscall_solaris.go  | 18 ------------------
+ src/syscall/asm_solaris_amd64.s |  3 ---
+ src/syscall/syscall_solaris.go  | 14 +-------------
+ 5 files changed, 1 insertion(+), 49 deletions(-)

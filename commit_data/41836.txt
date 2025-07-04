@@ -1,0 +1,17 @@
+commit 3103495fa9bb166c9d0c56fbf3cd2146f32aef57
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Mar 6 08:44:23 2020 +0000
+
+    runtime: eliminate redundant load in Xchg and Xadd on arm64
+    
+    Loading arguments of Xchg(64) and Xadd(64) functions to registers
+    could be done only once.
+    
+    Change-Id: Iaf0a695ec9c6a221dfa755855edb68c476978a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227001
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/atomic_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

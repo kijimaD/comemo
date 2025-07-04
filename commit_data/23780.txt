@@ -1,0 +1,19 @@
+commit d70943431397b297fe00c114dd3e97376277f09a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 20:05:37 2015 -0400
+
+    cmd/go: fix missing internal import error
+    
+    Fixes #11331.
+    
+    Change-Id: I19b8172421044c301bc136fc8f7bfdadbf880e25
+    Reviewed-on: https://go-review.googlesource.com/12450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/go_test.go                                   | 8 ++++++++
+ src/cmd/go/pkg.go                                       | 8 +++++++-
+ src/cmd/go/testdata/testinternal4/src/p/p.go            | 6 ++++++
+ src/cmd/go/testdata/testinternal4/src/q/internal/x/x.go | 1 +
+ src/cmd/go/testdata/testinternal4/src/q/j/j.go          | 3 +++
+ 5 files changed, 25 insertions(+), 1 deletion(-)

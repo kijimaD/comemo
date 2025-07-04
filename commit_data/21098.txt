@@ -1,0 +1,15 @@
+commit 0668b595b604a4bd3e5327bd14ffd71cfa7dbc68
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Dec 27 11:53:09 2014 +0100
+
+    strconv/itoa: add test to generate the longest output string possible by formatBits
+    
+    The new test case produces the longest string representation possible and thereby uses
+    all of the 65 bytes in the buffer array used by the formatBits function.
+    
+    Change-Id: I11320c4de56ced5ff098b7e37f1be08e456573e2
+    Reviewed-on: https://go-review.googlesource.com/2108
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/itoa_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,20 @@
+commit 29d7e5472be79b77f39d81b697d44038179ba1a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 22 15:21:29 2021 -0700
+
+    go/types: report argument type for unsafe.OffsetOf
+    
+    This is a clean port of CL 344252 to go/types.
+    
+    For #47895.
+    
+    Change-Id: I48cbb97ec28fcfb4fdf483594be9d29426c117ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344254
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/go/types/api_test.go | 3 +++
+ src/go/types/builtins.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

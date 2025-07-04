@@ -1,0 +1,28 @@
+commit a9705e157beb51574233e23cc2e2a412d4681a15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 10:02:01 2021 -0700
+
+    cmd/compile/internal/types2: slice-to-array-pointer conversion requires go1.17
+    
+    Add missing version check. Even though this is a new types2 error
+    we separate between the compiler and the types2 error message: we
+    have the compiler error message to match the compiler style, and
+    we have a types2-specific error message to match the types2 style
+    for these kinds of errors (for now).
+    
+    Eventually we need to decide which style we like better and clean
+    this up.
+    
+    Follow-up on https://golang.org/cl/301650.
+    
+    Updates #395.
+    
+    Change-Id: I5b779f345994c66b1f4a4db466466f98b7d3c491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315169
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go          | 17 ++++++++++++++---
+ src/cmd/compile/internal/types2/decl.go                 |  2 +-
+ .../compile/internal/types2/testdata/check/go1_16.src   | 13 +++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

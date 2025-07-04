@@ -1,0 +1,12 @@
+commit e4feb18fc2aa7618d612e9f4eedb86821240c20b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 23 12:21:02 2015 -0400
+
+    math/big: fix SetMantExp comment
+    
+    Change-Id: If30cf9c94b58e18564db46c15c6f5cc14ec1a6fa
+    Reviewed-on: https://go-review.googlesource.com/16271
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

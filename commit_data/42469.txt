@@ -1,0 +1,16 @@
+commit 76f233fe045788e71b7460ea82947e4bda6d76ff
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 09:48:44 2020 -0400
+
+    doc/go1.15: exclude spaces from <code> block
+    
+    Per the note at the top of go1.15.html.
+    
+    Updates #37419.
+    
+    Change-Id: Ia6917347ca1e3ebe8c55f9c0ec74e49ff481a64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236719
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

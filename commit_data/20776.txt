@@ -1,0 +1,18 @@
+commit 5361b747b732cf6cf183591b7a66b83fb6fab29f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 23 09:45:11 2014 -0700
+
+    spec: minimal documention of unsafe.Pointer conversions
+    
+    Per suggestion from rsc as a result of the dicussion of
+    (abandoned) CL 153110044.
+    
+    Fixes #7192.
+    
+    LGTM=r, rsc, iant
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/163050043
+
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

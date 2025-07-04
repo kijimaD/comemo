@@ -1,0 +1,15 @@
+commit 607493bed678cbf3a456e9de8e7e74622ec83da8
+Author: smileeye <franksnolf@gmail.com>
+Date:   Tue Apr 9 22:47:38 2019 +0800
+
+    cmd/asm/internal/arch: improve the comment of function IsMIPSMUL
+    
+    The check of MADD&MSUB was added to the function IsMIPSMUL in
+    a previous commit, and the comments should also be updated.
+    
+    Change-Id: I2d3da055d55b459b908714c542dff99ab5c6cf99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171102
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/mips.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

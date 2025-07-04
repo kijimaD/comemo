@@ -1,0 +1,23 @@
+commit 93eded02976e1bdfaddf3403fa415393f5b90378
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 11 14:35:29 2018 +0200
+
+    internal/syscall/unix, net: improve interface_aix.go
+    
+    This commit improves the interface_aix.go file, based on feedbacks about
+    CL 138724.
+    
+    To retrieve MTU, ioctl is needed. It's implemented inside
+    internal/syscall/unix.
+    
+    Change-Id: Ic583d26b93935a32a5f1eb5a2170b86e80a4a85e
+    Reviewed-on: https://go-review.googlesource.com/c/142157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                 |  2 +-
+ src/internal/syscall/unix/asm_aix_ppc64.s | 12 ++++++++++++
+ src/internal/syscall/unix/ioctl_aix.go    | 25 +++++++++++++++++++++++++
+ src/net/interface_aix.go                  | 30 ++++++++++++++++++++++++------
+ 4 files changed, 62 insertions(+), 7 deletions(-)

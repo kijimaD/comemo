@@ -1,0 +1,16 @@
+commit 1b6d55acab9199e09f9134ff3ac359647767f741
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 21 16:45:36 2016 -0500
+
+    cmd/internal/obj/mips, cmd/internal/obj: reduce MIPS register space
+    
+    Change-Id: I43458ce0e78ffc3d0943d28dc8df8e1c9e4cf679
+    Reviewed-on: https://go-review.googlesource.com/18821
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/mips/a.out.go | 6 ++++--
+ src/cmd/internal/obj/mips/list0.go | 2 +-
+ src/cmd/internal/obj/util.go       | 2 +-
+ 3 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 76dd01f45786757a08f1e070245d174cd64559be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 20 13:12:43 2021 -0700
+
+    cmd/compile/internal/types2: reduce output when describing type parameters
+    
+    There's no need to say "type parameter" for a type parameter. The
+    name is sufficient (they are always named), and the prose is followed
+    by "constrained by".
+    
+    Change-Id: I98df8caa1432b8b7a874e58da6e3ed6be102b4a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357410
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/operand.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

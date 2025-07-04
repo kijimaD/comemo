@@ -1,0 +1,24 @@
+commit 68170aa677b9fc70ce3d0fc152354e0a7e63c8cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 26 16:42:15 2018 -0400
+
+    cmd/go: forbid use of one module with two different paths
+    
+    If a single module is imported via two different paths (e.g., as itself and as a
+    replacement for something else), some users may be surprised if the two paths
+    do not share the same package-level state. Others may be surprised if the two
+    paths do share state.
+    
+    Punt on the question for now by rejecting that condition explicitly.
+    
+    Fixes #26607.
+    
+    Change-Id: I15c3889f61f8dd4ba5e5c48ca33ad63aeecac04e
+    Reviewed-on: https://go-review.googlesource.com/126156
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/load.go        | 19 +++++++
+ src/cmd/go/testdata/script/mod_replace.txt | 89 ++++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+)

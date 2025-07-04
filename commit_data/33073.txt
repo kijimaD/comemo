@@ -1,0 +1,20 @@
+commit 1fbeccb15a56957919e087639e255b4df64062f1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 27 11:30:10 2017 +0100
+
+    cmd/compile: deduplicate a few lines in swt.go
+    
+    Noticed while reading some code that the two branches in this loop body
+    shared the last statements. Rewrite it in a way that they are not
+    duplicated.
+    
+    Passes toolstash -cmp on std.
+    
+    Change-Id: I3356ca9fa37c32eee496e221d7830bfc581dade1
+    Reviewed-on: https://go-review.googlesource.com/66470
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

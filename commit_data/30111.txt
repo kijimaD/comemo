@@ -1,0 +1,23 @@
+commit 56c9b51b937cca7d3db517add96bd9517bbffb80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 15:43:56 2017 -0800
+
+    spec: introduce alias declarations and type definitions
+    
+    To avoid confusion caused by the term "named type" (which now just
+    means a type with a name, but formerly meant a type declared with
+    a non-alias type declaration), a type declaration now comes in two
+    forms: alias declarations and type definitions. Both declare a type
+    name, but type definitions also define new types.
+    
+    Replace the use of "named type" with "defined type" elsewhere in
+    the spec.
+    
+    For #18130.
+    
+    Change-Id: I49f5ddacefce90354eb65ee5fbf10ba737221995
+    Reviewed-on: https://go-review.googlesource.com/36213
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 159 ++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 109 insertions(+), 50 deletions(-)

@@ -1,0 +1,12 @@
+commit fbdec642a980d73cdd7dbfd18018f18c6d198ffc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 29 12:57:20 2011 +1100
+
+    runtime: make sure windows/amd64 stack is 16-byte aligned on syscall entry (fixes build)
+    
+    R=golang-dev, vcc.163
+    CC=golang-dev
+    https://golang.org/cl/5445051
+
+ src/pkg/runtime/windows/amd64/sys.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

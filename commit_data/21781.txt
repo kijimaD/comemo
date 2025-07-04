@@ -1,0 +1,16 @@
+commit d68f52aa43d7f22df7f68052915fc3d386120c9f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 27 17:40:34 2015 +0900
+
+    cmd/internal/gc: restore mkbuiltin
+    
+    Change-Id: I6cc4061fef9d3c3530406ab3d4811192b7175e89
+    Reviewed-on: https://go-review.googlesource.com/6233
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/builtin.go          | 166 ++++++++++++++++++++++++++-
+ src/cmd/internal/gc/builtins/runtime.go | 191 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/builtins/unsafe.go  |  18 +++
+ src/cmd/internal/gc/lex.go              |   1 +
+ src/cmd/internal/gc/mkbuiltin.go        | 104 +++++++++++++++++
+ 5 files changed, 477 insertions(+), 3 deletions(-)

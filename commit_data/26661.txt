@@ -1,0 +1,39 @@
+commit 00e5a68c3e948f734c3811051a4bc05f2cc515e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 1 13:36:24 2016 -0700
+
+    cmd/compile: more Isfoo Type cleanups
+    
+    Replace isideal(t) with t.IsUntyped().
+    Replace Istype(t, k) with t.IsKind(k).
+    Replace isnilinter(t) with t.IsEmptyInterface().
+    
+    Also replace a lot of t.IsKind(TFOO) with t.IsFoo().
+    
+    Replacements prepared mechanically with gofmt -w -r.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Iba48058f3cc863e15af14277b5ff5e729e67e043
+    Reviewed-on: https://go-review.googlesource.com/21424
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go       |  2 +-
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/cgen.go      |  8 ++++----
+ src/cmd/compile/internal/gc/const.go     | 16 ++++++++--------
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  4 ++--
+ src/cmd/compile/internal/gc/racewalk.go  |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      | 27 ++-------------------------
+ src/cmd/compile/internal/gc/swt.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/type.go      | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++--------
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 17 files changed, 72 insertions(+), 70 deletions(-)

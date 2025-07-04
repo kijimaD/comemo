@@ -1,0 +1,20 @@
+commit d078d483ce87b4311f79e988a0b609d3c53d3cb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 7 12:33:19 2014 -0400
+
+    go/build: look in $GOROOT/src/cmd/foo/bar for import cmd/foo/bar
+    
+    This lets us have non-main packages like cmd/internal or cmd/nm/internal/whatever.
+    
+    The src/pkg migration (see golang.org/s/go14mainrepo) will allow this
+    as a natural side effect. The explicit change here just allows use of the
+    effect a little sooner.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/117630043
+
+ src/pkg/go/build/build.go      |  7 ++++++-
+ src/pkg/go/build/build_test.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

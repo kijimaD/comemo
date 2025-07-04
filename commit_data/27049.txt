@@ -1,0 +1,20 @@
+commit 7c6b48ffba9e0ea8ed846d194fe30189863f17f0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 18 12:21:51 2016 -0400
+
+    cmd/compile/internal/arm: fix comparison & conditional branch for SSA on ARM
+    
+    Progress on SSA for ARM. Still not complete. Now Fibonacci function compiles
+    and runs correctly.
+    
+    The old backend swaps the operands for CMP instruction. This CL does the same
+    on SSA backend, and uses conditional branch accordingly.
+    
+    Updates #15365.
+    
+    Change-Id: I117e17feb22f03d936608bd232f76970e4bbe21a
+    Reviewed-on: https://go-review.googlesource.com/22187
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/arm/ssa.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

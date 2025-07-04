@@ -1,0 +1,13 @@
+commit 9b85d499af923165e643ebb3384e0dd4baff2b38
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 11 16:20:31 2011 -0500
+
+    syscall: remove obsolete socket IO control
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4183046
+
+ src/pkg/syscall/zerrors_linux_386.go   | 1 -
+ src/pkg/syscall/zerrors_linux_amd64.go | 1 -
+ 2 files changed, 2 deletions(-)

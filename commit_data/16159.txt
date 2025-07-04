@@ -1,0 +1,22 @@
+commit 548c65a568e14490f1a6b80e92c175e2410ddf20
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 11 11:33:25 2013 -0700
+
+    spec: add another sentence about BOMs
+    Although one may argue that they should be legal, gc (at least)
+    disallows byte order marks that are not the first code point
+    in the file. Added a sentence to the "Implementation restriction"
+    clause in the "Source code representation" section to document
+    this better.
+    
+    Lifting this restriction (again - the rule has changed at least
+    twice already) would not break any existing programs, should
+    we later decide yet again to fiddle the rules about these little
+    fly specks.
+    
+    R=golang-dev, dsymonds, gri
+    CC=golang-dev
+    https://golang.org/cl/8649043
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

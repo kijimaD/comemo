@@ -1,0 +1,14 @@
+commit c8b1f85493f9d1d141dd33cb88dfd435e17222b5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 8 08:53:08 2012 +1100
+
+    encoding/gob: fix memory corruption
+    Fixes #3175.
+    
+    R=golang-dev, iant, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5758069
+
+ src/pkg/encoding/gob/decode.go         |  3 +++
+ src/pkg/encoding/gob/gobencdec_test.go | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)

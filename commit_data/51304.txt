@@ -1,0 +1,27 @@
+commit 80c5bbc627a37929ea571e99f0f15cb059fdaf70
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 15 18:43:56 2022 +0100
+
+    crypto/x509: add support for PKCS8/PKIX X25519 key encodings
+    
+    This specifically doesn't add support for X25519 certificates.
+    Refactored parsePublicKey not to depend on the public PublicKeyAlgorithm
+    values, and ParseCertificate/ParseCertificateRequest to ignore keys that
+    don't have a PublicKeyAlgorithm even if parsePublicKey supports them.
+    
+    Updates #56088
+    
+    Change-Id: I2274deadfe9bb592e3547c0d4d48166de1006df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450815
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/parser.go     | 46 +++++++++++++++---------
+ src/crypto/x509/pkcs8.go      | 34 +++++++++++++++---
+ src/crypto/x509/pkcs8_test.go | 11 ++++++
+ src/crypto/x509/x509.go       | 84 +++++++++++++++++++++++++------------------
+ src/crypto/x509/x509_test.go  | 15 ++++++++
+ 5 files changed, 135 insertions(+), 55 deletions(-)

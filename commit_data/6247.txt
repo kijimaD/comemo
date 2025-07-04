@@ -1,0 +1,17 @@
+commit a4514c42ddda3d101fead04c0783182e2fd49cd0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 23:41:12 2010 -0400
+
+    http: check https certificate against host name
+    
+    Fixes #1093.
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/2115045
+
+ src/pkg/crypto/tls/conn.go       |  7 +++++++
+ src/pkg/crypto/x509/x509.go      | 28 +++++++++++++++++++++++-----
+ src/pkg/crypto/x509/x509_test.go |  4 ++--
+ src/pkg/http/client.go           | 16 +++++++++++++---
+ 4 files changed, 45 insertions(+), 10 deletions(-)

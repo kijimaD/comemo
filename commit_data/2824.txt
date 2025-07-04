@@ -1,0 +1,22 @@
+commit 2946069e3f8e82122882b220da6527461e711dda
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 14:49:01 2009 -0700
+
+    break and continue fixes
+    
+    labeled break/continue was using
+    first loop with any label,
+    not first loop with the right label.
+    
+    R=ken
+    OCL=32453
+    CL=32458
+
+ src/cmd/6g/gobj.c                  |  2 ++
+ src/cmd/8g/gobj.c                  |  2 ++
+ src/cmd/gc/gen.c                   | 55 +++++++++++++++++++-------------------
+ test/{bugs => fixedbugs}/bug136.go |  0
+ test/fixedbugs/bug178.go           | 27 +++++++++++++++++++
+ test/fixedbugs/bug179.go           | 24 +++++++++++++++++
+ test/golden.out                    |  6 ++---
+ 7 files changed, 85 insertions(+), 31 deletions(-)

@@ -1,0 +1,17 @@
+commit f524a2baa4aca9e603fbf3891951b53b497dc0a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 8 13:11:09 2022 -0800
+
+    builtin: clarify that interface types do not implement comparable
+    
+    Fixes #51083
+    
+    Change-Id: Ic9207ae4104b06749925186e0eb4f18edf1b5007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384235
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/builtin/builtin.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

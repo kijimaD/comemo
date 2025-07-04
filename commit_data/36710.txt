@@ -1,0 +1,17 @@
+commit ae37f5a39721e5cd6177fec4a9c6e32a86c07376
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 15:55:36 2018 -0700
+
+    cmd/compile: fix error message for &T{} literal mismatch
+    
+    See the change and comment in typecheck.go for a detailed explanation.
+    
+    Fixes #26855.
+    
+    Change-Id: I7867f948490fc0873b1bd849048cda6acbc36e76
+    Reviewed-on: https://go-review.googlesource.com/136395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++++++
+ test/fixedbugs/issue26855.go             | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

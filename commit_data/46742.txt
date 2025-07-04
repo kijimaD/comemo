@@ -1,0 +1,19 @@
+commit 7e69c5decf0b95ce2856769b9798c3a1cf3078ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 5 10:29:21 2021 -0700
+
+    cmd/compile/internal/types2: implement generic slice expressions
+    
+    For now, the constraint's underlying type set must be a single
+    type that is sliceable.
+    
+    Change-Id: I08b6a2e88fe35e8238a95b3f40dc969689021a0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354070
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/types2/index.go                      | 7 +------
+ src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 8 ++++++--
+ 2 files changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,23 @@
+commit 928bda4f4a88efe2e53f3607e8d2ad0796b449c0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 16 04:38:50 2021 +1100
+
+    runtime: convert openbsd/amd64 locking to libc
+    
+    Switch openbsd/amd64 to locking via libc, rather than performing direct
+    system calls.
+    
+    Update #36435
+    
+    Change-Id: I5e92bd70ce557b78ff385577088a9775cc468ea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270378
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/os_openbsd.go          |  8 --------
+ src/runtime/os_openbsd_syscall1.go | 15 ++++++++++++++
+ src/runtime/sys_openbsd1.go        | 34 ++++++++++++++++++++++++++++++++
+ src/runtime/sys_openbsd_amd64.s    | 40 +++++++++++++++++++++-----------------
+ 4 files changed, 71 insertions(+), 26 deletions(-)

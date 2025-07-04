@@ -1,0 +1,24 @@
+commit 46b2fc05a2681a9dd3b606176e738d786b0c2176
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 11 17:31:36 2021 +0000
+
+    runtime: adjust TestPhysicalMemoryUtilization to handle large page sizes
+    
+    Currently TestPhysicalMemoryUtilization can fail on systems with large
+    physical page sizes like 64 KiB because all the of the holes to be
+    scavenged are not aligned to the page size. The holes themselves are 64
+    KiB so this is actually quite likely.
+    
+    Bump the size of the allocations for systems with larger physical page
+    sizes, and add additional slack to the threshold for unaligned pieces of
+    the holes that may be unaligned.
+    
+    Fixes #49411.
+    
+    Change-Id: Iafb35b8761dc9cdc53d3745c4771b1a64c5c97b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363415
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/testdata/testprog/gc.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

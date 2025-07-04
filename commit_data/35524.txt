@@ -1,0 +1,19 @@
+commit b65934f237f80242a907c46ef9cf103ad6959e9f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue May 29 17:10:39 2018 +0200
+
+    cmd/go: whitelist -v as a compiler and linker flag
+    
+    It's harmless, and can be useful to see what's happening under the hood.
+    
+    Fixes #24593.
+    
+    Change-Id: Iacff378471e86c33aa048161cd65c504709fb339
+    Reviewed-on: https://go-review.googlesource.com/115075
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 2 ++
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

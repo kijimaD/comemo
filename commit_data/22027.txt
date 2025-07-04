@@ -1,0 +1,12 @@
+commit 6900a421a4fd1957dc63c5a7337a92e7ead4d62d
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Mar 15 17:32:20 2015 +1100
+
+    sync/atomic: add support for openbsd/arm
+    
+    Change-Id: I45383de6d627be35f40e07a9008b6773f5c2b0d0
+    Reviewed-on: https://go-review.googlesource.com/7613
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/sync/atomic/asm_openbsd_arm.s | 100 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)

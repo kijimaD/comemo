@@ -1,0 +1,15 @@
+commit 215777b332b9ccf167ef90e2bdd3d241021eb791
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 22 19:08:19 2012 +0900
+
+    net: replace error variable name oserr with err
+    
+    This CL replaces the last two in source tree.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5685080
+
+ src/pkg/net/ipsock_posix.go   | 11 +++++------
+ src/pkg/net/unixsock_posix.go |  6 +++---
+ 2 files changed, 8 insertions(+), 9 deletions(-)

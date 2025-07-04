@@ -1,0 +1,21 @@
+commit ba6fe5172d5dbd604ef6f535ce54fc70f0c0d1d5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 15:52:34 2023 -0700
+
+    spec: clarify that []byte("") must be non-nil
+    
+    The example text below suggests that []byte("") always evaluates to
+    the non-nil value []byte{}, but the text proper doesn't explicitly
+    require that. This CL makes it clear that it must not evaluate to
+    []byte(nil), which otherwise was allowed by the wording.
+    
+    Change-Id: I6564bfd5e2fd0c820d9b55d17406221ff93ce80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521035
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

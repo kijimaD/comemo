@@ -1,0 +1,17 @@
+commit 5a720d229d5ebc2f8b599aa54a3d807a1d54365f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jul 31 21:43:07 2018 -0700
+
+    cmd/go: fix unnecessary plural
+    
+    "expanded imports paths" should read "expanded import paths." Run
+    mkalldocs.sh to pick up other changes which were not committed to
+    alldocs.go.
+    
+    Change-Id: Iaa61e022d65f9464e8ff93a92cfba27dadf679cf
+    Reviewed-on: https://go-review.googlesource.com/127157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go            | 20 ++++++++++++--------
+ src/cmd/go/internal/list/list.go |  2 +-
+ 2 files changed, 13 insertions(+), 9 deletions(-)

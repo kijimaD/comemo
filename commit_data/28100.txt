@@ -1,0 +1,16 @@
+commit 650c2c173dc8d929d1955045df4fe77c85d4037b
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Tue Aug 9 01:24:22 2016 +0200
+
+    mime/quotedprintable: add examples
+    
+    Partially addresses #16360
+    
+    Change-Id: Ic098d2c465742fb50aee325a3fd0e1d50b7b3c99
+    Reviewed-on: https://go-review.googlesource.com/25575
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/quotedprintable/example_test.go | 37 ++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

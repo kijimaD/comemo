@@ -1,0 +1,34 @@
+commit b0f4ee533a875c258ac1030ee382f0ffe2de304b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 2 20:08:18 2016 +0900
+
+    net: deduplicate TCP socket code
+    
+    This change consolidates functions and methods related to TCPAddr,
+    TCPConn and TCPListener for maintenance purpose, especially for
+    documentation. Also refactors Dial error code paths.
+    
+    The followup changes will update comments and examples.
+    
+    Updates #10624.
+    
+    Change-Id: I3333ee218ebcd08928f9e2826cd1984d15ea153e
+    Reviewed-on: https://go-review.googlesource.com/20009
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dial.go                       |   2 +-
+ src/net/error_test.go                 |   6 +
+ src/net/iprawsock_posix.go            |  14 +-
+ src/net/ipsock_plan9.go               |  22 ++--
+ src/net/sockopt_plan9.go              |   6 +
+ src/net/tcpsock.go                    | 232 ++++++++++++++++++++++++++++++++++
+ src/net/tcpsock_plan9.go              | 198 +++--------------------------
+ src/net/tcpsock_posix.go              | 216 +++----------------------------
+ src/net/tcpsockopt_plan9.go           |   5 +
+ src/net/udpsock_plan9.go              |  10 +-
+ src/net/udpsock_posix.go              |   8 +-
+ src/net/unixsock_posix.go             |   8 +-
+ src/runtime/trace/trace_stack_test.go |   2 +-
+ 13 files changed, 325 insertions(+), 404 deletions(-)

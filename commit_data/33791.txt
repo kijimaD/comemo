@@ -1,0 +1,16 @@
+commit 2ff2eab0d240ec4ccfbc05f17afa8d99c6fbed61
+Author: Christos Zoulas <christos@zoulas.com>
+Date:   Mon Dec 4 23:50:19 2017 +0000
+
+    runtime: fix NetBSD CPU spin in lwp_park when CPU profiling is active
+    
+    Fixes #22981
+    
+    Change-Id: I449eb7b5e022401e80a3ab138063e2f4499fbdf8
+    Reviewed-on: https://go-review.googlesource.com/81855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_netbsd.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

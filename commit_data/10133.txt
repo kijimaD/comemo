@@ -1,0 +1,12 @@
+commit 8a7b2b2f7060427890143fb7263d231acf689bb3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 28 10:55:58 2011 +0900
+
+    doc: A Tour of Go in Japanese
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5318058
+
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

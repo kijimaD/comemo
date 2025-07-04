@@ -1,0 +1,13 @@
+commit a2f5d644d3a2903a82e527e3bca2c4bdff1d0750
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Aug 2 21:58:29 2019 +0530
+
+    doc/go1.13: add release notes for GOWASM environment variable
+    
+    Change-Id: I103a21ae0be8feb9447fa277483b7c2a8b5807e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188540
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ doc/go1.13.html | 5 +++++
+ 1 file changed, 5 insertions(+)

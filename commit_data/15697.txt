@@ -1,0 +1,16 @@
+commit 401e0fea3ad120a495f7c8770cfbf1278c00c16e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 11 22:55:14 2013 +0100
+
+    cmd/gc: reject complex calls with mismatched argument types.
+    
+    The specification says "the two arguments must be of the same
+    floating-point type."
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/7671045
+
+ src/cmd/gc/typecheck.c |  4 ++--
+ test/cmplx.go          | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

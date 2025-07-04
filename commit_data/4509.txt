@@ -1,0 +1,13 @@
+commit a58b69e1d0aa8010c48c0707ee7f84c2d22184b9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 30 08:33:48 2009 +1100
+
+    improve some type switches now that multiple types per case are supported.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181089
+
+ src/pkg/gob/decode.go | 28 +++-------------------------
+ src/pkg/gob/type.go   | 28 +++-------------------------
+ 2 files changed, 6 insertions(+), 50 deletions(-)

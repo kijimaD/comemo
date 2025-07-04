@@ -1,0 +1,20 @@
+commit 4331ab97802c39052f063d7597187563882353aa
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Apr 19 03:19:12 2016 +0200
+
+    net: enable TestDialParallel, TestDialerFallbackDelay and TestDialCancel on Plan 9
+    
+    TestDialParallel, TestDialerFallbackDelay and TestDialCancel
+    require dialTCP to support cancellation, which has been
+    implemented for Plan 9 in CL 22144.
+    
+    Updates #11225.
+    Updates #11932.
+    
+    Change-Id: I3b30a645ef79227dfa519cde8d46c67b72f2485c
+    Reviewed-on: https://go-review.googlesource.com/22203
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

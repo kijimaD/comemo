@@ -1,0 +1,12 @@
+commit df3a841021ed2a983f87fec477017e85268f2ac2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 1 02:22:35 2012 +0800
+
+    doc: elaborate available checks for cmd/vet
+    
+    R=golang-dev, r, ality, r
+    CC=golang-dev
+    https://golang.org/cl/5709053
+
+ src/cmd/vet/doc.go | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

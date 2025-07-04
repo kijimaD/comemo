@@ -1,0 +1,15 @@
+commit 2a5d30fbe71033d76fb4a323c289b527d6b61074
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 17:43:15 2010 -0800
+
+    io: revised Pipe implementation
+    
+    * renamed channels to say what gets sent
+    * use channel closed status instead of racy check of boolean
+    
+    R=nigeltao_golang
+    CC=golang-dev
+    https://golang.org/cl/196065
+
+ src/pkg/io/pipe.go | 102 +++++++++++++++++++++--------------------------------
+ 1 file changed, 41 insertions(+), 61 deletions(-)

@@ -1,0 +1,18 @@
+commit 5b5d3efcf3003de01e0cd8ecb248c9ef72d30b10
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 21 11:25:28 2013 -0500
+
+    crypto/x509: return a better error when we fail to load system roots.
+    
+    R=golang-dev, krautz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7157044
+
+ src/pkg/crypto/x509/root_darwin.go  |  9 ++++----
+ src/pkg/crypto/x509/root_plan9.go   |  6 +++--
+ src/pkg/crypto/x509/root_stub.go    |  1 -
+ src/pkg/crypto/x509/root_unix.go    |  6 +++--
+ src/pkg/crypto/x509/root_windows.go |  1 -
+ src/pkg/crypto/x509/verify.go       | 11 +++++++++
+ src/pkg/crypto/x509/verify_test.go  | 46 +++++++++++++++++++++++++++++++------
+ 7 files changed, 63 insertions(+), 17 deletions(-)

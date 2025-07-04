@@ -1,0 +1,14 @@
+commit c170b14c2c1cfb2fd853a37add92a82fd6eb4318
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Dec 24 16:28:16 2019 +0200
+
+    doc/go1.14: change hash/maphash package link
+    
+    Package name and documentation link were wrong.
+    
+    Change-Id: I274906afc3cf7a3d88e3da76549cd6ab008fd0c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212538
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 3933cb2371d6a0ffbd5d6bb47435bde4006fb917
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 24 08:31:43 2011 -0700
+
+    http: fix Set-Cookie date parsing
+    
+    Fixes #1855
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4527073
+
+ src/pkg/http/cookie.go      | 32 ++++++++++++++++++++++++++------
+ src/pkg/http/cookie_test.go | 15 ++++++++++++++-
+ 2 files changed, 40 insertions(+), 7 deletions(-)

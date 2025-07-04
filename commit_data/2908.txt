@@ -1,0 +1,18 @@
+commit c30d81bd238e928adc6b92f5876f302d9a6e83d3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 7 12:53:51 2009 -0700
+
+    threadring
+    more interesting than most
+    
+    R=rsc
+    DELTA=132  (131 added, 0 deleted, 1 changed)
+    OCL=32876
+    CL=32881
+
+ test/bench/threadring.c   | 102 ++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/threadring.go  |  74 +++++++++++++++++++++++++++++++++
+ test/bench/threadring.txt |   1 +
+ test/bench/timing.log     |   5 +++
+ test/bench/timing.sh      |   9 +++-
+ 5 files changed, 190 insertions(+), 1 deletion(-)

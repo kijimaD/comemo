@@ -1,0 +1,27 @@
+commit 3670337097dbdc6461af7a3ac38fd2dc784dfecd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 8 23:28:53 2013 +0200
+
+    cmd/5c, cmd/5g, cmd/5l: introduce MOVBS and MOVHS instructions.
+    
+    MOVBS and MOVHS are defined as duplicates of MOVB and MOVH,
+    and perform sign-extension moving.
+    No change is made to code generation.
+    
+    Update #1837
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12682043
+
+ src/cmd/5c/peep.c  |  9 +++++++--
+ src/cmd/5c/reg.c   |  2 ++
+ src/cmd/5c/txt.c   | 24 ++++++++++++------------
+ src/cmd/5g/gsubr.c |  3 ++-
+ src/cmd/5g/peep.c  |  7 ++++++-
+ src/cmd/5g/reg.c   |  2 ++
+ src/cmd/5l/5.out.h |  2 ++
+ src/cmd/5l/asm.c   | 20 ++++++++++----------
+ src/cmd/5l/optab.c | 24 ++++++++++++++++++++++++
+ src/cmd/5l/span.c  |  2 ++
+ 10 files changed, 69 insertions(+), 26 deletions(-)

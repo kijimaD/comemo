@@ -1,0 +1,16 @@
+commit 68c69fac9efb9f5e65d2ad0bc9cadd92b0e7a398
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 11 12:48:45 2009 -0700
+
+    - scanner to track line/col number instead of byte position only
+    - fixed a parameter name in tabwriter
+    
+    R=rsc
+    DELTA=110  (21 added, 17 deleted, 72 changed)
+    OCL=26123
+    CL=26127
+
+ src/lib/go/scanner.go          | 120 +++++++++++++++++++++--------------------
+ src/lib/go/scanner_test.go     |  18 ++++---
+ src/lib/tabwriter/tabwriter.go |   4 +-
+ 3 files changed, 73 insertions(+), 69 deletions(-)

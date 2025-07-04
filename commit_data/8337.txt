@@ -1,0 +1,14 @@
+commit 38d7bcf5e2560492cff53729967719394d322cf3
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 8 14:05:18 2011 -0700
+
+    go spec: fix up HTML glitches.
+    
+    Fixes #1786.
+    
+    R=gri, adg
+    CC=golang-dev
+    https://golang.org/cl/4517043
+
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

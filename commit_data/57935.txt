@@ -1,0 +1,22 @@
+commit 745ec75719b8364867e1f5f5c9a711217513800c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 8 16:07:58 2024 -0600
+
+    cmd/compile/internal/ssa: improve carry addition rules on PPC64
+    
+    Fold constant int16 addends for usages of math/bits.Add64(x,const,0)
+    on PPC64. This usage shows up in a few crypto implementations;
+    notably the go wrapper for CL 626176.
+    
+    Change-Id: I6963163330487d04e0479b4fdac235f97bb96889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625899
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 27 +++++++++++++++++++++++++++
+ test/codegen/bits.go                          |  1 +
+ 3 files changed, 29 insertions(+)

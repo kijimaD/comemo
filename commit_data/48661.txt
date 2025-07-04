@@ -1,0 +1,21 @@
+commit 884e75fa53529321352a18538fe9e02fd485c49a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Sat Feb 12 17:03:19 2022 +0800
+
+    reflect: fix the collision of variable name and package name
+    
+    The return value "abi" of func "funcLayout" is the same as package
+    "internal/abi", which currently works fine, but it is more reliable to
+    avoid conflicts.
+    
+    Change-Id: I83715dd79beff7cb3fc25747fef186dc0e2dfa8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385414
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/reflect/makefunc.go | 16 ++++++++--------
+ src/reflect/type.go     | 20 ++++++++++----------
+ src/reflect/value.go    | 24 ++++++++++++------------
+ 3 files changed, 30 insertions(+), 30 deletions(-)

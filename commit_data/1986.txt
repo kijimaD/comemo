@@ -1,0 +1,13 @@
+commit f9854978e24cbe989439330cec63e82aab71e0a3
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Apr 9 19:11:24 2009 -0700
+
+    bug 142
+    order of evaluation && and ||
+    
+    R=r
+    OCL=27294
+    CL=27294
+
+ src/cmd/6g/cgen.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

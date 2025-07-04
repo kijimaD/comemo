@@ -1,0 +1,45 @@
+commit deee5322fc5827a307099051d70727af961548d6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 10:03:21 2024 +0100
+
+    crypto/internal/fips/aes: move GCM to its own package
+    
+    For #69536
+    
+    Change-Id: Idcef2411c1fd4da302412609f28e438839e8aa4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624736
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/cipher/cipher.go                        |  37 ++
+ src/crypto/cipher/gcm.go                           | 398 ++++++---------------
+ src/crypto/cipher/gcm_test.go                      |   2 +-
+ src/crypto/internal/fips/aes/aes.go                |   6 -
+ src/crypto/internal/fips/aes/aes_asm.go            |   7 +-
+ src/crypto/internal/fips/aes/aes_s390x.go          |  24 +-
+ src/crypto/internal/fips/aes/aes_s390x.s           | 121 -------
+ .../fips/aes/{ => gcm}/_asm/gcm/gcm_amd64_asm.go   |   0
+ .../internal/fips/aes/{ => gcm}/_asm/gcm/go.mod    |   0
+ .../internal/fips/aes/{ => gcm}/_asm/gcm/go.sum    |   0
+ src/crypto/internal/fips/aes/gcm/gcm.go            | 136 +++++++
+ src/crypto/internal/fips/aes/{ => gcm}/gcm_amd64.s |   0
+ src/crypto/internal/fips/aes/{ => gcm}/gcm_arm64.s |   0
+ src/crypto/internal/fips/aes/gcm/gcm_asm.go        | 121 +++++++
+ src/crypto/internal/fips/aes/gcm/gcm_generic.go    | 105 ++++++
+ src/crypto/internal/fips/aes/gcm/gcm_noasm.go      |  21 ++
+ src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go     | 182 ++++++++++
+ .../internal/fips/aes/{ => gcm}/gcm_ppc64x.s       |  60 +---
+ src/crypto/internal/fips/aes/gcm/gcm_s390x.go      | 245 +++++++++++++
+ src/crypto/internal/fips/aes/gcm/gcm_s390x.s       | 130 +++++++
+ src/crypto/internal/fips/aes/gcm/ghash.go          | 162 +++++++++
+ src/crypto/internal/fips/aes/gcm/interface_test.go |  12 +
+ src/crypto/internal/fips/aes/gcm_asm.go            | 182 ----------
+ src/crypto/internal/fips/aes/gcm_noasm.go          |  29 --
+ src/crypto/internal/fips/aes/gcm_ppc64x.go         | 244 -------------
+ src/crypto/internal/fips/aes/gcm_s390x.go          | 344 ------------------
+ src/crypto/internal/fips/aes/interface_test.go     |   1 -
+ src/crypto/tls/cipher_suites.go                    |  12 +-
+ src/go/build/deps_test.go                          |   1 +
+ 29 files changed, 1299 insertions(+), 1283 deletions(-)

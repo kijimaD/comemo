@@ -1,0 +1,20 @@
+commit bc593eac2dc63d979a575eccb16c7369a5ff81e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 29 09:26:19 2019 -0400
+
+    sync: document implementation of Once.Do
+    
+    It's not correct to use atomic.CompareAndSwap to implement Once.Do,
+    and we don't, but why we don't is a question that has come up
+    twice on golang-dev in the past few months.
+    Add a comment to help others with the same question.
+    
+    Change-Id: Ia89ec9715cc5442c6e7f13e57a49c6cfe664d32c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184261
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+
+ src/sync/once.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

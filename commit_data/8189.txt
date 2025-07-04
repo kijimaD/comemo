@@ -1,0 +1,13 @@
+commit 75ca6d189c24f701e9544fc89b735e41cd25583b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 08:53:52 2011 -0700
+
+    http/cgi: copy some PATH environment variables to child
+    
+    R=bradfitz, bradfitzwork, iant2, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4444058
+
+ src/pkg/http/cgi/host.go            | 13 ++++++++++---
+ src/pkg/http/cgi/matryoshka_test.go |  8 ++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

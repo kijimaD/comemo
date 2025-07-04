@@ -1,0 +1,22 @@
+commit 426ea5702b23befc41b0ad26e40c58c41ca4f4bb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 18 14:56:40 2022 -0400
+
+    internal/dag: add a Graph type and make node order deterministic
+    
+    The go/types package doesn't care about node ordering because it's
+    just querying paths in the graph, but we're about to use this for the
+    runtime lock graph, and there we want determinism.
+    
+    For #53789.
+    
+    Change-Id: Ic41329bf2eb9a3a202f97c21c761ea588ca551c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418593
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/go/build/deps_test.go      |  5 ++-
+ src/internal/dag/parse.go      | 80 +++++++++++++++++++++++++++++++++---------
+ src/internal/dag/parse_test.go | 61 ++++++++++++++++++++++++++++++++
+ 3 files changed, 126 insertions(+), 20 deletions(-)

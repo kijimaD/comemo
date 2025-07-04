@@ -1,0 +1,38 @@
+commit ff2534e076a01445f5852f0fab7a3017ee65c8ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 7 11:58:44 2012 -0500
+
+    undo CL 6845121 / 79603a5e4cda
+    
+    This changes the output of
+    
+    rand.Seed(0)
+    perm := rand.Perm(100)
+    
+    When giving the same seeds to Go 1.0 and Go 1.1 programs
+    I would like them to generate the same random numbers.
+    
+    ««« original CL description
+    math/rand: remove noop iteration in Perm
+    
+    The first iteration always do `m[0], m[0] = m[0], m[0]`, because
+    `rand.Intn(1)` is 0.
+    
+    fun note: IIRC in TAOCP version of this algorithm, `i` goes
+    backward (n-1->1), meaning that the "already" shuffled part of the
+    array is never altered betweens iterations, while in the current
+    implementation the "not-yet" shuffled part of the array is
+    conserved between iterations.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6845121
+    
+    »»»
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6905049
+
+ src/pkg/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

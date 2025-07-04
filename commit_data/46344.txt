@@ -1,0 +1,16 @@
+commit da790cccc5da9486e5f45360a3b1b76a1a0aeaea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 21 09:06:25 2021 +0000
+
+    cmd/internal/obj/riscv: absorb rewriteMOV into instruction generation
+    
+    Replace the now poorly named rewriteMOV function with a markRelocs function,
+    absorbing the MOV validation into the instruction generation code.
+    
+    Change-Id: I6ae94553f7f300862c40310343ef0be8f44a4b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344459
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 122 ++++++++++++++++----------------------
+ 1 file changed, 52 insertions(+), 70 deletions(-)

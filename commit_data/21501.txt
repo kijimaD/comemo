@@ -1,0 +1,12 @@
+commit a1457cac9cc3901df2db9e669a4018141ef12e57
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:08:23 2014 -0500
+
+    sync/atomic: darwin/arm support
+    
+    Change-Id: I213a8ab0b8c027a7b73567aeefdca73fd10eae28
+    Reviewed-on: https://go-review.googlesource.com/2122
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/sync/atomic/asm_darwin_arm.s | 99 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)

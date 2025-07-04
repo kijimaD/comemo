@@ -1,0 +1,13 @@
+commit ffde4970d06fd0b03a3e06893ae916894f2cce8f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 20 14:49:15 2013 -0700
+
+    doc: update gccgo docs
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10401046
+
+ doc/gccgo_contribute.html |  4 ++++
+ doc/gccgo_install.html    | 54 +++++++++++++++++++++++++++++------------------
+ 2 files changed, 38 insertions(+), 20 deletions(-)

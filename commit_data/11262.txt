@@ -1,0 +1,12 @@
+commit 2a6b4e120a6f67d532f698f238547690bc18efba
+Author: Christoph Hack <christoph@tux21b.org>
+Date:   Thu Jan 19 06:11:02 2012 -0800
+
+    net/http: the documentation should call NewRequest with the right signature.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5554063
+
+ src/pkg/net/http/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit aaf9b46800fe12c11c17bffebc82436204a1e85b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 20 12:44:07 2025 -0400
+
+    testing: streamline logic in loopSlowPath
+    
+    There's a fair amount of duplication of logic between various return
+    branches of loopSlowPath and stopOrScaleBLoop. Restructure these so
+    there's a single "keep going" path and a single "we're done" path.
+    
+    Change-Id: I38e4c7a616f8bd7707f3ca886f38ff21dbd78b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659658
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/testing/benchmark.go | 48 ++++++++++++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 18 deletions(-)

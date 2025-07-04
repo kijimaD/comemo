@@ -1,0 +1,13 @@
+commit 3b9a024d2999d0a10712e3b02b26f8c07a8aa43e
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Sep 13 00:12:18 2010 -0400
+
+    go-mode.el: Fix highlighting for 'chan' type
+    Fixes #1038.
+    
+    R=aclements, rsc
+    CC=golang-dev
+    https://golang.org/cl/2111046
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

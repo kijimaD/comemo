@@ -1,0 +1,15 @@
+commit 5e98505ba7eda4f5ad6525444e19b4ada04677ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:48:55 2011 -0500
+
+    gc: fix spurious typecheck loop in &composite literal
+    
+    Fixes #2538.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5449114
+
+ src/cmd/gc/typecheck.c   |  1 +
+ test/fixedbugs/bug380.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

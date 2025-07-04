@@ -1,0 +1,22 @@
+commit 8163ea1458763aa38fa9197e479bd30cb0145429
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Feb 6 08:07:38 2025 -0500
+
+    weak: prevent unsafe conversions using weak pointers
+    
+    Prevent conversions between Pointer types,
+    like we do for sync/atomic.Pointer.
+    
+    Fixes #71583
+    
+    Change-Id: I20e83106d8a27996f221e6cd9d52637b0442cea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/weak/pointer.go      |  5 ++++-
+ src/weak/pointer_test.go | 10 ++++++++++
+ test/weak.go             | 24 ++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 1 deletion(-)

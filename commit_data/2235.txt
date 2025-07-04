@@ -1,0 +1,15 @@
+commit 3b36acc71bff8378fb37ed8bc2f40baf2ff6d657
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 11:47:35 2009 -0700
+
+    move ShortWrite error into io so that other packages can use it.
+    
+    R=r
+    DELTA=15  (7 added, 1 deleted, 7 changed)
+    OCL=28996
+    CL=28996
+
+ src/lib/bufio/bufio.go | 11 +++++------
+ src/lib/http/server.go |  2 +-
+ src/lib/io/io.go       |  9 ++++++++-
+ 3 files changed, 14 insertions(+), 8 deletions(-)

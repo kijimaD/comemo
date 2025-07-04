@@ -1,0 +1,20 @@
+commit b06dc26a58df0a79e6be3004484809ffd2c60d74
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Nov 30 17:17:45 2010 -0800
+
+    path: Windows support for Split
+    
+    Make Split work on backslashes as well as on slashes under Windows
+    and support the "C:filename" special case. Also add corresponding
+    tests.
+    
+    R=r, rsc, PeterGo, r2, brainman
+    CC=golang-dev
+    https://golang.org/cl/3008041
+
+ src/pkg/path/Makefile        | 17 +++++++++++++++++
+ src/pkg/path/path.go         | 12 ++++--------
+ src/pkg/path/path_test.go    | 12 ++++++++++++
+ src/pkg/path/path_unix.go    | 11 +++++++++++
+ src/pkg/path/path_windows.go | 11 +++++++++++
+ 5 files changed, 55 insertions(+), 8 deletions(-)

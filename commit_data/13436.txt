@@ -1,0 +1,18 @@
+commit 7b6541a5932d72781e215b2e8e77928ec7ef6839
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Tue Jul 3 08:16:43 2012 -0700
+
+    syscall: fix FreeBSD 386 sendfile
+    The previous version was not handling an off_t (64 bit)
+    parameter on 32 bit i386 systems.  This patch splits sendfile
+    into two implementations in their respective arch-specific files.
+    Tested on FreeBSD amd64 and i386.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6356048
+
+ src/pkg/syscall/syscall_freebsd.go       | 12 ------------
+ src/pkg/syscall/syscall_freebsd_386.go   | 14 ++++++++++++++
+ src/pkg/syscall/syscall_freebsd_amd64.go | 14 ++++++++++++++
+ 3 files changed, 28 insertions(+), 12 deletions(-)

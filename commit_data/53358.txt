@@ -1,0 +1,20 @@
+commit 699a6bfbfcb20fe93c64818e86ffea699595ea6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 13:45:01 2023 -0700
+
+    doc/go1.21: remove TODOs for x/ repos
+    
+    Remove x/ repos changes that aren't part of the 1.21 release.
+    
+    Change-Id: Ia5cbf02ed6c0cc4dc0ff80d68403723b3f9ae0ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498596
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go1.21.html | 28 +++++-----------------------
+ 1 file changed, 5 insertions(+), 23 deletions(-)

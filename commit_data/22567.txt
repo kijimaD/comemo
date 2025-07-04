@@ -1,0 +1,14 @@
+commit 27067df9db40d558190bf3aa70bf47e698806887
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 17 09:36:19 2015 -0700
+
+    cmd/internal/obj: cleanups from C transition and delete dead code
+    
+    Change-Id: Id1ecad2565edd5937a764dcf56b89263353f47c2
+    Reviewed-on: https://go-review.googlesource.com/8947
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/fmt.go | 32 +++++++++++------------
+ src/cmd/internal/obj/go.go  | 64 +++------------------------------------------
+ 2 files changed, 20 insertions(+), 76 deletions(-)

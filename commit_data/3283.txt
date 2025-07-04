@@ -1,0 +1,13 @@
+commit 4459624f046b1363bfd4258031a237a867fc58ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 15 16:16:34 2009 -0700
+
+    bug fix: allow function types as operands
+    
+    R=rsc
+    DELTA=10  (5 added, 0 deleted, 5 changed)
+    OCL=34662
+    CL=34666
+
+ src/pkg/go/parser/parser.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

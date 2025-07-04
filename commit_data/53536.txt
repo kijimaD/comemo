@@ -1,0 +1,21 @@
+commit d22b08bd6449806a300f3e4c5514cdbcbc97c57f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 12 15:31:59 2023 -0400
+
+    doc/go1.21: clean up remaining TODOs
+    
+    These sections are now complete, remove remaining TODOs. Several entries
+    were missing CL numbers.
+    
+    For #58645
+    
+    Change-Id: I67489356016013be876c4bd522afb977becf54ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502696
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/go1.21.html | 34 +++++++++-------------------------
+ 1 file changed, 9 insertions(+), 25 deletions(-)

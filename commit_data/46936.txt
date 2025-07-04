@@ -1,0 +1,21 @@
+commit ee92daae25029882979eb694bd7246491e364d3c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Sep 20 20:44:50 2021 +0800
+
+    runtime: ensure at least 1 tick between events
+    
+    ticks might be same after tick division, although the real cputicks
+    is linear growth
+    
+    Fixes #46737
+    
+    Change-Id: I1d98866fbf21b426c6c1c96cc9cf802d7f440f18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330849
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/trace.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

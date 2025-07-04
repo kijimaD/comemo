@@ -1,0 +1,14 @@
+commit 71f72e9d4f1cd3fd7e27515d1a5c5159fca99f0e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 00:06:45 2016 +0200
+
+    syscall: use name+(NN)FP on plan9/386
+    
+    Generated from go vet.
+    
+    Change-Id: I2620e5544be46485a876c7dce26b0592bf5a4101
+    Reviewed-on: https://go-review.googlesource.com/32070
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/asm_plan9_386.s | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

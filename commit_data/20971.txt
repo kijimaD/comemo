@@ -1,0 +1,19 @@
+commit bd8077116e2fe04306fc75ed1bd1eb3586b9cd1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 14:04:17 2014 -0500
+
+    [release-branch.go1.4] cmd/api: make API check fail for undeclared API in release branch
+    
+    We forgot to do the usual API review.
+    Make that not possible in the future.
+    I'll pull this change over to the main
+    branch too, but it's more important
+    (and only testable) here.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/185050043
+
+ src/cmd/api/goapi.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

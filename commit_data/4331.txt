@@ -1,0 +1,12 @@
+commit 7c4aeec8686466674450ccb591621329978c48e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 20:37:32 2009 -0800
+
+    6g/8g optimizer fix: throw functions now in runtime
+    
+    R=ken2
+    https://golang.org/cl/166070
+
+ src/cmd/6g/reg.c | 8 ++++----
+ src/cmd/8g/reg.c | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

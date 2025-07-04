@@ -1,0 +1,33 @@
+commit 2db58f8f2daea1c6f6134584f7811bb229177b28
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Mon Apr 13 20:13:14 2015 +0200
+
+    encoding/csv: Preallocate records slice
+    
+    Currently parseRecord will always start with a nil
+    slice and then resize the slice on append. For input
+    with a fixed number of fields per record we can preallocate
+    the slice to avoid having to resize the slice.
+    
+    This change implements this optimization by using
+    FieldsPerRecord as capacity if it's > 0 and also adds a
+    benchmark to better show the differences.
+    
+    benchmark         old ns/op     new ns/op     delta
+    BenchmarkRead     19741         17909         -9.28%
+    
+    benchmark         old allocs     new allocs     delta
+    BenchmarkRead     59             41             -30.51%
+    
+    benchmark         old bytes     new bytes     delta
+    BenchmarkRead     6276          5844          -6.88%
+    
+    Change-Id: I7c2abc9c80a23571369bcfcc99a8ffc474eae7ab
+    Reviewed-on: https://go-review.googlesource.com/8880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader.go      |  6 ++++++
+ src/encoding/csv/reader_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

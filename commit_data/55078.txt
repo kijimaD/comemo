@@ -1,0 +1,28 @@
+commit f43581131e96f0a4a7745250218ace6c4ea2e557
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Aug 17 03:58:10 2023 +0800
+
+    cmd/compile, cmd/internal, runtime: change the registers used by the duff device for loong64
+    
+    Add R21 to the allocatable registers, use R20 and R21 in duff
+    device. This CL is in preparation for subsequent regABI support.
+    
+    Updates #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: If1661adc0f766925fbe74827a369797f95fa28a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521775
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/loong64/ssa.go         |    2 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   44 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  426 ++++----
+ src/cmd/internal/obj/loong64/a.out.go           |    8 +-
+ src/runtime/duff_loong64.s                      | 1280 +++++++++++------------
+ src/runtime/mkduff.go                           |   10 +-
+ 6 files changed, 885 insertions(+), 885 deletions(-)

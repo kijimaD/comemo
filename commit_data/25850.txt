@@ -1,0 +1,19 @@
+commit ef3c45adfcd91375765e662d875b71f65d455016
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 11:15:56 2016 -0800
+
+    text/tabwriter: clarify documentation
+    
+    More clearly distinguish between tab-terminated cells
+    which are part of an (aligned) column, and non-tab terminated
+    cells which are not part of a column. Added additional examples.
+    
+    For #14412.
+    
+    Change-Id: If72607385752e221eaa2518238b11f48fbcb8a90
+    Reviewed-on: https://go-review.googlesource.com/19855
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/text/tabwriter/example_test.go | 35 +++++++++++++++++++++++++++++++++
+ src/text/tabwriter/tabwriter.go    | 40 +++++++++++++++++++++++++-------------
+ 2 files changed, 62 insertions(+), 13 deletions(-)

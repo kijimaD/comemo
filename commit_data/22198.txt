@@ -1,0 +1,14 @@
+commit 6b85090139dc32086239502679aa6f3f248f6ff1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Mar 27 15:47:44 2015 +0300
+
+    testing/quick: fix comment
+    
+    There is no top-level Values function.
+    
+    Change-Id: I3ea2eea0b5f77f3e1a3f75d1a6472507ef2888bb
+    Reviewed-on: https://go-review.googlesource.com/8196
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/quick/quick.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

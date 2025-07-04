@@ -1,0 +1,94 @@
+commit c4aea467842efc3baf6cd2f5ad19fe23d7304c2e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 1 11:46:34 2024 +0100
+
+    crypto/aes: move to crypto/internal/fips/aes
+    
+    The crypto/aes <-> crypto/cipher interfaces and the hardware support
+    upgrades were layered over the years, and had grown unwieldily.
+    
+    Before: conditionally wrap the private crypto/aes type in private types
+    that implement an interface that's interface-upgraded by crypto/cipher
+    to replace the generic implementation in crypto/cipher.
+    
+    crypto/aes depended on crypto/cipher, which is backwards.
+    
+    After: provide concrete exported implementations of modes in
+    crypto/internal/fips/aes that crypto/cipher returns if the input Block
+    is the crypto/internal/fips/aes concrete implementation.
+    
+    crypto/aes and crypto/cipher both depend on crypto/internal/fips/aes.
+    
+    Also, made everything follow go.dev/wiki/TargetSpecific by only putting
+    the minimal code necessary and no exported functions in build-tagged
+    files.
+    
+    The GCM integration still uses an interface upgrade, because the generic
+    implementation is complex enough that it was not trivial to duplicate.
+    This will be fixed in a future CL to make review easier.
+    
+    For #69536
+    
+    Change-Id: I21c2b93a498edb31c562b1aca824e21e8457fdff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/aes/aes.go                              |  48 ++++
+ src/crypto/aes/aes_test.go                         | 243 ---------------------
+ src/crypto/aes/cbc_ppc64x.go                       |  74 -------
+ src/crypto/aes/cbc_s390x.go                        |  68 ------
+ src/crypto/aes/cipher.go                           |  82 -------
+ src/crypto/aes/cipher_asm.go                       | 114 ----------
+ src/crypto/aes/cipher_generic.go                   |  26 ---
+ src/crypto/aes/cipher_s390x.go                     |  98 ---------
+ src/crypto/aes/ctr_s390x.go                        |  86 --------
+ src/crypto/aes/modes.go                            |  37 ----
+ src/crypto/aes/modes_test.go                       | 112 ----------
+ src/crypto/cipher/cbc.go                           |  23 +-
+ src/crypto/cipher/ctr.go                           |  20 +-
+ src/crypto/cipher/gcm.go                           |  26 ++-
+ src/crypto/cipher/modes_test.go                    | 123 +++++++++++
+ .../fips}/aes/_asm/ctr/ctr_amd64_asm.go            |   0
+ src/crypto/{ => internal/fips}/aes/_asm/ctr/go.mod |   0
+ src/crypto/{ => internal/fips}/aes/_asm/ctr/go.sum |   0
+ .../fips}/aes/_asm/gcm/gcm_amd64_asm.go            |   2 +-
+ src/crypto/{ => internal/fips}/aes/_asm/gcm/go.mod |   0
+ src/crypto/{ => internal/fips}/aes/_asm/gcm/go.sum |   0
+ .../fips/aes/_asm/standard/aes_amd64.go}           |   2 +-
+ .../{ => internal/fips}/aes/_asm/standard/go.mod   |   0
+ .../{ => internal/fips}/aes/_asm/standard/go.sum   |   0
+ src/crypto/internal/fips/aes/aes.go                | 125 +++++++++++
+ .../asm_amd64.s => internal/fips/aes/aes_amd64.s}  |   0
+ .../asm_arm64.s => internal/fips/aes/aes_arm64.s}  |   0
+ src/crypto/internal/fips/aes/aes_asm.go            |  71 ++++++
+ .../block.go => internal/fips/aes/aes_generic.go}  |  39 ++--
+ src/crypto/internal/fips/aes/aes_noasm.go          |  26 +++
+ .../fips/aes/aes_ppc64x.s}                         |   0
+ src/crypto/internal/fips/aes/aes_s390x.go          |  78 +++++++
+ .../asm_s390x.s => internal/fips/aes/aes_s390x.s}  |  33 ---
+ src/crypto/internal/fips/aes/aes_test.go           | 120 ++++++++++
+ src/crypto/internal/fips/aes/cbc.go                | 127 +++++++++++
+ src/crypto/internal/fips/aes/cbc_noasm.go          |  15 ++
+ src/crypto/internal/fips/aes/cbc_ppc64x.go         |  31 +++
+ src/crypto/internal/fips/aes/cbc_s390x.go          |  28 +++
+ src/crypto/{ => internal/fips}/aes/const.go        |   9 -
+ .../{aes/ctr_asm.go => internal/fips/aes/ctr.go}   |  71 +++---
+ src/crypto/{ => internal/fips}/aes/ctr_amd64.s     |   0
+ src/crypto/{ => internal/fips}/aes/ctr_arm64.s     |   0
+ .../{ => internal/fips}/aes/ctr_arm64_gen.go       |   0
+ src/crypto/internal/fips/aes/ctr_asm.go            |  53 +++++
+ src/crypto/internal/fips/aes/ctr_noasm.go          |  23 ++
+ src/crypto/internal/fips/aes/ctr_s390x.go          |  48 ++++
+ src/crypto/{ => internal/fips}/aes/gcm_amd64.s     |   0
+ src/crypto/{ => internal/fips}/aes/gcm_arm64.s     |   0
+ .../aes_gcm.go => internal/fips/aes/gcm_asm.go}    |  30 ++-
+ src/crypto/internal/fips/aes/gcm_noasm.go          |  29 +++
+ src/crypto/{ => internal/fips}/aes/gcm_ppc64x.go   |  35 ++-
+ src/crypto/{ => internal/fips}/aes/gcm_ppc64x.s    |   0
+ src/crypto/{ => internal/fips}/aes/gcm_s390x.go    |  71 ++----
+ src/crypto/internal/fips/aes/interface_test.go     |  16 ++
+ src/go/build/deps_test.go                          |   1 +
+ 55 files changed, 1122 insertions(+), 1141 deletions(-)

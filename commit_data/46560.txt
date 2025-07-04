@@ -1,0 +1,18 @@
+commit 333f3de2a10f22269b567d82144ab3528a3e6c07
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 22 14:05:49 2021 -0500
+
+    cmd/compile: update PPC64 CALL* ops for register ABI
+    
+    Allow the CALL ops to take variable number of arguments.
+    
+    Change-Id: I6753c2fcb434ce2ebbce51dd595fbcbb39a60bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351589
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
+ src/cmd/compile/internal/ssa/opGen.go        | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

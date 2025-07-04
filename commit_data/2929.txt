@@ -1,0 +1,13 @@
+commit b65a5225f65bbae926adbcf8edd60d77fea73f1b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Aug 9 19:18:40 2009 -0700
+
+    Partially fix build: don't assume . is in PATH.
+    
+    APPROVED=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=32948
+    CL=32948
+
+ test/bench/timing.sh | 1 +
+ 1 file changed, 1 insertion(+)

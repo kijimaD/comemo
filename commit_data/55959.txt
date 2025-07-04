@@ -1,0 +1,28 @@
+commit 411d7a5c9e4e29691e85baa2decf8782a186071b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Mar 14 17:14:31 2024 -0400
+
+    cmd: vendor in golang.org/x/telemetry@abedc37
+    
+    This pulls in the changes to remove 1.18 support in counter and
+    countertest, to add counter.CountCommandLineFlags, and to add
+    countertest.SupportedPlatform
+    
+    Commands run:
+            go get golang.org/x/telemetry@abedc37
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: I5c17c5b3ca38df14883ba43316d59437a737b28b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571801
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../golang.org/x/telemetry/counter/counter.go      | 27 ++++++++++++++++---
+ .../golang.org/x/telemetry/counter/counter_118.go  | 30 ----------------------
+ .../x/telemetry/counter/countertest/countertest.go |  5 ++--
+ .../counter/countertest/countertest_go118.go       | 21 ---------------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 7 files changed, 31 insertions(+), 60 deletions(-)

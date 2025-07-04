@@ -1,0 +1,19 @@
+commit 63f014910daab38faee6208de2cbdbc191985d8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 28 14:17:30 2010 -0700
+
+    go spec: change def. of "type compatibility" to be non-recursive
+    and adjust conversion rules.
+    
+    Also:
+    - clarification of type identity (no language change)
+    - adjust special rules for channel assignment/comparison to
+      require identical element types (in correspondence to non-
+      recursiveness of type compatibility)
+    
+    R=rsc, iant, ken2, r
+    CC=golang-dev
+    https://golang.org/cl/1376042
+
+ doc/go_spec.html | 66 ++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 38 insertions(+), 28 deletions(-)

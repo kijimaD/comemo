@@ -1,0 +1,26 @@
+commit e4f1d9cf2e948eb0f0bb91d7c253ab61dfff3a59
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Mar 27 17:29:53 2016 -0700
+
+    runtime: make execution error panic values implement the Error interface
+    
+    Make execution panics implement Error as
+    mandated by https://golang.org/ref/spec#Run_time_panics,
+    instead of panics with strings.
+    
+    Fixes #14965
+    
+    Change-Id: I7827f898b9b9c08af541db922cc24fa0800ff18a
+    Reviewed-on: https://go-review.googlesource.com/21214
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan.go       | 10 +++++-----
+ src/runtime/crash_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/error.go      | 13 ++++++++++++-
+ src/runtime/hashmap.go    |  4 ++--
+ src/runtime/malloc.go     |  2 +-
+ src/runtime/proc.go       |  2 +-
+ src/runtime/select.go     |  2 +-
+ 7 files changed, 68 insertions(+), 11 deletions(-)

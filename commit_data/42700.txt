@@ -1,0 +1,19 @@
+commit bf512685fee6282f1a50069ef444412bdf59611b
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Wed Aug 5 13:52:32 2020 +0800
+
+    syscall: cap RLIMIT_NOFILE soft limit in TestRlimit on darwin
+    
+    On some machines, kern.maxfilesperproc is 4096. If Rlimit.Cur is larger
+    than that, Setrlimit will get an errEINVAL.
+    
+    Fixes #40564.
+    
+    Change-Id: Ib94303c790a489ff0559c88d41a021e514d18f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246658
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_unix_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

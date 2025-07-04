@@ -1,0 +1,21 @@
+commit 8480e6f476c70af47158983052a9325447e57ab3
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Mar 26 11:43:09 2013 -0700
+
+    runtime: ensure forward progress when unwinding an arm stack frame
+    
+    The arm gentraceback mishandled frame linkage values pointing
+    to the assembly return function.  This function is special as
+    its frame size is zero and it contains only one instruction.
+    These conditions would preserve the frame pointer and result
+    in an off by one error when unwinding the caller.
+    
+    Fixes #5124
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8023043
+
+ misc/cgo/test/callback.go       | 9 +--------
+ src/pkg/runtime/traceback_arm.c | 5 +++--
+ 2 files changed, 4 insertions(+), 10 deletions(-)

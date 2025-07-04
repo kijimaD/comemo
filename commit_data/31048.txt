@@ -1,0 +1,18 @@
+commit 315858371337af5898307136d142f9457f6d0c1c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 14:38:54 2017 -0700
+
+    cmd/compile/internal/types: remove Cmptmp
+    
+    It's unused and redundant with types.Type.Compare.
+    
+    Change-Id: I8d93473e9cee61650cb0c19a402316a3d418160e
+    Reviewed-on: https://go-review.googlesource.com/40011
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go     |   1 -
+ src/cmd/compile/internal/gc/types.go    | 186 --------------------------------
+ src/cmd/compile/internal/types/utils.go |   2 -
+ 3 files changed, 189 deletions(-)

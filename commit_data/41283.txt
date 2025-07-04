@@ -1,0 +1,26 @@
+commit fcfc16694f6e1a1ddaead5f950094cfe7173d08e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 7 16:41:26 2020 -0500
+
+    cmd/go: convert TestCoverageNoStatements to the script framework.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie2c60ec0654ef605439beeed92cf5f1c2c8a1dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213681
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                           |  8 ----
+ src/cmd/go/testdata/script/cover_statements.txt | 57 +++++++++++++++++++++++++
+ src/cmd/go/testdata/testcover/pkg1/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg2/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg2/a_test.go    |  1 -
+ src/cmd/go/testdata/testcover/pkg3/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg3/a_test.go    |  7 ---
+ src/cmd/go/testdata/testcover/pkg4/a.go         |  5 ---
+ src/cmd/go/testdata/testcover/pkg4/a_test.go    |  9 ----
+ 9 files changed, 57 insertions(+), 51 deletions(-)

@@ -1,0 +1,16 @@
+commit 35edc960c42e570fd196292148c985ffc3a17692
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 13 14:30:57 2018 -0500
+
+    cmd/go/internal/work: skip TestRespectSetgidDir on js.
+    
+    chown is not implemented on js: see https://build.golang.org/log/43d7b12602660b786a6e080e685165193df0de00.
+    
+    Change-Id: I3f461338825bb670d682c3f47b17ee1638343fc8
+    Reviewed-on: https://go-review.googlesource.com/c/154097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

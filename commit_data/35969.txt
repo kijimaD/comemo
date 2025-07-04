@@ -1,0 +1,24 @@
+commit 85cfa4d55e177a70913ce8977ce847af7c4298e2
+Author: Keith Randall <khr@google.com>
+Date:   Thu Jul 12 11:44:05 2018 -0700
+
+    cmd/compile: handle degenerate write barrier case
+    
+    If both branches of a write barrier test go to the same block,
+    then there's no unsafe points.
+    
+    This can only happen if the resulting memory state is somehow dead,
+    which can only occur in degenerate cases, like infinite loops. No
+    point in cleaning up the useless branch in these situations.
+    
+    Fixes #26024.
+    
+    Change-Id: I93a7df9fdf2fc94c6c4b1fe61180dc4fd4a0871f
+    Reviewed-on: https://go-review.googlesource.com/123655
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go |  5 +++++
+ test/fixedbugs/issue26024.go         | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

@@ -1,0 +1,15 @@
+commit 5f833121cb8e7722667d17dcf07bb32e4e524f23
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat May 14 10:23:09 2016 -0700
+
+    archive/zip: use HTTPS for documentation link
+    
+    The resource is available over (and redirects to) HTTPS, it seems like a good
+    idea to save a redirect and ensure an encrypted connection.
+    
+    Change-Id: I262c7616ae289cdd756b6f67573ba6bd7e3e0ca6
+    Reviewed-on: https://go-review.googlesource.com/23104
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/struct.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

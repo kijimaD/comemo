@@ -1,0 +1,13 @@
+commit 7fc47928fc807a0c79c5649d7ee9e10d55f3c360
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Feb 16 20:49:50 2012 +0000
+
+    make.bat, run.bat: echo newlines
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5671072
+
+ src/make.bat | 9 ++++-----
+ src/run.bat  | 8 ++++----
+ 2 files changed, 8 insertions(+), 9 deletions(-)

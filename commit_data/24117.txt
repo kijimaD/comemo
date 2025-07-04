@@ -1,0 +1,29 @@
+commit ea0491b70a82a207a951f869c7c1e5a52dbf410f
+Author: David Leon Gil <coruus@gmail.com>
+Date:   Fri Jun 26 10:29:45 2015 -0700
+
+    math/big: use optimized formula in ModSqrt for 3 mod 4 primes
+    
+    For primes which are 3 mod 4, using Tonelli-Shanks is slower
+    and more complicated than using the identity
+    
+         a**((p+1)/4) mod p == sqrt(a)
+    
+    For 2^450-2^225-1 and 2^10860-2^5430-1, which are 3 mod 4:
+    
+    BenchmarkModSqrt225_TonelliTri      1000     1135375 ns/op
+    BenchmarkModSqrt225_3Mod4          10000      156009 ns/op
+    BenchmarkModSqrt5430_Tonelli           1  3448851386 ns/op
+    BenchmarkModSqrt5430_3Mod4             2   914616710 ns/op
+    
+    ~2.6x to 7x faster.
+    
+    Fixes #11437 (which is a prime choice of issues to fix)
+    
+    Change-Id: I813fb29454160483ec29825469e0370d517850c2
+    Reviewed-on: https://go-review.googlesource.com/11522
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/math/big/int.go      | 57 ++++++++++++++++++++++++++++++++++--------------
+ src/math/big/int_test.go | 47 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 16 deletions(-)

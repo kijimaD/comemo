@@ -1,0 +1,20 @@
+commit 66959a59342d323273f398e92165e2ec165ef3e8
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Sep 23 04:15:40 2023 +0000
+
+    go/build/constraint: delete, replace stringsCut calls with strings.Cut
+    
+    Currently, the Go bootstrap toolchain is bumped to 1.20.
+    
+    Change-Id: I6467768c0640a8e9aadbfea79cfdfb14b4b80679
+    GitHub-Last-Rev: 7cf2d54a4865b4c6c15af374a6c0fbdbcce8c3b6
+    GitHub-Pull-Request: golang/go#63174
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530676
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/constraint/vers.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

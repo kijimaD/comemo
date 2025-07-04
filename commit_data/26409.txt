@@ -1,0 +1,17 @@
+commit a7a199947a15d48d405be809278a7ea7c6ebf03a
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Mar 18 10:50:00 2016 +0100
+
+    cmd/compile: add rules to simplify AddPtr
+    
+    Fixes #14849
+    
+    Change-Id: I86e2dc27ca73bb6b24261a68cbf0094a63167414
+    Reviewed-on: https://go-review.googlesource.com/20833
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 39 ++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

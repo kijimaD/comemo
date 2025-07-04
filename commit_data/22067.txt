@@ -1,0 +1,14 @@
+commit 3eaea873b4c4284e7b9feb16511b39d794ebdf9e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 17 03:37:31 2015 +0000
+
+    Revert "test: disable recover4 test to fix ppc64 builds"
+    
+    This reverts commit 1313e7982f44c24948e73c4795d9606265d36871.
+    
+    Change-Id: I96cc58baf71156fdfbf8fd61332744bcc3ea52e5
+    Reviewed-on: https://go-review.googlesource.com/7670
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ test/recover4.go | 1 -
+ 1 file changed, 1 deletion(-)

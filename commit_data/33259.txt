@@ -1,0 +1,35 @@
+commit 509140a549c08607cb05dbd6e10311ef1378e109
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 26 22:08:23 2017 -0400
+
+    cmd/go: delay gcc/clang flag support checks
+    
+    env.MkEnv was computing the full gcc command line to report as
+    $GOGCCFLAGS in "go env" output, which meant running gcc (or clang)
+    multiple times to discern which flags are available.
+    We also set $GOGCCFLAGS in the environment, but nothing actually uses
+    that as far as I can tell - it was always intended only for debugging.
+    Move GOGCCFLAGS to env.ExtraEnvVars, which displayed in "go env"
+    output but not set in child processes and not computed nearly as
+    often.
+    
+    The effect is that trivial commands like "go help" or "go env GOARCH"
+    or "go tool -n compile" now run in about 0.01s instead of 0.1s,
+    because they no longer run gcc 4 times each.
+    
+    go test -short cmd/go drops from 81s to 44s (and needs more trimming).
+    
+    The $GOROOT/test suite drops from 92s to 33s, because the number of
+    gcc invocation drops from 13,336 to 0.
+    
+    Overall, all.bash drops from 5m53s to 4m07s wall time.
+    
+    Change-Id: Ia85abc89e1e2bb126b933aff3bf7c5f6c0984cd5
+    Reviewed-on: https://go-review.googlesource.com/73850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go | 43 +++++++++++++++++++++++++++++++++------
+ src/cmd/go/internal/work/exec.go  | 19 ++++++++++++-----
+ 2 files changed, 51 insertions(+), 11 deletions(-)

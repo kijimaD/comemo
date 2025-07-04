@@ -1,0 +1,15 @@
+commit abdc77a28859e1117c4bb99c23643c1b726323c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 19:39:16 2015 -0400
+
+    runtime: avoid reference to stale stack after GC shrinkstack
+    
+    Dangling pointer error. Unlikely to trigger in practice, but still.
+    Found by running GODEBUG=efence=1 GOGC=1 trace.test.
+    
+    Change-Id: Ice474dedcf62dd33ab77526287a023ba3b166db9
+    Reviewed-on: https://go-review.googlesource.com/12991
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

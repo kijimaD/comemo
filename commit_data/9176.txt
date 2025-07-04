@@ -1,0 +1,13 @@
+commit f0d8af200c897fd6f7a67dd8f37026a705a1eccb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 22 17:52:46 2011 +1000
+
+    exp/template: trivial cleanup in test
+    Clean up glitch created by flurry of editing.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4808052
+
+ src/pkg/exp/template/set_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 4c36bc3dcd0af0b7a94089c049e5a08232c916d7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 9 17:56:59 2018 -0400
+
+    cmd/go/testdata/script/mod_test: add missing test invocation for case e
+    
+    Change-Id: Ib0544adc1444a473f8edcb9dd92aefa9fcbc7330
+    Reviewed-on: https://go-review.googlesource.com/134656
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_test.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,19 @@
+commit f58ed4e64126b595efbde9df04e63c7ea2a4fbd6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 16:58:04 2011 -0400
+
+    gc: disallow close on receive-only channels
+    
+    Fixes #2353.
+    Fixes #2246.
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5282042
+
+ doc/go_spec.html       |  7 ++++---
+ src/cmd/gc/typecheck.c |  4 ++++
+ src/pkg/runtime/chan.c |  3 +++
+ test/chan/perm.go      |  4 ++++
+ test/closedchan.go     | 11 +++++++++++
+ 5 files changed, 26 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 546c78b74441475a933300ce5e0a1ff50f35941d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 28 16:01:52 2011 +1000
+
+    builder: minor fixes
+    
+    R=golang-dev, gri, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4634050
+
+ misc/dashboard/builder/package.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

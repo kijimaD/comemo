@@ -1,0 +1,17 @@
+commit 35e54da99640110845086d30ba0b8f69a3ebd3c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 13:33:32 2022 -0700
+
+    go/types, types2: simplify test setup in a couple of places (cleanup)
+    
+    Change-Id: I4e7a0ffad49f1c3b50520648d66f18dd4c9bde55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443779
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 16 ++--------------
+ src/go/types/issues_test.go                    | 16 ++--------------
+ 2 files changed, 4 insertions(+), 28 deletions(-)

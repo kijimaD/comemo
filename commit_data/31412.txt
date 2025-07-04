@@ -1,0 +1,32 @@
+commit 89ebdbb5fd548051339705687c25d1d89abc4539
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Apr 23 22:19:35 2017 -0700
+
+    regexp: speed up QuoteMeta with a lookup table
+    
+    This is the same technique used in CL 24466. By adding a little bit of
+    size to the binary, we can remove a function call and gain a lot of
+    performance.
+    
+    A raw array ([128]bool) would be faster, but is also be 128 bytes
+    instead of 16.
+    
+    Running tip on a Mac:
+    
+    name             old time/op    new time/op     delta
+    QuoteMetaAll-4      192ns ±12%      120ns ±11%   -37.27%  (p=0.000 n=10+10)
+    QuoteMetaNone-4     186ns ± 6%       64ns ± 6%   -65.52%  (p=0.000 n=10+10)
+    
+    name             old speed      new speed       delta
+    QuoteMetaAll-4   73.2MB/s ±11%  116.6MB/s ±10%   +59.21%  (p=0.000 n=10+10)
+    QuoteMetaNone-4   139MB/s ± 6%    405MB/s ± 6%  +190.74%  (p=0.000 n=10+10)
+    
+    Change-Id: I68ce9fe2ef1c28e2274157789b35b0dd6ae3efb5
+    Reviewed-on: https://go-review.googlesource.com/41495
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/all_test.go | 10 +++++++++-
+ src/regexp/regexp.go   | 12 ++++++++++--
+ 2 files changed, 19 insertions(+), 3 deletions(-)

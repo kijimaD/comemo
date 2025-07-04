@@ -1,0 +1,24 @@
+commit 3ac5d54cf91d70571cc68be1361103e11c5d3285
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 15 04:19:19 2013 +0800
+
+    cmd/gc: improve syntax error for "import testing"
+    for this program:
+    package A
+    import testing
+    
+    old diagnostics:
+    pkg.go:2: syntax error: unexpected semicolon or newline, expecting string literal
+    
+    now:
+    pkg.go:2: syntax error: missing import path; require quoted string
+    
+    Fixes #5332.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9393043
+
+ src/cmd/gc/go.errors | 3 +++
+ src/cmd/gc/yerr.h    | 3 +++
+ 2 files changed, 6 insertions(+)

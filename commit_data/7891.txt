@@ -1,0 +1,22 @@
+commit 6b3357129aacd4df1b03772f0d48fa0e46c2407c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 27 23:39:42 2011 -0400
+
+    build: add all-qemu.bash, handful of arm fixes
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4313051
+
+ doc/codelab/wiki/Makefile          |  2 +-
+ src/all-qemu.bash                  | 16 +++++++++++++++
+ src/pkg/Makefile                   |  4 ++--
+ src/pkg/go/printer/printer_test.go |  2 +-
+ src/pkg/runtime/linux/arm/signal.c |  2 ++
+ src/pkg/runtime/linux/signals.h    |  2 +-
+ src/pkg/sync/atomic/asm_arm.s      | 41 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/atomic/atomic_test.go | 33 +++++++++++++++++++++++++++++-
+ src/pkg/sync/atomic/doc.go         |  5 +++++
+ src/run.bash                       |  1 +
+ test/fixedbugs/bug243.go           | 37 +++++++++++++++++++++++++++++-----
+ 11 files changed, 134 insertions(+), 11 deletions(-)

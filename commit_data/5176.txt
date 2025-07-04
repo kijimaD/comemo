@@ -1,0 +1,12 @@
+commit 5b257732ace5ffbb5c24e72c2536dea565583bd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 10:42:13 2010 -0700
+
+    godefs: fix handling of negative constants
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/849041
+
+ src/cmd/godefs/main.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

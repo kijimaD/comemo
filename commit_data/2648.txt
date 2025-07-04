@@ -1,0 +1,20 @@
+commit d6d0a3905062a00b201e089dcbd9a6c42a6a4dcf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 8 17:15:18 2009 -0700
+
+    Basic POSIX-compatible tar writer.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=456  (382 added, 66 deleted, 8 changed)
+    OCL=31246
+    CL=31372
+
+ src/pkg/archive/tar/Makefile            |  16 ++-
+ src/pkg/archive/tar/common.go           |  74 +++++++++++++
+ src/pkg/archive/tar/testdata/writer.tar | Bin 0 -> 3072 bytes
+ src/pkg/archive/tar/untar.go            |  73 +------------
+ src/pkg/archive/tar/untar_test.go       |   4 +-
+ src/pkg/archive/tar/writer.go           | 180 ++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/writer_test.go      | 122 ++++++++++++++++++++++
+ 7 files changed, 395 insertions(+), 74 deletions(-)

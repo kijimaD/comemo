@@ -1,0 +1,17 @@
+commit 0f28c478b25bc2b5d998b18abadd4ea5c6bb230f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 28 18:00:55 2022 +0100
+
+    doc/go1.20: fix missing <code> tag
+    
+    Change-Id: I9c6f9ec28dbe038ddc195310a32d97d5b2a28ef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

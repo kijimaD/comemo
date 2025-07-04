@@ -1,0 +1,11 @@
+commit 81e661aa4556901de303e2a87e078896a53df6a6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 15:45:14 2014 -0700
+
+    doc/go1.4.txt: permit for range x
+    
+    CC=golang-codereviews
+    https://golang.org/cl/110640044
+
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit afb0ae67b7d37b6678179f236c98ef0d952c0403
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 17 16:28:45 2016 +0000
+
+    runtime/pprof: fix typo in test
+    
+    Not sure what I was thinking.
+    
+    Change-Id: I143cdf7c5ef8e7b2394afeca6b30c46bb2c19a55
+    Reviewed-on: https://go-review.googlesource.com/33340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

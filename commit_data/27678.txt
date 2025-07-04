@@ -1,0 +1,14 @@
+commit cab87a60dec2c771c12ba08b82bb7645228192e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 14 10:14:28 2016 +0900
+
+    os: fix build on freebsd/arm
+    
+    Change-Id: I21fad94ff94e342ada18e0e41ca90296d030115f
+    Reviewed-on: https://go-review.googlesource.com/24061
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_wait6.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit ac8127d7e6ead390bc44c89d47d16be587c3ac11
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 13:47:58 2016 -0700
+
+    cmd/compile: fix register size for ODOTPTR result
+    
+    The result of ODOTPTR, as well as a bunch of other ops,
+    should be the type of the result, not always a pointer type.
+    
+    This fixes an amd64p32 bug where we were incorrectly truncating
+    a 64-bit slice index to 32 bits, and then barfing on a weird
+    load-64-bits-but-then-truncate-to-32-bits op that doesn't exist.
+    
+    Fixes #15252
+    
+    Change-Id: Ie62f4315fffd79f233e5449324ccc0879f5ac343
+    Reviewed-on: https://go-review.googlesource.com/22094
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go |  2 +-
+ test/fixedbugs/issue15252.go        | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

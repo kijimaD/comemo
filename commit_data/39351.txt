@@ -1,0 +1,31 @@
+commit bff0ae6a0174f48a15ef3dcc661c8458e37a9d4a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 12:31:13 2019 -0400
+
+    cmd/go: in TestScript, set $GOEXE instead of $exe
+    
+    $GOEXE exists and is documented in 'go env', so $exe is redundant and
+    a bit confusing. Notably, mod_modinfo.txt already assumes that GOEXE
+    is set (even though it isn't), and thus fails on Windows.
+    
+    After this CL, `go test cmd/go/...` passes on a windows-amd64-2016
+    builder. However, given that the $PATH on the builder is very minimal
+    (#32430) and network access is limited, tests that rely on binaries
+    (such as 'git') or external networking may still be broken.
+    
+    Updates #25300
+    
+    Change-Id: I9d80f2a0fbaa8bc35fa2205b6898aeccecda4e94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181542
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go                           |  7 ++-----
+ src/cmd/go/testdata/script/README                   |  3 +--
+ src/cmd/go/testdata/script/build_cache_link.txt     |  4 ++--
+ src/cmd/go/testdata/script/build_multi_main.txt     |  2 +-
+ src/cmd/go/testdata/script/install_cleans_build.txt | 12 ++++++------
+ src/cmd/go/testdata/script/mod_build_versioned.txt  | 12 ++++++------
+ src/cmd/go/testdata/script/test_devnull.txt         |  2 +-
+ 7 files changed, 19 insertions(+), 23 deletions(-)

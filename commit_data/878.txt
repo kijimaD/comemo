@@ -1,0 +1,14 @@
+commit b705ac6cf5c42e811628cf5adc5fd5e24e9d8e97
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 12:16:50 2008 -0700
+
+    - composites, receivers, various add. checks
+    
+    R=r
+    OCL=17295
+    CL=17295
+
+ usr/gri/pretty/node.go    |  78 +++++++++++++++++------------
+ usr/gri/pretty/parser.go  | 125 +++++++++++++++++++++++++---------------------
+ usr/gri/pretty/printer.go |  64 +++++++++---------------
+ 3 files changed, 138 insertions(+), 129 deletions(-)

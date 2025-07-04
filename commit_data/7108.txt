@@ -1,0 +1,12 @@
+commit 97025ebfef22363efd3ece2fac302c4e0efc1893
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 10:24:04 2011 -0800
+
+    go_spec: specify that int and uint have the same size
+    
+    R=r, rsc, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/3992041
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

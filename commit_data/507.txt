@@ -1,0 +1,16 @@
+commit 091047f36cfd64ff576080fe5b0e0279b2780ed8
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 9 17:33:35 2008 -0700
+
+    adding and deleting files
+    
+    R=r
+    DELTA=1685  (920 added, 765 deleted, 0 changed)
+    OCL=14030
+    CL=14030
+
+ src/cmd/gc/{mparith.c => mparith1.c} | 197 ++++---------
+ src/cmd/gc/mparith2.c                | 529 +++++++++++++++++++++++++++++++++++
+ src/cmd/gc/mparith3.c                |  53 ++++
+ src/cmd/gc/mpatof.c                  | 342 ----------------------
+ 4 files changed, 640 insertions(+), 481 deletions(-)

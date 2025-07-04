@@ -1,0 +1,26 @@
+commit e7ad1ebeac01ebfbc36b9848b05aa45712b3e2a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 14 19:46:53 2014 -0400
+
+    cmd/objdump: import x86 disassembler
+    
+    The x86 disassembler lives in rsc.io/x86/x86asm for now.
+    We need to figure out what should live where in the long term,
+    but not before the 1.3 release.
+    
+    The completed code reviews for the disassembler are at:
+    https://golang.org/cl/95350044
+    https://golang.org/cl/95300044
+    https://golang.org/cl/97100047
+    https://golang.org/cl/93110044
+    https://golang.org/cl/99000043
+    https://golang.org/cl/98990043
+    
+    LGTM=crawshaw
+    R=crawshaw, jacek.masiulaniec
+    CC=golang-codereviews
+    https://golang.org/cl/92360043
+
+ src/cmd/objdump/Makefile |     5 +
+ src/cmd/objdump/x86.go   | 13800 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 13805 insertions(+)

@@ -1,0 +1,15 @@
+commit e0059ae81112d38f89f2512572608875ccf33a8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 16:52:18 2010 -0800
+
+    gc: bug243
+    
+    Fixes #481.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/186213
+
+ src/cmd/gc/dcl.c         |  4 +++-
+ test/fixedbugs/bug243.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

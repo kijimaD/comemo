@@ -1,0 +1,13 @@
+commit 55d4cbfbe10c11e56e1642cbb6b108eaf2620e09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 12:55:44 2020 -0800
+
+    cmd/compile/internal/scanner: report correct directive string (fix build)
+    
+    Change-Id: I01b244e97e4140545a46b3d494489a30126c2139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222257
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit b4380a3ba2da2515225ab45ff07082d67399757a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 29 14:05:33 2014 -0700
+
+    runtime: delete unused variables.
+    
+    We're not comparing with code addresses any more.  Instead,
+    we use nil algorithm functions to mark uncomparable types.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/151040044
+
+ src/runtime/stubs.go | 4 ----
+ 1 file changed, 4 deletions(-)

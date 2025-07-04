@@ -1,0 +1,29 @@
+commit 2a9f1ee21532498ceb74a4a7b589ab0cc1b3885f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 3 16:19:22 2009 -0700
+
+    Daily snapshot.
+    - godoc now supports the following url prefixes:
+      /doc/ for package documentation
+      /file/ for files (directories, html, and .go files)
+      /spec for the spec
+      /mem for the memory model
+    - formatting of comments has been fixed
+    - tons of minor cleanups (still more to do)
+    
+    Still missing:
+    - pretty printing of source is not as pretty as it used to be
+    (still a relict from the massive AST cleanup which has't quite made it's way everywhere)
+    - documentation entries should be sorted
+    - comments in code is not printed or not properly printed
+    
+    TBR=r
+    DELTA=416  (182 added, 100 deleted, 134 changed)
+    OCL=27078
+    CL=27078
+
+ usr/gri/pretty/astprinter.go |  88 +++++++++--
+ usr/gri/pretty/docprinter.go |  67 ++++----
+ usr/gri/pretty/godoc.go      | 369 ++++++++++++++++++++++---------------------
+ usr/gri/pretty/pretty.go     |   2 +-
+ 4 files changed, 301 insertions(+), 225 deletions(-)

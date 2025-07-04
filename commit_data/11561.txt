@@ -1,0 +1,29 @@
+commit 8e765da941f4f0649aca2b28234ac31adde45f06
+Author: Damian Gryski <dgryski@gmail.com>
+Date:   Thu Feb 2 14:09:27 2012 -0500
+
+    runtime: add runtime.cputicks() and seed fastrand with it
+    
+    This patch adds a function to get the current cpu ticks.  This is
+    deemed to be 'sufficiently random' to use to seed fastrand to mitigate
+    the algorithmic complexity attacks on the hash table implementation.
+    
+    On AMD64 we use the RDTSC instruction.  For 386, this instruction,
+    while valid, is not recognized by 8a so I've inserted the opcode by
+    hand.  For ARM, this routine is currently stubbed to return a constant
+    0 value.
+    
+    Future work: update 8a to recognize RDTSC.
+    
+    Fixes #2630.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5606048
+
+ src/pkg/runtime/asm_386.s   |  9 +++++++++
+ src/pkg/runtime/asm_amd64.s |  7 +++++++
+ src/pkg/runtime/asm_arm.s   | 10 ++++++++++
+ src/pkg/runtime/proc.c      |  2 +-
+ src/pkg/runtime/runtime.h   |  1 +
+ 5 files changed, 28 insertions(+), 1 deletion(-)

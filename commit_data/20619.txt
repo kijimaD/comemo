@@ -1,0 +1,15 @@
+commit f9d7e139552b186f4c68a3a87b470847167a9076
+Author: Mrunal Patel <mrunalp@gmail.com>
+Date:   Thu Oct 2 11:37:06 2014 -0700
+
+    syscall: support UID/GID map files for Linux user namespaces
+    
+    Fixes #8447.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/126190043
+
+ src/syscall/exec_linux.go | 123 +++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 111 insertions(+), 12 deletions(-)

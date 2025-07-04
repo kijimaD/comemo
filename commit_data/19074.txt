@@ -1,0 +1,21 @@
+commit 51fba7d8f543e9a3d1c192f9a4e1fa9e29ccc998
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 15:57:50 2014 +1000
+
+    html/template: fix two unrelated bugs
+    1) The code to catch an exception marked the template as escaped
+    when it was not yet, which caused subsequent executions of the
+    template to not escape properly.
+    2) ensurePipelineContains needs to handled Field as well as
+    Identifier nodes.
+    
+    Fixes #7379.
+    
+    LGTM=mikesamuel
+    R=mikesamuel
+    CC=golang-codereviews
+    https://golang.org/cl/85240043
+
+ src/pkg/html/template/escape.go      | 51 +++++++++++++++++++++++++-----------
+ src/pkg/html/template/escape_test.go | 32 ++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 15 deletions(-)

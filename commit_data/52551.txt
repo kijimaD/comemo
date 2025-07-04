@@ -1,0 +1,25 @@
+commit e61ba8e537ecc845ffdc0a33d7062106a983592b
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 08:48:03 2023 -0700
+
+    misc/wasm: add wasip1/wasm exec script
+    
+    This script uses Wazero, the open source, zero dependencies
+    pure Go Wasm and WASI runtime. This is the runtime that allows
+    the greatest number of standard library tests to pass.
+    
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I789465ae4daf2b380f3c05a9365b8d449c6af56c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479620
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 6 ++++++
+ 1 file changed, 6 insertions(+)

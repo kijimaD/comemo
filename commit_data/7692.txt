@@ -1,0 +1,12 @@
+commit d2e011d518a9701e6951c283e4512afa76ca8f4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 8 16:12:44 2011 +1100
+
+    http: add test for recently fixed HTTP/1.0 keep-alive issue
+    
+    R=bradfitzgo, rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4235056
+
+ src/pkg/http/serve_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

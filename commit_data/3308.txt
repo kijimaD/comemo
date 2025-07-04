@@ -1,0 +1,16 @@
+commit a0a965fbcfc7699d456d532c80aa8ab9a5970e89
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Sep 17 23:08:15 2009 -0700
+
+    fixing width bug in DATA output. some logging to make fixing
+    similar issues easier in the future.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=6  (1 added, 0 deleted, 5 changed)
+    OCL=34771
+    CL=34773
+
+ src/cmd/5g/gobj.c | 7 ++++---
+ src/cmd/5l/pass.c | 4 ++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

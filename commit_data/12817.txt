@@ -1,0 +1,14 @@
+commit d3c92b7c903064f31c6f0aec4c3be5cfd30b0e53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 3 11:39:38 2012 +1000
+
+    time: fix handling of locations with no dst on windows
+    
+    Fixes #3437.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5967063
+
+ src/pkg/time/zoneinfo_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

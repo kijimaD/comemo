@@ -1,0 +1,19 @@
+commit dba9323f764e1ded627a0e3a459377026e9e0ce3
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Wed Nov 10 22:14:03 2021 +0200
+
+    mime: allow duplicate media type parameters with equivalent values
+    
+    Fixes #48866
+    
+    Change-Id: I2bd2c806e44eb4064b1fb9a6509d79cecbbef013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363094
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/mime/mediatype.go      | 4 ++--
+ src/mime/mediatype_test.go | 5 ++++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

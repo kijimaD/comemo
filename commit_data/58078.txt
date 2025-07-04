@@ -1,0 +1,19 @@
+commit b09478b9c98857715fcb55ef746ae231b0b7d935
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 18 22:16:57 2024 +0000
+
+    mime: disable TestLookupMallocs with ASAN
+    
+    With the synchashtriemap GOEXPERIMENT, this allocates now, but just
+    under ASAN. That's OK, just skip the test under ASAN.
+    
+    Fixes #70428.
+    
+    Change-Id: I1ab4f7c06505c84309946358643715085f0db506
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629456
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/mime/type_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,26 @@
+commit 36057e721e6fdc5c3dff8228c77ea36027a872c4
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jul 20 15:53:16 2010 +0300
+
+    more soft float support. passes several basic tests
+    but with less precision than hardware counterparts.
+    
+    fixed a number of tests to output BUG when they failed.
+    changed the runner to distinghuish between output
+    and output containing ^BUG
+    
+    R=rsc
+    CC=dho, golang-dev
+    https://golang.org/cl/1778041
+
+ src/pkg/runtime/arm/softfloat.c | 212 +++++++++++++++++++++++++++++++++++++---
+ test/arm-pass.txt               | 136 ++++++++++++++++----------
+ test/cmplxdivide.go             |   5 +
+ test/float_lit.go               |  21 +++-
+ test/floatcmp.go                |  18 ++--
+ test/golden-arm.out             |  49 +++++++++-
+ test/ken/cplx4.go               |   2 +-
+ test/nul1.go                    |   1 +
+ test/run                        |   8 ++
+ test/zerodivide.go              |   5 +
+ 10 files changed, 375 insertions(+), 82 deletions(-)

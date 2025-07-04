@@ -1,0 +1,18 @@
+commit 8e724e7bbad07d530f547b6214c71ddfe26ba92a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 20:34:39 2016 -0400
+
+    cmd/go: fix //go:binary-only-package check
+    
+    The use of a prefix check was too liberal.
+    Noted in review after submit.
+    
+    Change-Id: I4fe1df660997efd225609e818040b8392fab79f0
+    Reviewed-on: https://go-review.googlesource.com/23375
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 3 ++-
+ src/go/build/build.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

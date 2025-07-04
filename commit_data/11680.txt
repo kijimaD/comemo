@@ -1,0 +1,16 @@
+commit 92f55949f9e747477937e66df3cb486b1912e97f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 11:53:32 2012 +1100
+
+    encoding/hex: canonicalize error type names
+    Also simplify the tests.
+    
+    Fixes #2849.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5643045
+
+ src/pkg/encoding/hex/hex.go      |  26 +++---
+ src/pkg/encoding/hex/hex_test.go | 167 +++++++++++++++------------------------
+ 2 files changed, 74 insertions(+), 119 deletions(-)

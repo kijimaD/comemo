@@ -1,0 +1,17 @@
+commit 035f9e8102d3b46877b7462fcd365324272d1d0e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Oct 12 15:39:30 2018 -0400
+
+    doc: update docs.html with new tour import path
+    
+    As of golang.org/cl/141857 the import path has changed from
+    golang.org/x/tour/gotour to golang.org/x/tour
+    
+    Change-Id: Ib54ab2e50188ef66c8a5c45136babfa49ad6934a
+    Reviewed-on: https://go-review.googlesource.com/c/141917
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/docs.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 17f6e5396b5ca6fbac11a660df1fcc0ee8d0821d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 29 10:11:09 2016 -0400
+
+    runtime: print sweep ratio if gcpacertrace>0
+    
+    Change-Id: I5217bf4b75e110ca2946e1abecac6310ed84dad5
+    Reviewed-on: https://go-review.googlesource.com/21205
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcsweep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

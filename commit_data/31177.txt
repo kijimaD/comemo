@@ -1,0 +1,20 @@
+commit 9d4a84677b23bb76ec615d98b0a8d56ec014b936
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 14 06:44:30 2017 -0700
+
+    cmd/internal/obj: unexport Link.Hash
+    
+    A prior CL eliminated the last reference to Ctxt.Hash
+    from the compiler.
+    
+    Change-Id: Ic97ff84ed1a14e0c93fb0e8ec0b2617c3397c0e8
+    Reviewed-on: https://go-review.googlesource.com/40699
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 2 +-
+ src/cmd/internal/obj/line_test.go    | 2 +-
+ src/cmd/internal/obj/link.go         | 2 +-
+ src/cmd/internal/obj/sym.go          | 6 +++---
+ 4 files changed, 6 insertions(+), 6 deletions(-)

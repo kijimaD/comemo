@@ -1,0 +1,20 @@
+commit c7e0dda45046c539d99b7e8c3bd3e79b3fab9776
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 23 06:04:14 2016 -0700
+
+    net/http: add Server.ReadHeaderTimeout, IdleTimeout, document WriteTimeout
+    
+    Updates #14204
+    Updates #16450
+    Updates #16100
+    
+    Change-Id: Ic283bcec008a8e0bfbcfd8531d30fffe71052531
+    Reviewed-on: https://go-review.googlesource.com/32024
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 54 +++++++++++++++++++++++++++++
+ src/net/http/server.go     | 84 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 125 insertions(+), 13 deletions(-)

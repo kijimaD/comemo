@@ -1,0 +1,15 @@
+commit e82e1204290ffb4b6b4953d25c5451bc2a0f2f1a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 15 09:50:44 2017 -0400
+
+    misc/nacl: add cmd/vendor/golang.org/x/arch/arm64/arm64asm testdata
+    
+    This should fix NaCl build failure for CL 49530.
+    
+    Change-Id: Id9a54f0c81b1b5db5b5efb12a2ad6509c4ab42b3
+    Reviewed-on: https://go-review.googlesource.com/55770
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/nacl/testzip.proto | 4 ++++
+ 1 file changed, 4 insertions(+)

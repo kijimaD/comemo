@@ -1,0 +1,15 @@
+commit 386b66f5bda20d2d0863faad37cf8922c102b588
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 22:03:18 2016 +0100
+
+    cmd/cgo: add required gcc flags for GOARCH=mips{,le}
+    
+    Change-Id: I1d6a2120a444d1ab9b9ecfdf27464325ad741d55
+    Reviewed-on: https://go-review.googlesource.com/34315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go  | 2 ++
+ src/cmd/go/build.go | 2 ++
+ 2 files changed, 4 insertions(+)

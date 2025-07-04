@@ -1,0 +1,16 @@
+commit 72bdd8683506807a16b20f5e1be8740e2c258a73
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 16 18:31:09 2011 -0500
+
+    runtime: fix build on gri's machine
+    
+    Why it was not failing anywhere else I don't know,
+    but the Makefile was definitely wrong.  The rules
+    must not run in parallel.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5489069
+
+ src/pkg/runtime/Makefile.auto | 29 ++++++-----------------------
+ 1 file changed, 6 insertions(+), 23 deletions(-)

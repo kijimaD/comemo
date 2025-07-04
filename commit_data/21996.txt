@@ -1,0 +1,86 @@
+commit 51d66601c45572484ed20f3a2be6f67d648b5f22
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 10 15:08:55 2015 -0700
+
+    flag: nicer usage messages
+    
+    Make PrintDefaults print an easier-to-read format, and allow the user
+    to control it a bit by putting a hint into the usage string.
+    
+    Here is the new doc comment for PrintDefaults, which does the work:
+    
+        PrintDefaults prints, to standard error unless configured otherwise, a
+        usage message showing the default settings of all defined command-line
+        flags. For an integer valued flag x, the default output has the form
+    
+            -x int
+                    usage-message-for-x (default 7)
+    
+        The usage message will appear on a separate line except for single-
+        letter boolean flags. Boolean flags omit the type, since they can be
+        used without an actual value, and the parenthetical default is omitted
+        if the default is the zero value for the type. The type, here int, can
+        be replaced by a string of the user's choosing by placing in the usage
+        string for the flag a back-quoted name; the first such item in the
+        message is taken to be a parameter name to show in the message and the
+        back quotes are stripped from the message when displayed. For instance,
+        given
+    
+            flag.String("I", "", "search `directory` for include files")
+    
+        the output will be
+    
+            -I directory
+                    search directory for include files.
+    
+    Given
+    
+            A = flag.Bool("A", false, "for bootstrapping, allow 'any' type")
+            B = flag.Bool("Alongflagname", false, "disable bounds checking")
+            C = flag.Bool("C", true, "a boolean defaulting to true")
+            D = flag.String("D", "", "set relative `path` for local imports")
+            F = flag.Float64("F", 2.7, "a non-zero float")
+            G = flag.Float64("G", 0, "a float that defaults to zero")
+            N = flag.Int("N", 27, "a non-zero int")
+            Z = flag.Int("Z", 0, "an int that defaults to zero")
+            T = flag.Duration("deltaT", 0, "a duration")
+    
+    the old output was
+    
+      -A=false: for bootstrapping, allow 'any' type
+      -Alongflagname=false: disable bounds checking
+      -C=true: a boolean defaulting to true
+      -D="": set relative `path` for local imports
+      -F=2.7: a non-zero float
+      -G=0: a float that defaults to zero
+      -N=27: a non-zero int
+      -Z=0: an int that defaults to zero
+      -deltaT=0: a duration
+    
+    and the new output is
+    
+      -A    for bootstrapping, allow 'any' type
+      -Alongflagname
+            disable bounds checking
+      -C    a boolean defaulting to true (default true)
+      -D path
+            set relative path for local imports
+      -F float
+            a non-zero float (default 2.7)
+      -G float
+            a float that defaults to zero
+      -N int
+            a non-zero int (default 27)
+      -Z int
+            an int that defaults to zero
+      -deltaT duration
+            a duration
+    
+    Change-Id: I54ab3cd5610d551422b004d95ab78305e06a395d
+    Reviewed-on: https://go-review.googlesource.com/7330
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/flag/flag.go      | 108 ++++++++++++++++++++++++++++++++++++++++++++++----
+ src/flag/flag_test.go |  38 ++++++++++++++++++
+ 2 files changed, 138 insertions(+), 8 deletions(-)

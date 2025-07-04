@@ -1,0 +1,29 @@
+commit 75c2e97c3c11050847fc221480e1939f29c911e5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 16 10:59:04 2023 +0100
+
+    syscall: let ENOSYS, ENOTSUP and EOPNOTSUPP implement errors.ErrUnsupported
+    
+    As suggested by Bryan, also update (Errno).Is on windows to include the
+    missing oserror cases that are covered on other platforms.
+    
+    Quoting Bryan:
+    > Windows syscalls don't actually return those errors, but the dummy Errno
+    > constants defined on Windows should still have the same meaning as on
+    > Unix.
+    
+    Updates #41198
+    
+    Change-Id: I15441abde4a7ebaa3c6518262c052530cd2add4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/testenv/testenv_unix.go |  5 -----
+ src/syscall/syscall_js.go            |  7 +++++--
+ src/syscall/syscall_plan9.go         |  4 ++--
+ src/syscall/syscall_unix.go          |  7 +++++--
+ src/syscall/syscall_windows.go       | 20 ++++++++++++++------
+ 5 files changed, 26 insertions(+), 17 deletions(-)

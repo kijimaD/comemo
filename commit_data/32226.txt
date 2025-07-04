@@ -1,0 +1,21 @@
+commit f9cf8e5ab11c7ea3f1b9fde302c0a325df020b1a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 10 11:31:11 2017 +0900
+
+    net/http: various small cleanups
+    
+    * Remove an unnecessary type conversion
+    * Make golint happier about consistent receiver names
+    * Make golint happier about a foo_bar var name
+    
+    Change-Id: I5223808109f6f8b69ed4be76de82faf2478c6a2e
+    Reviewed-on: https://go-review.googlesource.com/54530
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/fs.go        |  2 +-
+ src/net/http/request.go   | 30 +++++++++++++++---------------
+ src/net/http/transfer.go  |  3 +--
+ src/net/http/transport.go | 10 +++++-----
+ 4 files changed, 22 insertions(+), 23 deletions(-)

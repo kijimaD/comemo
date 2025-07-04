@@ -1,0 +1,25 @@
+commit f2d709b76925696396441274afbc1d178555a8e6
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Jul 20 23:14:03 2023 +0000
+
+    reflect: panic on recv channel close
+    
+    It is possible to call reflect.ValueOf(ch).Close() on a recv-only channel,
+     while close(ch) is a compile-time error. Following the same reflect
+    semantics as send and recv this should result in a panic.
+    
+    Fixes #61445
+    
+    Change-Id: I2a9ee8f45963593a37bd6df4643dd64fb322f9f9
+    GitHub-Last-Rev: fe2d5e09f5bb5536ac25d1606cf3744fb7a0a4a9
+    GitHub-Pull-Request: golang/go#61453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511295
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 6 ++++++
+ src/reflect/value.go    | 8 +++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

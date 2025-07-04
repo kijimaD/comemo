@@ -1,0 +1,25 @@
+commit d58593d8aa318b53f7f8889488a04179a168b6cc
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 12:38:13 2018 +0100
+
+    runtime: move map fast functions into type specific files
+    
+    Overall code is unchanged.
+    
+    The functions for different types (32, 64, str) of map fast routines
+    are collected in map_fast.go that has grown to ~1300 lines.
+    
+    Moving the functions for each map fast type into a separate file
+    allows for an easier overview and navigation within the map code.
+    
+    Change-Id: Ic09e4212f9025a66a10b11ef8dac23ad49d1d5ae
+    Reviewed-on: https://go-review.googlesource.com/90335
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/map_fast.go    | 1239 --------------------------------------------
+ src/runtime/map_fast32.go  |  412 +++++++++++++++
+ src/runtime/map_fast64.go  |  418 +++++++++++++++
+ src/runtime/map_faststr.go |  429 +++++++++++++++
+ 4 files changed, 1259 insertions(+), 1239 deletions(-)

@@ -1,0 +1,14 @@
+commit 62b328ed1914f9650675af52156254454b4fc4e5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 16:29:50 2012 +1100
+
+    all.bat: report error code back to the gobuilder
+    
+    not sure that it will work, but.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5649051
+
+ src/all.bat | 1 +
+ 1 file changed, 1 insertion(+)

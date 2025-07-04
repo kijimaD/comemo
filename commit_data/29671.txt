@@ -1,0 +1,14 @@
+commit 655a4e1284dadf3507a13b408d21900008e44221
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Nov 11 16:56:07 2016 -0800
+
+    cmd/compile/internal/gc: document variables and functions
+    
+    Change-Id: I01b2278eb50585331b8ff7ff5e3c1f9c5ba52b63
+    Reviewed-on: https://go-review.googlesource.com/33156
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/go.go   | 4 ++++
+ src/cmd/compile/internal/gc/main.go | 4 ++++
+ src/cmd/compile/internal/gc/subr.go | 2 ++
+ 3 files changed, 10 insertions(+)

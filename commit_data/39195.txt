@@ -1,0 +1,41 @@
+commit 5c3f3fbd0f91cf642e2d5c9109a2b3a9c65fe14b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 16 15:39:34 2019 -0700
+
+    cmd/compile: optimize postorder
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         37.1MB ± 0%       36.8MB ± 0%  -0.57%  (p=0.008 n=5+5)
+    Unicode          28.1MB ± 0%       28.1MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    GoTypes           125MB ± 0%        124MB ± 0%  -0.61%  (p=0.008 n=5+5)
+    Compiler          571MB ± 0%        568MB ± 0%  -0.60%  (p=0.008 n=5+5)
+    SSA              1.88GB ± 0%       1.86GB ± 0%  -0.82%  (p=0.008 n=5+5)
+    Flate            22.9MB ± 0%       22.8MB ± 0%  -0.59%  (p=0.008 n=5+5)
+    GoParser         27.5MB ± 0%       27.3MB ± 0%  -0.53%  (p=0.008 n=5+5)
+    Reflect          79.8MB ± 0%       79.5MB ± 0%  -0.40%  (p=0.008 n=5+5)
+    Tar              34.9MB ± 0%       34.7MB ± 0%  -0.44%  (p=0.008 n=5+5)
+    XML              45.7MB ± 0%       45.4MB ± 0%  -0.58%  (p=0.008 n=5+5)
+    [Geo mean]       80.3MB            79.9MB       -0.52%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           380k ± 0%         378k ± 0%  -0.57%  (p=0.008 n=5+5)
+    Unicode            340k ± 0%         340k ± 0%  -0.08%  (p=0.008 n=5+5)
+    GoTypes           1.36M ± 0%        1.36M ± 0%  -0.44%  (p=0.008 n=5+5)
+    Compiler          5.52M ± 0%        5.49M ± 0%  -0.45%  (p=0.008 n=5+5)
+    SSA               17.6M ± 0%        17.5M ± 0%  -0.42%  (p=0.008 n=5+5)
+    Flate              235k ± 0%         234k ± 0%  -0.65%  (p=0.008 n=5+5)
+    GoParser           302k ± 0%         300k ± 0%  -0.70%  (p=0.008 n=5+5)
+    Reflect            982k ± 0%         978k ± 0%  -0.40%  (p=0.008 n=5+5)
+    Tar                353k ± 0%         351k ± 0%  -0.53%  (p=0.008 n=5+5)
+    XML                437k ± 0%         435k ± 0%  -0.48%  (p=0.008 n=5+5)
+    [Geo mean]         844k              840k       -0.47%
+    
+    Updates #27739
+    
+    Change-Id: I5d533013270cbbd7c0bad1b43da96c8499be76f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177917
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/dom.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

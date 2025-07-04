@@ -1,0 +1,28 @@
+commit c40480ddd9489f4c8c74b061d4397567ccb835cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 2 23:00:40 2014 -0400
+
+    runtime: print up to 10 words of arguments
+    
+    The old limit of 5 was chosen because we didn't actually know how
+    many bytes of arguments there were; 5 was a halfway point between
+    printing some useful information and looking ridiculous.
+    
+    Now we know how many bytes of arguments there are, and we stop
+    the printing when we reach that point, so the "looking ridiculous" case
+    doesn't happen anymore: we only print actual argument words.
+    The cutoff now serves only to truncate very long (but real) argument lists.
+    
+    In multiple debugging sessions recently (completely unrelated bugs)
+    I have been frustrated by not seeing more of the long argument lists:
+    5 words is only 2.5 interface values or strings, and not even 2 slices.
+    Double the max amount we'll show.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/83850043
+
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

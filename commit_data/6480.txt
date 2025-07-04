@@ -1,0 +1,12 @@
+commit fd311cb14495d0ab7ef2fd37864734dbb514a2c7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 9 11:22:14 2010 +1100
+
+    exp/draw/x11: support X11 vendors other than "The X.Org Foundation".
+    
+    R=adg, ehog.hedge
+    CC=golang-dev
+    https://golang.org/cl/2385041
+
+ src/pkg/exp/draw/x11/conn.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

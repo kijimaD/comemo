@@ -1,0 +1,14 @@
+commit 4c96ff4444f2393e924e826ac6b6b6459d3db9d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 13:43:52 2017 -0700
+
+    sort: document NaN behavior for Float64Slice and friends
+    
+    Fixes #20540
+    
+    Change-Id: I440eee02d37b6921613f9ae77875d91eeec48b1e
+    Reviewed-on: https://go-review.googlesource.com/44490
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/sort/sort.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

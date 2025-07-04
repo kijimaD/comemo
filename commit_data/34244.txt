@@ -1,0 +1,24 @@
+commit f4bb25c937cffb277e5ba87708d286ea7fd1b6ed
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 12:48:15 2018 +0100
+
+    runtime: rename map implementation and test files to use a common prefix
+    
+    Rename all map implementation and test files to use "map"
+    as a file name prefix instead of "hashmap" for the implementation
+    and "map" for the test file names.
+    
+    Change-Id: I7b317c1f7a660b95c6d1f1a185866f2839e69446
+    Reviewed-on: https://go-review.googlesource.com/90336
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go                  | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go                     |  6 +++---
+ src/reflect/type.go                                     |  4 ++--
+ src/runtime/{hashmap.go => map.go}                      |  0
+ src/runtime/{mapspeed_test.go => map_benchmark_test.go} |  0
+ src/runtime/{hashmap_fast.go => map_fast.go}            |  0
+ src/runtime/map_test.go                                 |  2 +-
+ 7 files changed, 12 insertions(+), 12 deletions(-)

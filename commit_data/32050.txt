@@ -1,0 +1,17 @@
+commit 5ac16c6c76fc76f04844c92a6c54aeb97093e053
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 11:12:20 2017 -0400
+
+    strconv: fix initialization of atofRandomTests
+    
+    The init func was using testing.Short, but that's not available
+    until after flag parsing. Found by CL 49251.
+    
+    Change-Id: Ia7b871043375260873fa2c7e81e1d43c1c83d33f
+    Reviewed-on: https://go-review.googlesource.com/49253
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/atof_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

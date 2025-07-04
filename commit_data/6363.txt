@@ -1,0 +1,13 @@
+commit 099d7b4d1d9d601e0f5b4f2be6f42ec8c5ee2e86
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 24 12:15:49 2010 +1000
+
+    exp/draw: remove "this isn't ready yet" comments.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2248046
+
+ src/pkg/exp/draw/draw.go     | 4 ----
+ src/pkg/exp/draw/x11/conn.go | 2 --
+ 2 files changed, 6 deletions(-)

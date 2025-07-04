@@ -1,0 +1,21 @@
+commit 5f74ce394f02714a88dd375f54e8709ce58d1805
+Author: Jesse Szwedko <jesse.szwedko@gmail.com>
+Date:   Sun Nov 13 13:29:19 2016 -0800
+
+    syscall: Clearenv now unsets env vars on Windows
+    
+    Previously, `os.Clearenv()` (by way of `syscall.Clearenv`) would simply
+    set all environment variables' values to `""` rather than actually
+    unsetting them causing subsequent `os.LookupEnv` calls to return that
+    they were still set.
+    
+    Fixes #17902
+    
+    Change-Id: I54081b4b98665e9a39f55ea7582c8d40bb8a2a22
+    Reviewed-on: https://go-review.googlesource.com/33168
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/env_test.go         | 28 ++++++++++++++++++++++++++++
+ src/syscall/env_windows.go |  2 +-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit fb25a61872f3679cd2c4880e93cc2a44a9d373f7
+Author: Andriy Lytvynov <lytvynov.a.v@gmail.com>
+Date:   Fri Sep 6 16:49:34 2013 -0400
+
+    sort: fix Example_sortMultiKeys
+    
+    Old example referenced global var from multiSorter.Sort and ignored it's argument.
+    Changed one of example calls to actually pass slice to sort.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13551044
+
+ src/pkg/sort/example_multi_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

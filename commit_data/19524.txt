@@ -1,0 +1,23 @@
+commit a5bb1af43214c3da52d1752e58d03ed968e6a11b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 12 07:51:32 2014 -0700
+
+    testing: make benchmarking faster
+    
+    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
+    
+    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
+    
+    net/http        49s   -> 37s   (-24%)
+    runtime         8m31s -> 5m55s (-30%)
+    bytes           2m37s -> 1m29s (-43%)
+    encoding/json   29s   -> 21s   (-27%)
+    strings         1m16s -> 53s   (-30%)
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/101970047
+
+ src/pkg/testing/benchmark.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

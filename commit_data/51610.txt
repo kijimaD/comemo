@@ -1,0 +1,21 @@
+commit 18625d9becc559e65ab5b39aa5d27ae6eb7b00aa
+Author: zhengchaopu <zhengchaopu@gmail.com>
+Date:   Wed Jan 11 08:31:27 2023 +0000
+
+    runtime: fix incorrect comment
+    
+    Fix incorrect comment for the runtime package.
+    
+    Change-Id: Iab889eff0e9c622afbed959d32b8b5f0ed0bfebf
+    GitHub-Last-Rev: e9587868db36d9dd466f52f7ffc5de09947a6b2f
+    GitHub-Pull-Request: golang/go#57731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461498
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mpagecache.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

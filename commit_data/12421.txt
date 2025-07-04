@@ -1,0 +1,17 @@
+commit eb2163ffbb9ce586ff01332c41549c8bb28462af
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Mar 6 09:33:35 2012 -0500
+
+    cmd/go: honour buildflags in go run
+    
+    Either documentation or implementation
+    of go run's flags is wrong currently.
+    This change assumes the documentation
+    to be right.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5752054
+
+ src/cmd/go/run.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

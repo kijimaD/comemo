@@ -1,0 +1,34 @@
+commit 5822e7848a5c355f694c22dce4a1da43f2793441
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 14:54:31 2013 -0400
+
+    runtime: make SetFinalizer(x, f) accept any f for which f(x) is valid
+    
+    Originally the requirement was f(x) where f's argument is
+    exactly x's type.
+    
+    CL 11858043 relaxed the requirement in a non-standard
+    way: f's argument must be exactly x's type or interface{}.
+    
+    If we're going to relax the requirement, it should be done
+    in a way consistent with the rest of Go. This CL allows f's
+    argument to have any type for which x is assignable;
+    that's the same requirement the compiler would impose
+    if compiling f(x) directly.
+    
+    Fixes #5368.
+    
+    R=dvyukov, bradfitz, pieter
+    CC=golang-dev
+    https://golang.org/cl/12895043
+
+ src/pkg/runtime/extern.go      |  2 +-
+ src/pkg/runtime/iface.c        | 10 +++++
+ src/pkg/runtime/malloc.goc     | 21 ++++++++---
+ src/pkg/runtime/malloc.h       |  1 -
+ src/pkg/runtime/mfinal.c       | 16 +++++---
+ src/pkg/runtime/mfinal_test.go | 83 ++++++++++++++++++++----------------------
+ src/pkg/runtime/mgc0.c         | 21 +++++++++--
+ src/pkg/runtime/runtime.h      |  3 +-
+ src/pkg/runtime/type.h         |  4 ++
+ 9 files changed, 98 insertions(+), 63 deletions(-)

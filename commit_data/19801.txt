@@ -1,0 +1,20 @@
+commit d2d7187d31b46333112bab94c40308528dfa43a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 22 22:56:35 2014 -0400
+
+    testing: add Coverage function
+    
+    I've found this very useful for generating
+    good test case lists for -short mode for
+    the disassemblers.
+    
+    Fixes #7959.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/98150043
+
+ doc/go1.4.txt            |  1 +
+ src/pkg/testing/cover.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

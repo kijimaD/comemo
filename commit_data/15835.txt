@@ -1,0 +1,12 @@
+commit ddddd70cd2ea6f85612fef5f2d2ab3ad0ef47033
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 19 12:49:46 2013 -0700
+
+    misc/dashboard: show correct dir name in README
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7909043
+
+ misc/dashboard/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit ac987df87c6aab9658b2e3929d61313e26649825
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Mon May 22 18:31:38 2017 +0200
+
+    runtime: implement some soft-float routines (used by GOMIPS=softfloat)
+    
+    Updates #18162
+    
+    Change-Id: Iee854f48b2d1432955fdb462f2073ebbe76c34f8
+    Reviewed-on: https://go-review.googlesource.com/37957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/softfloat64.go | 112 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)

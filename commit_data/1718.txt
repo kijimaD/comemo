@@ -1,0 +1,14 @@
+commit df3183f528426c675e783ed437d72041b15ebb94
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 26 16:37:23 2009 -0800
+
+    finish types.
+    expressions.  (they were in pretty good shape; mostly cosmetic and HTML edits)
+    
+    R=gri
+    DELTA=655  (226 added, 97 deleted, 332 changed)
+    OCL=25459
+    CL=25481
+
+ doc/go_spec.html | 843 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 486 insertions(+), 357 deletions(-)

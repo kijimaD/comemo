@@ -1,0 +1,29 @@
+commit 17d9093bf214f3461815410c298006bac8427c0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 21 13:25:55 2011 -0400
+
+    undo CL 4808044 / 1bd754e69ce7
+    
+    ServeMux depends on having a URL
+    in order to mux.  It might be that the right
+    fix is to have CONNECT handlers just not
+    look at URL.
+    
+    ««« original CL description
+    http: do not parse req.URL for CONNECT
+    
+    CONNECT's argument is not a URL.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4808044
+    
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4798046
+
+ src/pkg/http/readrequest_test.go | 22 ----------------------
+ src/pkg/http/request.go          | 11 +++--------
+ 2 files changed, 3 insertions(+), 30 deletions(-)

@@ -1,0 +1,16 @@
+commit afaa30694c7de70ead7272392914230b76934a68
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 09:53:58 2011 -0700
+
+    testing: add -test.memprofile and -test.memprofilerate flags.
+    These allow a test to generate memory profiles automatically.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4273064
+
+ src/cmd/gotest/doc.go      | 20 +++++++++++++++++---
+ src/pkg/gob/timing_test.go | 26 --------------------------
+ src/pkg/rpc/server_test.go | 17 +----------------
+ src/pkg/testing/testing.go | 37 ++++++++++++++++++++++++++++++++++---
+ 4 files changed, 52 insertions(+), 48 deletions(-)

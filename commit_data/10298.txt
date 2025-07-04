@@ -1,0 +1,12 @@
+commit 4ac425fcddd7e3a923fe59f2375a2a75fa18ed33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 8 18:16:25 2011 -0800
+
+    runtime: add comments for various functions in proc.c
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5357047
+
+ src/pkg/runtime/proc.c | 68 +++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 56 insertions(+), 12 deletions(-)

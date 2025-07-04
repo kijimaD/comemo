@@ -1,0 +1,19 @@
+commit 70efe9f721d70f57eba8896ffd3939723e0f0b4a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 1 11:50:10 2023 -0800
+
+    crypto/x509: make TestIssue51759 builder only
+    
+    Since we can't gate tests on the macOS version on normal machines,
+    restrict TestIssue51759 to only run on builders, where we have a way to
+    do this.
+    
+    Change-Id: I70fc83c587689b499b6a38864973a77bb3e52596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472619
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/x509/verify_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 56809d0ade51d3bbd653ba9e9b7c54e2f4ec5f66
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 20 11:02:48 2009 -0700
+
+    new method set rules
+    
+    DELTA=63  (27 added, 6 deleted, 30 changed)
+    OCL=29065
+    CL=29091
+
+ doc/go_spec.html | 89 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 55 insertions(+), 34 deletions(-)

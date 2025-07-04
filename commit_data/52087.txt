@@ -1,0 +1,21 @@
+commit 31881f87873b84709a49ca17195bbe5b3f683acf
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Feb 21 23:45:13 2023 +0800
+
+    os: ensure File.ReadFrom returns ErrClosed instead of the internal poll.ErrFileClosing
+    
+    Fixes #58622
+    
+    Change-Id: Ibb80296c39614478c75cb6bb04b6d0695cb990d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469795
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/error_posix.go    | 2 +-
+ src/os/export_test.go    | 4 ++++
+ src/os/file.go           | 6 ++++++
+ src/os/readfrom_linux.go | 4 ++--
+ 4 files changed, 13 insertions(+), 3 deletions(-)

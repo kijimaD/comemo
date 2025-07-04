@@ -1,0 +1,15 @@
+commit 6e4f9353697a77df6f79c50ccb49736497e986eb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 9 22:44:40 2009 -0700
+
+    In the PNG reader inner loop, collapse the two ReadFull calls into one.
+    
+    R=rsc,r
+    APPROVED=rsc
+    DELTA=29  (2 added, 4 deleted, 23 changed)
+    OCL=35460
+    CL=35565
+
+ src/pkg/image/png/reader.go | 44 +++++++++++++++++++++-----------------------
+ src/pkg/image/png/writer.go |  2 +-
+ 2 files changed, 22 insertions(+), 24 deletions(-)

@@ -1,0 +1,15 @@
+commit 6cbd737c8e4a5aa5a8e85895c5ee6ff53a358622
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 18 23:16:16 2019 -0700
+
+    runtime/pprof: update example comment to check error on Close
+    
+    Programs should always check the error return of Close for a file opened
+    for writing. Update the example code in the comment to mention this.
+    
+    Change-Id: I2ff6866ff1fe23b47c54268ac8e182210cc876c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

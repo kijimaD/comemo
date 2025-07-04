@@ -1,0 +1,18 @@
+commit ff14e844d26090e09aa335d836f737c09a7a0402
+Author: Maxime Soulé <zeptomax@gmail.com>
+Date:   Thu Mar 17 17:01:24 2022 +0100
+
+    net/http/httptest: allow multiple fields be present in one Trailer field
+    
+    Fixes #51761
+    
+    Change-Id: Ibaa17076ba51b666e25333e78180b8c7c4c940ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393616
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/httptest/recorder.go      | 24 +++++++++++++-----------
+ src/net/http/httptest/recorder_test.go |  3 +--
+ 2 files changed, 14 insertions(+), 13 deletions(-)

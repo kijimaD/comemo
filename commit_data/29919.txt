@@ -1,0 +1,14 @@
+commit 5ddfa69fef1be072c07a5f25b71c9d5158055ca9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 6 22:45:17 2017 +0000
+
+    doc: update CONTRIBUTING.md a bit, mention proposal process
+    
+    Fixes #18550
+    
+    Change-Id: Ia08d0ef6964216fcc14fa63c2ba378d68daa2c02
+    Reviewed-on: https://go-review.googlesource.com/34917
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ CONTRIBUTING.md | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

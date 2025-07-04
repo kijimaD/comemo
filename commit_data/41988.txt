@@ -1,0 +1,21 @@
+commit 9b56d3e536839f5b1b55d0451e25adc58694dda7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 17 13:32:20 2020 -0400
+
+    cmd/go: convert TestCaseCollisions to the script framework
+    
+    I'm planning to modify this test in a follow-up CL, so we might
+    as well convert it to a script test. I don't think there's an easy
+    way to detect whether we have a case-insensitive file system, without
+    adding a new condition to the script framework, so the test is just
+    guessing that darwin and windows could have case-insensitive file systems.
+    
+    Change-Id: I48bb36f86f19898618681515ac448c3bb4735857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228783
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 46 ----------------------
+ src/cmd/go/testdata/script/list_case_collision.txt | 36 +++++++++++++++++
+ 2 files changed, 36 insertions(+), 46 deletions(-)

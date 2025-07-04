@@ -1,0 +1,15 @@
+commit 5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 8 13:32:47 2011 +1000
+
+    mail: format addresseses correctly.
+    
+    Also remove an obsolete TODO while I'm here.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4588041
+
+ src/pkg/mail/message.go      | 60 ++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/mail/message_test.go | 27 ++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 5 deletions(-)

@@ -1,0 +1,23 @@
+commit 266a2c47e0a0948349d9487b7fba6d7f797184bc
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 9 14:31:05 2009 -0700
+
+    run benchmarks in a relatively fast test mode, as part of run.bash/all.bash
+    
+    R=rsc
+    DELTA=293  (224 added, 0 deleted, 69 changed)
+    OCL=32917
+    CL=32944
+
+ src/run.bash                        |   4 +
+ test/bench/binary-tree-freelist.go  |   8 +-
+ test/bench/binary-tree-freelist.txt |   8 ++
+ test/bench/binary-tree.go           |   8 +-
+ test/bench/chameneosredux.go        |   5 +-
+ test/bench/fasta-1000.out           | 171 ++++++++++++++++++++++++++++++++++++
+ test/bench/k-nucleotide.txt         |  50 +++++------
+ test/bench/nbody.txt                |   2 +-
+ test/bench/regex-dna.txt            |  24 ++---
+ test/bench/threadring.txt           |   2 +-
+ test/bench/timing.sh                |  80 ++++++++++++-----
+ 11 files changed, 293 insertions(+), 69 deletions(-)

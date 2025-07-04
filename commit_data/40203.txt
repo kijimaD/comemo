@@ -1,0 +1,26 @@
+commit 99b9ee3e44e53b91200a9feb6f22b206580656b0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 8 15:05:41 2019 -0400
+
+    go/build: import packages in module mode when GO111MODULE is "on"
+    
+    go/build.Import locates package dirctories using 'go list' when in
+    module mode (finding, downloading, and extracting modules is
+    complicated, so go/build does not handle it).
+    
+    Previously, Import used 'go list' if GO111MODULE was not explicitly
+    off and a go.mod file was present (plus some other conditions). With
+    this change, if GO111MODULE is "on", a go.mod file does not need to be
+    present.
+    
+    Fixes #34669
+    
+    Change-Id: I9e56871054d4b07c3fc04b6f14a5c8c8e9f3c333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199818
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go/build/build.go      | 32 +++++++++++++++++++-------------
+ src/go/build/build_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 13 deletions(-)

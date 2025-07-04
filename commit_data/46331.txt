@@ -1,0 +1,24 @@
+commit 903958d2f506decf92a1bfd63dfbecadf8375735
+Author: korzhao <korzhao@tencent.com>
+Date:   Wed Aug 4 02:47:57 2021 +0000
+
+    encoding/gob: marshal maps using reflect.Value.MapRange
+    
+    golang.org/cl/33572 added a map iterator.
+    
+    use the reflect.Value.MapRange to fix map keys that contain a NaN
+    
+    Fixes #24075
+    
+    Change-Id: I0214d6f26c2041797703e48eac16404f189d6982
+    GitHub-Last-Rev: 5c01e117f4451dbaec657d02d006905df1d0055d
+    GitHub-Pull-Request: golang/go#47476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338609
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encode.go       | 10 ++++----
+ src/encoding/gob/encoder_test.go | 50 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 5 deletions(-)

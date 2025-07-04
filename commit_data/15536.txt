@@ -1,0 +1,24 @@
+commit 139160eb30b34ebb289c36fcbc97df5952b56dc9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 1 12:51:19 2013 -0500
+
+    exp/ssa: fix bug in bridge method
+    
+    Bridge methods for embedded interfaces were
+    passing the interface twice: once as receiver,
+    once as first param.
+    Covered by $GOROOT/test/ddd.go.
+    
+    Also:
+    - invent names ("arg%d") for parameters if missing.
+    - refactoring: move common code for bridge methods into
+      createParams and emitTailCall.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7437047
+
+ src/pkg/exp/ssa/builder.go |  1 -
+ src/pkg/exp/ssa/emit.go    |  8 +++++++-
+ src/pkg/exp/ssa/promote.go | 43 +++++++++++++++++--------------------------
+ 3 files changed, 24 insertions(+), 28 deletions(-)

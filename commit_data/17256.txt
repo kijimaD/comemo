@@ -1,0 +1,14 @@
+commit c7a64cce654e7206fe3bc220182133751b88a074
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 15 12:13:00 2013 +1000
+
+    runtime/race: add end-to-end test on windows
+    
+    whatever "end-to-end" means here
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12898044
+
+ src/run.bat | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

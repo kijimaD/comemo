@@ -1,0 +1,19 @@
+commit 36ef06cc10005050d7b6f444d0ef3675f2e87fbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 12:58:31 2017 -0500
+
+    cmd/test2json: document time.Time JSON format
+    
+    This is already documented in the time.Time package
+    but people might not look there.
+    
+    Followup to CL 76872, which I submitted accidentally
+    (Gerrit has placed the Submit button next to Reply again.)
+    
+    Change-Id: Ibfd6a4da241982d591a8698282a0c15fe9f2e775
+    Reviewed-on: https://go-review.googlesource.com/77010
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/test2json/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

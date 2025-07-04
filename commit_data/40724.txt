@@ -1,0 +1,22 @@
+commit 40ebcfaa174a0e789cd214236d9edaaa8a8262d3
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 29 14:24:43 2019 -0400
+
+    cmd/compile: enable nil check logging for other architectures.
+    
+    Change-Id: If82ebd9cd6470863eb5de9e031e7905a66218857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204159
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go  | 2 +-
+ src/cmd/compile/internal/arm/ssa.go    | 4 ++++
+ src/cmd/compile/internal/arm64/ssa.go  | 4 ++++
+ src/cmd/compile/internal/mips/ssa.go   | 4 ++++
+ src/cmd/compile/internal/mips64/ssa.go | 4 ++++
+ src/cmd/compile/internal/ppc64/ssa.go  | 4 ++++
+ src/cmd/compile/internal/s390x/ssa.go  | 4 ++++
+ src/cmd/compile/internal/wasm/ssa.go   | 4 ++++
+ src/cmd/compile/internal/x86/ssa.go    | 4 ++++
+ 9 files changed, 33 insertions(+), 1 deletion(-)

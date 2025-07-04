@@ -1,0 +1,21 @@
+commit 1fccbfe90e80f214db0abf3ff0db5a0dfe0efdf3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 10 15:32:28 2018 -0500
+
+    nacl*.bash: pass flags to make.bash
+    
+    Just like all.bash passes flags to make.bash, I think it makes
+    sense that naclmake.bash and nacltest.bash do so as well. For
+    example, on a slow machine I can do "./nacltest.bash -v" to see
+    the build progress.
+    
+    Change-Id: Id766dd590e6b83e8b5345822580dc1b05eac8ea3
+    Reviewed-on: https://go-review.googlesource.com/93117
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/naclmake.bash | 2 +-
+ src/nacltest.bash | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

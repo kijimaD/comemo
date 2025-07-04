@@ -1,0 +1,17 @@
+commit b6ed943bef2c984fe9ca48b5f80594bf7ba2a6e5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 10 03:26:37 2015 -0400
+
+    runtime: use _main instead of main on windows/386
+    
+    windows/386 also wants underscore prefix for external names.
+    This CL is in preparation of external linking support.
+    
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2d
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7282
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/rt0_windows_386.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

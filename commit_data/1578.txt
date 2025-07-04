@@ -1,0 +1,13 @@
+commit 712522a6d83c018cbf6eb4f8e30812e3fdd3b1e1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 27 19:30:44 2009 -0800
+
+    bug135 is fixed
+    
+    TBR=ken
+    OCL=23650
+    CL=23650
+
+ test/{bugs => fixedbugs}/bug135.go | 0
+ test/golden.out                    | 4 ----
+ 2 files changed, 4 deletions(-)

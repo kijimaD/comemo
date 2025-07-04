@@ -1,0 +1,13 @@
+commit e303eeb75bc983f9e909668ee2068b439f73322a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 25 08:47:04 2012 +1100
+
+    go/test/chan1.go: fix typo
+    Found by Lucio De Re
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5694071
+
+ test/ken/chan1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

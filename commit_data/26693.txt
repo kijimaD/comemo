@@ -1,0 +1,17 @@
+commit 8bc9c57b186043ccbd23ab73ff14553a9c173729
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Apr 4 19:05:48 2016 +0200
+
+    testing: unflake TestBRun
+    
+    by only testing the lower bound of memalloc
+    
+    Fixes #15063
+    
+    Change-Id: Iab2fdd75e9ce98c641bfbce57f142fa47176772d
+    Reviewed-on: https://go-review.googlesource.com/21507
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/testing/sub_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

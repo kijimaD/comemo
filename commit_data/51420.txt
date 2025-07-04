@@ -1,0 +1,14 @@
+commit 86ede1727201c267497e984d623f6e859de8a3f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 17:34:16 2022 -0500
+
+    doc/go1.20: document math/rand autoseed and deprecation of Seed
+    
+    Change-Id: Ie557f3841781ac47f4044a395106a2e5b13e9695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452561
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.20.html | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

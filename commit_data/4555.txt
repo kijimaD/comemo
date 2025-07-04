@@ -1,0 +1,13 @@
+commit 448aa49cfe7f4ee0b983fc4cf31e23787eefaa01
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 8 12:59:20 2010 +1100
+
+    Add a parser to the time package, the inverse of time.Format
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183141
+
+ src/pkg/time/format.go    | 230 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go | 116 ++++++++++++++++++++++-
+ 2 files changed, 345 insertions(+), 1 deletion(-)

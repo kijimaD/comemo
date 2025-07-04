@@ -1,0 +1,19 @@
+commit 6bead8f77afd2f7317eb011ca019b61ac3d90c17
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Nov 7 14:54:52 2022 +0000
+
+    sync/atomic: disallow type conversions of atomic.Pointer[T]
+    
+    Fixes #56603
+    
+    Change-Id: I6af9d80201025ae4028bfaa4a62e5de9ac0c501d
+    GitHub-Last-Rev: e6ed5e14512e1221a3c6cb181406cf00eec07e99
+    GitHub-Pull-Request: golang/go#56604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448275
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/sync/atomic/type.go | 4 ++++
+ 1 file changed, 4 insertions(+)

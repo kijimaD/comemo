@@ -1,0 +1,20 @@
+commit 2693b424662580c3f4fc65e43474e4db0f9c5cf5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 24 16:59:34 2019 -0700
+
+    cmd/compile: don't initialize blank struct fields
+    
+    We already skipped blank field initialization in non-global contexts.
+    This change makes the global context treatment match.
+    
+    Fixes #31546
+    
+    Change-Id: I40acce49b0a9deb351ae0da098f4c114e425ec63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173723
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go |  3 +++
+ test/fixedbugs/issue31546.go         | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

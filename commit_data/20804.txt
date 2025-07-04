@@ -1,0 +1,13 @@
+commit bd1169dd2144abbe58767bf2dfaa3f20e8cf553b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 10:51:28 2014 -0700
+
+    doc/go1.4.html: vanity imports and internal packages
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/165800043
+
+ doc/go1.4.html | 107 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 93 insertions(+), 14 deletions(-)

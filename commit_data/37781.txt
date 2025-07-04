@@ -1,0 +1,20 @@
+commit 3a3b98fdf96a93191d6c14f3b3cd2b757b961ec0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Dec 15 21:39:00 2018 -0800
+
+    cmd/compile/internal/ssa/gen: set wasm genfile
+    
+    This appears to have been an oversight and/or
+    left over from development.
+    
+    Setting the genfile means that extra sanity
+    checks are executed when regenerating SSA files.
+    They already pass.
+    
+    Change-Id: Icc01ecf85020d3d51355e8bccfbc521b52371747
+    Reviewed-on: https://go-review.googlesource.com/c/154459
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/WasmOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

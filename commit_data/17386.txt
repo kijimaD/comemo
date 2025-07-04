@@ -1,0 +1,20 @@
+commit 9a7947288b55948eeb141ef7020cb542217e54c5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Aug 25 08:44:31 2013 +0900
+
+    syscall: update routing socket parser for NetBSD 6 and beyond
+    
+    NetBSD 6 kernel and beyond require 64-bit aligned access to routing
+    facilities.
+    
+    Fixes #6226.
+    
+    R=golang-dev, bsiegert, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13170043
+
+ src/pkg/net/interface_test.go    |  8 ++++----
+ src/pkg/syscall/route_bsd.go     | 28 +++++++++++++++++++++++-----
+ src/pkg/syscall/sockcmsg_unix.go |  2 +-
+ src/pkg/syscall/syscall_unix.go  |  5 ++++-
+ 4 files changed, 32 insertions(+), 11 deletions(-)

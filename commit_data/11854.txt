@@ -1,0 +1,18 @@
+commit 0a2ffb26385104613ed29bf80da56053566cdb21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 12:24:02 2012 -0800
+
+    go/doc: don't lose exported consts/vars with unexported type
+    
+    Fixes #2998.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5650078
+
+ src/pkg/go/doc/reader.go           |  2 +-
+ src/pkg/go/doc/testdata/b.0.golden | 28 ++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.1.golden | 36 +++++++++++++++++++++++++++++++++++-
+ src/pkg/go/doc/testdata/b.2.golden | 28 ++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.go       | 28 ++++++++++++++++++++++++++++
+ 5 files changed, 120 insertions(+), 2 deletions(-)

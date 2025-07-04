@@ -1,0 +1,21 @@
+commit 326ceeabc46db98cccfbde80fde562c0fb3325c3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 17 12:13:47 2014 -0500
+
+    cmd/ld: add a text generation pass
+    
+    This will be used by ppc64 to add call stubs to the .text section.
+    ARM needs a similar pass to generate veneers for arm->thumb
+    transitions.
+    
+    Change-Id: Iaee74036e60643a56fab15b564718f359c5910eb
+    Reviewed-on: https://go-review.googlesource.com/2004
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/asm.c  | 5 +++++
+ src/cmd/6l/asm.c  | 5 +++++
+ src/cmd/8l/asm.c  | 5 +++++
+ src/cmd/9l/asm.c  | 5 +++++
+ src/cmd/ld/lib.h  | 1 +
+ src/cmd/ld/pobj.c | 1 +
+ 6 files changed, 22 insertions(+)

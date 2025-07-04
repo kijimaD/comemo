@@ -1,0 +1,27 @@
+commit a92543e1a13f62add68a55a5b2c8f87e40d8a41f
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 24 19:45:59 2015 -0500
+
+    cmd/compile: add support for a go:noinline directive
+    
+    Some tests need to disable inlining of a function.  It's currently done
+    in one of a few ways (adding a function call, an empty switch, or a
+    defer).  Add support for a less fragile 'go:noinline' directive that
+    prevents inlining.
+    
+    Fixes #12312
+    
+    Change-Id: Ife444e13361b4a927709d81aa41e448f32eec8d4
+    Reviewed-on: https://go-review.googlesource.com/13911
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/go.go     |   3 +-
+ src/cmd/compile/internal/gc/go.y      |   4 +-
+ src/cmd/compile/internal/gc/inl.go    |   5 +
+ src/cmd/compile/internal/gc/lex.go    |   5 +
+ src/cmd/compile/internal/gc/syntax.go |   1 +
+ src/cmd/compile/internal/gc/y.go      | 236 +++++++++++++++++-----------------
+ test/inline.go                        |   9 ++
+ 7 files changed, 144 insertions(+), 119 deletions(-)

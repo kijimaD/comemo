@@ -1,0 +1,22 @@
+commit 9a6acc83c853c17700c44e336e2d3e2c0fe9a72b
+Author: mprahl <mprahl@redhat.com>
+Date:   Tue Apr 5 15:06:33 2022 -0400
+
+    text/template: support delimiters that can be confused with actions
+    
+    In fields that start with the same character as the right delimiter, the
+    whole delimiter needs to be checked. The first character alone is not
+    sufficient.
+    
+    Fixes #52165
+    
+    Change-Id: I1e4086048417693757f34d0e9ff3bf86aba0d35c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/parse/lex.go      | 24 ++++++++++++++++++------
+ src/text/template/parse/lex_test.go | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 183b6b49632d9b5d4655693907dfacf789bfea22
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon May 20 11:13:36 2024 +0000
+
+    embed: simplify the code
+    
+    Use stringslite and bytealg to simplify the code and to remove redundent
+    helper functions.
+    
+    Change-Id: I665a8313d9b91201b147b255290058f162cf0894
+    GitHub-Last-Rev: e9e3bebdb477c301ec96e2b7425c20e6792d9765
+    GitHub-Pull-Request: golang/go#67515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586715
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/embed/embed.go | 23 +++++------------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)

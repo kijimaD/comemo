@@ -1,0 +1,20 @@
+commit 9ee21f90d2594412dd60dd821831056db708fa53
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:18:43 2016 -0400
+
+    math/big: add (*Int).Sqrt
+    
+    This is needed for some of the more complex primality tests
+    (to filter out exact squares), and while the code is simple the
+    boundary conditions are not obvious, so it seems worth having
+    in the library.
+    
+    Change-Id: Ica994a6b6c1e412a6f6d9c3cf823f9b653c6bcbd
+    Reviewed-on: https://go-review.googlesource.com/30706
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 11 +++++++++++
+ src/math/big/int_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/nat.go      | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+)

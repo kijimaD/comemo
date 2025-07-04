@@ -1,0 +1,27 @@
+commit 78c4dc37097fa98f73de02ffe1709b776a78354d
+Author: Luan Santos <cfcluan@gmail.com>
+Date:   Mon Sep 11 08:37:50 2017 -0700
+
+    net/http: allow reuse of http.Request objects
+    
+    Calling response.Body.Close() early would generarate a race before this.
+    Since closing would return early before the main code path had a chance
+    to reset the request canceler. Having a non-nil request canceler at the
+    start of the next request would cause a "request canceled" error.
+    
+    Here we simply wait for the eofc channel to be closed before returning
+    from earlyCloseFn, ensuring that the caller won't be re-using that
+    Request object before we have a chance to reset the request canceler to
+    nil.
+    
+    Fixes #21838
+    
+    Change-Id: I641815526c6ac63d1816c9b6ad49d73715f7a5cb
+    Reviewed-on: https://go-review.googlesource.com/62891
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

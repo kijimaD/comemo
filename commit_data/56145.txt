@@ -1,0 +1,28 @@
+commit d186dde81844badfa961f8af5044136dce8dc39e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 5 16:51:28 2024 -0400
+
+    go/types: fix bug in premature Unalias of alias cycle
+    
+    Unalias memoizes the result of removing Alias constructors.
+    When Unalias is called too soon on a type in a cycle,
+    the initial value of the alias, Invalid, gets latched by
+    the memoization, causing it to appear Invalid forever.
+    
+    This change disables memoization of Invalid, and adds
+    a regression test.
+    
+    Fixes #66704
+    Updates #65294
+    
+    Change-Id: I479fe14c88c802504a69f177869f091656489cd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/alias.go | 23 ++++++++++++++++++++---
+ src/go/types/alias.go                    | 23 ++++++++++++++++++++---
+ src/go/types/api_test.go                 | 28 ++++++++++++++++++++++++++++
+ src/go/types/decl.go                     |  5 +++++
+ 4 files changed, 73 insertions(+), 6 deletions(-)

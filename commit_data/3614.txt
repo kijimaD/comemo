@@ -1,0 +1,14 @@
+commit 1d390cec1e7f04f610a9391c194cae8148d4756d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 21 19:49:01 2009 -0700
+
+    Replace SliceReader with bytes.Buffer.
+    
+    R=r
+    APPROVED=r
+    DELTA=16  (0 added, 15 deleted, 1 changed)
+    OCL=35976
+    CL=35978
+
+ src/pkg/crypto/rsa/rsa_test.go | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

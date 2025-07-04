@@ -1,0 +1,24 @@
+commit fd208c8850cdfe84469d3e4ef9bd55e2e0cece70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 4 12:00:20 2023 +0700
+
+    cmd/compile: remove constant arithmetic overflows during typecheck
+    
+    Since go1.19, these errors are already reported by types2 for any user's
+    Go code. Compiler generated code, which looks like constant expression
+    should be evaluated as non-constant semantic, which allows overflows.
+    
+    Fixes #58293
+    
+    Change-Id: I6f0049a69bdb0a8d0d7a0db49c7badaa92598ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465096
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/compile/internal/typecheck/const.go | 36 ++---------------------------
+ test/fixedbugs/issue58293.go                | 13 +++++++++++
+ 2 files changed, 15 insertions(+), 34 deletions(-)

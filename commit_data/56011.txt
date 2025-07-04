@@ -1,0 +1,26 @@
+commit cff7267e0d77f02d582c613c272b6f8ebf1c0412
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 12 14:20:33 2024 +0100
+
+    cmd/internal/osinfo,runtime,syscall: use RtlGetVersion instead of RtlGetNtVersionNumbers
+    
+    The RtlGetNtVersionNumbers function is not documented by Microsoft.
+    Use RtlGetVersion instead, which is documented and available on all
+    supported versions of Windows.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Ibaf0e2c28e673951476c5d863a829fd166705aea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/osinfo/os_windows.go            |  4 ++--
+ src/internal/syscall/windows/mksyscall.go        |  2 +-
+ src/internal/syscall/windows/version_windows.go  | 27 ++++++++++++++++--------
+ src/internal/syscall/windows/zsyscall_windows.go |  7 ++++++
+ src/runtime/defs_windows.go                      | 10 +++++++++
+ src/runtime/os_windows.go                        | 11 +++++-----
+ src/syscall/syscall_windows.go                   |  1 -
+ src/syscall/zsyscall_windows.go                  |  7 ------
+ 8 files changed, 44 insertions(+), 25 deletions(-)

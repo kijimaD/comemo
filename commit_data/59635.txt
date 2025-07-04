@@ -1,0 +1,24 @@
+commit 94e3caeec18dfb55c0a8ab6067904ae76248ec3f
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Tue May 20 10:55:33 2025 +0800
+
+    cmd/compile/internal: intrinsify publicationBarrier on mips64x
+    
+    This enables publicationBarrier to be used as an intrinsic on mips64x.
+    
+    Change-Id: I4030ea65086c37ee1dcc1675d0d5d40ef8683851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/mips64/ssa.go             | 3 +++
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules     | 3 +++
+ src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go     | 3 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      | 3 +++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 2 ++
+ 7 files changed, 23 insertions(+), 1 deletion(-)

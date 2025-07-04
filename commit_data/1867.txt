@@ -1,0 +1,14 @@
+commit 8d44052b6dd9e27a5230f66239681cec601d3a8e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 23 17:46:59 2009 -0700
+
+    iterator for vector
+    
+    R=rsc
+    DELTA=35  (35 added, 0 deleted, 0 changed)
+    OCL=26662
+    CL=26662
+
+ src/lib/container/vector.go      | 16 ++++++++++++++++
+ src/lib/container/vector_test.go | 19 +++++++++++++++++++
+ 2 files changed, 35 insertions(+)

@@ -1,0 +1,12 @@
+commit 28db812c88e8ea5c515f4b050dcb37b0ecb2006e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 13:24:26 2010 -0700
+
+    test: fix run-arm to count bugs correctly
+    
+    TBR=kaib
+    CC=golang-dev
+    https://golang.org/cl/1080041
+
+ test/run-arm | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

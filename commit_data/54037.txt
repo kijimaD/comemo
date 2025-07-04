@@ -1,0 +1,20 @@
+commit ade5a6232fd8f8a63549adf6cb6362fe6908e1f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 11:29:59 2023 -0400
+
+    cmd/compile: trim range typechecking
+    
+    Most of the code is not necessary anymore.
+    Before we start changing how range works,
+    delete this code so it won't need updating.
+    
+    Preparation for proposal #61405.
+    
+    Change-Id: Ia6c6cc62b156e38a871279350a2e60c189967cac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510536
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/stmt.go | 93 ++++++------------------------
+ 1 file changed, 17 insertions(+), 76 deletions(-)

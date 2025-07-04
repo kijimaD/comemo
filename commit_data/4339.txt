@@ -1,0 +1,15 @@
+commit f91cd44736d18b9191097121020727719c219479
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 6 15:01:07 2009 -0800
+
+    save a few ns by inlining (which mostly simplifies things anyway).
+    a couple of cleanups.
+    don't keep big buffers in the free list.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/166078
+
+ src/pkg/fmt/format.go | 196 ++++++++++++++++++++++----------------------------
+ src/pkg/fmt/print.go  |  18 +++--
+ 2 files changed, 100 insertions(+), 114 deletions(-)

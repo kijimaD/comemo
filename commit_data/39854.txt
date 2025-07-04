@@ -1,0 +1,18 @@
+commit 68a653684823b6d63286bef785ab3a2df09ec552
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Sep 10 19:00:16 2019 +0000
+
+    regexp: add example for NumSubexp
+    
+    Updates #21450
+    
+    Change-Id: Idf276e97f816933cc0f752cdcd5e713b5c975833
+    GitHub-Last-Rev: 198e585f92db6e7ac126b49cd751b333e9a44b93
+    GitHub-Pull-Request: golang/go#33490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,20 @@
+commit 9610b616c6936edde5aa54312c8dc5e182aebf73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 8 13:51:44 2014 -0700
+
+    go/doc: fix URL matched in ToHTML
+    
+    Permit paired parentheses in URLs such as:
+    
+    http://en.wikipedia.org/wiki/Camellia_(cipher)
+    
+    Fixes #5043.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85610043
+
+ src/pkg/go/doc/comment.go      | 45 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/go/doc/comment_test.go | 38 +++++++++++++++++++++++++++++++++--
+ 2 files changed, 74 insertions(+), 9 deletions(-)

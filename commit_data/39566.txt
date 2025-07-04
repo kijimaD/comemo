@@ -1,0 +1,19 @@
+commit 316ac4f33061653871c0dff7f282d1c4de9388de
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Aug 2 10:36:03 2019 -0700
+
+    cmd/compile: fix crash on write barrier insertion
+    
+    The compiler can crash if the compiled code tries to
+    unconditionally read from a nil pointer. This should cause
+    the generated binary to panic, not the compiler.
+    
+    Fixes #33438
+    
+    Change-Id: Ic8fa89646d6968e2cc4e27da0ad9286662f8bc49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188760
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go |  4 ++++
+ test/fixedbugs/issue33438.go                 | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)

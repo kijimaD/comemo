@@ -1,0 +1,12 @@
+commit bc6878331a34eb9f6407b6a35a362bee93b92967
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 26 14:21:52 2010 -0800
+
+    8g: fix out of register bug in byte(x) code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/223070
+
+ src/cmd/8g/cgen.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

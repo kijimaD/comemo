@@ -1,0 +1,32 @@
+commit f7aaa553daf41f006bbc2c96d062e661be0c3501
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 8 22:49:56 2013 -0500
+
+    cmd/5a, cmd/6a, cmd/8a: use liblink
+    
+    Preparation for golang.org/s/go13linker work.
+    
+    This CL does not build by itself. It depends on 35740044
+    and 35790044 and will be submitted at the same time.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/35830043
+
+ src/cmd/5a/a.h     |   44 +-
+ src/cmd/5a/a.y     |   26 +-
+ src/cmd/5a/lex.c   |  294 ++---------
+ src/cmd/5a/y.tab.c | 1310 +++++++++++++++++++---------------------------
+ src/cmd/5a/y.tab.h |   48 +-
+ src/cmd/6a/a.h     |   51 +-
+ src/cmd/6a/a.y     |   28 +-
+ src/cmd/6a/lex.c   |  302 ++---------
+ src/cmd/6a/y.tab.c | 1457 +++++++++++++++++++++-------------------------------
+ src/cmd/6a/y.tab.h |   50 +-
+ src/cmd/8a/a.h     |   52 +-
+ src/cmd/8a/a.y     |   26 +-
+ src/cmd/8a/lex.c   |  299 ++---------
+ src/cmd/8a/y.tab.c | 1446 +++++++++++++++++++++------------------------------
+ src/cmd/8a/y.tab.h |   50 +-
+ src/cmd/cc/lexbody |   74 +--
+ 16 files changed, 1941 insertions(+), 3616 deletions(-)

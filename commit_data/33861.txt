@@ -1,0 +1,12 @@
+commit 2fb9fe48c63ed0b7eee36d0d8c2d494ad70602b0
+Author: Stanislav Afanasev <php.progger@gmail.com>
+Date:   Mon Dec 11 23:45:19 2017 +0300
+
+    doc/contrib.html: fix outdated link
+    
+    Change-Id: I6d94a14a781a2fbeb90db35ae3490ce2ac5f8ed1
+    Reviewed-on: https://go-review.googlesource.com/83315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

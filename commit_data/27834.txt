@@ -1,0 +1,23 @@
+commit 2cbe735366a16dcd2595c5f1b1ca38b5b2b5e5b2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 09:02:13 2016 -0700
+
+    syscall: unify unix/amd64 asm implementations
+    
+    Updates #11041
+    
+    Change-Id: I77e5ca0b61ffc530ee46848721a177867c81d548
+    Reviewed-on: https://go-review.googlesource.com/25116
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/asm9_freebsd_amd64.s                   |  47 ----------
+ src/syscall/asm9_openbsd_amd64.s                   |  46 ---------
+ .../{asm9_netbsd_amd64.s => asm9_unix1_amd64.s}    |   4 +-
+ .../{asm9_dragonfly_amd64.s => asm9_unix2_amd64.s} |   4 +-
+ src/syscall/asm_dragonfly_amd64.s                  | 103 ---------------------
+ src/syscall/asm_freebsd_amd64.s                    | 103 ---------------------
+ src/syscall/asm_openbsd_amd64.s                    | 103 ---------------------
+ .../{asm_netbsd_amd64.s => asm_unix_amd64.s}       |   4 +-
+ 8 files changed, 9 insertions(+), 405 deletions(-)

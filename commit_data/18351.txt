@@ -1,0 +1,13 @@
+commit 496c030c506bf1ac18c82ba85d4bcc5031253bdf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jan 27 11:11:44 2014 +0100
+
+    time: increase timeout of TestOverflowRuntimeTimer on Plan 9
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/53000043
+
+ src/pkg/time/internal_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

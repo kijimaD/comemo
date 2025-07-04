@@ -1,0 +1,16 @@
+commit 994b7eebc7e704b7132e5a69be72ca885b30b83e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 24 14:59:22 2017 -0700
+
+    misc/cgo/testcarchive: fix `go env` error message
+    
+    Add a missing newline.  Don't panic on an unexpected error type.
+    
+    Change-Id: I82a4b12c498fbfdf4972737329631c0c02540005
+    Reviewed-on: https://go-review.googlesource.com/44092
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

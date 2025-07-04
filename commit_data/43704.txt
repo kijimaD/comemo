@@ -1,0 +1,26 @@
+commit 63fd764502e08d067293a93d6d1a566951255ce5
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Wed Oct 28 20:54:27 2020 +0000
+
+    cmd/internal/obj: add prologue_end DWARF stmt for ppc64
+    
+    This patch adds a prologue_end statement to the DWARF information for
+    the ppc64 arch.
+    
+    Prologue end is used by the Delve debugger in order to determine where
+    to set a breakpoint to avoid the stacksplit prologue.
+    
+    Updates #36612
+    
+    Change-Id: Ifb16c1476fe716a0bf493c5486d1d88ebe8d0253
+    GitHub-Last-Rev: 77a217206d529df8bf8d4ef10a5347b6ae524612
+    GitHub-Pull-Request: golang/go#42261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266019
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

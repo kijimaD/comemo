@@ -1,0 +1,22 @@
+commit 27eaffc053d77e967c8bcd71b47087f468accb46
+Author: Tyler Bui-Palsulich <tbp@google.com>
+Date:   Tue May 28 15:50:01 2019 -0400
+
+    cmd/go: document GO{NO}SUMDB in 'go help environment' and 'go help modules'
+    
+    GOSUMDB and GONOSUMDB are described in detail by
+    'go help module-auth'. So, this change mentions the two
+    variables and says to see 'go help module-auth'.
+    
+    This also adds GONOPROXY to 'go help environment'.
+    
+    Fixes #32292 and updates #32056.
+    
+    Change-Id: I2eae0f906a3fbfcb88ad5c8fb4870917d0d7bbcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179219
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go               | 18 +++++++++++++++---
+ src/cmd/go/internal/help/helpdoc.go | 13 ++++++++++++-
+ src/cmd/go/internal/modload/help.go |  5 +++--
+ 3 files changed, 30 insertions(+), 6 deletions(-)

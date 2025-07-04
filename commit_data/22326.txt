@@ -1,0 +1,43 @@
+commit 75883bae28435530bcb01d071d1b448ab0cf11cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 2 19:58:37 2015 -0700
+
+    cmd/internal/gc: convert yet more Node fields to bools
+    
+    Convert Embedded, Method, and Colas to bools.
+    
+    I believe that this is the last of the Node fields
+    that can be trivially converted to bools.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I81962ee47866596341fc60d24d6959c20cd7fc1c
+    Reviewed-on: https://go-review.googlesource.com/8440
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/5g/cgen64.go           |  4 +--
+ src/cmd/5g/gsubr.go            |  4 +--
+ src/cmd/6g/gsubr.go            |  2 +-
+ src/cmd/8g/cgen.go             | 10 ++++----
+ src/cmd/8g/cgen64.go           |  4 +--
+ src/cmd/8g/ggen.go             |  8 +++---
+ src/cmd/8g/gsubr.go            |  2 +-
+ src/cmd/internal/gc/cgen.go    | 58 +++++++++++++++++++++---------------------
+ src/cmd/internal/gc/closure.go |  2 +-
+ src/cmd/internal/gc/cplx.go    | 30 +++++++++++-----------
+ src/cmd/internal/gc/dcl.go     |  6 ++---
+ src/cmd/internal/gc/fmt.go     |  8 +++---
+ src/cmd/internal/gc/gen.go     | 10 ++++----
+ src/cmd/internal/gc/go.y       |  4 +--
+ src/cmd/internal/gc/gsubr.go   |  8 +++---
+ src/cmd/internal/gc/order.go   |  6 ++---
+ src/cmd/internal/gc/pgen.go    |  2 +-
+ src/cmd/internal/gc/reflect.go |  4 +--
+ src/cmd/internal/gc/sinit.go   |  4 +--
+ src/cmd/internal/gc/subr.go    | 10 ++++----
+ src/cmd/internal/gc/syntax.go  |  6 ++---
+ src/cmd/internal/gc/walk.go    | 10 ++++----
+ src/cmd/internal/gc/y.go       |  4 +--
+ 23 files changed, 103 insertions(+), 103 deletions(-)

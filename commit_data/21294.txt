@@ -1,0 +1,18 @@
+commit e832043e7293cf3237e35ffc3b645c8d04d11f77
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 22:15:01 2015 -0500
+
+    cmd/go: set $GOROOT during 'go tool' invocations
+    
+    cmd/dist now requires $GOROOT to be set explicitly.
+    Set it when invoking via 'go tool dist' so that users are unaffected.
+    
+    Also, change go tool -n to drop trailing space in output
+    for 'go tool -n <anything>'.
+    
+    Change-Id: I9b2c020e0a2f3fa7c9c339fadcc22cc5b6cb7cac
+    Reviewed-on: https://go-review.googlesource.com/3011
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/tool.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

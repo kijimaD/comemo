@@ -1,0 +1,24 @@
+commit c906608406f22087e9bc3ee7616c3f1fbba2503b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 09:25:05 2020 -0500
+
+    io/fs: fix reference to WalkFunc
+    
+    The comment explains differences between WalkDirFunc and WalkFunc,
+    but when this code moved out of path/filepath, we forgot to change
+    the reference to be filepath.WalkFunc. Fix that.
+    
+    (The text should not be deleted, because path/filepath does not
+    contain this type - WalkDirFunc - nor this text anymore.)
+    
+    Pointed out by Carl Johnson on CL 243916 post-submit.
+    
+    For #41190.
+    
+    Change-Id: I44c64d0b7e60cd6d3694cfd6d0b95468ec4612fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268417
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/io/fs/walk.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

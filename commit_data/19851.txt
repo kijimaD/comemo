@@ -1,0 +1,13 @@
+commit 5a008acec1a189f6942e9c90f687d89b2819eafa
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 30 20:24:03 2014 -0700
+
+    runtime: cast to uintptr to match %p formatter.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/121920043
+
+ src/pkg/runtime/os_windows_386.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

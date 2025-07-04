@@ -1,0 +1,17 @@
+commit 83e976d53ece4fb691ef0beec3198561851fca12
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 30 13:49:58 2009 -0700
+
+    bug146: array/slice conversion before I left missed conversions
+    
+    R=ken
+    OCL=28120
+    CL=28124
+
+ src/cmd/gc/walk.c                  | 37 ++++++++++---------------------------
+ src/lib/net/net_darwin.go          |  4 ++--
+ src/lib/net/net_linux.go           |  4 ++--
+ src/lib/sort_test.go               |  6 +++---
+ test/{bugs => fixedbugs}/bug146.go |  0
+ test/golden.out                    |  7 -------
+ 6 files changed, 17 insertions(+), 41 deletions(-)

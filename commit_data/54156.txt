@@ -1,0 +1,23 @@
+commit 83e0704c50c4269d90ec654b6590ae4db554f4eb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 6 11:15:27 2023 -0400
+
+    cmd/compile: add all runtime package dependencies to NoInstrumentPkgs
+    
+    Currently, this list includes *almost* all runtime packages, but not
+    quite all.
+    
+    We leave out internal/bytealg for reasons explained in the code.
+    
+    Compiling with or without race instrumentation has no effect on the
+    other packages added to the list here, so this is a no-op change
+    today, but makes this more robust.
+    
+    Change-Id: Iaec585b2efbc72983d8cb3929394524c42dd664d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521701
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/base.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,12 @@
+commit 87aa93457ed62b55b90ee9c52662b68df12fafd6
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Mar 8 12:33:49 2011 -0500
+
+    time: fix Time.ZoneOffset documentation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4240090
+
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 81b46f1bcd082f255402d936f7d1e8c95389756a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 17 22:29:43 2012 +0100
+
+    cmd/6g: fix componentgen for funarg structs.
+    
+    Fixes #4518.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6932045
+
+ src/cmd/6g/cgen.c           |  6 ++++
+ test/fixedbugs/issue4518.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+)

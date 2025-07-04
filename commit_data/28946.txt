@@ -1,0 +1,25 @@
+commit f1ad4863aae1fd5cd5d0e3e4e6cb6bfae62951a6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Oct 17 17:10:24 2016 -0400
+
+    runtime: get s390x vector facility availability from AT_HWCAP
+    
+    This is a more robust method for obtaining the availability of vx.
+    Since this variable may be checked frequently I've also now
+    padded it so that it will be in its own cache line.
+    
+    I've kept the other check (in hash/crc32) the same for now until
+    I can figure out the best way to update it.
+    
+    Updates #15403.
+    
+    Change-Id: I74eed651afc6f6a9c5fa3b88fa6a2b0c9ecf5875
+    Reviewed-on: https://go-review.googlesource.com/31149
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm_s390x.s        | 57 +++++-------------------------------------
+ src/runtime/os_linux.go        |  1 +
+ src/runtime/os_linux_arm.go    |  1 -
+ src/runtime/os_linux_noauxv.go |  2 +-
+ src/runtime/os_linux_s390x.go  | 32 ++++++++++++++++++++++++
+ 5 files changed, 40 insertions(+), 53 deletions(-)

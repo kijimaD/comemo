@@ -1,0 +1,15 @@
+commit eb863240dcc857b4207b06eb33385446696b7b1c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 23 15:35:43 2021 +0100
+
+    runtime: remove unused const stackSystem on dragonfly
+    
+    Change-Id: I778c2bd7cf0b12275bae344cb2130a7959500481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295470
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_dragonfly.go | 2 --
+ 1 file changed, 2 deletions(-)

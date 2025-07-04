@@ -1,0 +1,12 @@
+commit 7600281bda2611d4a832a0b0bff6ef2e5dfb0abd
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Nov 28 09:50:51 2011 -0800
+
+    bytes: fix test output
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/5441048
+
+ src/pkg/bytes/bytes_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

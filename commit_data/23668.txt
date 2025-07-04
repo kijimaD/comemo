@@ -1,0 +1,24 @@
+commit 8b6527b70ea0408f0903a51d88c7245ec366f1f5
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Jun 27 13:07:22 2015 +0000
+
+    encoding/xml: improve marshaller sanity checks of directives
+    
+    When building a directive, the current sanity check prevents
+    a '>' to be used, which makes a DOCTYPE directive with an
+    internal subset be rejected. It is accepted by the parser
+    though, so what can be parsed cannot be encoded.
+    
+    Improved the corresponding sanity check to mirror the behavior
+    of the parser (in the way it handles angle brackets, quotes,
+    and comments).
+    
+    Fixes #10158
+    
+    Change-Id: Ieffea9f870f2694548e12897f8f47babc0ea4414
+    Reviewed-on: https://go-review.googlesource.com/11630
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/marshal.go      | 45 ++++++++++++++++++++++++++++++++++++++--
+ src/encoding/xml/marshal_test.go | 40 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 82 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 9ef5ee911c2265cde86887032fc56ce4c335d580
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 13:59:30 2018 -0400
+
+    cmd/go/internal/load: remove unused argument from Lookup
+    
+    Change-Id: Ia2948a88c6d45a31be17b3d7415559cd53c289ce
+    Reviewed-on: https://go-review.googlesource.com/128015
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go     | 26 +++++++++++---------------
+ src/cmd/go/internal/modload/load.go |  6 ++++--
+ 2 files changed, 15 insertions(+), 17 deletions(-)

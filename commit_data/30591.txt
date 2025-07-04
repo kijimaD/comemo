@@ -1,0 +1,17 @@
+commit 2bd6360e3b0bda74b637ad37536b2f95f5b8574f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Mar 8 07:47:31 2017 +0900
+
+    net/mail: fix wrong error message in consumePhrase
+    
+    Fixes #19415
+    
+    Change-Id: I6414f82e42bd09f1793156befce326aeac919ea2
+    Reviewed-on: https://go-review.googlesource.com/37911
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 2 +-
+ src/net/mail/message_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

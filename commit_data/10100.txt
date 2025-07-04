@@ -1,0 +1,21 @@
+commit 8f5718176fdd3040d874f85fbd5c825fbd359173
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:22:09 2011 -0700
+
+    bytes, strings: use rune
+    
+    Various rune-based APIs change.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5306044
+
+ src/pkg/bytes/buffer.go         |   6 +-
+ src/pkg/bytes/buffer_test.go    |   6 +-
+ src/pkg/bytes/bytes.go          | 121 ++++++++++++++++++++--------------------
+ src/pkg/bytes/bytes_test.go     |  60 ++++++++++----------
+ src/pkg/strings/reader.go       |   6 +-
+ src/pkg/strings/replace_test.go |   6 +-
+ src/pkg/strings/strings.go      |  95 +++++++++++++++----------------
+ src/pkg/strings/strings_test.go |  76 ++++++++++++-------------
+ 8 files changed, 189 insertions(+), 187 deletions(-)

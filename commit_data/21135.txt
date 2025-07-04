@@ -1,0 +1,15 @@
+commit 0e05bd59ac6bdc9586f8d378daa1c573c21090d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 2 14:35:55 2015 -0800
+
+    doc: add a section for performance improvements in go1.5.txt
+    
+    Mostly I need to tickle the builders, since I'm working on the
+    dashboard builders right now.
+    
+    Change-Id: I833fc22bc942758a58791ed038634cdd812f5411
+    Reviewed-on: https://go-review.googlesource.com/2261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

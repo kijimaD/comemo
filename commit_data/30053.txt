@@ -1,0 +1,20 @@
+commit fddc004537b90e46c894e9b22c291759fcd1209e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 21 11:31:39 2016 -0500
+
+    cmd/compile: remove nil check for Zero/Move on 386, AMD64, S390X
+    
+    Fixes #18003.
+    
+    Change-Id: Iadcc5c424c64badecfb5fdbd4dbd9197df56182c
+    Reviewed-on: https://go-review.googlesource.com/33421
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  8 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 +++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 11 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 77 +++++++++++++++++-----------
+ test/nilptr3.go                              |  5 ++
+ 5 files changed, 73 insertions(+), 38 deletions(-)

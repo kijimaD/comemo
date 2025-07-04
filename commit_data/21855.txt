@@ -1,0 +1,18 @@
+commit 85c6f71b08f43ba8ceea4bc64c53d6873ac0eaad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 27 20:44:45 2015 +0000
+
+    cmd/internal/gc: clean up switch code
+    
+    This CL makes the switch walking and typechecking code
+    more idiomatic and adds documentation.
+    It also removes all but one global variable.
+    
+    No functional changes. Confirmed with toolstash -cmp on the stdlib.
+    
+    Change-Id: Ic3f38acc66e906edd722498839aeb557863639cf
+    Reviewed-on: https://go-review.googlesource.com/6268
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/swt.go | 1255 +++++++++++++++++++-------------------------
+ 1 file changed, 549 insertions(+), 706 deletions(-)

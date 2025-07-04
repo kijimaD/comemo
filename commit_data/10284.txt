@@ -1,0 +1,14 @@
+commit 0e5cd9d3f6ee8e0828cf29152d7180f70a00d6c7
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Nov 8 11:43:58 2011 -0500
+
+    runtime: add timespec definition for freebsd
+    
+    R=golang-dev, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/5340058
+
+ src/pkg/runtime/freebsd/386/defs.h   | 6 ++++++
+ src/pkg/runtime/freebsd/amd64/defs.h | 6 ++++++
+ src/pkg/runtime/freebsd/defs.c       | 2 ++
+ 3 files changed, 14 insertions(+)

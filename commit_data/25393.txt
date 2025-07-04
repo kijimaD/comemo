@@ -1,0 +1,14 @@
+commit d513ee774cb3747eccc6b3483a67dbb9118dae8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 20:42:40 2015 -0500
+
+    cmd/dist: run shards of test dir in parallel
+    
+    Saves 15 seconds from all.bash on my laptop (3:20 -> 3:05).
+    
+    Change-Id: Ic5dc3c7804e78b584789dd856a3dada94000a8e2
+    Reviewed-on: https://go-review.googlesource.com/18199
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 42 +++++++++++++++++++++++++++++++-----------
+ 1 file changed, 31 insertions(+), 11 deletions(-)

@@ -1,0 +1,13 @@
+commit ea33ff4067e5a603de02f0de083854cc999652b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 00:01:47 2009 -0700
+
+    delete unnecessary newline
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29971
+    CL=29975
+
+ src/lib/strconv/fp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

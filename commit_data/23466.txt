@@ -1,0 +1,18 @@
+commit 4bba6729f85a3f99fcb05d8e5cc2e180bc9d4a90
+Author: Andrew Bonventre <andybons@gmail.com>
+Date:   Fri Jun 19 13:29:58 2015 -0400
+
+    image/gif: set default loop count to 0 when app ext. is not present
+    
+    It was otherwise not being preserved across
+    specific Decode->Encode->Decode calls.
+    
+    Fixes #11287
+    
+    Change-Id: I40602da7fa39ec67403bed52ff403f361c6171bb
+    Reviewed-on: https://go-review.googlesource.com/11256
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/gif/reader.go      |  1 -
+ src/image/gif/reader_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

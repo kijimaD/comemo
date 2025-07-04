@@ -1,0 +1,13 @@
+commit f0e6a3caac038a87d87117e2aa73baad3165b348
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 13:33:29 2009 -0700
+
+    dangling pointer bug (thanks valgrind)
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29881
+    CL=29885
+
+ src/cmd/ld/go.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

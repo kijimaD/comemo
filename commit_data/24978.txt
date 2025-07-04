@@ -1,0 +1,23 @@
+commit 26119179fa217da7f89d4c5930889bbbedbab8b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 15:38:26 2015 -0500
+
+    cmd/go: fix loading of buildid on OS X executables
+    
+    This is a bit of a belt-and-suspenders fix.
+    On OS X, we now parse the Mach-O file to find the __text section,
+    which is arguably the more proper fix. But it's a bit worrisome to
+    depend on a name like __text not changing, so we also read more
+    of the initial file (now 32 kB, up from 8 kB) and scan that too.
+    
+    Fixes #12327.
+    
+    Change-Id: I3a201a3dc278d24707109bb3961c3bdd8b8a0b7b
+    Reviewed-on: https://go-review.googlesource.com/17038
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/deps.go    |  3 ++-
+ src/cmd/go/note.go      | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/note_test.go | 14 ++++++++++++++
+ src/cmd/go/pkg.go       | 27 +++++++++++++++++++++++----
+ 4 files changed, 79 insertions(+), 5 deletions(-)

@@ -1,0 +1,22 @@
+commit ae329abec0f78743ab2fbf30ef5b488376fe3c85
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 23 12:28:29 2020 -0400
+
+    cmd/go: add another test case for package/module ambiguity in 'go get'
+    
+    For #37438
+    
+    Change-Id: Iae00ef7f97144e85f4f710cdb3087c2548b4b8f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256799
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../testdata/mod/example.net_pkgremoved_v0.1.0.txt | 16 +++++++++
+ .../testdata/mod/example.net_pkgremoved_v0.2.0.txt | 15 +++++++++
+ .../testdata/mod/example.net_pkgremoved_v0.2.1.txt | 15 +++++++++
+ src/cmd/go/testdata/script/mod_get_patchmod.txt    | 38 ++++++++++++++++++++++
+ 4 files changed, 84 insertions(+)

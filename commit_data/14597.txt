@@ -1,0 +1,14 @@
+commit 014137c839a3b9c5b9a2f44df8c8598e2569a311
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 18:08:07 2012 -0500
+
+    doc/go1.1.html: add warning about net.ResolveTCPAddr error checking
+    
+    Suggested by Paul Borman.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6930043
+
+ doc/go1.1.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

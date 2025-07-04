@@ -1,0 +1,16 @@
+commit da4a64014140adf83fb1434367ff68067249c267
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 26 12:14:19 2021 -0400
+
+    doc/go1.17: revise OpenBSD release notes
+    
+    Updates #44513.
+    
+    Change-Id: I64077859fa3061fee8327599875ad3870d603a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322856
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.17.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

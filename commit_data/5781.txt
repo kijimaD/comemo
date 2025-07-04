@@ -1,0 +1,21 @@
+commit c28bd5445c5177d814056542927cf0491fb5f58a
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Jul 12 11:30:11 2010 -0700
+
+    math: amd64 version of log
+    
+    Benchmarks 25ns/op (was 58ns/op) on 2.53GHz Intel Core 2 Duo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1740043
+
+ src/pkg/math/Makefile      |   5 ++-
+ src/pkg/math/log.go        |   8 ----
+ src/pkg/math/log10.go      |  13 ++++++
+ src/pkg/math/log10_386.s   |  19 ++++++++
+ src/pkg/math/log10_decl.go |   8 ++++
+ src/pkg/math/log_386.s     |  16 -------
+ src/pkg/math/log_amd64.s   | 109 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/log_decl.go   |   2 -
+ 8 files changed, 153 insertions(+), 27 deletions(-)

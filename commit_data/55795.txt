@@ -1,0 +1,19 @@
+commit cda1e40b44771f8a01f361672cba721d0f283683
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 22 18:52:39 2024 +0700
+
+    cmd/compile: add missing Unalias call when writing type alias
+    
+    Fixes #65778
+    
+    Change-Id: I93af42967c7976d63b4f460b7ffbcb9a9c05ffe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565995
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ test/fixedbugs/issue65778.go             | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit faad40c745e6f2c4db673ae700c79745f98e77ae
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Oct 5 14:15:02 2013 +1000
+
+    A+C: add Marko Juhani Silokunnas (individual CLA).
+    
+    R=golang-dev, adg
+    CC=golang-dev, mikioh.mikioh
+    https://golang.org/cl/14417043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

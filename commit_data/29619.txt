@@ -1,0 +1,23 @@
+commit 409a667f35f66b2b5fa219ee93f1a3ddc6e07b03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 22 02:07:52 2016 +0000
+
+    net/http: fix parallel tests using global DefaultTransport
+    
+    When I added t.Parallel to some tests earlier, I overlooked some using
+    the global "Get" func, which uses DefaultTransport.
+    
+    The DefaultTransport can have its CloseIdleConnections called by other
+    parallel tests. Use a private Transport instead.
+    
+    Fixes #18006
+    
+    Change-Id: Ia4faca5bac235cfa95dcf2703c25f3627112a5e9
+    Reviewed-on: https://go-review.googlesource.com/33432
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/main_test.go  |  4 ++++
+ src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 8 deletions(-)

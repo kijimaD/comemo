@@ -1,0 +1,14 @@
+commit b72c7e943cfbb7296bb182717642072c0e8efd5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 10 12:51:36 2012 -0400
+
+    cmd/6c: fix probable code gen bug
+    
+    This is a pointer being copied; MOVL can't possibly be right.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5999043
+
+ src/cmd/6c/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

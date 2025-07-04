@@ -1,0 +1,8 @@
+commit 77da85564eba141a643426ec383707ff0a08ef67
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 14:15:36 2009 -0800
+
+    delete old release tag
+
+ .hgtags | 2 --
+ 1 file changed, 2 deletions(-)

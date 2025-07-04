@@ -1,0 +1,13 @@
+commit 6d20e725874567d395f4d877c707c6e5d4ea6112
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Aug 1 22:34:36 2014 +0200
+
+    test/run: go fmt
+    
+    LGTM=josharian, r
+    R=golang-codereviews, josharian, r
+    CC=golang-codereviews
+    https://golang.org/cl/120160043
+
+ test/run.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

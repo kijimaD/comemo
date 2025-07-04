@@ -1,0 +1,23 @@
+commit 04f5116c987082a834a29e81c81ece8537d87219
+Author: gerrard <gyc_ssdut@163.com>
+Date:   Thu Sep 16 07:10:58 2021 +0000
+
+    cmd/go: clean paths before checking same directory
+    
+    Replace `filepath.Split`  with `filepath.Dir`. Clean paths before checking whether command line files are in same directory.
+    
+    Fixes #47392
+    
+    Change-Id: I259c3024e7670e78833622b02af4710bc4b68b31
+    GitHub-Last-Rev: c7c4905bb9c62737e95a4663813f076ee540046b
+    GitHub-Pull-Request: golang/go#47412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337629
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go         |  5 +----
+ src/cmd/go/testdata/script/run_dirs.txt | 14 ++++++++++++--
+ 2 files changed, 13 insertions(+), 6 deletions(-)

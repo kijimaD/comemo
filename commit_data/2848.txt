@@ -1,0 +1,22 @@
+commit a2b8e387665c1298f2b8ded29cec56e85cfd29a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 31 09:29:28 2009 -0700
+
+    checkpoint; still plenty to clean up
+    
+    R=ken
+    OCL=32576
+    CL=32580
+
+ src/cmd/gc/Makefile       |    5 +
+ src/cmd/gc/builtin.c.boot |    2 +-
+ src/cmd/gc/dcl.c          |    2 +-
+ src/cmd/gc/go.h           |  109 ++--
+ src/cmd/gc/mkbuiltin      |    2 +-
+ src/cmd/gc/mkbuiltin1.c   |    2 +-
+ src/cmd/gc/subr.c         |  128 +----
+ src/cmd/gc/swt.c          |    6 +-
+ src/cmd/gc/sys.go         |    3 +-
+ src/cmd/gc/typecheck.c    |   19 +-
+ src/cmd/gc/walk.c         | 1251 ++++++++++++++-------------------------------
+ 11 files changed, 490 insertions(+), 1039 deletions(-)

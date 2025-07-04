@@ -1,0 +1,25 @@
+commit eed6938cbbac17169ad15f6d4fe6bb9c1c0175fe
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Mar 28 16:14:02 2017 -0400
+
+    cmd/asm, cmd/internal/obj/s390x, math: add LGDR and LDGR instructions
+    
+    The instructions allow moves between floating point and general
+    purpose registers without any conversion taking place.
+    
+    Change-Id: I82c6f3ad9c841a83783b5be80dcf5cd538ff49e6
+    Reviewed-on: https://go-review.googlesource.com/38777
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
+ src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
+ src/cmd/internal/obj/s390x/anames.go      |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 14 ++++++++++++--
+ src/math/cosh_s390x.s                     | 10 +++++-----
+ src/math/log10_s390x.s                    |  2 +-
+ src/math/sin_s390x.s                      |  4 ++--
+ src/math/sinh_s390x.s                     | 14 +++++++-------
+ src/math/tanh_s390x.s                     |  8 ++++----
+ 9 files changed, 40 insertions(+), 21 deletions(-)

@@ -1,0 +1,24 @@
+commit af134b17da99344812344bba65247e45fa22d53b
+Author: Keith Randall <khr@google.com>
+Date:   Mon Dec 10 12:49:19 2018 -0800
+
+    runtime: proper panic tracebacks with mid-stack inlining
+    
+    As a followon to CL 152537, modify the panic-printing traceback
+    to also handle mid-stack inlining correctly.
+    
+    Also declare -fm functions (aka method functions) as wrappers, so that
+    they get elided during traceback. This fixes part 2 of #26839.
+    
+    Fixes #28640
+    Fixes #24488
+    Update #26839
+    
+    Change-Id: I1c535a9b87a9a1ea699621be1e6526877b696c21
+    Reviewed-on: https://go-review.googlesource.com/c/153477
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/objabi/funcid.go |   3 ++
+ src/runtime/traceback.go          | 102 ++++++++++++++++++--------------------
+ test/fixedbugs/issue24488.go      |  38 ++++++++++++++
+ 3 files changed, 89 insertions(+), 54 deletions(-)

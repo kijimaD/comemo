@@ -1,0 +1,21 @@
+commit d2f4c935f2e247dd9949094c8a4f3ab8df2ba3a0
+Author: Alan Donovan <alan@alandonovan.net>
+Date:   Wed Nov 17 12:54:22 2021 -0500
+
+    runtime/cgo: add example of Handle with void* parameter
+    
+    Fixes #49633
+    
+    Change-Id: I12ca350f7dd6bfc8753a4a169f29b89ef219b035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364774
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/test.go     |  5 +++++
+ misc/cgo/test/testx.go    | 25 +++++++++++++++++++++++++
+ src/runtime/cgo/handle.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 66 insertions(+)

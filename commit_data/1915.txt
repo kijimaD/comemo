@@ -1,0 +1,15 @@
+commit e5ba266e938344c4e12ef601efa6d7376dbfd44e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 17:15:54 2009 -0700
+
+    delete dregs: inarggen, genpanic, regret
+    
+    R=ken
+    OCL=26916
+    CL=26918
+
+ src/cmd/6g/cgen.c  | 10 ----------
+ src/cmd/6g/gen.c   | 26 --------------------------
+ src/cmd/6g/gg.h    |  3 ---
+ src/cmd/6g/gsubr.c |  8 --------
+ 4 files changed, 47 deletions(-)

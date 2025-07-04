@@ -1,0 +1,32 @@
+commit 92bf58c2381acac3929d495cee596df61491af48
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 21 21:12:36 2016 -0800
+
+    cmd/compile: recognize more memory runs in generated algs
+    
+    The old implementation assumed that all memory runs
+    were terminated by non-memory fields.
+    This isn't necessarily so.
+    They might be terminated by padding or blank fields.
+    
+    For example, given
+    
+    type T struct {
+            a int64
+            b byte
+            c, d, e int64
+    }
+    
+    the old implementation did a memory comparison on a+b, on c, and on d+e.
+    
+    Instead, check for memory runs at the beginning of every round.
+    This now generates a memory comparison on a+b and on c+d+e.
+    
+    Also, delete some now-dead code.
+    
+    Change-Id: I66bffb111420adf6919bd708e4fb3a1e1f07fadd
+    Reviewed-on: https://go-review.googlesource.com/19841
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 52 ++++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 27 deletions(-)

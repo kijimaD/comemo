@@ -1,0 +1,18 @@
+commit 8e8f4be3f45981eaac11f1434196a1a1f8faddfd
+Author: David Chase <drchase@google.com>
+Date:   Thu Jan 19 13:12:54 2023 -0500
+
+    cmd/link: clean up per-binary slice creation in ld
+    
+    A code cleanup opportunity noticed while trying to make slices
+    be aligned.
+    
+    Change-Id: I34a807b4cf67d9b4a136c83714a34ffe71dcb166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462757
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 87 ++++++++++++++++++--------------------
+ 1 file changed, 42 insertions(+), 45 deletions(-)

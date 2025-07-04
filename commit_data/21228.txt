@@ -1,0 +1,14 @@
+commit 4e03bbb1ada77fd9e8ba95d82dec6bfb3862db0d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Jan 10 01:13:58 2015 +0100
+
+    net/http/httputil: skip TestReverseProxyCancellation on Plan 9
+    
+    Update #9554
+    
+    Change-Id: I7de2a7d585d56b84ab975565042ed997e6124e08
+    Reviewed-on: https://go-review.googlesource.com/2613
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

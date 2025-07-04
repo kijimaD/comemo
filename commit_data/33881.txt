@@ -1,0 +1,33 @@
+commit 2c296dc8acb19753c187dacc046fc2193dedcf06
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 19:47:32 2017 -0500
+
+    cmd/go: apply same per-package flags to compile and link of test
+    
+    If package strings has a particular set of gcflags, then the strings_test
+    pseudo-package built as part of the test binary started inheriting the
+    same flags in CL 81496, to fix #22831.
+    
+    Now the package main and final test binary link built as part of the
+    strings test binary also inherit the same flags, to fix #22994.
+    
+    I am slightly uneasy about reusing package strings's flags for
+    package main, but the alternative would be to introduce some
+    kind of special case, which I'd be even more uneasy about.
+    
+    This interpretation preserves the Go 1.9 behavior of existing
+    commands like:
+    
+            go test -c -ldflags=-X=mypkg.debugString=foo mypkg
+    
+    Fixes #22994.
+    
+    Change-Id: I9ab83bf1a9a6adae530a7715b907e709fd6c1b5d
+    Reviewed-on: https://go-review.googlesource.com/83879
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 10 ++++++----
+ src/cmd/go/internal/test/test.go |  5 +++++
+ 2 files changed, 11 insertions(+), 4 deletions(-)

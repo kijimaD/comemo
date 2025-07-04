@@ -1,0 +1,38 @@
+commit f08734dd72f27917263b5b8c04b40373beb73095
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 15:22:10 2020 -0500
+
+    cmd/go: convert tests using testdata/src/(exclude|empty) to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Icc14d4188574badf3da71d34857616f2a2ad5862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214138
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 73 ----------------------
+ src/cmd/go/testdata/script/build_no_go.txt         | 37 +++++++++++
+ .../go/testdata/script/build_unsupported_goos.txt  |  6 ++
+ src/cmd/go/testdata/script/test_empty.txt          | 49 +++++++++++++++
+ src/cmd/go/testdata/script/test_race_install.txt   | 13 ++++
+ src/cmd/go/testdata/src/empty/pkg/pkg.go           |  1 -
+ src/cmd/go/testdata/src/empty/pkgtest/pkg.go       |  1 -
+ src/cmd/go/testdata/src/empty/pkgtest/test_test.go |  1 -
+ src/cmd/go/testdata/src/empty/pkgtestxtest/pkg.go  |  1 -
+ .../testdata/src/empty/pkgtestxtest/test_test.go   |  1 -
+ .../testdata/src/empty/pkgtestxtest/xtest_test.go  |  1 -
+ src/cmd/go/testdata/src/empty/pkgxtest/pkg.go      |  1 -
+ .../go/testdata/src/empty/pkgxtest/xtest_test.go   |  1 -
+ src/cmd/go/testdata/src/empty/test/test_test.go    |  1 -
+ .../go/testdata/src/empty/testxtest/test_test.go   |  1 -
+ .../go/testdata/src/empty/testxtest/xtest_test.go  |  1 -
+ src/cmd/go/testdata/src/empty/xtest/xtest_test.go  |  1 -
+ src/cmd/go/testdata/src/exclude/empty/x.txt        |  0
+ src/cmd/go/testdata/src/exclude/ignore/_x.go       |  1 -
+ src/cmd/go/testdata/src/exclude/x.go               |  3 -
+ src/cmd/go/testdata/src/exclude/x_linux.go         |  3 -
+ 21 files changed, 105 insertions(+), 92 deletions(-)

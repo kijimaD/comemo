@@ -1,0 +1,25 @@
+commit 783297ad6a0c0d5bc14856e95d3c03c3d6f58640
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jul 11 08:51:20 2015 -0600
+
+    all: link to https for golang subdomains too
+    
+    The previous commit (git 2ae77376) just did golang.org.  This one
+    includes golang.org subdomains like blog, play, and build.
+    
+    Change-Id: I4469f7b307ae2a12ea89323422044e604c5133ae
+    Reviewed-on: https://go-review.googlesource.com/12071
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html                       | 2 +-
+ doc/gopher/README                     | 2 +-
+ src/cmd/compile/internal/big/float.go | 2 +-
+ src/cmd/pprof/doc.go                  | 2 +-
+ src/encoding/gob/doc.go               | 2 +-
+ src/encoding/json/fold.go             | 2 +-
+ src/go/types/builtins.go              | 2 +-
+ src/go/types/decl.go                  | 2 +-
+ src/math/big/float.go                 | 2 +-
+ src/net/http/pprof/pprof.go           | 2 +-
+ src/strings/strings.go                | 2 +-
+ 11 files changed, 11 insertions(+), 11 deletions(-)

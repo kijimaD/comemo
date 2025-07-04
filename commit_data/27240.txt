@@ -1,0 +1,20 @@
+commit 5325fbc7dbab155a88efab0bcd128236e97b3349
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 12:09:32 2016 -0700
+
+    cmd/compile: don't SSA any variables when -N
+    
+    Turn SSAing of variables off when compiling with optimizations off.
+    This helps keep variable names around that would otherwise be
+    optimized away.
+    
+    Fixes #14744
+    
+    Change-Id: I31db8cf269c068c7c5851808f13e5955a09810ca
+    Reviewed-on: https://go-review.googlesource.com/22681
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

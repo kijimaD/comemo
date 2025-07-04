@@ -1,0 +1,22 @@
+commit cdd2c265cc132a15e20298fbb083a70d7f3b495d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 29 17:34:17 2019 -0700
+
+    cmd/compile/internal/scanner: report at most one lexical error per number literal
+    
+    Leave reporting of multiple errors for strings alone for now;
+    we probably want to see all incorrect escape sequences in
+    runes/strings independent of other errors.
+    
+    Fixes #33961.
+    
+    Change-Id: Id722e95f802687963eec647d1d1841bd6ed17d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192499
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/scanner.go      | 28 ++++++++++++-------------
+ src/cmd/compile/internal/syntax/scanner_test.go | 22 +++++++++++++++++++
+ 2 files changed, 36 insertions(+), 14 deletions(-)

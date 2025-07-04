@@ -1,0 +1,21 @@
+commit 0eb39ca1f0ca118e78648fb6844d35d0a96e5eee
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 6 18:41:49 2021 -0500
+
+    cmd/dist: enable plugin test on Linux/ARM64
+    
+    The test was skipped because with the old gold linker on the
+    builder it fails with an internal error in gold. The builders now
+    have gold 2.31 and the test passes. Enable it.
+    
+    Fixes #17138.
+    
+    Change-Id: Ia0054030dd12f1d003c7420bf7ed8b112715baa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369814
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

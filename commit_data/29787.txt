@@ -1,0 +1,12 @@
+commit 0716fefad35b2de2b082865c5c8e5c009bd16a75
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 7 18:42:37 2016 -0500
+
+    doc: mention Go requires OpenBSD 5.9 or above in go1.8.html
+    
+    Change-Id: Ia19e4d2f319002b5b26e50258436f5c4bd281cc7
+    Reviewed-on: https://go-review.googlesource.com/34113
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 4 ++++
+ 1 file changed, 4 insertions(+)

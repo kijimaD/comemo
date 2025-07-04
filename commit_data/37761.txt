@@ -1,0 +1,23 @@
+commit 84066f1b0b68761a75ce9064f4c412f751ee2168
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 18 16:41:57 2018 -0800
+
+    runtime: use QPC to implement cputicks() on windows/arm
+    
+    Tracing uses cputicks() to generate trace event timestamps. cputicks()
+    is expected to be a high resolution clock source. On Windows/ARM,
+    call QueryPerformanceCounter() which is the highest resolution clock
+    source available.
+    
+    Updates #26148
+    
+    Change-Id: I987fa556060b3d60c02f07b87b9e6320b9b026e2
+    Reviewed-on: https://go-review.googlesource.com/c/154762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_windows.go     | 7 +++++++
+ src/runtime/os_windows_arm.go | 6 +++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

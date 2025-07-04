@@ -1,0 +1,18 @@
+commit 0e9bf41e1dce5c75f80f255cc11b8076b6203994
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 15 17:08:44 2023 -0700
+
+    go/types: update generate_test.go (cleanup)
+    
+    Adjust some rewrite code to match current code base.
+    
+    Change-Id: I7d3b79b764b95d664dd95e1057725f15a94973d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519856
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/generate_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

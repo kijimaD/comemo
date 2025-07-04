@@ -1,0 +1,21 @@
+commit 101fbc2c829beadacefdad1c852e0888e2f16d4d
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 20 13:09:08 2017 -0500
+
+    runtime: make nextFreeFast inlinable
+    
+    https://golang.org/cl/22598 made nextFreeFast inlinable.
+    But during https://golang.org/cl/63611 it was discovered, that it is no longer inlinable.
+    Reduce number of statements below inlining threshold to make it inlinable again.
+    Also update tests, to prevent regressions.
+    Doesn't reduce readability.
+    
+    Change-Id: Ia672784dd48ed3b1ab46e390132f1094fe453de5
+    Reviewed-on: https://go-review.googlesource.com/65030
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++----
+ src/runtime/malloc.go                   |  3 +--
+ 2 files changed, 9 insertions(+), 6 deletions(-)

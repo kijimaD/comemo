@@ -1,0 +1,19 @@
+commit 7511806ec2914f9d9b6a8941d420fb0443f5f5f6
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jun 18 07:26:39 2015 -0500
+
+    net/http: fix race on postPendingDial test hook
+    
+    The race occurs rarely, but by putting some delays and more reads/writes
+    of prePendingDial/postPendingDial in the handlePendingDial function I
+    could reproduce it.
+    
+    Fixes #11136
+    
+    Change-Id: I8da9e66c88fbda049eaaaaffa2717264ef327768
+    Reviewed-on: https://go-review.googlesource.com/11250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 5 +++++
+ 1 file changed, 5 insertions(+)

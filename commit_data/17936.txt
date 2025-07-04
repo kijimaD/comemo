@@ -1,0 +1,17 @@
+commit 6795687427ad79574465ee83b4fa398aa036aa0c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 10 11:30:12 2013 +1100
+
+    cmd/cgo: use __gcc_struct__ for go exported functions
+    
+    Fixes #6833
+    
+    R=minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/35790045
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue6833.go  | 27 +++++++++++++++++++++++++++
+ misc/cgo/test/issue6833_c.c | 10 ++++++++++
+ src/cmd/cgo/out.go          | 26 ++++++++++++++++----------
+ 4 files changed, 54 insertions(+), 10 deletions(-)

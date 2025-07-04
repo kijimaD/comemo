@@ -1,0 +1,25 @@
+commit f07e4dae3c5cb608b4f0b9db57d1562d2125243b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 19 15:46:44 2021 +0000
+
+    syscall: document NewCallback and NewCallbackCDecl limitations
+    
+    Currently NewCallback and NewCallbackCDecl may only be called a limited
+    number of times in a single Go process, but this property of the API is
+    not documented. This change fixes that, but does not document the
+    precise limit to avoid making that limit part of the API, leaving us
+    open to increasing or decreasing the limit in the future as needed.
+    
+    Although the API avoids documenting a limit, it does guarantee a minimum
+    callback count so users can rely on at least some amount of callbacks
+    working.
+    
+    Updates #46184.
+    
+    Change-Id: I5129bf5fe301efff73ac112ba1f207ab32058833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321133
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

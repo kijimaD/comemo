@@ -1,0 +1,15 @@
+commit 80f79ad3056d244983ad42bdfeff6a24b2c30b5c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 24 13:59:33 2011 -0400
+
+    net: make use of IPv4len, IPv6len
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4926046
+
+ src/pkg/net/dnsclient_unix.go  | 2 +-
+ src/pkg/net/iprawsock_posix.go | 4 ++--
+ src/pkg/net/tcpsock_posix.go   | 2 +-
+ src/pkg/net/udpsock_posix.go   | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 699864b696e1d5cf68e295c8552091b36e3ac654
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 12 00:25:29 2011 -0800
+
+    encoding/line: fix error call (missing argument)
+    
+    R=agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/3861044
+
+ src/pkg/encoding/line/line_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

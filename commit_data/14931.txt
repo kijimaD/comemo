@@ -1,0 +1,12 @@
+commit 1debf5bbd372592bca0294b6c6f0e7ee09f9928c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 17:57:07 2013 -0500
+
+    api: update next.txt
+    
+    R=golang-dev, minux.ma, dave
+    CC=golang-dev
+    https://golang.org/cl/7135061
+
+ api/next.txt | 118 ++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 104 insertions(+), 14 deletions(-)

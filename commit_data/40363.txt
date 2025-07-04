@@ -1,0 +1,19 @@
+commit a813d3c788b4ec58032616e8d269ee65d1b10085
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Tue Jul 31 18:10:42 2018 -0700
+
+    testing: stream log output in verbose mode
+    
+    Fixes #24929
+    
+    Change-Id: Icc426068cd73b75b78001f55e1e5d81ccebbe854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/127120
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go    | 44 ++++++++++++++++++++------------------------
+ src/testing/benchmark.go | 22 +++++++++++++++++++++-
+ src/testing/sub_test.go  | 32 +++++++++++++++++++++++++-------
+ src/testing/testing.go   | 13 ++++++++++---
+ 4 files changed, 76 insertions(+), 35 deletions(-)

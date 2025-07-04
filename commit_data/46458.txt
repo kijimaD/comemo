@@ -1,0 +1,15 @@
+commit e7dbe3908e17ec77851161e6cb98c7161823aa0d
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sat Jul 24 22:17:21 2021 +0800
+
+    cmd/cgo: add missing tab in exports for a result of void
+    
+    Change-Id: I45575afbad364c13b7179ebe3f3dfc4ed9671d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/cgo/out.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

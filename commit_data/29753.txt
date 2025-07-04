@@ -1,0 +1,17 @@
+commit 0be4ef3ea6a915e3b2ab0cac35209566a1ae3068
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 18:22:42 2016 +0000
+
+    cmd/go: ensure streaming test's stdout, stderr are same as cmd/go's
+    
+    Fixes #18153
+    
+    Change-Id: Ie8a32dd6fe306f00e51cde77dd4ea353f7109940
+    Reviewed-on: https://go-review.googlesource.com/34010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go                               | 26 +++++++++++++++
+ src/cmd/dist/test_linux.go                         | 27 +++++++++++++++
+ src/cmd/go/test.go                                 | 15 +++------
+ .../go/testdata/testterminal18153/terminal_test.go | 39 ++++++++++++++++++++++
+ 4 files changed, 96 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 0b20aece1aa4782070660a80dc4cf87c183533c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 09:27:29 2018 +0300
+
+    net: make Resolver.PreferGo work more as documented
+    
+    Fixes #24393
+    
+    Change-Id: I8bcee34cdf30472663d866ed6056301d8445215c
+    Reviewed-on: https://go-review.googlesource.com/100875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/conf.go           |  7 ++++---
+ src/net/conf_test.go      | 18 +++++++++++++++++-
+ src/net/dnsclient_unix.go |  4 ++--
+ src/net/lookup_unix.go    |  4 ++--
+ 4 files changed, 25 insertions(+), 8 deletions(-)

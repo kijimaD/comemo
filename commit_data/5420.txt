@@ -1,0 +1,12 @@
+commit 37089cce678e82aee9cd39736e54e1de31426910
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Sun May 2 23:33:08 2010 -0700
+
+    math: fix typo in Cbrt description
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/979043
+
+ src/pkg/math/cbrt.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

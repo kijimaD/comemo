@@ -1,0 +1,14 @@
+commit ea46bda72b6b1e651d6f23a8d0b2704f263f9453
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 12 18:03:54 2011 -0800
+
+    gob: allow Decode(nil) and have it just discard the next value.
+    Fixes #1489.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4187046
+
+ src/pkg/gob/decoder.go      | 15 ++++++++++---
+ src/pkg/gob/encoder_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 3 deletions(-)

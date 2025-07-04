@@ -1,0 +1,17 @@
+commit c4a814f2da2982a03f930b43797767f35721b5c1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu May 31 07:57:49 2012 +0200
+
+    runtime/pprof, misc/pprof: correct profile of total allocations.
+    
+    The previous heap profile format did not include buckets with
+    zero used bytes. Also add several missing MemStats fields in
+    debug mode.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6249068
+
+ misc/pprof                     | 20 ++++++++++++--------
+ src/pkg/runtime/pprof/pprof.go | 11 +++++++----
+ 2 files changed, 19 insertions(+), 12 deletions(-)

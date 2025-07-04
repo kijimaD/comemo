@@ -1,0 +1,35 @@
+commit 407010ef0b858a7fa6e6e95abe652fdff923da9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 27 16:14:16 2019 -0700
+
+    cmd/go: only pass -fsplit-stack to gccgo if supported
+    
+    Also add other gccgo options.
+    
+    This ports CL 45695 and CL 48592 from the gofrontend repo to the gc repo.
+    
+    CL 45695 (partial entry, other parts out of date and not ported):
+    
+        cmd/go: gccgo: consistent results
+    
+        Pass the -fdebug-prefix-map and -gno-record-gcc-switches compiler
+        options to gccgo to generate consistent results.
+    
+    CL 48592:
+    
+        cmd/go: use gccSupportsFlag for -fsplit-stack
+    
+        Don't assume that all (or only) 386/amd64 compilers support
+        -fsplit-stack.
+    
+    Fixes #33108
+    
+    Change-Id: I61f9e5a67e4fb059f26750e97621d27afa566ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187824
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go  |  3 +--
+ src/cmd/go/internal/work/gccgo.go | 14 +++++++++++---
+ 2 files changed, 12 insertions(+), 5 deletions(-)

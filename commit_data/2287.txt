@@ -1,0 +1,14 @@
+commit 9a2a2474c6f59764163b524da8c874c3ca0d6eb8
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri May 22 15:32:43 2009 -0700
+
+    Force usage of dollar signs to circumvent arm-gcc balking at them.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=29275
+    CL=29278
+
+ src/cmd/godefs/main.c | 1 +
+ 1 file changed, 1 insertion(+)

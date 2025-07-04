@@ -1,0 +1,16 @@
+commit 091ba60bd87bf8b40a24196f31b5f3c18c2f2dc4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 22 13:33:22 2016 -0700
+
+    compress/flate: add examples
+    
+    Updates #16360
+    
+    Change-Id: I66ff23e0501363f58fe891d5e95806422071f93b
+    Reviewed-on: https://go-review.googlesource.com/30162
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/example_test.go | 243 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 243 insertions(+)

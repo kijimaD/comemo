@@ -1,0 +1,27 @@
+commit 95df156e6ac53f98efd6c57e4586c1dfb43066dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 10 15:11:07 2020 -0400
+
+    cmd/go/internal/par: add Queue as a simpler alternative to Work
+    
+    par.Work performs two different tasks: deduplicating work (a task
+    which overlaps with par.Cache), and executing limited active work in
+    parallel. It also requires the caller to re-invoke Do whenever the
+    workqueue transititions from empty to non-empty.
+    
+    The new par.Queue only performs the second of those two tasks, and
+    presents a simpler API: it starts and stops its own goroutines as
+    needed (indicating its idle state via a channel), rather than
+    expecting the caller to drive the transitions explicitly.
+    
+    For #36460
+    
+    Change-Id: I5c38657dda63ab55718497467d05d41744ff59f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247766
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/par/queue.go      | 88 +++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/par/queue_test.go | 79 +++++++++++++++++++++++++++++++
+ 2 files changed, 167 insertions(+)

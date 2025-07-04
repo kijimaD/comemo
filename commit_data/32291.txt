@@ -1,0 +1,21 @@
+commit 8b68fafd1f74fce1cb9c085c979134f012d2b8fc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 19 17:12:57 2017 -0700
+
+    cmd/compile: simplify walkprint
+    
+    Superficial simplifications: reduce variable scope,
+    eliminate pointless temporaries, use a switch statement.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6450493a0583a6ce8ec0461b66954cf1445a754f
+    Reviewed-on: https://go-review.googlesource.com/55095
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 53 +++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 31 deletions(-)

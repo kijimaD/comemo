@@ -1,0 +1,24 @@
+commit 26e846429dcd38065e40fea21bc137c03a0a909b
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Apr 15 12:43:49 2010 +0300
+
+    support for printing floats:
+    
+    fmt.Printf("float32 %f\n", float32(1234.56789))
+    fmt.Printf("float64 %f\n", float64(1234.56789))
+    ->
+    float32 1234.567871
+    float64 1234.567890
+    
+    this is a snapshot. extended instruction support, corner cases
+    and fixes coming in subseuent cls.
+    
+    R=rsc
+    CC=dpx, golang-dev
+    https://golang.org/cl/876045
+
+ src/pkg/runtime/arm/softfloat.c | 400 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/arm/vlop.s      |  16 +-
+ src/pkg/runtime/runtime.h       |   1 +
+ test/arm-pass.txt               |  18 +-
+ 4 files changed, 409 insertions(+), 26 deletions(-)

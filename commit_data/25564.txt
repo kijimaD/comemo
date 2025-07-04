@@ -1,0 +1,21 @@
+commit 9efc46f1cbedc8971c99a49b0c2736fece13135e
+Author: Joe Sylve <joe.sylve@gmail.com>
+Date:   Sun Jan 10 23:23:51 2016 -0600
+
+    cmd/go: -buildmode=c-shared should work on darwin/386
+    
+    * Enable c-shared buildmode on darwin/386
+    * dyld does not support text relocation on i386. Add -read_only_relocs suppress flag to linker
+    
+    Fixes #13904
+    
+    Change-Id: I9adbd20d3f36ce9bbccf1bffb746b391780d088f
+    Reviewed-on: https://go-review.googlesource.com/18500
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testcshared/test.bash  | 2 +-
+ src/cmd/dist/test.go            | 2 +-
+ src/cmd/go/build.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

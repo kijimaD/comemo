@@ -1,0 +1,18 @@
+commit 4eca0898ec724f1318295b1ebed45e12bddb203c
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 28 15:10:25 2017 +0900
+
+    cmd/link: refactor addlib
+    
+    * extract pkgname() and findlib() from the function for #18190.
+    * rename const pkgname to const pkgdef to avoid confliction.
+    
+    Change-Id: Ie62509bfbddcf19cf92b5b12b598679a069e6e74
+    Reviewed-on: https://go-review.googlesource.com/59417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/ld.go  | 29 +++++++++++++++++++++--------
+ src/cmd/link/internal/ld/lib.go |  4 ++--
+ 2 files changed, 23 insertions(+), 10 deletions(-)

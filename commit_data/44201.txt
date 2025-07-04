@@ -1,0 +1,26 @@
+commit 8cfa01943a7f43493543efba81996221bb0f27f8
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Wed Jan 27 19:02:37 2021 +0000
+
+    runtime: block console ctrlhandler when the signal is handled
+    
+    Fixes #41884
+    
+    I can confirm this change fixes my issue.
+    I can't confirm that this doesn't break any and everything else.
+    I see that this code has been tweaked repeatedly, so I would really welcome guidance into further testing.
+    
+    Change-Id: I1986dd0c2f30cfe10257f0d8c658988d6986f7a6
+    GitHub-Last-Rev: 92f02c96973e12f1472511bcf3c5ebb36c6b0440
+    GitHub-Pull-Request: golang/go#41886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261057
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go                  |  7 ++++
+ src/runtime/signal_windows_test.go         | 64 ++++++++++++++++++++++++++++++
+ src/runtime/testdata/testwinsignal/main.go | 19 +++++++++
+ 3 files changed, 90 insertions(+)

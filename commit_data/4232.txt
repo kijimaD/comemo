@@ -1,0 +1,15 @@
+commit 46892656c7438115f1c48c5c18c517f3f7b987f9
+Author: Sergio Luis O. B. Correia <sergio@larces.uece.br>
+Date:   Sun Nov 29 18:14:49 2009 -0800
+
+    crypto/md4, exp/draw/x11: fix makefile to build when GOROOT has whitespaces
+    
+    this is the exact same thing issue #115 is about. fix makefiles to use relative
+    path to work in the case we have whitespaces as part of GOROOT.
+    
+    R=rsc
+    https://golang.org/cl/162055
+
+ src/pkg/crypto/md4/Makefile   | 4 ++--
+ src/pkg/exp/draw/x11/Makefile | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

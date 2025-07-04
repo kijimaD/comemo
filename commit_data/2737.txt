@@ -1,0 +1,43 @@
+commit e52e9ca82ef1b51c440e37bf9b8dd806d9a3e170
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 17 01:00:44 2009 -0700
+
+    another step toward eliminating forward declarations.
+    
+    introduce NodeList* type in compiler to replace OLIST.
+    this clarifies where lists can and cannot occur.
+    list append and concatenation are now cheap.
+    the _r rules are gone from yacc.
+    rev and unrev are gone.
+    no more lists of lists.
+    
+    the representation of assignments is a bit clunkier.
+    split into OAS (1=1) and OAS2 (2 or more on one side).
+    
+    delete dead chanrecv3 code.
+    
+    delay construction of func types.
+    
+    R=ken
+    OCL=31745
+    CL=31762
+
+ src/cmd/5g/ggen.c         |   10 +-
+ src/cmd/6g/ggen.c         |   14 +-
+ src/cmd/8g/ggen.c         |   14 +-
+ src/cmd/gc/align.c        |    2 +-
+ src/cmd/gc/builtin.c.boot |    1 -
+ src/cmd/gc/dcl.c          |  388 +++++------
+ src/cmd/gc/gen.c          |   43 +-
+ src/cmd/gc/go.h           |  120 ++--
+ src/cmd/gc/go.y           |  675 +++++++++---------
+ src/cmd/gc/lex.c          |    6 -
+ src/cmd/gc/reflect.c      |    9 +-
+ src/cmd/gc/sinit.c        |   92 ++-
+ src/cmd/gc/subr.c         |  352 ++++------
+ src/cmd/gc/swt.c          |  252 ++++---
+ src/cmd/gc/sys.go         |    1 -
+ src/cmd/gc/walk.c         | 1700 +++++++++++++++++++++++----------------------
+ src/pkg/runtime/chan.c    |    7 -
+ test/golden.out           |    3 +-
+ 18 files changed, 1764 insertions(+), 1925 deletions(-)

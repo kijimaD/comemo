@@ -1,0 +1,19 @@
+commit bf6530a25b07b6cbde4f1d7b25e549675340dec1
+Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+Date:   Wed Apr 25 15:33:35 2018 -0400
+
+    cmd/asm: add VSRI instruction on ARM64
+    
+    This change provides VSRI instruction for ChaCha20Poly1305 implementation.
+    
+    Change-Id: Ifee727b6f3982b629b44a67cac5bbe87ca59027b
+    Reviewed-on: https://go-review.googlesource.com/109342
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  7 +++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  1 +
+ src/cmd/internal/obj/arm64/anames.go      |  1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 13 +++++++++----
+ 4 files changed, 18 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit abaf60464864ba7061a2a4d5973d7c692ebeb76f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 17:31:19 2009 -0700
+
+    add info about Sqrt instruction
+    couple of fixes to timing.sh
+    
+    R=rsc
+    DELTA=10  (5 added, 0 deleted, 5 changed)
+    OCL=32742
+    CL=32756
+
+ test/bench/timing.log |  4 ++++
+ test/bench/timing.sh  | 11 ++++++-----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

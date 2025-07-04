@@ -1,0 +1,15 @@
+commit d038da73bde46d241d7851428e4712350a2b46a2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Dec 10 10:14:41 2017 +1100
+
+    internal/testenv: introduce IsWindowsXP
+    
+    For #23072
+    
+    Change-Id: I089feafef2900413d46f2358b6e41ab78187eced
+    Reviewed-on: https://go-review.googlesource.com/83076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/testenv/testenv_notwin.go  | 4 ++++
+ src/internal/testenv/testenv_windows.go | 9 +++++++++
+ 2 files changed, 13 insertions(+)

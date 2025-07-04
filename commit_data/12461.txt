@@ -1,0 +1,16 @@
+commit 105c5fa666fd29967a8818d3ccbc455722274496
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 01:54:39 2012 -0500
+
+    test: invoke go command in run.go
+    
+    Lets us run multifile tests and tests with arguments.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5753068
+
+ test/cmplxdivide.go |   2 +-
+ test/run.go         | 109 ++++++++++++++++++++++++++--------------------------
+ test/testlib        |  16 +++++++-
+ 3 files changed, 70 insertions(+), 57 deletions(-)

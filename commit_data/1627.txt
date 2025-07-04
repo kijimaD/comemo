@@ -1,0 +1,12 @@
+commit 5e5476c2feebab6582dba4db1e47d8d02196bb14
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 19:09:04 2009 -0800
+
+    6c: byte* - byte* should be int64, not int32.
+    
+    R=ken
+    OCL=24507
+    CL=24507
+
+ src/cmd/cc/sub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

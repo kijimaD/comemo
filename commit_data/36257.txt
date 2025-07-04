@@ -1,0 +1,15 @@
+commit f1c7faacf0dfa97e372bc74a140e800595d13df5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 9 16:10:41 2018 -0400
+
+    A+C: second and final round of updates for Go 1.11
+    
+    Updates #12042
+    
+    Change-Id: Ia8d2214caad50560c4d46d723f8b94c954059b98
+    Reviewed-on: https://go-review.googlesource.com/128877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 28 ++++++++++++++++++++++++++++
+ CONTRIBUTORS | 52 +++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 69 insertions(+), 11 deletions(-)

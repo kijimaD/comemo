@@ -1,0 +1,15 @@
+commit 2902a82ca4ec269115e814646a85230420a1e355
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 17 13:57:11 2008 -0700
+
+    adjusted doc to incorporate new channel notation
+    (still a couple of TODO's with respect to the new
+    notation).
+    
+    R=r
+    DELTA=71  (10 added, 11 deleted, 50 changed)
+    OCL=15419
+    CL=15443
+
+ doc/go_spec.txt | 107 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 53 insertions(+), 54 deletions(-)

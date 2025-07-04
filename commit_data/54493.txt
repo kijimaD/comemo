@@ -1,0 +1,28 @@
+commit c05fceb73cafd642d26660148357a4f60172aa1a
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sun Sep 17 09:27:41 2023 +0300
+
+    cmd/cgo: silence unaligned-access
+    
+    Clang 14+ introduced a warning when using mixed packed and unpacked structs.
+    This can cause problems when taking an address of the unpacked struct, which
+    may end up having a different alignment than expected.
+    
+    This is not a problem in cgo, which does not take pointers from the packed
+    struct.
+    
+    Updated version of https://go.dev/cl/526915, which includes
+    "-Wunknown-warning-option" for compilers that do not have the specific flag.
+    
+    Fixes #62480
+    
+    Change-Id: I788c6604d0ed5267949f4367f148fa26d2116f51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/cgo/out.go | 4 ++++
+ 1 file changed, 4 insertions(+)

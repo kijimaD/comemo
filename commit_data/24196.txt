@@ -1,0 +1,23 @@
+commit e03c7896a7992dc2f940efe20deaae4db1b1aa1d
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Sep 8 05:46:31 2015 +0200
+
+    cmd/compile/internal/gc: convert fields of Pkg to bool
+    
+    Convert Pkg.Imported, Pkg.Exported, Pkg.Direct from uint8/int8/int8 to bool.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I67a71f1186ff9737c03eca413f7d35d8a79ebc9b
+    Reviewed-on: https://go-review.googlesource.com/14371
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go  | 8 ++++----
+ src/cmd/compile/internal/gc/go.go      | 6 +++---
+ src/cmd/compile/internal/gc/go.y       | 2 +-
+ src/cmd/compile/internal/gc/lex.go     | 4 ++--
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ src/cmd/compile/internal/gc/y.go       | 2 +-
+ 6 files changed, 12 insertions(+), 12 deletions(-)

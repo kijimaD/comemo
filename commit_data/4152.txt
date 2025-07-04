@@ -1,0 +1,15 @@
+commit 4aaf948f90f2a0245f5e8a7357f03701a20d5677
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 11:01:16 2009 -0800
+
+    runtime: mask signals during signal handler on OS X
+    
+    Fixes #265.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/157084
+
+ src/pkg/runtime/darwin/386/signal.c   | 2 +-
+ src/pkg/runtime/darwin/amd64/signal.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

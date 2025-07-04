@@ -1,0 +1,25 @@
+commit 321bd8c93b451b3028bc32096e73e719b5e3cfd3
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:39:03 2018 +0200
+
+    cmd/compile: in prove, simplify logic of branch pushing
+    
+    prove used a complex logic when trying to prove branch conditions:
+    tryPushBranch() was sometimes leaving a checkpoint on the factsTable,
+    sometimes not, and the caller was supposed to check the return value
+    to know what to do.
+    
+    Since we're going to make the prove descend logic a little bit more
+    complex by adding also induction variables, simplify the tryPushBranch
+    logic, by removing any factsTable checkpoint handling from it.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Idfb1703df8a455f612f93158328b36c461560781
+    Reviewed-on: https://go-review.googlesource.com/104035
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 50 ++++++++++++-----------------------
+ 1 file changed, 17 insertions(+), 33 deletions(-)

@@ -1,0 +1,27 @@
+commit cef3a442eaa1f86b81bb67fb881c5bb9e446fb13
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:08:58 2021 -0400
+
+    cmd/asm, cmd/link: use full objabi header
+    
+    The cmd/link check of the objabi header was a bit lax because
+    historically the assembler has not included the full version string.
+    And the assembler didn't do that because it didn't have access to it:
+    that was buried inside the compiler.
+    
+    But now that we have cmd/internal/objabi, all the tools have full
+    access to the expected string, and they can use it, which simplifies
+    the cmd/link consistency check.
+    
+    Do that.
+    
+    Change-Id: I33bd2f9d36c373cc3c32ff02ec6368365088b011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312030
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/main.go             |  3 ++-
+ src/cmd/link/internal/ld/lib.go | 22 ++++------------------
+ 2 files changed, 6 insertions(+), 19 deletions(-)

@@ -1,0 +1,13 @@
+commit 69fe3dd754cddb56fc5521c675665494a3a387a8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 16 15:17:34 2010 -0700
+
+    regexp: grow slices dynamically in the 'All' routines.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1953044
+
+ src/pkg/regexp/find_test.go | 10 ++++++++
+ src/pkg/regexp/regexp.go    | 59 +++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 59 insertions(+), 10 deletions(-)

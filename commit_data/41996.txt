@@ -1,0 +1,27 @@
+commit a32262d4625e6f54cedd765e4807c215d1deb992
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 17:47:54 2020 -0400
+
+    cmd/compile: when marking REFLECTMETHOD, check for reflect package itself
+    
+    reflect.Type.Method (and MethodByName) can be used to obtain a
+    reference of a method by reflection. The linker needs to know
+    if reflect.Type.Method is called, and retain all exported methods
+    accordingly. This is handled by the compiler, which marks the
+    caller of reflect.Type.Method with REFLECTMETHOD attribute. The
+    current code failed to handle the reflect package itself, so the
+    method wrapper reflect.Type.Method is not marked. This CL fixes
+    it.
+    
+    Fixes #38515.
+    
+    Change-Id: I12904d23eda664cf1794bc3676152f3218fb762b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228880
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  3 ++-
+ test/reflectmethod5.go              | 30 ++++++++++++++++++++++++++++++
+ test/reflectmethod6.go              | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 1 deletion(-)

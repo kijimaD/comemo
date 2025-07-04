@@ -1,0 +1,20 @@
+commit 11e3955e10ccd9105b78e07f4785402a5c8ceaf7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 29 13:53:32 2016 -0700
+
+    net: restore per-query timeout logic
+    
+    The handling of "options timeout:n" is supposed to be per individual
+    DNS server exchange, not per Lookup call.
+    
+    Fixes #16865.
+    
+    Change-Id: I2304579b9169c1515292f142cb372af9d37ff7c1
+    Reviewed-on: https://go-review.googlesource.com/28057
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 17 ++++----
+ src/net/dnsclient_unix_test.go | 96 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 92 insertions(+), 21 deletions(-)

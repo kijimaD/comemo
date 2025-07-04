@@ -1,0 +1,29 @@
+commit b60c8203eac32eb0d0b11751ba8f85b2f5eada81
+Author: acanino <anthony.canino1@gmail.com>
+Date:   Sat Oct 10 21:35:22 2015 -0400
+
+    cmd/compile: "invalid variable name x in type switch", where x is a name of a constant
+    
+    Small fix: looks like a short variable declaration with a type switch
+    checks to make sure the variable used had valid shape (ONAME, OTYPE, or
+    ONONAME) and rejects everything else. Then a new variable is declared.
+    If the symbol contained in the declaration was a named OLITERAL (still a
+    valid identifier obviously) it would be rejected, even though a new
+    variable would have been declared.
+    
+    Fix adds this case to the check.
+    
+    Added a test case from issue12413.
+    
+    Fixes #12413
+    
+    Change-Id: I150dadafa8ee5612c867d58031027f2dca8c6ebc
+    Reviewed-on: https://go-review.googlesource.com/15760
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.y |  2 +-
+ src/cmd/compile/internal/gc/y.go |  2 +-
+ test/fixedbugs/issue12413.go     | 19 +++++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

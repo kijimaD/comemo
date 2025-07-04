@@ -1,0 +1,17 @@
+commit e171b97ee69b65400dbccb6ae2528747605e1505
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 12 16:16:55 2012 +1100
+
+    fmt: document some undocumented details
+    Better explanation of width for floating-point values.
+    Explain that scanning does not handle %#q etc.
+    
+    Fixes #4202.
+    Fixes #4206.
+    
+    R=golang-dev, adg, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6620074
+
+ src/pkg/fmt/doc.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

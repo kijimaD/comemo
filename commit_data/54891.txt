@@ -1,0 +1,23 @@
+commit 6458c8e45f83e42283079f6dbf0e5fe986e76305
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri Nov 3 23:42:21 2023 +0000
+
+    net/http/cgi: the PATH_INFO should be empty or start with a slash
+    
+    fixed PATH_INFO not starting with a slash as described in RFC 3875
+    for PATH_INFO.
+    
+    Fixes #63925
+    
+    Change-Id: I1ead98dff190c53eb7a50546569ef6ded3199a0a
+    GitHub-Last-Rev: 1c532e330b0d74ee42afc412611a005bc565bb26
+    GitHub-Pull-Request: golang/go#63926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539615
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/cgi/host.go      | 11 ++---------
+ src/net/http/cgi/host_test.go |  8 ++++----
+ 2 files changed, 6 insertions(+), 13 deletions(-)

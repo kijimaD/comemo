@@ -1,0 +1,20 @@
+commit 3be794cdc2c7fc78a43b6a619ddf281b7271b520
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jun 14 11:14:45 2013 +0200
+
+    cmd/gc: instrument arrays properly in race detector.
+    
+    The previous implementation would only record access to
+    the address of the array but the memory access to the whole
+    memory range must be recorded instead.
+    
+    R=golang-dev, dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/8053044
+
+ src/cmd/gc/builtin.c                      |  2 ++
+ src/cmd/gc/racewalk.c                     | 37 ++++++-------------------------
+ src/cmd/gc/runtime.go                     |  2 ++
+ src/pkg/runtime/race.c                    | 22 ++++++++++++++++++
+ src/pkg/runtime/race/testdata/mop_test.go | 21 ++++++++++++++++--
+ 5 files changed, 52 insertions(+), 32 deletions(-)

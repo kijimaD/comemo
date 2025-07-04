@@ -1,0 +1,21 @@
+commit 98dd205fa4f125c8ba8099c3d84d95189666068e
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 28 12:24:02 2021 +0100
+
+    runtime: see whether gp==nil before checking preemption state
+    
+    Recent we changed from using gFromTLS to using gFromSP, which apparently
+    sometimes returns nil. This causes crashes when dereferenced. Fix that
+    by not checking for preemption in the case that gFromSP returns nil.
+    
+    Fixes #44679.
+    
+    Change-Id: I0199ebe7cd113379c5fa35c27932d913df79092a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297390
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

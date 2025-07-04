@@ -1,0 +1,19 @@
+commit 2be1ed80c509ca9768acf729a4ad541ccb4d3dd0
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 16:43:33 2015 -0500
+
+    runtime: eliminate traceStack write barriers
+    
+    This replaces *traceStack with traceStackPtr, much like the preceding
+    commit.
+    
+    Updates #10600.
+    
+    Change-Id: Ifadc35eb37a405ae877f9740151fb31a0ca1d08f
+    Reviewed-on: https://go-review.googlesource.com/16813
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/trace.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit a20cb4ca5c14ff27bdf16989d450c83b22f156d8
+Author: Tim Möhlmann <muhlemmer@gmail.com>
+Date:   Thu Aug 13 11:56:31 2020 +0300
+
+    database/sql: make Rows.Scan properly wrap underlying errors
+    
+    The prior implementation used the format verb %v which unfortunately
+    improperly wrapped any underlying scanner errors, and we couldn't use
+    errors.Is nor errors.As. This change fixes that by using the %w verb.
+    
+    Added a unit to ensure that both error sub string matching works, but
+    also that errors.Is works as expected.
+    
+    Fixes #38099
+    
+    Change-Id: Iea667041dd8081d961246f77f2542330417292dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248337
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      |  5 ++++-
+ src/database/sql/sql_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

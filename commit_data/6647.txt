@@ -1,0 +1,12 @@
+commit b803a255fcad3fcc2f0c1d40f7d262b7989f1117
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 27 17:31:37 2010 -0700
+
+    retag release to avoid hg bug
+    
+    R=adg, golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/2782041
+
+ .hgtags | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

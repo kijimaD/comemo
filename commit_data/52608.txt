@@ -1,0 +1,20 @@
+commit 0d82f584c223fb045496f3e063bf93416a24e0b0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 11 16:26:53 2023 +0000
+
+    net: allow TestDialListenerAddr without an external network
+    
+    As of CL 482163, this test now works when only a loopback network is
+    available.
+    
+    Updates #59497.
+    
+    Change-Id: I32be4b74bbc663eb109763ea19d79f22c63f50ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483696
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/dial_test.go | 2 --
+ 1 file changed, 2 deletions(-)

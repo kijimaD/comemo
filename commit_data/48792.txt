@@ -1,0 +1,39 @@
+commit 5c707f5f3ace728f08997960ec67d9f55cdbf1a3
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Apr 1 12:05:07 2022 -0500
+
+    internal/bytealg: optimize indexbyte function for ppc64le/power9
+    
+    Added specific code For POWER9 that does not need prealignment prior
+    to load vector. Optimized vector loop to jump out as soon as there is
+    a match instead of accumulating matches for 4 indices and then processing
+    the same. For small input size 10, the caller function dominates
+    performance.
+    
+    name                      old time/op    new time/op    delta
+    IndexByte/10                9.20ns ± 0%   10.40ns ± 0%  +13.08%
+    IndexByte/32                9.77ns ± 0%    9.20ns ± 0%   -5.84%
+    IndexByte/4K                 171ns ± 0%     136ns ± 0%  -20.51%
+    IndexByte/4M                 154µs ± 0%     126µs ± 0%  -17.92%
+    IndexByte/64M               2.48ms ± 0%    2.03ms ± 0%  -18.27%
+    IndexAnyASCII/1:32          10.2ns ± 1%     9.2ns ± 0%   -9.19%
+    IndexAnyASCII/1:64          11.3ns ± 0%    10.1ns ± 0%  -11.29%
+    IndexAnyUTF8/1:64           11.4ns ± 0%     9.8ns ± 0%  -13.73%
+    IndexAnyUTF8/16:64           156ns ± 1%     131ns ± 0%  -16.23%
+    IndexAnyUTF8/256:64         2.27µs ± 0%    1.86µs ± 0%  -18.03%
+    LastIndexAnyUTF8/1:64       11.8ns ± 0%    10.5ns ± 0%  -10.81%
+    LastIndexAnyUTF8/16:64       165ns ±11%     132ns ± 0%  -19.75%
+    LastIndexAnyUTF8/256:2      1.68µs ± 0%    1.44µs ± 0%  -14.33%
+    LastIndexAnyUTF8/256:4      1.68µs ± 0%    1.49µs ± 0%  -11.10%
+    LastIndexAnyUTF8/256:8      1.68µs ± 0%    1.50µs ± 0%  -11.05%
+    LastIndexAnyUTF8/256:64     2.30µs ± 0%    1.90µs ± 0%  -17.56%
+    Change-Id: I3d2550bdfdea38fece2da9960bbe62fe6cb1840c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397614
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/bytealg/indexbyte_ppc64x.s | 87 ++++++++++++++++++++++++++++++---
+ 1 file changed, 81 insertions(+), 6 deletions(-)

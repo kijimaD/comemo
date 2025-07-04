@@ -1,0 +1,28 @@
+commit af161c577c007436d50caa2a5d65847028f99bf9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 20 11:47:08 2015 -0700
+
+    cmd/go: depend on runtime/cgo if external linking mode is forced
+    
+    In external linking mode, the linker automatically imports
+    runtime/cgo.  When the user uses non-standard compilation options,
+    they have to know to run go install runtime/cgo.  When the go tool
+    adds non-standard compilation options itself, we can't force the user
+    to do that.  So add the dependency ourselves.
+    
+    Bad news: we don't currently have a clean way to know whether we are
+    going to use external linking mode.  This CL duplicates logic split
+    between cmd/6l and cmd/internal/ld.
+    
+    Good news: adding an unnecessary dependency on runtime/cgo does no
+    real harm.  We aren't going to force the linker to pull it in, we're
+    just going to build it so that its available if the linker wants it.
+    
+    Change-Id: Ide676339d4e8b1c3d9792884a2cea921abb281b7
+    Reviewed-on: https://go-review.googlesource.com/9115
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 10 ++++++++++
+ src/cmd/go/pkg.go   |  8 ++++++++
+ 2 files changed, 18 insertions(+)

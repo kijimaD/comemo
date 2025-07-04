@@ -1,0 +1,23 @@
+commit f94de9c9fbed2a8d52a84b565c54da6efb015c4d
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 3 10:47:58 2018 -0400
+
+    cmd/compile: make math/bits.RotateLeft{32,64} intrinsics on s390x
+    
+    Extends CL 132435 to s390x. s390x has 32- and 64-bit variable
+    rotate left instructions.
+    
+    Change-Id: Ic4f1ebb0e0543207ed2fc8c119e0163b428138a5
+    Reviewed-on: https://go-review.googlesource.com/133035
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  4 +-
+ src/cmd/compile/internal/s390x/ssa.go        |  3 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  9 +++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  2 +
+ src/cmd/compile/internal/ssa/opGen.go        | 30 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 74 ++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                     | 23 +++++++++
+ 7 files changed, 141 insertions(+), 4 deletions(-)

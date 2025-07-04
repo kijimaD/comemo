@@ -1,0 +1,16 @@
+commit fb94be55dc2d93544189fccef0decee39121e57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 14:59:39 2010 -0800
+
+    runtime: tighten garbage collector
+     * specialize sweepspan as sweepspan0 and sweepspan1.
+     * in sweepspan1, inline "free" to avoid expensive mlookup.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/206060
+
+ src/pkg/runtime/malloc.h   |   1 +
+ src/pkg/runtime/mcentral.c |  17 ++++-
+ src/pkg/runtime/mgc0.c     | 156 ++++++++++++++++++++++++++++-----------------
+ 3 files changed, 112 insertions(+), 62 deletions(-)

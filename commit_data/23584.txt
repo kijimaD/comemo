@@ -1,0 +1,15 @@
+commit 2714005a249a0ee03df6c64317b8a2c9ded65808
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 30 08:32:02 2015 -0700
+
+    internal/singleflight: deflake test
+    
+    Fixes #11475
+    
+    Change-Id: Ibaedbb732bb1b9f062bd5af7b866ec4758c724a7
+    Reviewed-on: https://go-review.googlesource.com/11770
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/singleflight/singleflight_test.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

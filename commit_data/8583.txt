@@ -1,0 +1,14 @@
+commit 60dddc6db1e2796f6af1affbec0d9bbe22354be7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 2 10:51:31 2011 +1000
+
+    fmt: return EOF when out of input in Scan*.
+    Fixes #1840.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4548077
+
+ src/pkg/fmt/scan.go      | 40 ++++++++++++++++++++++---------
+ src/pkg/fmt/scan_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 11 deletions(-)

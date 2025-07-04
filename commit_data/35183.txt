@@ -1,0 +1,20 @@
+commit 6d379add0fefcc17ed7b763078526800a3c1d705
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 16:03:30 2018 +0200
+
+    cmd/compile: in prove, detect loops with negative increments
+    
+    To be effective, this also requires being able to relax constraints
+    on min/max bound inclusiveness; they are now exposed through a flags,
+    and prove has been updated to handle it correctly.
+    
+    Change-Id: I3490e54461b7b9de8bc4ae40d3b5e2fa2d9f0556
+    Reviewed-on: https://go-review.googlesource.com/104041
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 61 +++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/prove.go   | 13 +++++--
+ test/loopbce.go                         | 34 ++++++++++++++++++
+ 3 files changed, 96 insertions(+), 12 deletions(-)

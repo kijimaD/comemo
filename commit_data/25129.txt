@@ -1,0 +1,15 @@
+commit 92b02e313193de9de9aaa3525f1908d8a26e9a68
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 12:06:06 2015 -0500
+
+    encoding/xml: document new chardata tag
+    
+    Followup to CL 16047.
+    For #12963.
+    
+    Change-Id: I596cd5109b25a4079b966427411860fde8b9b54a
+    Reviewed-on: https://go-review.googlesource.com/17232
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/encoding/xml/marshal.go | 2 ++
+ 1 file changed, 2 insertions(+)

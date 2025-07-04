@@ -1,0 +1,28 @@
+commit 1abf3aa55bb8b346bb1575ac8db5022f215df65a
+Author: Leo Antunes <leo@costela.net>
+Date:   Thu Apr 4 08:50:27 2019 +0000
+
+    net: add KeepAlive field to ListenConfig
+    
+    This commit adds a KeepAlive field to ListenConfig and uses it
+    analogously to Dialer.KeepAlive to set TCP KeepAlives per default on
+    Accept()
+    
+    Fixes #23378
+    
+    Change-Id: I57eaf9508c979e7f0e2b8c5dd8e8901f6eb27fd6
+    GitHub-Last-Rev: e9e035d53ee8aa3d899d12db08b293f599daecb6
+    GitHub-Pull-Request: golang/go#31242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170678
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go          |  8 ++++++++
+ src/net/file_plan9.go    |  2 +-
+ src/net/file_unix.go     |  2 +-
+ src/net/http/server.go   | 22 ++--------------------
+ src/net/tcpsock.go       |  1 +
+ src/net/tcpsock_plan9.go | 14 ++++++++++++--
+ src/net/tcpsock_posix.go | 14 ++++++++++++--
+ 7 files changed, 37 insertions(+), 26 deletions(-)

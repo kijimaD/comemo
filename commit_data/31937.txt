@@ -1,0 +1,14 @@
+commit 4e9c86ab8e9faf6da9864db6ad81d396f3f55379
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 28 10:15:24 2017 -0700
+
+    spec: minor grammar fix
+    
+    Fixes #20830.
+    
+    Change-Id: I18178064c955ad8d259df05ee954075ae42909b0
+    Reviewed-on: https://go-review.googlesource.com/47030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

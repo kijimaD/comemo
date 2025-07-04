@@ -1,0 +1,26 @@
+commit fc31d4e28d65a2843c45352170a189b5e64cdb58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 15:28:57 2018 -0800
+
+    go/parser: improved error recovery after missing type
+    
+    R=go1.11
+    
+    This CL also introduces a new TODO in parser.go. To be
+    addressed in a separate CL to make this easier to review.
+    
+    Also: Make parser's test harness easier to use by ignoring
+    auto-inserted (invisible) semicolons when computing error
+    positions. Adjusted testdata/commas.src accordingly.
+    
+    Fixes #23434.
+    
+    Change-Id: I050592d11d5f984f71185548394c000eea509205
+    Reviewed-on: https://go-review.googlesource.com/87898
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/parser/error_test.go           |  6 +++++
+ src/go/parser/parser.go               | 42 ++++++++++++++++++++++++++++-------
+ src/go/parser/testdata/commas.src     |  4 ++--
+ src/go/parser/testdata/issue23434.src | 25 +++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 10 deletions(-)

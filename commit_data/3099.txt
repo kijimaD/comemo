@@ -1,0 +1,19 @@
+commit 94e691552ffe6d903105fb25abc0e1c91395c935
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 09:14:32 2009 -0700
+
+    unicode tables for all categories
+    maketables now has a --test option to verify the data.
+    
+    R=rsc
+    DELTA=3087  (1982 added, 1001 deleted, 104 changed)
+    OCL=33947
+    CL=33950
+
+ src/pkg/unicode/Makefile        |   17 +-
+ src/pkg/unicode/digit_test.go   |  420 ++-------
+ src/pkg/unicode/digittables.go  |   43 -
+ src/pkg/unicode/lettertables.go |  664 --------------
+ src/pkg/unicode/maketables.go   |  207 +++--
+ src/pkg/unicode/tables.go       | 1840 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 2086 insertions(+), 1105 deletions(-)

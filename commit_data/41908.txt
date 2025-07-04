@@ -1,0 +1,18 @@
+commit fced302aa15702056e0d4a264c80e74c462cdd22
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 4 16:33:54 2020 -0500
+
+    cmd/compile: change gc logging to report inline failure instead of success
+    
+    I've been experimenting with this, success is the wrong thing to report
+    even though it seems to log much less.
+    
+    Change-Id: I7c25a45d2f41e82b6c8dd8b0a56ba848c63fb21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223298
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/inl.go             | 20 ++++++++++++++++----
+ src/cmd/compile/internal/logopt/logopt_test.go | 17 +++++++++++++----
+ 2 files changed, 29 insertions(+), 8 deletions(-)

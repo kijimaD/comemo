@@ -1,0 +1,22 @@
+commit 4a7ed1fab766a7a908e2cb20294e43b43ce7cf6c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 25 00:51:10 2019 -0400
+
+    cmd/compile: mark architecture-specific unsafe points
+    
+    Introduce a mechanism for marking architecture-specific Ops
+    unsafe. And mark ones that use REGTMP on ARM64, as for async
+    preemption we will be using REGTMP as a temporary register in the
+    injected call.
+    
+    Change-Id: I8ff22e87d8f9cb10d02a2f0af7c12ad6d7d58f54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203459
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/plive.go         |  9 +++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/gen/main.go     |  5 +++++
+ src/cmd/compile/internal/ssa/op.go           |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        |  9 +++++++++
+ 5 files changed, 32 insertions(+), 8 deletions(-)

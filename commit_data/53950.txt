@@ -1,0 +1,21 @@
+commit 5b2ddfadb2e218e325c91d1024ffbe87c1f38d19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 13 22:25:50 2023 +0700
+
+    cmd/compile: mark instantiated functions from package runtime as norace
+    
+    Fixes #60439
+    
+    Change-Id: I09fcd2d3deb7f80ed012a769fdb6f53b09c0290b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502895
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/unified.go | 10 ++++++++++
+ src/runtime/export_test.go                |  8 ++++++++
+ src/runtime/gc_test.go                    |  4 ++++
+ 3 files changed, 22 insertions(+)

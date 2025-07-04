@@ -1,0 +1,18 @@
+commit ddeab538263307f6d76e3a8a7f2c4b12383b61bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 23 07:08:56 2017 -0700
+
+    os: align siginfo argument to waitid
+    
+    I have no test case for this, but there is one report on the mailing list
+    (https://groups.google.com/d/msg/golang-dev/sDg-t1_DPw0/-AJmLxgPBQAJ)
+    in which waitid running on MIPS returns EFAULT.
+    
+    Change-Id: I79bde63c7427eefc1f2925d78d97cc9cf2fffde3
+    Reviewed-on: https://go-review.googlesource.com/46511
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/wait_waitid.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 5f418195930533b68883a50b0fdca154bddf0c49
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 14 10:20:18 2015 +0200
+
+    cmd/go, go/build: add build.Package.PkgTargetRoot
+    
+    This is $GOPATH/pkg/linux_amd64 or similar.  cmd/go already had a grotty calculation
+    of this and I need to add another one for -buildmode=shared.
+    
+    Change-Id: Ied28c9b7cce671da8d45920e124a3e0c2501258a
+    Reviewed-on: https://go-review.googlesource.com/8930
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go   | 10 +---------
+ src/go/build/build.go |  9 +++++++--
+ 2 files changed, 8 insertions(+), 11 deletions(-)

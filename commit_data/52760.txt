@@ -1,0 +1,26 @@
+commit 30886390c2a59a24c23229f434453ca9ae247962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 19 14:16:37 2023 -0700
+
+    runtime: in __tsan_fini tell scheduler we are entering non-Go code
+    
+    __tsan_fini will call exit which will call destructors which
+    may in principle call back into Go functions. Prepare the scheduler
+    by calling entersyscall before __tsan_fini.
+    
+    Fixes #59711
+    
+    Change-Id: Ic4df8fba3014bafa516739408ccfc30aba4f22ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/crash_cgo_test.go                  | 37 ++++++++++++++++++++++++++
+ src/runtime/race.go                            |  7 +++++
+ src/runtime/testdata/testprogcgo/destructor.c  | 22 +++++++++++++++
+ src/runtime/testdata/testprogcgo/destructor.go | 23 ++++++++++++++++
+ 4 files changed, 89 insertions(+)

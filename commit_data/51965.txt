@@ -1,0 +1,23 @@
+commit 7d57a9ce82cc6841307bc1c3383808b36a884bc9
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 9 09:08:44 2023 -0500
+
+    cmd/link: improve error for missing SDYNIMPORT support on mips/mips64
+    
+    Issue an error (instead of crashing) when encountering a symbol that
+    requires dynamic relocations on mips/mips64. The dynimport support is
+    in progress, but is not done yet, so rather than crashing, print a
+    message indicating that the feature is not yet implemented and exit.
+    
+    Fixes #58240.
+    
+    Change-Id: I9ad64c89e4f7b4b180964b35ad1d72d375f2df7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/mips/obj.go   | 8 ++++++++
+ src/cmd/link/internal/mips64/obj.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

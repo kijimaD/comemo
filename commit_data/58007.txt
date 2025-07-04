@@ -1,0 +1,40 @@
+commit 49b3ab0d81824f060b9ba459a076f6ff9ad04bc6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 26 14:45:30 2024 -0500
+
+    cmd/go: report all loading errors in tests as "setup failed"
+    
+    Currently, under *most* circumstances, if there's a package loading
+    error during "go test", that will get reported as a "FAIL p [setup
+    failed]" or "FAIL p [build failed] message and won't prevent running
+    unaffected test packages.
+    
+    However, if there's a loading error from a non-test file in a package
+    listed directly on the "go test" command line, that gets reported as
+    an immediate fatal error, without any "FAIL" line, and without
+    attempting to run other tests listed on the command line. Likewise,
+    certain early build errors (like a package containing no Go files) are
+    currently immediately fatal rather than reporting a test failure.
+    
+    Fix this by eliminating the check that causes that immediate failure.
+    This causes one minor follow-up problem: since
+    load.TestPackagesAndErrors was never passed a top-level package with
+    an error before, it doesn't currently propagate such an error to the
+    packages it synthesizes (even though it will propagate errors in
+    imported packages). Fix this by copying the error from the top-level
+    package into the synthesized test package while we're copying
+    everything else.
+    
+    For #62067.
+    
+    Change-Id: Icd563a3d9912256b53afd998050995e5260ebe5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558637
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/load/test.go                |  6 +-
+ src/cmd/go/internal/test/test.go                |  3 +-
+ src/cmd/go/testdata/script/test_flags.txt       |  3 +-
+ src/cmd/go/testdata/script/test_setup_error.txt | 74 +++++++++++++++++++++++++
+ 4 files changed, 82 insertions(+), 4 deletions(-)

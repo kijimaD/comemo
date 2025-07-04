@@ -1,0 +1,42 @@
+commit 1211a62bdcb0f070c5082255bcc90e1a14c16bb2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Aug 23 18:19:06 2022 -0400
+
+    cmd/compile: align stack offset to alignment larger than PtrSize
+    
+    In typebits.Set we check that the offset is a multiple of the
+    alignment, which makes perfect sense. But for values like
+    atomic.Int64, which has 8-byte alignment even on 32-bit platforms
+    (i.e. the alignment is larger than PtrSize), if it is on stack it
+    may be under-aligned, as the stack frame is only PtrSize aligned.
+    
+    Normally we would prevent such values on stack, as the escape
+    analysis force values with higher alignment to heap. But for a
+    composite literal assignment like x = AlignedType{...}, the
+    compiler creates an autotmp for the RHS then copies it to the LHS.
+    The autotmp is on stack and may be under-aligned. Currently this
+    may cause an ICE in the typebits.Set check.
+    
+    This CL makes it align the _offset_ of the autotmp to 8 bytes,
+    which satisfies the check. Note that this is actually lying: the
+    actual address at run time may not necessarily be 8-byte
+    aligned as we only align SP to 4 bytes.
+    
+    The under-alignment is probably okay. The only purpose for the
+    autotmp is to copy the value to the LHS, and the copying code we
+    generate (at least currently) doesn't care the alignment beyond
+    stack alignment.
+    
+    Fixes #54638.
+    
+    Change-Id: I13c16afde2eea017479ff11dfc24092bcb8aba6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425256
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/pgen.go |  8 +++++--
+ src/cmd/compile/internal/ssagen/ssa.go  | 12 ++++++++--
+ test/fixedbugs/issue54638.go            | 40 +++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+), 4 deletions(-)

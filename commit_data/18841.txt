@@ -1,0 +1,13 @@
+commit b11aeef912f24bfb881bb0b7df2c72235991202b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 12 16:32:35 2014 -0400
+
+    doc/go1.3.txt: add notes about copying stacks, win2k support
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/74800043
+
+ doc/go1.3.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

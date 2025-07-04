@@ -1,0 +1,13 @@
+commit 2c0a46d6046cfd4895a30dbcb3d60d0ad9744166
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 5 11:52:31 2012 +1100
+
+    cmd/go: fix grammar error in help messages
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5729061
+
+ src/cmd/go/build.go | 2 +-
+ src/cmd/go/doc.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

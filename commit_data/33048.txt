@@ -1,0 +1,21 @@
+commit a9c3d09d0e9a8bf5986ec54d29ea6c68c2786d57
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 6 14:12:56 2017 -0400
+
+    cmd/go: make cmd/* default to go tool installation
+    
+    Every cmd/thing is 'go tool thing' except for go and gofmt.
+    But the table in cmd/go enumerates all the things instead of
+    saying that go and gofmt are the exceptions.
+    Change that, so that when adding new tools it's not
+    necessary to update this table.
+    
+    Change-Id: Ia6fef41b4d967249b19971a0d03e5acb0317ea82
+    Reviewed-on: https://go-review.googlesource.com/69052
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/load/pkg.go   | 47 ++++++++++++++++-----------------------
+ src/cmd/go/internal/work/build.go |  2 +-
+ 2 files changed, 20 insertions(+), 29 deletions(-)

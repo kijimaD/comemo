@@ -1,0 +1,21 @@
+commit 6fd2d2cf161ec933f206ef57b8ca6062815545d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 16 05:05:00 2016 +0000
+
+    net/http: make Transport retry non-idempotent requests if no bytes written
+    
+    If the server failed on us before we even tried to write any bytes,
+    it's safe to retry the request on a new connection, regardless of the
+    HTTP method/idempotence.
+    
+    Fixes #15723
+    
+    Change-Id: I25360f82aac530d12d2b3eef02c43ced86e62906
+    Reviewed-on: https://go-review.googlesource.com/27117
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go               | 14 +++----
+ src/net/http/transport_internal_test.go | 67 +++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 9 deletions(-)

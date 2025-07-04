@@ -1,0 +1,14 @@
+commit 85a6a9771da3faae67939203cb78a7c60fafef15
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Wed Oct 28 07:53:54 2015 +0100
+
+    cmd/go: use t.Fatalf for formatted errors
+    
+    Change-Id: I657588ccc4a87e075d15acb9f4cd1e417bbd7960
+    Reviewed-on: https://go-review.googlesource.com/16421
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,31 @@
+commit 29634436fd741a7c685bf8f242b6fd62f093d1ad
+Author: Benjamin Barenblat <bbaren@google.com>
+Date:   Thu Aug 27 16:12:18 2020 -0400
+
+    cmd/cgo: ensure GCC does not use ANSI escape sequences in errors
+    
+    cgo parses GCC’s error messages to classify C identifiers referenced
+    from Go programs (are they integer constants? type names?). If GCC tries
+    to colorize its errors, cgo can’t figure out what GCC is saying. GCC
+    avoids escape sequences in this scenario by default, but the default
+    behavior can be overridden in at least two places:
+    
+      - The user can set `CGO_COPTS=-fdiagnostics-color`.
+    
+      - Whoever compiled GCC can configure GCC itself to always colorize
+        output.
+    
+    The most reliable way to ensure that GCC doesn’t colorize output is to
+    append `-fdiagnostics-color=never` to the GCC command line; do so.
+    
+    Fixes #40415
+    
+    Change-Id: Id4bdf8d92fac8b038340b4264f726e8fe38875b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go   | 28 +++++++++++++++++++++-------
+ src/cmd/dist/test.go |  5 +++--
+ 2 files changed, 24 insertions(+), 9 deletions(-)

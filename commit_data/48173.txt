@@ -1,0 +1,19 @@
+commit d199ceffa89335efe0e314f07e6ac508834f8004
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 15 14:23:45 2022 -0500
+
+    cmd/go: in workspace mode, resolve replacements relative to their go.mod files
+    
+    Fixes #51204
+    
+    Change-Id: I41106b7d04120be5ba68573bd25fd33e985688de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385994
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go                | 20 ++++++--
+ src/cmd/go/testdata/script/work_issue51204.txt     | 57 ++++++++++++++++++++++
+ .../go/testdata/script/work_replace_conflict.txt   |  6 +--
+ 3 files changed, 77 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit c6293d2106515b1150b4765fa61b12cea76442ae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 15 23:50:32 2013 +0400
+
+    runtime: fix GC scanning of slices
+    If a slice points to an array embedded in a struct,
+    the whole struct can be incorrectly scanned as the slice buffer.
+    Fixes #5443.
+    
+    R=cshapiro, iant, r, cshapiro, minux.ma
+    CC=bradfitz, gobot, golang-dev
+    https://golang.org/cl/9372044
+
+ src/pkg/runtime/gc_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c     |  6 +++++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

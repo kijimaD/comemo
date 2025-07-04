@@ -1,0 +1,33 @@
+commit de28555c0b33fcaa02779d55ea9289135280ae9f
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon May 7 08:08:30 2018 +0000
+
+    internal/bytealg: optimize Equal on arm64
+    
+    Currently the 16-byte loop chunk16_loop is implemented with NEON instructions LD1, VMOV and VCMEQ.
+    Using scalar instructions LDP and CMP to achieve this loop can reduce the number of clock cycles.
+    For cases where the length of strings are between 4 to 15 bytes, loading the last 8 or 4 bytes at
+    a time to reduce the number of comparisons.
+    
+    Benchmarks:
+    name                 old time/op    new time/op    delta
+    Equal/0-8              5.51ns ± 0%    5.84ns ±14%     ~     (p=0.246 n=7+8)
+    Equal/1-8              10.5ns ± 0%    10.5ns ± 0%     ~     (all equal)
+    Equal/6-8              14.0ns ± 0%    12.5ns ± 0%  -10.71%  (p=0.000 n=8+8)
+    Equal/9-8              13.5ns ± 0%    12.5ns ± 0%   -7.41%  (p=0.000 n=8+8)
+    Equal/15-8             15.5ns ± 0%    12.5ns ± 0%  -19.35%  (p=0.000 n=8+8)
+    Equal/16-8             14.0ns ± 0%    13.0ns ± 0%   -7.14%  (p=0.000 n=8+8)
+    Equal/20-8             16.5ns ± 0%    16.0ns ± 0%   -3.03%  (p=0.000 n=8+8)
+    Equal/32-8             16.5ns ± 0%    15.3ns ± 0%   -7.27%  (p=0.000 n=8+8)
+    Equal/4K-8              552ns ± 0%     553ns ± 0%     ~     (p=0.315 n=8+8)
+    Equal/4M-8             1.13ms ±23%    1.20ms ±27%     ~     (p=0.442 n=8+8)
+    Equal/64M-8            32.9ms ± 0%    32.6ms ± 0%   -1.15%  (p=0.000 n=8+8)
+    CompareBytesEqual-8    12.0ns ± 0%    12.0ns ± 0%     ~     (all equal)
+    
+    Change-Id: If317ecdcc98e31883d37fd7d42b113b548c5bd2a
+    Reviewed-on: https://go-review.googlesource.com/112496
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/bytealg/equal_arm64.s | 44 ++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 16 deletions(-)

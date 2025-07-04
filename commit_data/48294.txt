@@ -1,0 +1,22 @@
+commit da2773fe3e2f6106634673a38dc3a6eb875fe7d8
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Mar 5 19:21:15 2022 +1030
+
+    all: fix some typos
+    
+    Change-Id: I7dfae0fc91c2d70873ec7ec920be7c0a4888153a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/compress/bzip2/huffman.go  | 2 +-
+ src/crypto/tls/conn.go         | 2 +-
+ src/crypto/x509/parser.go      | 2 +-
+ src/debug/dwarf/entry.go       | 2 +-
+ src/html/template/escape.go    | 4 ++--
+ src/index/suffixarray/sais.go  | 2 +-
+ src/index/suffixarray/sais2.go | 2 +-
+ src/math/big/nat.go            | 2 +-
+ src/net/lookup.go              | 2 +-
+ 9 files changed, 10 insertions(+), 10 deletions(-)

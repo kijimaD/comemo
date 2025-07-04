@@ -1,0 +1,15 @@
+commit 6a401339c113769be5339483bf134284292f03bc
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 08:21:37 2011 +0100
+
+    gc: suppress non-root cause message for bad receivers.
+    
+    Fixed issue 2500
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5485053
+
+ src/cmd/gc/dcl.c         |  2 ++
+ test/fixedbugs/bug384.go | 12 ++++++++++++
+ 2 files changed, 14 insertions(+)

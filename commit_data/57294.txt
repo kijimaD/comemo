@@ -1,0 +1,38 @@
+commit d555358bf8b4d06c8f54d1c00d15a37c6ccb30f4
+Author: Michael Podtserkovskii <michaelpo@meta.com>
+Date:   Thu Apr 18 12:28:13 2024 +0100
+
+    cmd/cgo: parallelize loadDefines calls
+    
+    ```
+    export CC="zig cc -target x86_64-linux"
+    hyperfine '../pkg/tool/darwin_arm64/cgo -objdir /tmp net/cgo_linux.go net/cgo_resnew.go net/cgo_socknew.go net/cgo_unix_cgo.go net/cgo_unix_cgo_res.go'
+    ```
+    
+    **Before**
+    ```
+      Time (mean ± sig):      1.293 s ±  0.017 s    [User: 0.472 s, System: 0.451 s]
+      Range (min ... max):    1.263 s ...  1.316 s    10 runs
+    
+    ```
+    
+    **After**
+    ```
+      Time (mean ±sig):     986.5 ms ±  22.6 ms    [User: 487.0 ms, System: 519.5 ms]
+      Range (min ... max):   950.7 ms ... 1022.2 ms    10 runs
+    
+    ```
+    
+    The version after changes is 25% faster for 5 input files (std "net" package).
+    I also tried to make CC artifictially slower (wrapper with sleep 0.2) and it showes same 25% performance increase.
+    
+    Change-Id: I7a26fdc8d8a23b0df9bc71d30b96e82e2ddb943b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581336
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/gcc.go  | 20 +++++++++++---------
+ src/cmd/cgo/main.go | 42 ++++++++++++++++++++++++++++--------------
+ 2 files changed, 39 insertions(+), 23 deletions(-)

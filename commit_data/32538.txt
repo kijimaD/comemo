@@ -1,0 +1,19 @@
+commit 3124439b3a5903bdbf29c9d560493d2f1bcc9f11
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 28 13:02:58 2017 -0700
+
+    cmd/compile: make more use of exported position information
+    
+    Updates #19683.
+    
+    Change-Id: I64b3b93a3ab14518a5376e1270bdd2a94bdd67ef
+    Reviewed-on: https://go-review.googlesource.com/59611
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 32 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go     | 14 ++++++++++++--
+ src/cmd/compile/internal/gc/export.go  | 13 +++++++------
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ 4 files changed, 36 insertions(+), 25 deletions(-)

@@ -1,0 +1,20 @@
+commit f986191325e9c8be606b5f4db69a33692728274b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 11 18:12:20 2021 +0000
+
+    runtime: fix released bytes accumulation in bg scavenger
+    
+    Currently "released" is not accumulated bytes released. If the last
+    attempt to scavenge ends up as 0, then the scavenger will go to sleep
+    too soon. This is an artifact from the old code where scavenge would
+    only be called into once.
+    
+    Change-Id: I85aa2261f1504a6fb5bf086daa029eecb0e09cf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363416
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mgcscavenge.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

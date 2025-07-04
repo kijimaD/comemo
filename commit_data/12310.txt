@@ -1,0 +1,12 @@
+commit 2295554db6503cc47eb0cfb69c59cc5b740f5f0e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 1 22:16:20 2012 +0400
+
+    sync: add Once example
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5715046
+
+ src/pkg/sync/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

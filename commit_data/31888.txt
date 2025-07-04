@@ -1,0 +1,19 @@
+commit 1ed79b87f5310bd0118bf3163861c5376b3be0ba
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:18:20 2017 +0900
+
+    net: update documentation on Dial{TCP,UDP,IP,Unix}
+    
+    This change clarifies the documentation on Dial{TCP,UDP,IP,Unix} to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
+    
+    Change-Id: I2e378182948fbe221f6ae786ab55e77ae90c3f3b
+    Reviewed-on: https://go-review.googlesource.com/34877
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/iprawsock.go | 16 ++++++++++------
+ src/net/tcpsock.go   | 22 +++++++++++++---------
+ src/net/udpsock.go   | 22 +++++++++++++---------
+ src/net/unixsock.go  | 19 +++++++++++--------
+ 4 files changed, 47 insertions(+), 32 deletions(-)

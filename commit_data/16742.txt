@@ -1,0 +1,18 @@
+commit d6d83c918c5847bbdbaf8c9de101e9ca32535df8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 11 22:52:48 2013 -0400
+
+    cmd/ld: place read-only data in non-executable segment
+    
+    R=golang-dev, dave, r
+    CC=golang-dev, nigeltao
+    https://golang.org/cl/10713043
+
+ src/cmd/5l/asm.c  |  13 +++++--
+ src/cmd/6l/asm.c  |  13 +++++--
+ src/cmd/8l/asm.c  |  13 +++++--
+ src/cmd/ld/data.c | 102 ++++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/ld/elf.c  |  12 ++++++-
+ src/cmd/ld/lib.c  |  11 ++++++
+ src/cmd/ld/lib.h  |   8 +++++
+ 7 files changed, 136 insertions(+), 36 deletions(-)

@@ -1,0 +1,26 @@
+commit 75ce33068d8c2c45f40e599ae2d4c80cb8b919d7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 19 15:39:11 2015 +1000
+
+    image/gif: re-enable some invalid-palette tests.
+    
+    These tests were broken by https://go-review.googlesource.com/#/c/11227/
+    which fixed the LZW encoder to reject invalid input.
+    
+    For TestNoPalette, the LZW encoder with a litWidth of 2 now rejects an
+    input byte of 128, so we change 128 to 3, as 3 <= (1<<2 - 1).
+    
+    For TestPixelOutsidePaletteRange, the LZW encoder similarly rejects an
+    input byte of 255. Prior to golang.org/cl/11227, the encoder (again with
+    a litWidth of 2) accepted the 255 input byte, but masked it with (1<<2 -
+    1), so that the 255 test case was effectively the same as the 3 test
+    case. After that LZW CL, the 255 input byte is simply invalid, so we
+    remove it as a test case. The test still tests pixels outside of the
+    palette range, since 3 >= the length of the global palette, which is 2.
+    
+    Change-Id: I50be9623ace016740e34801549c15f83671103eb
+    Reviewed-on: https://go-review.googlesource.com/11273
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/image/gif/reader_test.go | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)

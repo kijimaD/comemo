@@ -1,0 +1,16 @@
+commit 8f53fad035ccc580859f7b063ae8be30b009a6be
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 14 14:00:42 2020 -0700
+
+    math/big: add test that linker is able to remove unused code
+    
+    (Follow-up to CL 228108.)
+    
+    Change-Id: Ia6d119ee19c7aa923cdeead06d3cee87a1751105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228109
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/link_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

@@ -1,0 +1,14 @@
+commit be97fa4c799263ab0ac4ad5dc07cbca4b828a8b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 13 17:26:32 2010 +1000
+
+    fmt/print: honor Formatter in Print, Println.
+    Rearrange code to clarify handling of %T, Formatter, GoStringer, and Stringer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1973043
+
+ src/pkg/fmt/fmt_test.go | 45 ++++++++++++++++++++++++++
+ src/pkg/fmt/print.go    | 84 ++++++++++++++++++++++---------------------------
+ 2 files changed, 83 insertions(+), 46 deletions(-)

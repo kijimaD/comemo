@@ -1,0 +1,17 @@
+commit a8357f0160681d02e7b9abaf3a6ad3b87bb5a933
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 20 10:56:41 2012 +0200
+
+    exp/locale/collate/build: fixed bug that was exposed by experimenting
+    with table changes.
+    NOTE: there is no test for this, but 1) the code has now the same
+    control flow as scan in exp/locale/collate/contract.go, which is
+    tested and 2) Builder verifies the generated table so bugs in this
+    code are quickly and easily found (which is how this bug was discovered).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6461082
+
+ src/pkg/exp/locale/collate/build/contract.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

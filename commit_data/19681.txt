@@ -1,0 +1,13 @@
+commit 331bf64d175805f9060160c00dbf1290ae34c303
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 13:45:31 2014 -0400
+
+    cmd/addr2line: skip test on android
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/104600043
+
+ src/cmd/addr2line/addr2line_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

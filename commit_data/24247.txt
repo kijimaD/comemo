@@ -1,0 +1,16 @@
+commit 90f69259ec3f2b306fce26481baaea0b3611579d
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 12:03:05 2015 +0000
+
+    cmd/compile/internal/ppc64: map/slice literals janitoring
+    
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Checked that the result can still be compiled with Go 1.4.
+    
+    Change-Id: I201cd90fdfb8de2971c46ad7fce64111152b697e
+    Reviewed-on: https://go-review.googlesource.com/13832
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/compile/internal/ppc64/prog.go | 166 ++++++++++++++++-----------------
+ 1 file changed, 83 insertions(+), 83 deletions(-)

@@ -1,0 +1,15 @@
+commit 4b091c533e2486b6d27e8f0754f0f2755f7931ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 20 17:20:41 2013 -0700
+
+    sort: don't depend on math
+    
+    No reason to pull in math just for x != x.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8886043
+
+ src/pkg/go/build/deps_test.go | 2 +-
+ src/pkg/sort/sort.go          | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

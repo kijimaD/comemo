@@ -1,0 +1,26 @@
+commit 2962c96c9f24b685c86133cdd7612026827278d8
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Nov 26 10:52:43 2019 -0500
+
+    cmd/compile: lower float to uint conversions on s390x
+    
+    Add rules for lowering float <-> unsigned int on s390x.
+    
+    During compilation,
+    Cvt64Uto64F rule triggers around 80 times,
+    Cvt64Fto64U rule triggers around 20 times,
+    Cvt64Uto32F rule triggers around 5 times.
+    
+    Change-Id: If4c9d128b9132fce8c0bea9abc09cb43a5df7989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209177
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           |   2 +-
+ src/cmd/compile/internal/s390x/ssa.go        |   2 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  12 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  13 +++-
+ src/cmd/compile/internal/ssa/opGen.go        | 112 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  24 ++++++
+ 6 files changed, 162 insertions(+), 3 deletions(-)

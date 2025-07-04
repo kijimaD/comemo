@@ -1,0 +1,15 @@
+commit 81ec7256072ed5e20b8827c583193258769aebc0
+Author: Nils Larsgård <nilsmagnus@gmail.com>
+Date:   Tue Oct 24 19:21:58 2017 +0200
+
+    mime/multipart: permit empty file name
+    
+    Fixes #19183
+    
+    Change-Id: I11502d855f5b521b03ed7a63a990cca2d0ed4083
+    Reviewed-on: https://go-review.googlesource.com/70931
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/multipart/formdata.go      |  3 ++-
+ src/mime/multipart/formdata_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

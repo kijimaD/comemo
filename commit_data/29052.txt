@@ -1,0 +1,18 @@
+commit d8f7e4fadb785d90444245159f4c5a32653263d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:44:58 2016 -0700
+
+    runtime, syscall: appease vet
+    
+    No functional changes.
+    
+    Change-Id: I0842b2560f4296abfc453410fdd79514132cab83
+    Reviewed-on: https://go-review.googlesource.com/31935
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_plan9.go      |  2 +-
+ src/runtime/sys_plan9_arm.s  |  4 ++--
+ src/syscall/asm_darwin_arm.s | 28 ++++++++++++++--------------
+ 3 files changed, 17 insertions(+), 17 deletions(-)

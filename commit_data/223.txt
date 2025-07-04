@@ -1,0 +1,11 @@
+commit 4061a7e9c77305d30cfd8397c053a04f92c7a78f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 21:42:54 2008 -0700
+
+    allow an underscore to match centered dot (rune 00B7), so people don't have to
+    type a centered dot when debugging.
+    
+    SVN=124460
+
+ src/libmach_amd64/sym.c | 31 +++++++++++++++++++++++++++----
+ 1 file changed, 27 insertions(+), 4 deletions(-)

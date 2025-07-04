@@ -1,0 +1,37 @@
+commit 2136e1551089bbac284980c2521d8b729f6a5c3e
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Nov 24 16:47:08 2021 +0800
+
+    cmd/compile/internal/loong64: implement Init function for loong64
+    
+    Register functions and parameters that are used in gc backend and
+    are architecture related for loong64.
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: Iab3f13b70a41f31f412b59801def3106f5eb7c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367036
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loong64/galign.go |  23 +
+ src/cmd/compile/internal/loong64/ggen.go   |  59 ++
+ src/cmd/compile/internal/loong64/ssa.go    | 861 +++++++++++++++++++++++++++++
+ 3 files changed, 943 insertions(+)

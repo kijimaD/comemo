@@ -1,0 +1,23 @@
+commit 3f6b1a0d5eea4756b905db1c2b2c03e8594850d3
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Tue Oct 27 17:03:48 2020 +0000
+
+    misc/cgo/test: test C.enum_*
+    
+    Allocate a C enum object, and test if it can be assigned a value
+    successfully.
+    
+    For #39537
+    
+    Change-Id: I7b5482112486440b9d99f2ee4051328d87f45dca
+    GitHub-Last-Rev: 81890f40acc5589563ec1206fe119873fb46dc1b
+    GitHub-Pull-Request: golang/go#39977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ misc/cgo/test/cgo_test.go |  2 ++
+ misc/cgo/test/test.go     | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

@@ -1,0 +1,49 @@
+commit 383a4e78861218bd861632d6cdcac6c8af6a5470
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:52:01 2023 +0100
+
+    net: mptcp: add end-to-end test
+    
+    This adds a simple test validating MPTCP Sock for Linux implementation:
+    
+    - A Listener is created with MPTCP support, accepting new connections in
+      a new thread.
+    
+    - A Dialer with MPTCP support connects to this new Listener
+    
+    - On both sides, MPTCP should be used. Note that at this point, we
+      cannot check if a fallback to TCP has been done nor if the correct
+      protocol is being used.
+    
+    Technically, a localServer from mockserver_test.go is used, similar to
+    TestIPv6LinkLocalUnicastTCP from tcpsock_test.go. Here with MPTCP, the
+    Listen step is done manually to force using MPTCP and a post step is
+    done to verify extra status after the Accept. More checks are going to
+    be done in the future.
+    
+    Please note that the test is skipped if the kernel doesn't allow the
+    creation of an MPTCP socket at all when starting the test.
+    
+    The test can be executed with this command:
+    
+      $ ../bin/go test -v net -run "^TestMultiPathTCP$"
+    
+    The "-race" option has also been checked.
+    
+    This work has been co-developped by Benjamin Hesmans
+    <benjamin.hesmans@tessares.net> and Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Fixes #56539
+    
+    Change-Id: I4b6b39e9175a20f98497b5ea56934e242da06194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471141
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/mptcpsock_linux_test.go | 133 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)

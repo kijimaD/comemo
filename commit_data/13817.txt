@@ -1,0 +1,12 @@
+commit 9a82324fb753cfe2e6902ac6835973237829c941
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 13 12:39:25 2012 -0700
+
+    build: print go banner before restoring windows PATH
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6492117
+
+ src/all.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

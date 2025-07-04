@@ -1,0 +1,17 @@
+commit c035d829e9fbd150148a1738020fe9c155cda61f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 30 15:15:45 2021 -0400
+
+    cmd/dist: consistently set PWD when executing a command in a different directory
+    
+    For #33598
+    
+    Change-Id: If0de906ffa2fcc83bb2a90f9e80a5b29d7667398
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353449
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/exec.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go | 54 +++++++++++++++++++++++++---------------------------
+ src/cmd/dist/util.go |  2 +-
+ 3 files changed, 80 insertions(+), 29 deletions(-)

@@ -1,0 +1,12 @@
+commit 159ee8a42f2ad9216267a1da0217427346d1d331
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 13 21:18:16 2012 +1100
+
+    misc/dist: add binary distribution packaging script for linux
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/5639064
+
+ misc/dist/linux/dist.bash | 55 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

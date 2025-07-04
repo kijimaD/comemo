@@ -1,0 +1,28 @@
+commit b28f2f73991c849657e5898dfa2f8cae54e885a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 20:53:32 2017 -0400
+
+    cmd/link: make mach-o dwarf segment properly aligned
+    
+    Without this, the load fails during kernel exec, which results in the
+    mysterious and completely uninformative "Killed: 9" error.
+    
+    It appears that the stars (or at least the inputs) were properly aligned
+    with earlier versions of Xcode so that this happened accidentally.
+    Make it happen on purpose.
+    
+    Gregory Man bisected the breakage to this change in LLVM,
+    which fits the theory nicely:
+    https://github.com/llvm-mirror/llvm/commit/9a41e59c
+    
+    Fixes #19734.
+    
+    Change-Id: Ice67a09af2de29d3c0d5e3fcde6a769580897c95
+    Reviewed-on: https://go-review.googlesource.com/38854
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash                  |  7 ++++
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 52 ++++++++++++++++---------
+ 2 files changed, 41 insertions(+), 18 deletions(-)

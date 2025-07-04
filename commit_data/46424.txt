@@ -1,0 +1,19 @@
+commit 42057e9848d40fc6181cd7a68fd788c652772b8d
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Sep 11 01:14:54 2021 +0800
+
+    cmd/compile: save the note of fields when translating struct
+    
+    Fixes #48317
+    
+    Change-Id: I756ae6253022870071004332dd8f49169307f7e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349013
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go |  1 +
+ test/typeparam/issue48317.go               | 38 ++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

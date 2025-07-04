@@ -1,0 +1,15 @@
+commit 55cc1ff721aaf14b27df31efcf0295c4ff09e35a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 3 10:17:55 2012 -0700
+
+    net/http: clean up fs tests a bit
+    
+    And fix some govet-caught format arg issues.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6354068
+
+ src/pkg/net/http/fs_test.go    | 23 ++++++++++++++---------
+ src/pkg/net/http/serve_test.go |  6 +++---
+ 2 files changed, 17 insertions(+), 12 deletions(-)

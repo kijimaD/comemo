@@ -1,0 +1,14 @@
+commit 051cf380f5723fcb062728b7abfda40727b48746
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Oct 31 15:30:59 2016 +0000
+
+    go/build: add back deps for runtime/pprof/internal/gzip0
+    
+    These were accidentally removed by a rollback cl: golang.org/cl/32441
+    
+    Change-Id: I0cfa8b3397be324dabfb8f33b6548a03c10571eb
+    Reviewed-on: https://go-review.googlesource.com/32334
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/build/deps_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

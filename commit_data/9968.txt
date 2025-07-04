@@ -1,0 +1,18 @@
+commit 812249fe5e524b2e8a7e6fd1722a05322fced4c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 13 16:36:53 2011 -0700
+
+    gotype: move to exp/gotype per Go 1 plan
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5269043
+
+ src/cmd/Makefile                              | 1 -
+ src/pkg/Makefile                              | 2 +-
+ src/{cmd => pkg/exp}/gotype/Makefile          | 4 ++--
+ src/{cmd => pkg/exp}/gotype/doc.go            | 0
+ src/{cmd => pkg/exp}/gotype/gotype.go         | 0
+ src/{cmd => pkg/exp}/gotype/gotype_test.go    | 0
+ src/{cmd => pkg/exp}/gotype/testdata/test1.go | 0
+ 7 files changed, 3 insertions(+), 4 deletions(-)

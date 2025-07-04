@@ -1,0 +1,12 @@
+commit f485e9859a4cbb1154541afb0c3659578e035f63
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 27 08:40:03 2013 -0800
+
+    strconv: remove unused atof32int function
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/44200044
+
+ src/pkg/strconv/atof.go | 11 -----------
+ 1 file changed, 11 deletions(-)

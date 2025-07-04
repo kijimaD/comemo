@@ -1,0 +1,20 @@
+commit c7a4099b9926b466b55c7271868d9dfb0271117e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Apr 5 09:03:46 2019 -0700
+
+    syscall: dup the argument to fdopendir
+    
+    fdopendir takes ownership of its file descriptor argument.
+    Getdirentries shouldn't do that, so dup the file descriptor
+    before passing to fdopendir.
+    
+    Fixes #31269
+    
+    Change-Id: Ie36be8fd6c59eb339dcc9f40228d4191fc1e5850
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170698
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_darwin.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

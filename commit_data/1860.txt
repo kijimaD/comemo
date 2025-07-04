@@ -1,0 +1,34 @@
+commit 2bd101c4b14faa550ddc91821b154f793700773c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 16:40:00 2009 -0700
+
+    update 8a, 8c, 8l to use new object format.
+    
+    add "extern register" support to 8c.
+    extern register means allocate in the FS-relative segment.
+    
+    make 8l generate segmented stack checks.
+    
+    R=ken
+    OCL=26600
+    CL=26606
+
+ src/cmd/8a/a.h     |   2 +-
+ src/cmd/8a/a.y     |  66 +++++++++++-
+ src/cmd/8a/lex.c   |  22 +++-
+ src/cmd/8c/gc.h    |   1 +
+ src/cmd/8c/list.c  |   4 +
+ src/cmd/8c/sgen.c  |  32 ++++++
+ src/cmd/8c/swt.c   |  15 ++-
+ src/cmd/8c/txt.c   |  13 +++
+ src/cmd/8l/8.out.h |   6 ++
+ src/cmd/8l/l.h     |   5 +-
+ src/cmd/8l/list.c  |  18 +++-
+ src/cmd/8l/obj.c   | 306 ++++++++++++++++++++++++++++++++---------------------
+ src/cmd/8l/optab.c |   8 ++
+ src/cmd/8l/pass.c  | 138 +++++++++++++++++++++++-
+ src/cmd/8l/span.c  |  44 +++++++-
+ src/cmd/cc/cc.h    |   1 +
+ src/cmd/cc/com.c   |   5 +
+ src/cmd/cc/sub.c   |   1 +
+ 18 files changed, 543 insertions(+), 144 deletions(-)

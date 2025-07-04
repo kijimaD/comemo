@@ -1,0 +1,24 @@
+commit 88d719f8092c250f3575cc8e136090b3db65ee15
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 6 09:56:03 2019 -0500
+
+    go/internal/gccgoimporter: test case for issue 30628
+    
+    Test case for a panic/crash in gccgoimporter caused by incorrect gccgo
+    export data emission. Note that the *.gox file checked in contains the
+    correct export data; the main intent of the test is to make sure that
+    gccgo produces the right export data when run on the Go source.
+    
+    Updates #30628
+    
+    Change-Id: I29c0c17b81a43f92ff64fbfcdc58fdb46a5be370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165739
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ .../internal/gccgoimporter/testdata/issue30628.go  | 18 ++++++++++++++
+ .../internal/gccgoimporter/testdata/issue30628.gox | 28 ++++++++++++++++++++++
+ 3 files changed, 47 insertions(+)

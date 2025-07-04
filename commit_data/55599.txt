@@ -1,0 +1,20 @@
+commit 284e553035137fc339617f01dd53766977cd3e8c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Feb 16 00:15:29 2024 +0000
+
+    runtime,cmd/link: merge pcbucketsize const into internal/abi
+    
+    For #59670
+    
+    Change-Id: I6343bacd3126fe6381a2e73be10f61691792824d
+    GitHub-Last-Rev: bbab8d1142e5749f58c17f6f668e2eb679ff69d7
+    GitHub-Pull-Request: golang/go#65373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 5 ++---
+ src/internal/abi/symtab.go       | 2 ++
+ src/runtime/symtab.go            | 6 ++----
+ 3 files changed, 6 insertions(+), 7 deletions(-)

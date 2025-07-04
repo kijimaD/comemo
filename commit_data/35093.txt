@@ -1,0 +1,19 @@
+commit c0769741f541d2382c5c9b4506d684a738d7e53e
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Sat Apr 21 22:24:25 2018 +0000
+
+    doc: correct statement in go1.10 release notes
+    
+    The language spec requires the RHS operand of shift expressions to be unsigned integers.
+    
+    The changes in CL 60230 and the related CL 81277 refer to a variable s of type uint.
+    The "untyped constant" here refers to 1.0, not s.
+    
+    Change-Id: Id2b884816af7f79f453afcb8c34ade2d34e18bc2
+    GitHub-Last-Rev: b26c853cae2adea7235a51ad726308e337494385
+    GitHub-Pull-Request: golang/go#24989
+    Reviewed-on: https://go-review.googlesource.com/108676
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.10.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit b1dbc9f8c0257aca065126d8dfc3ebfe0be2aada
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 22 15:50:03 2016 -0800
+
+    reflect: fix typo in comment
+    
+    Sigh, forgot to run `git mail`.
+    
+    Change-Id: Idc49be2bb20d6f0e392cb472a63267ffee2ca22c
+    Reviewed-on: https://go-review.googlesource.com/33476
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

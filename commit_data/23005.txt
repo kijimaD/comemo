@@ -1,0 +1,14 @@
+commit f8fbcefa6cdd9901d5d9183bf6ad3fed73f1b455
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 13 15:12:59 2015 -0700
+
+    math/rand: shorten Float32 test for GOARM=5
+    
+    Fixes #10749
+    
+    Change-Id: I9d5f6f179fd117b0c358d7c8042daf5985b645c0
+    Reviewed-on: https://go-review.googlesource.com/10022
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/math/rand/rand_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

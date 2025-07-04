@@ -1,0 +1,13 @@
+commit 4923ba91553c7def753c3c3990163a2bc960474c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 25 19:21:05 2011 -0700
+
+    mime/multipart: misc code/doc fixes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4532089
+
+ src/pkg/mime/multipart/writer.go      | 73 ++++++++++++++++-------------------
+ src/pkg/mime/multipart/writer_test.go |  2 +-
+ 2 files changed, 34 insertions(+), 41 deletions(-)

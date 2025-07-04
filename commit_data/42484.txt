@@ -1,0 +1,19 @@
+commit 5b9304e0be5b5e11a82e65ecc626be98b0755e3d
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Sun Jun 7 08:32:28 2020 -0700
+
+    crypto/x509: match RFC suggested SKID generation method
+    
+    Rather than hashing the encoding of the SPKI structure, hash the
+    bytes of the public key itself.
+    
+    Fixes #39429
+    
+    Change-Id: I55a0f8f08ab1f1b5702590b47d8b9a92d1dbcc1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236878
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

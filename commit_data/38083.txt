@@ -1,0 +1,21 @@
+commit c1050a8e54e1e1c06aa02ccf2b36c13a95666121
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Fri Dec 28 21:40:04 2018 +0300
+
+    cmd/compile: don't generate newobject call for 0-sized types
+    
+    Emit &runtime.zerobase instead of a call to newobject for
+    allocations of zero sized objects in walk.go.
+    
+    Fixes #29446
+    
+    Change-Id: I11b67981d55009726a17c2e582c12ce0c258682e
+    Reviewed-on: https://go-review.googlesource.com/c/155840
+    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 10 ++++++++++
+ test/codegen/alloc.go               | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

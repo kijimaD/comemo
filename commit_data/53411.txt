@@ -1,0 +1,14 @@
+commit 0b9348fceb0d947182e65e1f387cdc7d8855f7f0
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 26 11:32:40 2023 -0400
+
+    go1.21.html: describe testing/slogtest package
+    
+    Change-Id: I734aae67d410073056388852cd94776c7483b4b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498273
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+
+ doc/go1.21.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

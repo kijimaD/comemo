@@ -1,0 +1,18 @@
+commit 7733a7cad81d1e356a11a8e83221a32e5d622869
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Sat Jun 13 10:53:06 2015 +0200
+
+    archive/tar: add missing error checks
+    
+    Check for errors when reading the headers following the pax headers.
+    
+    Fixes #11169.
+    
+    Change-Id: Ifec4a949ec8df8b49fa7cb7a67eb826fe2282ad8
+    Reviewed-on: https://go-review.googlesource.com/11031
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/tar/reader.go               |   6 ++++++
+ src/archive/tar/reader_test.go          |  15 +++++++++++++++
+ src/archive/tar/testdata/issue11169.tar | Bin 0 -> 602 bytes
+ 3 files changed, 21 insertions(+)

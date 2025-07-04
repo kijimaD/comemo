@@ -1,0 +1,19 @@
+commit dee3efd9f879335cfb583752b0729cc57f61897e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 26 19:28:00 2022 -0700
+
+    doc/go1.19: fix a few links that were missing trailing slashes
+    
+    They were part of a chain of three redirects. Now it's only two,
+    but that's #54081.
+    
+    Change-Id: Ibfe6a17a372df61df40124892951b48577e4ced9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419634
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.19.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

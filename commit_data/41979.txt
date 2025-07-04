@@ -1,0 +1,20 @@
+commit 7ea40f6594ada6631b3fd153c87916c51628a7e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 15 15:39:53 2020 -0700
+
+    runtime: use mcache0 if no P in profilealloc
+    
+    A case that I missed in CL 205239: profilealloc can be called at
+    program startup if GOMAXPROCS is large enough.
+    
+    Fixes #38474
+    
+    Change-Id: I2f089fc6ec00c376680e1c0b8a2557b62789dd7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228420
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go    | 11 ++++++++++-
+ src/runtime/proc_test.go | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

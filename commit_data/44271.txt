@@ -1,0 +1,39 @@
+commit aa0388f2ed937669e9f938da8a65c75ea144ebfd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 09:25:55 2021 -0500
+
+    runtime: remove unnecessary writes to gp.sched.g
+    
+    A g's sched.g is set in newproc1:
+    
+            newg.sched.g = guintptr(unsafe.Pointer(newg))
+    
+    After that, it never changes. Yet lots of assembly code does
+    "g.sched.g = g" unnecessarily. Remove all those lines to avoid
+    confusion about whether it ever changes.
+    
+    Also, split gogo into two functions, one that does the nil g check
+    and a second that does the actual switch. This way, if the nil g check
+    fails, we get a stack trace showing the call stack that led to the failure.
+    (The SP write would otherwise cause the stack trace to abort.)
+    
+    Also restore the proper nil g check in a handful of assembly functions.
+    (There is little point in checking for nil g *after* installing it as the real g.)
+    
+    Change-Id: I22866b093f901f765de1d074e36eeec10366abfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292109
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_386.s     |  7 ++++---
+ src/runtime/asm_amd64.s   |  7 ++++---
+ src/runtime/asm_arm.s     | 19 +++++--------------
+ src/runtime/asm_arm64.s   | 12 +++++++-----
+ src/runtime/asm_mips64x.s | 11 +++++++----
+ src/runtime/asm_mipsx.s   | 13 +++++++------
+ src/runtime/asm_ppc64x.s  | 12 +++++++-----
+ src/runtime/asm_riscv64.s | 12 +++++++-----
+ src/runtime/asm_s390x.s   | 11 +++++++----
+ src/runtime/asm_wasm.s    |  7 +++----
+ src/runtime/proc.go       | 24 ++++++++++++++++++++----
+ 11 files changed, 78 insertions(+), 57 deletions(-)

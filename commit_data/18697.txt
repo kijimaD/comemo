@@ -1,0 +1,13 @@
+commit c535ce8506ee82fd50623156cecf1ae551fa7228
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 28 14:17:33 2014 -0800
+
+    doc: add more go1.3.txt items, sort.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/70120044
+
+ doc/go1.3.txt | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

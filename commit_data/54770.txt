@@ -1,0 +1,18 @@
+commit bc2124dab14fa292e18df2937037d782f7868635
+Author: favonia <favonia@gmail.com>
+Date:   Wed May 24 21:43:15 2023 -0400
+
+    bufio: allow terminating Scanner early cleanly without a final token or an error
+    
+    Fixes #56381
+    
+    Change-Id: I95cd603831a7032d764ab312869fe9fb05848a4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498117
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/bufio/example_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/bufio/scan.go         | 25 ++++++++++++++++---------
+ 2 files changed, 50 insertions(+), 9 deletions(-)

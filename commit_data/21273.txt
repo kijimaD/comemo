@@ -1,0 +1,19 @@
+commit 437ec6b313196e603c5935012091e53f4ba66726
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jan 14 21:32:05 2015 +0300
+
+    encoding/xml: remove unnecessary memory allocation in Unmarshal
+    
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkUnmarshal     75256         72626         -3.49%
+    
+    benchmark              old allocs     new allocs     delta
+    BenchmarkUnmarshal     259            219            -15.44%
+    
+    Change-Id: I7fd30739b045e35b95e6ef6a8ef2f15b0dd6839c
+    Reviewed-on: https://go-review.googlesource.com/2758
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/marshal_test.go | 2 ++
+ src/encoding/xml/xml.go          | 8 ++++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)

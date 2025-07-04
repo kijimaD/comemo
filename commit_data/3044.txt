@@ -1,0 +1,31 @@
+commit 0e25c1dc6d8b41f3fa400543a410e08629172f9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 21 13:08:11 2009 -0700
+
+    linker work
+     * remove now-unused D_SBIG (was for typestrings)
+     * rename elf64.[ch] to elf.[ch]
+     * pull in elf headers from FreeBSD instead of writing our own
+     * emit non-header ELF data in data section
+     * stub out a few more ELF sections needed for dynamic loading
+    
+    R=r
+    DELTA=1928  (1237 added, 635 deleted, 56 changed)
+    OCL=33642
+    CL=33658
+
+ src/cmd/6l/6.out.h            |   2 +-
+ src/cmd/6l/Makefile           |   6 +-
+ src/cmd/6l/asm.c              | 533 ++++++++++++++++++++++-----------
+ src/cmd/6l/{elf64.c => elf.c} |   2 +-
+ src/cmd/6l/l.h                |   9 +
+ src/cmd/6l/obj.c              |   7 +-
+ src/cmd/6l/pass.c             |   6 +-
+ src/cmd/6l/span.c             |  19 +-
+ src/cmd/8l/8.out.h            |   3 +-
+ src/cmd/8l/asm.c              |  15 +-
+ src/cmd/ld/{elf64.c => elf.c} | 170 +++++------
+ src/cmd/ld/elf.h              | 665 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/elf64.h            | 292 -------------------
+ src/cmd/ld/go.c               |   2 +
+ 14 files changed, 1149 insertions(+), 582 deletions(-)

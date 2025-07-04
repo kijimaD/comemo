@@ -1,0 +1,14 @@
+commit 3928a4e11bf69db13f1bcd16193f9e48d1a22fd3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 17:30:07 2009 -0700
+
+    printing maps
+    
+    R=rsc
+    DELTA=57  (39 added, 3 deleted, 15 changed)
+    OCL=31424
+    CL=31430
+
+ src/pkg/fmt/fmt_test.go | 58 ++++++++++++++++++++++++++++++++++---------------
+ src/pkg/fmt/print.go    | 14 +++++++++++-
+ 2 files changed, 54 insertions(+), 18 deletions(-)

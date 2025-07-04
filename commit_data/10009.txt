@@ -1,0 +1,18 @@
+commit e5f3dc8bc54942db96f55b1b6207edfe69ca4021
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 18 09:42:16 2011 +1100
+
+    html: refactor the tokenizer; parse "</>" correctly.
+    
+    Previously, Next would call either nextText or nextTag, but nextTag
+    could also call nextText. Both nextText and nextTag were responsible
+    for detecting "</a" end tags and "<!" comments. This change simplifies
+    the call chain and puts that responsibility in a single place.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5263050
+
+ src/pkg/html/token.go      | 273 ++++++++++++++++++++++-----------------------
+ src/pkg/html/token_test.go |  41 ++++---
+ 2 files changed, 160 insertions(+), 154 deletions(-)

@@ -1,0 +1,27 @@
+commit 360151d4e2b3990db67555a8c61b1e581294fc44
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:11:56 2008 -0800
+
+    gobuild changes.
+            * handles multiple packages per directory
+            * scans directory for files if given no arguments
+            * infers package name
+            * includes test rule invoking gotest
+    
+    R=r
+    DELTA=746  (444 added, 150 deleted, 152 changed)
+    OCL=19504
+    CL=19521
+
+ src/cmd/gobuild/gobuild.c | 511 +++++++++++++++++++++++++++++++---------------
+ src/cmd/gotest/Makefile   |   1 +
+ src/cmd/gotest/gotest     |  29 ++-
+ src/lib/fmt/Makefile      |  38 ++--
+ src/lib/http/Makefile     |  51 +++--
+ src/lib/math/Makefile     |  46 +++--
+ src/lib/net/Makefile      |  40 ++--
+ src/lib/os/Makefile       |  38 ++--
+ src/lib/reflect/Makefile  |  43 ++--
+ src/lib/strconv/Makefile  |  39 ++--
+ src/lib/syscall/Makefile  |  36 ++--
+ 11 files changed, 583 insertions(+), 289 deletions(-)

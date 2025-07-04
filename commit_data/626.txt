@@ -1,0 +1,21 @@
+commit 6e8dbc2051ab5face6278e4056eefd5aea6c329b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 12 09:44:41 2008 -0700
+
+    - catch trace traps
+    - disassemble the instructions in a trace trap to see if it's a run-time trap
+    - if so, print relevant info
+    - avoid double-printing traceback on panic
+    
+    R=ken,rsc
+    DELTA=66  (50 added, 7 deleted, 9 changed)
+    OCL=15199
+    CL=15224
+
+ src/runtime/rt1_amd64_darwin.c | 18 +++++++++++-------
+ src/runtime/rt1_amd64_linux.c  | 17 +++++++++++------
+ src/runtime/rt2_amd64.c        | 30 ++++++++++++++++++++++++++++++
+ src/runtime/runtime.c          |  4 +++-
+ src/runtime/runtime.h          |  2 ++
+ src/runtime/signals.h          |  2 +-
+ 6 files changed, 58 insertions(+), 15 deletions(-)

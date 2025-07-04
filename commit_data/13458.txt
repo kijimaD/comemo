@@ -1,0 +1,16 @@
+commit eb1c03eacbbd1e3a8000972f338122dc9d5748b9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jul 12 10:14:07 2012 +1000
+
+    cmd/pack: remove unused paging logic
+    
+    This is the remainder of https://golang.org/cl/4601051.
+    
+    Partially addresses issue 2705.
+    
+    R=golang-dev, r, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6354066
+
+ src/cmd/pack/ar.c | 65 ++++++-------------------------------------------------
+ 1 file changed, 7 insertions(+), 58 deletions(-)

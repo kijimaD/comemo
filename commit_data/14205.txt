@@ -1,0 +1,14 @@
+commit 3dbbb6eb4c5b063e3ab863c2a7d1d607945aa29d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 23 00:59:53 2012 +0800
+
+    cmd/5l, cmd/6l, cmd/8l: put floating point numbers in .rodata section
+    
+    R=golang-dev, rsc
+    CC=0xe2.0x9a.0x9b, golang-dev
+    https://golang.org/cl/6742063
+
+ src/cmd/5l/obj.c | 4 ++--
+ src/cmd/6l/obj.c | 4 ++--
+ src/cmd/8l/obj.c | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

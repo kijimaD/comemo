@@ -1,0 +1,22 @@
+commit b091189762980836527c4aa50e3693632aea5144
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 20 09:55:26 2021 +0700
+
+    cmd/compile/internal/types2: print assignment operation for invalid operation errors
+    
+    When invoking check.binary for assignment operation, the expression will
+    be nil, thus for printing the assignment operation error message, we
+    need to reconstruct the statement from lhs, op, rhs.
+    
+    Fixes #48472
+    
+    Change-Id: Ie38c3dd8069b47e508968d6e43cedcf7536559ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357229
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/expr.go                           | 6 +++++-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 5 +++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

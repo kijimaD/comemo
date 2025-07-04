@@ -1,0 +1,22 @@
+commit dcc5c249260526aa1b1534aa9f7f33228fcd25d7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 13 20:38:58 2020 +0000
+
+    Revert "misc/spectre: add spectre index test"
+    
+    This reverts CL 222978.
+    
+    Reason for revert: Test is failing frequently in TryBots and builders (https://build.golang.org/log/06a29585eaa9955cf33b50b5792b3bdc42e8fbe2)
+    
+    Change-Id: I53bcf789726a9cfe78b1d3c55af78873c5c61696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223378
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/spectre/asm_amd64.s           |  51 -------
+ misc/spectre/doc.go                |   7 -
+ misc/spectre/index_test.go         |  59 --------
+ misc/spectre/spectre_amd64_test.go | 282 -------------------------------------
+ src/cmd/dist/test.go               |  24 +---
+ 5 files changed, 1 insertion(+), 422 deletions(-)

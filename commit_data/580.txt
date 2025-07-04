@@ -1,0 +1,15 @@
+commit cae0342230736bee2037b3da8bc8b77f5d22ffe7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 4 16:59:31 2008 -0700
+
+    - \' not allowed in string literals
+    - \" not allowed in char literals
+    - replaces uses of printf with print
+    
+    R=r,ken
+    DELTA=10  (2 added, 0 deleted, 8 changed)
+    OCL=14841
+    CL=14841
+
+ doc/go_spec.txt | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

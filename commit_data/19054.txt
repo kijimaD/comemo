@@ -1,0 +1,13 @@
+commit 78025fb2202e79580cd78bc1f4a32cead762e963
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 8 14:07:17 2014 +1000
+
+    doc/go1.3.html: drop support for windows 2000
+    
+    LGTM=bradfitz, alex.brainman
+    R=golang-codereviews, bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/85190043
+
+ doc/go1.3.html | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

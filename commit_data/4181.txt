@@ -1,0 +1,23 @@
+commit 7763345379bb5520c8571661e4f095c937545ee9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 11:50:11 2009 -0800
+
+    Support for basic try-catch style exception handling.
+    Meant as illustration of the Go pattern that is using
+    goroutines and channels to handle exceptional situations.
+    
+    Note: There is no need for "Finally" since the
+    "try block" (the function f supplied to Try)
+    cannot do a Smalltalk-style non-local return
+    and terminate the function surrounding Try.
+    
+    Replaces CL 157083.
+    
+    R=r, rsc
+    https://golang.org/cl/157087
+
+ src/pkg/Makefile                        |  1 +
+ src/pkg/exp/exception/Makefile          | 11 +++++
+ src/pkg/exp/exception/exception.go      | 83 +++++++++++++++++++++++++++++++++
+ src/pkg/exp/exception/exception_test.go | 61 ++++++++++++++++++++++++
+ 4 files changed, 156 insertions(+)

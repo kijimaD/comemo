@@ -1,0 +1,23 @@
+commit 16a72125d53b31e2f70a6922bc398dcbba354b7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 15:53:35 2018 -0400
+
+    cmd/go/internal/modfetch: correct TestCodeRepo expectation
+    
+    The proxy protocol was simplified to only send
+    (and only receive) the Path and Version fields
+    in the JSON blob, not Name and Short.
+    (Those make sense when querying a VCS repo directly,
+    but not when talking about extracted modules.)
+    So don't expect them in the test.
+    
+    Fixes #27042.
+    
+    Change-Id: I3daacd668126e2227dcc8e6b89ee0cf0e3c8497c
+    Reviewed-on: https://go-review.googlesource.com/129684
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

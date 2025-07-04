@@ -1,0 +1,18 @@
+commit 27cca31ee1619e8820bec79617e0ead54f90adc1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 18 17:15:26 2013 -0700
+
+    cmd/go: simplify flags for coverage
+    The single flag -cover provides the default simplest behavior.
+    The other flags, -covermode and -coverprofile, provide more
+    control. The three flags interconnect to work well.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/10364044
+
+ src/cmd/go/doc.go          | 24 ++++++++++++++++--------
+ src/cmd/go/test.go         | 30 ++++++++++++++++++------------
+ src/cmd/go/testflag.go     | 46 +++++++++++++++++++++++++++++++++-------------
+ src/pkg/testing/testing.go |  4 ++--
+ 4 files changed, 69 insertions(+), 35 deletions(-)

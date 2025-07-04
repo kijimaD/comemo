@@ -1,0 +1,14 @@
+commit 382cc8cb398c011a1701c410b747f1e80fa66687
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 29 00:32:16 2014 -0400
+
+    make.bash: if CC is not set, and gcc doesn't exist, try clang/clang++.
+    This should make Go build without setting CC and CXX on newer FreeBSDs.
+    
+    LGTM=iant
+    R=golang-codereviews, dave, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89230045
+
+ src/make.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

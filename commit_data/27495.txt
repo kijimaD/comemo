@@ -1,0 +1,18 @@
+commit f117a5359af607d8e62fa9cd66eb327d18a7d6d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 03:12:41 2016 -0400
+
+    doc: first draft of Go 1.7 release notes
+    
+    Mostly complete but a few TODOs remain for future CLs.
+    
+    For #15810.
+    
+    Change-Id: I81ee19d1088d192cf709a5f7e6b7bcc44ad892ac
+    Reviewed-on: https://go-review.googlesource.com/23379
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ doc/go1.7.html | 1122 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.7.txt  |   36 --
+ 2 files changed, 1122 insertions(+), 36 deletions(-)

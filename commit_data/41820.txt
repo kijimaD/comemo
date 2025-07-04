@@ -1,0 +1,32 @@
+commit 9667294d8f5c8c6e2c48efa1ced98cb7e9cfaf51
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 25 18:44:55 2020 +1100
+
+    syscall: fix windows WSASendto -d=checkptr violation
+    
+    WSASendto converts unsafe.Pointer to *syscall.RawSockaddrAny. But that
+    violates every rule of
+    
+    https://golang.org/pkg/unsafe/#Pointer
+    
+    Implement WSASendto by calling Windows WSASendTo API by calling
+    syscall.Syscall9 directly. This allows us to comply with
+    
+    (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall
+    
+    rule.
+    
+    After this change, this commands succeeds:
+    
+    go test -a -short -gcflags=all=-d=checkptr -run=TestPacketConn net
+    
+    Updates #34972
+    
+    Change-Id: Ib9a810bedf9e05251b7d3c7f69e15bfbd177ac62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220544
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

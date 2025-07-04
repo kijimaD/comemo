@@ -1,0 +1,15 @@
+commit 6962c15cec9d77c4402ba0c5a76709d4caf7e78f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 15:08:49 2014 -0700
+
+    spec: define "variable"
+    
+    Fixes #8496.
+    
+    LGTM=rsc, r, iant
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/148580043
+
+ doc/go_spec.html | 103 +++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 78 insertions(+), 25 deletions(-)

@@ -1,0 +1,13 @@
+commit 43bcf47912c3b0f565597ee33d86695e530d79da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 09:11:17 2009 -0800
+
+    make all.bash finish on FreeBSD
+    
+    R=dho
+    CC=golang-dev
+    https://golang.org/cl/156067
+
+ doc/progs/run            | 2 +-
+ misc/cgo/stdio/test.bash | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

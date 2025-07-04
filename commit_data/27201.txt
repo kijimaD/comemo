@@ -1,0 +1,20 @@
+commit 94e523cb522959f10b345bf27a32bf087c094108
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 27 18:03:49 2016 -0400
+
+    misc/cgo/testcarchive: fix C include path for darwin/arm
+    
+    After CL 22461, c-archive build on darwin/arm is by default compiled
+    with -shared and installed in pkg/darwin_arm_shared.
+    
+    Fix build (2nd time...)
+    
+    Change-Id: Ia2bb09bb6e1ebc9bc74f7570dd80c81d05eaf744
+    Reviewed-on: https://go-review.googlesource.com/22534
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

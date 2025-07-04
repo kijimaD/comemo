@@ -1,0 +1,16 @@
+commit d8b417e00b3f19f7fb47aaa64fe107ed59f6603f
+Author: Alekseev Artem <a.artem060@gmail.com>
+Date:   Sat Apr 7 17:10:45 2018 +0300
+
+    cmd/internal/obj/x86: use raw string literals in regexp
+    
+    Found with megacheck (S1007).
+    
+    Change-Id: Icb15fd5bfefa8e0b39a1bfa9ec3e9af3eff6b390
+    Reviewed-on: https://go-review.googlesource.com/105415
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/obj6_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit f83f245c8c7158463e77afa06d02e924bc92db38
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 19 21:12:13 2009 -0700
+
+    add another test to decl to see that result vars are redeclarable.
+    
+    R=ken
+    OCL=27620
+    CL=27620
+
+ test/decl.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

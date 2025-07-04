@@ -1,0 +1,18 @@
+commit bce7aec3cdca8580585095007e9b7cea11a8812f
+Author: Philip Silva <philip.silva@protonmail.com>
+Date:   Tue May 30 19:59:43 2023 +0200
+
+    runtime/trace: disable frame pointer unwinding on plan9
+    
+    Fixes #60254
+    
+    Change-Id: Ifd9e517a9479e5cd63fd3622b2556989d5f84eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499036
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+
+ src/runtime/trace.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

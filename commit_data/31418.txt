@@ -1,0 +1,16 @@
+commit 50f67add81eb9fa032f2e87c639fc42f0cc9de72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 17:54:49 2017 -0700
+
+    spec: clarify admissible argument types for print, println
+    
+    Fixes #19885.
+    
+    Change-Id: I55420aace1b0f714df2d6460d2d1595f6863dd06
+    Reviewed-on: https://go-review.googlesource.com/42023
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

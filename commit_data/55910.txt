@@ -1,0 +1,17 @@
+commit 5eb87c3941ec3e27f57a0a865fd5d02056341fe8
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon Mar 11 19:35:27 2024 +0000
+
+    cmd/go: check case-insensitive path collisions for go mod vendor.
+    
+    Fixes: #38571
+    Change-Id: Iec1cd1532ff17f7d943149f9b6a79e7fd419d179
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    |  2 ++
+ src/cmd/go/internal/modcmd/vendor.go               | 17 ++++++++++
+ .../go/testdata/script/mod_vendor_collision.txt    | 38 ++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)

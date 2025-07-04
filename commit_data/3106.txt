@@ -1,0 +1,17 @@
+commit f96099dbac194c3c5042d08ad37654dc484af75b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 27 11:25:16 2009 -0700
+
+    Cleanups:
+    - remove visitor pattern interface (not used)
+    - added non-exported "branding" methods to enforce
+      node hierarchy
+    
+    R=rsc
+    DELTA=174  (13 added, 92 deleted, 69 changed)
+    OCL=33838
+    CL=33963
+
+ src/pkg/go/ast/ast.go       | 237 +++++++++++++++-----------------------------
+ src/pkg/go/parser/parser.go |   2 +-
+ 2 files changed, 80 insertions(+), 159 deletions(-)

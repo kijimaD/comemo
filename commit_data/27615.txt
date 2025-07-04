@@ -1,0 +1,14 @@
+commit 6a0fd18016794a681580c8ca971c7d2d26f287bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 14:31:16 2016 +1000
+
+    doc: mention net/http/httptrace package in release notes
+    
+    Updates #15810
+    
+    Change-Id: I689e18409a88c9e8941aa2e98f472c331efd455e
+    Reviewed-on: https://go-review.googlesource.com/23674
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

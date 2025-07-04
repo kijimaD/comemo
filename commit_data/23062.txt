@@ -1,0 +1,18 @@
+commit e544bee1ddf4a2869221b68ef8cec6c97b6d827b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 21 10:56:45 2015 +1000
+
+    runtime: correct exception stack trace output
+    
+    It is misleading when stack trace say:
+    
+    signal arrived during cgo execution
+    
+    but we are not in cgo call.
+    
+    Change-Id: I627e2f2bdc7755074677f77f21befc070a101914
+    Reviewed-on: https://go-review.googlesource.com/9190
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/signal_windows.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

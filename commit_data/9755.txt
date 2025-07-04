@@ -1,0 +1,15 @@
+commit 9ddc2b5688163d6ad1f5e83a53e6151a69f9f700
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 20 11:28:00 2011 -0700
+
+    gob: fix allocation for singletons.
+    Code was double-allocating in some cases.
+    Fixes #2267.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5093042
+
+ src/pkg/gob/decode.go         | 18 ++++++------------
+ src/pkg/gob/gobencdec_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 13 deletions(-)

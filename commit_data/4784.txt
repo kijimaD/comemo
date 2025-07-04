@@ -1,0 +1,15 @@
+commit 4e2035bdc224f139ab48fba941484e5a22c682cb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 4 21:21:32 2010 +1100
+
+    In draw.Draw, separate the source-point and mask-point.
+    This lets you draw text (i.e. with mask = a font image) with
+    sources that aren't uniform colors.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/193067
+
+ src/pkg/exp/4s/xs.go     | 52 +++++++++++++++++------------------
+ src/pkg/exp/draw/draw.go | 70 +++++++++++++++++++++++++++---------------------
+ 2 files changed, 66 insertions(+), 56 deletions(-)

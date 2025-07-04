@@ -1,0 +1,31 @@
+commit 5a7fd4039913f8bdb322b577ecf10a60ddcfedea
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 15:58:16 2017 -0500
+
+    cmd/go: run cover before cgo
+    
+    If we're running coverage on a package using cgo, we need to
+    apply both cmd/cover and cmd/cgo as source transformers.
+    To date we've applied cgo, then cover.
+    
+    Cover is very sensitive to the exact character position of
+    expressions in its input, though, and cgo is not, so swap
+    them, applying first cover and then cgo.
+    
+    The only drawback here is that coverage formerly applied
+    to SWIG-generated cgo files, and now it does not.
+    I am not convinced anyone depended critically on that,
+    and probably the later analysis with go tool cover would
+    have tried to parse the original .swig file as a Go file and
+    gotten very confused.
+    
+    Fixes #8726.
+    Fixes #9212.
+    Fixes #9479.
+    
+    Change-Id: I777c8b64f7726cb117d59e03073954abc6dfa34d
+    Reviewed-on: https://go-review.googlesource.com/77155
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 63 ++++++++++++++++++++++------------------
+ 1 file changed, 34 insertions(+), 29 deletions(-)

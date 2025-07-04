@@ -1,0 +1,14 @@
+commit 17ce03725cc549fc24e8972780d18ffd673f6b6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 16:56:16 2016 +0000
+
+    crypto/hmac: update link to FIPS HMAC spec
+    
+    Thanks to Kevin Kirsche (github kkirsche).
+    
+    Change-Id: Ia0017371f56065a5e88d1ebb800a6489136ee9b1
+    Reviewed-on: https://go-review.googlesource.com/18280
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/crypto/hmac/hmac.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

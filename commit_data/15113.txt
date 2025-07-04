@@ -1,0 +1,26 @@
+commit 2c09d6992f7a13d680ce8f3a0f19366dfcc93713
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 14:51:21 2013 -0500
+
+    cmd/gc: slightly better code generation
+    
+    * Avoid treating CALL fn(SB) as justification for introducing
+    and tracking a registerized variable for fn(SB).
+    
+    * Remove USED(n) after declaration and zeroing of n.
+    It was left over from when the compiler emitted more
+    aggressive set and not used errors, and it was keeping
+    the optimizer from removing a redundant zeroing of n
+    when n was a pointer or integer variable.
+    
+    Update #597.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7277048
+
+ src/cmd/5g/reg.c | 4 ++++
+ src/cmd/6g/reg.c | 4 ++++
+ src/cmd/8g/reg.c | 4 ++++
+ src/cmd/gc/gen.c | 2 --
+ 4 files changed, 12 insertions(+), 2 deletions(-)

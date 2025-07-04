@@ -1,0 +1,16 @@
+commit b4447a1e819e1c76d338d4597858013ede2e2280
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 5 09:41:55 2015 +0100
+
+    cmd/go: skip TestGoGenerateEnv on Plan 9
+    
+    TestGoGenerateEnv was added in CL 16537.
+    However, Plan 9 doesn't have the env command.
+    
+    Change-Id: I5f0c937a1b9b456dcea41ceac7865112f2f65c45
+    Reviewed-on: https://go-review.googlesource.com/16690
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/cmd/go/go_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

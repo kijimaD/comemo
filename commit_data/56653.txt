@@ -1,0 +1,38 @@
+commit 05cbbf985fed823a174bf95cc78a7d44f948fdab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 15:03:13 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥500 dependents
+    
+    For #67401.
+    
+    Change-Id: I7dd28c3b01a1a647f84929d15412aa43ab0089ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587575
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/database/sql/badlinkname.go         |   1 -
+ src/database/sql/sql.go                 |  18 ++++--
+ src/internal/bytealg/compare_generic.go |  10 ++++
+ src/internal/cpu/cpu_arm64_darwin.go    |  11 ++++
+ src/net/badlinkname.go                  |   1 -
+ src/net/dnsclient.go                    |  10 ++++
+ src/net/http/badlinkname.go             |   2 -
+ src/net/http/request.go                 |  20 +++++++
+ src/net/interface.go                    |  11 ++++
+ src/net/url/badlinkname.go              |  20 -------
+ src/net/url/url.go                      |  14 +++++
+ src/runtime/alg.go                      |   3 +
+ src/runtime/atomic_pointer.go           |   9 +++
+ src/runtime/badlinkname.go              |  10 +---
+ src/runtime/malloc.go                   |   4 +-
+ src/runtime/mgc.go                      |   8 +++
+ src/runtime/panic.go                    |   2 +
+ src/runtime/proc.go                     | 101 ++++++++++++++++++++++++++++++++
+ src/runtime/rand.go                     |   9 +++
+ src/runtime/sema.go                     |  16 +++++
+ src/runtime/stubs.go                    |  12 ++++
+ src/sync/badlinkname.go                 |  15 -----
+ src/sync/pool.go                        |   9 +++
+ 23 files changed, 264 insertions(+), 52 deletions(-)

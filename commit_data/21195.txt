@@ -1,0 +1,14 @@
+commit 60801c48530f5fc0555d8156006c1a41fdf53571
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 23 13:19:59 2014 -0800
+
+    test: delete testlib
+    
+    It is unused as of e7173dfd.
+    
+    Change-Id: I3e4ea3fc66cf0a768ff28172a151b244952eefc9
+    Reviewed-on: https://go-review.googlesource.com/2093
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/testlib | 170 -----------------------------------------------------------
+ 1 file changed, 170 deletions(-)

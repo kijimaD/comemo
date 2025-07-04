@@ -1,0 +1,13 @@
+commit 3f16c5cee1849a215c7e93bb2ece84d18262747e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 4 17:14:51 2010 -0700
+
+    A+C: fix email address
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1856052
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

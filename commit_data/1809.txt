@@ -1,0 +1,16 @@
+commit 40e204b9eb14eea992dfb94bc61b1833f83927b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 11 12:52:11 2009 -0700
+
+    - update pretty sources to match new scanner interface
+    
+    R=r
+    OCL=26129
+    CL=26131
+
+ usr/gri/pretty/ast.go         | 160 ++++++++++-----------
+ usr/gri/pretty/compilation.go |  49 +++----
+ usr/gri/pretty/parser.go      | 326 ++++++++++++++++++++----------------------
+ usr/gri/pretty/printer.go     | 215 ++++++++++++++--------------
+ usr/gri/pretty/typechecker.go |  20 ++-
+ 5 files changed, 369 insertions(+), 401 deletions(-)

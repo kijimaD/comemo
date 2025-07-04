@@ -1,0 +1,23 @@
+commit 1006f703ffc191dbcce3135f1992f1a24a50cb52
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 12 16:42:31 2018 -0800
+
+    go/types: better handle arrays whose length expression is invalid
+    
+    While doing that, establish a negative value as signal for unknown
+    array lengths and adjust various array-length processing code to
+    handle that case.
+    
+    Fixes #23712.
+    
+    Change-Id: Icf488faaf972638b42b22d4b4607d1c512c8fc2c
+    Reviewed-on: https://go-review.googlesource.com/93438
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/builtins.go          |  6 +++++-
+ src/go/types/predicates.go        |  4 +++-
+ src/go/types/sizes.go             |  3 ++-
+ src/go/types/testdata/importC.src | 21 ++++++++++++++++++++-
+ src/go/types/type.go              |  2 ++
+ src/go/types/typexpr.go           |  9 ++++++---
+ 6 files changed, 38 insertions(+), 7 deletions(-)

@@ -1,0 +1,31 @@
+commit f50e7b156e5bb038cd979da87b8df8eb19ed056f
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Aug 21 16:29:19 2009 -0700
+
+    mostly 64 bit support.
+    
+    - fixed a number of places where we tried to allocate 64bit
+      regs. added honeypot in regalloc to catch these in the future.
+    - implemented quad copying in sgen
+    - cgen64.c, add, mul
+    - clearfat done
+    - D_REGREG output from 5g (linker already knew about them)
+    - gmove done
+    - optoas almost done, last bit probably not needed
+    - D_SHIFT support in list.c
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=963  (711 added, 112 deleted, 140 changed)
+    OCL=33619
+    CL=33688
+
+ src/cmd/5g/Makefile |   7 +-
+ src/cmd/5g/cgen.c   | 181 ++++++++++++-------
+ src/cmd/5g/cgen64.c | 500 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5g/gg.h     |  10 +-
+ src/cmd/5g/ggen.c   |  25 ++-
+ src/cmd/5g/gobj.c   |   4 +
+ src/cmd/5g/gsubr.c  | 357 +++++++++++++++++++------------------
+ src/cmd/5g/list.c   |  13 ++
+ 8 files changed, 848 insertions(+), 249 deletions(-)

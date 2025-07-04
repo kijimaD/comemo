@@ -1,0 +1,12 @@
+commit a2d2341e802dbea7b82414831e377fca0f22e4b7
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 28 18:12:46 2010 -0700
+
+    arm code gen error in unsign extend
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2295041
+
+ src/cmd/5g/gsubr.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

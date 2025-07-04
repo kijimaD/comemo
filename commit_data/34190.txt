@@ -1,0 +1,19 @@
+commit 1a2273874953517cc38f7005e985c91d16ebf33c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 16:57:28 2018 -0800
+
+    cmd/compile/internal/syntax: more tolerant handling of missing function invocation in go/defer
+    
+    Assume that an expression that is not a function call in a defer/go
+    statement is indeed a function that is just missing its invocation.
+    Report the error but continue with a sane syntax tree.
+    
+    Fixes #23586.
+    
+    Change-Id: Ib45ebac57c83b3e39ae4a1b137ffa291dec5b50d
+    Reviewed-on: https://go-review.googlesource.com/94156
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go |  2 +-
+ test/fixedbugs/issue23586.go              | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

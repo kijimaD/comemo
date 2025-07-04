@@ -1,0 +1,14 @@
+commit 878fe69bc1f22089f5b5aef8a57bd4b3ac1e4790
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 29 13:16:28 2008 -0700
+
+    delete unused files
+    
+    R=r
+    DELTA=494  (0 added, 494 deleted, 0 changed)
+    OCL=16109
+    CL=16115
+
+ src/lib/net/socket_darwin.go | 236 --------------------------------------
+ src/lib/net/socket_linux.go  | 266 -------------------------------------------
+ 2 files changed, 502 deletions(-)

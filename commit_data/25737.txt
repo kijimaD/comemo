@@ -1,0 +1,22 @@
+commit 811b785193e04c630f26f1cff83d276a572e150d
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Feb 9 14:39:52 2016 +0100
+
+    net: make getmac based tests on windows more robust
+    
+    The Windows 7 getmac command may report the physical address of an adapter
+    as "Disabled" or "N/A". Handle these two cases to make the tests more
+    robust when building on Windows with manually disabled adapters or turned
+    off hardware.
+    
+    Addresses issue #14130.
+    
+    Change-Id: I0c2f8554b4b6810568e4e60ed53857599401f296
+    Reviewed-on: https://go-review.googlesource.com/19411
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/net_windows_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

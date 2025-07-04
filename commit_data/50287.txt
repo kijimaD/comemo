@@ -1,0 +1,19 @@
+commit f00fa0b98da9f4353839da99e6f6f7f109f9954f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 13 13:36:23 2022 -0400
+
+    runtime: document stkframe
+    
+    The meaning of some of the fields in stkframe is actually quite
+    subtle.
+    
+    Change-Id: Iac765ff6fbf4c3b7c9f2453f5b4a2e5e640f5750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424256
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/runtime/runtime2.go | 59 ++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 11 deletions(-)

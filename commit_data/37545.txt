@@ -1,0 +1,19 @@
+commit 950100a95c700fb60cafc51276786dd93f85d6c9
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Thu Nov 29 02:30:26 2018 -0500
+
+    crypto/tls: improve error message for unsupported certificates in TLS 1.3
+    
+    Fixes #28960
+    
+    Change-Id: I0d049d4776dc42ef165a1da15f63de08677fbb85
+    Reviewed-on: https://go-review.googlesource.com/c/151661
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/auth.go                   | 36 ++++++++++++++++++++++++++++++--
+ src/crypto/tls/handshake_client_tls13.go |  3 +--
+ src/crypto/tls/handshake_server_tls13.go |  3 +--
+ 3 files changed, 36 insertions(+), 6 deletions(-)

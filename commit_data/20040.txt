@@ -1,0 +1,13 @@
+commit b3d5a695a6ad56fa33455eedf8d502a1a90a51ac
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:46:19 2014 +0400
+
+    runtime: improve diagnostics of non-copyable frames
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/124560043
+
+ src/pkg/runtime/stack.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

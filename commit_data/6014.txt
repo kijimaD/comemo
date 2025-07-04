@@ -1,0 +1,13 @@
+commit 079a117469d8f4322ff549bc9c02ceaef8a3bb08
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 12 17:16:37 2010 +1000
+
+    regexp: delete the deprecated methods and tests.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1956044
+
+ src/pkg/regexp/all_test.go | 264 +++------------------------------------------
+ src/pkg/regexp/regexp.go   | 110 +------------------
+ 2 files changed, 20 insertions(+), 354 deletions(-)

@@ -1,0 +1,16 @@
+commit aca8071fd53fc4f60771fe816b1e7c20c5c674fb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 15 16:05:34 2012 +1100
+
+    text/template: evaluate function fields
+    Just an oversight they didn't work and easy to address.
+    
+    Fixes #3025.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5656059
+
+ src/pkg/text/template/exec.go      | 10 +++++++---
+ src/pkg/text/template/exec_test.go |  8 ++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

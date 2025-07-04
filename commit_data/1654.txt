@@ -1,0 +1,17 @@
+commit e08cc15251416dfc63b043edd55e41078aa374fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 9 21:05:14 2009 -0800
+
+    Some real GDS functionality:
+    - directory listings w/ working links
+    - some links working in source code (most don't do the right thing yet)
+    - use of logging
+    
+    R=r
+    OCL=24728
+    CL=24728
+
+ usr/gri/pretty/gds.go     | 132 ++++++++++++++++++++++++++++++++++++----------
+ usr/gri/pretty/printer.go |   2 +-
+ usr/gri/pretty/utils.go   |  28 ++++++++++
+ 3 files changed, 134 insertions(+), 28 deletions(-)

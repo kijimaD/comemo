@@ -1,0 +1,28 @@
+commit f7b2779086683bf00570427ce08bebfb54c53b76
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 16 00:42:04 2023 -0800
+
+    syscall: fix getting pidfd when using CLONE_NEWUSER
+    
+    While working on CL 528798, I found out that sys.PidFD field (added
+    in CL 520266) is not filled in when CLONE_NEWUSER is used.
+    
+    This happens because the code assumed that the parent and the child
+    run in the same memory space. This assumption is right only when
+    CLONE_VM is used for clone syscall, and the code only sets CLONE_VM
+    when CLONE_NEWUSER is not used.
+    
+    Fix this, and add a test case (which fails before the fix).
+    
+    Updates #51246.
+    
+    Change-Id: I805203c1369cadd63d769568b132a9ffd92cc184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542698
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/syscall/exec_linux.go      | 13 ++++++-------
+ src/syscall/exec_linux_test.go | 15 ++++++++++++---
+ 2 files changed, 18 insertions(+), 10 deletions(-)

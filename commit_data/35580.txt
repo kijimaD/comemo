@@ -1,0 +1,24 @@
+commit 06b326054dc0cad03b7b848d8516a578dd8b559f
+Author: Keith Randall <khr@google.com>
+Date:   Tue May 29 16:44:36 2018 -0700
+
+    cmd/compile: include callee args section when checking frame too large
+    
+    The stack frame includes the callee args section. At the point where
+    we were checking the frame size, that part of the frame had not been
+    computed yet. Move the check later so we can include the callee args size.
+    
+    Fixes #20780
+    Update #25507
+    
+    Change-Id: Iab97cb89b3a24f8ca19b9123ef2a111d6850c3fe
+    Reviewed-on: https://go-review.googlesource.com/115195
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/main.go | 16 ++++++++--------
+ src/cmd/compile/internal/gc/pgen.go | 15 ++++++++++++++-
+ src/go/types/stdlib_test.go         |  1 +
+ test/fixedbugs/issue20780.go        | 20 ++++++++++++++++++++
+ 4 files changed, 43 insertions(+), 9 deletions(-)

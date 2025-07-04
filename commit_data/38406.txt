@@ -1,0 +1,18 @@
+commit 1024b25d0c044484ed9288ac8f78bd9f5ebb5287
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 13 09:48:33 2019 -0700
+
+    spec: clarify wording on passing slice arguments to variadic functions
+    
+    Per discussion on #30769.
+    
+    Fixes #30769.
+    
+    Change-Id: I620dbac936de1a0b5deec03926dd11d690a918e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167380
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

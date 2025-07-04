@@ -1,0 +1,21 @@
+commit 1778f50da3a14b310ad987dbbe4c3e2ea3872ff4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 14 10:17:30 2011 -0800
+
+    gob: decode into nil, this time for sure.
+    
+    Yesterday's change was too simple-minded and failed if an
+    interface value was being discarded.  We need to parse the
+    data stream and remember any type information that arrives.
+    
+    Also fix a minor bug when ignoring an interface: toss only what
+    we know about, not everything.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4179045
+
+ src/pkg/gob/decode.go       |  50 ++++++++++++++++++--
+ src/pkg/gob/decoder.go      |   8 +---
+ src/pkg/gob/encoder_test.go | 109 ++++++++++++++++++++++++++------------------
+ 3 files changed, 113 insertions(+), 54 deletions(-)

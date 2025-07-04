@@ -1,0 +1,132 @@
+commit 6b33b0e98e9be77d98b026ae2adf10dd71be5a1b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 10 09:08:00 2016 -0700
+
+    cmd/compile: avoid a spill in append fast path
+    
+    Instead of spilling newlen, recalculate it.
+    This removes a spill from the fast path,
+    at the cost of a cheap recalculation
+    on the (rare) growth path.
+    This uses 8 bytes less of stack space.
+    It generates two more bytes of code,
+    but that is due to suboptimal register allocation;
+    see far below.
+    
+    Runtime append microbenchmarks are all over the map,
+    presumably due to incidental code movement.
+    
+    Sample code:
+    
+    func s(b []byte) []byte {
+            b = append(b, 1, 2, 3)
+            return b
+    }
+    
+    Before:
+    
+    "".s t=1 size=160 args=0x30 locals=0x48
+            0x0000 00000 (append.go:8)      TEXT    "".s(SB), $72-48
+            0x0000 00000 (append.go:8)      MOVQ    (TLS), CX
+            0x0009 00009 (append.go:8)      CMPQ    SP, 16(CX)
+            0x000d 00013 (append.go:8)      JLS     149
+            0x0013 00019 (append.go:8)      SUBQ    $72, SP
+            0x0017 00023 (append.go:8)      FUNCDATA        $0, gclocals·6432f8c6a0d23fa7bee6c5d96f21a92a(SB)
+            0x0017 00023 (append.go:8)      FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0017 00023 (append.go:9)      MOVQ    "".b+88(FP), CX
+            0x001c 00028 (append.go:9)      LEAQ    3(CX), DX
+            0x0020 00032 (append.go:9)      MOVQ    DX, "".autotmp_0+64(SP)
+            0x0025 00037 (append.go:9)      MOVQ    "".b+96(FP), BX
+            0x002a 00042 (append.go:9)      CMPQ    DX, BX
+            0x002d 00045 (append.go:9)      JGT     $0, 86
+            0x002f 00047 (append.go:8)      MOVQ    "".b+80(FP), AX
+            0x0034 00052 (append.go:9)      MOVB    $1, (AX)(CX*1)
+            0x0038 00056 (append.go:9)      MOVB    $2, 1(AX)(CX*1)
+            0x003d 00061 (append.go:9)      MOVB    $3, 2(AX)(CX*1)
+            0x0042 00066 (append.go:10)     MOVQ    AX, "".~r1+104(FP)
+            0x0047 00071 (append.go:10)     MOVQ    DX, "".~r1+112(FP)
+            0x004c 00076 (append.go:10)     MOVQ    BX, "".~r1+120(FP)
+            0x0051 00081 (append.go:10)     ADDQ    $72, SP
+            0x0055 00085 (append.go:10)     RET
+            0x0056 00086 (append.go:9)      LEAQ    type.[]uint8(SB), AX
+            0x005d 00093 (append.go:9)      MOVQ    AX, (SP)
+            0x0061 00097 (append.go:9)      MOVQ    "".b+80(FP), BP
+            0x0066 00102 (append.go:9)      MOVQ    BP, 8(SP)
+            0x006b 00107 (append.go:9)      MOVQ    CX, 16(SP)
+            0x0070 00112 (append.go:9)      MOVQ    BX, 24(SP)
+            0x0075 00117 (append.go:9)      MOVQ    DX, 32(SP)
+            0x007a 00122 (append.go:9)      PCDATA  $0, $0
+            0x007a 00122 (append.go:9)      CALL    runtime.growslice(SB)
+            0x007f 00127 (append.go:9)      MOVQ    40(SP), AX
+            0x0084 00132 (append.go:9)      MOVQ    56(SP), BX
+            0x0089 00137 (append.go:8)      MOVQ    "".b+88(FP), CX
+            0x008e 00142 (append.go:9)      MOVQ    "".autotmp_0+64(SP), DX
+            0x0093 00147 (append.go:9)      JMP     52
+            0x0095 00149 (append.go:9)      NOP
+            0x0095 00149 (append.go:8)      CALL    runtime.morestack_noctxt(SB)
+            0x009a 00154 (append.go:8)      JMP     0
+    
+    After:
+    
+    "".s t=1 size=176 args=0x30 locals=0x40
+            0x0000 00000 (append.go:8)      TEXT    "".s(SB), $64-48
+            0x0000 00000 (append.go:8)      MOVQ    (TLS), CX
+            0x0009 00009 (append.go:8)      CMPQ    SP, 16(CX)
+            0x000d 00013 (append.go:8)      JLS     151
+            0x0013 00019 (append.go:8)      SUBQ    $64, SP
+            0x0017 00023 (append.go:8)      FUNCDATA        $0, gclocals·6432f8c6a0d23fa7bee6c5d96f21a92a(SB)
+            0x0017 00023 (append.go:8)      FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0017 00023 (append.go:9)      MOVQ    "".b+80(FP), CX
+            0x001c 00028 (append.go:9)      LEAQ    3(CX), DX
+            0x0020 00032 (append.go:9)      MOVQ    "".b+88(FP), BX
+            0x0025 00037 (append.go:9)      CMPQ    DX, BX
+            0x0028 00040 (append.go:9)      JGT     $0, 81
+            0x002a 00042 (append.go:8)      MOVQ    "".b+72(FP), AX
+            0x002f 00047 (append.go:9)      MOVB    $1, (AX)(CX*1)
+            0x0033 00051 (append.go:9)      MOVB    $2, 1(AX)(CX*1)
+            0x0038 00056 (append.go:9)      MOVB    $3, 2(AX)(CX*1)
+            0x003d 00061 (append.go:10)     MOVQ    AX, "".~r1+96(FP)
+            0x0042 00066 (append.go:10)     MOVQ    DX, "".~r1+104(FP)
+            0x0047 00071 (append.go:10)     MOVQ    BX, "".~r1+112(FP)
+            0x004c 00076 (append.go:10)     ADDQ    $64, SP
+            0x0050 00080 (append.go:10)     RET
+            0x0051 00081 (append.go:9)      LEAQ    type.[]uint8(SB), AX
+            0x0058 00088 (append.go:9)      MOVQ    AX, (SP)
+            0x005c 00092 (append.go:9)      MOVQ    "".b+72(FP), BP
+            0x0061 00097 (append.go:9)      MOVQ    BP, 8(SP)
+            0x0066 00102 (append.go:9)      MOVQ    CX, 16(SP)
+            0x006b 00107 (append.go:9)      MOVQ    BX, 24(SP)
+            0x0070 00112 (append.go:9)      MOVQ    DX, 32(SP)
+            0x0075 00117 (append.go:9)      PCDATA  $0, $0
+            0x0075 00117 (append.go:9)      CALL    runtime.growslice(SB)
+            0x007a 00122 (append.go:9)      MOVQ    40(SP), AX
+            0x007f 00127 (append.go:9)      MOVQ    48(SP), CX
+            0x0084 00132 (append.go:9)      MOVQ    56(SP), BX
+            0x0089 00137 (append.go:9)      ADDQ    $3, CX
+            0x008d 00141 (append.go:9)      MOVQ    CX, DX
+            0x0090 00144 (append.go:8)      MOVQ    "".b+80(FP), CX
+            0x0095 00149 (append.go:9)      JMP     47
+            0x0097 00151 (append.go:9)      NOP
+            0x0097 00151 (append.go:8)      CALL    runtime.morestack_noctxt(SB)
+            0x009c 00156 (append.go:8)      JMP     0
+    
+    Observe that in the following sequence,
+    we should use DX directly instead of using
+    CX as a temporary register, which would make
+    the new code a strict improvement on the old:
+    
+            0x007f 00127 (append.go:9)      MOVQ    48(SP), CX
+            0x0084 00132 (append.go:9)      MOVQ    56(SP), BX
+            0x0089 00137 (append.go:9)      ADDQ    $3, CX
+            0x008d 00141 (append.go:9)      MOVQ    CX, DX
+            0x0090 00144 (append.go:8)      MOVQ    "".b+80(FP), CX
+    
+    Change-Id: I4ee50b18fa53865901d2d7f86c2cbb54c6fa6924
+    Reviewed-on: https://go-review.googlesource.com/21812
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 30 +++++++++++++++++-------------
+ src/runtime/slice.go               |  6 ++++++
+ 2 files changed, 23 insertions(+), 13 deletions(-)

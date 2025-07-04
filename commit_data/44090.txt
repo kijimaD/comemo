@@ -1,0 +1,23 @@
+commit 7cee66d4cb6e726c6c37798583ac0b86c8743f82
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 6 22:13:45 2021 -0500
+
+    cmd/go: add documentation for Embed fields in go list output
+    
+    This change the struct fields for EmbedPatterns and EmbedFiles
+    to the Package struct listed in the go list documentation that
+    specifies the fields available to the go list template.
+    
+    Fixes #43081
+    
+    Change-Id: I89c325a9d6292a6ce484ee588b172d2f84e2333a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282195
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go            | 4 ++++
+ src/cmd/go/internal/list/list.go | 4 ++++
+ 2 files changed, 8 insertions(+)

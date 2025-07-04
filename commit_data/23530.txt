@@ -1,0 +1,18 @@
+commit ebfc5be5b9489aabe0755d0d7bd943852b03f1c5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 25 14:12:48 2015 +1000
+
+    cmd/go: adjust TestFileLineInErrorMessages
+    
+    cmd/go sometimes returns relative path in the error message
+    (see shortPath function). Account for that during
+    TestFileLineInErrorMessages.
+    
+    Fixes #11355
+    
+    Change-Id: Ica79359eab48d669d307449fdd458764895fab2c
+    Reviewed-on: https://go-review.googlesource.com/11475
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

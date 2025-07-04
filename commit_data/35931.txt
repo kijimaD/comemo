@@ -1,0 +1,21 @@
+commit c78b7693abc1de4fa76d28ebf4c6ef9dcf0a68bb
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Mon Jul 9 23:24:18 2018 -0400
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 292b43b for:
+    
+        http2: reject incoming HEADERS in Server on half-closed streams
+        https://golang.org/cl/111677
+    
+    Updates #25023
+    
+    Change-Id: I479ae9b5b899fb0202e6301d02535fb6aeb4997a
+    Reviewed-on: https://go-review.googlesource.com/122877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

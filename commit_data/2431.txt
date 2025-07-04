@@ -1,0 +1,13 @@
+commit 9b480bb78a2a3496545538e19b8199d2ab34b11a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 8 19:25:26 2009 -0700
+
+    bug fix: literals can be empty
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=30080
+    CL=30080
+
+ src/lib/datafmt/datafmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

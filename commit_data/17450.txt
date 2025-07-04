@@ -1,0 +1,14 @@
+commit 29de03adf38a1a813500e3fa2953740282b9a1e5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 31 16:29:50 2013 +0900
+
+    net: keep lookup IP stuff close
+    
+    Also flattens import declaration.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/13373046
+
+ src/pkg/net/lookup.go | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

@@ -1,0 +1,13 @@
+commit c2aee3c0bf7b4199d71970df5557b28b53afae4f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 17 18:50:49 2013 +0800
+
+    cmd/godoc: when redirecting don't clear query string
+    so that http://golang.org/pkg/runtime?m=all works.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7094046
+
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

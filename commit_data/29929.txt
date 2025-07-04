@@ -1,0 +1,50 @@
+commit 7f1ff65c3947b916cc4d0827fd8c1307d7efd7bf
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 10 16:03:47 2016 -0500
+
+    cmd/compile: insert scheduling checks on loop backedges
+    
+    Loop breaking with a counter.  Benchmarked (see comments),
+    eyeball checked for sanity on popular loops.  This code
+    ought to handle loops in general, and properly inserts phi
+    functions in cases where the earlier version might not have.
+    
+    Includes test, plus modifications to test/run.go to deal with
+    timeout and killing looping test.  Tests broken by the addition
+    of extra code (branch frequency and live vars) for added
+    checks turn the check insertion off.
+    
+    If GOEXPERIMENT=preemptibleloops, the compiler inserts reschedule
+    checks on every backedge of every reducible loop.  Alternately,
+    specifying GO_GCFLAGS=-d=ssa/insert_resched_checks/on will
+    enable it for a single compilation, but because the core Go
+    libraries contain some loops that may run long, this is less
+    likely to have the desired effect.
+    
+    This is intended as a tool to help in the study and diagnosis
+    of GC and other latency problems, now that goal STW GC latency
+    is on the order of 100 microseconds or less.
+    
+    Updates #17831.
+    Updates #10958.
+    
+    Change-Id: I6206c163a5b0248e3f21eb4fc65f73a179e1f639
+    Reviewed-on: https://go-review.googlesource.com/33910
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go            |   1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go    |   1 +
+ src/cmd/compile/internal/gc/ssa.go                |   3 +
+ src/cmd/compile/internal/ssa/compile.go           |  11 +-
+ src/cmd/compile/internal/ssa/func.go              |   1 +
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 517 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/sparsetree.go        |  33 +-
+ src/cmd/internal/obj/go.go                        |   6 +-
+ src/runtime/proc.go                               |  10 +
+ test/fixedbugs/issue10958.go                      |  86 ++++
+ test/live.go                                      |   3 +-
+ test/opt_branchlikely.go                          |   3 +-
+ test/run.go                                       |  63 ++-
+ 13 files changed, 730 insertions(+), 8 deletions(-)

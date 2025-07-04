@@ -1,0 +1,28 @@
+commit e28f0d92991e60ac3174b2ebf224f37be22c8fad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 12:29:28 2019 -0400
+
+    cmd/go/internal/modfetch: return structured errors from proxy operations
+    
+    CL 181881 added structured error types for direct fetches.
+    Use those same structured errors to format proxy errors consistently.
+    
+    Also ensure that an empty @v/list is treated as equivalent to the module
+    not existing at all.
+    
+    Updates #27173
+    Updates #32715
+    
+    Change-Id: I203fd8259bc4f28b3389745f1a1fde936b0fa24d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183619
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 14 +++++-
+ src/cmd/go/internal/modfetch/codehost/git.go      |  2 +-
+ src/cmd/go/internal/modfetch/proxy.go             | 52 ++++++++++++++++-------
+ src/cmd/go/internal/modload/query.go              |  9 +++-
+ src/cmd/go/internal/module/module.go              |  5 ++-
+ src/cmd/go/testdata/script/mod_query_empty.txt    | 52 +++++++++++++++++++++++
+ 6 files changed, 113 insertions(+), 21 deletions(-)

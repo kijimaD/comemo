@@ -1,0 +1,25 @@
+commit a6e6b11e3a443ef532bc9b710e893e111f8ea2a3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 23 10:40:31 2022 -0700
+
+    runtime: initialize pointer bits of noscan spans
+    
+    Some code paths in the runtime (cgo, heapdump) request heap bits
+    without first checking that the span is !noscan. Instead of trying
+    to find and work around all those cases, just set the pointer bits
+    of noscan spans correctly. It's somewhat safer than ensuring we
+    caught all the possible cases.
+    
+    Fixes #54557
+    Fixes #54558
+    
+    Change-Id: Ibd476e6cdea77c962e4d15aad26f29df66fd94e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425194
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go | 23 ++++++++++++++++-------
+ src/runtime/mgcmark.go |  2 ++
+ 2 files changed, 18 insertions(+), 7 deletions(-)

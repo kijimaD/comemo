@@ -1,0 +1,29 @@
+commit 85f8e240fe337b145aba1de5edd2b03e759e4e38
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 13 19:45:52 2025 +0000
+
+    internal/trace: emit sync event before deferred spilled error
+    
+    CL 648315 and CL 648195 fixed #71615 in the case where we fail to read
+    the next generation by emitting an extra sync event before returning an
+    error. But, it's possible we failed to even read the next spilled batch
+    when we read the first generation, and have been carrying the error from
+    trying to read a spilled batch since the last generation. In this case,
+    we don't emit a final sync event, meaning that there are still some
+    cases where #71615 happens.
+    
+    This change emits the final sync event in this corner case. I believe
+    this is the final corner case. I could previously reproduce the issue
+    by running the test under stress2, but I can no longer reproduce any
+    failures after this change.
+    
+    Fixes #71615, for real this time.
+    
+    Change-Id: I10688a3c0e4b8327a95f31add365338c77c091ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649259
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/reader.go | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

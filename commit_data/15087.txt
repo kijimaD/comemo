@@ -1,0 +1,18 @@
+commit 79a16a3b70f0de2efbd45952a51e9b30524d7ad3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 21:02:15 2013 -0500
+
+    cmd/gc: clearer error for defer/go of conversion or invalid function call
+    
+    Fixes #4654.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7229072
+
+ src/cmd/gc/const.c          | 29 ++++++++++++++----
+ src/cmd/gc/fmt.c            | 14 ++++++---
+ src/cmd/gc/typecheck.c      | 70 +++++++++++++++++++++++++++++++++++++++++---
+ test/fixedbugs/issue4463.go | 44 ++++++++++++++--------------
+ test/fixedbugs/issue4654.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 192 insertions(+), 36 deletions(-)

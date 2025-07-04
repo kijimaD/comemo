@@ -1,0 +1,18 @@
+commit d1524217df7fa22ac57451b20d0b98a881f70c9e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 1 13:33:49 2010 -0800
+
+    template: change the signature of formatters for future development.
+    Make them more like Printf, with a ... final argument.  This breaks
+    code with existing formatters but not the templates that use them.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3378041
+
+ src/cmd/godoc/godoc.go            | 50 +++++++++++++++++++--------------------
+ src/cmd/godoc/main.go             |  2 +-
+ src/pkg/template/format.go        | 22 ++++++++++-------
+ src/pkg/template/template.go      | 13 +++++-----
+ src/pkg/template/template_test.go | 11 +++++----
+ 5 files changed, 54 insertions(+), 44 deletions(-)

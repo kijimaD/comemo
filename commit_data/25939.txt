@@ -1,0 +1,41 @@
+commit 6520da6ed5241b0383d50a286b4be0da70dc352b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Feb 24 23:22:40 2016 +0100
+
+    fmt: use public io.RuneScanner interface for ScanState reader
+    
+    All io.Reader that are passed to newScanState in all the standard
+    library tests that implement io.RuneReader also implement io.RuneScanner.
+    
+    Do not check on each call ScanState's UnreadRune that the used RuneReader
+    also implements the UnreadRune method by using a private interface.
+    Instead require the used Reader to implement the public RuneScanner
+    interface.
+    
+    The extra implementation logic for UnreadRune is removed from ScanState.
+    Instead the readRune wrapper is extended to implement UnreadRune for the
+    RuneScanner interface. If the Reader passed to newScanstate does not
+    implement RuneScanner the readRune wrapper is used to implement the
+    missing functionality.
+    
+    Note that a RuneReader that does not implement RuneScanner will also
+    be wrapped by runeRead which was not the case before.
+    Performance with the readRune wrapper is better than without before.
+    
+    Add benchmark to compare performance with and without using the
+    readRune wrapper.
+    
+    name                             old time/op  new time/op  delta
+    ScanInts-2                        704µs ± 0%   615µs ± 1%  -12.73%  (p=0.000 n=20+20)
+    ScanRecursiveInt-2               82.6ms ± 0%  51.4ms ± 0%  -37.71%  (p=0.000 n=20+20)
+    ScanRecursiveIntReaderWrapper-2  85.1ms ± 0%  52.4ms ± 0%  -38.36%  (p=0.000 n=20+20)
+    
+    Change-Id: I8c6e85db9b87a8171caab12f020b6e256b498e81
+    Reviewed-on: https://go-review.googlesource.com/19895
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/scan.go      | 109 ++++++++++++++++++++++++---------------------------
+ src/fmt/scan_test.go |  12 ++++++
+ 2 files changed, 63 insertions(+), 58 deletions(-)

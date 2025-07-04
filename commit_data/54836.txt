@@ -1,0 +1,29 @@
+commit 6ecadb4d87dafebd42fa7e810faa1bf1a0e6f35d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 31 00:51:25 2023 +1100
+
+    syscall: regenerate zsyscall for dragonfly/freebsd/netbsd
+    
+    The sysctl declaration was moved in CL 141639, however the files were
+    presumably not regenerated. There is no functional change, however
+    regenerating avoids unrelated noise in future diffs.
+    
+    Change-Id: Ifb840b5853f3f1c3c88a3f94df21b6f6d3c635d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/zsyscall_dragonfly_amd64.go | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_freebsd_386.go     | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_freebsd_amd64.go   | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_freebsd_arm.go     | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_freebsd_arm64.go   | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_freebsd_riscv64.go | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_netbsd_386.go      | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_netbsd_amd64.go    | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_netbsd_arm.go      | 32 ++++++++++++++++----------------
+ src/syscall/zsyscall_netbsd_arm64.go    | 32 ++++++++++++++++----------------
+ 10 files changed, 160 insertions(+), 160 deletions(-)

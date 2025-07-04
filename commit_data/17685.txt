@@ -1,0 +1,14 @@
+commit 2d2ae53119f9920bb50066e04c241c59ac776747
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 24 10:49:54 2013 +1000
+
+    reflect: update docs; Interface can return a method value
+    
+    Fixes #6460.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13761046
+
+ src/pkg/reflect/value.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

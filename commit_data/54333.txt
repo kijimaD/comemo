@@ -1,0 +1,25 @@
+commit 660620dd45dc11f2d889add79bedf2dc771c7d04
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 6 10:15:37 2023 -0400
+
+    cmd/link: avoid deadcode of global map vars for programs using plugins
+    
+    If a program imports the plugin package, the mechanisms in place for
+    detecting and deleting unused global map variables are no longer safe,
+    since it's possibly for a given global map var to be unreferenced in
+    the main program but referenced by a plugin. This patch changes the
+    linker to test for plugin use and to avoid removing any unused global
+    map variables if the main program could possibly load up a plugin.
+    
+    Fixes #62430.
+    
+    Change-Id: Ie00b18b681cb0d259e3c859ac947ade5778cd6c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++
+ .../testplugin/testdata/issue62430/main.go         | 35 ++++++++++++++++++++++
+ .../testplugin/testdata/issue62430/plugin.go       | 11 +++++++
+ src/cmd/link/internal/ld/deadcode.go               | 24 ++++++++++++---
+ 4 files changed, 73 insertions(+), 4 deletions(-)

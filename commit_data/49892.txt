@@ -1,0 +1,25 @@
+commit 8adc63b3eb21e8bbacd13335bcf8d6b3a9a507c4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 13 04:13:56 2022 +0000
+
+    Revert "runtime/trace: add missing events for the locked g in extra M."
+    
+    This reverts commit ea9c3fd42d94182ce6f87104b68a51ea92f1a571.
+    
+    Reason for revert: break linux/ricsv64, openbsd/arm, illumos/amd64 builders
+    
+    Change-Id: I98479a8f63e76eed89a0e8846acf2c73e8441377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423437
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/trace/goroutines.go               |  5 +--
+ src/runtime/crash_cgo_test.go                  | 13 ------
+ src/runtime/proc.go                            |  9 ----
+ src/runtime/runtime2.go                        |  1 -
+ src/runtime/testdata/testprogcgo/issue29707.go | 58 --------------------------
+ src/runtime/trace.go                           | 13 +-----
+ 6 files changed, 3 insertions(+), 96 deletions(-)

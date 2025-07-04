@@ -1,0 +1,51 @@
+commit 93b0261d0a5e1981679b11b3429226258f925551
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Feb 6 14:56:30 2018 -0500
+
+    cmd/trace: force GC occassionally
+    
+    to return memory to the OS after completing potentially
+    large operations.
+    
+    Update #21870
+    
+    Sys went down to 3.7G
+    
+    $ DEBUG_MEMORY_USAGE=1 go tool trace trace.out
+    
+    2018/03/07 09:35:52 Parsing trace...
+    after parsing trace
+     Alloc: 3385754360 Bytes
+     Sys:   3662047864 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488907264 Bytes
+     HeapInUse:     3426549760 Bytes
+     HeapAlloc:     3385754360 Bytes
+    Enter to continue...
+    2018/03/07 09:36:09 Splitting trace...
+    after spliting trace
+     Alloc: 3238309424 Bytes
+     Sys:   3684410168 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488874496 Bytes
+     HeapInUse:     3266461696 Bytes
+     HeapAlloc:     3238309424 Bytes
+    Enter to continue...
+    2018/03/07 09:36:39 Opening browser. Trace viewer is listening on http://100.101.224.241:12345
+    
+    after httpJsonTrace
+     Alloc: 3000633872 Bytes
+     Sys:   3693978424 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488743424 Bytes
+     HeapInUse:     3030966272 Bytes
+     HeapAlloc:     3000633872 Bytes
+    Enter to continue...
+    
+    Change-Id: I56f64cae66c809cbfbad03fba7bd0d35494c1d04
+    Reviewed-on: https://go-review.googlesource.com/92376
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/cmd/trace/main.go  | 3 +++
+ src/cmd/trace/trace.go | 5 +++++
+ 2 files changed, 8 insertions(+)

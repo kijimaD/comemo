@@ -1,0 +1,12 @@
+commit 54f00407239661e50e12db23f1d4354e33467b3d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 25 13:44:37 2011 -0800
+
+    crypto/openpgp: fix test prints
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/4255041
+
+ src/pkg/crypto/openpgp/read_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

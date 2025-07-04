@@ -1,0 +1,25 @@
+commit 8dd7d2111b8622dac4b0127fa1d26da3c1c4c274
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue May 27 10:37:50 2025 -0400
+
+    runtime: skip nil Ps in allp during cleanup flush
+    
+    cleanupQueue.Flush is reachable from mallocgc via sweepAssist. Normally
+    allp will continue all valid Ps, but procresize itself increases the
+    size of allp and then allocates new Ps to place in allp. If we get
+    perfectly unlucky, the new(p) allocations will complete sweeping and
+    cleanupQueue.Flush will dereference a nil pointer from allp. Avoid this
+    by skipping nil Ps.
+    
+    I've looked through every other use of allp and none of them appear to
+    be reachable from procresize.
+    
+    Change-Id: I6a6a636cab49ef268eb8fcd9ff9a96790d9c5685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676515
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mcleanup.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

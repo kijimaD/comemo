@@ -1,0 +1,42 @@
+commit f5d21ffc816760813079d4429060a6c03f643b55
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 8 17:33:47 2022 -0500
+
+    cmd/go: decide whether to install .a based on number of CgoFiles
+    
+    Instead of hardcoding the set of five packages that depend on cgo to
+    decide whether a package should have an install target, make the
+    decision based on whether the package has any CgoFiles. This means that
+    in nocgo configurations, there will be no installed packages, and that
+    if an GOOS/GOARCH combination doesn't have cgo files we don't
+    unnecessarily install a .a.
+    
+    Because the determination of whether a file is a CgoFile is made later
+    in the Import functions, the choice of whether to add a PkgObj for teh
+    case there are CgoFiles is moved later. One concern here is that in some
+    cases, PkgObj may be set differently in the case of the FindOnly mode,
+    since the determination is moved across the boundary. We might want
+    to always set PkgObj after the FindOnly boundary for consistency? cmd/go
+    doesn't seem to use it when calling Import with FindOnly.
+    
+    Also remove internal/buildinternal/needs_install.go because we will be
+    checking whether to install based on the number of cgo files and it
+    might be overkill to make the NeedsInstalledDotA function be the
+    equivalent of len(input) > 0.
+    
+    For #47257
+    
+    Change-Id: I5f7f2137dc99aaeb2e2695c14e0222093a6b2407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448803
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modindex/read.go                  | 12 ++++++++----
+ src/cmd/go/internal/work/build.go                     |  5 ++---
+ src/cmd/go/testdata/script/install_goroot_targets.txt |  9 +++++++++
+ src/go/build/build.go                                 | 10 +++++++---
+ src/go/build/deps_test.go                             |  3 +--
+ src/internal/buildinternal/needs_install.go           | 14 --------------
+ 6 files changed, 27 insertions(+), 26 deletions(-)

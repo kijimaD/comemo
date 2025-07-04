@@ -1,0 +1,17 @@
+commit cb3dc8ba79823b0eae4727e0b7f70d5c3dfaff98
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 16:25:59 2017 -0400
+
+    cmd/go: drop PackageInternal.External, SFiles
+    
+    These are no longer used.
+    
+    Change-Id: I17fa29bbf90b1a41109fde4504eeff06af1eb8be
+    Reviewed-on: https://go-review.googlesource.com/56281
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/internal/load/pkg.go  | 14 +++-----------
+ src/cmd/go/internal/test/test.go |  5 ++---
+ 2 files changed, 5 insertions(+), 14 deletions(-)

@@ -1,0 +1,62 @@
+commit a2e79571a9d3dbe3cf10dcaeb1f9c01732219869
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 8 22:23:52 2019 -0500
+
+    cmd/compile: separate data and function LSyms
+    
+    Currently, obj.Ctxt's symbol table does not distinguish between ABI0
+    and ABIInternal symbols. This is *almost* okay, since a given symbol
+    name in the final object file is only going to belong to one ABI or
+    the other, but it requires that the compiler mark a Sym as being a
+    function symbol before it retrieves its LSym. If it retrieves the LSym
+    first, that LSym will be created as ABI0, and later marking the Sym as
+    a function symbol won't change the LSym's ABI.
+    
+    Marking a Sym as a function symbol before looking up its LSym sounds
+    easy, except Syms have a dual purpose: they are used just as interned
+    strings (every function, variable, parameter, etc with the same
+    textual name shares a Sym), and *also* to store state for whatever
+    package global has that name. As a result, it's easy to slip up and
+    look up an LSym when a Sym is serving as the name of a local variable,
+    and then later mark it as a function when it's serving as the global
+    with the name.
+    
+    In general, we were careful to avoid this, but #29610 demonstrates one
+    case where we messed up. Because of on-demand importing from indexed
+    export data, it's possible to compile a method wrapper for a type
+    imported from another package before importing an init function from
+    that package. If the argument of the method is named "init", the
+    "init" LSym will be created as a data symbol when compiling the
+    wrapper, before it gets marked as a function symbol.
+    
+    To fix this, we separate obj.Ctxt's symbol tables for ABI0 and
+    ABIInternal symbols. This way, the compiler will simply get a
+    different LSym once the Sym takes on its package-global meaning as a
+    function.
+    
+    This fixes the above ordering issue, and means we no longer need to go
+    out of our way to create the "init" function early and mark it as a
+    function symbol.
+    
+    Fixes #29610.
+    Updates #27539.
+    
+    Change-Id: Id9458b40017893d46ef9e4a3f9b47fc49e1ce8df
+    Reviewed-on: https://go-review.googlesource.com/c/157017
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go   |  5 -----
+ src/cmd/compile/internal/gc/ssa.go    |  2 +-
+ src/cmd/compile/internal/types/sym.go |  4 +---
+ src/cmd/internal/obj/arm/asm5.go      |  3 +--
+ src/cmd/internal/obj/link.go          |  3 ++-
+ src/cmd/internal/obj/sym.go           | 25 +++++++++++++++++++++++++
+ src/cmd/internal/obj/wasm/wasmobj.go  | 12 +++++++-----
+ src/cmd/internal/obj/x86/asm6.go      |  3 +--
+ test/fixedbugs/issue29610.dir/a.go    | 15 +++++++++++++++
+ test/fixedbugs/issue29610.dir/b.go    | 17 +++++++++++++++++
+ test/fixedbugs/issue29610.dir/main.go | 11 +++++++++++
+ test/fixedbugs/issue29610.go          | 13 +++++++++++++
+ 12 files changed, 94 insertions(+), 19 deletions(-)

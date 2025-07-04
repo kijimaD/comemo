@@ -1,0 +1,24 @@
+commit 8737dac1f27db2596f1d24aab8e5c942734c3bb4
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 6 20:23:40 2016 +0900
+
+    strings: make IndexRune faster
+    
+    re-implement IndexRune by Index which is well optimized to get
+    performance gain.
+    
+    name                   old time/op  new time/op  delta
+    IndexRune-4            30.2ns ± 1%  28.3ns ± 1%   -6.22%  (p=0.000 n=20+19)
+    IndexRuneLongString-4   156ns ± 1%    49ns ± 1%  -68.72%  (p=0.000 n=19+19)
+    IndexRuneFastPath-4    10.6ns ± 2%  10.0ns ± 1%   -6.30%  (p=0.000 n=18+18)
+    
+    Change-Id: Ie663b8f7860ca51892dd4be182fca3caa5f8ae61
+    Reviewed-on: https://go-review.googlesource.com/28546
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/strings.go       | 12 +++---------
+ src/strings/strings_amd64.go |  2 ++
+ src/strings/strings_test.go  | 25 +++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 9 deletions(-)

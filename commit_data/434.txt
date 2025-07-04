@@ -1,0 +1,12 @@
+commit 8fda2e40837f8b2968f787c7bf2be4589847fca3
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 27 13:32:33 2008 -0700
+
+    really fix it this time
+    
+    R=ken
+    OCL=13506
+    CL=13506
+
+ test/bugs/bug057.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

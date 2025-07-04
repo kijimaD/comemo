@@ -1,0 +1,27 @@
+commit f5291cf03d58e004eae67eeb904efbf46aba666a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 18 14:38:09 2020 +0100
+
+    cmd/compile: use exported field names in rulegen
+    
+    The types used while generating code, such as Rule and File, have been
+    exported for a while. This is harmless for a main package, and lets us
+    easily differentiate types from variables and functions, as well as use
+    names like "If" since "if" is a keyword.
+    
+    However, the fields remained unexported. This was a bit inconsistent,
+    and also meant that we couldn't use some intuitive names like If.else.
+    Export them.
+    
+    Besides the capitalization, the only change is that the If type now has
+    the fields Then and Else, instead of stmt and alt.
+    
+    Change-Id: I426ff140c6ca186fec394f17b29165861da5fd98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228821
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go    |   3 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 296 ++++++++++++++--------------
+ 2 files changed, 151 insertions(+), 148 deletions(-)

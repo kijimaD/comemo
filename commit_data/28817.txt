@@ -1,0 +1,17 @@
+commit 714318be882d1974ec624272c8d905256d8a5932
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Thu Oct 13 17:56:04 2016 +0100
+
+    expvar: add Value methods
+    
+    Closes #15815
+    
+    Change-Id: I08154dbff416198cf7787e446b1e00e62c03a972
+    Reviewed-on: https://go-review.googlesource.com/30917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/expvar/expvar.go      | 20 ++++++++++++++++++++
+ src/expvar/expvar_test.go | 28 +++++++++++++++++-----------
+ 2 files changed, 37 insertions(+), 11 deletions(-)

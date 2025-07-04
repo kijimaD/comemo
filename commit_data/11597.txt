@@ -1,0 +1,13 @@
+commit a044154a4c82af185d56ed5826d9946cd065178b
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 4 06:16:02 2012 +1100
+
+    spec: restore primality
+    9 is prime if it's a hot day.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5630043
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

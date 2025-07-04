@@ -1,0 +1,20 @@
+commit 69285cd778274a08469f1fe38157a22f2c29ce0b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Aug 19 18:59:04 2023 -0400
+
+    cmd/compile/internal/gc: remove unused reflectdata import
+    
+    CL 521036 was prepared and tested before the revert CL 521155,
+    and it so happens that the reflectdata import ended up unused.
+    Drop it to fix the build.
+    
+    Change-Id: I230c8fee616fc58cc82f3e5da886bcee2e02a3d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521175
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/gc/main.go | 1 -
+ 1 file changed, 1 deletion(-)

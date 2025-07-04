@@ -1,0 +1,24 @@
+commit 107325627b584968b9408565e8ff50ef11b229e2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 15 10:45:51 2018 +0100
+
+    syscall: use Android O friendly fstatat syscall to implement Stat on linux/amd64
+    
+    The Android O seccomp policy disallows the stat syscall on amd64, see
+    https://android.googlesource.com/platform/bionic/+/android-4.2.2_r1.2/libc/SYSCALLS.TXT
+    
+    Use the fstatat syscall with AT_FDCWD and zero flags instead to achieve
+    the same behavior.
+    
+    Fixes #24403
+    
+    Change-Id: I36fc9ec9bc938cd8e9de30f66c0eb9d2e24debf6
+    Reviewed-on: https://go-review.googlesource.com/100878
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_linux_amd64.go  |  6 +++++-
+ src/syscall/zsyscall_linux_amd64.go | 30 +++++++++++++++---------------
+ 2 files changed, 20 insertions(+), 16 deletions(-)

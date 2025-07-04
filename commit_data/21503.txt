@@ -1,0 +1,14 @@
+commit a5bff443c7f23ad5c4abb70d3ce2c59aed2ec13a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:17:42 2014 -0500
+
+    runtime/cgo: darwin/arm cgo support
+    
+    Change-Id: I936be12eed95b99d1d20ed16fb785182e1817b33
+    Reviewed-on: https://go-review.googlesource.com/2124
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/cgo.go           |  2 +-
+ src/runtime/cgo/gcc_arm.S        |  4 ++
+ src/runtime/cgo/gcc_darwin_arm.c | 99 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 1 deletion(-)

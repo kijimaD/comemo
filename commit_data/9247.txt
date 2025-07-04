@@ -1,0 +1,14 @@
+commit 33a4da89d38b97cdbb860caa5ec9790bf35a7b93
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 28 16:46:32 2011 -0700
+
+    exp/template: fix build
+    TBR=gri
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4815070
+
+ src/cmd/goinstall/make.go | 4 ++--
+ src/pkg/rpc/debug.go      | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

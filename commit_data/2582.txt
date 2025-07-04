@@ -1,0 +1,15 @@
+commit 84ef63b9d5d2a7610047839cbbd7b5751838e1b4
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Jul 2 21:35:39 2009 -0700
+
+    minor comment and debug flag for dumping all oplooks.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=31016
+    CL=31126
+
+ src/cmd/5l/optab.c | 4 ++--
+ src/cmd/5l/span.c  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

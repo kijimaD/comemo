@@ -1,0 +1,15 @@
+commit dacd1cad770c32ec6ce2ead159f7f7c295f7a597
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 27 20:38:28 2011 -0700
+
+    test: match gccgo error messages for bug323.go.
+    
+    bug323.go:18:3: error: reference to undefined field or method ‘Meth’
+    bug323.go:19:3: error: reference to undefined field or method ‘Meth2’
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4280072
+
+ test/fixedbugs/bug323.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

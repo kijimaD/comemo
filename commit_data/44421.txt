@@ -1,0 +1,24 @@
+commit bcac57f89c0ec609e6fbebcbcd42bb73fdaef2f0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Feb 24 18:24:45 2021 -0500
+
+    cmd: upgrade golang.org/x/mod to fix go.mod parser
+    
+    modfile.Parse passed an empty string to the VersionFixer for the
+    module path. This caused errors for v2+ versions.
+    
+    Fixes #44494
+    
+    Change-Id: I13b86b6ecf6815c4bc9a96ec0668284c9228c205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296131
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/testdata/script/mod_retract_fix_version.txt |  24 +++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 102 ++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 5 files changed, 109 insertions(+), 25 deletions(-)

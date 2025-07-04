@@ -1,0 +1,14 @@
+commit 4d4b74c7b3fe45eae10843bef9e905dd0463688d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 5 11:02:15 2010 +1100
+
+    websocket: enable tests on windows
+    
+    Fixes #1110.
+    
+    R=golang-dev, adg
+    CC=Joe Poirier, golang-dev
+    https://golang.org/cl/2367041
+
+ src/pkg/Makefile | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 2b417dc3e1814c1c251d2141dfb6438cf612b847
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 27 12:36:15 2015 -0800
+
+    cmd/internal/obj: make ppc64's CR subregisters print as CRn rather than Cn
+    
+    These 8 registers are windows into the CR register. They are officially CR0
+    through CR7 and that is what the assembler accepts, but for some reason
+    they have always printed as C0 through C7. Fix the naming and printing.
+    
+    Change-Id: I55822c0322c29d3e01a1f2776b3b210ebf9ded21
+    Reviewed-on: https://go-review.googlesource.com/6290
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/9a/a.y                              |  2 +-
+ src/cmd/9a/lex.go                           | 16 ++++++++--------
+ src/cmd/9a/y.go                             |  2 +-
+ src/cmd/asm/internal/arch/arch.go           |  5 ++---
+ src/cmd/asm/internal/arch/ppc64.go          |  2 +-
+ src/cmd/asm/internal/asm/operand_test.go    |  2 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.out | 16 ++++++++--------
+ src/cmd/internal/obj/ppc64/9.out.go         | 16 ++++++++--------
+ src/cmd/internal/obj/ppc64/asm9.go          |  8 ++++----
+ src/cmd/internal/obj/ppc64/list9.go         |  4 ++--
+ 10 files changed, 36 insertions(+), 37 deletions(-)

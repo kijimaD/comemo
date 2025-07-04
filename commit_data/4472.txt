@@ -1,0 +1,23 @@
+commit b15fefd7d7a0d94e1f014d3ba7f0c7639fb91d62
+Author: Jan Mercl <befelemepeseveze@gmail.com>
+Date:   Mon Dec 21 14:34:54 2009 -0800
+
+    Experimental alternative implementation of the vector package
+    
+    R=gri
+    CC=rsc
+    https://golang.org/cl/178048
+
+ src/pkg/Makefile                        |   1 +
+ src/pkg/exp/vector/Makefile             |  69 ++++++
+ src/pkg/exp/vector/defs.go              |  78 +++++++
+ src/pkg/exp/vector/intvector.go         | 212 +++++++++++++++++
+ src/pkg/exp/vector/intvector_test.go    | 389 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/vector/nogen_test.go        |  76 +++++++
+ src/pkg/exp/vector/numbers_test.go      | 122 ++++++++++
+ src/pkg/exp/vector/nums.sh              |   5 +
+ src/pkg/exp/vector/stringvector.go      | 212 +++++++++++++++++
+ src/pkg/exp/vector/stringvector_test.go | 389 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/vector/vector.go            | 210 +++++++++++++++++
+ src/pkg/exp/vector/vector_test.go       | 389 ++++++++++++++++++++++++++++++++
+ 12 files changed, 2152 insertions(+)

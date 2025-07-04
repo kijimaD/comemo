@@ -1,0 +1,11 @@
+commit 7c74850d764665aedcef8831cf028bea93f35178
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 12 11:41:55 2014 -0700
+
+    go1.4: add note about change to bufio.SplitFunc at EOF
+    
+    CC=golang-codereviews
+    https://golang.org/cl/159800044
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

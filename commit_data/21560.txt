@@ -1,0 +1,13 @@
+commit 15fe15a198ef15d925f9d32f38fd4bb5734e4802
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 10 14:51:16 2015 -0800
+
+    math/big: add test cases for Float.Abs and Float.Neg
+    
+    Change-Id: Ic5f3864bc6d94d60b754e3ccf72b1d40c5c09117
+    Reviewed-on: https://go-review.googlesource.com/4510
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

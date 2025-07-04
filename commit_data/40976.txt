@@ -1,0 +1,14 @@
+commit 84540f0b0acb4bb4c488b138345197c3e537d837
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 10 16:21:56 2019 +0100
+
+    cmd/compile/internal/logopt: gofmt
+    
+    Change-Id: Ie9d29645e7702104202ee1f338babdd9e33e1e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210679
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/logopt/log_opts.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

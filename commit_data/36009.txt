@@ -1,0 +1,31 @@
+commit 4b0c8b0136ee54e779b9eddf7ba00f6ecfeb9f6f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jul 16 13:05:25 2018 -0700
+
+    archive/zip: fix regression when writing directories
+    
+    Several adjustments:
+    
+    1) When encoding the FileHeader for a directory, explicitly set all of the sizes
+    to zero regardless of their prior values. These values are currently populated
+    by FileInfoHeader as it calls os.FileInfo.Size regardless of whether the file is
+    a directory or not. We avoid fixing FileInfoHeader now as it is too late in the
+    release cycle (see #24082).
+    
+    We silently adjust slightly wrong FileHeader fields as opposed to returning
+    an error because the CreateHeader method already does such mutations
+    (e.g., for UTF-8 detection, data descriptor, etc).
+    
+    2) Have dirWriter.Write only return an error if some number of bytes are written.
+    Some code still call Write for both normal files and directories, but just pass
+    an empty []byte to Write for directories.
+    
+    Change-Id: I85492a31356107fcf76dc89ceb00a28853754289
+    Reviewed-on: https://go-review.googlesource.com/124155
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/writer.go      | 11 ++++++++++-
+ src/archive/zip/writer_test.go | 13 ++++++++++---
+ 2 files changed, 20 insertions(+), 4 deletions(-)

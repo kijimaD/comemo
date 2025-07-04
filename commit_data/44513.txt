@@ -1,0 +1,31 @@
+commit 56d52e661114be60fb1893b034ac0c5976b622af
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Mar 4 11:50:31 2021 -0500
+
+    cmd/go: don't report missing std import errors for tidy and vendor
+    
+    'go mod tidy' and 'go mod vendor' normally report errors when a
+    package can't be imported, even if the import appears in a file that
+    wouldn't be compiled by the current version of Go. These errors are
+    common for packages introduced in higher versions of Go, like "embed"
+    in 1.16.
+    
+    This change causes 'go mod tidy' and 'go mod vendor' to ignore
+    missing package errors if the import path appears to come from the
+    standard library because it lacks a dot in the first path element.
+    
+    Fixes #44557
+    Updates #27063
+    
+    Change-Id: I61d6443e77ab95fd8c0d1514f57ef4c8885a77cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298749
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/tidy.go            |  1 +
+ src/cmd/go/internal/modcmd/vendor.go          |  1 +
+ src/cmd/go/internal/modload/load.go           | 13 ++++++++++++-
+ src/cmd/go/testdata/script/mod_tidy_error.txt |  4 ++--
+ 4 files changed, 16 insertions(+), 3 deletions(-)

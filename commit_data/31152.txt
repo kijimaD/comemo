@@ -1,0 +1,21 @@
+commit 0e4824aacca9da713a7d43024ad2ab14ae27f0c6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 05:47:24 2017 -0700
+
+    cmd/compile: remove flag_largemodel
+    
+    It was added in 2013 in CL 7064048.
+    All uses of it in the compiler disappeared with
+    (or possibly before) the SSA backend.
+    Several releases have gone by without it,
+    from which I conclude that it is now not needed.
+    
+    Change-Id: I2095f4ac05d4d7ab998168993a7fd5d954aeee88
+    Reviewed-on: https://go-review.googlesource.com/40856
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   | 2 --
+ src/cmd/compile/internal/gc/main.go | 6 ------
+ 2 files changed, 8 deletions(-)

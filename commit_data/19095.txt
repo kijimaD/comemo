@@ -1,0 +1,13 @@
+commit bfbb2e827b3c86e0f85f7378667958d91726c928
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 10 07:59:46 2014 -0700
+
+    cmd/6g: nacl: zero odd multiple of widthptr correctly
+    
+    LGTM=iant
+    R=remyoudompheng, iant
+    CC=golang-codereviews
+    https://golang.org/cl/86270043
+
+ src/cmd/6g/ggen.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

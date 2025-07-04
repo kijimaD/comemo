@@ -1,0 +1,15 @@
+commit 4417bc3742a11b48a0ae07b883c9a0ed5d064e4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 16:35:25 2012 -0500
+
+    exp/ebnflint: test spec during 'go test'
+    
+    This avoids the need for a custom Makefile.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5575045
+
+ src/pkg/exp/ebnflint/ebnflint.go      | 41 +++++++++++++++++++++++------------
+ src/pkg/exp/ebnflint/ebnflint_test.go | 16 ++++++++++++++
+ 2 files changed, 43 insertions(+), 14 deletions(-)

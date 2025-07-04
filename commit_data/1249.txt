@@ -1,0 +1,15 @@
+commit 7cfa7eebf31126d7614281290d484874ad63413a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 25 14:06:59 2008 -0800
+
+    - fixed a problem with flushing
+    - added extra tests
+    
+    R=r
+    DELTA=164  (107 added, 20 deleted, 37 changed)
+    OCL=20002
+    CL=20004
+
+ src/lib/tabwriter/tabwriter.go      |  42 ++++------
+ src/lib/tabwriter/tabwriter_test.go | 149 +++++++++++++++++++++++++++++-------
+ 2 files changed, 139 insertions(+), 52 deletions(-)

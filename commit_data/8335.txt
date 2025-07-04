@@ -1,0 +1,12 @@
+commit 8bf151582562eb9d70b46d1d999ab317444298fd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun May 8 16:33:44 2011 +1000
+
+    syscall: change Overlapped.HEvent type, it is a handle
+    
+    R=golang-dev, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4471046
+
+ src/pkg/syscall/ztypes_windows_386.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

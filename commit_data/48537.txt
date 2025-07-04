@@ -1,0 +1,19 @@
+commit 3bd8c78575a27ee9ac7b3c8d8c35db1feee31737
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 26 10:36:10 2022 -0700
+
+    cmd/compile: upgrade prove pass to know results of math/bits ops are nonnegative
+    
+    Fixes #51963
+    
+    Change-Id: Ib9e0521222e6fc41e787f3150b254e058a19addc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396036
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

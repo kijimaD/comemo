@@ -1,0 +1,13 @@
+commit a9288d63ef47106132c76d3dcdf0ce132755fa37
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 28 06:27:22 2014 -0700
+
+    doc: fix broken link to RTEMS Go wiki page
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98740046
+
+ doc/gccgo_install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

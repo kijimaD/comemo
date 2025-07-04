@@ -1,0 +1,17 @@
+commit 8d7722ede284af5da0f4757141e261cdc465db47
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Feb 13 14:59:45 2017 -0500
+
+    cmd/go: add "syscall" to the set of packages that run extFiles++
+    
+    This eliminates the need for syscall/asm.s, which is now empty.
+    
+    Change-Id: Ied060195e03e9653251f54ea8ef6572444b37fdf
+    Reviewed-on: https://go-review.googlesource.com/36844
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ src/syscall/asm.s                 | 7 -------
+ 2 files changed, 1 insertion(+), 8 deletions(-)

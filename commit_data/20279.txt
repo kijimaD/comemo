@@ -1,0 +1,34 @@
+commit cb767247caeaedd0ed438adba8e27c3334be783e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 00:01:55 2014 -0400
+
+    runtime: refactor/fix asmcgocall/asmcgocall_errno
+    
+    Instead of making asmcgocall call asmcgocall_errno,
+    make both load args into registers and call a shared
+    assembly function.
+    
+    On amd64, this costs 1 word in the asmcgocall_errno path
+    but saves 3 words in the asmcgocall path, and the latter
+    is what happens on critical nosplit paths on Windows.
+    
+    On arm, this fixes build failures: asmcgocall was writing
+    the arguments for asmcgocall_errno into the wrong
+    place on the stack. Passing them in registers avoids the
+    decision entirely.
+    
+    On 386, this isn't really needed, since the nosplit paths
+    have twice as many words to work with, but do it for consistency.
+    
+    Update #8635
+    Fixes arm build (except GOARM=5).
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/134390043
+
+ misc/cgo/test/callback.go   |  9 +++++++--
+ src/pkg/runtime/asm_386.s   | 13 ++++++++-----
+ src/pkg/runtime/asm_amd64.s | 13 ++++++++-----
+ src/pkg/runtime/asm_arm.s   | 15 +++++++++------
+ 4 files changed, 32 insertions(+), 18 deletions(-)

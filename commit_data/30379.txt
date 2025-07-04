@@ -1,0 +1,19 @@
+commit a1261b8b0a38814df453defb2fc2cae3ba0c956a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 10:17:42 2017 -0500
+
+    runtime: do not allocate on every time.Sleep
+    
+    It's common for some goroutines to loop calling time.Sleep.
+    Allocate once per goroutine, not every time.
+    This comes up in runtime/pprof's background reader.
+    
+    Change-Id: I89d17dc7379dca266d2c9cd3aefc2382f5bdbade
+    Reviewed-on: https://go-review.googlesource.com/37162
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go     | 1 +
+ src/runtime/runtime2.go | 1 +
+ src/runtime/time.go     | 7 ++++++-
+ 3 files changed, 8 insertions(+), 1 deletion(-)

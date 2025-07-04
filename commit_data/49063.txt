@@ -1,0 +1,21 @@
+commit 7dd988456247c66f2ae62a82e8d8fa0d843710d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 5 17:04:52 2022 -0700
+
+    sync/atomic: don't run 64-bit uintptr tests on 32-bit systems
+    
+    The tests don't work on big-endian systems. This change handles more
+    of the tests added in CL 381317 like the other existing tests.
+    
+    Fixes #52723
+    
+    Change-Id: Ie9e048e75dbe0b5aca61b51cd0c50d7d878ff6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/sync/atomic/atomic_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

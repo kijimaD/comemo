@@ -1,0 +1,19 @@
+commit 13c35a1b204f6e580b220e0df409a2c186e648a4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 1 13:08:22 2017 -0800
+
+    cmd/compile: ppc64x no longer needs a scratch stack location
+    
+    After https://go-review.googlesource.com/c/36725/, ppc64x no longer
+    needs a temp stack location for int reg <-> fp reg moves.
+    
+    Update #18922
+    
+    Change-Id: Ib4319784f7a855f593dfa5231604ca2c24e4c882
+    Reviewed-on: https://go-review.googlesource.com/37651
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/config.go       |  1 -
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 10 ++++------
+ 3 files changed, 6 insertions(+), 9 deletions(-)

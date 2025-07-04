@@ -1,0 +1,18 @@
+commit 779c45a50700bda0f6ec98429720802e6c1624e8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 1 13:49:16 2013 +0200
+
+    runtime: improved scheduler
+    Distribute runnable queues, memory cache
+    and cache of dead G's per processor.
+    Faster non-blocking syscall enter/exit.
+    More conservative worker thread blocking/unblocking.
+    
+    R=dave, bradfitz, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7314062
+
+ src/pkg/runtime/mgc0.c    |   23 +-
+ src/pkg/runtime/proc.c    | 1766 ++++++++++++++++++++++++---------------------
+ src/pkg/runtime/runtime.h |   30 +-
+ 3 files changed, 993 insertions(+), 826 deletions(-)

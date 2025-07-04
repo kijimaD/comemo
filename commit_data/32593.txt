@@ -1,0 +1,18 @@
+commit ec359643a1f663c5283a81410f003f8dab60d46e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 31 13:26:40 2017 +0200
+
+    archive/tar: populate Devmajor and Devminor in FileInfoHeader on Darwin
+    
+    Extract device major/minor number on Darwin and set Devmajor and
+    Devminor in FileInfoHeader. Code based on the Major/Minor functions for
+    Darwin in golang.org/x/sys/unix.
+    
+    Change-Id: I51b65f607bfa2e6b177b8b66e2b246b771367b84
+    Reviewed-on: https://go-review.googlesource.com/60850
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/stat_unix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

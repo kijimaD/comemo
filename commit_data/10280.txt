@@ -1,0 +1,13 @@
+commit 2fcb045242bfdf96fdc3dbfc847847ed14ebebc1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 8 10:11:07 2011 +1100
+
+    gotest: don't run examples that have no expected output
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5364041
+
+ src/cmd/gotest/doc.go    | 1 +
+ src/cmd/gotest/gotest.go | 9 +++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

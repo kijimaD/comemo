@@ -1,0 +1,16 @@
+commit 9f03e89552075d88184469fa7701007ed8b36130
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 14:50:12 2017 -0400
+
+    runtime: remove unused copies of special stack guards
+    
+    There are two copies each of the stackPreempt/_StackPreempt and
+    stackFork/_StackFork constants. Remove the ones left over from C that
+    are no longer used.
+    
+    Change-Id: I849604c72c11e4a0cb08e45e9817eb3f5a6ce8ba
+    Reviewed-on: https://go-review.googlesource.com/43638
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack.go | 9 ---------
+ 1 file changed, 9 deletions(-)

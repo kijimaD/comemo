@@ -1,0 +1,21 @@
+commit 144dd2b21cd5ca0ff15a89ad5d8e9eba591b0c1e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 1 15:17:00 2013 -0700
+
+    testing: document that Log and Logf do not usually produce output
+    The text is printed only if the test fails or -test.v is set.
+    Document this behavior in the testing package and 'go help test'.
+    Also put a 'go install' into mkdoc.sh so I don't get tricked by the
+    process of updating the documentation ever again.
+    
+    Fixes #5174.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/8118047
+
+ src/cmd/go/doc.go          | 3 ++-
+ src/cmd/go/mkdoc.sh        | 1 +
+ src/cmd/go/test.go         | 3 ++-
+ src/pkg/testing/testing.go | 6 ++++--
+ 4 files changed, 9 insertions(+), 4 deletions(-)

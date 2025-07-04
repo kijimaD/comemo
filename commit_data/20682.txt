@@ -1,0 +1,13 @@
+commit 9be9861c91aa42fc8cea8a9c902af6873b96b3b9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 9 11:21:21 2014 +0200
+
+    net/rpc: fix build
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/151620043
+
+ src/net/rpc/client_test.go | 1 +
+ 1 file changed, 1 insertion(+)

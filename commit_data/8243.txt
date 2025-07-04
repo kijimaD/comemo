@@ -1,0 +1,21 @@
+commit b477a79c4e67e90e828cdf3e82fad5bac644a85c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 14:07:13 2011 -0700
+
+    cgi: improve Location response handling
+    
+    Add local URI path support, which isn't as fringe
+    as I originally thought. (it's supported by Apache)
+    
+    Send an implicit 302 status on redirects (not 200).
+    
+    Fixes #1597
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4442089
+
+ src/pkg/http/cgi/host.go           | 83 +++++++++++++++++++++++++++++++++-----
+ src/pkg/http/cgi/host_test.go      | 37 +++++++++++++++++
+ src/pkg/http/cgi/testdata/test.cgi |  5 +++
+ 3 files changed, 116 insertions(+), 9 deletions(-)

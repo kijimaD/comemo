@@ -1,0 +1,20 @@
+commit 9ce23548cb74fd7832794bc4d510c7fb7c379c62
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 16:15:55 2012 +1100
+
+    encoding/gob: document CommonType
+    Also bring the names in doc.go in line with the source.
+    More radical resolutions are possible but require substantial internal
+    changes for very little benefit. Fixing it this way lets us keep the
+    embedding, which has a huge simplifying effect, and guarantees
+    binary compatibility.
+    
+    Fixes #2848.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5644045
+
+ src/pkg/encoding/gob/doc.go  | 20 ++++++++++----------
+ src/pkg/encoding/gob/type.go |  5 ++++-
+ 2 files changed, 14 insertions(+), 11 deletions(-)

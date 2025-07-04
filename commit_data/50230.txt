@@ -1,0 +1,17 @@
+commit 1f8e94e9f65ed807abd934b863234ac7fb421a77
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:43:39 2022 +0800
+
+    crypto/internal/boring/fipstls: convert required to atomic type
+    
+    Change-Id: I73081b85e763122be1f5c0dbab25cecc9cf809df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426087
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/crypto/internal/boring/fipstls/tls.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

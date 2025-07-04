@@ -1,0 +1,20 @@
+commit 3e82b5ee0aa122f1cc8427820945f21d9bfefbcb
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Sun Mar 17 17:04:14 2024 +0200
+
+    regexp/syntax: use standard generated code header
+    
+    Updates doc by running these commands:
+      - mksyntaxgo from the google/re2 repo, which changes comment according
+        to https://golang.org/s/generatedcode
+      - gofmt -w regexp/syntax/doc.go
+    
+    Change-Id: I66a9dd9fa841cbce899ab3aa32d7face798d2920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572275
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/regexp/syntax/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

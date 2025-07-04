@@ -1,0 +1,36 @@
+commit 5c4917ce331b1b20683ad629f8d4b58d695d2b37
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 15:17:20 2010 -0400
+
+    syscall: rebuild z files
+    
+    darwin/386
+    darwin/amd64
+    freebsd/386
+    freebsd/amd64
+    linux/386
+    linux/amd64
+    nacl/386
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2198047
+
+ src/pkg/syscall/zerrors_darwin_386.go     |  174 ++--
+ src/pkg/syscall/zerrors_darwin_amd64.go   |  170 ++--
+ src/pkg/syscall/zerrors_freebsd_386.go    | 1253 +++++++++++++++--------------
+ src/pkg/syscall/zerrors_freebsd_amd64.go  |  150 ++--
+ src/pkg/syscall/zerrors_linux_386.go      |  220 ++---
+ src/pkg/syscall/zerrors_linux_amd64.go    |  220 ++---
+ src/pkg/syscall/zsyscall_darwin_386.go    |  281 ++++++-
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  280 ++++++-
+ src/pkg/syscall/zsyscall_freebsd_386.go   |  278 ++++++-
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |  279 ++++++-
+ src/pkg/syscall/zsyscall_linux_386.go     |  216 +++++
+ src/pkg/syscall/zsyscall_linux_amd64.go   |  242 ++++++
+ src/pkg/syscall/zsyscall_nacl_386.go      |   68 ++
+ src/pkg/syscall/zsysnum_freebsd_386.go    |    3 +-
+ src/pkg/syscall/zsysnum_freebsd_amd64.go  |    3 +-
+ src/pkg/syscall/zsysnum_nacl_386.go       |    3 +
+ src/pkg/syscall/ztypes_nacl_386.go        |   30 +-
+ 17 files changed, 2639 insertions(+), 1231 deletions(-)

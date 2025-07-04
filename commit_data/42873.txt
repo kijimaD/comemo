@@ -1,0 +1,16 @@
+commit 49bae984955bd57302895beba2ecd8b9d5cd764c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 27 16:31:30 2020 -0700
+
+    test: add test that gccgo failed to compile
+    
+    For #38125
+    
+    Change-Id: Id6ef10d74f0f9dbad2851531e0fe019cd145cf7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251168
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue38125.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

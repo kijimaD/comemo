@@ -1,0 +1,25 @@
+commit a4a3d63dbeb57174ada4b2e5f0fa54c9ec83803b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 15:21:36 2017 -0800
+
+    math/bits: added benchmarks for Leading/TrailingZeros
+    
+    BenchmarkLeadingZeros-8         200000000                8.80 ns/op
+    BenchmarkLeadingZeros8-8        200000000                8.21 ns/op
+    BenchmarkLeadingZeros16-8       200000000                7.49 ns/op
+    BenchmarkLeadingZeros32-8       200000000                7.80 ns/op
+    BenchmarkLeadingZeros64-8       200000000                8.67 ns/op
+    
+    BenchmarkTrailingZeros-8        1000000000               2.05 ns/op
+    BenchmarkTrailingZeros8-8       2000000000               1.94 ns/op
+    BenchmarkTrailingZeros16-8      2000000000               1.94 ns/op
+    BenchmarkTrailingZeros32-8      2000000000               1.92 ns/op
+    BenchmarkTrailingZeros64-8      2000000000               2.03 ns/op
+    
+    Change-Id: I45497bf2d6369ba6cfc88ded05aa735908af8908
+    Reviewed-on: https://go-review.googlesource.com/37220
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/math/bits/bits_test.go | 148 ++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 114 insertions(+), 34 deletions(-)

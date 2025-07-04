@@ -1,0 +1,21 @@
+commit 682435dd9991040073ae12021fac164b41376502
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 19 16:33:42 2021 -0600
+
+    misc/cgo/test: reduce likeliness of hang in Test9400
+    
+    If a GC triggers while spinning in RewindAndSetgid, it may result in
+    this test hanging. Avoid it by disabling the collector before entering
+    the uninterruptable ASM conditional wait.
+    
+    Fixes #49695
+    
+    Change-Id: Ie0a03653481fb746f862469361b7840f4bfa8b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365836
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/testdata/issue9400_linux.go | 5 +++++
+ 1 file changed, 5 insertions(+)

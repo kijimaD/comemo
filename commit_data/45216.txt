@@ -1,0 +1,15 @@
+commit b21e739f871d9dc119dccfba82622bfb18227391
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 17 00:56:34 2021 -0400
+
+    test: add test for CL 310589
+    
+    Change-Id: Iff0876bd17c2a93db72dc90678f3a46ef8effd74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311370
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/abi/result_live.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

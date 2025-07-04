@@ -1,0 +1,13 @@
+commit 93ea2ae362d77b127c7f8235621e1adb4776efa1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jun 16 13:37:07 2010 +1000
+
+    cmd/gotest: Delete temporary _testmain.go files.
+    
+    R=rsc
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/1675047
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

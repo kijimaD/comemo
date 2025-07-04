@@ -1,0 +1,15 @@
+commit 305d7ada2b94f4d61ed41727c82660795ac85698
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 28 16:03:34 2012 -0800
+
+    go/parser: permit [...]T where array types are permitted
+    
+    More lenient parsing with better error recovery.
+    It's easier for the type check to pick up the slack.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6856108
+
+ src/pkg/go/parser/parser.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

@@ -1,0 +1,37 @@
+commit 48a5d9938ce7add3636beab3882a990a0e79f98b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 13 00:18:52 2016 +0000
+
+    A+C: automated update
+    
+    Add Alexander Menzhinsky (individual CLA)
+    Add Anthony Woods (individual CLA)
+    Add Chris Stockton (individual CLA)
+    Add David Lazar (corporate CLA for Google Inc.)
+    Add Elliot Morrison-Reed (individual CLA)
+    Add Igor Bernstein (corporate CLA for Google Inc.)
+    Add Jesse Szwedko (individual CLA)
+    Add Jordan Lewis (individual CLA)
+    Add Kaviraj Kanagaraj (individual CLA)
+    Add Keegan Carruthers-Smith (individual CLA)
+    Add Marcel Edmund Franke (individual CLA)
+    Add Marin Bašić (individual CLA)
+    Add Martin Kreichgauer (corporate CLA for Google Inc.)
+    Add Max Riveiro (individual CLA)
+    Add Odin Ugedal (individual CLA)
+    Add Patrick Lee (individual CLA)
+    Add Rebecca Stambler (corporate CLA for Google Inc.)
+    Add Ryuzo Yamamoto (individual CLA)
+    Add Takuya Ueda (individual CLA)
+    Add Thordur Bjornsson (individual CLA)
+    Add Zac Bergquist (individual CLA)
+    
+    Updates #12042
+    
+    Change-Id: Idb5ffe526b26437eb7612f0b60bde62162af5abb
+    Reviewed-on: https://go-review.googlesource.com/34286
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 17 +++++++++++++++++
+ CONTRIBUTORS | 21 +++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

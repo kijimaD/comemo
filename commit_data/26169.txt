@@ -1,0 +1,14 @@
+commit f02dc513c823eff47b695ba0652ac6f20621beba
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 9 08:36:44 2016 -0800
+
+    doc: fix bogus HTML in contribute.html
+    
+    Introduced in https://golang.org/cl/20462
+    
+    Change-Id: I6c55f87228f0980058a10f204b57ead7594e3492
+    Reviewed-on: https://go-review.googlesource.com/20490
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

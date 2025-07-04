@@ -1,0 +1,19 @@
+commit fb86c70bdad8aaa9756d6740885714c5aeff5989
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Jun 4 10:52:24 2020 -0400
+
+    crypto/tls: set CipherSuite for VerifyConnection
+    
+    The ConnectionState's CipherSuite was not set prior
+    to the VerifyConnection callback in TLS 1.2 servers,
+    both for full handshakes and resumptions.
+    
+    Change-Id: Iab91783eff84d1b42ca09c8df08e07861e18da30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236558
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 31 +++++++++++++++++--------------
+ src/crypto/tls/handshake_server.go      |  3 ++-
+ 2 files changed, 19 insertions(+), 15 deletions(-)

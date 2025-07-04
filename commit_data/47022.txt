@@ -1,0 +1,26 @@
+commit f92c8f07ace7ae67b95e59bbb6ae6928dd6e4773
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 21 18:28:50 2021 -0700
+
+    cmd/link: escape % characters in symbols when reporting errors
+    
+    Generic function symbols sometimes have % in them, like:
+    
+        main.B2[%2eshape.string_0].m2·f
+    
+    Which confuses this code because it doesn't esacpe % when
+    using this string as a format string, instead of a format argument.
+    
+    Or could we get rid of the . -> %2e rewrite somehow?
+    I think it comes from LinkString.
+    
+    Change-Id: I3275501f44cf30485e9d4577e0dfa77996d4939e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357837
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/link/internal/loader/loader.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

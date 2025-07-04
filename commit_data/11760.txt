@@ -1,0 +1,13 @@
+commit 6c0aa2f296142c7acbd3b99e0378fe39b76db48a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:12:17 2012 +1100
+
+    unicode/utf8: document return value for decode errors
+    Also replace archaic definition of rune.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5654048
+
+ src/pkg/unicode/utf8/utf8.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

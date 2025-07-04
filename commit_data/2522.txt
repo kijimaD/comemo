@@ -1,0 +1,12 @@
+commit 111ae83bb78f467306fea246c24d235a797680ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 14:44:45 2009 -0700
+
+    6g: update for spec change CL 30586
+    
+    R=ken
+    OCL=30593
+    CL=30756
+
+ src/cmd/gc/walk.c | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

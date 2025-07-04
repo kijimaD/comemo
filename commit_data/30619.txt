@@ -1,0 +1,21 @@
+commit d9fe2332ba63d1dd9416438a53b58bd6a91626b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 9 22:02:13 2017 -0800
+
+    net/http: change TestServerAllowsBlockingRemoteAddr to non-parallel
+    
+    It appears that this test is particularly
+    sensitive to resource starvation.
+    Returning it to non-parallel should reduce flakiness,
+    by giving it the full system resources to run.
+    
+    Fixes #19161
+    
+    Change-Id: I6e8906516629badaa0cffeb5712af649dc197f39
+    Reviewed-on: https://go-review.googlesource.com/38005
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 1 -
+ 1 file changed, 1 deletion(-)

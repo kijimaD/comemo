@@ -1,0 +1,13 @@
+commit 0216273c7a403779d3691bf84af12525d2a125cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 2 11:34:04 2008 -0700
+
+    add values to some "return" statements.
+    delete unused variables
+    
+    R=ken
+    OCL=16360
+    CL=16360
+
+ src/cmd/gc/walk.c | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

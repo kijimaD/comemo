@@ -1,0 +1,14 @@
+commit 5957f914e21d52f540116153bf72d3ec263ab825
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 08:59:59 2012 -0500
+
+    regexp: fix typo
+    
+    Fixes #2918.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5639062
+
+ src/pkg/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

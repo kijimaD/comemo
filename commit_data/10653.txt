@@ -1,0 +1,13 @@
+commit 9d52fe22b48d611adc2935e76920b430db757fd3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 8 08:08:00 2011 +1100
+
+    exp/sql: simplify some string conversions.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5451112
+
+ src/pkg/exp/sql/convert.go      | 15 +++------------
+ src/pkg/exp/sql/convert_test.go |  2 +-
+ 2 files changed, 4 insertions(+), 13 deletions(-)

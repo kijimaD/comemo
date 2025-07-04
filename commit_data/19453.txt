@@ -1,0 +1,18 @@
+commit b5caa02067e0e0d2bde9290004b15e9a226c6075
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 28 00:00:01 2014 -0400
+
+    runtime: fix go of nil func value
+    Currently runtime derefences nil with m->locks>0,
+    which causes unrecoverable fatal error.
+    Panic instead.
+    Fixes #8045.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/97620043
+
+ src/pkg/runtime/crash_test.go | 21 +++++++++++++++++++++
+ src/pkg/runtime/proc.c        |  4 ++++
+ 2 files changed, 25 insertions(+)

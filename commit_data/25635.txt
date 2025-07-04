@@ -1,0 +1,16 @@
+commit d3ff40fb1f4daae5b7ef4c54909a35d57e1ca753
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 15:50:01 2016 -0500
+
+    cmd/internal/obj/x86: fix doubled REX byte in POPCNT, others
+    
+    Tests for this and many other instructions are in a separate followup CL.
+    
+    For #14068.
+    
+    Change-Id: I6955315996a34d7fb79369b9d9a0119d11745e85
+    Reviewed-on: https://go-review.googlesource.com/18849
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

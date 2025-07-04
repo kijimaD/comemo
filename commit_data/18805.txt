@@ -1,0 +1,13 @@
+commit 849ee73f67da1cfff446bd0585326d3fe2925249
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 23:17:44 2014 +0100
+
+    runtime: add missing nacl build tag for lock_sema.c
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/72240045
+
+ src/pkg/runtime/lock_sema.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

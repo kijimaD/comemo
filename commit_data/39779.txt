@@ -1,0 +1,25 @@
+commit 9f5127bfebfc8c3acec4dbb374ff5c0d4c586565
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 3 09:28:17 2019 -0400
+
+    doc/go1.13: remove announcements of arm64 support on NetBSD and OpenBSD
+    
+    Those configurations currently lack builders, and it is not clear to
+    me what state their tests are in.
+    
+    The Go porting policy¹ requires builders for all active ports, so
+    let's not claim support until that requirement is met.
+    
+    ¹https://golang.org/wiki/PortingPolicy#requirements-for-a-new-port
+    
+    Updates #30824
+    Updates #31656
+    Updates #34035
+    Updates #34036
+    
+    Change-Id: I6496de9d92fb8546048abf139cf10546a47e314b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192997
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.13.html | 12 ------------
+ 1 file changed, 12 deletions(-)

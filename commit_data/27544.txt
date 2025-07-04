@@ -1,0 +1,99 @@
+commit b6dc3e6f668e4e0a2d2f710a7604d163d8ca45e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 01:33:24 2016 -0400
+
+    cmd/compile: fix liveness computation for heap-escaped parameters
+    
+    The liveness computation of parameters generally was never
+    correct, but forcing all parameters to be live throughout the
+    function covered up that problem. The new SSA back end is
+    too clever: even though it currently keeps the parameter values live
+    throughout the function, it may find optimizations that mean
+    the current values are not written back to the original parameter
+    stack slots immediately or ever (for example if a parameter is set
+    to nil, SSA constant propagation may replace all later uses of the
+    parameter with a constant nil, eliminating the need to write the nil
+    value back to the stack slot), so the liveness code must now
+    track the actual operations on the stack slots, exposing these
+    problems.
+    
+    One small problem in the handling of arguments is that nodarg
+    can return ONAME PPARAM nodes with adjusted offsets, so that
+    there are actually multiple *Node pointers for the same parameter
+    in the instruction stream. This might be possible to correct, but
+    not in this CL. For now, we fix this by using n.Orig instead of n
+    when considering PPARAM and PPARAMOUT nodes.
+    
+    The major problem in the handling of arguments is general
+    confusion in the liveness code about the meaning of PPARAM|PHEAP
+    and PPARAMOUT|PHEAP nodes, especially as contrasted with PAUTO|PHEAP.
+    The difference between these two is that when a local variable "moves"
+    to the heap, it's really just allocated there to start with; in contrast,
+    when an argument moves to the heap, the actual data has to be copied
+    there from the stack at the beginning of the function, and when a
+    result "moves" to the heap the value in the heap has to be copied
+    back to the stack when the function returns
+    This general confusion is also present in the SSA back end.
+    
+    The PHEAP bit worked decently when I first introduced it 7 years ago (!)
+    in 391425ae. The back end did nothing sophisticated, and in particular
+    there was no analysis at all: no escape analysis, no liveness analysis,
+    and certainly no SSA back end. But the complications caused in the
+    various downstream consumers suggest that this should be a detail
+    kept mainly in the front end.
+    
+    This CL therefore eliminates both the PHEAP bit and even the idea of
+    "heap variables" from the back ends.
+    
+    First, it replaces the PPARAM|PHEAP, PPARAMOUT|PHEAP, and PAUTO|PHEAP
+    variable classes with the single PAUTOHEAP, a pseudo-class indicating
+    a variable maintained on the heap and available by indirecting a
+    local variable kept on the stack (a plain PAUTO).
+    
+    Second, walkexpr replaces all references to PAUTOHEAP variables
+    with indirections of the corresponding PAUTO variable.
+    The back ends and the liveness code now just see plain indirected
+    variables. This may actually produce better code, but the real goal
+    here is to eliminate these little-used and somewhat suspect code
+    paths in the back end analyses.
+    
+    The OPARAM node type goes away too.
+    
+    A followup CL will do the same to PPARAMREF. I'm not sure that
+    the back ends (SSA in particular) are handling those right either,
+    and with the framework established in this CL that change is trivial
+    and the result clearly more correct.
+    
+    Fixes #15747.
+    
+    Change-Id: I2770b1ce3cbc93981bfc7166be66a9da12013d74
+    Reviewed-on: https://go-review.googlesource.com/23393
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/gsubr.go  |   4 +-
+ src/cmd/compile/internal/gc/align.go     |  13 ++-
+ src/cmd/compile/internal/gc/bexport.go   |   4 +-
+ src/cmd/compile/internal/gc/cgen.go      |   6 +-
+ src/cmd/compile/internal/gc/cplx.go      |   2 +-
+ src/cmd/compile/internal/gc/esc.go       |   7 +-
+ src/cmd/compile/internal/gc/export.go    |   2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  15 +--
+ src/cmd/compile/internal/gc/gen.go       | 193 ++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/go.go        |   3 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  13 ---
+ src/cmd/compile/internal/gc/inl.go       |  18 ++-
+ src/cmd/compile/internal/gc/opnames.go   |   1 -
+ src/cmd/compile/internal/gc/plive.go     |  41 ++++---
+ src/cmd/compile/internal/gc/racewalk.go  |   3 +-
+ src/cmd/compile/internal/gc/sinit.go     |   2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  58 ++--------
+ src/cmd/compile/internal/gc/subr.go      |   3 +-
+ src/cmd/compile/internal/gc/syntax.go    |  14 +--
+ src/cmd/compile/internal/gc/typecheck.go |   2 +-
+ src/cmd/compile/internal/gc/walk.go      |  87 ++++++++------
+ src/cmd/compile/internal/x86/gsubr.go    |   2 +-
+ test/fixedbugs/issue15747.go             |  41 +++++++
+ test/fixedbugs/issue15747b.go            |  19 +++
+ 24 files changed, 332 insertions(+), 221 deletions(-)

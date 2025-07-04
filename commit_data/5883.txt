@@ -1,0 +1,14 @@
+commit 4188504f38b283a03d40063686eb167db007a2e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 26 15:27:42 2010 -0700
+
+    godoc: display synopses for all packages that have some kind of documentation.
+    
+    Fixes #953.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1862046
+
+ src/cmd/godoc/godoc.go | 51 +++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit 25a28da0807f3fa85588fb219f6fa40314bde675
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Aug 28 12:09:13 2015 +1200
+
+    cmd/dist, cmd/go: run testshared on arm64
+    
+    And enable PIE in the go tool.
+    
+    Change-Id: Ibb60ccfe62518cde6e33080bbc78bfcbecff6a4e
+    Reviewed-on: https://go-review.googlesource.com/14000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ src/cmd/go/build.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

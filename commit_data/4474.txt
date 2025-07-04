@@ -1,0 +1,15 @@
+commit 2e853ec88a52f0402ba417fdc660a34b3dda4af7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 22 17:02:00 2009 +1100
+
+    Allow %p on reference types, for debugging.
+    (Also fix case sensitivity in test for PTR inside fmt_test.go)
+    Fixes #441.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/180112
+
+ src/pkg/fmt/fmt_test.go |  7 ++++++-
+ src/pkg/fmt/print.go    | 26 +++++++++-----------------
+ 2 files changed, 15 insertions(+), 18 deletions(-)

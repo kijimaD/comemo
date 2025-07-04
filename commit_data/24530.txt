@@ -1,0 +1,22 @@
+commit 69a99ccc6215334d3e4bec16c50dd6f19c2a3940
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 15 21:48:11 2015 +1300
+
+    cmd/link: always disable lazy PLT resolution when dynamically linking Go
+    
+    Go cannot allow lazy PLT resolution when calling between Go functions because
+    the lazy resolution can use more stack than is available. Lazy resolution is
+    disabled by passing -z now to the system linker, but unfortunately was only
+    passed when linking to a Go shared library. That sounds fine, but the shared
+    library containing the runtime is not linked to any other Go shared library but
+    calls main.init and main.main via a PLT, and before this fix this did use lazy
+    resolution. (For some reason this never caused a problem on intel, but it
+    breaks on ppc64le). Fortunately the fix is very simple: always pass -z now to
+    the system linker when dynamically linking Go.
+    
+    Change-Id: I7806d40aac80dcd1e56b95864d1cfeb1c42614e2
+    Reviewed-on: https://go-review.googlesource.com/15870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

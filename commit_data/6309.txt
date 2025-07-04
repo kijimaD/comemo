@@ -1,0 +1,12 @@
+commit afbee9d87d1ce9fd98e1beb9ac8945263c1f3e52
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 20 10:18:09 2010 +1000
+
+    exp/draw/x11: mouse location is a signed integer.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2192043
+
+ src/pkg/exp/draw/x11/conn.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

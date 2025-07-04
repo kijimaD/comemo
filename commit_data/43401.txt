@@ -1,0 +1,24 @@
+commit c9c64886ef041b096d7f93c4e7d2ef5faf87ad43
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 19 10:40:24 2020 -0400
+
+    cmd/internal/obj: reject too large symbols
+    
+    We never supported symbol larger than 2GB (issue #9862), so the
+    object file uses 32-bit for symbol sizes. Check and reject too
+    large symbol before truncating its size.
+    
+    Fixes #42054.
+    
+    Change-Id: I0d1d585ebdba9556f2fd3a97043bd4296d5cc9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263641
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/objfile.go      |  7 +++++++
+ src/cmd/internal/obj/objfile_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue4348.go          |  4 +++-
+ 3 files changed, 46 insertions(+), 1 deletion(-)

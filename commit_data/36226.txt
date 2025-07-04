@@ -1,0 +1,25 @@
+commit 6b937ace680ac4377c9d952687104f4d23f1ce16
+Author: Leigh McCulloch <leigh@mcchouse.com>
+Date:   Sat Aug 4 06:40:45 2018 +0000
+
+    doc/contribute: add examples for finding issues on the issue tracker
+    
+    For contributors looking for new issues to contribute to it can be
+    difficult to find issues that need a fix and don't already have a fix
+    being considered. There are several labels that help guide the way
+    already, like `NeedsFix`, `HelpWanted`. But many issues with this label
+    will already have a CL. For new contributors this can be especially
+    difficult.
+    
+    Fixes #26494
+    
+    Change-Id: Ifd38ea65e362b4c580207a06f959646e49ac594f
+    GitHub-Last-Rev: 6d2b54447b2ee754a6d025f5de3ebd8326e035eb
+    GitHub-Pull-Request: golang/go#26516
+    Reviewed-on: https://go-review.googlesource.com/125355
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/contribute.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

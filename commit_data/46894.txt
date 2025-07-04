@@ -1,0 +1,25 @@
+commit 4cbc0a555474f59b8600e7e8ecba5c70d619ba0b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 14 11:34:00 2021 -0400
+
+    cmd/go: produce a better error for generic test functions
+    
+    Test functions with type parameters cannot be invoked without type
+    arguments, so cmd/go would previously fail with a type-checking error in
+    the test harness.
+    
+    Avoid this by producing an error explaining that test functions cannot
+    have type parameters.
+    
+    Fixes #48953
+    
+    Change-Id: I4e39c9b7a06c964fad5f12d74d262aa090c25d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355889
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/load/test.go             | 10 ++++++++--
+ src/cmd/go/testdata/script/list_test_err.txt | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

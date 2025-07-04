@@ -1,0 +1,14 @@
+commit 2bd17bca0776ff8bb661259d2ed6de6a325ac197
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 25 13:23:24 2013 +0900
+
+    net: deflake raw IP protocol entry test on Windows
+    
+    Update #5344
+    
+    R=golang-dev, dave, r, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/8934043
+
+ src/pkg/net/ipraw_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

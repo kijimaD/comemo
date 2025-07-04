@@ -1,0 +1,22 @@
+commit 9138a2a67f7f29948f6f608bf904b3605f1b45d0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 26 14:40:44 2020 +1000
+
+    cmd/link: avoid duplicate DT_NEEDED entries
+    
+    When adding a new library entry, ensure we record it as seen to avoid
+    adding duplicates of it.
+    
+    Fixes #39256
+    
+    Change-Id: Id309adf80c533d78fd485517c18bc9ab5f1d29fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235257
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/elf.go                   |  1 +
+ src/cmd/link/internal/ld/elf_test.go              | 55 +++++++++++++++++++++++
+ src/cmd/link/internal/ld/testdata/issue39256/x.go | 20 +++++++++
+ src/cmd/link/internal/ld/testdata/issue39256/x.s  | 10 +++++
+ 4 files changed, 86 insertions(+)

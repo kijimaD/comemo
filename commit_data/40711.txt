@@ -1,0 +1,16 @@
+commit 0bbcce962a2ef0937b1f5a5e5d3b7033760d0d2f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 16:16:23 2019 -0500
+
+    cmd/go/internal/lockedfile: skip flaky TestTransform on plan9
+    
+    Updates #35471
+    
+    Change-Id: Ie06c442e405a267eb909621e1205444b6a00fda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206197
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/cmd/go/internal/lockedfile/transform_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

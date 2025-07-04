@@ -1,0 +1,20 @@
+commit 30673769ed7409da0ba1046e874371bf4f07d352
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Feb 25 18:14:20 2018 +0900
+
+    cmd/compile: fix typechecking in finishcompare
+    
+    Previously, finishcompare just used SetTypecheck, but this didn't
+    recursively update any untyped bool typed subexpressions. This CL
+    changes it to call typecheck, which correctly handles this.
+    
+    Also cleaned up outdated code for simplifying logic.
+    
+    Updates #23834
+    
+    Change-Id: Ic7f92d2a77c2eb74024ee97815205371761c1c90
+    Reviewed-on: https://go-review.googlesource.com/97035
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

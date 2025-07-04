@@ -1,0 +1,22 @@
+commit 1afa432ab93aa9adb2e0f04b6c15eb654762d652
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 13 15:04:43 2021 -0800
+
+    go/types, types2: record (top-level) union types
+    
+    Fixes #50093.
+    
+    Change-Id: Ibebeda542d2a81c979670f9098c4a6d2c3e73abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371514
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go       |  6 ++++++
+ src/cmd/compile/internal/types2/api_test.go  | 10 ++++++++++
+ src/cmd/compile/internal/types2/interface.go | 10 +---------
+ src/cmd/compile/internal/types2/union.go     | 24 ++++++++++++++++++------
+ src/go/types/api.go                          |  6 ++++++
+ src/go/types/api_test.go                     | 10 ++++++++++
+ src/go/types/interface.go                    | 10 +---------
+ src/go/types/union.go                        | 24 ++++++++++++++++++------
+ 8 files changed, 70 insertions(+), 30 deletions(-)

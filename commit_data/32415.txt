@@ -1,0 +1,14 @@
+commit d4dc26c0adbe7976ac625c01bb21e85511cd00fd
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 20 10:43:14 2017 +0200
+
+    cmd/compile: extend documentation and sync hiter and hmap with runtime
+    
+    Change-Id: I71b24dd0293dd1e26a5c799161a7f9af48fb3c7d
+    Reviewed-on: https://go-review.googlesource.com/57295
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 121 ++++++++++++++++++++-------------
+ 1 file changed, 73 insertions(+), 48 deletions(-)

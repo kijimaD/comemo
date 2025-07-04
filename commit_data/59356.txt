@@ -1,0 +1,69 @@
+commit fca5832607d7c1afa20b82ca00ba4a27e28c0d0a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 23 15:52:28 2025 -0400
+
+    cmd/vendor: update x/tools and x/text
+    
+    This CL updates x/tools to 68e94bd and x/text to v0.24.0,
+    updates the vendor tree, and re-runs the bundle step for net/http.
+    
+    Updates golang/go#28308
+    
+    Change-Id: I4184f77547f535270ddc8e2ce6542377e3046ffd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667597
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go.mod                                     |   8 +-
+ src/cmd/go.sum                                     |  16 +-
+ .../vendor/golang.org/x/sync/errgroup/errgroup.go  |   3 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go | 149 +++++-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  42 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  84 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |  20 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  84 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |  20 +
+ .../golang.org/x/sys/windows/types_windows.go      |  27 ++
+ src/cmd/vendor/golang.org/x/text/language/parse.go |   2 +-
+ .../go/analysis/passes/composite/composite.go      |   2 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |   2 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |  21 +-
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |  20 +-
+ .../go/analysis/passes/structtag/structtag.go      |  11 +-
+ .../passes/testinggoroutine/testinggoroutine.go    |   5 +-
+ .../go/analysis/passes/testinggoroutine/util.go    |  23 +-
+ .../go/analysis/passes/unreachable/unreachable.go  |   3 +
+ .../x/tools/go/ast/inspector/inspector.go          |   6 +-
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |   2 +-
+ .../golang.org/x/tools/go/types/typeutil/callee.go |  83 ++--
+ .../x/tools/internal/analysisinternal/analysis.go  |  44 +-
+ .../golang.org/x/tools/internal/astutil/clone.go   |  71 +++
+ .../golang.org/x/tools/internal/astutil/comment.go | 113 +++++
+ .../x/tools/internal/astutil/cursor/cursor.go      |  58 +--
+ .../golang.org/x/tools/internal/astutil/util.go    |  91 ++++
+ .../golang.org/x/tools/internal/bisect/bisect.go   |   6 +-
+ .../golang.org/x/tools/internal/stdlib/deps.go     | 528 ++++++++++-----------
+ .../golang.org/x/tools/internal/stdlib/manifest.go |  22 +
+ .../golang.org/x/tools/internal/typeparams/free.go |   2 +-
+ .../x/tools/internal/typeparams/termlist.go        |  12 +-
+ .../x/tools/internal/typeparams/typeterm.go        |   3 +
+ .../tools/internal/typesinternal/classify_call.go  | 135 ++++++
+ .../x/tools/internal/typesinternal/types.go        |  15 +
+ src/cmd/vendor/modules.txt                         |  11 +-
+ src/go.mod                                         |   8 +-
+ src/go.sum                                         |  16 +-
+ src/net/http/h2_bundle.go                          |  16 +-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |   2 +-
+ .../x/crypto/internal/poly1305/mac_noasm.go        |   2 +-
+ .../internal/poly1305/{sum_amd64.go => sum_asm.go} |   2 +-
+ .../x/crypto/internal/poly1305/sum_loong64.s       | 123 +++++
+ .../x/crypto/internal/poly1305/sum_ppc64x.go       |  47 --
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |  12 +
+ .../golang.org/x/sys/cpu/cpu_linux_loong64.go      |  22 +
+ .../golang.org/x/sys/cpu/cpu_linux_noinit.go       |   2 +-
+ src/vendor/golang.org/x/sys/cpu/cpu_loong64.go     |  38 ++
+ src/vendor/golang.org/x/sys/cpu/cpu_loong64.s      |  13 +
+ src/vendor/golang.org/x/sys/cpu/parse.go           |   4 +-
+ src/vendor/modules.txt                             |  10 +-
+ 51 files changed, 1525 insertions(+), 536 deletions(-)

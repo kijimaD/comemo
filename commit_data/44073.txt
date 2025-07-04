@@ -1,0 +1,18 @@
+commit ed301733bb228653f98ee9381e90bccf7a3e3bb6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 30 16:41:58 2020 -0500
+
+    misc/cgo/testcarchive: remove special flags for Darwin/ARM
+    
+    The original Darwin/ARM port is gone. For ARM64, it works fine
+    without the flags on macOS/ARM64. Remove the flags.
+    
+    Change-Id: I9cc00c49dd71376dd9c52abb78c2d8cec656b3db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280157
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

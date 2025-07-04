@@ -1,0 +1,35 @@
+commit a71ca3dfbd32faf351ff68bcc26a4d5abd9b06d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 16:53:50 2022 -0500
+
+    runtime, sync, sync/atomic: document happens-before guarantees
+    
+    A few of these are copied from the memory model doc.
+    Many are entirely new, following discussion on #47141.
+    See https://research.swtch.com/gomm for background.
+    
+    The rule we are establishing is that each type that is meant
+    to help synchronize a Go program should document its
+    happens-before guarantees.
+    
+    For #50859.
+    
+    Change-Id: I947c40639b263abe67499fa74f68711a97873a39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381316
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/runtime/mfinal.go  | 14 +++++++++++++-
+ src/sync/atomic/doc.go |  8 ++++++++
+ src/sync/cond.go       |  8 +++++++-
+ src/sync/map.go        |  7 +++++++
+ src/sync/mutex.go      |  7 +++++++
+ src/sync/once.go       |  4 ++++
+ src/sync/pool.go       |  5 +++++
+ src/sync/rwmutex.go    |  8 ++++++++
+ src/sync/waitgroup.go  |  3 +++
+ 9 files changed, 62 insertions(+), 2 deletions(-)

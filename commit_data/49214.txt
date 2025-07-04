@@ -1,0 +1,21 @@
+commit 9956996f6e32a8001457b057bbff3070f869ddbf
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jan 4 20:53:23 2022 +0800
+
+    runtime: add address sanitizer support for riscv64
+    
+    Updates #44853
+    
+    Change-Id: I3ba6ec0cfc6c7f311b586deedb1cda0f87a637aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375256
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Zhuo Meng <mzh@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ misc/cgo/testsanitizers/cc_test.go |  2 +-
+ src/cmd/internal/sys/supported.go  |  2 +-
+ src/runtime/asan/asan.go           |  2 +-
+ src/runtime/asan_riscv64.s         | 68 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 71 insertions(+), 3 deletions(-)

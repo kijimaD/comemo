@@ -1,0 +1,31 @@
+commit 5e371e0f93c5618a36f66afdd9c6047a5955c101
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 7 08:00:15 2020 -0800
+
+    crypto/x509: keep smaller root cert representation in memory until needed
+    
+    Instead of parsing the PEM files and then storing the *Certificate
+    values forever, still parse them to see if they're valid and pick out
+    some fields, but then only store the decoded pem.Block.Bytes until
+    that cert is first needed.
+    
+    Saves about 500K of memory on my (Debian stable) machine after doing a
+    tls.Dial or calling x509.SystemCertPool.
+    
+    A more aggressive version of this is still possible: we can not keep
+    the pem.Block.Bytes in memory either, and re-read them from disk when
+    necessary. But dealing with files disappearing and even large
+    multi-cert PEM files changing (with offsets sliding around) made this
+    conservative version attractive. It doesn't change the
+    slurp-roots-on-startup semantics. It just does so with less memory
+    retained.
+    
+    Change-Id: I3aea333f4749ae3b0026042ec3ff7ac015c72204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230025
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/cert_pool.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 73e2ad20220050f88b1ea79bf5a2e4c4fbee0533
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 11:33:42 2016 -0700
+
+    runtime: rename os1_darwin.go to os_darwin.go
+    
+    Change-Id: If0e0bc5a85101db1e70faaab168fc2d12024eb93
+    Reviewed-on: https://go-review.googlesource.com/22005
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/{os1_darwin.go => os_darwin.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

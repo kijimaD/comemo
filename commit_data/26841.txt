@@ -1,0 +1,19 @@
+commit cabb1402568ae7d05d9d5adf56953a4792085a81
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 11 05:12:43 2016 +0000
+
+    net/http: add ServerContextKey to let a handler access its Server
+    
+    Fixes #12438
+    Updates #15229 (to decide context key variable naming convention)
+    
+    Change-Id: I3ba423e91b689e232143247d044495a12c97a7d2
+    Reviewed-on: https://go-review.googlesource.com/21829
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/http.go       |  8 ++++++++
+ src/net/http/serve_test.go | 17 +++++++++++++++++
+ src/net/http/server.go     | 21 +++++++++++++++------
+ 3 files changed, 40 insertions(+), 6 deletions(-)

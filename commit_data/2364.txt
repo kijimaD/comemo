@@ -1,0 +1,21 @@
+commit bf0a339bf3af00550bd328d1059051fdb3c220a6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jun 2 20:26:14 2009 -0700
+
+    Add container/list package.
+    
+    This is imported from //cacheserving/gash/cache/list*.go,
+    but with style changes to suit the Go standard library.
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=286  (286 added, 0 deleted, 0 changed)
+    OCL=29438
+    CL=29796
+
+ src/lib/Make.deps                   |   1 +
+ src/lib/Makefile                    |   2 +
+ src/lib/container/list/Makefile     |  68 +++++++++++++++++++
+ src/lib/container/list/list.go      | 130 ++++++++++++++++++++++++++++++++++++
+ src/lib/container/list/list_test.go |  91 +++++++++++++++++++++++++
+ 5 files changed, 292 insertions(+)

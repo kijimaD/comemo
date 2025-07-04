@@ -1,0 +1,12 @@
+commit 555feea117532a5c033478997e1ce9b77b4f8eea
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 1 00:19:00 2010 +0100
+
+    runtime: fix windows breakage
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3344044
+
+ src/pkg/runtime/windows/runtime_defs.go | 2 ++
+ 1 file changed, 2 insertions(+)

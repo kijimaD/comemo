@@ -1,0 +1,20 @@
+commit 27280d8c14331c1c46cd90206be9f3c924f6b4c4
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Wed Sep 2 13:44:36 2020 +0300
+
+    crypto/x509: return errors instead of panicking
+    
+    Eliminate a panic in x509.CreateCertificate when passing templates with unknown ExtKeyUsage; return an error instead.
+    
+    Fixes #41169
+    
+    Change-Id: Ia229d3b0d4a1bdeef05928439d97dab228687b3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252557
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      |  3 ++-
+ src/crypto/x509/x509_test.go | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

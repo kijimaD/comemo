@@ -1,0 +1,16 @@
+commit c4b8dadb4060a8456801ad64c9c5642a737dba19
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 5 23:41:41 2017 -0500
+
+    cmd/compile: fix some types in SSA
+    
+    These seem not to really matter, but good to be correct.
+    
+    Change-Id: I02edb9797c3d6739725cfbe4723c75f151acd05e
+    Reviewed-on: https://go-review.googlesource.com/36837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

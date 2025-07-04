@@ -1,0 +1,30 @@
+commit eb2b0ed5b59cfb340de0118235bfda60e0de4a8d
+Author: Evan Jones <ej@evanjones.ca>
+Date:   Wed Nov 1 12:44:14 2017 -0400
+
+    syscall: use setattrlist for UtimesNano on Darwin for ns resolution
+    
+    Mac OS X 10.13 introduced APFS which stores nanosecond resolution
+    timestamps. The implementation of os.Stat already returns full
+    resolution timestamps, but os.Chtimes only sets timestamps with
+    microsecond resolution.
+    
+    Fix this by using setattrlist on Darwin, which takes a struct timeval
+    with nanosecond resolution. This is what Mac OS X 10.13 appears uses
+    to implement utimensat, according to dtruss.
+    
+    Fixes #22528
+    
+    Change-Id: I397dabef6b2b73a081382999aa4c4405ab8c6015
+    Reviewed-on: https://go-review.googlesource.com/74952
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_bsd.go       |  7 ++++++-
+ src/syscall/syscall_darwin.go    | 30 ++++++++++++++++++++++++++++++
+ src/syscall/syscall_dragonfly.go |  5 +++++
+ src/syscall/syscall_freebsd.go   |  5 +++++
+ src/syscall/syscall_netbsd.go    |  5 +++++
+ src/syscall/syscall_openbsd.go   |  5 +++++
+ 6 files changed, 56 insertions(+), 1 deletion(-)

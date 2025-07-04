@@ -1,0 +1,15 @@
+commit 958a6101eb75747555b2d5596de9ed93a54b83df
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 25 13:47:38 2014 -0700
+
+    cmd/go: clean up a couple of inconsequential nits in generate
+    Post-submit glitches caught by reviewers.
+    
+    LGTM=nightlyone, bradfitz
+    R=golang-codereviews, nightlyone, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/126660043
+
+ src/cmd/go/generate.go      | 2 +-
+ src/cmd/go/generate_test.go | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

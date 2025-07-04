@@ -1,0 +1,13 @@
+commit 137c2204dbc25eeed61c92d04fbfb66586ecd77f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 18:22:44 2009 -0700
+
+    add exits
+    
+    R=rsc
+    DELTA=2339  (19 added, 2303 deleted, 17 changed)
+    OCL=33239
+    CL=33253
+
+ src/lib9/exits.c | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

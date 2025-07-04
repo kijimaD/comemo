@@ -1,0 +1,13 @@
+commit 92a1190c6c97aeeae50a2579ba0f23e257719e02
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 9 13:00:50 2008 -0800
+
+    robs bug converting unsafe.pointer
+    
+    R=r
+    OCL=20834
+    CL=20834
+
+ src/cmd/gc/go.h   | 1 +
+ src/cmd/gc/subr.c | 7 +++++++
+ 2 files changed, 8 insertions(+)

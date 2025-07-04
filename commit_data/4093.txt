@@ -1,0 +1,19 @@
+commit bae4f5085ea1e6db89c7df8e2075eab44d9c512e
+Author: Sergio Luis O. B. Correia <sergio@larces.uece.br>
+Date:   Tue Nov 17 09:02:47 2009 -0800
+
+    cmd/cc: Fix -I switch to handle a path with blankspaces correctly
+    
+    Currently, -I switch can't deal with a path containing spaces.
+    This commit simplify setinclude(), by removing the special case
+    of a string that had spaces. After this change, setinclude() will
+    merely add the given directories to the include path, if it does
+    not yet exist, and this approach works.
+    
+    Will be needed for solving issue 115.
+    
+    R=agl1, rsc, iant2, r
+    https://golang.org/cl/155059
+
+ src/cmd/cc/lex.c | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 9238cbd57a116c63104df6ed5a5a85e7097b8386
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Sep 20 23:28:34 2015 +0200
+
+    cmd/compile/internal/gc: remove "goto ret" in walkexpr
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    
+    Change-Id: Ib3d2c50601546495e7f1ab153d2978b1e3774101
+    Reviewed-on: https://go-review.googlesource.com/14800
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 126 +++++++-----------------------------
+ 1 file changed, 25 insertions(+), 101 deletions(-)

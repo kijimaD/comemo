@@ -1,0 +1,21 @@
+commit 20e251864b7caa1b863814fdf6c26280e1b669b3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Dec 1 15:10:03 2020 -0500
+
+    cmd: update golang.org/x/mod to v0.4.0
+    
+    CL 269357 is the only difference between the pseudo-version we were
+    using and v0.4.0.
+    
+    Change-Id: If15326bda51e04b47130429b818bfe2facaee03d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274593
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                   | 2 +-
+ src/cmd/go.sum                                   | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/semver/semver.go | 3 +++
+ src/cmd/vendor/modules.txt                       | 2 +-
+ 4 files changed, 7 insertions(+), 4 deletions(-)

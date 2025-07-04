@@ -1,0 +1,21 @@
+commit f55bb135d28bc95131a8c987d50350e5c6d7f633
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 6 12:54:27 2025 -0800
+
+    cmd/cgo/internal/testsanitizers: for "leak", use -fsanitize=address
+    
+    We currently test the leak detector by running "go build -asan",
+    which will pass -fsanitize=address to the C compiler.
+    So use that when testing whether the option works.
+    
+    Fixes #72128
+    
+    Change-Id: I4efc0b689bfda04c80dbac30a5c757215f297d2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655535
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testsanitizers/cc_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

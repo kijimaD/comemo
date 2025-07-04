@@ -1,0 +1,14 @@
+commit 4cffe44e361deb39e3274774a7984ab78a5b3931
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 12 15:04:05 2016 +1000
+
+    syscall: separate stdlib imports from others in mksyscall_windows.go
+    
+    Change-Id: I6610b872578d161e535565258039d9f064f01456
+    Reviewed-on: https://go-review.googlesource.com/23070
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/mksyscall_windows.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

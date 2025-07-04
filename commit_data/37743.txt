@@ -1,0 +1,18 @@
+commit c040786f37246f40ae29402fbdb6e97031a21713
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 17 17:15:40 2018 -0500
+
+    doc/go1.12: add notes for syscall/js CLs 141644, 143137, 144384
+    
+    Also update a Go 1 compatibility promise link to canonical URL.
+    
+    Updates #27592
+    Updates #28264
+    
+    Change-Id: I5994a0a63e0870c1795c65016590dfad829d26a7
+    Reviewed-on: https://go-review.googlesource.com/c/154618
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 9639bd0dd7b0cda43b939741ae708234a3825cd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 19:59:36 2008 -0700
+
+    apply change suggested in CL 16658 review
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=18091
+    CL=18094
+
+ test/interface1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

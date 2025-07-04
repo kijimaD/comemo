@@ -1,0 +1,32 @@
+commit 919fd24884df1873755e4837f400372ce71b160b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Feb 21 21:01:40 2015 +0300
+
+    runtime: remove runtime frames from stacks in traces
+    
+    Stip uninteresting bottom and top frames from trace stacks.
+    This makes both binary and json trace files smaller,
+    and also makes stacks shorter and more readable in the viewer.
+    
+    Change-Id: Ib9c80ccc280504f0e235f867f53f1d2652c41583
+    Reviewed-on: https://go-review.googlesource.com/5523
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/trace.go                |  12 +-
+ src/internal/trace/parser.go          |   4 +-
+ src/runtime/chan.go                   |  24 +--
+ src/runtime/mfinal.go                 |   2 +-
+ src/runtime/mgc.go                    |   6 +-
+ src/runtime/mgcsweep.go               |   4 +-
+ src/runtime/netpoll.go                |  14 +-
+ src/runtime/pprof/trace_stack_test.go | 277 ++++++++++++++++++++++++++++++++++
+ src/runtime/pprof/trace_test.go       |  40 -----
+ src/runtime/proc.go                   |  15 +-
+ src/runtime/proc1.go                  |  38 ++---
+ src/runtime/runtime2.go               |   1 +
+ src/runtime/select.go                 |  12 +-
+ src/runtime/sema.go                   |  12 +-
+ src/runtime/time.go                   |   8 +-
+ src/runtime/trace.go                  |  84 ++++++-----
+ 16 files changed, 389 insertions(+), 164 deletions(-)

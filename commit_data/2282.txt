@@ -1,0 +1,14 @@
+commit d33d76378105897c4cd4419dc68e86f14921f193
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 09:53:25 2009 -0700
+
+    channel direction tests
+    (will submit with compiler fixes).
+    
+    R=r
+    DELTA=44  (44 added, 0 deleted, 0 changed)
+    OCL=29211
+    CL=29248
+
+ test/chan/perm.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

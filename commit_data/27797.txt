@@ -1,0 +1,37 @@
+commit 7a622740655bb5fcbd160eb96887032314842e6e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 8 17:14:01 2016 +0000
+
+    net/http: make Transport use new connection if over HTTP/2 concurrency limit
+    
+    The Go HTTP/1 client will make as many new TCP connections as the user requests.
+    
+    The HTTP/2 client tried to have that behavior, but the policy of
+    whether a connection is re-usable didn't take into account the extra 1
+    stream counting against SETTINGS_MAX_CONCURRENT_STREAMS so in practice
+    users were getting errors.
+    
+    For example, if the server's advertised max concurrent streams is 100
+    and 200 concurrrent Go HTTP requests ask for a connection at once, all
+    200 will think they can reuse that TCP connection, but then 100 will
+    fail later when the number of concurrent streams exceeds 100.
+    
+    Instead, recognize the "no cached connections" error value in the
+    shouldRetryRequest method, so those 100 will retry a new connection.
+    
+    This is the conservative fix for Go 1.7 so users don't get errors, and
+    to match the HTTP/1 behavior. Issues #13957 and #13774 are the more
+    involved bugs for Go 1.8.
+    
+    Updates #16582
+    Updates #13957
+    
+    Change-Id: I1f15a7ce60c07a4baebca87675836d6fe03993e8
+    Reviewed-on: https://go-review.googlesource.com/25580
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

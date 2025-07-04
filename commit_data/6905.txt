@@ -1,0 +1,27 @@
+commit e1d6b3c98d70a62000f452ff72be3ab2a0640dda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 9 10:22:01 2010 -0800
+
+    go/ast: fix ast.Walk
+    
+    - change Walk signature to use an ast.Node instead of interface{}
+    - add Pos functions to a couple of ast types to make them proper nodes
+    - explicit nil checks where a node can be nil; incorrect ASTs cause Walk to crash
+    
+    For now ast.Walk is exercised extensively as part of godoc's indexer;
+    so we have some confidence in its correctness. But this needs a test,
+    eventually.
+    
+    Fixes #1326.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3481043
+
+ src/cmd/godoc/index.go      |   2 +-
+ src/cmd/gofmt/simplify.go   |   4 +-
+ src/cmd/govet/govet.go      |   2 +-
+ src/pkg/go/ast/ast.go       |  48 +++++---
+ src/pkg/go/ast/walk.go      | 293 ++++++++++++++++++++++++++------------------
+ src/pkg/go/printer/nodes.go |   2 +-
+ 6 files changed, 207 insertions(+), 144 deletions(-)

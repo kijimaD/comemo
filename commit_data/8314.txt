@@ -1,0 +1,13 @@
+commit 73f4b847aeb9a7537ae7ee77696e321533001b7c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 3 20:45:10 2011 -0700
+
+    http: fix FormFile nil pointer dereference on missing  multipart form
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4463042
+
+ src/pkg/http/request.go      |  8 +++++---
+ src/pkg/http/request_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit c4190fc34dbfe8c7859a91b07ed31a33633d08df
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 18:45:52 2021 -0500
+
+    cmd/compile: remove ARMv5 special case in register allocator
+    
+    The register allocator has a special case that doesn't allocate
+    LR on ARMv5. This was necessary when softfloat expansion was done
+    by the assembler. Now softfloat calls are inserted by SSA, so it
+    works as normal. Remove this special case.
+    
+    Change-Id: I5502f07597f4d4b675dc16b6b0d7cb47e1e8974b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301792
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,51 @@
+commit 30a84b389daf8f6c358f92da056ac19280e3640d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 29 01:38:25 2018 -0400
+
+    cmd/go: replace -getmode with -mod, $GOPROXY
+    
+    The old -getmode flag had two settings:
+    -getmode=local meant don't download from the network.
+    -getmode=vendor meant only use the vendor directory.
+    
+    The new -mod flag has two settings:
+    -mod=readonly means refuse to automatically update go.mod (mainly for CI testing).
+    -mod=vendor means only use the vendor directory.
+    
+    The old GOPROXY variable had two settings:
+    a proxy URL or else the empty string (direct connect).
+    
+    The new GOPROXY variable has three settings:
+    a proxy URL, the string "off" (no network use allowed),
+    or else the empty string or the explicit string "direct" (direct connection).
+    We anticipate allow a comma-separated sequence in a future release,
+    so commas are disallowed entirely right now.
+    
+    Fixes #24666.
+    Fixes #26586.
+    Fixes #26370.
+    Fixes #26361.
+    
+    Change-Id: If2601a16b09f04800f666938c071fc053b4c3f9c
+    Reviewed-on: https://go-review.googlesource.com/126696
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                    |  2 +-
+ src/cmd/go/internal/modfetch/proxy.go             | 13 +++--
+ src/cmd/go/internal/modfetch/repo.go              | 13 +++--
+ src/cmd/go/internal/modget/get.go                 | 11 +++-
+ src/cmd/go/internal/modload/build.go              |  4 +-
+ src/cmd/go/internal/modload/help.go               | 21 +++++--
+ src/cmd/go/internal/modload/import.go             |  8 +--
+ src/cmd/go/internal/modload/init.go               | 15 ++---
+ src/cmd/go/internal/modload/load.go               |  3 +-
+ src/cmd/go/internal/vet/vetflag.go                | 68 +++++++++++++----------
+ src/cmd/go/internal/work/build.go                 |  7 ++-
+ src/cmd/go/internal/work/init.go                  | 28 ++++++++--
+ src/cmd/go/testdata/script/mod_file_proxy.txt     | 11 ++--
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt | 12 ++--
+ src/cmd/go/testdata/script/mod_readonly.txt       | 39 +++++++++++++
+ src/cmd/go/testdata/script/mod_vendor.txt         | 14 ++---
+ 16 files changed, 178 insertions(+), 91 deletions(-)

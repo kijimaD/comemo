@@ -1,0 +1,17 @@
+commit d4f3185c24e3816acfa5760a0dc4b40b20867867
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 26 15:43:32 2012 -0500
+
+    spec: add () to method calls in examples
+    
+    Since p.M is rejected (must call methods), use p.M(),
+    to keep the examples compiling.
+    
+    Fixes #4441.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6854096
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

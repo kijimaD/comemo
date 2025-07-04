@@ -1,0 +1,14 @@
+commit 0da73b9f073b2b1e9b78b3a6f6bc077101a05658
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 21:21:44 2014 +0400
+
+    runtime: fix a race in bgsweep
+    See the comment for description.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/75670044
+
+ src/pkg/runtime/mgc0.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

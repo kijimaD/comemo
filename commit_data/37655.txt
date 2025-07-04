@@ -1,0 +1,16 @@
+commit ef780fbf1023e7a7569cb822bcafcc2252c6e25f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Dec 12 03:43:48 2018 +1100
+
+    runtime/pprof: ignore cpu profile test failures on openbsd/arm
+    
+    This test is currently too flakey on openbsd/arm - ignore failures for the time
+    being.
+    
+    Change-Id: Ia334d188f505167e691177ebe2c7a2df54bf556a
+    Reviewed-on: https://go-review.googlesource.com/c/153579
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

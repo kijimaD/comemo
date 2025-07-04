@@ -1,0 +1,22 @@
+commit f5804ce4f3b0f9fa8b9d149edc7fd43c6134768c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 10 08:11:46 2017 -0700
+
+    runtime: simplify hashmap tooManyOverflowBuckets
+    
+    This generates better code.
+    
+    Masking B in the return statement should be unnecessary,
+    but the compiler is understandably not yet clever enough to see that.
+    
+    Someday, it'd also be nice for the compiler to generate
+    a CMOV for the saturation if statement.
+    
+    Change-Id: Ie1c157b21f5212610da1f3c7823a93816b3b61b9
+    Reviewed-on: https://go-review.googlesource.com/54656
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

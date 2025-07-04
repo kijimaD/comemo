@@ -1,0 +1,25 @@
+commit 820523d09186bd9c7078338803e41c8592158110
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 9 19:18:26 2011 +1100
+
+    html: correctly parse </html> in <head> element.
+    
+    Pass tests1.dat, test 92:
+    <head></html><meta><p>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <meta>
+    |     <p>
+    
+    Also pass tests through test 98:
+    <p><b><div><marquee></p></b></div>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5359054
+
+ src/pkg/html/parse.go      | 18 +++++++++++++++---
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 16 insertions(+), 4 deletions(-)

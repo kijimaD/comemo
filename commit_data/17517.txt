@@ -1,0 +1,16 @@
+commit 87a6d75012986fb8867b746afcd42f742c119945
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 16:17:44 2013 -0400
+
+    log/syslog: use alternate format for logging to local syslog daemon
+    
+    Fixes #5803.
+    Is it correct behavior? Who knows.
+    
+    R=golang-dev, bradfitz, jgc
+    CC=golang-dev, jgc
+    https://golang.org/cl/13248048
+
+ src/pkg/log/syslog/syslog.go      | 19 +++++++++++++++----
+ src/pkg/log/syslog/syslog_unix.go |  2 +-
+ 2 files changed, 16 insertions(+), 5 deletions(-)

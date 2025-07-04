@@ -1,0 +1,12 @@
+commit 059bc2742a36e2e4920a96795455787477b67f80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 26 14:50:12 2010 -0800
+
+    go/parser cleanup: remove some state by writing more functional code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223071
+
+ src/pkg/go/parser/parser.go | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)

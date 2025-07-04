@@ -1,0 +1,14 @@
+commit 267a55397b4343fe37ea89319b9007e649eb101f
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Wed Jan 2 16:00:41 2013 +1100
+
+    cmd/godoc: ignore misnamed examples and print a warning
+    
+    Fixes #4211.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6970051
+
+ src/cmd/godoc/godoc.go | 115 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 91 insertions(+), 24 deletions(-)

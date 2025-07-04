@@ -1,0 +1,26 @@
+commit 0492d936c5ce2dde9ec41b2861a95a3697e58569
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Fri Oct 18 02:37:57 2024 +0000
+
+    syscall: skip TestSetuidEtc when root's gid is not 0
+    
+    When the root user belongs to a special user group
+    (for example, in a mock environment), TestSetuidEtc will fail.
+    
+    For example: Setegid(1)
+    want:"Gid: 0 1 0 1"
+    got:"Gid: 1001 1 1001 1"
+    
+    Fixes #69921
+    
+    Change-Id: I74d0a006b7529b1b569120a067eb4d7c4ed2e491
+    GitHub-Last-Rev: 5724383eb134c8a5c2a4a5ed67e2d3999073b98b
+    GitHub-Pull-Request: golang/go#69922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620775
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/syscall_linux_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

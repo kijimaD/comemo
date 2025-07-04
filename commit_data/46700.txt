@@ -1,0 +1,27 @@
+commit 243d65c8e551be424008a3dfcaf5c87dc1f35a77
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 23 11:56:16 2021 -0400
+
+    bufio: reject UnreadByte or UnreadRune after a Discard or WriteTo
+    
+    Discard is not really a read operation, and in theory it could
+    Seek the underlying Reader without actually reading anything,
+    so an UnreadByte following a Discard is disallowed.
+    
+    Similarly, although WriteTo usually does end up calling Read on the
+    underlying buffer, if the underlying Reader implements io.WriterTo it
+    may instead terminate in a call to WriteTo, without ever buffering or
+    even seeing the last byte written. (It is conceptually read-like, but
+    not strictly “a read operation”.)
+    
+    Fixes #48446
+    
+    Change-Id: Ide6f2b157332b423486810399f66140c914144e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351810
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+
+ src/bufio/bufio.go      | 11 +++++++++--
+ src/bufio/bufio_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

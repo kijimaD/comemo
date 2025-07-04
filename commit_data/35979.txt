@@ -1,0 +1,18 @@
+commit 05e02d77c31ba4c592567de1a05959a3c253218d
+Author: Dmitry Doroginin <doroginin@gmail.com>
+Date:   Fri Jul 13 12:31:01 2018 +0000
+
+    cmd/go/internal/modload: more aggressive symlink analysis in FindModulePath
+    
+    Fixes golang/go#26217.
+    
+    Change-Id: I0c456047ee31aa78b72acc413446651ca8c3882a
+    GitHub-Last-Rev: b700554d883b43b57c6619e31a5f8fcb22b1d71f
+    GitHub-Pull-Request: golang/vgo#5
+    Reviewed-on: https://go-review.googlesource.com/123755
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/init.go |  12 ++++
+ src/cmd/go/mod_test.go              | 121 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+)

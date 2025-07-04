@@ -1,0 +1,25 @@
+commit 951f74c4d0bad3efb1eaea3ad6a8bf16ac53ec36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 17 17:23:51 2015 -0700
+
+    cmd/...: fix vet issues and cull dead code
+    
+    Change-Id: Ied0eab872950793b34dd2268055b29c702b07e99
+    Reviewed-on: https://go-review.googlesource.com/9081
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/6g/peep.go                 |  2 +-
+ src/cmd/7g/gsubr.go                | 19 ----------
+ src/cmd/7g/peep.go                 |  2 +-
+ src/cmd/9g/gsubr.go                | 25 --------------
+ src/cmd/9g/peep.go                 |  2 +-
+ src/cmd/internal/gc/const.go       |  1 -
+ src/cmd/internal/gc/fmt.go         |  1 -
+ src/cmd/internal/gc/typecheck.go   | 71 ++++++++++++++++++--------------------
+ src/cmd/internal/ld/data.go        |  4 +--
+ src/cmd/internal/ld/dwarf.go       |  2 +-
+ src/cmd/internal/ld/lib.go         |  2 --
+ src/cmd/internal/obj/arm64/obj7.go |  1 -
+ src/cmd/trace/trace.go             |  2 +-
+ 13 files changed, 41 insertions(+), 93 deletions(-)

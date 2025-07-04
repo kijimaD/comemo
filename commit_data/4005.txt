@@ -1,0 +1,14 @@
+commit 9e829c42d6447fdd93587619ea61bfd1f7b4110b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Nov 11 17:31:28 2009 -0800
+
+    Fix capitalisation of "Git".
+    
+    R=rsc
+    https://golang.org/cl/154071
+
+ src/cmd/hgpatch/doc.go        |  2 +-
+ src/pkg/encoding/git85/git.go | 10 +++++-----
+ src/pkg/patch/git.go          | 20 ++++++++++----------
+ src/pkg/patch/patch.go        |  8 ++++----
+ 4 files changed, 20 insertions(+), 20 deletions(-)

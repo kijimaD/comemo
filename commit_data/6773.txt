@@ -1,0 +1,12 @@
+commit 553a88cfe7ba9ba75eb999cfeedae4f2808ee029
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 18 12:34:04 2010 -0800
+
+    cgo: Print required space after parameter name in wrapper function.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3206041
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 651869716a449a1868f5a5333796ab47482d7c65
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jul 7 09:11:46 2023 -0400
+
+    log/slog: replace nil contexts with context.Background()
+    
+    Passing nil for a context is discouraged. We should avoid it.
+    
+    Fixes #61219.
+    
+    Change-Id: I664387070aacb56af580b6b0791ca40982d2a711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508437
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/doc.go                        |  2 +-
+ src/log/slog/example_custom_levels_test.go |  8 +++---
+ src/log/slog/handler_test.go               |  4 +--
+ src/log/slog/json_handler_test.go          |  6 +++--
+ src/log/slog/logger.go                     | 16 +++++------
+ src/log/slog/logger_test.go                | 43 ++++++++++++++++--------------
+ 6 files changed, 42 insertions(+), 37 deletions(-)

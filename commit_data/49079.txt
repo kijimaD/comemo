@@ -1,0 +1,24 @@
+commit 12420f9c01d6966c2994dbcc506a9d783a30ebdb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 6 15:57:21 2022 -0400
+
+    cmd/link: resolve relocations to .TOC. symbol
+    
+    CL 404296 breaks the PPC64LE build because the .TOC. symbol is
+    visibility hidden and was skipped from the "unresolved symbol"
+    check (the check needs to be fix). In face, the .TOC. symbol is
+    special in that it doesn't have a type but we have special logic
+    to assign a value to it in the address pass. So we can actually
+    resolve a relocation to .TOC.. We already have a special case
+    for PIE. It also applies to non-PIE as well.
+    
+    Fix PPC64LE builds.
+    
+    Change-Id: Iaf7e36f10c4d0a40fc56b2135e5ff38815e203b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404302
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

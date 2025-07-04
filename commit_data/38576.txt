@@ -1,0 +1,25 @@
+commit 92e6cf4c0f9bf2e1ecd57f22a430d96020cbdd69
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 27 16:15:04 2019 -0400
+
+    cmd/compile: repair ssa/debug_test regression
+    
+    Code introduced in
+    
+    [2034fbab5b1d11bc59cb476bc3f49ee1b344839d]
+    cmd/compile: use existing instructions instead of nops for inline marks
+    
+    to change a src.Pos's column to 1 accidentally reset
+    the is_stmt and prologue/epilogue bits, and that
+    turned out to cause a regression in ssa/debug_test.
+    
+    Preserving that information fixed the regression.
+    
+    Change-Id: I7c6859c8b68d9c6f7c0cbc8805c1f41dc5c1d5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169739
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/src/pos.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

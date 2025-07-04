@@ -1,0 +1,12 @@
+commit dd6db9b7bacc9b4e5cd5075aedeb55701320c379
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 22 10:22:01 2012 -0700
+
+    doc: put A Tour of Go video on the front page
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6337047
+
+ doc/root.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

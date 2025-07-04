@@ -1,0 +1,22 @@
+commit df53544f4f867084fe55ef79add7f0243ed032c5
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 8 09:25:24 2010 -0500
+
+    crypto/rsa: don't use safe primes.
+    
+    Previously we would require safe primes for our RSA key generation.
+    Since this took rather a long time, this removes the requirement that
+    the primes be safe.
+    
+    OpenSSL doesn't use safe primes for RSA key generation either
+    (openssl-0.9.8l/crypto/rsa/rsa_gen.c:122)
+    
+    Fixes #649.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/253041
+
+ src/pkg/crypto/rsa/rsa.go      | 16 ++++++----------
+ src/pkg/crypto/rsa/rsa_test.go |  2 +-
+ 2 files changed, 7 insertions(+), 11 deletions(-)

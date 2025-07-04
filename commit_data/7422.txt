@@ -1,0 +1,15 @@
+commit 239ef63bf2f30f86367d8b81a49ab9c25646f766
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Feb 10 23:02:27 2011 +1100
+
+    runtime: take the callback return value from the stack
+    
+    R=brainman, lxn, rsc
+    CC=golang-dev
+    https://golang.org/cl/4126056
+
+ src/pkg/runtime/cgocall.c         | 9 +++------
+ src/pkg/runtime/cgocall.h         | 2 +-
+ src/pkg/runtime/runtime.h         | 2 +-
+ src/pkg/runtime/windows/386/sys.s | 8 +++++++-
+ 4 files changed, 12 insertions(+), 9 deletions(-)

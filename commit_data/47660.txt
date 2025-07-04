@@ -1,0 +1,25 @@
+commit 00dbcb33f8c20ce51de558cbc9de811b1ba0f70c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 1 14:15:08 2021 -0500
+
+    os/exec: in TestContextCancel, dump goroutines on failure
+    
+    If this test fails, we want to know exactly what the os/exec
+    goroutines are doing. Panicking gives us a goroutine dump,
+    whereas t.Fatal does not.
+    
+    While we're here, use exponential backoff instead of a hard-coded 1ms
+    sleep. We want to give the OS enough time to actually terminate the
+    subprocess.
+    
+    For #42061
+    
+    Change-Id: I3d50a71ac314853c68a935218e7f97ce18b08b5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368317
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

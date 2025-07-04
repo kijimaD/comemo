@@ -1,0 +1,25 @@
+commit 0f6ee42fe063a48d7825bc03097bbb714aafdb7d
+Author: Tomasz Jezierski <tjomek.jezierski@gmail.com>
+Date:   Mon Aug 1 21:18:36 2022 +0200
+
+    encoding/gob: replace runtime values with constants in init()
+    
+    Current init() implementation in `encoding/gob/decode.go` checks int/uint/uintptr bit size with reflection in runtime. We could replace it with values available on compile stage. This should reduce time and allocations on binary start.
+    Results from GODEBUG=inittrace=1:
+    before:
+    init encoding/gob @4.4 ms, 0.21 ms clock, 43496 bytes, 652 allocs
+    after:
+    init encoding/gob @4.4 ms, 0.15 ms clock, 41672 bytes, 643 allocs
+    
+    Updates #54184
+    
+    Change-Id: I46dda2682fb92519da199415e29401d61edce697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/gob/decode.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

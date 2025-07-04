@@ -1,0 +1,24 @@
+commit c7383441713da801e663e6d95cf7afb6bd500539
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Aug 2 22:15:59 2023 +0000
+
+    net/http: use cancelKey to cancel request
+    
+    Follows up on CL 245357 and adds missing returns in waitCondition (CL 477196)
+    
+    Fixes #51354
+    
+    Change-Id: I7950ff889ad72c4927a969c35fedc0186e863bd6
+    GitHub-Last-Rev: 52ce05bc83ef88c7104df9254bc1add0dda83ae0
+    GitHub-Pull-Request: golang/go#61724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515435
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

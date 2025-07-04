@@ -1,0 +1,12 @@
+commit 066551e49bc223b3b73704e47cc1e489e4c3292d
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Jan 13 16:45:30 2012 -0800
+
+    pkg/go/doc: fix undefined: doc.NewPackageDoc in headscan.go
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/5539059
+
+ src/pkg/go/doc/headscan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

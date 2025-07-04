@@ -1,0 +1,14 @@
+commit 87bca88c703c1f14fe8473dc2f07dc521cf2b989
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 18:54:12 2016 -0700
+
+    context: fix doc typo
+    
+    Fixes #15449
+    
+    Change-Id: I8d84d076a05c56694b48f7b84f572b1a6524f522
+    Reviewed-on: https://go-review.googlesource.com/22493
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

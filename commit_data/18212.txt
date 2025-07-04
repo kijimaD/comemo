@@ -1,0 +1,13 @@
+commit 5277b90ec43e9b75f481ce737ade1d2a78bd32e1
+Author: Nicholas Katsaros <nick@nickkatsaros.com>
+Date:   Fri Jan 10 14:33:54 2014 +1100
+
+    net: add SetKeepAlivePeriod for windows
+    
+    R=golang-codereviews, alex.brainman, bradfitz, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/11393043
+
+ src/pkg/net/tcpsockopt_windows.go | 17 +++++++++++++++--
+ src/pkg/syscall/ztypes_windows.go |  8 ++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

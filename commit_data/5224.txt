@@ -1,0 +1,30 @@
+commit 2e90f66eff474cfb88d93283637ad3f60d177749
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Apr 5 22:10:27 2010 -0700
+
+    cmath: new package
+    
+    Complex math function package. Still needs more special case checking.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/874041
+
+ src/pkg/Makefile            |   1 +
+ src/pkg/cmath/Makefile      |  25 ++
+ src/pkg/cmath/abs.go        |  10 +
+ src/pkg/cmath/asin.go       | 170 +++++++++
+ src/pkg/cmath/cmath_test.go | 825 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/cmath/conj.go       |   8 +
+ src/pkg/cmath/exp.go        |  55 +++
+ src/pkg/cmath/isinf.go      |  21 ++
+ src/pkg/cmath/isnan.go      |  21 ++
+ src/pkg/cmath/log.go        |  64 ++++
+ src/pkg/cmath/phase.go      |  11 +
+ src/pkg/cmath/polar.go      |  12 +
+ src/pkg/cmath/pow.go        |  60 ++++
+ src/pkg/cmath/rect.go       |  13 +
+ src/pkg/cmath/sin.go        | 132 +++++++
+ src/pkg/cmath/sqrt.go       | 103 ++++++
+ src/pkg/cmath/tan.go        | 184 ++++++++++
+ 17 files changed, 1715 insertions(+)

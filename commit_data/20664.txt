@@ -1,0 +1,18 @@
+commit fdc047fbe5b71e8b6233d8d51466fad249af3577
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 8 13:22:31 2014 +1100
+
+    cmd/go: add ImportComment to Package struct
+    
+    It seems reasonable that people might want to look up the
+    ImportComment with "go list".
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/143600043
+
+ src/cmd/go/doc.go  | 39 ++++++++++++++++++++-------------------
+ src/cmd/go/list.go | 39 ++++++++++++++++++++-------------------
+ src/cmd/go/pkg.go  | 22 ++++++++++++----------
+ 3 files changed, 52 insertions(+), 48 deletions(-)

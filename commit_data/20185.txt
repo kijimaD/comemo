@@ -1,0 +1,15 @@
+commit dc11be8ddadba6897ab6ec5b0578c5f6c3fb8868
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 28 15:04:10 2014 -0700
+
+    crypto/md5: use go generate to create md5block.go
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/129650043
+
+ src/pkg/crypto/md5/gen.go      | 23 +++++++++++++++++++----
+ src/pkg/crypto/md5/md5.go      |  2 ++
+ src/pkg/crypto/md5/md5block.go |  2 +-
+ 3 files changed, 22 insertions(+), 5 deletions(-)

@@ -1,0 +1,25 @@
+commit a9121a19f0a2904e1b7a62d4bb07eb82093bb93a
+Author: Chris Jones <chris@cjones.org>
+Date:   Sat Dec 22 10:00:36 2012 -0500
+
+    encoding/xml: Marshal ",any" fields
+    
+    Fixes #3559.
+    
+    This makes Marshal handle fields marked ",any" instead of ignoring
+    them. That makes Marshal more symmetrical with Unmarshal, which seems
+    to have been a design goal.
+    
+    Note some test cases were changed, because this patch changes
+    marshalling behavior. I think the previous behavior was buggy, but
+    there's still a backward-compatibility question to consider.
+    
+    R=rsc
+    CC=golang-dev, n13m3y3r
+    https://golang.org/cl/6938068
+
+ src/pkg/encoding/xml/marshal.go      |  4 +--
+ src/pkg/encoding/xml/marshal_test.go | 61 +++++++++++++++++++++++++++++++-----
+ src/pkg/encoding/xml/read.go         |  2 +-
+ src/pkg/encoding/xml/typeinfo.go     |  3 ++
+ 4 files changed, 59 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit ea1f7b83800f769d16384c759f2e373bb492f336
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 13 16:17:47 2013 +1100
+
+    net: change server_test.go so we could see failure messages
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7323051
+
+ src/pkg/net/server_test.go | 48 ++++++++++++++++------------------------------
+ 1 file changed, 17 insertions(+), 31 deletions(-)

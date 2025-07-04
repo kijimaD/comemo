@@ -1,0 +1,15 @@
+commit 0bad63437ec0262c309efd4262b86352a25a73e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 09:55:44 2018 -0700
+
+    os: document that Remove removes only empty directories
+    
+    Fixes #26507
+    
+    Change-Id: I967e4f897ca891c70ca8bb0e66b984530c240815
+    Reviewed-on: https://go-review.googlesource.com/127835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6712cf365b68d492e1f62b70922e198f4cb9fad8
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jan 5 16:50:36 2010 -0800
+
+    Update Emacs go-mode for new semicolon rule.
+    
+    Fixes #415.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183104
+
+ misc/emacs/go-mode.el | 98 ++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 57 insertions(+), 41 deletions(-)

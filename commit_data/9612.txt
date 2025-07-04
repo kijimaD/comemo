@@ -1,0 +1,13 @@
+commit ec3dc34d1287b5771c79fbe8794e409c8ef58e63
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 13:53:05 2011 -0400
+
+    A+C: Ziad Hatahet (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4964066
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

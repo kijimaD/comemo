@@ -1,0 +1,15 @@
+commit b7ef3c9a5465762a19cec6bc925ddeda1a6b441a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 12:22:45 2011 -0700
+
+    spec: define that initialization is sequential
+    
+    This is true of the existing implementations, and I think
+    it is an important property to guarantee.
+    
+    R=golang-dev, r, borman, r
+    CC=golang-dev
+    https://golang.org/cl/5321058
+
+ doc/go_spec.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

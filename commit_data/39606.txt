@@ -1,0 +1,22 @@
+commit 53c088fbf05f42b24e1f7aa40889ca51055f9f29
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 19 13:17:34 2019 -0400
+
+    cmd/go: fix "go help build -o" docs
+    
+    The docs refer to "the last two paragraphs", but in fact should refer to
+    the first two of the previous three paragraphs. Moved up the out of place
+    paragraph.
+    
+    Updates #14295
+    
+    Change-Id: I066da7a665bc6754d246782b941af214a385017a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190839
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

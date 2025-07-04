@@ -1,0 +1,19 @@
+commit 98cbf45cfc6a5a50cc6ac2367f9572cb198b57c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 22 07:40:19 2019 -0800
+
+    go/types: add gccgo sizes information
+    
+    This will need to be updated from time to time as new targets are
+    added to gccgo. But that is better than always returning nil.
+    
+    Change-Id: I04b8c4d0f8efa38e2a148eb2e38b16b09f0351c3
+    Reviewed-on: https://go-review.googlesource.com/c/158844
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/gccgosizes.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/sizes.go      | 10 ++++++++--
+ 2 files changed, 48 insertions(+), 2 deletions(-)

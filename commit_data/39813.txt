@@ -1,0 +1,18 @@
+commit d535501a8eefcb998b56e93f50a0fda9204d4721
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 6 17:55:35 2019 +0700
+
+    cmd/compile: remove tempname usages
+    
+    CL 59610 merged tempname to tempAt, but some of comments and error
+    message still refer to tempname. So changing to tempAt instead.
+    
+    Change-Id: I032f3bedc135d17124b0daaf22c97d0d5ada0a6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193817
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gen.go  | 8 ++++----
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

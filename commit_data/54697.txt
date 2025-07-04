@@ -1,0 +1,20 @@
+commit 696fb5ead03a4b84e11f2d195bc91838fdd029b2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 15 13:49:56 2023 -0400
+
+    cmd/internal/objabi: add inverse of PathToPrefix
+    
+    Add PrefixToPath, which can be used to convert a package path in a
+    symbol name back to the original package path.
+    
+    For #61577.
+    
+    Change-Id: Ifbe8c852a7f41ff9b81ad48b92a26a0e1b046777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529557
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/objabi/path.go      | 39 +++++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/path_test.go | 43 ++++++++++++++++++++++++++++++------
+ 2 files changed, 74 insertions(+), 8 deletions(-)

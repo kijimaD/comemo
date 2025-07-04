@@ -1,0 +1,13 @@
+commit f15300beb70586e1814782a8c61e0bdf11e0e80a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 3 10:35:49 2009 -0700
+
+    expand error regexp in dns test
+    
+    R=r
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=35292
+    CL=35303
+
+ src/pkg/net/net_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

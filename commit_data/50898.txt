@@ -1,0 +1,19 @@
+commit 201759f959a6182215efe6070cf94dd4610cb3e9
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Aug 31 23:34:26 2022 +0800
+
+    cmd/go/internal/modload: return error when tidyRoots fail
+    
+    Fixes #51589
+    
+    Change-Id: Ie9c56110754f4a435b22e2d7a86ae34b0bd28909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427054
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/load.go                | 27 +++++++-------
+ src/cmd/go/internal/web/api.go                     | 14 +++++---
+ .../mod_fileproxy_vcs_missing_issue51589.txt       | 42 ++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 18 deletions(-)

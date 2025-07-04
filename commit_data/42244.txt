@@ -1,0 +1,16 @@
+commit c12d7020f4d1712fde6944f6e57011937fcf89f5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri May 1 00:39:34 2020 +0200
+
+    cmd/dist: don't copy riscv64 specific files for bootstrap build
+    
+    For now this will only avoid copying math/big/arith_riscv64.s
+    
+    Change-Id: Ib236e4bf1a6a758649629268a6f512f307596e74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231298
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 ++
+ 1 file changed, 2 insertions(+)

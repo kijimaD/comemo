@@ -1,0 +1,23 @@
+commit 8d5065ce6e09dcded85c32b7eb7768c6f7fd3b7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 8 13:39:27 2023 -0400
+
+    cmd: vendor golang.org/x/tools/cmd/bisect
+    
+    Vendoring for use with the internal/godebug test
+    and eventually the cmd/compile test as well.
+    
+    Change-Id: I3f7151949cff584705cb32ba39bf5de5cd45c3f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493597
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/tools/tools.go                             |  11 +
+ .../vendor/golang.org/x/tools/cmd/bisect/go119.go  |  13 +
+ .../vendor/golang.org/x/tools/cmd/bisect/go120.go  |  26 +
+ .../vendor/golang.org/x/tools/cmd/bisect/main.go   | 609 +++++++++++++++++++++
+ .../vendor/golang.org/x/tools/cmd/bisect/rand.go   |  20 +
+ .../golang.org/x/tools/internal/bisect/bisect.go   | 503 +++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +
+ 7 files changed, 1184 insertions(+)

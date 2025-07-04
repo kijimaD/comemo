@@ -1,0 +1,12 @@
+commit 78ba449a3c2f7db72653d5e46579c5a86348be24
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 1 16:33:06 2012 +0200
+
+    cmd/gc: Missing break in esc switch.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6594053
+
+ src/cmd/gc/esc.c | 1 +
+ 1 file changed, 1 insertion(+)

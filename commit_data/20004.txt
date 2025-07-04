@@ -1,0 +1,26 @@
+commit ba30c082c026b5ef029e5d855a90ea56ef9487ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 14 09:21:58 2014 -0700
+
+    cmd/cgo: check for compiler errors in the C preamble
+    
+    E.g., here's the new "go build" output:
+    
+    $ go build misc/cgo/errors/issue8442.go
+    # command-line-arguments
+    could not determine kind of name for C.issue8442foo
+    
+    gcc errors for preamble:
+    misc/cgo/errors/issue8442.go:11:19: error: unknown type name 'UNDEF'
+    
+    Fixes #8442.
+    
+    LGTM=iant
+    R=iant, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/129160043
+
+ misc/cgo/errors/issue8442.go | 17 +++++++++++++++++
+ misc/cgo/errors/test.bash    |  1 +
+ src/cmd/cgo/gcc.go           | 15 ++++++++++++---
+ 3 files changed, 30 insertions(+), 3 deletions(-)

@@ -1,0 +1,30 @@
+commit 3544082f75fd3d2df7af237ed9aef3ddd499ab9c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 1 10:14:32 2021 -0700
+
+    crypto/x509: verification with system and custom roots
+    
+    Make system cert pools special, such that when one has extra roots
+    added to it we run verifications twice, once using the platform
+    verifier, if available, and once using the Go verifier, merging the
+    results.
+    
+    This change re-enables SystemCertPool on Windows, but explicitly does
+    not return anything from CertPool.Subjects (which matches the behavior
+    of macOS). CertPool.Subjects is also marked deprecated.
+    
+    Fixes #46287
+    Fixes #16736
+    
+    Change-Id: Idc1843f715ae2b2d0108e55ab942c287181a340a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353589
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/cert_pool.go         |  27 +++++-----
+ src/crypto/x509/hybrid_pool_test.go  |  95 ++++++++++++++++++++++++++++++++
+ src/crypto/x509/root_darwin.go       |   2 +-
+ src/crypto/x509/root_windows.go      |  48 ++---------------
+ src/crypto/x509/root_windows_test.go | 102 +++++++++++++++++++++++++++++++++++
+ src/crypto/x509/verify.go            |  17 ++++--
+ 6 files changed, 229 insertions(+), 62 deletions(-)

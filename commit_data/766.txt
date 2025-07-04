@@ -1,0 +1,23 @@
+commit e4a61c6524bd6877c962db4dd89b3df8cea711b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 29 13:37:00 2008 -0700
+
+    * implement Linux epoll for polling i/o
+    * isolate OS-specific polling goop in Pollster type
+    * move generic poll loop out of fd_darwin.go into fd.go
+    
+    R=r
+    DELTA=782  (448 added, 281 deleted, 53 changed)
+    OCL=16108
+    CL=16119
+
+ src/lib/net/Makefile                 |  11 +-
+ src/lib/net/fd.go                    | 287 ++++++++++++++++++++++++++++++++
+ src/lib/net/fd_darwin.go             | 308 ++++-------------------------------
+ src/lib/net/fd_linux.go              | 155 ++++++++++++------
+ src/lib/net/net_linux.go             |  10 ++
+ src/lib/syscall/cast_amd64.s         |   5 +
+ src/lib/syscall/file_linux.go        |   7 +-
+ src/lib/syscall/socket_linux.go      |  20 ++-
+ src/lib/syscall/types_amd64_linux.go |  25 ++-
+ 9 files changed, 498 insertions(+), 330 deletions(-)

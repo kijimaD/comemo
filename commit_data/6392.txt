@@ -1,0 +1,12 @@
+commit 07b56fce66f1548a7a505791742f39e7f82b2798
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 27 11:43:53 2010 -0400
+
+    CONTRIBUTORS: add Balazs Lecz (Google CLA)
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2216053
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

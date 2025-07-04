@@ -1,0 +1,14 @@
+commit 6dbd1429518bf39bc6c92028f78094f384348653
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Nov 11 23:23:11 2009 -0800
+
+            add cache flushing call after generating closure.
+    
+            go/test: passes 88% (306/347)
+    
+    R=rsc
+    https://golang.org/cl/152089
+
+ src/pkg/runtime/arm/closure.c   |  4 ++++
+ src/pkg/runtime/linux/arm/sys.s | 11 +++++++++++
+ 2 files changed, 15 insertions(+)

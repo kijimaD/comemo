@@ -1,0 +1,14 @@
+commit 7c8be15b8ac477c2e6dc50da703d25345aa51e04
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Aug 27 06:38:11 2013 -0700
+
+    cmd/gc: mark panicslice as unlikely
+    
+    No measurable impact on performance on amd64
+    
+    R=golang-dev, khr, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13096045
+
+ src/cmd/gc/walk.c | 1 +
+ 1 file changed, 1 insertion(+)

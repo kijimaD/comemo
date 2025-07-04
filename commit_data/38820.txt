@@ -1,0 +1,48 @@
+commit 4aeac68c92c5b79d098aaa7fba168d4c943541ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 11 12:18:10 2019 -0700
+
+    runtime, cmd/compile: re-order PCDATA and FUNCDATA indices
+    
+    The pclntab encoding supports writing only some PCDATA and FUNCDATA values.
+    However, the encoding is dense: The max index in use determines the space used.
+    We should thus choose a numbering in which frequently used indices are smaller.
+    
+    This change re-orders the PCDATA and FUNCDATA indices using that principle,
+    using a quick and dirty instrumentation to measure index frequency.
+    
+    It shrinks binaries by about 0.5%.
+    
+    Updates #6853
+    
+    file      before    after     Δ       %
+    go        14745044  14671316  -73728  -0.500%
+    addr2line 4305128   4280552   -24576  -0.571%
+    api       6095800   6058936   -36864  -0.605%
+    asm       4930928   4906352   -24576  -0.498%
+    buildid   2881520   2861040   -20480  -0.711%
+    cgo       4896584   4867912   -28672  -0.586%
+    compile   25868408  25770104  -98304  -0.380%
+    cover     5319656   5286888   -32768  -0.616%
+    dist      3654528   3634048   -20480  -0.560%
+    doc       4719672   4691000   -28672  -0.607%
+    fix       3418312   3393736   -24576  -0.719%
+    link      6137952   6109280   -28672  -0.467%
+    nm        4250536   4225960   -24576  -0.578%
+    objdump   4665192   4636520   -28672  -0.615%
+    pack      2297488   2285200   -12288  -0.535%
+    pprof     14735332  14657508  -77824  -0.528%
+    test2json 2834952   2818568   -16384  -0.578%
+    trace     11679964  11618524  -61440  -0.526%
+    vet       8452696   8403544   -49152  -0.581%
+    
+    Change-Id: I30665dce57ec7a52e7d3c6718560b3aa5b83dd0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171760
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/objabi/funcdata.go | 13 +++++++------
+ src/runtime/funcdata.h              | 12 ++++++------
+ src/runtime/symtab.go               | 16 +++++++++-------
+ 3 files changed, 22 insertions(+), 19 deletions(-)

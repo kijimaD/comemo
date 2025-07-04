@@ -1,0 +1,21 @@
+commit 8666d89ca85fb0be4e41917dee31ad487e0f4ee6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 11 11:19:59 2021 -0500
+
+    runtime: tricky replacements of _g_ in signal_unix.go
+    
+    sighandler has gp, the goroutine running when the signal arrived, and
+    gsignal, the goroutine executing the signal handler. The latter is
+    usually mp.gsignal, except in the case noted by the delayedSignal check.
+    
+    Like previous CLs, cases where the getg() G is used only to access the M
+    are replaced with direct uses of mp.
+    
+    Change-Id: I2dc7894da7004af17682712e07a0be5f9a235d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418580
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/signal_unix.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

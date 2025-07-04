@@ -1,0 +1,25 @@
+commit 8221eb910383e27141a4e0482588289e50c574ab
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Dec 6 16:38:28 2010 -0500
+
+    8l, runtime: fix Plan 9 386 build.
+    8l was broken by commit 7ac0d2eed9, it caused .data to be page aligned in the file - which is not how Plan 9 expects things to be.
+    Also .rodata was layed out in a similar fashion.
+    
+    Not sure when signame was introduced, but added a stub.
+    Removed the symo assignment in asm.c as it is not currently used.
+    
+    Fix runtime breakage after commit 629c065d36 which prefixes all external symbols with runtime·.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2674041
+
+ src/cmd/8l/asm.c                      |  1 -
+ src/cmd/8l/obj.c                      |  2 +-
+ src/cmd/ld/data.c                     |  4 ++++
+ src/pkg/runtime/plan9/386/signal.c    |  6 ++++++
+ src/pkg/runtime/plan9/mem.c           |  2 +-
+ src/pkg/runtime/plan9/runtime_defs.go | 23 +++++++++++++++++++++++
+ src/pkg/runtime/plan9/thread.c        | 16 ++++++++--------
+ 7 files changed, 43 insertions(+), 11 deletions(-)

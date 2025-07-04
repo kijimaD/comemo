@@ -1,0 +1,57 @@
+commit 606019cb4b1c8fb57e5a83747ee0aff1054291d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 12 10:18:03 2019 -0700
+
+    cmd/compile: trim function name prefix from escape diagnostics
+    
+    This information is redundant with the position information already
+    provided. Also, no other -m diagnostics print out function name.
+    
+    While here, report parameter leak diagnostics against the parameter
+    declaration position rather than the function, and use Warnl for
+    "moved to heap" messages.
+    
+    Test cases updated programmatically by removing the first word from
+    every "no match for" error emitted by run.go:
+    
+    go run run.go |& \
+      sed -E -n 's/^(.*):(.*): no match for `([^ ]* (.*))` in:$/\1!\2!\3!\4/p' | \
+      while IFS='!' read -r fn line before after; do
+        before=$(echo "$before" | sed 's/[.[\*^$()+?{|]/\\&/g')
+        after=$(echo "$after" | sed -E 's/(\&|\\)/\\&/g')
+        fn=$(find . -name "${fn}" | head -1)
+        sed -i -E -e "${line}s/\"${before}\"/\"${after}\"/" "${fn}"
+      done
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6e02486b1409e4a8dbb2b9b816d22095835426b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195040
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go    |  22 ++--
+ src/cmd/compile/internal/gc/escape.go |   2 +-
+ test/escape2.go                       | 238 +++++++++++++++++-----------------
+ test/escape2n.go                      | 238 +++++++++++++++++-----------------
+ test/escape_array.go                  |   4 +-
+ test/escape_calls.go                  |   2 +-
+ test/escape_closure.go                |  14 +-
+ test/escape_field.go                  |  10 +-
+ test/escape_iface.go                  |   2 +-
+ test/escape_indir.go                  |   2 +-
+ test/escape_param.go                  |  20 +--
+ test/escape_struct_param1.go          |  52 ++++----
+ test/escape_struct_param2.go          |  52 ++++----
+ test/fixedbugs/issue12006.go          |  16 +--
+ test/fixedbugs/issue12588.go          |   2 +-
+ test/fixedbugs/issue13799.go          |  22 ++--
+ test/fixedbugs/issue17318.go          |  10 +-
+ test/fixedbugs/issue21709.go          |  10 +-
+ test/fixedbugs/issue7921.go           |  14 +-
+ test/inline.go                        |  12 +-
+ test/inline_big.go                    |   6 +-
+ test/linkname.dir/linkname1.go        |   2 +-
+ test/live_syscall.go                  |   2 +-
+ 23 files changed, 377 insertions(+), 377 deletions(-)

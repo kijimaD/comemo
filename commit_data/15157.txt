@@ -1,0 +1,12 @@
+commit 2b44c33b4a9ca2fa25c88e85803daa57f1080a03
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 7 13:31:53 2013 -0800
+
+    crypto/md5: fix for big-endian processors
+    
+    R=golang-dev, minux.ma, agl
+    CC=golang-dev
+    https://golang.org/cl/7305059
+
+ src/pkg/crypto/md5/md5block.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

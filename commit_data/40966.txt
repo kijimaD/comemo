@@ -1,0 +1,17 @@
+commit 590052ba29a6853683533f916284db39f935e4e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 6 20:47:29 2019 +0000
+
+    net/http: don't wait indefinitely in Transport for proxy CONNECT response
+    
+    Fixes #28012
+    
+    Change-Id: I711ebaabf63194e3d2c608d829da49c51a294d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210286
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go      | 23 ++++++++++++++++++
+ src/net/http/transport_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

@@ -1,0 +1,25 @@
+commit 5d0c20efc7bb373107535543f75741465fe93d3f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 12:57:44 2017 -0800
+
+    cmd/compile: preserve Type.nod in copytype
+    
+    By clearing out t.nod in copytype, we effectively lose the reference
+    from a Type back to its declaring OTYPE Node. This means later in
+    typenamesym when we add typenod(t) to signatlist, we end up creating a
+    new OTYPE Node. Moreover, this Node's position information will depend
+    on whatever context it happens be needed, and will be used for the
+    Type's position in the export data.
+    
+    Updates #19391.
+    
+    Change-Id: Ied93126449f75d7c5e3275cbdcc6fa657a8aa21d
+    Reviewed-on: https://go-review.googlesource.com/37870
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go   | 4 +---
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

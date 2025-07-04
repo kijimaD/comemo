@@ -1,0 +1,14 @@
+commit 78cee46f3ac116590380f2e25c0910eb44112d90
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 15 14:19:51 2012 +0900
+
+    src: gofmt -w -s
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6935059
+
+ src/pkg/exp/locale/collate/colelem.go       | 2 +-
+ src/pkg/runtime/race/testdata/map_test.go   | 4 ++--
+ src/pkg/runtime/race/testdata/slice_test.go | 6 +++---
+ 3 files changed, 6 insertions(+), 6 deletions(-)

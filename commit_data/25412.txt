@@ -1,0 +1,24 @@
+commit a7d2b4d7cef3bf3107c6cf9725cd1c6151cf18d4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 18 15:29:51 2015 -0800
+
+    runtime: disable a signal by restoring the original disposition
+    
+    Fixes #13034.
+    Fixes #13042.
+    Update #9896.
+    
+    Change-Id: I189f381090223dd07086848aac2d69d2c00d80c4
+    Reviewed-on: https://go-review.googlesource.com/18062
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testcarchive/main3.c              | 153 ++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo3/libgo3.go |  44 +++++++
+ misc/cgo/testcarchive/test.bash            |  18 ++-
+ misc/cgo/testcshared/main5.c               | 197 +++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo5/libgo5.go  |  44 +++++++
+ misc/cgo/testcshared/test.bash             |  20 ++-
+ src/os/signal/doc.go                       |  21 ++-
+ src/runtime/runtime2.go                    |   1 -
+ src/runtime/signal1_unix.go                |  13 +-
+ 9 files changed, 486 insertions(+), 25 deletions(-)

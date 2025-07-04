@@ -1,0 +1,18 @@
+commit 1ec91c8d1d871a8aa3243efef1d329d95e447293
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Mar 26 14:09:39 2010 -0700
+
+    math: add J1, Y1, Jn and Yn (Bessel functions)
+    
+    Also amend j0.go (variable name conflict, small corrections).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/769041
+
+ src/pkg/math/Makefile    |   2 +
+ src/pkg/math/all_test.go | 202 +++++++++++++++++++++-
+ src/pkg/math/j0.go       |  72 ++++----
+ src/pkg/math/j1.go       | 426 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/jn.go       | 310 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 970 insertions(+), 42 deletions(-)

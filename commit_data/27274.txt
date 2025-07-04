@@ -1,0 +1,16 @@
+commit 24744f6561f3ff7bc58046ba62abbc1c07e9fd4e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 4 11:43:42 2016 -0700
+
+    cmd/compile: check that SSA memory args are in the right place
+    
+    Fixes #15510
+    
+    Change-Id: I2e0568778ef90cf29712753b8c42109ef84a0256
+    Reviewed-on: https://go-review.googlesource.com/22784
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/check.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

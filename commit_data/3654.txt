@@ -1,0 +1,11 @@
+commit 57035a90415c11c87bb39013c747bf24f167fd0b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 26 15:47:56 2009 -0700
+
+    snippet generator for godoc search results
+    
+    R=rsc
+    http://go/go-review/1013014
+
+ src/cmd/godoc/snippet.go | 122 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)

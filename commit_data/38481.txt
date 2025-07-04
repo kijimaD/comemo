@@ -1,0 +1,19 @@
+commit 456f3e10cdee774ccf12121f47b88865a3777e7c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 20 11:32:59 2019 +1100
+
+    cmd/go: fix minor grammatical nit: command-line is an adjective...
+    
+    while command line is a noun.
+    
+    Change-Id: I9dfc2f6841d1171854857a8daa785d55afe2c5f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167783
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/go_test.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

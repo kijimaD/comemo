@@ -1,0 +1,19 @@
+commit d91f7e6637cc96029cd5a360a0a74153b39a3ae6
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Mar 28 08:05:43 2019 -0400
+
+    runtime: fix GDB tests on s390x running Ubuntu 18.04
+    
+    On Ubuntu 18.04 I am seeing GDB fail to restore the stack pointer
+    during this test because stack unwinding can't find the PC. This CL
+    is essentially a partial revert of CL 23940 and fixes the issue on
+    s390x.
+    
+    Change-Id: Ib4c41162dc85dc882eb6e248330f4082c3fa94c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169857
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9bcec3bbce9496dbd80163c68fd414364e7cb946
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 14 09:35:01 2011 +1000
+
+    C: add Sugu Sougoumarane, Googler.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4901041
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,23 @@
+commit bc548d71b9634341c514dcef10ce8141f330d95c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 14:41:12 2017 -0500
+
+    vendor/golang.org/x/crypto/curve25519: avoid loss of R15 in -dynlink mode
+    
+    Original code fixed in https://go-review.googlesource.com/#/c/36359/.
+    
+    Fixes #18820.
+    
+    Change-Id: I060e6c9d0e312b4fd5d0674aff131055bf5cf61d
+    Reviewed-on: https://go-review.googlesource.com/36412
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ .../golang_org/x/crypto/curve25519/const_amd64.h     |  8 ++++++++
+ .../golang_org/x/crypto/curve25519/const_amd64.s     |  4 ++--
+ .../golang_org/x/crypto/curve25519/freeze_amd64.s    |  4 +++-
+ .../x/crypto/curve25519/ladderstep_amd64.s           | 20 +++++++++++---------
+ .../golang_org/x/crypto/curve25519/mul_amd64.s       |  4 +++-
+ .../golang_org/x/crypto/curve25519/square_amd64.s    |  4 +++-
+ 6 files changed, 30 insertions(+), 14 deletions(-)

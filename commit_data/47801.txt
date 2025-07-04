@@ -1,0 +1,18 @@
+commit c948823cb7fc898eafb798ad15655663755d0bc9
+Author: MoZhonghua <Kasulle@gmail.com>
+Date:   Fri Nov 12 08:08:25 2021 +0000
+
+    runtime/cgo: fix signature of crosscall_amd64 in comment
+    
+    In CL 289192, crosscall_amd64() was changed to recieve 3
+    arguments, but the comment was not updated.
+    
+    Change-Id: Iba36c27aa5189e50f3fcc2a50291fecb2ef722c1
+    GitHub-Last-Rev: e7c041f00c562fdfeec84f1f3ea341713dcc7bf5
+    GitHub-Pull-Request: golang/go#49539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363442
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_amd64.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

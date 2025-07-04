@@ -1,0 +1,17 @@
+commit 4702dd67a7dcf1eac2309218807287bcd48d4e09
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 2 17:20:15 2021 -0400
+
+    cmd/internal/obj/arm64: simplify huge frame prologue
+    
+    CL 307010 for arm64.
+    
+    Change-Id: I6c6e1bd6065df059e50c3632a9eb669b64fce899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307050
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 54 ++++++++++++--------------------------
+ 1 file changed, 17 insertions(+), 37 deletions(-)

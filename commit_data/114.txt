@@ -1,0 +1,10 @@
+commit cc85574c25fdc2f6fc470e6d789aa2961e4c9460
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:07:38 2008 -0700
+
+    - updated golden.out one more time
+    
+    SVN=121552
+
+ test/golden.out | 3 ---
+ 1 file changed, 3 deletions(-)

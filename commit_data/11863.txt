@@ -1,0 +1,24 @@
+commit 31ab16f98eb9f7a121d666e22ac4d46d97934c1d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 13 20:16:57 2012 -0500
+
+    fix build for Linux/ARM.
+            1, IMO, the fatal error "regfree: not a register" from 5g when
+             compiling runtime/debug.go is due to gcc miscompile, it doesn't
+             show up when compiled with -O0. But I still haven't thought of
+             a way to fix this, should all ARM builds be built with -O0?
+            2, fixed mksysnum_linux.pl, so zsysnum_linux_arm.go no longer
+            needs to be hand-generated.
+            3, regen all in pkg syscall for Linux/ARM on Debian 6.0
+    This CL is somewhat big, I'd like to split it if necessary.
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/5659044
+
+ src/pkg/runtime/signal_linux_arm.c   |  17 +-
+ src/pkg/syscall/mksysnum_linux.pl    |   2 +-
+ src/pkg/syscall/zerrors_linux_arm.go | 115 ++++--
+ src/pkg/syscall/zsysnum_linux_arm.go | 672 ++++++++++++++++++-----------------
+ src/pkg/syscall/ztypes_linux_arm.go  |   3 +-
+ 5 files changed, 431 insertions(+), 378 deletions(-)

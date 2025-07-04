@@ -1,0 +1,22 @@
+commit 4164d60cc24c2889a9a40750891c61c537bbeb1b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 29 16:52:22 2010 +1000
+
+    doc: consolidate FAQs into a single file, go_faq.html
+    
+    An entirely mechanical change, with these exceptions:
+    - removed 'stub questions' that reference the other FAQs
+    - removed "Why doesn't Go run on Windows yet?" - out of date
+    
+    I will follow this CL with another that updates many of the
+    answers to make them more current.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2300041
+
+ doc/docs.html               |  22 +-
+ doc/go_faq.html             | 851 ++++++++++++++++++++++++++++++++++++++++----
+ doc/go_lang_faq.html        | 495 --------------------------
+ doc/go_programming_faq.html | 311 ----------------
+ 4 files changed, 792 insertions(+), 887 deletions(-)

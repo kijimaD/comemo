@@ -1,0 +1,14 @@
+commit 03a9872fe354f8aab1c50e4dc78f3117cd0acf7f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 20 13:53:20 2008 -0700
+
+    add primitive ftoa, dtoa to strings library.
+    
+    R=rsc
+    DELTA=72  (69 added, 0 deleted, 3 changed)
+    OCL=17478
+    CL=17480
+
+ src/lib/strings.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ test/stringslib.go |  6 ++++-
+ 2 files changed, 72 insertions(+), 3 deletions(-)

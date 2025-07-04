@@ -1,0 +1,21 @@
+commit a361ef36af4812815c02dd026c4672837442bf44
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Oct 28 15:37:13 2018 +0100
+
+    runtime: support GODEBUGCPU for more Unix-like operating systems
+    
+    Adds AIX, DragonFly BSD, FreeBSD, NetBSD, OpenBSD and Solaris
+    to the list of operating systems where the GODEBUGCPU environment
+    variable will be parsed and interal/cpu features can be enabled
+    and disabled.
+    
+    Updates #27218
+    
+    Change-Id: I9cd99142e2a5147cb00ca57b581f049ea6ce8508
+    Reviewed-on: https://go-review.googlesource.com/c/145281
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

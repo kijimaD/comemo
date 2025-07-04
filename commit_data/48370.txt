@@ -1,0 +1,19 @@
+commit d99ff0382116bb472b9f92ddf23cb22bf145bbcd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 9 17:17:40 2022 -0500
+
+    go/build: set PWD for go subcommands
+    
+    Since these commands already include an explicit Env field,
+    they will not be fixed automatically by proposal #50599.
+    
+    Change-Id: Ia8157a71cf0cfe208bdc0da9aef54be3d26c795f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391804
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/go/build/build.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

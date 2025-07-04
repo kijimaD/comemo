@@ -1,0 +1,15 @@
+commit 21efa7b2bc872958bcb252f5ab4dc52b2b0abeae
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 26 11:47:32 2015 +1300
+
+    syscall: skip tests that create a user namespace when chrooted
+    
+    The kernel rejects attempts to create user namespaces when in a chroot.
+    
+    Change-Id: I6548302732c8f5be52f4167cd7233aea16839ad8
+    Reviewed-on: https://go-review.googlesource.com/17214
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

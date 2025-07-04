@@ -1,0 +1,23 @@
+commit a1bf203b57ab854f2c1b7668ae96bc34e60e02fc
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Sep 15 17:24:42 2016 -0300
+
+    net: respect resolv.conf rotate option
+    
+    Instead of ranging over servers in the config, grab an offset
+    from the config that is used to determine indices.
+    
+    When the rotate option is enabled, the offset increases which
+    rotates queries through servers. Otherwise, it is always 0
+    which uses servers in config order.
+    
+    Fixes #17126
+    
+    Change-Id: If233f6de7bfa42f88570055b9ab631be08a76b3e
+    Reviewed-on: https://go-review.googlesource.com/29233
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/net/dnsclient_unix.go      | 13 ++++----
+ src/net/dnsclient_unix_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dnsconfig_unix.go      | 13 ++++++++
+ 3 files changed, 90 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 276003adb1154c7febdc375830d50477aeb404a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 1 16:14:58 2010 -0400
+
+    build: fiddle with make variables
+    
+    Fixes #1234.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2735043
+
+ src/Make.ccmd |  2 +-
+ src/Make.inc  | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

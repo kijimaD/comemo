@@ -1,0 +1,45 @@
+commit c76893d0da115a63374982196384f78fff224d55
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 8 19:09:07 2021 +0100
+
+    crypto/elliptic: refactor P-224 field implementation
+    
+    Improved readability, replaced constant time bit masked operations with
+    named functions, added comments. The behavior of every function should
+    be unchanged.
+    
+    The largest change is the logic that in p224Contract checks if the value
+    is greater than or equal to p. Instead of a lot of error-prone masking,
+    we run a throwaway subtraction chain and look at the final borrow bit.
+    
+    We could also not throw away the subtraction chain output and do a
+    constant time select instead of another masked subtraction, but we'd
+    still have to fix any underflows (because these are unsaturated limbs
+    and they underflow at 2^32 instead of 2^28). That's similar but
+    different from the carry-down chain we do elsewhere in that function
+    (which does undeflow fixing and borrow at the same time). I thought
+    having both variations in the same function would be confusing. Here's
+    how it would look like.
+    
+            var b uint32
+            var outMinusP p224FieldElement
+            for i := 0; i < len(out); i++ {
+                    outMinusP[i], b = bits.Sub32(out[i], p224P[i], b)
+            }
+            for i := 0; i < 3; i++ {
+                    mask := maskIfNegative(outMinusP[i])
+                    outMinusP[i] += (1 << 28) & mask
+                    // Note we DON'T borrow here, because it happened above.
+            }
+            for i := 0; i < len(out); i++ {
+                    out[i] = select32(b, out[i], outMinusP[i])
+            }
+    
+    Change-Id: I00932e8f171eff7f441b45666dccfd219ecbbc50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326311
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+
+ src/crypto/elliptic/p224.go      | 221 ++++++++++++++++-----------------------
+ src/crypto/elliptic/p224_test.go |   4 +-
+ 2 files changed, 91 insertions(+), 134 deletions(-)

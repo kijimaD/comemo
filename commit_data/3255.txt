@@ -1,0 +1,18 @@
+commit 2204cfddea02193bc6e4aae5214c674b5b256a82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 10 17:33:01 2009 -0700
+
+    fix bug206.
+    delay calls to savex as long as possible.
+    
+    R=ken
+    OCL=34535
+    CL=34546
+
+ src/cmd/6g/cgen.c                  | 21 +++++++--
+ src/cmd/6g/gg.h                    |  2 +
+ src/cmd/6g/ggen.c                  | 95 ++++++++++++++++++++++----------------
+ src/cmd/6g/gsubr.c                 |  4 +-
+ test/{bugs => fixedbugs}/bug206.go |  0
+ test/golden.out                    |  3 --
+ 6 files changed, 77 insertions(+), 48 deletions(-)

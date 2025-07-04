@@ -1,0 +1,18 @@
+commit 568d6f983172706d2f5f7f66024b7b7a544ada53
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 2 17:37:19 2017 -0400
+
+    cmd/compile: teach Haspointer about TSSA and TTUPLE
+    
+    These will appear when tracking live pointers in registers, so we need
+    to know whether they have pointers.
+    
+    For #24543.
+    
+    Change-Id: I2edccee39ca989473db4b3e7875ff166808ac141
+    Reviewed-on: https://go-review.googlesource.com/108497
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/types/type.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

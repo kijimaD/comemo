@@ -1,0 +1,20 @@
+commit 8127dbf76ad16350b72bbe29728836a90e60e3dc
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Aug 16 20:30:26 2017 +0200
+
+    cmd/link: skip TestFieldOverlap on Plan 9
+    
+    TestSizes has been added in CL 50170. This test is
+    failing on Plan 9 because executables don't have
+    a DWARF symbol table.
+    
+    Fixes #21480.
+    
+    Change-Id: I51079abdc18ad944617bdbcfe2dad970a0cea0f2
+    Reviewed-on: https://go-review.googlesource.com/56210
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,20 @@
+commit e9c2607ab47b63993cb5ee54c934d67baba7fc95
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 21 10:47:52 2023 -0400
+
+    runtime: skip TestG0StackOverflow on ios
+    
+    This test fails when run on ios. (Although ios does not normally
+    support "exec", in the corellium environment it does.)
+    
+    For #26061.
+    
+    Change-Id: Idfdc53758aaabf0cb87ae50f9a4666deebf57fd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

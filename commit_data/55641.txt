@@ -1,0 +1,20 @@
+commit de65aa41d865bad0b3eba573742834b9b29237b9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 20 20:39:53 2024 +0000
+
+    Revert "hash/maphash: parallel run test"
+    
+    This reverts CL 564576.
+    
+    Reason for revert: flaky on linux-386-longtest
+    
+    Fixes #65823.
+    
+    Change-Id: I20e11f15af050eae9a6c15e756a52ffad327c458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/hash/maphash/smhasher_test.go | 11 -----------
+ 1 file changed, 11 deletions(-)

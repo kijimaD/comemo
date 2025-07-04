@@ -1,0 +1,16 @@
+commit bdc9a837e914a3bd684ef3a24588b2627b1c6c04
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:19:57 2020 +0100
+
+    doc/go1.16: add path, path/filepath changes to release notes
+    
+    For #40700
+    Fixes #42910
+    
+    Change-Id: Ie380f5a03930d20dd5001c4cc184cadf2db33de7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274475
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

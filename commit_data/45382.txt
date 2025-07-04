@@ -1,0 +1,23 @@
+commit 983dea90c169930e35721232afe39fd4e3fbe4a6
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Apr 27 15:05:51 2021 -0500
+
+    cmd/link: disable plugin support if cgo is disabled
+    
+    Functional plugin support requires cgo to be enabled. Disable
+    it if the environment has disabled cgo.
+    
+    This prevents unexpected linker failures when linking large
+    binaries with cgo disabled which use the plugin package.
+    
+    Fixes #45564
+    
+    Change-Id: Ib71f0e089f7373b7b3e3cd53da3612291e7bc473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314449
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ld/lib.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

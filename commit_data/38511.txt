@@ -1,0 +1,14 @@
+commit 83d90bbc824e5874022a41bbbbe4f34c65876480
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:52:54 2019 +0100
+
+    syscall: fix returned values of Dup2 on aix/ppc64
+    
+    Change-Id: Ia78ea589cc6d58ff22f7d519399c06c5308419dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168878
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_aix.go        | 2 +-
+ src/syscall/zsyscall_aix_ppc64.go | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

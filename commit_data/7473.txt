@@ -1,0 +1,16 @@
+commit e881d42f8731f64c18098119454e4ae9dbc88360
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Feb 16 13:19:31 2011 -0500
+
+    os: add ENODATA and ENOTCONN
+    syscall: add MCL_* flags for mlockall
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4177044
+
+ src/pkg/os/error.go                    | 2 ++
+ src/pkg/syscall/mkerrors.sh            | 2 +-
+ src/pkg/syscall/zerrors_linux_386.go   | 2 ++
+ src/pkg/syscall/zerrors_linux_amd64.go | 2 ++
+ 4 files changed, 7 insertions(+), 1 deletion(-)

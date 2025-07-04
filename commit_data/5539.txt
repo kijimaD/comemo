@@ -1,0 +1,12 @@
+commit 751fc425ee51645646ce5a731f74a72c254ac75a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon May 24 16:38:41 2010 -0700
+
+    big: Rat test improvements
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1270041
+
+ src/pkg/big/rat_test.go | 152 +++++++++++++++++++++++-------------------------
+ 1 file changed, 72 insertions(+), 80 deletions(-)

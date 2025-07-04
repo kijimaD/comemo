@@ -1,0 +1,26 @@
+commit 815a5e29f434281c9ae3740ad43aadd4464ae15e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 26 21:00:37 2020 +0100
+
+    cmd/go: fix doc math for build cache hashing
+    
+    The function takes five 24-bit chunks from the hash, resulting in 120
+    bits. When base-64 encoded, this results in a 20-byte output string,
+    which is confirmed by "var dst [chunks * 4]byte".
+    
+    It seems like the documented math could have been written for a previous
+    implementation with shorter hashes, using 4 chunks instead of 5, as then
+    the math checks out.
+    
+    Since this code has been working correctly for over three years, let's
+    fix the documentation to reflect the code.
+    
+    Change-Id: I9e908e6bafb5dcc1e3c23915e2b6c8843ed444d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257646
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/buildid.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

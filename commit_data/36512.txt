@@ -1,0 +1,20 @@
+commit 21e85c293d02f8cb243b387b37a3d9c1c16305f7
+Author: Taesu Pyo <pyotaesu@gmail.com>
+Date:   Tue Aug 28 15:56:10 2018 +0000
+
+    encoding/json: fix UnmarshalTypeError without field and struct values
+    
+    Fixes #26444
+    Fixes #27275
+    
+    Change-Id: I9e8cbff79f7643ca8964c572c1a98172b6831730
+    GitHub-Last-Rev: 7eea2158b67ccab34b45a21e8f4289c36de02d93
+    GitHub-Pull-Request: golang/go#26719
+    Reviewed-on: https://go-review.googlesource.com/126897
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      |  6 +++---
+ src/encoding/json/decode_test.go | 17 +++++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

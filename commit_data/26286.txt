@@ -1,0 +1,17 @@
+commit 70090654de737e465df6d9d4c8aaa531285e5c71
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 17:03:10 2016 +1100
+
+    cmd/compile/internal/gc: tidy plive.go
+    
+    Make boolean looking things boolean.
+    
+    Change-Id: I8d1c0a32b471412b25a72908c7da6458d7bbe65b
+    Reviewed-on: https://go-review.googlesource.com/20723
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go    |  6 +++---
+ src/cmd/compile/internal/gc/plive.go | 24 +++++++++++-------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

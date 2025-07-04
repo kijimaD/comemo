@@ -1,0 +1,24 @@
+commit 554a3c51dc42516867c3df790f48507cc8fdc0af
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Mar 9 14:45:01 2025 +0100
+
+    cmd/compile: use min & max builtins to assert constant bounds in prove's tests
+    
+    I've originally used |= and &= to setup assumptions exploitable by the
+    operation under test but theses have multiple issues making it poor
+    for this usecase:
+    - &= does not pass the minimum value as-is, rather always set it to 0
+    - |= rounds up the max value to a number of the same length with all ones set
+    - I've never implemented them to work with negative signed numbers
+    
+    Change-Id: Ie43c576fb10393e69d6f989b048823daa02b1df8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656160
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ test/prove.go | 64 +++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 32 insertions(+), 32 deletions(-)

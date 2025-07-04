@@ -1,0 +1,25 @@
+commit 21b5f2637a37fe2fece7e6bf3d5f97a9520693ba
+Author: Maksym Sobolyev <sobomax@sippysoft.com>
+Date:   Wed Nov 20 19:27:40 2024 +0000
+
+    runtime: utilize EVFILT_USER more effectively
+    
+    Re-work kqueue_event wakeup logic to use one-shot events. In an
+    event of waking up a wrong thread, simply re-post the event.
+    
+    This saves close to 1 system call per wakeup on average, since
+    chances of non-blocking poller picking it up is pretty low.
+    
+    Change-Id: I202d0d57a31d91ac5354ea075215f647c65790d3
+    GitHub-Last-Rev: e707d4732683702bd2989f07230a2f34354c288b
+    GitHub-Pull-Request: golang/go#70408
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628975
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/netpoll_kqueue.go       |  7 ++++---
+ src/runtime/netpoll_kqueue_event.go | 13 +++++--------
+ src/runtime/netpoll_kqueue_pipe.go  |  6 +++++-
+ 3 files changed, 14 insertions(+), 12 deletions(-)

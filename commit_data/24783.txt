@@ -1,0 +1,15 @@
+commit 50fa64677611313bdd343c1dab85bf0c297d21a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 10 11:32:26 2015 -0800
+
+    cmd/compile/internal/gc: avoid potential endless loop in float printing
+    
+    The compiler should not usually call Fconv with an infinity, but if
+    it does, Fconv will end in an endless loop. Test for infinities early.
+    
+    Change-Id: I48f366466538b0bd26a851e01258725025babaff
+    Reviewed-on: https://go-review.googlesource.com/16777
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/mparith3.go | 5 +++++
+ 1 file changed, 5 insertions(+)

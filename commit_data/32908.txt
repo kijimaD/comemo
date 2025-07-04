@@ -1,0 +1,15 @@
+commit 3079b0ad89f95278facad20a653d17291ed6fde7
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Sep 9 16:28:32 2017 -0700
+
+    crypto/x509: reject empty name constraints extension
+    
+    Change-Id: Idcda0fc1607157cb5bbf0521fbdc0c77f043ca3a
+    Reviewed-on: https://go-review.googlesource.com/62691
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/crypto/x509/x509.go      |  8 ++++++++
+ src/crypto/x509/x509_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

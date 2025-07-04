@@ -1,0 +1,19 @@
+commit a48b35e9617c6f40156c1ad02a3cf99063fd742f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 17 15:12:28 2010 -0700
+
+    reflect: allow PtrValue.PointTo(nil)
+    
+    (Argument: For any *PtrValue p, it should
+    always be possible to do: p.PointTo(p.Elem()),
+    even if p.Elem() is nil.)
+    
+    Fixes #1028.
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/1938044
+
+ src/pkg/reflect/all_test.go | 7 +++++++
+ src/pkg/reflect/value.go    | 5 +++++
+ 2 files changed, 12 insertions(+)

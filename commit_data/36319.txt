@@ -1,0 +1,27 @@
+commit 3578918b6614effaeaa581687d810b74e342e0f8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 9 23:47:37 2018 -0400
+
+    runtime: replace manually managed G dequeues with a type
+    
+    There are two manually managed G dequeues. Abstract these both into a
+    shared gQueue type. This also introduces a gList type, which we'll use
+    to replace several manually-managed G lists in follow-up CLs.
+    
+    This makes the code more readable and maintainable. gcFlushBgCredit in
+    particular becomes much easier to follow. It also makes it easier to
+    introduce more G queues in the future. Finally, the gList type clearly
+    distinguishes between lists of Gs and individual Gs; currently both
+    are represented by a *g, which can easily lead to confusion and bugs.
+    
+    Change-Id: Ic7798841b405d311fc8b6aa5a958ffa4c7993c6c
+    Reviewed-on: https://go-review.googlesource.com/129396
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      |   4 +-
+ src/runtime/mgcmark.go  |  48 +++++------------
+ src/runtime/proc.go     | 141 ++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/runtime2.go |   3 +-
+ 4 files changed, 128 insertions(+), 68 deletions(-)

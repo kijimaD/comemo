@@ -1,0 +1,12 @@
+commit daf33c3ebeb40300957cc6fa0fb8c350ae7d26f9
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 10:04:06 2011 -0500
+
+    crypto/elliptic: add the N value of each curve.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4240104
+
+ src/pkg/crypto/elliptic/elliptic.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,18 @@
+commit c56dcd5fc7cd926b9d4a9c96a699a12f832317f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 11 14:27:41 2018 +0200
+
+    cmd/dist: make raceDetectorSupported an exact copy of cmd/internal/sys.RaceDetectorSupported
+    
+    The comment states that cmd/internal/sys.RaceDetectorSupported is a copy,
+    so make the two identical. No functional difference, since ppce64le is
+    only supported on linux anyway.
+    
+    Change-Id: Id3e4d445fb700b9b3bb53bf15ea05b8911b4f95e
+    Reviewed-on: https://go-review.googlesource.com/134595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

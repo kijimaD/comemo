@@ -1,0 +1,36 @@
+commit 71c59ee6fce79dddd7a39167e8658e3cfbba3c0f
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Nov 12 17:42:08 2019 -0500
+
+    runtime/pprof: fix the inlined frame merge logic
+    
+    tryAdd shouldn't succeed (and accept the new frame) if the last
+    existing frame on the deck is not an inlined frame.
+    
+    For example, when we see the followig stack
+    [300656 300664 300655 300664]
+    
+    with each PC corresponds to
+    
+    [{PC:300656 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300655 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
+    
+    PC:300656 and PC:300664 belong to a single location entry,
+    but the bug in the current tryAdd logic placed the entire stack into one
+    location entry.
+    
+    Also adds tests - this crash is a tricky case to test because I think it
+    should happen with normal go code. The new TestTryAdd simulates it by
+    using fake call sequences. The test crashed without the fix.
+    
+    Update #35538
+    
+    Change-Id: I6d3483f757abf4c429ab91616e4def90832fc04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206958
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 105 ++++++++++++++++++++++++++++++++++++----
+ src/runtime/pprof/proto.go      |   5 +-
+ 2 files changed, 97 insertions(+), 13 deletions(-)

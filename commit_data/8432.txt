@@ -1,0 +1,12 @@
+commit 8e26a644caa8644d3c1e3794cbd6b3971f505544
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 18 10:56:20 2011 -0700
+
+    image/jpeg: make writeDQT do fewer array copies.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4536069
+
+ src/pkg/image/jpeg/writer.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

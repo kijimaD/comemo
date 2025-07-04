@@ -1,0 +1,19 @@
+commit bd9776357732eb3a3c635427bb3591e4cbc79cc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 17:38:55 2021 -0700
+
+    cmd/compile/internal/types2: use an opaque environment for Instantiate
+    
+    This is a port of CL 343930 from go/types, adjusted to work for
+    the compiler: here Environment carries a *Checker, if available.
+    
+    Change-Id: I44544fad7da870fa0c02832baa6abd2909d50304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344612
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 26 +++++++++++++++++++++++---
+ 2 files changed, 24 insertions(+), 4 deletions(-)

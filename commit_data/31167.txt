@@ -1,0 +1,17 @@
+commit 69182885d9bbb6329be0583ab190521d0d1fc6da
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Apr 17 21:09:56 2017 +0200
+
+    misc/ios: fix the Test386EndToEnd test on iOS
+    
+    Some tests need the src/runtime/textflag.h file. Make sure it is
+    included in iOS test runs.
+    
+    Change-Id: I5e0e7ebe85679686ef15a7d336f28ac9b68a587a
+    Reviewed-on: https://go-review.googlesource.com/40915
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

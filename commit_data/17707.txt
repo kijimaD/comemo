@@ -1,0 +1,12 @@
+commit d6eada282e23013e42e99330f46d257316a213e0
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 27 12:57:09 2013 +1000
+
+    misc/vim: "PACKAGE DOCUMENTATION" is not hilighted
+    
+    R=golang-dev, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14018043
+
+ misc/vim/syntax/godoc.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

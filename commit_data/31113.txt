@@ -1,0 +1,21 @@
+commit 8a2cc222098539a687accef75f0d1551079ca6c9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Apr 12 05:34:36 2017 +0900
+
+    os: handle relative symlinks starting with slash in Stat on windows
+    
+    https://go-review.googlesource.com/c/39932/ handles relative symlinks.
+    But that change is incomplete.
+    We also have to handle relative symlinks starting with slash too.
+    
+    Fixes #19937
+    
+    Change-Id: I50dbccbaf270cb48a08fa57e5f450e5da18a7701
+    Reviewed-on: https://go-review.googlesource.com/40410
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go      | 17 +++++++++++++++++
+ src/os/stat_windows.go |  7 +++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

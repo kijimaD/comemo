@@ -1,0 +1,20 @@
+commit 989cc80167e0ec4e8c220f1aec308dbdf4b9b0e9
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 4 14:09:50 2017 -0700
+
+    cmd/compile: fix test to use correct go binary
+    
+    Use internal/testenv package to get the right go binary.
+    Otherwise, I think we're just grabbing an old one from the environment.
+    
+    Fixes #22560.
+    
+    Change-Id: Id5b743b24717e15ec8ffbcfae4dc3e5f6a87b9a9
+    Reviewed-on: https://go-review.googlesource.com/76090
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,11 @@
+commit 4bb0271a1294060454c27083ef2ec5451a4ff637
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 11:15:19 2009 -0800
+
+    remove reference to /home/r
+    
+    R=rsc
+    http://go/go-review/1018039
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

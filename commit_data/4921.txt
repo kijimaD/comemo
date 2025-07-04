@@ -1,0 +1,13 @@
+commit 39e91f88582092399910f1d3670cfd8871e2b5e9
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Feb 22 15:39:30 2010 -0800
+
+    http: use RawURL in Request.Write
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217066
+
+ src/pkg/http/request.go           | 11 +++++++----
+ src/pkg/http/requestwrite_test.go |  2 +-
+ 2 files changed, 8 insertions(+), 5 deletions(-)

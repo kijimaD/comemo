@@ -1,0 +1,12 @@
+commit 092c481c1bc1982ca992512d0e75503ca5878800
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 7 18:42:47 2013 -0700
+
+    reflect: document the unreliability of StringHeader and SliceHeader
+    
+    R=golang-dev, adg, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/8494045
+
+ src/pkg/reflect/value.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

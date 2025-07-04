@@ -1,0 +1,19 @@
+commit f096b5b340f6e831cf80cd39cbf88d4656d232fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 4 10:36:40 2017 -0700
+
+    runtime: mark activeModules nosplit/nowritebarrier
+    
+    The activeModules function is called by the cgo pointer checking code,
+    which is called by the write barrier (when GODEBUG=cgocheck=2), and as
+    such must be nosplit/nowritebarrier.
+    
+    Fixes #21306
+    
+    Change-Id: I57f2124f14de7f3872b2de9532abab15df95d45a
+    Reviewed-on: https://go-review.googlesource.com/53352
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/errors/ptr.go | 8 ++++++++
+ src/runtime/symtab.go  | 5 +++++
+ 2 files changed, 13 insertions(+)

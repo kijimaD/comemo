@@ -1,0 +1,15 @@
+commit 7c9f0f010982930d3c4d49d0d6f0b9a8cd96258a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 23 22:05:42 2010 -0400
+
+    html: disable print
+    
+    Everything is incomplete.
+    Let's not make noise like this a habit.
+    
+    R=nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/2272041
+
+ src/pkg/html/token.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,14 @@
+commit eb5eea9a8f336355fa2c7d006a56bb740b3486ec
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Mon Apr 27 00:38:04 2009 -0700
+
+    Fix the chunked encoding - terminate the chunk with CRLF.
+    
+    R=rsc
+    APPROVED=r
+    DELTA=11  (10 added, 0 deleted, 1 changed)
+    OCL=27723
+    CL=27879
+
+ src/lib/http/server.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

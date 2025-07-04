@@ -1,0 +1,15 @@
+commit e351533aab92362396e6c8940542fc74114f2074
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 17:45:43 2010 -0700
+
+    big: delete unnecessary type decls
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2732041
+
+ src/pkg/big/arith_test.go | 20 +++++---------
+ src/pkg/big/int_test.go   | 69 +++++++++++++++--------------------------------
+ src/pkg/big/nat_test.go   | 28 ++++++-------------
+ src/pkg/big/rat_test.go   | 24 ++++++-----------
+ 4 files changed, 44 insertions(+), 97 deletions(-)

@@ -1,0 +1,14 @@
+commit 5a18aef67cbd707cd15e6412ddd089d0b6fb4738
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 29 09:28:58 2011 +1100
+
+    goinstall: add -fix flag to run gofix on packages on build failure
+    goinstall: better error handling and reporting
+    
+    R=r, r, rsc, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/5421051
+
+ src/cmd/goinstall/download.go |  13 +-
+ src/cmd/goinstall/main.go     | 271 ++++++++++++++++++++++++++----------------
+ 2 files changed, 176 insertions(+), 108 deletions(-)

@@ -1,0 +1,13 @@
+commit f05c04146ea91ef290b2a4e2200c8ba58ab3b16d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 09:30:16 2009 -0700
+
+    forgot to adjust tmproot
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=30342
+    CL=30342
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

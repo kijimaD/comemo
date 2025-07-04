@@ -1,0 +1,19 @@
+commit a8b4bee683cbb54601bccefbfc28f95aa4340526
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 3 13:27:31 2019 -0400
+
+    cmd/go/internal/modfetch: replace nanomsg.org with vcs-test in TestCodeRepo
+    
+    nanomsg.org currently performs an HTTPS-to-HTTP redirect, so this case
+    fails after the fix for #29591.
+    
+    Updates #29591
+    
+    Change-Id: I6306d378ef213e98c0271258bbc6669bb33f9021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170637
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

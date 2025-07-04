@@ -1,0 +1,27 @@
+commit 73f1a1a1a7f7781c095ef6aebe8b0adf0669d6b2
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Oct 19 18:59:41 2017 -0400
+
+    cmd/compile/internal/ssa: use reverse postorder traversal
+    
+    Instead of the hand-written control flow analysis in debug info
+    generation, use a reverse postorder traversal, which is basically the
+    same thing. It should be slightly faster.
+    
+    More importantly, the previous version simply gave up in the case of
+    non-reducible functions, and produced output that caused a later stage
+    to crash. It turns out that there's a non-reducible function in
+    compress/flate, so that wasn't a theoretical issue.
+    
+    With this change, all blocks will be visited, even for non-reducible
+    functions.
+    
+    Change-Id: Id47536764ee93203c6b4105a1a3013fe3265aa12
+    Reviewed-on: https://go-review.googlesource.com/73110
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/fmt_test.go           |  1 -
+ src/cmd/compile/internal/ssa/debug.go | 52 ++++-------------------------------
+ 2 files changed, 6 insertions(+), 47 deletions(-)

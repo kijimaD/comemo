@@ -1,0 +1,18 @@
+commit 5d5305026ec51ff3aaa6e7a7c18a815a3ac787c7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Aug 4 20:50:12 2023 +0000
+
+    internal/testenv: replace “go run.” with “go run”. in comments
+    
+    Change-Id: I7d960ebeac38262c8ee39deeed9e1a2ea2803f5f
+    GitHub-Last-Rev: 59c5d7ea76dcca5424ce79f6030196c8adbf1fd9
+    GitHub-Pull-Request: golang/go#61755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515800
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/testenv/testenv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

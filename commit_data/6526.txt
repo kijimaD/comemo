@@ -1,0 +1,12 @@
+commit 0b2af925db28de399a25041c904c0ebd03a3f39a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 14 17:15:45 2010 -0400
+
+    arm: enable 6 more tests after net fix
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2520042
+
+ src/pkg/Makefile | 6 ------
+ 1 file changed, 6 deletions(-)

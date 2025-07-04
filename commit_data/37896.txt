@@ -1,0 +1,27 @@
+commit dc889025c714313fbe912ad1253f0ec748a6e58c
+Author: Raul Silvera <rauls5382@gmail.com>
+Date:   Fri Jan 18 00:14:29 2019 +0000
+
+    runtime: sample large heap allocations correctly
+    
+    Remove an unnecessary check on the heap sampling code that forced sampling
+    of all heap allocations larger than the sampling rate. This need to follow
+    a poisson process so that they can be correctly unsampled. Maintain a check
+    for MemProfileRate==1 to provide a mechanism for full sampling, as
+    documented in https://golang.org/pkg/runtime/#pkg-variables.
+    
+    Additional testing for this change is on cl/129117.
+    
+    Fixes #26618
+    
+    Change-Id: I7802bde2afc655cf42cffac34af9bafeb3361957
+    GitHub-Last-Rev: 471f747af845395d458096bea26daa93b91120be
+    GitHub-Pull-Request: golang/go#29791
+    Reviewed-on: https://go-review.googlesource.com/c/158337
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/malloc.go                    | 2 +-
+ src/runtime/testdata/testprog/memprof.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

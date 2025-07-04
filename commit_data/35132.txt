@@ -1,0 +1,25 @@
+commit 90e860f1a8f1412dad5f0c6ae10b650352c3a6b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 11:10:00 2018 -0400
+
+    cmd/go: add go list -deps
+    
+    This gives an easy way to query properties of all the deps
+    of a set of packages, in a single go list invocation.
+    Go list has already done the hard work of loading these
+    packages, so exposing them is more efficient than
+    requiring a second invocation.
+    
+    This will be helpful for tools asking cmd/go about build
+    information.
+    
+    Change-Id: I90798e386246b24aad92dd13cb9e3788c7d30e91
+    Reviewed-on: https://go-review.googlesource.com/107776
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go            | 15 +++++++++------
+ src/cmd/go/go_test.go            | 15 +++++++++++++++
+ src/cmd/go/internal/list/list.go | 16 +++++++++++++++-
+ 3 files changed, 39 insertions(+), 7 deletions(-)

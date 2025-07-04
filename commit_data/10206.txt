@@ -1,0 +1,21 @@
+commit 29a5ae657fcbd3c673d8c206f4afaa0948538d6b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 2 15:36:33 2011 +0100
+
+    gc: small fixes for printing.
+    
+    mark OADDR inserted by typecheck as implicit
+    OCOPY takes ->left and ->right, not ->list
+    OMAKE*'s can all have arguments
+    precedence for OIND was initalized twice
+    
+    fixes #2414
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/5319065
+
+ src/cmd/gc/fmt.c       | 11 ++++-------
+ src/cmd/gc/typecheck.c |  1 +
+ test/escape2.go        |  6 +++---
+ 3 files changed, 8 insertions(+), 10 deletions(-)

@@ -1,0 +1,21 @@
+commit ff9f5fb8591c6d3e4cd4881e75f49440a3a875c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 2 07:43:57 2021 -0700
+
+    cmd/link: recognize clang linker error in testCGOLTO
+    
+    Also recognize a case in which GCC does not run (from
+    https://build.golang.org/log/7f6d8b35c905b9829f05906beccca44f208aa569).
+    
+    Fixes #46517
+    
+    Change-Id: I4fe4164a5df92b2dec08fd767f65a4d5479f3f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324169
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/cgo_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

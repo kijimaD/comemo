@@ -1,0 +1,21 @@
+commit 4797523572c14df11898ab1c844562431606d157
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Aug 12 14:04:03 2008 -0700
+
+    fixed bugs in const/case
+    
+    R=r
+    DELTA=138  (75 added, 12 deleted, 51 changed)
+    OCL=14129
+    CL=14131
+
+ src/cmd/6g/gen.c      |  5 ++--
+ src/cmd/gc/const.c    | 20 +++++++++-----
+ src/cmd/gc/go.h       |  2 ++
+ src/cmd/gc/go.y       | 52 ++++++++++++++++++++++++++++++-------
+ src/cmd/gc/lex.c      |  2 +-
+ src/cmd/gc/mparith1.c | 22 ++++++++++++++++
+ src/cmd/gc/subr.c     |  2 +-
+ src/cmd/gc/walk.c     |  2 +-
+ test/ken/rob2.go      | 72 +++++++++++++++++++++++++--------------------------
+ 9 files changed, 121 insertions(+), 58 deletions(-)

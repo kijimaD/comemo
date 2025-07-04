@@ -1,0 +1,14 @@
+commit ec512340148f80aa0be3da90f86043ff535c4081
+Author: Sam Whited <sam@samwhited.com>
+Date:   Wed Mar 8 16:12:58 2017 -0600
+
+    encoding/xml: format test output using subtests
+    
+    Change-Id: I2d155c838935cd8427abd142a462ff4c56829715
+    Reviewed-on: https://go-review.googlesource.com/37948
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/marshal_test.go | 77 +++++++++++++++++++++-------------------
+ 1 file changed, 41 insertions(+), 36 deletions(-)

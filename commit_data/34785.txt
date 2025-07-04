@@ -1,0 +1,25 @@
+commit 625f2dccd4593d709f98e6411e9bee9f195b5c61
+Author: Bryan Chan <bryanpkc@gmail.com>
+Date:   Fri Mar 23 04:14:25 2018 -0400
+
+    cmd/compile/internal/ssa: handle symbol address comparisons consistently
+    
+    CL 38338 introduced SSA rules to optimize two types of pointer equality
+    tests: a pointer compared with itself, and comparison of addresses taken
+    of two symbols which may have the same base. This patch adds rules to
+    apply the same optimization to pointer inequality tests, which also ensures
+    that two pointers to zero-width types cannot be both equal and unequal
+    at the same time.
+    
+    Fixes #24503.
+    
+    Change-Id: Ic828aeb86ae2e680caf66c35f4c247674768a9ba
+    Reviewed-on: https://go-review.googlesource.com/102275
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 59 ++++++++++++++++++++++++++
+ test/fixedbugs/issue24503.go                   | 28 ++++++++++++
+ 3 files changed, 89 insertions(+)

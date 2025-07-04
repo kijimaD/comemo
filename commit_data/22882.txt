@@ -1,0 +1,21 @@
+commit 9b184fd23c47a8eae3587b247d05b25f8cab04ed
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 1 07:49:12 2015 +0900
+
+    net: deflake listener tests
+    
+    This change makes TestDualStack{TCP,UDP}Listener work more properly by
+    attempting to book an available service port before testing.
+    
+    Also simplifies error messages in tests.
+    
+    Fixes #5001.
+    
+    Change-Id: If13b0d0039878c9bd32061a0440664e4fa7abaf7
+    Reviewed-on: https://go-review.googlesource.com/9661
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go       |  40 ++++
+ src/net/listen_test.go     | 544 ++++++++++++++++++++++++---------------------
+ src/net/mockserver_test.go |  63 ++++++
+ 3 files changed, 391 insertions(+), 256 deletions(-)

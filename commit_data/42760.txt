@@ -1,0 +1,17 @@
+commit 31da1d993a498acefcf3dd5fdfbefa8eec132791
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Wed Aug 19 01:38:43 2020 +0000
+
+    cmd/internal/objfile: cache computation of goobj.Arch
+    
+    Change-Id: I23774cf185e5fa6b89398001cd0655fb0c5bdb46
+    GitHub-Last-Rev: ca8cae2469b5fad84bd636a3305a484dfdcb0db2
+    GitHub-Pull-Request: golang/go#40877
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249180
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/archive/archive.go |  6 ++++++
+ src/cmd/internal/objfile/goobj.go   | 32 +++++++++++++-------------------
+ 2 files changed, 19 insertions(+), 19 deletions(-)

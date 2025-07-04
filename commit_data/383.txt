@@ -1,0 +1,15 @@
+commit 85303f271529213a19729a35d50ee18f8580f9af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 17 15:11:46 2008 -0700
+
+    - moved struct Compilation into globals.go, adjusted deps
+    - bail out after > 10 errors
+    - fixed send/recv statements
+    
+    SVN=127890
+
+ usr/gri/gosrc/compilation.go | 47 +++--------------------------------------
+ usr/gri/gosrc/globals.go     | 50 +++++++++++++++++++++++++++++++++++++++++---
+ usr/gri/gosrc/parser.go      |  4 ++--
+ usr/gri/gosrc/scanner.go     |  4 ++++
+ 4 files changed, 56 insertions(+), 49 deletions(-)

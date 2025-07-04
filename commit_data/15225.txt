@@ -1,0 +1,12 @@
+commit ee9d148ce159581dfd0005dede6c56d1d4afeafe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 14 07:02:32 2013 +0900
+
+    net: add test for Dial and Listen arguments
+    
+    R=dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7305081
+
+ src/pkg/net/dial_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

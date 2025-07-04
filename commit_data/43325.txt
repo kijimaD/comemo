@@ -1,0 +1,19 @@
+commit c06a699fb69e17274905bc8d9942de4a4ab8b31b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 16 22:39:51 2020 +0700
+
+    cmd/compile: remove deltaNewFile
+    
+    CL 196963 removed last usages of deltaNewFile, this CL remove it. While
+    at it, move the comment to go/internal/gcimporter.
+    
+    Change-Id: Ieea47db405cf43744689f50b79be8ca710e21c85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263077
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 5 -----
+ src/go/internal/gcimporter/support.go  | 5 ++++-
+ 2 files changed, 4 insertions(+), 6 deletions(-)

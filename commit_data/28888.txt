@@ -1,0 +1,49 @@
+commit faf882d1d427e8c8a9a1be00d8ddcab81d1e848e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 14 11:45:59 2016 +0100
+
+    net/http: make Server Handler's Request.Context be done on conn errors
+    
+    This CL changes how the http1 Server reads from the client.
+    
+    The goal of this change is to make the Request.Context given to Server
+    Handlers become done when the TCP connection dies (has seen any read
+    or write error). I didn't finish that for Go 1.7 when Context was
+    added to http package.
+    
+    We can't notice the peer disconnect unless we're blocked in a Read
+    call, though, and previously we were only doing read calls as needed,
+    when reading the body or the next request. One exception to that was
+    the old pre-context CloseNotifier mechanism.
+    
+    The implementation of CloseNotifier has always been tricky. The past
+    few releases have contained the complexity and moved the
+    reading-from-TCP-conn logic into the "connReader" type. This CL
+    extends connReader to make sure that it's always blocked in a Read
+    call, at least once the request body has been fully consumed.
+    
+    In the process, this deletes all the old CloseNotify code and unifies
+    it with the context cancelation code. The two notification mechanisms
+    are nearly identical, except the CloseNotify path always notifies on
+    the arrival of pipelined HTTP/1 requests. We might want to change that
+    in a subsequent commit. I left a TODO for that. For now there's no
+    change in behavior except that the context now cancels as it was
+    supposed to.
+    
+    As a bonus that fell out for free, a Handler can now use CloseNotifier
+    and Hijack together in the same request now.
+    
+    Fixes #15224 (make http1 Server always in a Read, like http2)
+    Fixes #15927 (cancel context when underlying connection closes)
+    Updates #9763 (CloseNotifier + Hijack)
+    
+    Change-Id: I972cf6ecbab7f1230efe8cc971e89f8e6e56196b
+    Reviewed-on: https://go-review.googlesource.com/31173
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/http.go       |   5 +
+ src/net/http/serve_test.go |  12 +--
+ src/net/http/server.go     | 249 +++++++++++++++++++++++++++++----------------
+ 3 files changed, 170 insertions(+), 96 deletions(-)

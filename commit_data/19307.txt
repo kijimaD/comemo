@@ -1,0 +1,31 @@
+commit 0f52fdbf7ba599702643660b46ce94f4925856b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 16:32:38 2014 -0400
+
+    cmd/go: accept build flags in clean and list
+    
+    list has been adding them one at a time haphazardly
+    (race and tags were there and documented; compiler
+    was there and undocumented).
+    
+    clean -i needs -compiler in order to clean the
+    installed targets for alternate compilers.
+    
+    Fixes #7302.
+    
+    While we're here, tweak the language in the 'go get' docs
+    about build flags.
+    
+    Fixes #7807.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/99130043
+
+ src/cmd/go/build.go |  6 ++++--
+ src/cmd/go/clean.go | 29 ++++++++++++++++-------------
+ src/cmd/go/doc.go   | 16 ++++++++--------
+ src/cmd/go/get.go   |  5 +----
+ src/cmd/go/list.go  | 16 +++-------------
+ 5 files changed, 32 insertions(+), 40 deletions(-)

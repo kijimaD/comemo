@@ -1,0 +1,14 @@
+commit 123e89fef1aceac1c8fa5a0201c851734beb577d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Apr 20 10:07:56 2011 -0700
+
+    gofmt: add -diff
+    
+    Some code duplication with gofix.
+    
+    R=rsc, gri, bradfitzgo, r2, adg, peterGo, r, brainman
+    CC=golang-dev
+    https://golang.org/cl/4430054
+
+ src/cmd/gofmt/gofmt.go | 46 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 1 deletion(-)

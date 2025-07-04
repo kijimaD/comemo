@@ -1,0 +1,39 @@
+commit dd21a77bfae041eefe7b02ab5a40a7c4d3403f8d
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 09:03:15 2023 -0700
+
+    internal: add wasip1 support
+    
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I1488726e5b43cd21c5f83900476afd2fb63d70c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479622
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/test.go                               |   3 +
+ src/internal/poll/{fcntl_js.go => fcntl_wasm.go}   |   4 +-
+ src/internal/poll/fd_fsync_posix.go                |   2 +-
+ .../poll/{fd_poll_js.go => fd_poll_wasm.go}        |   4 +-
+ src/internal/poll/fd_posix.go                      |   2 +-
+ src/internal/poll/fd_unix.go                       |  62 +------
+ src/internal/poll/fd_unixjs.go                     |  68 ++++++++
+ src/internal/poll/fd_wasip1.go                     | 186 +++++++++++++++++++++
+ src/internal/poll/hook_unix.go                     |   2 +-
+ src/internal/poll/sys_cloexec.go                   |   2 +-
+ src/internal/syscall/unix/net_wasip1.go            |  44 +++++
+ src/internal/syscall/unix/nonblocking_wasip1.go    |  11 ++
+ src/internal/testenv/exec.go                       |   2 +-
+ src/internal/testenv/testenv.go                    |   9 +-
+ src/internal/testenv/testenv_notunix.go            |   2 +-
+ src/syscall/syscall_wasip1.go                      |   3 +
+ 16 files changed, 334 insertions(+), 72 deletions(-)

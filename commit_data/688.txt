@@ -1,0 +1,19 @@
+commit b90b213e61550844f1d71adfb83e691e1b390cc6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 19 15:49:55 2008 -0700
+
+    Updated spec:
+    - clarified constants and constant expressions
+    - clarified type of array composite literals (fixed vs open arrays)
+    - clarified type of map composite literals (need to use '&' to get
+      a map pointer)
+    - added proposal for "if-else" (TBD)
+    - added TODO w/ respect to "x, ok = <-ch" (and for arrays)
+    
+    R=r
+    DELTA=51  (35 added, 0 deleted, 16 changed)
+    OCL=15573
+    CL=15575
+
+ doc/go_spec.txt | 67 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 16 deletions(-)

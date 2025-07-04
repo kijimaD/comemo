@@ -1,0 +1,14 @@
+commit 21c9f82f40edca8d93d3c07f1546735aead243e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 11:23:39 2009 -0700
+
+    update convlit.go to current spec
+    
+    R=r
+    DELTA=17  (2 added, 9 deleted, 6 changed)
+    OCL=28286
+    CL=28286
+
+ test/convlit.go | 14 +++++++-------
+ test/golden.out |  9 ---------
+ 2 files changed, 7 insertions(+), 16 deletions(-)

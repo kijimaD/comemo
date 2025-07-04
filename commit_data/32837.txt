@@ -1,0 +1,19 @@
+commit 5e92c411284f1757c3531a70530170f1079ee5fc
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Sep 25 12:30:41 2017 +0200
+
+    runtime: fix TestGdbConst on windows
+    
+    Some (all?) versions of gdb on windows output "\r\n" as line ending
+    instead of "\n".
+    
+    Fixes #22012
+    
+    Change-Id: I798204fd9f616d6d2c9c28eb5227fadfc63c0d45
+    Reviewed-on: https://go-review.googlesource.com/65850
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

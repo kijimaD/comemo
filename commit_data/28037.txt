@@ -1,0 +1,15 @@
+commit 78bc418f1d7f9346e3214ac40506624ab7f5f649
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 13:12:34 2016 -0700
+
+    cmd/compile: remove unused importimport function
+    
+    Functionality is present in bimport.go in slightly modified form.
+    
+    Change-Id: I6be79d91588873e6ba70d6ab07ba2caa12346dfc
+    Reviewed-on: https://go-review.googlesource.com/27672
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go |  8 +++++++-
+ src/cmd/compile/internal/gc/export.go  | 28 ----------------------------
+ 2 files changed, 7 insertions(+), 29 deletions(-)

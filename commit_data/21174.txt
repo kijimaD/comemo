@@ -1,0 +1,21 @@
+commit 949dd102229453f8fb55816ea9c33fc762324780
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 13:46:13 2015 -0500
+
+    misc/cgo: disable TestAllocateFromC in wbshadow mode
+    
+    This test is doing pointer graph manipulation from C, and we
+    cannot support that with concurrent GC. The wbshadow mode
+    correctly diagnoses missing write barriers.
+    
+    Disable the test in that mode for now. There is a bigger issue
+    behind it, namely SWIG, but for now we are focused on making
+    all.bash pass with wbshadow enabled.
+    
+    Change-Id: I55891596d4c763e39b74082191d4a5fac7161642
+    Reviewed-on: https://go-review.googlesource.com/2346
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ misc/cgo/test/callback.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

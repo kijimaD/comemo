@@ -1,0 +1,70 @@
+commit ce008f8c37e07190a27368f6e546617a40267fd1
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Sep 15 08:51:55 2011 -0700
+
+    exp/template/html: pre-sanitized content
+    
+    Not all content is plain text.  Sometimes content comes from a trusted
+    source, such as another template invocation, an HTML tag whitelister,
+    etc.
+    
+    Template authors can deal with over-escaping in two ways.
+    
+    1) They can encapsulate known-safe content via
+       type HTML, type CSS, type URL, and friends in content.go.
+    2) If they know that the for a particular action never needs escaping
+       then they can add |noescape to the pipeline.
+       {{.KnownSafeContent | noescape}}
+       which will prevent any escaping directives from being added.
+    
+    This CL defines string type aliases: HTML, CSS, JS, URI, ...
+    It then modifies stringify to unpack the content type.
+    Finally it modifies the escaping functions to use the content type and
+    decline to escape content that does not require it.
+    
+    There are minor changes to escapeAction and helpers to treat as
+    equivalent explicit escaping directives such as "html" and "urlquery"
+    and the escaping directives defined in the contextual autoescape module
+    and to recognize the special "noescape" directive.
+    
+    The html escaping functions are rearranged.  Instead of having one
+    escaping function used in each {{.}} in
+    
+        {{.}} : <textarea title="{{.}}">{{.}}</textarea>
+    
+    a slightly different escaping function is used for each.
+    When {{.}} binds to a pre-sanitized string of HTML
+    
+        `one < <i>two</i> &amp; two < "3"`
+    
+    we produces something like
+    
+         one < <i>two</i> &amp; two < "3" :
+         <textarea title="one &lt; two &amp; two &lt; &#34;3&#34;">
+           one &lt; &lt;i&gt;two&lt;/i&gt; &amp; two &lt; "3"
+         </textarea>
+    
+    Although escaping is not required in <textarea> normally, if the
+    substring </textarea> is injected, then it breaks, so we normalize
+    special characters in RCDATA and do the same to preserve attribute
+    boundaries.  We also strip tags since developers never intend
+    typed HTML injected in an attribute to contain tags escaped, but
+    do occasionally confuse pre-escaped HTML with HTML from a
+    tag-whitelister.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4962067
+
+ src/pkg/exp/template/html/Makefile        |   1 +
+ src/pkg/exp/template/html/content.go      |  83 ++++++++++
+ src/pkg/exp/template/html/content_test.go | 196 +++++++++++++++++++++++
+ src/pkg/exp/template/html/css.go          |  14 +-
+ src/pkg/exp/template/html/doc.go          |  39 +----
+ src/pkg/exp/template/html/escape.go       |  47 ++++--
+ src/pkg/exp/template/html/escape_test.go  |  43 ++++-
+ src/pkg/exp/template/html/html.go         | 252 +++++++++++++++++++++---------
+ src/pkg/exp/template/html/html_test.go    |  42 ++++-
+ src/pkg/exp/template/html/js.go           |  54 +++++--
+ src/pkg/exp/template/html/url.go          |  12 +-
+ 11 files changed, 639 insertions(+), 144 deletions(-)

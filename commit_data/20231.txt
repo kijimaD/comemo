@@ -1,0 +1,13 @@
+commit 310bc98083c57b87df6e8020bfd97e35a8127bf1
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Mon Sep 1 12:03:23 2014 +1000
+
+    net/http: fix typo in comment
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/138960043
+
+ src/pkg/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

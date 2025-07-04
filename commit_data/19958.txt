@@ -1,0 +1,16 @@
+commit 40b94405463415f6ba5d2decc0cd51eb61c67b65
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 8 16:19:45 2014 +1000
+
+    debug/pe/testdata: make sure gcc-amd64-mingw-exec has symbols
+    
+    as per rsc request
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/123970043
+
+ src/pkg/debug/pe/file_test.go                  |  31 +++++++++++++++----------
+ src/pkg/debug/pe/testdata/gcc-amd64-mingw-exec | Bin 37376 -> 273083 bytes
+ 2 files changed, 19 insertions(+), 12 deletions(-)

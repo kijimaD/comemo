@@ -1,0 +1,16 @@
+commit 387c1c661f3642daed5ac7aa5da6941cbe7370a1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 15 10:30:12 2014 +0400
+
+    runtime: make a test more robust
+    The issue is discovered during testing of a change to runtime.
+    Even if it is unlikely to happen, the comment can safe an hour
+    next person who hits it.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/116790043
+
+ src/pkg/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

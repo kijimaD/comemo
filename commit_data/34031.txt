@@ -1,0 +1,28 @@
+commit 4a7334b7f2b30aa4b14f5c38fae561f9afffc076
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jan 19 18:26:58 2018 +0100
+
+    cmd/dist: only run swig tests when a go directory is present in swiglib
+    
+    When there is no go directory inside the swiglib directory then swig
+    was installed without Go support. Tests in misc/swig will fail when
+    swig is installed without Go support.
+    
+    Add additional checks for the presence of a go directory in the directory
+    reported by 'swig -go -swiglib' to determine if misc/swig tests should
+    be run.
+    
+    This avoids all.bash failing when swig but not swig-go is installed
+    using macports.
+    
+    Tested on darwin with swig and with and without swig-go installed
+    using macports.
+    
+    Fixes #23469
+    
+    Change-Id: I173201221554982ea0d9f2bea70a3cb85b297cec
+    Reviewed-on: https://go-review.googlesource.com/88776
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/dist/test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

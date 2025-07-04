@@ -1,0 +1,18 @@
+commit 1c322524ada678c26b831c7e88525e65130a0880
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 9 14:28:02 2017 -0500
+
+    cmd/compile: remove unnecessary tmpdir in ssa_test
+    
+    I added this in CL 76024 in order to do compile+link+run. This
+    is no longer necessary after CL 76551, which changed it back to
+    "go run". Remove it.
+    
+    Change-Id: Ifa744d4b2f73f33cad056b24051821e43638cc7f
+    Reviewed-on: https://go-review.googlesource.com/76690
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

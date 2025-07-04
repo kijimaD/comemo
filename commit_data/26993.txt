@@ -1,0 +1,24 @@
+commit 4140da7b57f944cc16324496adcc5a41d7a987ed
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 4 13:07:24 2016 -0400
+
+    cmd/link, cmd/compile: typelink sorting in linker
+    
+    Instead of writing out the type almost twice in the symbol name,
+    teach the linker how to sort typelink symbols by their contents.
+    
+    This ~halves the size of typelink symbol names, which helps very
+    large (6KB) names like those mentioned in #15104.
+    
+    This does not increase the total sorting work done by the linker,
+    and makes it possible to use shorter symbol names for types. See
+    the follow-on CL 21583.
+    
+    Change-Id: Ie5807565ed07d31bc477d20f60e4c0b47144f337
+    Reviewed-on: https://go-review.googlesource.com/21457
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 11 +----------
+ src/cmd/link/internal/ld/data.go       |  8 ++++++++
+ src/cmd/link/internal/ld/decodesym.go  | 12 ++++++++++++
+ 3 files changed, 21 insertions(+), 10 deletions(-)

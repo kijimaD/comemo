@@ -1,0 +1,25 @@
+commit f399af3114400d791332cf77234f7b9d42cbfb50
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 16 15:35:35 2018 -0800
+
+    go/doc: replace unexported values with underscore if necessary
+    
+    When a var or const declaration contains a mixture of exported and unexported
+    identifiers, replace the unexported identifiers with underscore.
+    Otherwise, the LHS and the RHS may mismatch or the declaration may mismatch
+    with an iota from above.
+    
+    Fixes #22426
+    
+    Change-Id: Icd5fb81b4ece647232a9f7d05cb140227091e9cb
+    Reviewed-on: https://go-review.googlesource.com/94877
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/exports.go          | 36 ++++++++++++++++++++++++++++++++----
+ src/go/doc/testdata/g.0.golden | 32 ++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/g.1.golden | 34 ++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/g.2.golden | 32 ++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/g.go       | 25 +++++++++++++++++++++++++
+ 5 files changed, 155 insertions(+), 4 deletions(-)

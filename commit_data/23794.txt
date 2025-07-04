@@ -1,0 +1,29 @@
+commit daaa45073e887cb6d8075c2caafdfe8425bca25a
+Author: MathiasB <git@denbeke.be>
+Date:   Fri Apr 10 12:14:16 2015 +0200
+
+    net/mail: enhanced Address.String and ParseAddress to match RFC 5322
+    
+    Updated Address.String so it restores quoted local parts, which wasn't
+    done before.
+    When parsing `<" "@example.com>`, the formatted string returned
+    `< @example>`, which doens't match RFC 5322, since a space is not atext.
+    Another example is `<"bob@valid"@example.com>` which returned
+    `<bob@valid@example.com>`, which is completely invalid.
+    I also added support for quotes and backslashes in a quoted local part.
+    
+    Besides formatting a parsed Address, the ParseAddress function also
+    needed more testing and finetuning for special cases.
+    Things like `<.john.doe@example.com>` and `<john..doe@example.com>`
+    e.a. were accepted, but are invalid.
+    I fixed those details and add tests for some other special cases.
+    
+    Fixes #10768
+    
+    Change-Id: Ib0caf8ad603eb21e32fcb957a5f1a0fe5d1c6e6e
+    Reviewed-on: https://go-review.googlesource.com/8724
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/mail/message.go      | 72 +++++++++++++++++++++++++++++++---
+ src/net/mail/message_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 159 insertions(+), 5 deletions(-)

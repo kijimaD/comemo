@@ -1,0 +1,14 @@
+commit f89050d7d8b17e5ea639d22d9f71409b8ba24ade
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Dec 5 12:04:15 2010 +0900
+
+    doc/install: describe GOHOSTOS and GOHOSTARCH
+    
+    Fixes #1303.
+    
+    R=rsc, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/3442041
+
+ doc/install.html | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit 1771edb5904524deb6ef0c846e5357fd35c756fb
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu May 17 12:33:01 2018 +0200
+
+    misc/wasm: make wasm_exec.js more flexible
+    
+    This commit improves wasm_exec.js to give more control to the
+    code that uses this helper:
+    - Allow to load and run more than one Go program at the same time.
+    - Move WebAssembly.instantiate out of wasm_exec.js so the caller
+      can optimize for load-time performance, e.g. by using
+      instantiateStreaming.
+    - Allow caller to provide argv, env and exit callback.
+    
+    Updates #18892
+    
+    Change-Id: Ib582e6f43848c0118ea5c89f2e24b371c45c2050
+    Reviewed-on: https://go-review.googlesource.com/113515
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.html |  28 +++++--
+ misc/wasm/wasm_exec.js   | 186 ++++++++++++++++++++++-------------------------
+ 2 files changed, 107 insertions(+), 107 deletions(-)

@@ -1,0 +1,21 @@
+commit 6e74c4116ae2825efab69cb8c60d078d76572a78
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 26 09:54:32 2022 +0800
+
+    runtime: convert p.numTimers and p.deletedTimers to internal atomic types
+    
+    Note that this changes the non-atomic operations in p.destroy() to atomic operations.
+    
+    For #53821
+    
+    Change-Id: I7bba77c9a2287ba697c87cce2c79293e4d1b3334
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425774
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go     | 12 ++++++------
+ src/runtime/runtime2.go |  6 ++----
+ src/runtime/time.go     | 24 ++++++++++++------------
+ 3 files changed, 20 insertions(+), 22 deletions(-)

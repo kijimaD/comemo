@@ -1,0 +1,12 @@
+commit 72d50900e322dc3995179b7f70dae2771486f74d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 21:29:11 2008 -0700
+
+    fix a typo in the comments
+    
+    R=ken
+    OCL=14104
+    CL=14104
+
+ src/cmd/gc/go.y | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

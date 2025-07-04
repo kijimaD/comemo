@@ -1,0 +1,19 @@
+commit 3036604b4c341a04968d3e43263338f2cacf26f7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 13:44:00 2011 -0800
+
+    gob: do not encode or decode unexported fields
+    Such fields are simply ignored.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/3889043
+
+ src/pkg/gob/codec_test.go   | 486 +++++++++++++++++++++++---------------------
+ src/pkg/gob/debug.go        |  66 +++---
+ src/pkg/gob/decode.go       |  73 ++++---
+ src/pkg/gob/doc.go          |  49 ++---
+ src/pkg/gob/encode.go       |   6 +
+ src/pkg/gob/encoder_test.go |  68 +++----
+ src/pkg/gob/type.go         | 116 +++++------
+ 7 files changed, 457 insertions(+), 407 deletions(-)

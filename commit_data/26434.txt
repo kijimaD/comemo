@@ -1,0 +1,42 @@
+commit d3253876f20ea39dbd7694ecaa5022e6cc147ccc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 20 13:55:42 2016 -0700
+
+    cmd/compile: change Mp{int,flt} functions into methods
+    
+    Also give them more idiomatic Go names. Adding godocs is outside the
+    scope of this CL. (Besides, the method names almost all directly
+    parallel an underlying math/big.Int or math/big.Float method.)
+    
+    CL prepared mechanically with sed (for rewriting mpint.go/mpfloat.go)
+    and gofmt (for rewriting call sites).
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Id76f4aee476ba740f48db33162463e7978c2083d
+    Reviewed-on: https://go-review.googlesource.com/20909
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |   6 +-
+ src/cmd/compile/internal/gc/bimport.go   |   6 +-
+ src/cmd/compile/internal/gc/cgen.go      |  42 +++---
+ src/cmd/compile/internal/gc/const.go     | 238 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/fmt.go       |   8 +-
+ src/cmd/compile/internal/gc/gen.go       |   8 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   4 +-
+ src/cmd/compile/internal/gc/lex.go       |  16 +--
+ src/cmd/compile/internal/gc/mpfloat.go   |  42 +++---
+ src/cmd/compile/internal/gc/mpint.go     |  96 ++++++-------
+ src/cmd/compile/internal/gc/obj.go       |   6 +-
+ src/cmd/compile/internal/gc/parser.go    |  12 +-
+ src/cmd/compile/internal/gc/sinit.go     |  14 +-
+ src/cmd/compile/internal/gc/ssa.go       |  14 +-
+ src/cmd/compile/internal/gc/subr.go      |  10 +-
+ src/cmd/compile/internal/gc/swt.go       |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go |  30 ++--
+ src/cmd/compile/internal/gc/universe.go  |  34 ++---
+ src/cmd/compile/internal/gc/unsafe.go    |   2 +-
+ src/cmd/compile/internal/gc/walk.go      |  40 +++---
+ 20 files changed, 316 insertions(+), 316 deletions(-)

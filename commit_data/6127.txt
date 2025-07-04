@@ -1,0 +1,16 @@
+commit 9e162aa3be6e212cbe434460a4938969a17bb199
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun Aug 29 23:04:05 2010 -0400
+
+    codereview: Fix uploading for Mercurial 1.6.3
+    
+    See:
+    http://selenic.com/repo/hg/rev/32b213b9b22c
+    http://selenic.com/repo/hg/rev/2096496b40ec
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2072041
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

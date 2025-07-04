@@ -1,0 +1,24 @@
+commit 9f8d558c3b28def1b188e60e1b3b8361a461c9e2
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 1 14:22:34 2021 -0400
+
+    go/types: remove 1.18 APIs that have been replaced
+    
+    Remove the Interface.IsConstraint, Signature.SetTypeParams, and
+    Signature.SetRecvTypeParams methods, as they have been replaced and
+    usage removed from x/tools.
+    
+    Change-Id: I8786c3cf34e96ab5211cd8e7e6348e9ee792b843
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353570
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/call.go      | 2 +-
+ src/go/types/decl.go      | 2 +-
+ src/go/types/interface.go | 7 +------
+ src/go/types/signature.go | 6 ------
+ src/go/types/typeset.go   | 4 ++--
+ src/go/types/typexpr.go   | 2 +-
+ 6 files changed, 6 insertions(+), 17 deletions(-)

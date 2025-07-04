@@ -1,0 +1,23 @@
+commit e9228dd9490c3d4827170abeb8c82e68c175ecf0
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed May 25 23:22:11 2016 -0700
+
+    cmd/go: fixup for parsing SCP-like addresses
+    
+    This is a fixup change for commit 5cd294480364eb166751838a3df8f58649c214e1
+    that added parsing of SCP-like addresses. To get the expected output
+    from (*url.URL).String(), Path needs to be set, not RawPath.
+    
+    Add a test for this, since it has already regressed multiple times.
+    
+    Updates #11457.
+    
+    Change-Id: I806f5abbd3cf65e5bdcef01aab872caa8a5b8891
+    Reviewed-on: https://go-review.googlesource.com/23447
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/go_test.go | 32 ++++++++++++++++++++++++++++++--
+ src/cmd/go/vcs.go     |  8 ++++----
+ 2 files changed, 34 insertions(+), 6 deletions(-)

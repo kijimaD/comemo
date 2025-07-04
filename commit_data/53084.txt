@@ -1,0 +1,23 @@
+commit df9f043d10cd2b84635dd7707550d00a74ddcad5
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 11:54:45 2023 -0400
+
+    cmd/dist: refactor rtPreFunc to print skips in only one place
+    
+    Currently, all uses of rtPreFunc are to print a message and skip a
+    test. When we move to JSON, the logic to just "print a message" is
+    going to be more complicated, so refactor this so the function returns
+    the skip message and we print it in just one place. We also rename the
+    option to rtSkipFunc to better represent what we use it for.
+    
+    For #37486.
+    
+    Change-Id: Ibd537064fa646a956a1c0f85a5d8c6febd098dde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495856
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)

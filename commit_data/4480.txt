@@ -1,0 +1,32 @@
+commit 8c7d001602908d63df3f7d1fb8414bff93260da9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 22 18:25:27 2009 -0800
+
+    Replace container/vector with exp/vector (faster).
+    
+    Manual changes to the following files:
+    src/pkg/Makefile
+    src/pkg/exp/vector/Makefile (now: src/pkg/container/vector/Makefile)
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/181041
+
+ src/pkg/Makefile                                   |   1 -
+ src/pkg/container/vector/Makefile                  |  59 ++++
+ src/pkg/{exp => container}/vector/defs.go          |   0
+ src/pkg/container/vector/intvector.go              | 174 +++++++--
+ .../{exp => container}/vector/intvector_test.go    |   0
+ src/pkg/{exp => container}/vector/nogen_test.go    |   0
+ src/pkg/{exp => container}/vector/numbers_test.go  |   0
+ src/pkg/{exp => container}/vector/nums.sh          |   0
+ src/pkg/container/vector/stringvector.go           | 173 +++++++--
+ .../{exp => container}/vector/stringvector_test.go |   0
+ src/pkg/container/vector/vector.go                 | 144 ++++----
+ src/pkg/container/vector/vector_test.go            | 383 ++++++++++++--------
+ src/pkg/exp/vector/Makefile                        |  69 ----
+ src/pkg/exp/vector/intvector.go                    | 215 -----------
+ src/pkg/exp/vector/stringvector.go                 | 215 -----------
+ src/pkg/exp/vector/vector.go                       | 213 -----------
+ src/pkg/exp/vector/vector_test.go                  | 391 ---------------------
+ 17 files changed, 640 insertions(+), 1397 deletions(-)

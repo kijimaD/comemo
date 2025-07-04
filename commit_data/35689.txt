@@ -1,0 +1,46 @@
+commit 7b2f55d89f12a539df6cf57d60b2b6b605cbb34a
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Jun 12 12:01:59 2018 -0400
+
+    runtime/pprof: set HasFunctions of mapping entries
+    
+    The pprof tool utilizes attributes of mapping entries
+    such as HasFunctions to determine whether the profile
+    includes necessary symbol information.
+    If none of the attributes is set, pprof tool tries to
+    read the corresponding binary to use for local symbolization.
+    If the binary doesn't exist, it prints out error messages.
+    
+    Go runtime generated profiles without any of the attributes
+    set so the pprof tool always printed out the error messages.
+    The error messages became more obvious with the new
+    terminal support that uses red color for error messages.
+    
+    Go runtime can symbolize all Go symbols and generate
+    self-contained profile for pure Go program. Thus, there
+    is no reason for the pprof tool to look for the copy of
+    the binary. So, this CL sets one of the attributes
+    (HasFunctions) true if all PCs in samples look fully
+    symbolized.
+    
+    For non-pure Go program, however, it's possible that
+    symbolization of non-Go PCs is incomplete. In this case,
+    we need to leave the attributes all false so pprof can attempt
+    to symbolize using the local copy of the binary if available.
+    It's hard to determine whether a mapping includes non-Go
+    code. Instead, this CL checks PCs from collected samples.
+    If unsuccessful symbolization is observed, it skips setting
+    the HasFunctions attribute.
+    
+    Fixes #25743
+    
+    Change-Id: I5108be45bbc37ab486d145fa03e7ce37d88fad50
+    Reviewed-on: https://go-review.googlesource.com/118275
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/proto.go                     |  65 ++++++++++++---
+ src/runtime/pprof/proto_test.go                |  69 ++++++++++++++++
+ src/runtime/pprof/testdata/mappingtest/main.go | 105 +++++++++++++++++++++++++
+ 3 files changed, 226 insertions(+), 13 deletions(-)

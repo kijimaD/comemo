@@ -1,0 +1,14 @@
+commit 354e61cc52cc67400cdc93815f08efa42050d020
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Jun 24 11:44:06 2009 -0700
+
+    Fix compile warnings in 5l.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=8  (0 added, 0 deleted, 8 changed)
+    OCL=30692
+    CL=30695
+
+ src/cmd/5l/l.h | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

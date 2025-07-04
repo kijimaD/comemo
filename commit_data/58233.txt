@@ -1,0 +1,46 @@
+commit a925402b62c06d1cfe2b345cba0b11fa06b8401d
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Nov 20 21:56:27 2024 +0800
+
+    all: fix some function names and typos in comment
+    
+    Change-Id: I07e7c8eaa5bd4bac0d576b2f2f4cd3f81b0b77a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go    | 2 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go  | 2 +-
+ src/cmd/compile/internal/types2/README.md        | 4 ++--
+ src/cmd/compile/internal/walk/order.go           | 4 ++--
+ src/cmd/go/internal/generate/generate_test.go    | 2 +-
+ src/cmd/go/internal/modload/edit.go              | 2 +-
+ src/cmd/go/internal/mvs/mvs.go                   | 2 +-
+ src/cmd/go/main.go                               | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go               | 2 +-
+ src/cmd/internal/obj/util.go                     | 2 +-
+ src/cmd/internal/objfile/disasm.go               | 2 +-
+ src/cmd/internal/script/scripttest/conditions.go | 2 +-
+ src/cmd/link/link_test.go                        | 2 +-
+ src/crypto/tls/common.go                         | 2 +-
+ src/encoding/binary/binary.go                    | 2 +-
+ src/internal/pkgbits/decoder.go                  | 2 +-
+ src/internal/runtime/maps/table.go               | 4 ++--
+ src/internal/syscall/windows/version_windows.go  | 2 +-
+ src/internal/trace/event/event.go                | 2 +-
+ src/internal/types/testdata/check/go1_20_19.go   | 2 +-
+ src/internal/types/testdata/check/go1_21_19.go   | 2 +-
+ src/maps/maps_test.go                            | 2 +-
+ src/net/http/transport.go                        | 2 +-
+ src/runtime/debug/stack.go                       | 2 +-
+ src/runtime/export_test.go                       | 2 +-
+ src/runtime/mbarrier.go                          | 2 +-
+ src/runtime/panic.go                             | 2 +-
+ src/runtime/pprof/pprof_test.go                  | 2 +-
+ src/slices/slices_test.go                        | 2 +-
+ src/sort/example_keys_test.go                    | 2 +-
+ src/sort/example_multi_test.go                   | 2 +-
+ 31 files changed, 34 insertions(+), 34 deletions(-)

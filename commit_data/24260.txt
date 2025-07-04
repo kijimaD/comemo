@@ -1,0 +1,17 @@
+commit b9dbb030d5e7d2733e877972568368dc806b7304
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Sep 13 22:58:12 2015 +0200
+
+    cmd/compiler/internal/gc: make Type.Copyto a []*Node
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd
+    
+    Change-Id: Ief4613cfb341172a85e3a894f44fb2bb308c7b55
+    Reviewed-on: https://go-review.googlesource.com/14554
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/go.go        | 2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

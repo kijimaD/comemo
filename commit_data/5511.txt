@@ -1,0 +1,12 @@
+commit e2b6022f358bfc28054fcf8545fa7c6a9e9bd165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 14:53:54 2010 -0700
+
+    issue 789: keep test case
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1242045
+
+ test/fixedbugs/bug276.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

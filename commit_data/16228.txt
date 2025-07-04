@@ -1,0 +1,17 @@
+commit 13cbf41a7f22f16354b06b159f087d8f64abfb37
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Apr 25 18:47:12 2013 +0200
+
+    cmd/gc: initialize t->width in dgcsym() if required
+    
+    Update #5291.
+    
+    R=golang-dev, daniel.morsing, iant, r
+    CC=golang-dev
+    https://golang.org/cl/8663052
+
+ src/cmd/gc/reflect.c                 |  8 ++++++++
+ test/fixedbugs/issue5291.dir/pkg1.go | 34 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue5291.dir/prog.go | 17 +++++++++++++++++
+ test/fixedbugs/issue5291.go          |  9 +++++++++
+ 4 files changed, 68 insertions(+)

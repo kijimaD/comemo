@@ -1,0 +1,16 @@
+commit f14067f3c10e15343f29aed439ff60af856eb323
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 29 17:02:42 2018 -0700
+
+    cmd/compile: when comparing 0-size types, make sure expr side-effects survive
+    
+    Fixes #23837
+    
+    Change-Id: I53f524d87946a0065f28a4ddbe47b40f2b43c459
+    Reviewed-on: https://go-review.googlesource.com/c/145757
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go |  8 +++++
+ test/fixedbugs/issue23837.go        | 70 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

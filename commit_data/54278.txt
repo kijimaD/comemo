@@ -1,0 +1,24 @@
+commit 71a0beb68d4c61ce7c7a9c7f8aa2189ccfe619b2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 30 04:23:55 2023 +0000
+
+    all: rewrite internal/saferio.SliceCap using generics and add func SliceCapWithSize
+    
+    Change-Id: I265173bf2722796c4be545c968efef3a1a6f7a7d
+    GitHub-Last-Rev: 04d95cdd615f906167545f246f707e1440c39374
+    GitHub-Pull-Request: golang/go#62365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/elf/file.go           |  2 +-
+ src/debug/macho/fat.go          |  2 +-
+ src/debug/macho/file.go         |  4 ++--
+ src/debug/pe/symbol.go          |  2 +-
+ src/encoding/gob/decode.go      |  4 ++--
+ src/internal/saferio/io.go      | 25 +++++++++++--------------
+ src/internal/saferio/io_test.go |  8 ++++----
+ src/internal/xcoff/file.go      |  4 ++--
+ 8 files changed, 24 insertions(+), 27 deletions(-)

@@ -1,0 +1,17 @@
+commit 59dae58174ef6dd2ca5720fcce97c565979375ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 22:50:44 2016 -0400
+
+    net/url: document and add example for ParseQuery("x")
+    
+    Fixes #16460.
+    
+    Change-Id: Ie9d5f725d2d7e8210ab6f7604a5a05fc49f707de
+    Reviewed-on: https://go-review.googlesource.com/31331
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/example_test.go | 19 +++++++++++++++++++
+ src/net/url/url.go          |  4 ++++
+ 2 files changed, 23 insertions(+)

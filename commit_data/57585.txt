@@ -1,0 +1,22 @@
+commit 441770461f5ed7a042b79a8e092c53e8ab393f3e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 1 09:57:52 2024 -0700
+
+    cmd/cgo: add srcdir & trimpath docs, sort options
+    
+    Update the package docs:
+    * The -srcdir docs were accidentally lost in CL 68590.
+    * The -trimpath option was added in CL 266358 but not documented.
+    * The options were not sorted correctly.
+    
+    Fixes #69730
+    
+    Change-Id: I97320e0f4fb6aa47cb03d451f028d3d9d9b560f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616699
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/cgo/doc.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

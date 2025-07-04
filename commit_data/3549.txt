@@ -1,0 +1,18 @@
+commit da829d6608e12687e6728702ea64dae8051dedbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 09:24:19 2009 -0700
+
+    Work-around for factory function heuristic failure:
+    only associate a couple of functions as factories
+    for os.Error.
+    
+    Replaces CL 35628 (abandoned).
+    
+    R=rsc
+    DELTA=35  (26 added, 0 deleted, 9 changed)
+    OCL=35754
+    CL=35768
+
+ src/pkg/go/doc/doc.go | 36 +++++++++++++++++++++++++++---------
+ src/pkg/os/error.go   |  8 ++++++++
+ 2 files changed, 35 insertions(+), 9 deletions(-)

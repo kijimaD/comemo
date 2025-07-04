@@ -1,0 +1,24 @@
+commit 0f3876f8c12ba3746a1dfec68422e9cce5c2ff39
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 11 12:52:16 2024 -0800
+
+    runtime: ensure we free unrolled GC bitmaps
+    
+    CL 555355 has a bug in it - the GC program flag was also used to decide
+    when to free the unrolled bitmap. After that CL, we just don't free any
+    unrolled bitmaps, leading to a memory leak.
+    
+    Use a separate flag to track types that need to be freed when their
+    corresponding object is freed.
+    
+    Change-Id: I841b65492561f5b5e1853875fbd8e8a872205a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555416
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/abi/type.go            | 6 ++++++
+ src/runtime/mbitmap_allocheaders.go | 1 +
+ src/runtime/mgcsweep.go             | 3 ++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)

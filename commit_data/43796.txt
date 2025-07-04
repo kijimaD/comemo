@@ -1,0 +1,22 @@
+commit 30ba7980932dfb7ec6660ee929b4e1982256285f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 30 16:47:58 2020 -0400
+
+    cmd/go: use overlaid path contents in build cache
+    
+    When caching actions, use the overlaid file contents, because those
+    are the ones actually used to produce the outputs.
+    
+    For #39958
+    
+    Change-Id: Ia1f85b2fcf1f26e3b5be82f4d35c2726b134a36b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266720
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/buildid.go          |  2 ++
+ src/cmd/go/testdata/script/build_overlay.txt | 32 ++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,0 +1,20 @@
+commit 3a9381c6b00c6a2131911b09d0dfb6264d30b15b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:06:00 2020 -0800
+
+    cmd/compile: use ellipses in S390X rules
+    
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I47b4ed745196ed734927dbb5923edec33ce286da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217013
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  171 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 2016 +++++---------------------
+ 2 files changed, 414 insertions(+), 1773 deletions(-)

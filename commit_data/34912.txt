@@ -1,0 +1,27 @@
+commit 144fae8ed5edf5912718da9cd722e81399c2e033
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Apr 10 13:26:05 2018 +0200
+
+    misc/ios,runtime/cgo: remove SIGINT handshake for the iOS exec wrapper
+    
+    Once upon a time, the iOS exec wrapper needed to change the current
+    working directory for the binary being tested. To allow that, the
+    runtime raised a SIGINT signal that the wrapper caught, changed the
+    working directory and resumed the process.
+    
+    These days, the current working directory is passed from the wrapper
+    to the runtime through a special entry in the app metadata and the
+    SIGINT handshake is not necessary anymore.
+    
+    Remove the signaling from the runtime and the exec harness.
+    
+    Change-Id: Ia53bcc9e4724d2ca00207e22b91ce80a05271b55
+    Reviewed-on: https://go-review.googlesource.com/106096
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go     | 6 ++----
+ src/runtime/cgo/gcc_darwin_arm.c   | 2 --
+ src/runtime/cgo/gcc_darwin_arm64.c | 2 --
+ 3 files changed, 2 insertions(+), 8 deletions(-)

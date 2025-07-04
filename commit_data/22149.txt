@@ -1,0 +1,22 @@
+commit f1878c0d4670a8ebde9579a3eebb589dfca26716
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 23 15:28:51 2015 -0700
+
+    debug/dwarf, encoding/asn1, go/ast: fix old comments
+    
+    The debug/dwarf and encoding/asn1 examples were added in 2009, a few
+    months before Go added implicit semicolons, and never updated.
+    
+    The go/ast node types have always been named just "Expr", "Stmt", and
+    "Decl", so the comments about "ExprNode", "StmtNode", and "DeclNode"
+    were likely just mistaken because the interface tag methods are
+    "exprNode", "stmtNode", and "declNode", respectively.
+    
+    Change-Id: I9d138cc3a16c1a51453da1406914d7b320bf6270
+    Reviewed-on: https://go-review.googlesource.com/7980
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/dwarf/entry.go     | 2 +-
+ src/encoding/asn1/marshal.go | 2 +-
+ src/go/ast/ast.go            | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

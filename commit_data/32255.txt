@@ -1,0 +1,24 @@
+commit 17fa5a7c9f41bed796b5e236b517d0bf03a3f31d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 16:14:08 2017 -0700
+
+    archive/tar: roundtrip reading device numbers
+    
+    Both GNU and BSD tar do not care if the devmajor and devminor values are
+    set on entries (like regular files) that aren't character or block devices.
+    
+    While this is non-sensible, it is more consistent with the Writer to actually
+    read these fields always. In a vast majority of the cases these will still
+    be zero. In the rare situation where someone actually cares about these,
+    at least information was not silently lost.
+    
+    Change-Id: I6e4ba01cd897a1b13c28b1837e102a4fdeb420ba
+    Reviewed-on: https://go-review.googlesource.com/55572
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go                    |   6 ++----
+ src/archive/tar/reader_test.go               |  11 +++++++++++
+ src/archive/tar/testdata/ustar-file-devs.tar | Bin 0 -> 1536 bytes
+ 3 files changed, 13 insertions(+), 4 deletions(-)

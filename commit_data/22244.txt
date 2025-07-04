@@ -1,0 +1,36 @@
+commit 67426a8a9eabd6d859e42ca799eab6c1aa0d616a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 12 12:22:18 2015 +1300
+
+    runtime, cmd/internal/ld: change runtime to use a single linker symbol
+    
+    In preparation for being able to run a go program that has code
+    in several objects, this changes from having several linker
+    symbols used by the runtime into having one linker symbol that
+    points at a structure containing the needed data.  Multiple
+    object support will construct a linked list of such structures.
+    
+    A follow up will initialize the slices in the themoduledata
+    structure directly from the linker but I was aiming for a minimal
+    diff for now.
+    
+    Change-Id: I613cce35309801cf265a1d5ae5aaca8d689c5cbf
+    Reviewed-on: https://go-review.googlesource.com/7441
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/symtab.go    | 34 ++++++++++++++++
+ src/runtime/heapdump.go          | 12 +++---
+ src/runtime/malloc.go            |  2 +-
+ src/runtime/mbarrier.go          | 32 +++++++--------
+ src/runtime/mbitmap.go           |  8 ++--
+ src/runtime/mem_plan9.go         |  2 +-
+ src/runtime/mfinal.go            |  8 ++--
+ src/runtime/mgc.go               |  7 +---
+ src/runtime/mgcmark.go           |  4 +-
+ src/runtime/os1_windows_386.go   |  4 +-
+ src/runtime/os1_windows_amd64.go |  4 +-
+ src/runtime/proc1.go             |  4 +-
+ src/runtime/race1.go             | 32 +++++++--------
+ src/runtime/runtime1.go          |  6 +--
+ src/runtime/symtab.go            | 84 +++++++++++++++++++++++-----------------
+ 15 files changed, 139 insertions(+), 104 deletions(-)

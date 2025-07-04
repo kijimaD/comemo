@@ -1,0 +1,14 @@
+commit fcc0c002289175839265ac8dde2c35d8c56f6095
+Author: Eric Clark <zerohp@gmail.com>
+Date:   Mon Oct 11 22:39:37 2010 -0400
+
+    Make.cmd: remove $(OFILES)
+    
+    The linker doesn't support multiple object files (maybe it did in the past?)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2444041
+
+ src/Make.cmd | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

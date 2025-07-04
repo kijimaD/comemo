@@ -1,0 +1,17 @@
+commit 526b2ef0ea3a13d7e9af635918ef3ef86353f220
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 11:14:37 2021 -0500
+
+    go/types: check non-generic conversions first
+    
+    This is a clean port of CL 361269 to go/types.
+    
+    Change-Id: I2caaf08eabdf1707ae83ec1e628fd26f21b2b8e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362616
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/conversions.go | 119 +++++++++++++++++++++++---------------------
+ 1 file changed, 62 insertions(+), 57 deletions(-)

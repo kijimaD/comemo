@@ -1,0 +1,13 @@
+commit e77099daa2167cb394d133bd525fa5dc1c0771a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 11:00:32 2011 -0500
+
+    sql: add Tx.Stmt to use an existing prepared stmt in a transaction
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5433059
+
+ src/pkg/exp/sql/sql.go      | 79 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/exp/sql/sql_test.go | 24 +++++++++++++-
+ 2 files changed, 83 insertions(+), 20 deletions(-)

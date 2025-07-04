@@ -1,0 +1,13 @@
+commit f3113ee9b91712d49400589ff2b2c5f7514ffc85
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 23 11:25:27 2011 -0700
+
+    fmt: tweak the doc for %U.
+    Fixes #1727.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4437069
+
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

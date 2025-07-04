@@ -1,0 +1,25 @@
+commit 70a273476bb03d6a62a7fc4899634aa976b17ae5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 16:32:33 2009 -0700
+
+    better error; clean up lineno in a few places
+    
+    wreck.mtv=; cat x.go
+    package main
+    var x = string.Split()
+    wreck.mtv=; 6g x.go
+    x.go:2: type string used as expression
+    x.go:2: undefined DOT Split on string
+    x.go:3: illegal types for operand: AS
+            undefined
+    wreck.mtv=;
+    
+    BUG=1938751
+    R=ken
+    OCL=30766
+    CL=30766
+
+ src/cmd/gc/const.c |  5 ++---
+ src/cmd/gc/subr.c  |  9 ++++++++-
+ src/cmd/gc/walk.c  | 25 ++++++++++++++-----------
+ 3 files changed, 24 insertions(+), 15 deletions(-)

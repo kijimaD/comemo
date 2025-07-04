@@ -1,0 +1,21 @@
+commit 04a4dca2ac3d4f963e3c740045ce7a2959bf0319
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 17 12:17:25 2021 -0500
+
+    cmd/compile: refactor out an almost-superfluous arg
+    
+    Moved all "target" information into "storeRC"; it was a register
+    cursor, now it is a register cursor that also carries the store
+    target with it if there are no registers.  Also allows booby-trapping
+    to ensure that the target is unambiguously one or the other.
+    
+    For #40724.
+    
+    Change-Id: I53ba4b91679e5fcc89c63b7d31225135299c6ec6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293397
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 162 +++++++++++++++------------
+ 1 file changed, 90 insertions(+), 72 deletions(-)

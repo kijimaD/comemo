@@ -1,0 +1,20 @@
+commit b136267b87a5004f38665af2bc4237a53c776f0e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 30 23:01:37 2019 +0700
+
+    cmd/compile: do not set n.Type.Sym in typecheckdeftype
+    
+    typecheckdef calls typecheckdeftype, which will also set n.Type.Sym,
+    causing duplicated work. So do not set n.Type.Sym in typecheckdeftype to
+    prevent this, and also keep populating n.Type info in one place make
+    more sense.
+    
+    Change-Id: I62671babd750f9d5d0bbfcf8d7eecd2cc314c955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179579
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

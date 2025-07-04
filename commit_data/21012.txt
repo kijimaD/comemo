@@ -1,0 +1,15 @@
+commit 8e0686a07104f78d182ad6e63f1575b19ff6e1b9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 09:33:44 2014 -0800
+
+    test: add missing linkx test
+    
+    This test was added in CL 151000043.
+    It got lost in CL 144630044.
+    
+    Change-Id: I318ab11be8e3e7489fc1395457c029c8bdb2aa41
+    Reviewed-on: https://go-review.googlesource.com/1773
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/linkx_run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

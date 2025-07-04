@@ -1,0 +1,15 @@
+commit e574480ed14c1ec6e976f8df18bd63d51801f8b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 07:07:53 2012 +1100
+
+    encoding/gob: catch internal error when it happens
+    It was being skipped due to an oversight.
+    Also adjust naming parameters for map type construction - makes debugging easier.
+    Prelude to issue 3026.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5674071
+
+ src/pkg/encoding/gob/decode.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

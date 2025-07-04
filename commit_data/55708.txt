@@ -1,0 +1,19 @@
+commit f8b4653500744da567767b641378193638d4fcf8
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 14 17:17:40 2024 -0500
+
+    std: fix more nilness findings
+    
+    (found with x/tools/go/analysis/passes/nilness)
+    
+    Change-Id: I1bdc7811efbecea95608e634f894cb6c656e3a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564221
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/types/stmt.go                          | 2 +-
+ src/os/exec/exec_test.go                      | 4 ++--
+ src/runtime/internal/wasitest/tcpecho_test.go | 6 +-----
+ src/runtime/trace2cpu.go                      | 4 +---
+ 4 files changed, 5 insertions(+), 11 deletions(-)

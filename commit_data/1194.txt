@@ -1,0 +1,16 @@
+commit bef9b1713a83f5d1722a2b01a73f2a6600fda43b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 15:16:20 2008 -0800
+
+    - removed uses of vector in favor of array in a few places
+    - fixed make.bash
+    
+    R=r
+    DELTA=21  (1 added, 3 deleted, 17 changed)
+    OCL=19624
+    CL=19629
+
+ src/lib/make.bash        |  6 ++----
+ src/lib/regexp/regexp.go | 26 +++++++++++++-------------
+ test/vectors.go          |  6 +++---
+ 3 files changed, 18 insertions(+), 20 deletions(-)

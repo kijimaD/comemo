@@ -1,0 +1,27 @@
+commit 029c7bbdfeeccd537a78796f5095157b6eb5f454
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 18 08:14:08 2015 +1200
+
+    cmd/internal/gc, cmd/internal/ld, cmd/internal/obj: teach compiler about local symbols
+    
+    This lets us avoid loading string constants via the GOT and (together with
+    http://golang.org/cl/9102) results in the fannkuch benchmark having very similar
+    register usage with -dynlink as without.
+    
+    Change-Id: Ic3892b399074982b76773c3e547cfbba5dabb6f9
+    Reviewed-on: https://go-review.googlesource.com/9103
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/6g/prog.go               |  2 +-
+ src/cmd/internal/gc/gsubr.go     |  6 +++++-
+ src/cmd/internal/gc/obj.go       |  4 ++--
+ src/cmd/internal/gc/pgen.go      |  2 +-
+ src/cmd/internal/gc/reflect.go   |  6 +++---
+ src/cmd/internal/ld/objfile.go   |  9 +++++++--
+ src/cmd/internal/ld/symtab.go    | 10 +---------
+ src/cmd/internal/obj/link.go     | 32 ++++++++++++++++++++------------
+ src/cmd/internal/obj/objfile.go  |  6 +++++-
+ src/cmd/internal/obj/textflag.go |  3 +++
+ src/cmd/internal/obj/x86/obj6.go | 12 +++++++-----
+ 11 files changed, 55 insertions(+), 37 deletions(-)

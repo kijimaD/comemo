@@ -1,0 +1,27 @@
+commit d9bfda81249f25959090b1493ac8e261dd4542f4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 30 01:51:16 2021 -0400
+
+    cmd/go: remove the special case for "unsafe" in importFromModules
+    
+    The comment for this special case claims:
+    > There's no directory for import "C" or import "unsafe".
+    
+    However, there clearly is a directory for "unsafe" in
+    GOROOT/src/unsafe, and all of our integration tests seem to pass
+    without this special case. As far as I can tell, it's just confusing.
+    
+    Also note that the internal/goroot package explicitly considers
+    package "unsafe" to be in the standard library; see CL 137435.
+    
+    For #36460
+    
+    Change-Id: Ib857d18f731a7f3c911c1bd116a34e3a9b3d74a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315412
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/import.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

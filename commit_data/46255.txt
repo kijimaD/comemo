@@ -1,0 +1,18 @@
+commit faf9c7d8fe9885a8d96de389f16bc4fdadb067a2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 31 14:53:53 2021 -0700
+
+    cmd/compile: assign results of transformAssign back to source location
+    
+    Otherwise the modifications of transformAssign are dropped on the floor.
+    
+    Change-Id: Id40782564952ed53f9ade1dba4e85290c8522abc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346590
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 1 +
+ 1 file changed, 1 insertion(+)

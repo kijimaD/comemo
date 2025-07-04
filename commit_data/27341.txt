@@ -1,0 +1,16 @@
+commit 561c94884477f568bdb68aacebfeb4d0411a874b
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon May 9 15:14:07 2016 -0400
+
+    os: skip Lchown test on Android if symlink doesn't work
+    
+    After upgrading builder device (android/arm) to android 5.0.2,
+    the test started failing. Running 'ln -s' from shell fails with
+    permission error.
+    
+    Change-Id: I5b9e312806d58532b41ea3560ff079dabbc6424e
+    Reviewed-on: https://go-review.googlesource.com/22962
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

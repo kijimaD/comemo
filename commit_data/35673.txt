@@ -1,0 +1,37 @@
+commit 48987baa09856ea6f656abe8a90d264070db8fad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 6 10:21:15 2018 -0700
+
+    cmd/compile: correct alias cycle detection
+    
+    The original fix (https://go-review.googlesource.com/c/go/+/35831)
+    for this issue was incorrect as it reported cycles in cases where
+    it shouldn't.
+    
+    Instead, use a different approach: A type cycle containing aliases
+    is only a cycle if there are no type definitions. As soon as there
+    is a type definition, alias expansion terminates and there is no
+    cycle.
+    
+    Approach: Split sprint_depchain into two non-recursive and more
+    easily understandable functions (cycleFor and cycleTrace),
+    and use those instead for cycle reporting. Analyze the cycle
+    returned by cycleFor before issueing an alias cycle error.
+    
+    Also: Removed original fix (main.go) which introduced a separate
+    crash (#23823).
+    
+    Fixes #18640.
+    Fixes #23823.
+    Fixes #24939.
+    
+    Change-Id: Ic3707a9dec40a71dc928a3e49b4868c5fac3d3b7
+    Reviewed-on: https://go-review.googlesource.com/118078
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go      |  6 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 58 ++++++++++++++++++++++----------
+ test/fixedbugs/issue18640.go             | 21 ++++++++++++
+ test/fixedbugs/issue23823.go             | 15 +++++++++
+ test/fixedbugs/issue24939.go             | 21 ++++++++++++
+ 5 files changed, 100 insertions(+), 21 deletions(-)

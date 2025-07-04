@@ -1,0 +1,24 @@
+commit 761830f48196aa1170b5224c1da34f4e20053ebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 8 16:07:05 2012 -0500
+
+    cmd/gc: fix export of inlined function body with type guard
+    
+    When exporting a body containing
+            x, ok := v.(Type)
+    
+    the definition for Type was not being included, so when the body
+    was actually used, it would cause an "unknown type" compiler error.
+    
+    Fixes #4370.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6827064
+
+ src/cmd/gc/export.c                |  1 +
+ test/fixedbugs/issue4370.dir/p1.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue4370.dir/p2.go | 16 ++++++++++++++++
+ test/fixedbugs/issue4370.dir/p3.go | 13 +++++++++++++
+ test/fixedbugs/issue4370.go        |  9 +++++++++
+ 5 files changed, 59 insertions(+)

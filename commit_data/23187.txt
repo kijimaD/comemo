@@ -1,0 +1,17 @@
+commit f04e7bb1cf73a493999c236471456847a8eafc41
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Wed May 27 12:38:55 2015 +0200
+
+    mime: fix names of examples
+    
+    The names of examples were wrong so they were not shown in
+    the documentation.
+    
+    Change-Id: Ib1b985b44d2e056c38c008a591cb441e422c4717
+    Reviewed-on: https://go-review.googlesource.com/10404
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/encodedword_test.go | 56 ++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 51 insertions(+), 5 deletions(-)

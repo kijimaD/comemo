@@ -1,0 +1,17 @@
+commit 86fdcbedbcb868f7f2e8274d2b50f0ea34043c47
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 12 14:30:10 2015 +1100
+
+    log: add global Output function
+    
+    It was just an oversight that this one method of Logger was not
+    made available for the standard (std) Logger.
+    
+    Fixes #9183
+    
+    Change-Id: I2f251becdb0bae459212d09ea0e5e88774d16dea
+    Reviewed-on: https://go-review.googlesource.com/2686
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/log/log.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,14 @@
+commit a27e61e2fe3e32fa629c2e07b4e9c70ba8c3d13a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 13:46:57 2008 -0700
+
+    time bug: darwin, linux return microseconds not nanoseconds
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=15626
+    CL=15641
+
+ src/syscall/time_amd64_darwin.go | 2 +-
+ src/syscall/time_amd64_linux.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

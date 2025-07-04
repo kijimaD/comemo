@@ -1,0 +1,14 @@
+commit cc35ca529bf1af78865bd224babfc66678e969a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 5 17:05:58 2009 -0700
+
+    wrong type used for dynamic type test
+    
+    R=r
+    DELTA=40  (40 added, 0 deleted, 0 changed)
+    OCL=28308
+    CL=28311
+
+ test/bugs/bug148.go | 39 +++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 44 insertions(+)

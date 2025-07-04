@@ -1,0 +1,14 @@
+commit b59dbd7fe07a80c2081e5932fb21f4ec7caa62cb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 30 11:14:48 2009 -0800
+
+    rename variable at rsc's request
+    
+    R=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=23896
+    CL=23928
+
+ doc/progs/server.go  | 4 ++--
+ doc/progs/server1.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

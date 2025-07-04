@@ -1,0 +1,31 @@
+commit 90cc4a594960cd6ad0e71422cfbf226a20d6b3f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 09:41:38 2009 -0700
+
+    go/printer:
+    - handle HTML tagging via (client-installable) Stylers
+    
+    go/doc:
+    - basic styler support
+    - some factoring
+    - ready to contain the search code (but for now excluded)
+    
+    doc/style.css:
+    - updated
+    
+    doc/go_spec.css:
+    - cleanup: replace deprecated uses of <font> tag with <span> tag
+    
+    R=rsc
+    DELTA=302  (160 added, 62 deleted, 80 changed)
+    OCL=35973
+    CL=35996
+
+ doc/go_spec.html                   |  30 ++++----
+ doc/style.css                      |  35 +++++++--
+ src/cmd/cgo/out.go                 |   8 +-
+ src/cmd/godoc/godoc.go             | 149 ++++++++++++++++++++++++-------------
+ src/cmd/gofmt/gofmt.go             |   2 +-
+ src/pkg/go/printer/printer.go      | 138 ++++++++++++++++++++--------------
+ src/pkg/go/printer/printer_test.go |   2 +-
+ 7 files changed, 231 insertions(+), 133 deletions(-)

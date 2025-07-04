@@ -1,0 +1,21 @@
+commit a74985092c14784db86fdf391b9cf939e1b06f2f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 4 10:45:43 2022 +0800
+
+    all: fix function names in comments
+    
+    Change-Id: I871a747b4b47bccc889f2fdc93a2bcebb041b719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447895
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/debug/plan9obj/file.go     | 2 +-
+ src/net/addrselect.go          | 2 +-
+ src/net/http/httputil/dump.go  | 2 +-
+ src/os/file_plan9.go           | 2 +-
+ src/reflect/value.go           | 2 +-
+ src/text/template/parse/lex.go | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

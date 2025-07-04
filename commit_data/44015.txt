@@ -1,0 +1,22 @@
+commit 3298300ddf45a0792b4d8ea5e05f0fbceec4c9f9
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Dec 10 09:52:52 2020 +0800
+
+    text/template: error on range over send channel
+    
+    template range require channel contains RecvDir
+    if recv on send only channel will raise an panic.
+    
+    Fixes #43065
+    
+    Change-Id: Ie0ea70ce60e074bf8c9f2378e07ef1d4c41dc38f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276532
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/text/template/exec.go      |  4 ++++
+ src/text/template/exec_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)

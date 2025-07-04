@@ -1,0 +1,15 @@
+commit ff3885dc11caddd98ee1c2f9e38ee344edc9c31e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 15 18:02:57 2017 -0800
+
+    debug/dwarf: formStrp uses a 64-bit value for 64-bit DWARF
+    
+    No test as the only system I know that uses 64-bit DWARF is AIX.
+    
+    Change-Id: I24e225253075be188845656b6778993c2d24ebf5
+    Reviewed-on: https://go-review.googlesource.com/84379
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/debug/dwarf/entry.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

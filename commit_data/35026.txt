@@ -1,0 +1,73 @@
+commit 4984d843d93a6b94122c98fadbaa71cbb473a15c
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Mar 22 16:53:52 2018 -0500
+
+    compress/flate: optimize huffSym
+    
+    By using local variables and assigning them back to decompressor
+    at the end of huffSym, we allow compiler to keep them in registers
+    and avoid reloading/storing them repeatedly. To archive this,
+    moreBits was inlined and specialized to work with local variables.
+    Also move EOF error conversion to helper function, to make inlined
+    part of moreBits more readable. Together this results in nice speed-up:
+    
+    name                             old time/op    new time/op    delta
+    Decode/Digits/Huffman/1e4-6         278µs ± 1%     240µs ± 2%  -13.72%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e5-6        2.38ms ± 1%    2.05ms ± 1%  -14.12%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e6-6        23.4ms ± 1%    19.9ms ± 0%  -14.69%  (p=0.000 n=9+9)
+    Decode/Digits/Speed/1e4-6           280µs ± 2%     254µs ± 1%   -9.28%  (p=0.000 n=10+9)
+    Decode/Digits/Speed/1e5-6          2.53ms ± 1%    2.35ms ± 1%   -7.17%  (p=0.000 n=10+10)
+    Decode/Digits/Speed/1e6-6          24.8ms ± 1%    23.0ms ± 1%   -7.22%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e4-6         281µs ± 2%     259µs ± 3%   -8.03%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e5-6        2.45ms ± 1%    2.30ms ± 1%   -6.15%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e6-6        24.1ms ± 1%    22.6ms ± 0%   -6.31%  (p=0.000 n=9+9)
+    Decode/Digits/Compression/1e4-6     279µs ± 2%     261µs ± 2%   -6.53%  (p=0.000 n=8+9)
+    Decode/Digits/Compression/1e5-6    2.44ms ± 1%    2.30ms ± 1%   -5.72%  (p=0.000 n=10+9)
+    Decode/Digits/Compression/1e6-6    24.0ms ± 1%    22.6ms ± 0%   -6.10%  (p=0.000 n=10+9)
+    Decode/Twain/Huffman/1e4-6          316µs ± 2%     267µs ± 3%  -15.30%  (p=0.000 n=9+10)
+    Decode/Twain/Huffman/1e5-6         2.62ms ± 0%    2.22ms ± 0%  -15.24%  (p=0.000 n=10+10)
+    Decode/Twain/Huffman/1e6-6         25.7ms ± 1%    21.8ms ± 0%  -15.19%  (p=0.000 n=10+10)
+    Decode/Twain/Speed/1e4-6            290µs ± 1%     264µs ± 2%   -9.17%  (p=0.000 n=9+10)
+    Decode/Twain/Speed/1e5-6           2.35ms ± 1%    2.13ms ± 1%   -9.74%  (p=0.000 n=9+10)
+    Decode/Twain/Speed/1e6-6           22.9ms ± 0%    20.7ms ± 0%   -9.68%  (p=0.000 n=10+9)
+    Decode/Twain/Default/1e4-6          270µs ± 2%     252µs ± 2%   -6.67%  (p=0.000 n=9+10)
+    Decode/Twain/Default/1e5-6         2.02ms ± 1%    1.84ms ± 1%   -8.85%  (p=0.000 n=10+10)
+    Decode/Twain/Default/1e6-6         19.1ms ± 0%    17.5ms ± 1%   -8.73%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e4-6      272µs ± 1%     250µs ± 4%   -8.20%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e5-6     2.01ms ± 0%    1.84ms ± 1%   -8.57%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e6-6     19.1ms ± 0%    17.4ms ± 1%   -8.75%  (p=0.000 n=9+10)
+    
+    name                             old speed      new speed      delta
+    Decode/Digits/Huffman/1e4-6      35.9MB/s ± 1%  41.7MB/s ± 2%  +15.91%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e5-6      41.9MB/s ± 1%  48.8MB/s ± 1%  +16.44%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e6-6      42.8MB/s ± 1%  50.2MB/s ± 0%  +17.22%  (p=0.000 n=9+9)
+    Decode/Digits/Speed/1e4-6        35.7MB/s ± 2%  39.4MB/s ± 1%  +10.22%  (p=0.000 n=10+9)
+    Decode/Digits/Speed/1e5-6        39.6MB/s ± 1%  42.6MB/s ± 1%   +7.73%  (p=0.000 n=10+10)
+    Decode/Digits/Speed/1e6-6        40.3MB/s ± 1%  43.4MB/s ± 1%   +7.78%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e4-6      35.6MB/s ± 2%  38.7MB/s ± 2%   +8.74%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e5-6      40.9MB/s ± 1%  43.6MB/s ± 1%   +6.55%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e6-6      41.5MB/s ± 1%  44.3MB/s ± 0%   +6.73%  (p=0.000 n=9+9)
+    Decode/Digits/Compression/1e4-6  35.8MB/s ± 2%  38.3MB/s ± 2%   +6.99%  (p=0.000 n=8+9)
+    Decode/Digits/Compression/1e5-6  40.9MB/s ± 1%  43.4MB/s ± 1%   +6.07%  (p=0.000 n=10+9)
+    Decode/Digits/Compression/1e6-6  41.6MB/s ± 1%  44.3MB/s ± 0%   +6.49%  (p=0.000 n=10+9)
+    Decode/Twain/Huffman/1e4-6       31.7MB/s ± 2%  37.4MB/s ± 3%  +18.08%  (p=0.000 n=9+10)
+    Decode/Twain/Huffman/1e5-6       38.2MB/s ± 0%  45.0MB/s ± 0%  +17.97%  (p=0.000 n=10+10)
+    Decode/Twain/Huffman/1e6-6       38.9MB/s ± 1%  45.9MB/s ± 0%  +17.90%  (p=0.000 n=10+10)
+    Decode/Twain/Speed/1e4-6         34.5MB/s ± 1%  38.0MB/s ± 2%  +10.11%  (p=0.000 n=9+10)
+    Decode/Twain/Speed/1e5-6         42.5MB/s ± 1%  47.0MB/s ± 1%  +10.79%  (p=0.000 n=9+10)
+    Decode/Twain/Speed/1e6-6         43.7MB/s ± 0%  48.3MB/s ± 0%  +10.72%  (p=0.000 n=10+9)
+    Decode/Twain/Default/1e4-6       37.1MB/s ± 2%  39.8MB/s ± 2%   +7.15%  (p=0.000 n=9+10)
+    Decode/Twain/Default/1e5-6       49.5MB/s ± 1%  54.3MB/s ± 1%   +9.71%  (p=0.000 n=10+10)
+    Decode/Twain/Default/1e6-6       52.3MB/s ± 0%  57.3MB/s ± 1%   +9.57%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e4-6   36.7MB/s ± 1%  40.0MB/s ± 4%   +8.96%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e5-6   49.8MB/s ± 0%  54.5MB/s ± 1%   +9.38%  (p=0.000 n=9+10)
+    Decode/Twain/Compression/1e6-6   52.3MB/s ± 0%  57.3MB/s ± 1%   +9.58%  (p=0.000 n=9+10)
+    
+    Change-Id: Iabfd285535ddb210f7f48f33317c6463b5532400
+    Reviewed-on: https://go-review.googlesource.com/102235
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/inflate.go | 51 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 31 insertions(+), 20 deletions(-)

@@ -1,0 +1,12 @@
+commit e26b74152398adf6c932ddfbecec13b7131b3dae
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Feb 7 17:21:04 2011 -0800
+
+    peep: fix optimization bug
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4105058
+
+ src/cmd/5g/peep.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

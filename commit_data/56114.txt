@@ -1,0 +1,25 @@
+commit e074fcc945da2ed2384d562425a7e15b24d15b55
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 2 11:23:47 2024 +0200
+
+    internal/poll, net, os: remove poll.Splice syscall name return value
+    
+    The sc return value of internal/poll.Splice is always set to the same
+    value "splice" in the error case and then passed to wrapSyscallError.
+    Move that value to the wrapSyscallError calls to simplify the code a
+    bit.
+    
+    Change-Id: I98104d755da68ff9f301fabc43c2618fda21a175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/splice_linux.go      | 21 ++++++++-------------
+ src/internal/poll/splice_linux_test.go |  6 +++---
+ src/net/splice_linux.go                |  8 ++++----
+ src/net/splice_linux_test.go           |  9 ++++-----
+ src/os/readfrom_linux_test.go          |  9 ++++-----
+ src/os/zero_copy_linux.go              |  5 ++---
+ 6 files changed, 25 insertions(+), 33 deletions(-)

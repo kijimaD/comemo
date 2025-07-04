@@ -1,0 +1,19 @@
+commit 97494a45e21099c3a357785f31894a5e69e086c8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 15 16:35:43 2015 +0000
+
+    Revert "cmd/internal/gc: ignore declarations of types for goto validation"
+    
+    This reverts commit 5726af54eb3a52b9446a834991110b945e780e99.
+    
+    It broke all the builds.
+    
+    Change-Id: I4b1dde86f9433717d303c1dabd6aa1a2bf97fab2
+    Reviewed-on: https://go-review.googlesource.com/10143
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/gc/dcl.go |  3 ---
+ src/cmd/internal/gc/gen.go | 21 +++------------------
+ src/cmd/internal/gc/go.go  |  1 -
+ test/goto.go               | 16 ----------------
+ 4 files changed, 3 insertions(+), 38 deletions(-)

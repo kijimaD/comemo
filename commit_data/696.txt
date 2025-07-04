@@ -1,0 +1,13 @@
+commit 128f052891715cf5c89ca2d46d9f78b932b7e59c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 22 11:29:40 2008 -0700
+
+    Correct two web links, add missing semicolon after &lt.
+    
+    R=r
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=15619
+    CL=15624
+
+ doc/go_tutorial.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

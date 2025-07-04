@@ -1,0 +1,18 @@
+commit 0656da910a1750921961b0955f9150f326199847
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 3 01:34:29 2016 +0000
+
+    fmt: hold on to all free buffers, regardless of size
+    
+    This code made sense before fmt switched to using sync.Pool, but a
+    sync.Pool clears all items on GC, so not reusing something based on
+    size is just a waste of memory.
+    
+    Change-Id: I201312b0ee6c572ff3c0ffaf71e42623a160d23f
+    Reviewed-on: https://go-review.googlesource.com/21480
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/print.go | 4 ----
+ 1 file changed, 4 deletions(-)

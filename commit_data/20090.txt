@@ -1,0 +1,14 @@
+commit 98bebcc90a4e50e3fd458585744829f2065f2b09
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 11:47:06 2014 +0400
+
+    runtime: convert parfor to Go
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/132100043
+
+ src/pkg/runtime/export_test.go | 54 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/parfor.c       | 45 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 87 insertions(+), 12 deletions(-)

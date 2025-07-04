@@ -1,0 +1,16 @@
+commit 229e97616324b8623eeb2b30bfdfed6637252b94
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 23:32:17 2009 -0700
+
+    first cut at a string buffer.
+    can be made more efficient but this is reasonable.
+    
+    R=rsc
+    DELTA=363  (363 added, 0 deleted, 0 changed)
+    OCL=34720
+    CL=34720
+
+ src/pkg/strings/Makefile       |   1 +
+ src/pkg/strings/buffer.go      | 179 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/buffer_test.go | 183 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 363 insertions(+)

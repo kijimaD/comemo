@@ -1,0 +1,15 @@
+commit da62104169c7b31f8b2917b24232dd349b769c8f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 23 20:17:41 2011 -0800
+
+    gofix: trivial rewrite for template.ParseFiles
+    Also warn about uses of Set.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5436051
+
+ src/cmd/gofix/Makefile         |   1 +
+ src/cmd/gofix/template.go      | 111 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/template_test.go |  55 ++++++++++++++++++++
+ 3 files changed, 167 insertions(+)

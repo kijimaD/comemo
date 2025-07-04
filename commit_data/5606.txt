@@ -1,0 +1,21 @@
+commit 1d282a8eb2569d480273b695b36cdf2dc60a3403
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 3 16:55:50 2010 -0700
+
+    go spec: Base comparison compatibility on assignment compatibility.
+    
+    Specifically:
+    - Simplified definition of comparison compatibility and folded into
+      section on comparison operators since it's only used there.
+    
+    This is a small language change/cleanup. As a consequence:
+    - An interface value may now be compared against a non-interface value.
+    - Channels with opposite directions cannot be compared directly anymore
+      (per discussion with rsc).
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/1462041
+
+ doc/go_spec.html | 141 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 68 insertions(+), 73 deletions(-)

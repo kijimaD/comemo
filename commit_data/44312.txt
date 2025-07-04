@@ -1,0 +1,16 @@
+commit 01eb70e3dd4d7bf00ee915841e6b3c56fc94fe44
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 05:29:51 2021 -0500
+
+    os: fix hex exit code print on 32-bit windows
+    
+    We want to print hex exit codes for the large values,
+    but on 32-bit Windows the large values are negative.
+    
+    Change-Id: I0e350b128414a9468c93eddc62d660f552c1ee05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294070
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/os/exec_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

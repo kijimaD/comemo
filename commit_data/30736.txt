@@ -1,0 +1,32 @@
+commit e22ba7f0fbd7a92418834dafbc1b539de1a85219
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 30 19:11:19 2016 -0700
+
+    cmd/compile: enable CSE of constant strings
+    
+    CL 27254 changed a constant string to a byte array
+    in encoding/hex and got significant performance
+    improvements.
+    
+    hex.Encode used the string twice in a single function.
+    The rewrite rules lower constant strings into components.
+    The pointer component requires an aux symbol.
+    The existing implementation created a new aux symbol every time.
+    As a result, constant string pointers were never CSE'd.
+    Tighten then moved the pointer calculation next to the uses, i.e.
+    into the loop.
+    
+    The re-use of aux syms enabled by this CL
+    occurs 3691 times during make.bash.
+    
+    This CL should not go in without CL 38338
+    or something like it.
+    
+    Change-Id: Ibbf5b17283c0e31821d04c7e08d995c654de5663
+    Reviewed-on: https://go-review.googlesource.com/28219
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

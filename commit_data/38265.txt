@@ -1,0 +1,16 @@
+commit 40d8c3d3e81769550bcaf96ec0a3e3308abb8862
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Wed Mar 6 03:23:46 2019 +0000
+
+    internal/poll: fix deadlock in Write if len(buf) > maxRW
+    
+    fd.l.Lock shouldn't be called in a loop.
+    
+    Change-Id: I3afbc184aa06a60175c9a39319985b5810ecb144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

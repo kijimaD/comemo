@@ -1,0 +1,31 @@
+commit f25656d392b38da362afb997e75bc43af49d514c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Sep 22 10:30:05 2018 +0200
+
+    syscall: replace lstat, lchown, stat to please Android O
+    
+    Implement Lstat with fstatat and Lchown with Fchownat on
+    linux/amd64, linux/arm and linux/386. Furthermore, implement Stat
+    with fstatat on linux/arm and linux/386. Linux/arm64 already had
+    similar replacements.
+    
+    The fstatat and fchownat system calls were added in kernel 2.6.16,
+    which is before the Go minimum, 2.6.23.
+    
+    The three syscalls then match the android bionic implementation
+    and avoids the Android O seccomp filter.
+    
+    Fixes #27797
+    
+    Change-Id: I07fd5506955d454a1a660fef5af0e1ac1ecb0959
+    Reviewed-on: https://go-review.googlesource.com/136795
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux_386.go    | 15 ++++++++++---
+ src/syscall/syscall_linux_amd64.go  | 10 +++++++--
+ src/syscall/syscall_linux_arm.go    | 15 ++++++++++---
+ src/syscall/zsyscall_linux_386.go   | 45 -------------------------------------
+ src/syscall/zsyscall_linux_amd64.go | 30 -------------------------
+ src/syscall/zsyscall_linux_arm.go   | 45 -------------------------------------
+ 6 files changed, 32 insertions(+), 128 deletions(-)

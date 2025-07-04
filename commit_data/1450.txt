@@ -1,0 +1,24 @@
+commit a91af04c06e306e87f9b8e2efda41a32ffd75476
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 11:13:39 2009 -0800
+
+    6g cleanup suggested by ken.
+    remove TPTR wrapper around TMAP, TCHAN, TSTRING.
+    
+    R=ken
+    OCL=22406
+    CL=22409
+
+ src/cmd/6g/align.c  |   4 ++
+ src/cmd/6g/cgen.c   |   6 +--
+ src/cmd/6g/gen.c    |   8 +---
+ src/cmd/6g/gsubr.c  |   4 +-
+ src/cmd/gc/const.c  |  10 ++--
+ src/cmd/gc/dcl.c    |  17 -------
+ src/cmd/gc/export.c |   2 +-
+ src/cmd/gc/go.h     |   1 +
+ src/cmd/gc/go.y     |  13 -----
+ src/cmd/gc/lex.c    |   4 +-
+ src/cmd/gc/subr.c   |  63 +++++++++++-------------
+ src/cmd/gc/walk.c   | 134 +++++++++++++++-------------------------------------
+ 12 files changed, 87 insertions(+), 179 deletions(-)

@@ -1,0 +1,18 @@
+commit f64b7d301d8f22efb9b539f8ac4db60aedf182c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 09:24:33 2017 -0500
+
+    cmd/link: use 64k segment alignment on linux/arm
+    
+    Otherwise 64k pages don't map correctly.
+    
+    Fixes #18408.
+    
+    Change-Id: I85f56682531566d1ff5c655640cd58509514aee8
+    Reviewed-on: https://go-review.googlesource.com/34629
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/arm/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

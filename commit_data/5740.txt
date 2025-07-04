@@ -1,0 +1,19 @@
+commit 0e25775518e9401d9f08ddd2d5646bd102cb7a11
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Wed Jun 30 13:52:34 2010 -0700
+
+    io/ioutil.TempFile for Windows
+    Fixes #834.
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/1686047
+
+ src/pkg/io/ioutil/tempfile.go           |  9 +++------
+ src/pkg/io/ioutil/tempfile_test.go      | 16 ++++++++++------
+ src/pkg/os/Makefile                     |  5 +++++
+ src/pkg/os/env_unix.go                  | 19 +++++++++++++++++++
+ src/pkg/os/env_windows.go               | 29 +++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go | 12 ++++++++++++
+ 7 files changed, 79 insertions(+), 12 deletions(-)

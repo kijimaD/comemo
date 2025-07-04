@@ -1,0 +1,15 @@
+commit 5da37c0901bd420257bd0affe6dbe30ca957f55f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 16:36:29 2012 -0400
+
+    cmd/8a: add SSE2 instructions
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/6614063
+
+ src/cmd/8a/a.y     |   13 +-
+ src/cmd/8a/lex.c   |  108 ++++
+ src/cmd/8a/y.tab.c | 1485 ++++++++++++++++++++++++++++++----------------------
+ src/cmd/8a/y.tab.h |  102 ++--
+ 4 files changed, 1034 insertions(+), 674 deletions(-)

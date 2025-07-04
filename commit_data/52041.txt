@@ -1,0 +1,26 @@
+commit 4a1829b65a5c6b62c3aadeccc0822882e1bc4e46
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jun 7 06:08:51 2022 +1000
+
+    cmd/link: add internal linking support for calling SDYNIMPORT on mips64
+    
+    Add internal linking support for calling SDYNIMPORT symbols on mips64. This adds
+    code to generate appropriate PLT and GOT entries, along with the various dynamic
+    entries needed for the dynamic loader.
+    
+    Updates #36435, #46178
+    
+    Change-Id: I783e0d028510ca2bca82bcbc745f2375770813fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415815
+    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/link/internal/ld/elf.go     |   1 +
+ src/cmd/link/internal/mips64/asm.go | 177 +++++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/mips64/obj.go |   9 +-
+ 3 files changed, 179 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit 4d5adf1eb1a955bae08012e568c645eb4d7f3544
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 18 09:28:50 2016 -0700
+
+    cmd/compile: logical operation identities
+    
+    Some rewrites to simplify logical operations.
+    
+    Fixes #14363
+    
+    Change-Id: I45a1e8f227267cbcca0778101125f7bab776a5dd
+    Reviewed-on: https://go-review.googlesource.com/22188
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  49 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 900 ++++++++++++++++++++++++-
+ 2 files changed, 931 insertions(+), 18 deletions(-)

@@ -1,0 +1,23 @@
+commit 6f65d470d8b688573891420f7a428191d8c6cd49
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 6 17:53:35 2021 -0500
+
+    runtime: clean up redundant calls to SetGCPercent in debug_test.go
+    
+    SetGCPercent(-1) is called by several tests in debug_test.go (followed
+    by a call to runtime.GC) due to #49370. However, startDebugCallWorker
+    already actually has this, just without the runtime.GC call (allowing an
+    in-progress GC to still mess up the test).
+    
+    This CL consolidates SetGCPercent into startDebugDebugCallWorker where
+    applicable.
+    
+    Change-Id: Ifa12d6a911f1506e252d3ddf03004cf2ab3f4ee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369751
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/debug_test.go | 35 +++++------------------------------
+ 1 file changed, 5 insertions(+), 30 deletions(-)

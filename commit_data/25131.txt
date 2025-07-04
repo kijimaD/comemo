@@ -1,0 +1,14 @@
+commit 3e6529d202b0b2328d7897eadd64b0c22296bc72
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 11:45:16 2015 -0500
+
+    encoding/json: revise docs for Unmarshal into map, slice, array
+    
+    Fixes #12972.
+    
+    Change-Id: Id0611667e6149753c351c0c5e01211340a87d3fd
+    Reviewed-on: https://go-review.googlesource.com/17230
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/encoding/json/decode.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

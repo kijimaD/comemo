@@ -1,0 +1,28 @@
+commit f515c1bac708c46f3bb4811439fc75bd013300c9
+Author: Andrew W. Phillips <aphillips801@gmail.com>
+Date:   Tue Aug 29 20:55:59 2023 +1000
+
+    cmd/go/internal/work: avoid panic for a repeated //go:debug setting
+    
+    The creation of a bytes.Buffer in one code path is missing causing a nil
+    pointer dereference.
+    
+    Changed (as rec. by Bryan Mills) to use fmt.Appendf() on []byte instead of
+    fmt.Fprintf on *bytes.Buffer - simpler and avoids duplicated code (but
+    requires Go 1.19 or later).
+    
+    Added test to verify the change (as rec. by Michael Matloob) at
+    src\cmd\go\testdata\script\build_repeated_godebug_issue62346.txt
+    
+    Fixes #62346
+    
+    Change-Id: Ic3267d878a6f7ebedb1cde64e6206de404176b10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523836
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/exec.go                           | 13 +++++--------
+ .../testdata/script/build_repeated_godebug_issue62346.txt  | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit b50b72858714f29f7147c0d58444398345ac8188
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 22 18:00:18 2016 -0700
+
+    runtime: simplify sweep allocation counting
+    
+    Currently sweep counts the number of allocated objects, computes the
+    number of free objects from that, then re-computes the number of
+    allocated objects from that. Simplify and clean this up by skipping
+    these intermediate steps.
+    
+    Change-Id: I3ed98e371eb54bbcab7c8530466c4ab5fde35f0a
+    Reviewed-on: https://go-review.googlesource.com/34935
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go  | 8 ++++----
+ src/runtime/mgcsweep.go | 8 +++-----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

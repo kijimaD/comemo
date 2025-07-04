@@ -1,0 +1,23 @@
+commit 5246fa5e75b129a7dbd9722aa4de0cbaf7ceae43
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 09:45:07 2020 -0500
+
+    mime/multipart: handle ReadForm(math.MaxInt64) better
+    
+    Returning an error about integer overflow is needlessly pedantic.
+    The meaning of ReadForm(MaxInt64) is easily understood
+    (accept a lot of data) and can be implemented.
+    
+    Fixes #40430.
+    
+    Change-Id: I8a522033dd9a2f9ad31dd2ad82cf08d553736ab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275112
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/multipart/formdata.go      |  8 ++++++--
+ src/mime/multipart/formdata_test.go | 14 +++++---------
+ src/net/http/request_test.go        |  2 +-
+ 3 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,23 @@
+commit ec5e5dba6fbc4549f167c6db509a800e163296c8
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun Mar 20 00:07:37 2022 +0800
+
+    runtime: fix name of type parameter
+    
+    CL 372774 is for reflect, this CL is for _type in runtime.
+    Add a test case to ensure the name method of _type can be exercised.
+    
+    Updates #50208
+    
+    Change-Id: I26ccf8c5c574dd9e78510cf29eb40ae7c8d449ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393917
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/debug/heapdump_test.go | 26 ++++++++++++++++++++++++++
+ src/runtime/type.go                |  9 ++++++++-
+ 2 files changed, 34 insertions(+), 1 deletion(-)

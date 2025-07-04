@@ -1,0 +1,74 @@
+commit 71adc658deddc46a30bf690d37716d16cfccced7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 29 19:08:54 2021 -0700
+
+    runtime: change time.now to ABIInternal
+    
+    This reduces the number of instructions executed for time.now by nine,
+    by eliminating the wrapper. Somehow BenchmarkNow is 0.2ns slower.
+    On the other hand BenchmarkNowUnixNano is 0.8ns faster.
+    
+    name                                                       old time/op      new time/op      delta
+    AfterFunc-12                                                   66.7µs ± 4%      67.3µs ± 2%     ~     (p=0.573 n=20+18)
+    After-12                                                       97.6µs ± 4%      97.4µs ± 4%     ~     (p=0.758 n=20+20)
+    Stop-12                                                        66.7µs ±12%      64.8µs ±10%     ~     (p=0.072 n=20+20)
+    SimultaneousAfterFunc-12                                        109µs ± 0%       110µs ± 1%   +1.47%  (p=0.000 n=17+20)
+    StartStop-12                                                   31.9µs ±15%      32.7µs ±14%     ~     (p=0.799 n=20+20)
+    Reset-12                                                       3.67µs ± 2%      3.68µs ± 2%     ~     (p=0.132 n=20+20)
+    Sleep-12                                                        132µs ± 2%       133µs ± 2%   +0.70%  (p=0.035 n=20+19)
+    Ticker-12                                                      32.4µs ± 1%      32.3µs ± 2%     ~     (p=0.270 n=20+19)
+    TickerReset-12                                                 3.71µs ± 2%      3.74µs ± 2%   +0.89%  (p=0.012 n=20+20)
+    TickerResetNaive-12                                            65.7µs ±10%      67.2µs ±10%     ~     (p=0.174 n=20+20)
+    Now-12                                                         29.6ns ± 1%      29.8ns ± 0%   +0.78%  (p=0.000 n=17+17)
+    NowUnixNano-12                                                 31.1ns ± 1%      30.3ns ± 0%   -2.69%  (p=0.000 n=19+18)
+    NowUnixMilli-12                                                30.9ns ± 0%      31.1ns ± 0%   +0.90%  (p=0.000 n=18+20)
+    NowUnixMicro-12                                                30.9ns ± 0%      31.1ns ± 1%   +0.68%  (p=0.000 n=20+18)
+    Format-12                                                       304ns ± 1%       301ns ± 2%   -0.81%  (p=0.004 n=18+19)
+    FormatNow-12                                                    187ns ± 2%       185ns ± 2%   -0.90%  (p=0.036 n=20+18)
+    MarshalJSON-12                                                  267ns ± 3%       265ns ± 3%   -1.00%  (p=0.004 n=18+18)
+    MarshalText-12                                                  267ns ± 2%       265ns ± 3%   -0.87%  (p=0.038 n=19+20)
+    Parse-12                                                        150ns ± 1%       149ns ± 1%   -0.83%  (p=0.000 n=18+20)
+    ParseDuration-12                                               79.6ns ± 0%      80.1ns ± 1%   +0.61%  (p=0.000 n=20+20)
+    Hour-12                                                        4.42ns ± 1%      4.45ns ± 0%   +0.83%  (p=0.000 n=20+20)
+    Second-12                                                      4.42ns ± 0%      4.42ns ± 1%     ~     (p=0.075 n=18+20)
+    Year-12                                                        11.1ns ± 1%      11.1ns ± 1%     ~     (p=0.489 n=20+19)
+    Day-12                                                         14.8ns ± 1%      14.8ns ± 0%     ~     (p=0.616 n=20+18)
+    ISOWeek-12                                                     17.2ns ± 1%      17.2ns ± 0%     ~     (p=0.179 n=20+19)
+    
+    name                                                       old avg-late-ns  new avg-late-ns  delta
+    ParallelTimerLatency-12                                          380k ± 4%        379k ± 3%     ~     (p=0.879 n=20+19)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-12         137k ± 3%        137k ± 2%     ~     (p=0.261 n=19+18)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-12         106k ±16%         95k ± 8%   -9.76%  (p=0.003 n=19+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-12        88.6k ±22%       74.6k ± 3%  -15.78%  (p=0.000 n=19+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-12        76.1k ±18%       70.8k ± 5%   -7.04%  (p=0.020 n=20+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-12        67.3k ±27%       65.6k ±13%     ~     (p=0.211 n=16+18)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-12        59.5k ±24%       57.3k ±32%     ~     (p=0.607 n=19+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-12        41.8k ±34%       46.2k ±33%  +10.54%  (p=0.039 n=17+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-12        57.5k ±37%       65.6k ±46%     ~     (p=0.283 n=17+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-12         118k ±60%        136k ±59%     ~     (p=0.169 n=19+18)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-12      3.66M ±236%       2.55M ±36%     ~     (p=0.158 n=16+20)
+    StaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-12          81.7k ± 4%       80.7k ± 5%     ~     (p=0.107 n=20+19)
+    
+    name                                                       old max-late-ns  new max-late-ns  delta
+    ParallelTimerLatency-12                                        5.88M ±124%      7.28M ±183%     ~     (p=0.640 n=20+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-12         384k ±17%        371k ±11%     ~     (p=0.540 n=17+17)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-12        503k ±180%        373k ±19%     ~     (p=0.057 n=17+18)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-12        519k ±129%        340k ±17%  -34.47%  (p=0.000 n=18+19)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-12        491k ±141%        341k ±26%  -30.52%  (p=0.015 n=18+17)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-12        457k ±123%        405k ±48%     ~     (p=0.786 n=17+17)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-12         491k ±85%        502k ±74%     ~     (p=0.916 n=18+19)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-12        572k ±100%        574k ±65%     ~     (p=0.858 n=18+17)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-12       1.95M ±205%      1.65M ±155%     ~     (p=0.641 n=18+19)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-12       7.77M ±104%      8.72M ±103%     ~     (p=0.512 n=20+20)
+    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-12      29.5M ±187%       18.5M ±43%     ~     (p=0.186 n=18+20)
+    StaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-12           981k ±14%       1033k ±12%   +5.30%  (p=0.048 n=20+18)
+    
+    Change-Id: Ie794a932a929b46053a6c3020b67d640b98d2335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315369
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time_linux_amd64.s | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

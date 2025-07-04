@@ -1,0 +1,32 @@
+commit f5f7d6e32d5384a3638325ff8393bf94ec8d6971
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jun 3 15:04:53 2016 -0700
+
+    syscall: validate ParseDirent inputs
+    
+    Don't panic, crash, or return references to uninitialized memory when
+    ParseDirent is passed invalid input.
+    
+    Move common dirent parsing to syscall.go with minimal platform-specific
+    functions in syscall_$GOOS.go.
+    
+    Fixes #15653
+    
+    Change-Id: I5602475e02321fe381064488401c14b33bec6886
+    Reviewed-on: https://go-review.googlesource.com/23780
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/dirent.go            | 102 +++++++++++++++++++++++++++++++++++++++
+ src/syscall/endian_big.go        |   9 ++++
+ src/syscall/endian_little.go     |   9 ++++
+ src/syscall/syscall_darwin.go    |  36 ++++----------
+ src/syscall/syscall_dragonfly.go |  35 +++++---------
+ src/syscall/syscall_freebsd.go   |  36 ++++----------
+ src/syscall/syscall_linux.go     |  40 +++++----------
+ src/syscall/syscall_nacl.go      |  36 +++++---------
+ src/syscall/syscall_netbsd.go    |  36 ++++----------
+ src/syscall/syscall_openbsd.go   |  36 ++++----------
+ src/syscall/syscall_solaris.go   |  38 +++++----------
+ 11 files changed, 210 insertions(+), 203 deletions(-)

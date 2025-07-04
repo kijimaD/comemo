@@ -1,0 +1,16 @@
+commit 201fd16568b41f536f5ca7809a0bd19fc24b9394
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 10 12:05:20 2017 -0700
+
+    cmd/link: set Fieldtrack symbol type to SDATA
+    
+    Fixes #20316
+    
+    Change-Id: I2553ad9a82dfcb30f020c2a3e37b868111425a20
+    Reviewed-on: https://go-review.googlesource.com/43151
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/go.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,14 @@
+commit 998aaf8a64b7d90269815a2ae9d778da519d0a87
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 1 20:54:58 2016 +1100
+
+    cmd/vet: add a README explaining the criteria for new checks
+    
+    Correctness, Frequency, Precision.
+    
+    Change-Id: I7f202c220aef8512d611dc04a4370b4a237f217c
+    Reviewed-on: https://go-review.googlesource.com/20003
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/README | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

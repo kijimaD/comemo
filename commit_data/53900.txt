@@ -1,0 +1,22 @@
+commit b55e4a7e26a8663d427264b241a90a5213aa8392
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Aug 3 23:50:14 2023 +0000
+
+    os: use t.Fatalf instead of t.Errorf in TestErrProcessDone
+    
+    If err is non-nil, use t.Fatalf to avoid panic when calling p.Wait().
+    
+    Change-Id: Ief4e43ba5ad782999063941ed3b12f3fe4d93621
+    GitHub-Last-Rev: 5d32b3c082e54a914360cb4434d4cc7682e7031e
+    GitHub-Pull-Request: golang/go#61740
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515655
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit a80a7f0e77fab42cebe61c43b98e0959b740def2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jul 16 18:14:58 2018 -0400
+
+    doc: minor go1.11 changes
+    
+    CL 124135 follow-ups.
+    
+    Change-Id: Ib7e2066bd2d18851561e03386709a1b42b50fcef
+    Reviewed-on: https://go-review.googlesource.com/124136
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

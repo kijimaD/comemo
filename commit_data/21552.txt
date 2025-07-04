@@ -1,0 +1,23 @@
+commit 32304fc970177d18e3cf07ca7dfd217314f6a7e9
+Author: rubyist <scott.barron@github.com>
+Date:   Tue Feb 10 10:24:01 2015 -0500
+
+    crypto/x509: allow matchHostnames to work with absolute domain names
+    
+    If an absolute domain name (i.e. ends in a '.' like "example.com.") is used
+    with ssl/tls, the certificate will be reported as invalid. In matchHostnames,
+    the host and patterns are split on '.' and if the lengths of the resulting
+    slices do not match, the function returns false. When splitting an absolute
+    domain name on '.', the slice will have an extra empty string at the end. This
+    empty string should be discarded before comparison, if present.
+    
+    Fixes #9828
+    
+    Change-Id: I0e39674b44a6f93b5024497e76cf1b550832a61d
+    Reviewed-on: https://go-review.googlesource.com/4380
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/verify.go    | 2 ++
+ src/crypto/x509/x509_test.go | 5 +++++
+ 2 files changed, 7 insertions(+)

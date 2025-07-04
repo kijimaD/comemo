@@ -1,0 +1,22 @@
+commit 51072eb1fb2c380284cd0f87e61d1589201c3eea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 24 23:05:36 2012 -0400
+
+    cmd/gc: fix parallel assignment in range
+    
+    for expr1, expr2 = range slice
+    was assigning to expr1 and expr2 in sequence
+    instead of in parallel.  Now it assigns in parallel,
+    as it should.  This matters for things like
+    for i, x[i] = range slice.
+    
+    Fixes #3464.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6252048
+
+ src/cmd/gc/range.c | 11 ++++++++---
+ src/cmd/gc/subr.c  |  6 ++++++
+ test/range.go      | 11 +++++++++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)

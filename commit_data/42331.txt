@@ -1,0 +1,36 @@
+commit 26de581a709428d55ffc38cc0dbc7ddfc96b9443
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Apr 29 20:55:22 2020 -0700
+
+    cmd/compile: omit file:pos for non-existent errors
+    
+    Omits printing the file:line:column when trying to
+    open non-existent files
+    
+    Given:
+        go tool compile x.go
+    
+    * Before:
+        x.go:0: open x.go: no such file or directory
+    
+    * After:
+        open x.go: no such file or directory
+    
+    Reverts the revert in CL 231043 by only fixing the case
+    of non-existent errors which is what the original bug
+    was about. The fix for "permission errors" will come later
+    on when I have bandwidth to investigate the differences
+    between running with root and why os.Open works for some
+    builders and not others.
+    
+    Fixes #36437
+    
+    Change-Id: I9c8a0981ad708b504bb43990a4105b42266fa41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230941
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go  |  8 +++++-
+ test/fixedbugs/issue36437.go         | 49 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit f73b2fca849324e6510338f9a36d16af6ae68a3f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 25 12:24:44 2015 -0400
+
+    runtime: remove unused _GCsweep state
+    
+    We don't use this state. _GCoff means we're sweeping in the
+    background. This makes it clear in the next commit that _GCoff and
+    only _GCoff means sweeping.
+    
+    Change-Id: I416324a829ba0be3794a6cf3cf1655114cb6e47c
+    Reviewed-on: https://go-review.googlesource.com/11501
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

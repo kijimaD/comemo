@@ -1,0 +1,16 @@
+commit 67924c1b602c170239eec821c3aea67b6ab682c7
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Sat Aug 18 15:50:33 2012 -0700
+
+    crypto/tls: explicitly require ExtKeyUsageClientAuth for client certs
+    
+    If we aren't explicit about the KeyUsages, the verifier
+    will treat the certificate as a server certificate and require
+    it to have a ExtKeyUsageServerAuth key usage.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6453148
+
+ src/pkg/crypto/tls/handshake_server.go | 1 +
+ 1 file changed, 1 insertion(+)

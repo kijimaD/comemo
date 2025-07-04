@@ -1,0 +1,12 @@
+commit 12c5ca90a00768c6ad5f6d83f7c37964a30256fb
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Sep 9 11:50:56 2018 +0200
+
+    go/types: fix swapped use of "uses" and "defines" in ObjectOf documentation
+    
+    Change-Id: I855a9c88c379978099ea53c7d28b87cefd7f5d73
+    Reviewed-on: https://go-review.googlesource.com/134295
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

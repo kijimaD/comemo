@@ -1,0 +1,37 @@
+commit 5a0f2a7a7c5658f4f3065c265cee61ec1bde9691
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 15 13:38:06 2023 -0800
+
+    cmd/compile: remove gc programs from stack frame objects
+    
+    This is a two-pronged approach. First, try to keep large objects
+    off the stack frame. Second, if they do manage to appear anyway,
+    use straight bitmasks instead of gc programs.
+    
+    Generally probably a good idea to keep large objects out of stack frames.
+    But particularly keeping gc programs off the stack simplifies
+    runtime code a bit.
+    
+    This CL sets the limit of most stack objects to 131072 bytes (on 64-bit archs).
+    There can still be large objects if allocated by a late pass, like order, or
+    they are required to be on the stack, like function arguments.
+    But the size for the bitmasks for these objects isn't a huge deal,
+    as we have already have (probably several) bitmasks for the frame
+    liveness map itself.
+    
+    Change-Id: I6d2bed0e9aa9ac7499955562c6154f9264061359
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542815
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go             |     2 +-
+ src/cmd/compile/internal/ir/cfg.go              |     2 +-
+ src/cmd/compile/internal/liveness/plive.go      |     7 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |    22 +-
+ src/runtime/mgcmark.go                          |    25 +-
+ src/runtime/stack.go                            |    38 +-
+ src/runtime/stkframe.go                         |     2 +-
+ test/fixedbugs/bug385_64.go                     | 32966 +++++++++++++++++++++-
+ test/fixedbugs/issue39292.go                    |     9 +
+ 9 files changed, 32794 insertions(+), 279 deletions(-)

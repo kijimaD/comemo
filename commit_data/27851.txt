@@ -1,0 +1,15 @@
+commit 35e25ef62efc5917481e11ff6e7a5cc12468b0e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 20 10:18:23 2016 -0700
+
+    cmd/internal/obj/x86: minor code cleanup
+    
+    Update #16415
+    
+    Change-Id: I83e0966931ada2f1ed02304685bb45effdd71268
+    Reviewed-on: https://go-review.googlesource.com/26665
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

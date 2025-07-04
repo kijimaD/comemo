@@ -1,0 +1,19 @@
+commit dff55c1f7605294568ae7e00b09ef8935dbedf3b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Feb 6 14:14:03 2020 -0500
+
+    doc: move doc/modules.md to x/website
+    
+    Moved /doc/modules.md from GOROOT to x/website. The corresponding
+    change in x/website is CL 218239. See explanation there.
+    
+    Updates #33637
+    
+    Change-Id: I329935624e6e264873bc68b6487405a63d3e7030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218240
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/modules.md | 1337 --------------------------------------------------------
+ 1 file changed, 1337 deletions(-)

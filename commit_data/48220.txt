@@ -1,0 +1,32 @@
+commit eb8198d2f67477517e7a735faa49dfd7c0fb3622
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Feb 22 21:41:43 2022 -0800
+
+    cmd/compile: deal with constructed types that have shapes in them
+    
+    We convert type args to shape types inside instantiations. If an
+    instantiation constructs a compound type based on that shape type and
+    uses that as a type arg to another generic function being called, then
+    we have a type arg with a shape type embedded inside of it. In that
+    case, we need to substitute out those embedded shape types with their
+    underlying type.
+    
+    If we don't do this, we may create extra unneeded shape types that
+    have these other shape types embedded in them. This may lead to
+    generating extra shape instantiations, and a mismatch between the
+    instantiations that we used in generating dictionaries and the
+    instantations that are actually called.
+    
+    Updates #51303
+    
+    Change-Id: Ieef894a5fac176cfd1415f95926086277ad09759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387674
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/subr.go | 86 ++++++++++++++++++++++++++++++
+ test/typeparam/issue51303.go               | 65 ++++++++++++++++++++++
+ test/typeparam/issue51303.out              |  4 ++
+ 3 files changed, 155 insertions(+)

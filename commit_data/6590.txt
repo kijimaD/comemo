@@ -1,0 +1,33 @@
+commit 1451695f867773631763717d325f63093dbdda36
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 21 11:25:14 2010 -0400
+
+    encoding/binary: give LittleEndian, BigEndian specific types
+    
+    Giving them specific types has the benefit that
+    binary.BigEndian.Uint32(b) is now a direct call, not an
+    indirect via a mutable interface value, so it can potentially
+    be inlined.
+    
+    Recent changes to the spec relaxed the rules for comparison,
+    so this code is still valid:
+    
+            func isLittle(o binary.ByteOrder) { return o == binary.LittleEndian }
+    
+    The change does break this potential idiom:
+    
+            o := binary.BigEndian
+            if foo {
+                    o = binary.LittleEndian
+            }
+    
+    That must rewrite to give o an explicit binary.ByteOrder type.
+    On balance I think the benefit from the direct call and inlining
+    outweigh the cost of breaking that idiom.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2427042
+
+ src/pkg/encoding/binary/binary.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

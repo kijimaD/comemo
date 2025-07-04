@@ -1,0 +1,19 @@
+commit 9958a7b563259c6ec6d185529f86bec8b62ace3d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 13 08:32:33 2015 +0000
+
+    Revert "cmd/internal/obj/arm64, cmd/link: use two instructions rather than three for loads from memory"
+    
+    This reverts commit 3a9bc571b0b8c4ab4cf026d68ea3b71dec608da3.
+    
+    Breaks darwin/arm64.
+    
+    Change-Id: Ib958beacabca48020a6a47332fbdec99d994060b
+    Reviewed-on: https://go-review.googlesource.com/16906
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/internal/obj/arm64/asm7.go |  60 ++++++++------------
+ src/cmd/internal/obj/link.go       |   5 --
+ src/cmd/link/internal/arm64/asm.go | 113 +++++++++----------------------------
+ src/cmd/link/internal/ld/elf.go    |   4 --
+ 4 files changed, 50 insertions(+), 132 deletions(-)

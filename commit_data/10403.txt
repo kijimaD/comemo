@@ -1,0 +1,18 @@
+commit 0d37998a06b5f5fddbdbe0aed4cbb7536b4201f6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 15 12:48:22 2011 -0500
+
+    syscall: make windows build again after d3963c0fca78 change
+    
+    R=rsc, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5373097
+
+ src/pkg/os/exec_windows.go          | 9 +++++----
+ src/pkg/os/file_windows.go          | 3 ++-
+ src/pkg/runtime/windows/thread.c    | 8 ++++----
+ src/pkg/syscall/env_windows.go      | 1 -
+ src/pkg/syscall/mkerrors_windows.sh | 4 ++--
+ src/pkg/syscall/syscall_windows.go  | 5 -----
+ src/pkg/syscall/zerrors_windows.go  | 2 +-
+ 7 files changed, 14 insertions(+), 18 deletions(-)

@@ -1,0 +1,15 @@
+commit 5e1b7bdecf7a8b5b5d06633758bf53e475902414
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 4 10:58:21 2016 -0700
+
+    cmd/compile: pull ssa OAPPEND expression handing into its own function
+    
+    Pure code movement.
+    
+    Change-Id: Ia07ee0b0041c931b08adf090f262a6f74a6fdb01
+    Reviewed-on: https://go-review.googlesource.com/21546
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 181 +++++++++++++++++++------------------
+ 1 file changed, 93 insertions(+), 88 deletions(-)

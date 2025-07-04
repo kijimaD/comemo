@@ -1,0 +1,23 @@
+commit 8f7830978a49a995de6ab69ff12a0ecc4aa8427d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 4 11:16:04 2023 -0400
+
+    cmd/go: fix short tests on ios
+    
+    As of CL 488076, many cmd/go tests can run on the ios-arm64-corellium
+    builder. Some of them had made erroneous assumptions about cmd/go's
+    use of the C toolchain.
+    
+    Change-Id: Ib59d9858ef3930de2b412daa4462b72065f69cfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492597
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/scriptconds_test.go                     | 26 +++++++++++++++++++++-
+ src/cmd/go/testdata/script/README                  |  4 ++++
+ src/cmd/go/testdata/script/cache_unix.txt          |  7 +++---
+ src/cmd/go/testdata/script/cgo_path.txt            |  6 ++---
+ .../script/cgo_suspect_flag_force_external.txt     |  4 ++--
+ 5 files changed, 37 insertions(+), 10 deletions(-)

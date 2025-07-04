@@ -1,0 +1,20 @@
+commit b820ef5c33c1b508c7b0df8827b6f13c9480acea
+Author: Lion Yang <lion@aosc.xyz>
+Date:   Thu Jan 5 06:25:59 2017 +0800
+
+    x/crypto/chacha20poly1305: fix detection of BMI on AMD64
+    
+    This change uses runtime.support_bmi2 as an additional condition
+    to examine the usability of AVX2 version algorithm, fixes
+    the crash on the platfrom which supports AVX2 but not support BMI2.
+    
+    Fixes #18512
+    
+    Change-Id: I408c0844ae2eb242dacf70cb9e8cec1b8f3bd941
+    Reviewed-on: https://go-review.googlesource.com/34851
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../x/crypto/chacha20poly1305/chacha20poly1305_amd64.s     | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

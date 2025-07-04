@@ -1,0 +1,17 @@
+commit 9df81f822128b4057f6713bff1421b8ee3fec555
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Feb 19 09:35:28 2015 +1100
+
+    encoding/json: Fixed the comment specifying Marshal behavior for maps.
+    
+    The comment previously was reversed in sense (it appeared to be
+    describing unmarshaling). I've fixed that, and added the caveat that map
+    keys are subject to UTF-8 coercion like other strings.
+    
+    Change-Id: Id08082aa71401a6e7530a42f979fbb50bd1f4e6a
+    Reviewed-on: https://go-review.googlesource.com/5221
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

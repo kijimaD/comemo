@@ -1,0 +1,15 @@
+commit 8d5b324afc6be6246e702c6bec35a3791ed033ea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 13:46:16 2012 +1100
+
+    doc: move /ref/cmd to /doc/cmd
+    
+    Fixes #3400.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5926043
+
+ doc/{reference-cmd.html => cmd.html} | 2 +-
+ doc/reference.html                   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

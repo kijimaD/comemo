@@ -1,0 +1,30 @@
+commit 48f2a55aa1e8e13b220419142cadf1347daac5e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 11:54:34 2017 -0500
+
+    cmd/go: treat cached test results as satisfying any timeout
+    
+    We want test caching to work even for people with scripts
+    that set a non-default test timeout. But then that raises the
+    question of what to do about runs with different timeouts:
+    is a cached success with one timeout available for use when
+    asked to run the test with a different timeout?
+    
+    This CL answers that question by saying that the timeout applies
+    to the overall execution of either running the test or displaying
+    the cached result, and displaying a cached result takes no time.
+    So it's always OK to record a cached result, regardless of timeout,
+    and it's always OK to display a cached result, again regardless of timeout.
+    
+    Fixes #22633.
+    
+    Change-Id: Iaef3602710e3be107602267bbc6dba9a2250796c
+    Reviewed-on: https://go-review.googlesource.com/76552
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go            |  8 +++++++-
+ src/cmd/go/internal/test/test.go | 13 +++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 6f07796e864123ffdd8e42468b6574864a88fdb7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 17:20:53 2009 -0800
+
+    document syscall.  all we do is redirect elsewhere.
+    
+    R=rsc
+    DELTA=7  (7 added, 0 deleted, 0 changed)
+    OCL=25859
+    CL=25871
+
+ src/lib/syscall/syscall.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

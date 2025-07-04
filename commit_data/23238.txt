@@ -1,0 +1,32 @@
+commit ca19e55f9aa6f4b191b6b1e4a3e2b4b3a5cbdc49
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 28 17:23:58 2015 -0700
+
+    cmd/link: make stkcheck more flexible
+    
+    stkcheck is flow-insensitive: It processes calls in PC order.
+    Since morestack was always the first call in a function,
+    it was a safe, conservative approximation to simply adjust stack
+    space as we went, recognizing morestack when it showed up.
+    
+    Subsequent CLS will rearrange the function prologue;
+    morestack may no longer be the first call in a function.
+    
+    Introducing flow-sensitivity to stkcheck would allow this,
+    and possibly allow a smaller stackguard.
+    It is also a high risk change and possibly expensive.
+    
+    Instead, assume that all calls to morestack occur as
+    part of the function prologue, no matter where they
+    are located in the program text.
+    
+    Updates #10587.
+    
+    Change-Id: I4dcdd4256a980fc4bc433a68a10989ff57f7034f
+    Reviewed-on: https://go-review.googlesource.com/10496
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 52 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 41 insertions(+), 11 deletions(-)

@@ -1,0 +1,27 @@
+commit e6fb39aa6869fa5033b87c14a9826598679cb47d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 7 22:42:38 2019 +0000
+
+    runtime: make the test addresses for pageAlloc smaller on 32-bit
+    
+    This change makes the test addresses start at 1 GiB instead of 2 GiB to
+    support mips and mipsle, which only have 31-bit address spaces.
+    
+    It also changes some tests to use smaller offsets for the chunk index to
+    avoid jumping too far ahead in the address space to support 31-bit
+    address spaces. The tests don't require such large jumps for what
+    they're testing anyway.
+    
+    Updates #35112.
+    Fixes #35440.
+    
+    Change-Id: Ic68ff2b0a1f10ef37ac00d4bb5b910ddcdc76f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205938
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/export_test.go     |  5 ++++-
+ src/runtime/mpagealloc_test.go | 20 ++++++++++----------
+ 2 files changed, 14 insertions(+), 11 deletions(-)

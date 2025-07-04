@@ -1,0 +1,15 @@
+commit b79afe1b714e225a2b79f639e0956716de34ca64
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 19 13:59:37 2013 -0700
+
+    debug/dwarf: support for DWARF 3
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7662045
+
+ src/pkg/debug/dwarf/buf.go   | 48 ++++++++++++++++++++++++++++++++---------
+ src/pkg/debug/dwarf/entry.go | 26 ++++++++++++++++------
+ src/pkg/debug/dwarf/type.go  |  4 +++-
+ src/pkg/debug/dwarf/unit.go  | 51 +++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 102 insertions(+), 27 deletions(-)

@@ -1,0 +1,14 @@
+commit 5bd5ed2b579f656e5804ec6c1f715b5b43161932
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 18 10:28:18 2013 +1100
+
+    testing: catch panicking example and report, just like tests
+    
+    Fixes #4670.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7148043
+
+ src/pkg/testing/example.go | 79 +++++++++++++++++++++++++++-------------------
+ 1 file changed, 47 insertions(+), 32 deletions(-)

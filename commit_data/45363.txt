@@ -1,0 +1,15 @@
+commit 6fa12172d9f0696b6ae6a0155b63994ae23b8d21
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Mar 30 08:26:24 2021 -0400
+
+    go/parser: add benchmarks for syntax-only parsing and object resolution
+    
+    Change-Id: I73d1b2d18ab4051443d66c60df493d1163d0ba3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306150
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/performance_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

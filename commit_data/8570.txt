@@ -1,0 +1,17 @@
+commit 32e36448830003a1defea37e9cf162b4c327cb5b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 1 14:10:21 2011 +1000
+
+    mail: new package.
+    
+    Basic parsing, plus date parsing.
+    
+    R=bradfitz, gary.burd, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/4530079
+
+ src/pkg/Makefile             |   1 +
+ src/pkg/mail/Makefile        |  11 ++++
+ src/pkg/mail/message.go      |  95 +++++++++++++++++++++++++++++++
+ src/pkg/mail/message_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 236 insertions(+)

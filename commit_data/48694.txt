@@ -1,0 +1,23 @@
+commit b4cabaf8c094da8387ac6274706fe4850d77ebc6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 11:51:43 2022 -0400
+
+    os/signal: run TestNotifyContextNotifications subtests in parallel
+    
+    If we run out of time on the first subtest, we don't want to start the
+    second one with essentially no time remaining. (Moreover, there is no
+    compelling reason not to run these tests in parallel, since they send
+    signals to separate processes.)
+    
+    For #51054.
+    
+    Change-Id: I0424e08c3a9d2db986568d5a5c004859b52f7c51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398454
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Henrique Vicente de Oliveira Pinto <henriquevicente@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/signal/signal_test.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

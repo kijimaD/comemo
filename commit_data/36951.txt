@@ -1,0 +1,18 @@
+commit da6c168378b4c1deb2a731356f1f438e4723b8a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 10 21:39:50 2018 +0000
+
+    net/http: flesh out Transport's HTTP/1 CONNECT+bidi support to match HTTP/2
+    
+    Fixes #17227
+    
+    Change-Id: I0f8964593d69623b85d5759f6276063ee62b2915
+    Reviewed-on: https://go-review.googlesource.com/c/123156
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go           |  3 ++
+ src/net/http/requestwrite_test.go | 32 +++++++++++++++++++
+ src/net/http/transfer.go          | 24 ++++++++++++++-
+ src/net/http/transport.go         |  9 ------
+ src/net/http/transport_test.go    | 65 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 123 insertions(+), 10 deletions(-)

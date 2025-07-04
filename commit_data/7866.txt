@@ -1,0 +1,18 @@
+commit 7c616b3809724874c15be762ab9dd15d9ee86406
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 10:36:22 2011 -0700
+
+    runtime: always set *received in chanrecv.
+    
+    Also fix comment.
+    
+    The only caller of chanrecv initializes the value to false, so
+    this patch makes no difference at present.  But it seems like
+    the right thing to do.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4312053
+
+ src/pkg/runtime/chan.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

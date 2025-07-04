@@ -1,0 +1,15 @@
+commit 44e51fad2865eb560bd71333c5f8b2f60b60e67b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 17:40:03 2009 -0800
+
+    6l: fix divide by zero in glibc linker.
+    
+    repeats 8l change http://code.google.com/p/go/source/detail?r=7594e16b5cf9
+    
+    Fixes #179.
+    
+    R=iant
+    https://golang.org/cl/154145
+
+ src/cmd/6l/asm.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

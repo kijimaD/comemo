@@ -1,0 +1,22 @@
+commit bcadab9349f8e4a6fb38b26c6afea6ab150c5ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 10:05:57 2014 -0500
+
+    cmd/gc, runtime: rename writebarrierfat to typedmemmove
+    
+    Preparation for replacing many memmove calls in runtime
+    with typedmemmove, which is a clearer description of what
+    the routine is doing.
+    
+    For the same reason, rename writebarriercopy to typedslicecopy.
+    
+    Change-Id: I6f23bef2c2215509fefba175b16908f76dc7538c
+    Reviewed-on: https://go-review.googlesource.com/2276
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/gc/builtin.c  |  4 ++--
+ src/cmd/gc/runtime.go |  4 ++--
+ src/cmd/gc/walk.c     |  6 +++---
+ src/runtime/mgc0.go   | 10 +++++-----
+ src/runtime/slice.go  |  2 +-
+ 5 files changed, 13 insertions(+), 13 deletions(-)

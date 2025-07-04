@@ -1,0 +1,12 @@
+commit 236abdb46bc13c3e3afe019950d3c3db126190c4
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jan 23 22:19:34 2018 -0800
+
+    go/types: fix spelling mistake in comment
+    
+    Change-Id: If8609dd7c4bdc261056804759ec254f8af0156df
+    Reviewed-on: https://go-review.googlesource.com/89417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/stmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

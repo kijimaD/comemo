@@ -1,0 +1,18 @@
+commit 6ca91d264f521a132e5b4c3232bb3850f017d021
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 30 15:06:33 2015 -0700
+
+    cmd/internal/obj/arm64: delete needless closure in for claus
+    
+    A residue of the automatic translation, this closure is easily rewritten
+    to a simpler, smaller, and faster construct.
+    
+    Discovered while analyzing #10269, which I still plan to fix.
+    
+    Change-Id: I76b12290280d81880c446b4cf75da633a94482d4
+    Reviewed-on: https://go-review.googlesource.com/8270
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/arm64/obj7.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

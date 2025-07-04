@@ -1,0 +1,18 @@
+commit b5be877ba4318422547068b85c673639cd843b7d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Feb 4 20:07:46 2019 +0100
+
+    cmd/go: clarify @none effect on dependants modules
+    
+    Expand modules documentation to clarify why @none is useful. The
+    wording is the one suggested by rsc on the issue.
+    
+    Fixes #26684
+    
+    Change-Id: I76dc4ff87e50f1dd8536fd9ac1fd938adb29bee3
+    Reviewed-on: https://go-review.googlesource.com/c/161037
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 3 ++-
+ src/cmd/go/internal/modget/get.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

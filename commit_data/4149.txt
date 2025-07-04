@@ -1,0 +1,12 @@
+commit 02df7db868afc6494d06a15303396da682b997c1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 18 19:58:32 2009 -0800
+
+    replace custom findByte with bytes.IndexByte
+    
+    R=rsc
+    https://golang.org/cl/156093
+
+ src/pkg/Make.deps      | 24 ++++++++++++------------
+ src/pkg/bufio/bufio.go | 16 +++-------------
+ 2 files changed, 15 insertions(+), 25 deletions(-)

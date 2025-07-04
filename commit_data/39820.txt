@@ -1,0 +1,17 @@
+commit 8a8cf5bf6d233c97180a6ef7e64d9c67a402470f
+Author: Mihai Borobocea <mihaibopublic@gmail.com>
+Date:   Fri Sep 6 20:30:51 2019 +0300
+
+    text/template: refer to sorted map keys as "ordered" not "comparable" in docs
+    
+    Consistent with the spec's definition of "ordered" and "comparable".
+    
+    Fixes #34147
+    
+    Change-Id: Id13186df5343588d80eaebfeb23092596a846d51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193840
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

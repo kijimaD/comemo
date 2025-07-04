@@ -1,0 +1,14 @@
+commit fe5af1532ab9c749d880c05e0ffe0e17bf874d7f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jul 14 08:23:18 2023 -0400
+
+    log/slog: doc commonHandler.handle
+    
+    Change-Id: Id301b772e472e1cb7cd8bccaa5a13ff7b6f94711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509596
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/log/slog/handler.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 267abbe3ba9dda96a8694e8aad8892e3ba2be60e
+Author: Gusted <williamzijl7@hotmail.com>
+Date:   Mon Oct 18 17:38:22 2021 +0000
+
+    html/template: remove unused `mode` field on `Tree` struct
+    
+    This changes Go, to remove this unused field on the `Tree` struct. Which seems to replaced by the non-private field `Mode`.
+    
+    Change-Id: I5b384424cf60aa0af36eb8aad1d8db3f99b9838e
+    GitHub-Last-Rev: 4b033f967b55ff99df8a969ac1c91c358b82b726
+    GitHub-Pull-Request: golang/go#48028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345789
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/parse/parse.go | 1 -
+ 1 file changed, 1 deletion(-)

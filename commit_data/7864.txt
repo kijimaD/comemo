@@ -1,0 +1,12 @@
+commit e857dd5d3f1e77bcbed0884324588d1b63075555
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 12:50:12 2011 -0400
+
+    http/pprof: cpu profiling support
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4280060
+
+ src/pkg/http/pprof/pprof.go | 36 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 33 insertions(+), 3 deletions(-)

@@ -1,0 +1,44 @@
+commit a4a4d43028ba20ecec50ef761012d17800553cde
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 20:18:47 2016 -0400
+
+    cmd/cover: change covered block for switch/select case to exclude expression
+    
+    Consider a switch like
+    
+            switch x {
+            case foo:
+                    f()
+                    g()
+            }
+    
+    Before, the coverage annotation for the block calling f and g included
+    in its position span the text for 'case foo:'. This looks nice in the coverage
+    report, but it breaks the invariant that coverage blocks are disjoint if
+    you have a more complex expression like:
+    
+            switch x {
+            case func() int { return foo }():
+                    f()
+                    g()
+            }
+    
+    Then the coverage analysis wants to annotate the func literal body,
+    which overlaps with the case body, because the case body is considered
+    to begin at the case token.
+    
+    Change the annotation for a case body to start just after the colon of
+    the case clause, avoiding any potential conflict with complex case
+    expressions. Could have started at the colon instead, but it seemed
+    less weird to start just after it.
+    
+    Fixes #16540.
+    
+    Change-Id: I1fec4bc2a53c7092e649dc0d4be1680a697cb79b
+    Reviewed-on: https://go-review.googlesource.com/32612
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/cover/cover.go         |  4 ++--
+ src/cmd/cover/testdata/test.go | 12 ++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 31d908baaf480db25db3d1fa2c229410fa0e76c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 11:20:34 2012 -0500
+
+    net: fix windows build
+    
+    TBR=mikioh
+    CC=golang-dev
+    https://golang.org/cl/5588048
+
+ src/pkg/net/fd_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

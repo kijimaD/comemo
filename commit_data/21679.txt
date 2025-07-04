@@ -1,0 +1,29 @@
+commit 3fc529eabe4f26939959dd3b98aae314271e0a08
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Feb 14 15:54:25 2015 +0300
+
+    runtime: adjust program counters in race detector
+    
+    In most cases we pass return PC to race detector,
+    and race runtime subtracts one from them.
+    However, in manual instrumentation in runtime
+    we pass function start PC to race runtime.
+    Race runtime can't distinguish these cases
+    and so it does not subtract one from top PC.
+    This leads to bogus line numbers in some cases.
+    Make it consistent and always pass what looks
+    like a return PC, so that race runtime can
+    subtract one and still get PC in the same function.
+    
+    Also delete two unused functions.
+    
+    Update #8053
+    
+    Change-Id: I4242dec5e055e460c9a8990eaca1d085ae240ed2
+    Reviewed-on: https://go-review.googlesource.com/4902
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race.go      |  3 +++
+ src/runtime/race1.go     | 20 --------------------
+ src/runtime/race_amd64.s |  4 ++++
+ 3 files changed, 7 insertions(+), 20 deletions(-)

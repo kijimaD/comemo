@@ -1,0 +1,12 @@
+commit 4659685b8f5591cb539e3e52cc98672e9fc89e02
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 16:17:29 2009 -0800
+
+    Packages.
+    
+    DELTA=170  (73 added, 21 deleted, 76 changed)
+    OCL=25556
+    CL=25594
+
+ doc/go_spec.html | 184 +++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 118 insertions(+), 66 deletions(-)

@@ -1,0 +1,20 @@
+commit a3868028ac8470d1ab7782614707bb90925e7fe3
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Fri Sep 18 21:01:34 2020 +0300
+
+    unicode/utf8: document the handling of runes out of range in EncodeRune
+    
+    Document the way EncodeRune currently handles runes which are
+    out of range.  Also add an example showing that behaviour.
+    
+    Change-Id: I0f8e7645ae053474ec319085a2bb6d7f73bc137c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255998
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/unicode/utf8/example_test.go | 20 ++++++++++++++++++++
+ src/unicode/utf8/utf8.go         |  1 +
+ 2 files changed, 21 insertions(+)

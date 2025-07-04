@@ -1,0 +1,13 @@
+commit 2065b0a094e119b7796b53d021a58fbcbefa2ed3
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Dec 8 22:06:33 2011 -0500
+
+    math: special cases for Pow10; delete BUG
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5477046
+
+ src/pkg/math/const.go | 2 --
+ src/pkg/math/pow10.go | 4 ++++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

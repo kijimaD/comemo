@@ -1,0 +1,13 @@
+commit 13802f565400a91519df86902ece3bd0a8c5aadb
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Jun 24 19:23:09 2012 -0400
+
+    test/bench/shootout: remove dependency on C libraries in test mode
+    Fixes #3732.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6335053
+
+ test/bench/shootout/timing.sh | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

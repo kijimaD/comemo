@@ -1,0 +1,25 @@
+commit 936c7fbc1c154964b6e3e8a7523bdf0c29b4e1b3
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Feb 28 10:54:32 2022 -0500
+
+    internal/goversion: update Version to 1.19
+    
+    This is the start of the Go 1.19 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that will
+    soon open up for development (and eventually become released).
+    
+    Updates #40705
+    Updates #51336
+    
+    Change-Id: Ic4b3f2c04b1fa5c588cb6d62e829f2ed1864e511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388376
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Trust: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/work_edit.txt | 2 +-
+ src/internal/goversion/goversion.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

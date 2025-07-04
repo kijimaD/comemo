@@ -1,0 +1,13 @@
+commit de486b24d1c8fb9b7571077a680a2b193a47928d
+Author: tnt <alkaloid.btx@gmail.com>
+Date:   Sat Mar 7 00:48:26 2015 +0100
+
+    Fixed wrong arguments to formatting functions
+    
+    Change-Id: I11b4cf00ceeb4441b865e0de3f1674095d1c32d0
+    Reviewed-on: https://go-review.googlesource.com/7043
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go   | 8 ++++----
+ src/os/path_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

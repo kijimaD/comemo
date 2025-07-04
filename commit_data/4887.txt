@@ -1,0 +1,16 @@
+commit 4589c3458033d8797c34dedc5f72f534487d2cd6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 18:31:13 2010 -0800
+
+    gc: fix this morning's bug fix
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/216043
+
+ src/cmd/8g/ggen.c      | 2 ++
+ src/cmd/gc/align.c     | 2 --
+ src/cmd/gc/dcl.c       | 3 ++-
+ src/cmd/gc/typecheck.c | 2 ++
+ src/cmd/gc/walk.c      | 3 +--
+ 5 files changed, 7 insertions(+), 5 deletions(-)

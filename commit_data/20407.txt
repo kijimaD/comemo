@@ -1,0 +1,21 @@
+commit a14c1c986eba6ca6a35bfb9feb833b8eff53c7b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 11:18:12 2014 -0700
+
+    go/printer: don't reduce nesting depth twice if parentheses are present around an expr
+    
+    No impact on formatting on our repos.
+    
+    Fixes #8021.
+    
+    LGTM=adonovan
+    R=adonovan, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/142020043
+
+ src/go/printer/nodes.go                    | 2 +-
+ src/go/printer/testdata/expressions.golden | 5 +++++
+ src/go/printer/testdata/expressions.input  | 5 +++++
+ src/go/printer/testdata/expressions.raw    | 5 +++++
+ src/go/printer/testdata/statements.golden  | 2 +-
+ 5 files changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit e893acf1848b96a922356eb753e8cea79f469afd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 19 12:06:30 2014 +0400
+
+    runtime: fix freeOSMemory to free memory immediately
+    Currently freeOSMemory makes only marking phase of GC, but not sweeping phase.
+    So recently memory is not released after freeOSMemory.
+    Do both marking and sweeping during freeOSMemory.
+    Fixes #8019.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/97550043
+
+ src/pkg/runtime/malloc.goc | 11 +----------
+ src/pkg/runtime/mgc0.c     |  8 ++++++--
+ src/pkg/runtime/mheap.c    |  2 +-
+ 3 files changed, 8 insertions(+), 13 deletions(-)

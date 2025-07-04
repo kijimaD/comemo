@@ -1,0 +1,18 @@
+commit 7751d56e3955aaf5285f16b1643e6d8153e32b80
+Author: Peter Nguyen <peter@mictis.com>
+Date:   Fri Feb 3 21:45:50 2017 +0100
+
+    net/rpc/jsonrpc: Update package doc with info about JSON-RPC 2.0
+    
+    Currently the net/rpc/jsonrpc package only implements JSON-RPC version
+    1.0. This change updates the package's documentation with link to find
+    packages for JSON-RPC 2.0.
+    
+    Fixes #10929
+    
+    Change-Id: I3b6f1d17738a1759d7b62ab7b3ecef5b248d30ca
+    Reviewed-on: https://go-review.googlesource.com/36330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/jsonrpc/client.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

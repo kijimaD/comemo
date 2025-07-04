@@ -1,0 +1,32 @@
+commit bf8e6b70276ddfd3e070964542020fe782c1eec8
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Sep 27 15:26:18 2018 +0200
+
+    go/build, runtime/internal/sys: add GOOS=aix
+    
+    This is the first commit of a series that will add AIX as an
+    operating system target for ppc64 architecture.
+    
+    Updates #25893
+    
+    Change-Id: I865b67a9c98277c11c1a56107be404ac5253277d
+    Reviewed-on: https://go-review.googlesource.com/138115
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/syslist.go                     |  2 +-
+ src/runtime/internal/sys/zgoos_aix.go       | 21 +++++++++++++++++++++
+ src/runtime/internal/sys/zgoos_android.go   |  1 +
+ src/runtime/internal/sys/zgoos_darwin.go    |  1 +
+ src/runtime/internal/sys/zgoos_dragonfly.go |  1 +
+ src/runtime/internal/sys/zgoos_freebsd.go   |  1 +
+ src/runtime/internal/sys/zgoos_linux.go     |  1 +
+ src/runtime/internal/sys/zgoos_nacl.go      |  1 +
+ src/runtime/internal/sys/zgoos_netbsd.go    |  1 +
+ src/runtime/internal/sys/zgoos_openbsd.go   |  1 +
+ src/runtime/internal/sys/zgoos_plan9.go     |  1 +
+ src/runtime/internal/sys/zgoos_solaris.go   |  1 +
+ src/runtime/internal/sys/zgoos_windows.go   |  1 +
+ src/runtime/internal/sys/zgoos_zos.go       |  1 +
+ 14 files changed, 34 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 29a3a39b613c542d043ca1fdb3d7f10ed669666d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:34:58 2024 -0700
+
+    cmd/nm: use t.TempDir
+    
+    Change-Id: I6c1d148ae4c899142b160533d8bdf662494bcd7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611039
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/nm/nm_test.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

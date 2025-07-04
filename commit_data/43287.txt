@@ -1,0 +1,22 @@
+commit e43ef8dda2d2baeca7f42a50cc92f527e6826b9f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 12 17:19:49 2020 -0700
+
+    test: add test that fails with gofrontend
+    
+    The gofrontend code doesn't correctly handle inlining a function that
+    refers to a constant with methods.
+    
+    For #35739
+    
+    Change-Id: I6bd0b5cd4272dbe9969634b4821e668acacfdcf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261662
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue35739.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue35739.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue35739.go       |  9 +++++++++
+ 3 files changed, 35 insertions(+)

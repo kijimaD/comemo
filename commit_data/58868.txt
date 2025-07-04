@@ -1,0 +1,17 @@
+commit b38b0c0088039b03117b87eee61583ac4153f2b7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 10:51:29 2025 -0800
+
+    cmd/compile: document -embedcfg flag
+    
+    Fixes #71942
+    
+    Change-Id: Ie7e795506a9c8781f0e0963012233a7ed1093855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

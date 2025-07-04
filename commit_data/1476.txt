@@ -1,0 +1,33 @@
+commit 61f33020446aaeabf15dce358852b08f8facb1dd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 13:48:11 2009 -0800
+
+    printf->Printf etc.
+    the raw fmt routines will be another, smaller but subtler pass.
+    
+    R=rsc
+    DELTA=157  (0 added, 0 deleted, 157 changed)
+    OCL=22851
+    CL=22851
+
+ doc/progs/print.go         |   8 +--
+ doc/progs/print_string.go  |   4 +-
+ doc/progs/printf.go        |   2 +-
+ src/lib/bignum.go          |   6 +-
+ src/lib/bignum_test.go     |   2 +-
+ src/lib/bufio_test.go      |   2 +-
+ src/lib/flag.go            |  12 ++--
+ src/lib/fmt/fmt_test.go    |  30 ++++----
+ src/lib/fmt/print.go       |  24 +++----
+ src/lib/json/generic.go    |   4 +-
+ src/lib/net/dnsclient.go   |   2 +-
+ src/lib/net/dnsmsg.go      |  12 ++--
+ src/lib/sort_test.go       |   2 +-
+ src/lib/strconv/fp_test.go |   4 +-
+ src/lib/testing.go         |   4 +-
+ test/hilbert.go            |  10 +--
+ test/malloc1.go            |   2 +-
+ test/mallocrep1.go         |   6 +-
+ test/map.go                | 170 ++++++++++++++++++++++-----------------------
+ usr/gri/pretty/printer.go  |   2 +-
+ 20 files changed, 154 insertions(+), 154 deletions(-)

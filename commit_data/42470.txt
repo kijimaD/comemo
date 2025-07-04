@@ -1,0 +1,19 @@
+commit b6faed1326b0f6c1efd33b99a4550cbc437bd72f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 16:20:39 2020 -0400
+
+    cmd/asm, cmd/compile, doc: document -spectre flags
+    
+    Most of the docs are in the new wiki page
+    https://golang.org/wiki/Spectre.
+    
+    Updates #37419.
+    
+    Change-Id: I6e8f76670593c089de895e1665b41d874f879df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236599
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.15.html        | 8 ++++++--
+ src/cmd/asm/doc.go     | 7 +++++--
+ src/cmd/compile/doc.go | 2 ++
+ 3 files changed, 13 insertions(+), 4 deletions(-)

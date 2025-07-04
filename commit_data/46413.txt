@@ -1,0 +1,32 @@
+commit 0d8a4bfc962a606584be0a76ed708f86b44164c7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 4 01:22:45 2021 -0700
+
+    bufio: add Writer.AvailableBuffer
+    
+    This adds a new Writer.AvailableBuffer method that returns
+    an empty buffer with a possibly non-empty capacity for use
+    with append-like APIs.
+    
+    The typical usage pattern is something like:
+            b := bw.AvailableBuffer()
+            b = appendValue(b, v)
+            bw.Write(b)
+    
+    It allows logic combining append-like APIs with bufio.Writer to avoid
+    needing to allocate and manage buffers themselves and allows the
+    append-like APIs to directly write into the buffer for a bufio.Writer.
+    
+    Fixes #47527
+    
+    Change-Id: I9cd169f3f8e8c7cd40818caf3daf1944c826fc66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345569
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go        |  8 ++++++++
+ src/bufio/bufio_test.go   | 33 +++++++++++++++++++++++++++++++++
+ src/bufio/example_test.go | 12 ++++++++++++
+ 3 files changed, 53 insertions(+)

@@ -1,0 +1,20 @@
+commit 592d304bdc293a03d80ad86ad4b98b02353bfd64
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Oct 12 16:27:15 2019 +0800
+
+    net: use case-insensitive host string comparison in TestLookup*
+    
+    Some nameservers alter the case of records as they return, e.g
+    .google.COM or .Google.com.
+    However according to RFC4343, DNS name should be treated in case insensitive fashion.
+    This CL will fix case sensitive testcases.
+    
+    Fixes #34781
+    
+    Change-Id: I5f9f6a41ddc1c61993e8d1f934ef0febddc3adc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200277
+    Reviewed-by: Andrei Tudor Călin <mail@acln.ro>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

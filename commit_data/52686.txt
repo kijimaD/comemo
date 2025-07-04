@@ -1,0 +1,67 @@
+commit 94850c6f79a68b3f061c9e29d48603afa37df194
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:13:06 2023 -0400
+
+    Revert "runtime/cgo: store M for C-created thread in pthread key"
+    
+    This reverts CL 481061.
+    
+    Reason for revert: When built with C TSAN, x_cgo_getstackbound triggers
+    race detection on `g->stacklo` because the synchronization is in Go,
+    which isn't instrumented.
+    
+    For #51676.
+    For #59294.
+    For #59678.
+    
+    Change-Id: I38afcda9fcffd6537582a39a5214bc23dc147d47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/test/cgo_test.go                  |   7 +-
+ misc/cgo/test/cthread_unix.c               |  24 -------
+ misc/cgo/test/cthread_windows.c            |  22 ------
+ misc/cgo/test/testx.go                     |  14 ----
+ misc/cgo/testcarchive/carchive_test.go     |  54 --------------
+ misc/cgo/testcarchive/testdata/libgo9/a.go |  14 ----
+ misc/cgo/testcarchive/testdata/main9.c     |  24 -------
+ src/runtime/asm_386.s                      |  41 ++---------
+ src/runtime/asm_amd64.s                    |  38 ++--------
+ src/runtime/asm_arm.s                      |  38 ++--------
+ src/runtime/asm_arm64.s                    |  32 ++-------
+ src/runtime/asm_loong64.s                  |  32 ++-------
+ src/runtime/asm_mips64x.s                  |  32 ++-------
+ src/runtime/asm_mipsx.s                    |  32 ++-------
+ src/runtime/asm_ppc64x.s                   |  35 ++-------
+ src/runtime/asm_riscv64.s                  |  32 ++-------
+ src/runtime/asm_s390x.s                    |  32 ++-------
+ src/runtime/cgo.go                         |   9 ---
+ src/runtime/cgo/asm_386.s                  |   8 ---
+ src/runtime/cgo/asm_amd64.s                |   8 ---
+ src/runtime/cgo/asm_arm.s                  |   8 ---
+ src/runtime/cgo/asm_arm64.s                |   8 ---
+ src/runtime/cgo/asm_loong64.s              |   8 ---
+ src/runtime/cgo/asm_mips64x.s              |   8 ---
+ src/runtime/cgo/asm_mipsx.s                |   8 ---
+ src/runtime/cgo/asm_ppc64x.s               |  24 -------
+ src/runtime/cgo/asm_riscv64.s              |   8 ---
+ src/runtime/cgo/asm_s390x.s                |   8 ---
+ src/runtime/cgo/asm_wasm.s                 |   3 -
+ src/runtime/cgo/callbacks.go               |  45 ------------
+ src/runtime/cgo/gcc_libinit.c              |  35 ---------
+ src/runtime/cgo/gcc_libinit_windows.c      |   9 ---
+ src/runtime/cgo/gcc_stack_darwin.c         |  21 ------
+ src/runtime/cgo/gcc_stack_unix.c           |  34 ---------
+ src/runtime/cgo/gcc_stack_windows.c        |   7 --
+ src/runtime/cgo/libcgo.h                   |   5 --
+ src/runtime/cgocall.go                     |   6 --
+ src/runtime/crash_cgo_test.go              |  13 ----
+ src/runtime/proc.go                        | 112 +++++------------------------
+ src/runtime/runtime2.go                    |   1 -
+ src/runtime/signal_unix.go                 |  20 ++----
+ src/runtime/stubs.go                       |   3 -
+ src/runtime/testdata/testprogcgo/bindm.go  |  89 -----------------------
+ 43 files changed, 67 insertions(+), 944 deletions(-)

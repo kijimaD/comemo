@@ -1,0 +1,14 @@
+commit 4d17efe81b88b0ffacb74986d2558e9098afdded
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 23 14:43:55 2013 -0400
+
+    misc/cgo/test: test recursive internal OS thread lock
+    
+    This would have failed with CL 11663043.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11480045
+
+ misc/cgo/test/issue3775.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

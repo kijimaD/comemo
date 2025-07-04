@@ -1,0 +1,30 @@
+commit cf760ce29ce96be610d79a639eb930e85f78a149
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 9 15:20:21 2024 -0400
+
+    go/types: flip the default value of GODEBUG=gotypesalias=1
+    
+    This CL changes the interpretation of the unset value
+    of gotypesalias to equal "1". The actual deletion of
+    all the transitional logic will happen in a follow-up.
+    
+    Note that the compiler still interprets unset as "0".
+    More work appears to be required within the compiler
+    before it is safe to flip its default.
+    
+    Change-Id: I854ab1fd856c7c361a757676b0670e2f23402816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577715
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/internal/gcimporter/ureader.go |  5 +++--
+ src/go/types/api_test.go              |  1 -
+ src/go/types/check.go                 | 12 ++++++++++--
+ src/go/types/check_test.go            | 11 -----------
+ src/go/types/decl.go                  |  2 +-
+ src/go/types/eval_test.go             |  7 +++++--
+ src/go/types/issues_test.go           |  2 +-
+ src/internal/godebugs/table.go        |  2 +-
+ 8 files changed, 21 insertions(+), 21 deletions(-)

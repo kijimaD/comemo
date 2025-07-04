@@ -1,0 +1,14 @@
+commit fb2caa3244184d73d0185dce2c8b594ff6e60c06
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:19:50 2012 -0500
+
+    net/http: fix http_proxy parsing
+    
+    Fixes #2919.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5645089
+
+ src/pkg/net/http/transport.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

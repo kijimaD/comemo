@@ -1,0 +1,65 @@
+commit 38e7fddc21e2c1c5fbf4f332401b999800a8b5e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 9 16:38:17 2009 -0700
+
+    Show BUG comments in godoc:
+    
+    ast.go:
+    - rename Comments -> CommentGroup (less confusion)
+    - change all comments/docs to be *CommentGroup
+    
+    filter.go:
+    - do not remove unassociated comments from program as part
+      of export filtering (they are needed by doc.go for BUG comments)
+    
+    scanner.go:
+    - exclude '\n' from //-style comments
+    
+    parser.go:
+    - rewrote collection of comments: now all collected comments
+      are *ast.CommentGroups
+    - clarified distinction between leading and trailing comments
+    - fixed a bug in comment collection (parseGenDecl);
+      corresponding test case is in printer/testdata
+    - extra documentation
+    
+    doc.go:
+    - collect BUG comments
+    - corresponding fix for parser bug in comment collection
+    
+    comment.go:
+    - simplified regex
+    
+    printer.go:
+    - adjust comment printing to new representation
+    
+    printer_test.go, testdata/*:
+    - enable printing of doc comments
+    - extended tests
+    
+    package.html, package.txt:
+    - added Bugs section
+    
+    gofmt:
+    - enable printing of doc comments
+    
+    R=rsc
+    DELTA=339  (126 added, 38 deleted, 175 changed)
+    OCL=31403
+    CL=31416
+
+ lib/godoc/package.html                 |   7 ++
+ lib/godoc/package.txt                  |   8 ++
+ src/cmd/gofmt/gofmt.go                 |   2 +-
+ src/pkg/go/ast/ast.go                  |  34 +++---
+ src/pkg/go/ast/filter.go               |   1 -
+ src/pkg/go/doc/comment.go              |   2 +-
+ src/pkg/go/doc/doc.go                  |  97 ++++++++++++----
+ src/pkg/go/parser/parser.go            | 201 ++++++++++++++++-----------------
+ src/pkg/go/printer/printer.go          |  94 ++++++++-------
+ src/pkg/go/printer/printer_test.go     |   2 +-
+ src/pkg/go/printer/testdata/golden1.go |   1 +
+ src/pkg/go/printer/testdata/golden1.x  |   1 +
+ src/pkg/go/printer/testdata/source1.go |   1 +
+ src/pkg/go/scanner/scanner.go          |   3 +-
+ 14 files changed, 271 insertions(+), 183 deletions(-)

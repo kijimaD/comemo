@@ -1,0 +1,15 @@
+commit 33c4ff06693cc7b12e1b4f6a1250aa3d01016bfc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 23:28:32 2010 -0400
+
+    test: fix NaCl build
+    
+    Wasn't running the temp binary under $E (emulator).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2237043
+
+ test/index.go | 4 ++--
+ test/run      | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

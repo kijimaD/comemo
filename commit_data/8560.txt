@@ -1,0 +1,15 @@
+commit 15dcdf751cfd9f075c3071b3ca1d5303334f2694
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 31 15:52:04 2011 -0400
+
+    gc: fix m[x], _ = y.(T)
+    
+    Fixes #1900.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4561053
+
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug343.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

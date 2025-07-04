@@ -1,0 +1,20 @@
+commit 1899472647513e6a63a95481493c45c579ec0cd8
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Apr 18 16:47:42 2022 -0400
+
+    go/types: remove unnecessary indirection when reporting errors
+    
+    Checker.err was only called to report errors created with
+    Checker.newError or Checker.newErrorf. Update the API to pass around
+    *Error rather than error, eliminating unnecessary type assertions and
+    handling.
+    
+    Change-Id: I995a120c7e87266e656b8ff3fd9ed3d368fd17fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400823
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/api.go    |  6 +++---
+ src/go/types/errors.go | 51 +++++++++++++++++++++-----------------------------
+ 2 files changed, 24 insertions(+), 33 deletions(-)

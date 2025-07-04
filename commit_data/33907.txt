@@ -1,0 +1,17 @@
+commit 3aeb3950a9eb02b7d07e68b8b3535540854951e0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Dec 18 12:13:17 2017 -0800
+
+    database/sql/driver: update Value doc, can be driver supported type
+    
+    The driver.Value type may be more then the documented 6 types if the
+    database driver supports it. Document that fact.
+    
+    Updates #23077
+    
+    Change-Id: If7e2112fa61a8cc4e155bb31e94e89b20c607242
+    Reviewed-on: https://go-review.googlesource.com/84636
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/driver/driver.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 2df3d800378fda123395609189fabdd403634d80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 30 17:12:42 2013 +1000
+
+    go/build: fix deps_test for Plan 9's os/user dependencies and to
+    include the new image/color/palette package.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13314044
+
+ src/pkg/go/build/deps_test.go | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

@@ -1,0 +1,29 @@
+commit 6b6b9f69fd38ca285b33917d6201dbcb11ca0324
+Author: Tom Bergan <tombergan@google.com>
+Date:   Tue Aug 8 18:01:08 2017 -0700
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 1c05540f687 for:
+    
+      http2: fix format argument warnings in tests
+      https://golang.org/cl/48090
+    
+      http2: retry requests after receiving REFUSED STREAM
+      https://golang.org/cl/50471
+    
+      http2: block RoundTrip when the Transport hits MaxConcurrentStreams
+      https://golang.org/cl/53250
+    
+    Fixes #13774
+    Fixes #20985
+    Fixes #21229
+    
+    Change-Id: Ie19b4a7cc395a0b7a25fac55f5051faaf94920bb
+    Reviewed-on: https://go-review.googlesource.com/54052
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go | 213 ++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 150 insertions(+), 63 deletions(-)

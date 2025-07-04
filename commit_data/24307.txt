@@ -1,0 +1,18 @@
+commit eddd7ff3cd749ecdbc05ed5c190c860c2ac6d161
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Thu Sep 17 21:01:29 2015 +0200
+
+    cmd/compile/internal/gc: avoid stringsCompare for string literals
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmp.
+    
+    Change-Id: I7567355d405c976c5d91a0cd4e9486ebeb348dbb
+    Reviewed-on: https://go-review.googlesource.com/14682
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 17 +++++++++--------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

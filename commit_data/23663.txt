@@ -1,0 +1,14 @@
+commit f4b4c881cb4b02c00fa6704a2d85ee0160f49f8d
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Tue Jul 14 19:22:24 2015 -0400
+
+    doc/go1.5.html: fix typo
+    
+    This is the first mention of the fmt package in the changes list.
+    
+    Change-Id: I5d378d8707e6735e0e590527db4196b517fefd72
+    Reviewed-on: https://go-review.googlesource.com/12198
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

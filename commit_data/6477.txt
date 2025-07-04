@@ -1,0 +1,13 @@
+commit 5781a00e007fb10815e298095fc65b7798278607
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Oct 7 16:10:48 2010 +0200
+
+    big: fix panic and round correctly in Rat.FloatString
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/2212044
+
+ src/pkg/big/rat.go      | 27 ++++++++++++++++++---------
+ src/pkg/big/rat_test.go |  5 +++++
+ 2 files changed, 23 insertions(+), 9 deletions(-)

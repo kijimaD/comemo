@@ -1,0 +1,13 @@
+commit 26282e4093fcf34738483ed837c1b97a54bb059d
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jun 19 20:10:55 2014 -0700
+
+    strings: define byteBitmap.isSet
+    
+    LGTM=dave
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/109090048
+
+ src/pkg/strings/replace.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

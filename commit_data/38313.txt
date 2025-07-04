@@ -1,0 +1,34 @@
+commit 10156b678336f7628a7f1fdd84ffe2a28d66969a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Mar 1 17:20:28 2019 -0500
+
+    cmd/go: avoid link errors when -coverpkg covers main packages
+    
+    The -coverpkg lets users specify a list of packages that should have
+    coverage instrumentation. This may include packages not transitively
+    imported by tests. For each tested package, the synthetic main package
+    imports all covered packages so they can be registered with
+    testing.RegisterCover. This makes it possible for a main package to
+    import another main package.
+    
+    When we compile a package with p.Internal.BuildInfo set (set on main
+    packages by Package.load in module mode), we set
+    runtime/debug.modinfo. Multiple main packages may be passed to the
+    linker because of the above scenario, so this causes duplicate symbol
+    errors.
+    
+    This change copies p.Internal.BuildInfo to the synthetic main package
+    instead of the internal test package. Additionally, it forces main
+    packages imported by the synthetic test main package to be recompiled
+    for testing. Recompiled packages won't have p.Internal.BuildInfo set.
+    
+    Fixes #30374
+    
+    Change-Id: I06f028d55905039907940ec89d2835f5a1040203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164877
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/test.go                   | 10 ++++++
+ .../script/cover_pkgall_multiple_mains.txt         | 37 ++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

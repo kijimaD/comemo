@@ -1,0 +1,14 @@
+commit f8ff6893a579184d1ba62b0e178fe7ddfd695a1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 21 16:56:59 2013 -0700
+
+    test: more systematic shift tests
+    
+    To be submitted once gc agrees.
+    
+    R=rsc, iant, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7861045
+
+ test/shift1.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 187 insertions(+), 4 deletions(-)

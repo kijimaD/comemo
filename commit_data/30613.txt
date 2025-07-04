@@ -1,0 +1,49 @@
+commit 2a5cf48f91c0a59eeb01b97ca6afaca311324206
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 8 14:26:23 2017 -0800
+
+    cmd/compile: print columns (not just lines) in error messages
+    
+    Compiler errors now show the exact line and line byte offset (sometimes
+    called "column") of where an error occured. For `go tool compile x.go`:
+    
+            package p
+            const c int = false
+            //line foo.go:123
+            type t intg
+    
+    reports
+    
+            x.go:2:7: cannot convert false to type int
+            foo.go:123[x.go:4:8]: undefined: intg
+    
+    (Some errors use the "wrong" position for the error message; arguably
+    the byte offset for the first error should be 15, the position of 'false',
+    rathen than 7, the position of 'c'. But that is an indepedent issue.)
+    
+    The byte offset (column) values are measured in bytes; they start at 1,
+    matching the convention used by editors and IDEs.
+    
+    Positions modified by //line directives show the line offset only for the
+    actual source location (in square brackets), not for the "virtual" file and
+    line number because that code is likely generated and the //line directive
+    only provides line information.
+    
+    Because the new format might break existing tools or scripts, printing
+    of line offsets can be disabled with the new compiler flag -C. We plan
+    to remove this flag eventually.
+    
+    Fixes #10324.
+    
+    Change-Id: I493f5ee6e78457cf7b00025aba6b6e28e50bb740
+    Reviewed-on: https://go-review.googlesource.com/37970
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/errors/test.bash           |  2 +-
+ src/cmd/compile/internal/gc/main.go |  1 +
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ src/cmd/internal/obj/util.go        |  2 +-
+ src/cmd/internal/src/pos.go         | 37 ++++++++++++++++++++++++-------------
+ src/cmd/internal/src/pos_test.go    | 20 ++++++++------------
+ test/run.go                         |  3 ++-
+ 7 files changed, 38 insertions(+), 29 deletions(-)

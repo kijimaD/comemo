@@ -1,0 +1,27 @@
+commit b3f7f60129b822978115717912f4d477a46e8467
+Author: xd <xiangdong.ji@gmail.com>
+Date:   Wed Oct 14 11:02:49 2020 -0700
+
+    cmd/dist: fix build failure of misc/cgo/test on arm64
+    
+    misc/cgo/test fails in 'dist test' on arm64 if the C compiler is of GCC-9.4 or
+    above and its 'outline atomics' feature is enabled, since the internal linking
+    hasn't yet supported "__attribute__((constructor))" and also mis-handles hidden
+    visibility.
+    
+    This change addresses the problem by skipping the internal linking cases of
+    misc/cgo/test on linux/arm64. It fixes 'dist test' failure only, user is expected to
+    pass a GCC option '-mno-outline-atomics' via CGO_CFLAGS if running into the same
+    problem when building cgo programs using internal linking.
+    
+    Updates #39466
+    
+    Change-Id: I57f9e85fca881e5fd2dae6c1b4446bce9e0c1975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262357
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/dist/test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

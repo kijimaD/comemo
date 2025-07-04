@@ -1,0 +1,14 @@
+commit 7ec69c179d0cef01075b84a0fa3c0a4e927bbc63
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 11 13:49:45 2010 -0800
+
+    gofmt -s -w src
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3592041
+
+ src/pkg/debug/pe/file_test.go       |  4 ++--
+ src/pkg/net/dnsname_test.go         | 18 +++++++++---------
+ src/pkg/os/inotify/inotify_linux.go |  2 +-
+ 3 files changed, 12 insertions(+), 12 deletions(-)

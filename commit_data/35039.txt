@@ -1,0 +1,17 @@
+commit 581331e75bae9655ce03d0c121ba8d9625ef43dd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 18 08:48:04 2018 -0700
+
+    cmd/compile: fix race in SSA construction
+    
+    syslook cannot be called safely during SSA construction.
+    
+    Change-Id: Ief173babd2e964fd5016578073dd3ba12e5731c5
+    Reviewed-on: https://go-review.googlesource.com/107815
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  | 4 +++-
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

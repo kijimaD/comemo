@@ -1,0 +1,16 @@
+commit 54641818c97077f59ae968752c3a66576cffbe56
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 22 15:24:21 2015 -0800
+
+    crypto/cipher: fix typo from last change
+    
+    s/encrypt/decrypt/
+    
+    The text is unsafe to cut and paste...
+    
+    Change-Id: Iab19ddf8182d087e9a4b4d34a9eeabd1d2aa02d6
+    Reviewed-on: https://go-review.googlesource.com/18104
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/crypto/cipher/gcm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

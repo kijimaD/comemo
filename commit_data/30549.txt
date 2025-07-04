@@ -1,0 +1,16 @@
+commit ad74e450ca94b3d9e37efd47c234ca1eeee2889d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 6 09:59:36 2017 +0100
+
+    regexp/syntax: remove unused flags parameter
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: I186d2afd067e97eb05d65c4599119b347f82867d
+    Reviewed-on: https://go-review.googlesource.com/37840
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/syntax/parse.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

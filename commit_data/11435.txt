@@ -1,0 +1,12 @@
+commit 21c65e8f33c2b190c3612509b24046f75c478403
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 27 09:36:53 2012 +0100
+
+    cgo: accept null pointers in gccgo flavour of C.GoString.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5569074
+
+ src/cmd/cgo/out.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit e06829b9772ca3a7d5ba3c573b345699f51d69b0
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 1 11:08:46 2019 -0400
+
+    cmd/compile: preserve statement marks in branch elimination
+    
+    This reduces the number of missing-statement lines.
+    
+    Change-Id: Iefa56c2a253220d17d8b53210c8c6af78ee68756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198483
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/branchelim.go | 96 ++++++++++++++++++++++++++++--
+ 1 file changed, 92 insertions(+), 4 deletions(-)

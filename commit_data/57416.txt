@@ -1,0 +1,22 @@
+commit 3da4281df1b0c7ea11b524ff19fc2f409b8e58c0
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Mon Sep 9 09:01:23 2024 +0000
+
+    runtime: Goexit on C-created thread report more useful error message
+    
+    Fixes #68275
+    
+    Change-Id: I47b7a2092f1b4d48aebf437db4e329815c956bb9
+    GitHub-Last-Rev: b89bf3cab7f9f7611122f535914f2788564643c5
+    GitHub-Pull-Request: golang/go#69126
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609296
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/panic.go                         |  2 ++
+ src/runtime/proc.go                          |  3 +++
+ src/runtime/proc_test.go                     | 10 ++++++++++
+ src/runtime/testdata/testprogcgo/callback.go | 11 +++++++++++
+ 4 files changed, 26 insertions(+)

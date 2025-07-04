@@ -1,0 +1,41 @@
+commit 8e5778ed70ec3d371615a663520a586745fb7bee
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 5 14:19:47 2020 -0500
+
+    cmd/link: report error if builtin referenced but not defined
+    
+    When the compiler refers to a runtime builtin, it emits an indexed
+    symbol reference in the object file via predetermined/preassigned ID
+    within the PkgIdxBuiltin pseudo-package. At link time when the loader
+    encounters these references, it redirects them to the corresponding
+    defined symbol in the runtime package. This redirection process
+    currently assumes that if a runtime builtin is referenced, we'll
+    always have a definition for it. This assumption holds in most cases,
+    however for the builtins "runtime.racefuncenter" and
+    "runtime.racefuncexit", we'll only see definitions if the runtime
+    package we're linking against was built with "-race".
+    
+    In the bug in question, build passes "-gcflags=-race" during
+    compilation of the main package, but doesn't pass "-race" directly to
+    'go build', and as a result the final link combines a
+    race-instrumented main with a non-race runtime; this results in R_CALL
+    relocations with zero-valued target symbols, resulting in a panic
+    during stack checking.
+    
+    This patch changes the loader's resolve method to detect situations
+    where we're asking for builtin "runtime.X", but the runtime package
+    read in doesn't contain a definition for X.
+    
+    Fixes #42396.
+    
+    Change-Id: Iafd38bd3b0f7f462868d120ccd4d7d1b88b27436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267881
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 29 ++++++++++++++++++-
+ src/cmd/link/link_test.go              | 52 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+), 1 deletion(-)

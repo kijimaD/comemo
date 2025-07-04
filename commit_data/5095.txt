@@ -1,0 +1,12 @@
+commit aceba042d6ffe45c856132351612732dc4121870
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 20 22:37:23 2010 -0700
+
+    libmach: more info when memory reads fail on Darwin
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/604043
+
+ src/libmach/darwin.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

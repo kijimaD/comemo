@@ -1,0 +1,22 @@
+commit a2b1dc863fe8effbb2aba2598fd37d3944c1dc4f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 20 03:25:16 2019 +1000
+
+    cmd/link,cmd/internal/objabi: factor out direct call identification
+    
+    Factor out the direct CALL identification code from objabi.IsDirectJump and
+    use this in two places that have separately maintained lists of reloc types.
+    Provide an objabi.IsDirectCallOrJump function that implements the original
+    behaviour of objabi.IsDirectJump.
+    
+    Change-Id: I48131bae92b2938fd7822110d53df0b4ffb35766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196577
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/objabi/reloctype.go | 30 ++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/data.go     |  4 ++--
+ src/cmd/link/internal/ld/lib.go      | 10 ++++------
+ src/cmd/link/internal/ld/pcln.go     |  2 +-
+ 4 files changed, 31 insertions(+), 15 deletions(-)

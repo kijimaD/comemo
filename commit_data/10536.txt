@@ -1,0 +1,14 @@
+commit 4aab04178dcfd977ef6b2ccad85de37c044d4d81
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 29 19:24:57 2011 +1100
+
+    dashboard: more tests, bug fixes, and /packages handler
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5441053
+
+ misc/dashboard/app/app.yaml       |  2 +-
+ misc/dashboard/app/build/build.go | 47 +++++++++++++++++++++++++++++-----
+ misc/dashboard/app/build/test.go  | 54 +++++++++++++++++++++++++++++++--------
+ 3 files changed, 86 insertions(+), 17 deletions(-)

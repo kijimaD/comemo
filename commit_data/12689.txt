@@ -1,0 +1,14 @@
+commit 2a5879d1e2f397d71097b27eda74c7867f48094a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 20 13:50:05 2012 +1100
+
+    doc: replace mentions of 6g with gc or the go command
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5846070
+
+ doc/codewalk/markov.xml     | 13 ++++++-------
+ doc/debugging_with_gdb.html |  6 +++---
+ doc/go_faq.html             | 10 +++++-----
+ 3 files changed, 14 insertions(+), 15 deletions(-)

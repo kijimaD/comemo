@@ -1,0 +1,28 @@
+commit f742ddc349723667fc9af5d0f16233f7762aeaa0
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 24 15:59:17 2023 -0500
+
+    cmd/link/internal/ppc64: support non-PIC PLT call stubs
+    
+    Simplify the PLT stub generation code to minimize stub generation
+    knowing there is only ever a single TOC pointer when linking
+    internally.
+    
+    The OpenBSD port requires Go make dynamic calls into its C library,
+    so the linker must create stubs which work without R2 being set up.
+    This new case is exactly case 3 described in the PPC64 ELFv2 1.5
+    section 4.2.5.3.
+    
+    Updates #56001
+    
+    Change-Id: I07ebd08442302e55b94b57db474dfd7e7a0c2ac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488316
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 168 +++++++++++++++++++------------------
+ 1 file changed, 88 insertions(+), 80 deletions(-)

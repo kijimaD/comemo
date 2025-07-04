@@ -1,0 +1,21 @@
+commit 25b51810014cefb8dba31321fcf40eb1a008fc3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 13:08:26 2017 -0700
+
+    cmd/gofmt: clarify doc string even more
+    
+    Since "columns of alignment" are terminated whenever indentation
+    changes from one line to the next, alignment with spaces will work
+    independent of the actually chosen tab width. Don't mention tab width
+    anymore.
+    
+    Follow-up on https://golang.org/cl/38374/.
+    
+    For #19618.
+    
+    Change-Id: I58e47dfde57834f56a98d9119670757a12fb9c41
+    Reviewed-on: https://go-review.googlesource.com/38379
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/gofmt/doc.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

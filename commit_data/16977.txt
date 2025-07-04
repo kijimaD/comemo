@@ -1,0 +1,13 @@
+commit bd0a14fe4090ae2deb5dfe004ff5413ac259dc35
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 1 17:24:24 2013 +0400
+
+    testing: say what was the timeout if it fires
+    It looks reasonable here and may be useful.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12252043
+
+ src/pkg/testing/testing.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

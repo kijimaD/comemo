@@ -1,0 +1,14 @@
+commit 787906493b511d5baaab19bf28ac8bf75fc06079
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 23 17:46:39 2019 +0000
+
+    doc: clarify that contributing isn't just for code
+    
+    Updates #33323
+    
+    Change-Id: I4b3076469f3db8ab0fe888edcf0471f17dc199e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202823
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/contrib.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

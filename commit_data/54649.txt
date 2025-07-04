@@ -1,0 +1,24 @@
+commit afd7c15c7f2d5ffd7e5f6234d76cc6698f86c06e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 25 13:42:19 2023 -0700
+
+    cmd/compile: use cache in front of convI2I
+    
+    This is the last of the getitab users to receive a cache.
+    We should now no longer see getitab (and callees) in profiles.
+    Hopefully.
+    
+    Change-Id: I2ed72b9943095bbe8067c805da7f08e00706c98c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531055
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .../compile/internal/typecheck/_builtin/runtime.go |   3 -
+ src/cmd/compile/internal/typecheck/builtin.go      | 452 ++++++++++-----------
+ src/cmd/compile/internal/walk/convert.go           |  64 +--
+ src/cmd/compile/internal/walk/expr.go              |  35 +-
+ src/runtime/iface.go                               |   9 -
+ test/codegen/switch.go                             |  10 +
+ 6 files changed, 294 insertions(+), 279 deletions(-)

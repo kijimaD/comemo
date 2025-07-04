@@ -1,0 +1,15 @@
+commit c6f7c176a3a46ff87d72c4b744bbadf02df1890e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 25 11:35:55 2014 -0700
+
+    cmd/go: add GOOS and GOARCH to generate
+    Fixes test failure in build, probably a good idea anyway.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/131210043
+
+ src/cmd/go/generate.go      | 17 ++++++++++++++++-
+ src/cmd/go/generate_test.go |  3 +++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 5f7060afd2dea927ac64804c7e4639f6635c3bb7
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 15 16:03:27 2015 -0400
+
+    runtime: don't start GC if preemptoff is set
+    
+    In order to avoid deadlocks, startGC avoids kicking off GC if locks
+    are held by the calling M. However, it currently fails to check
+    preemptoff, which is the other way to disable preemption.
+    
+    Fix this by adding a check for preemptoff.
+    
+    Change-Id: Ie1083166e5ba4af5c9d6c5a42efdfaaef41ca997
+    Reviewed-on: https://go-review.googlesource.com/10153
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

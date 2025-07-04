@@ -1,0 +1,15 @@
+commit baa5d26f629a38335df010a1b5098ebdec8af3b8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 31 00:48:57 2014 -0300
+
+    sync/atomic: fix comment referencing Value.Store's argument name
+    
+    Fixes #9029
+    
+    LGTM=adg, r
+    R=r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/161630044
+
+ src/sync/atomic/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

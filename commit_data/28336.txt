@@ -1,0 +1,28 @@
+commit 6ca7c2055bd114c08426d3dbdee444b280b569b6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 12 13:47:55 2016 -0700
+
+    cmd/compile: fix tuple-generating flag ops as clobbering flags
+    
+    If an op generates a tuple, and part of that tuple is of flags type,
+    then treat the op as clobbering flags.
+    
+    Normally this doesn't matter because we do:
+    
+    v1 = ADDS        <int32, flags>
+    v2 = Select0 v1  <int32>
+    v3 = Select1 v1  <flags>
+    
+    And v3 will do the right clobbering of flags.  But in the rare
+    cases where we issue a tuple-with-flag op and the flag portion
+    is dead, then we never issue a Select1.  But v1 still clobbers flags,
+    so we need to respect that.
+    
+    Fixes builder failure in CL 28950.
+    
+    Change-Id: I589089fd81aaeaaa9750bb8d85e7b10199aaa002
+    Reviewed-on: https://go-review.googlesource.com/29083
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/flagalloc.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

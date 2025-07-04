@@ -1,0 +1,16 @@
+commit 9d2b0e86c8338d8e8f285926752ecca642ce23da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 6 00:00:20 2012 -0500
+
+    cmd/ld: skip 0-length write in cwrite
+    
+    The 0-length part is fine, but some callers that write 0 bytes
+    also pass nil as the data pointer, and the Plan 9 kernel kills the
+    process with 'invalid address in sys call' in that case.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6862051
+
+ src/cmd/ld/lib.c | 2 ++
+ 1 file changed, 2 insertions(+)

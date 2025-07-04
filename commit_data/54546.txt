@@ -1,0 +1,15 @@
+commit bcfaf2f00f4183e33cb995153a19f4fb030e387c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 22 13:24:37 2023 -0700
+
+    slices: use strings.EqualFold in ExampleCompactFunc
+    
+    Change-Id: Ie7d495b2a53520ce89b16bc8a66b81a3955bf32f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530635
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/slices/example_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

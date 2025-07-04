@@ -1,0 +1,15 @@
+commit f8dde60e2b70f6edccfec63980ef7e2b59fe9652
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 20 10:04:13 2012 -0400
+
+    doc: don't wrap package names in directory listing
+    
+    Fixes #3522.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6063054
+
+ doc/style.css          | 5 +++--
+ lib/godoc/package.html | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,38 @@
+commit 45bdf0367ea40dd8724d39f632969135d81b09e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 12:16:25 2010 -0700
+
+    reflect: add Kind, remove Int8Type, Int8Value, etc.
+    
+    update other code to match.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1680044
+
+ src/cmd/gc/reflect.c              |  32 ++--
+ src/pkg/asn1/asn1.go              |  33 ++--
+ src/pkg/asn1/common.go            |   6 +-
+ src/pkg/asn1/marshal.go           |   8 +-
+ src/pkg/encoding/binary/binary.go | 124 ++++++-------
+ src/pkg/exp/eval/bridge.go        |  62 ++++---
+ src/pkg/exp/ogle/process.go       |   2 +-
+ src/pkg/exp/ogle/rruntime.go      |   2 +-
+ src/pkg/fmt/print.go              |  41 +----
+ src/pkg/fmt/scan.go               |  90 +++-------
+ src/pkg/gob/codec_test.go         |   8 +-
+ src/pkg/gob/decode.go             |  47 +++--
+ src/pkg/gob/encode.go             |  38 ++--
+ src/pkg/gob/encoder.go            |   2 +-
+ src/pkg/gob/type.go               |  23 +--
+ src/pkg/json/decode.go            |  85 +--------
+ src/pkg/json/encode.go            |  24 +--
+ src/pkg/net/dnsmsg.go             |  71 ++++----
+ src/pkg/reflect/all_test.go       | 157 ++++++++++-------
+ src/pkg/reflect/tostring_test.go  |  33 +---
+ src/pkg/reflect/type.go           | 178 +++++++++----------
+ src/pkg/reflect/value.go          | 363 +++++++++++++-------------------------
+ src/pkg/runtime/type.h            |   3 +
+ src/pkg/testing/quick/quick.go    |  65 +++----
+ src/pkg/xml/read.go               |  63 +------
+ 25 files changed, 623 insertions(+), 937 deletions(-)

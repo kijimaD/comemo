@@ -1,0 +1,15 @@
+commit bbad6900ce21f6f9dc323185155e3f938ec60d27
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 10 10:19:11 2011 -0800
+
+    http: run tests even with DISABLE_NET_TESTS=1
+    
+    All tests are now localhost only.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4271042
+
+ src/pkg/Makefile             |  2 +-
+ src/pkg/http/request_test.go | 37 +++++++++++++++++++++++++++++--------
+ 2 files changed, 30 insertions(+), 9 deletions(-)

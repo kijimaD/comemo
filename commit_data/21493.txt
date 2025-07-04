@@ -1,0 +1,16 @@
+commit f5f00be2ece8425ad6e47e55fbaf296779b8e56b
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Mon Jan 26 00:39:49 2015 -0800
+
+    image: fix obsolete reference in PalettedImage doc comment
+    
+    PalettedColorModel was renamed to color.Palette
+    over three years ago by https://golang.org/cl/5132048.
+    
+    Change-Id: I0204ade10eabff45620fda2990fed428c65d871e
+    Reviewed-on: https://go-review.googlesource.com/3305
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/image.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

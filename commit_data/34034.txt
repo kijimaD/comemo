@@ -1,0 +1,28 @@
+commit cafb36bf11c0ec30a5650a6f1200b0f046fc67a7
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jan 16 03:00:04 2018 +0000
+
+    cmd/internal/obj/arm64: fix assemble VLD1/VST1 bug
+    
+    The current code misassembles VLD1/VST1 instruction with non-zero
+    offset. The offset is dropped silently without any error message.
+    The cause of the misassembling is the current code treats argument
+    (Rn)(Rm) as ZOREG type.
+    
+    The fix changes the matching rules and considers (Rn)(Rm) as ROFF
+    type. The fix will report error information when assembles VLD1/VST1
+    (R8)(R13), [V1.16B].
+    The fix enables the ARM64Errors test.
+    
+    Fixes #23448
+    
+    Change-Id: I3dd518b91e9960131ffb8efcb685cb8df84b70eb
+    Reviewed-on: https://go-review.googlesource.com/87956
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go      |  4 ++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 13 +++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go             | 14 +++++++++++---
+ 3 files changed, 28 insertions(+), 3 deletions(-)

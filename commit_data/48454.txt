@@ -1,0 +1,19 @@
+commit 4d2da99498ff55700eeddf09d603fa0618c8b55c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Oct 31 21:12:45 2021 +0800
+
+    cmd/compile/internal/riscv64: add initial spill support
+    
+    This CL adds some initial support for spilling and reloading
+    registers in the new ABI for RISCV64.
+    
+    Change-Id: I5e2b4d93c33c528809d569e5a442bb302074be78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360215
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/riscv64/galign.go |  2 ++
+ src/cmd/compile/internal/riscv64/ssa.go    | 31 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

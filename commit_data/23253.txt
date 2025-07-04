@@ -1,0 +1,17 @@
+commit ea92f42cc8b36511501644ff0512934619e16cf1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 2 14:43:38 2015 -0700
+
+    cmd/doc: do not show unexported constants
+    
+    The go/doc package doesn't remove unexported entries from const
+    and var blocks, so we must trim them ourselves.
+    
+    Fixes #11008
+    
+    Change-Id: Ibd60d87e09333964e2588340a2ca2b8804bbaa28
+    Reviewed-on: https://go-review.googlesource.com/10643
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/pkg.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

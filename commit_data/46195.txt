@@ -1,0 +1,52 @@
+commit 82efc0540386dfaf78aaddfdb617ac90c7554f34
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 17:48:12 2021 -0700
+
+    cmd/compile: use Type.OrigSym getter/setters [generated]
+    
+    Automated CL to rewrite existing code to use OrigSym getters and
+    setters. Afterwards, we also unexported OrigSym, and then rename the
+    getter to OrigSym.
+    
+    [git-generate]
+    cd src/cmd/compile/internal
+    
+    : Workaround rf issue with types2 tests.
+    rm types2/*_test.go
+    
+    rf '
+    ex ./noder ./typecheck {
+    import "cmd/compile/internal/types"
+    var s *types.Sym
+    var t *types.Type
+    
+    t.OrigSym = s -> t.SetOrigSym(s)
+    t.OrigSym     -> t.OrigSym_()
+    }
+    '
+    
+    cd types
+    rf '
+    mv Type.OrigSym Type.origSym
+    mv Type.OrigSym_ Type.OrigSym
+    '
+    
+    : Revert types2 hack.
+    cd ../types2
+    git checkout HEAD^ .
+    
+    Change-Id: I8eb17098613b1575df56b8189b1615823071d3d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345485
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/decl.go        |  4 ++--
+ src/cmd/compile/internal/noder/stencil.go     |  8 ++++----
+ src/cmd/compile/internal/noder/types.go       |  2 +-
+ src/cmd/compile/internal/typecheck/crawler.go |  4 ++--
+ src/cmd/compile/internal/typecheck/iexport.go |  4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go | 10 +++++-----
+ src/cmd/compile/internal/typecheck/subr.go    |  4 ++--
+ src/cmd/compile/internal/types/type.go        |  6 +++---
+ 8 files changed, 21 insertions(+), 21 deletions(-)

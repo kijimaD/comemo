@@ -1,0 +1,20 @@
+commit a7ab208cbb9f6906f0873254c63b5cc92e316dbd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 3 16:07:40 2022 -0700
+
+    cmd/compile/internal/typecheck: simplify DeclFunc
+    
+    This CL reworks DeclFunc so that we no longer need to internally
+    create an ir.FuncType. The next CL will remove ir.FuncType entirely.
+    
+    Change-Id: I1c02b1b0c35221f2448d6d3ab35cb327a2da40e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403935
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/dcl.go       | 72 +++++++++++++------------
+ src/cmd/compile/internal/typecheck/type.go      | 53 ------------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 --
+ 3 files changed, 37 insertions(+), 92 deletions(-)

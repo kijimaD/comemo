@@ -1,0 +1,12 @@
+commit 8225f4d71f701263181556218994bcf7464d74c7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 14 17:53:01 2011 +1100
+
+    crypto/tls: disable root cert fetching to fix windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5267044
+
+ src/pkg/crypto/tls/root_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

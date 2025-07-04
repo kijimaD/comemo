@@ -1,0 +1,14 @@
+commit 66cc0d6f602178d759c4d85f08293a6a67224a70
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 15 18:59:09 2009 -0700
+
+    don't require ()'s around composite literals if the
+    literal type is not a type name
+    
+    R=rsc
+    DELTA=41  (2 added, 7 deleted, 32 changed)
+    OCL=28955
+    CL=28957
+
+ src/lib/go/parser/parser.go | 57 +++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 31 deletions(-)

@@ -1,0 +1,26 @@
+commit 9137edc986629c18760c4633166b29b556e64567
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 13 15:37:37 2018 -0700
+
+    cmd/internal/objfile: reuse tabwriter across symbols when disassembling
+    
+    Since the tabwriter is flushed at every symbol,
+    it can be re-used with no impact on the output.
+    
+    This cuts allocated space when objdump-ing
+    the compiler by almost 40%,
+    and enables further upcoming improvements.
+    
+    It also speeds up objdump.
+    
+    name            old time/op       new time/op       delta
+    ObjdumpCompile        9.22s ± 3%        8.77s ± 3%   -4.79%  (p=0.000 n=10+9)
+    
+    Change-Id: Ief114d6c2680a4e762b5f439d3ca8dc7a89b9b27
+    Reviewed-on: https://go-review.googlesource.com/106978
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

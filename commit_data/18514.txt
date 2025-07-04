@@ -1,0 +1,19 @@
+commit 2277e8d3c9c3f14aa9536f4aaeea6bfa6c316f3f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 14 12:20:21 2014 +0900
+
+    net: disable TestDNSThreadLimit even in non-short mode by default
+    
+    TestDNSThreadLimit creates tons of DNS queries and it occasionally
+    causes an unintentional traffic jam and/or crash of some virtual
+    machine software, especially its builtin networking stuff.
+    
+    We can run TestDNSThreadLimit with -dnsflood flag instead.
+    
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/63600043
+
+ src/pkg/net/z_last_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

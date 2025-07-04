@@ -1,0 +1,19 @@
+commit afe517590cc5e236a8f4f3af35ca64ca1d55b2e5
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Mar 16 17:04:31 2021 +0800
+
+    cmd/compile: loads from readonly globals into const for mips64x
+    
+    Ref: CL 141118
+    Update #26498
+    
+    Change-Id: If4ea55c080b9aa10183eefe81fefbd4072deaf3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280646
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  6 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 58 +++++++++++++++++++++++++++
+ test/codegen/strings.go                       |  1 +
+ 3 files changed, 65 insertions(+)

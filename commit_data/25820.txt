@@ -1,0 +1,25 @@
+commit 8caf19c46f9d7cc9011d7acdc464768b5fb15d7e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 20:33:34 2016 -0800
+
+    net: fix TestUpdateResolvConf after CL 18860
+    
+    When writing a fake dnsConfig to conf.dnsConfig, set lastChecked to an
+    hour into the future.  This causes dnsclient_unix.go's
+    tryUpdate("/etc/resolv.conf") calls to short-circuit and ignore that
+    /etc/resolv.conf's mtime differs from the test's fake resolv.conf
+    file.  We only need to zero out lastChecked in teardown.
+    
+    While here, this makes two other tryUpdate(conf.path) test calls
+    pointless, since they'll now short circuit too.
+    
+    Fixes #14437.
+    
+    Change-Id: Ieb520388e319b9826dfa49f134907f4927608a53
+    Reviewed-on: https://go-review.googlesource.com/19777
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/dnsclient_unix_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

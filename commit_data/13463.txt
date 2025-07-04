@@ -1,0 +1,14 @@
+commit bd0bb2bc3995e91daf92e0fbb9550f207d940e3a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jul 12 23:26:52 2012 +0200
+
+    cmd/gc: fix error message for type errors involving conversions.
+    
+    Fixes #3818.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6352106
+
+ src/cmd/gc/subr.c | 1 +
+ 1 file changed, 1 insertion(+)

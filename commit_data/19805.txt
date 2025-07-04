@@ -1,0 +1,26 @@
+commit b916dc19921a799c3fc9d1bcc704cfd0b0bf08d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 23 10:17:59 2014 -0400
+
+    liblink: more precise literal word comparison on arm
+    
+    There are fields in the Addr that do not matter for the
+    purpose of deciding that the same word is already
+    in the current literal pool. Copy only the fields that
+    do matter.
+    
+    This came up when comparing against the Go version
+    because the way it is invoked doesn't copy a few fields
+    (like node) that are never directly used by liblink itself.
+    
+    Also remove a stray print that is not well-defined in
+    the new liblink. (Cannot use %D outside of %P, because
+    %D needs the outer Prog*.)
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/119000043
+
+ src/liblink/asm5.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

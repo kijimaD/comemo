@@ -1,0 +1,18 @@
+commit 458b53ea7df53a1398f2dc4ec2bf90e6f663e8a2
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Feb 21 17:51:39 2010 -0800
+
+    all done except -
+    complex divide
+    float(complex) conversion
+    8g 5g etc
+    tests
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/218044
+
+ src/cmd/6g/cplx.c  | 368 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/6g/gg.h    |   2 +-
+ src/cmd/6g/gsubr.c |  30 +----
+ 3 files changed, 297 insertions(+), 103 deletions(-)

@@ -1,0 +1,30 @@
+commit e34de96d588b93c3c4ee8c6a11f99a8f8f3390a6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 10 10:39:58 2023 -0400
+
+    os: define TestIssue60181 only on Unix platforms
+    
+    In CL 517755 the test was added in the unconstrained os_test.go
+    because it appeared to be portable, but it turned out not to be
+    valid on plan9.
+    
+    (The build error was masked on the misc-compile TryBots by #61923.)
+    
+    Although the test can also compile and run on Windows, the bug it
+    checks for is specific to Linux and only really needs to run there, so
+    I am moving it to os_unix_test.go instead of adding yet another test
+    file for “Unix and Windows but not Plan 9”.
+    
+    Updates #60181.
+    
+    Change-Id: I41fd11b288217e95652b5daa72460c0d26bde606
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518255
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/os_test.go      | 56 --------------------------------------------------
+ src/os/os_unix_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 56 deletions(-)

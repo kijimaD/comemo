@@ -1,0 +1,17 @@
+commit 46f379cc2cb26f1b1ddc9dc385403a664ced3f8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 22 08:52:27 2012 -0400
+
+    reflect: add Type.ConvertibleTo, Value.Convert (API CHANGE)
+    
+    Fixes #4047.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/6500065
+
+ src/pkg/reflect/all_test.go    | 447 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/export_test.go |  16 ++
+ src/pkg/reflect/type.go        |  37 +++-
+ src/pkg/reflect/value.go       | 318 +++++++++++++++++++++++++++++
+ 4 files changed, 814 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 705fa920c13e87a580f0fc5bec4e186e1b6f663b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Mar 6 17:08:02 2025 +0100
+
+    crypto/internal/fips140: make Version return latest when not frozen
+    
+    Fixes #71820
+    
+    Change-Id: I6a6a46563da281a7b20efc61eefdcbb2e146db33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/go/internal/fips140/mkzip.go         | 30 ++++++++++++++++++++++++++++
+ src/crypto/internal/fips140/fips140.go       |  6 +++++-
+ src/crypto/internal/fips140test/fips_test.go | 27 +++++++++++++++++++++++++
+ src/runtime/debug/mod.go                     |  1 +
+ 4 files changed, 63 insertions(+), 1 deletion(-)

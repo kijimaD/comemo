@@ -1,0 +1,12 @@
+commit 646927e48a5b90b25b1ded723edea7326695b49f
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue May 26 19:58:59 2009 -0700
+
+    and the golden file
+    
+    R=r
+    OCL=29421
+    CL=29421
+
+ test/golden.out | 9 ---------
+ 1 file changed, 9 deletions(-)

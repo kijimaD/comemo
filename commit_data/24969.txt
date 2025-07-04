@@ -1,0 +1,26 @@
+commit 3a2fc06833a346a7c3b071a984b5265b7ea1da57
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 13:20:35 2015 -0500
+
+    runtime: handle sigprof in stackBarrier
+    
+    Currently, if a profiling signal happens in the middle of
+    stackBarrier, gentraceback may see inconsistencies between stkbar and
+    the barriers on the stack and it will certainly get the wrong return
+    PC for stackBarrier. In most cases, the return PC won't be a PC at all
+    and this will immediately abort the traceback (which is considered
+    okay for a sigprof), but if it happens to be a valid PC this may sent
+    gentraceback down a rabbit hole.
+    
+    Fix this by detecting when the gentraceback starts in stackBarrier and
+    simulating the completion of the barrier to get the correct initial
+    frame.
+    
+    Change-Id: Ib11f705ac9194925f63fe5dfbfc84013a38333e6
+    Reviewed-on: https://go-review.googlesource.com/17035
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/traceback.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

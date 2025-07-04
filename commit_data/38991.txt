@@ -1,0 +1,20 @@
+commit b39daa7a11a436076e19ee891319dd47894e09da
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 1 09:39:49 2019 +0200
+
+    os,time: fix tests on iOS
+    
+    When fixing tests for for self-hosted iOS builds, I
+    broke hosted builds.
+    
+    Updates #31722
+    
+    Change-Id: Id4e7d234fbd86cb2d29d320d75f4441efd663d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174698
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go        |  1 +
+ src/time/zoneinfo_ios.go | 31 +++++++++++++++++++++----------
+ 2 files changed, 22 insertions(+), 10 deletions(-)

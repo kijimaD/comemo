@@ -1,0 +1,16 @@
+commit 0bad50f2a455c59fce1ab18567558ea4b847ea90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 11:26:25 2015 -0800
+
+    cmd/compile/internal/gc: fix go.y to match y.go
+    
+    In https://go-review.googlesource.com/#/c/16554/ y.go was modified
+    manually, but go.y (which is the source for y.go) was not changed.
+    
+    Change-Id: I1273801bfd1ac65b875f4465033b0d062abff0b7
+    Reviewed-on: https://go-review.googlesource.com/16745
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/go.y |   2 +
+ src/cmd/compile/internal/gc/y.go | 462 ++++++++++++++++++++-------------------
+ 2 files changed, 234 insertions(+), 230 deletions(-)

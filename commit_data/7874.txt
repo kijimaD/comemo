@@ -1,0 +1,12 @@
+commit 91bcdb620b8996b5732942161cf54cff3b39c348
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Fri Mar 25 16:11:19 2011 -0400
+
+    net: fix Windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4314042
+
+ src/pkg/net/file_windows.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

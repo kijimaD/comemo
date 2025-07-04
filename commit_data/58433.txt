@@ -1,0 +1,27 @@
+commit 500675a7c8c72bd6b1054a7eb4daaf61970f5ad7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sat Dec 21 15:54:34 2024 -0500
+
+    cmd/compile: load map length with the right type
+    
+    len(map) is lowered to loading the first field of the map
+    structure, which is the length. Currently it is a load of an int.
+    With the old map, the first field is indeed an int. With Swiss
+    map, however, it is a uint64. On big-endian 32-bit machine,
+    loading an (32-bit) int from a uint64 would load just the high
+    bits, which are (probably) all 0. Change to a load with the proper
+    type.
+    
+    Fixes #70248.
+    
+    Change-Id: I39cf2d1e6658dac5a8de25c858e1580e2a14b894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638375
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++----
+ src/internal/runtime/maps/map.go       |  1 +
+ 2 files changed, 10 insertions(+), 4 deletions(-)

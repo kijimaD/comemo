@@ -1,0 +1,19 @@
+commit e7201cfa9fe638053b7c269c23bf408223600bc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 15:47:44 2023 -0800
+
+    go/types, types2: add isTypeLit predicate
+    
+    Preparation for next CL.
+    
+    Change-Id: I5ef170a04577d8aea10255e304357bdbea4935a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470919
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/predicates.go | 11 +++++++++++
+ src/go/types/predicates.go                    | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

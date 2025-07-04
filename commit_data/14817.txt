@@ -1,0 +1,12 @@
+commit 86aad668c0022f17a202fc8d4dd76a0456401048
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jan 7 15:31:51 2013 +1100
+
+    cmd/vet: %#q is a valid format (uses raw quotes).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7057051
+
+ src/cmd/vet/print.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

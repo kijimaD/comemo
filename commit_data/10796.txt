@@ -1,0 +1,20 @@
+commit 8fbeb945dbe9532218110a42ceccd07860128673
+Author: Vadim Vygonets <unixdj@gmail.com>
+Date:   Wed Dec 14 17:17:40 2011 -0500
+
+    gzip: Convert between Latin-1 and Unicode
+    
+    I realize I didn't send the tests in last time.  Anyway, I added
+    a test that knows too much about the package's internal structure,
+    and I'm not sure whether it's the right thing to do.
+    
+    Vadik.
+    
+    R=bradfitz, rsc, go.peter.90
+    CC=golang-dev
+    https://golang.org/cl/5450073
+
+ src/pkg/compress/gzip/gunzip.go    | 12 +++++++++++-
+ src/pkg/compress/gzip/gzip.go      | 20 ++++++++++++++++----
+ src/pkg/compress/gzip/gzip_test.go | 35 ++++++++++++++++++++++++++++++++---
+ 3 files changed, 59 insertions(+), 8 deletions(-)

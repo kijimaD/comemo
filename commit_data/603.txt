@@ -1,0 +1,17 @@
+commit 92ae2cc8a322d87957819ad432b9525547cb8fa6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 10 14:19:03 2008 -0700
+
+    add an Error type to be used as a singleton pointer
+    
+    put all the code in one file for now to work around compiler bug
+    
+    R=gri,rsc
+    DELTA=168  (120 added, 41 deleted, 7 changed)
+    OCL=15100
+    CL=15100
+
+ src/lib/os/Makefile   |  17 ++++---
+ src/lib/os/os.go      | 120 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/lib/os/os_file.go |  42 ------------------
+ 3 files changed, 127 insertions(+), 52 deletions(-)

@@ -1,0 +1,22 @@
+commit 607eaea456e0db814391ddf61d75b6586ca40a6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 15:25:10 2010 -0700
+
+    gc: fix smaller-than-pointer-sized receivers in interfaces
+    
+    Fixes #812.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1904041
+
+ src/cmd/5g/gobj.c        |  2 +-
+ src/cmd/6g/gobj.c        |  2 +-
+ src/cmd/8g/gobj.c        |  2 +-
+ src/cmd/gc/dcl.c         | 13 ++++++--
+ src/cmd/gc/go.h          |  4 +--
+ src/cmd/gc/reflect.c     | 10 +++---
+ src/cmd/gc/subr.c        | 22 ++++++++++---
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug296.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 121 insertions(+), 18 deletions(-)

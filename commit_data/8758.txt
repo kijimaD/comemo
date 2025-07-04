@@ -1,0 +1,15 @@
+commit c562fbc44e1e04ccf1f99d736075f19305d43057
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 17 10:17:33 2011 +1000
+
+    cgo: make file path work for windows
+    
+    R=golang-dev, mattn.jp, adg
+    CC=golang-dev
+    https://golang.org/cl/4634043
+
+ src/cmd/cgo/gcc.go  |  2 +-
+ src/cmd/cgo/main.go |  3 ++-
+ src/cmd/cgo/out.go  | 17 ++++++++++-------
+ src/cmd/cgo/util.go |  2 +-
+ 4 files changed, 14 insertions(+), 10 deletions(-)

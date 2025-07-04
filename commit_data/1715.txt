@@ -1,0 +1,14 @@
+commit 8f2330dd7a7233d571d8eb2f004a792741231d01
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 25 16:20:44 2009 -0800
+
+    Continue editing types section.
+    Do a little work polishing the "zero value" discussion.
+    
+    R=gri
+    DELTA=486  (129 added, 120 deleted, 237 changed)
+    OCL=25392
+    CL=25444
+
+ doc/go_spec.html | 609 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 309 insertions(+), 300 deletions(-)

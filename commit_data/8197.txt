@@ -1,0 +1,12 @@
+commit f589728ff4e7f1855932c01f777f67646ce39e0c
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Apr 22 15:56:27 2011 -0400
+
+    http: in ServerConn and ClientConn, rename Close to Hijack, add Close
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4372046
+
+ src/pkg/http/persist.go | 44 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

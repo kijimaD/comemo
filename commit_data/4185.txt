@@ -1,0 +1,18 @@
+commit 28e392d4bd4f1d87eed5a62297245ced25cff010
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 15:09:54 2009 -0800
+
+    gofmt: add -r flag to rewrite source code according to pattern
+    a little slow, but usable (speed unchanged when not using -r)
+    
+    tweak go/printer to handle nodes without line numbers
+    more gracefully in a couple cases.
+    
+    R=gri
+    https://golang.org/cl/156103
+
+ src/cmd/gofmt/Makefile      |   1 +
+ src/cmd/gofmt/gofmt.go      |  14 ++-
+ src/cmd/gofmt/rewrite.go    | 226 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/printer/nodes.go |  16 +++-
+ 4 files changed, 252 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit ecc2d6179898a3d24a8bb0a91aca6ff84ca843d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 10:59:11 2019 -0700
+
+    cmd/compile: remove redundant anylit calls in walkcompare
+    
+    walkcompare already called walkexpr on n.Left and n.Right, which in
+    turn calls anylit when appropriate.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6912ac5a42b977c04db9d85cb2e7295e275e083d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197600
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

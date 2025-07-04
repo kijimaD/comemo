@@ -1,0 +1,23 @@
+commit 76c45877c9e72ccc84db787dc08299e0182e0efb
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Jul 23 01:47:11 2018 +0900
+
+    syscall: implement Unix Socket for Windows
+    
+    Add implementation of AF_UNIX. This works only on Windows 10.
+    
+    https://blogs.msdn.microsoft.com/commandline/2017/12/19/af_unix-comes-to-windows/
+    
+    Fixes #26072
+    
+    Change-Id: I76a96a472385a17901885271622fbe55d66bb720
+    Reviewed-on: https://go-review.googlesource.com/125456
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ api/except.txt                   |  2 +
+ src/net/unixsock_windows_test.go | 93 ++++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go   | 58 +++++++++++++++++++++++--
+ src/syscall/types_windows.go     |  2 +
+ 4 files changed, 151 insertions(+), 4 deletions(-)

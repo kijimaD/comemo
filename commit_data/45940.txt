@@ -1,0 +1,17 @@
+commit 849b7911293c3cb11d76ff2778ed560100f987d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 24 16:53:02 2021 -0700
+
+    spec: use consistent capitalization for rune literal hex constants
+    
+    Fixes #47368
+    
+    Change-Id: I2f65c0008658532123f04d08e99e5d083f33461a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337234
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 1d91551b7326383343c7c143a8ac299d0a685289
+Author: helloPiers <git@hellopiers.io>
+Date:   Mon Jul 19 20:08:50 2021 +0000
+
+    time: correct typo in documentation for UnixMicro
+    
+    Fixes #47283.
+    
+    Change-Id: Ibdc35433d22be3caa70197b6a95c66999812a16a
+    GitHub-Last-Rev: 75962b029467a5e26e1ee78a38bf01c954445ea1
+    GitHub-Pull-Request: golang/go#47284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335549
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

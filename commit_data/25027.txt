@@ -1,0 +1,19 @@
+commit 239273d963395676484693328b17961f2f862b08
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 24 09:15:36 2015 +1300
+
+    runtime: mark {g,m,p}uintptr methods as nosplit
+    
+    These are methods that are "obviously" going to get inlined -- until you build
+    with -l, when they can trigger a stack split at a bad time.
+    
+    Fixes #11482
+    
+    Change-Id: Ia065c385978a2e7fe9f587811991d088c4d68325
+    Reviewed-on: https://go-review.googlesource.com/17165
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/runtime2.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

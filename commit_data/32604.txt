@@ -1,0 +1,19 @@
+commit 812b34efaed87584977dd56fbd3b366e13b314f5
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Sep 3 23:53:38 2017 +1000
+
+    cmd/compile: ignore non-code nodes when inlining
+    
+    Avoid counting nodes that don't generate code (eg, constants) against the
+    inlining budget.
+    
+    Fixes #21749
+    
+    Change-Id: I10fca073e64be7d304709ef33e125eb8c78d5e4d
+    Reviewed-on: https://go-review.googlesource.com/61250
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

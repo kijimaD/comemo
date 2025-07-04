@@ -1,0 +1,24 @@
+commit b50b24837d34f78dc933027bcc6492df8b963b50
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 6 14:02:50 2016 -0500
+
+    runtime: don't ignore success of cgo profiling tracebacks
+    
+    If a sigprof happens during a cgo call, we traceback from the entry
+    point of the cgo call. However, if the SP is outside of the G's stack,
+    we'll then ignore this traceback, even if it was successful, and
+    overwrite it with just _ExternalCode.
+    
+    Fix this by accepting any successful traceback, regardless of whether
+    we got it from a cgo entry point or from regular Go code.
+    
+    Fixes #13466.
+    
+    Change-Id: I5da9684361fc5964f44985d74a8cdf02ffefd213
+    Reviewed-on: https://go-review.googlesource.com/18327
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

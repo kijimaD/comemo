@@ -1,0 +1,16 @@
+commit 694f9e36aa508116b8fd0bf2c42e680f2937dd56
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:56:30 2017 +0100
+
+    encoding/xml: remove unused start parameter
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: I5a6664cceeba1cf1c2f3236ddf4db5ce7a64b02a
+    Reviewed-on: https://go-review.googlesource.com/37835
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/read.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

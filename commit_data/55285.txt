@@ -1,0 +1,26 @@
+commit 0b3dd75f6c889d71f7b9bda022b239a1bc7fe4d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 12 17:52:36 2023 -0800
+
+    go/types, types2: better error message when missing method is unexported
+    
+    Change lookupMethod such that "foldCase" means "ignore case
+    and package" and analyze a lookup result further to determine
+    if a method name was not exported, and report a better error
+    message in that case.
+    
+    Fixes #59831.
+    
+    Change-Id: Ice6222e1fc00dba13caeda6c48971e8473d12da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549298
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 73 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/lookup.go      | 18 +++++--
+ src/go/types/issues_test.go                    | 73 ++++++++++++++++++++++++++
+ src/go/types/lookup.go                         | 18 +++++--
+ 4 files changed, 172 insertions(+), 10 deletions(-)

@@ -1,0 +1,32 @@
+commit 7f31971f594edbacbdba5407aaee042850fbd220
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Jan 21 20:07:26 2017 -0800
+
+    testing: synchronize writes to the root's Writer
+    
+    Prior to this change it was possible to see interleaved messages:
+    <<<
+    === RUN   Test/LongLongLongLongName48
+    === RUN   Test/LongLon=== RUN   Test/LongLongLongLongName50
+    gLongLongName49
+    === RUN   Test/LongLongLongLongName51
+    >>>
+    
+    This change fixes it such that you see:
+    <<<
+    === RUN   Test/LongLongLongLongName48
+    === RUN   Test/LongLongLongLongName49
+    === RUN   Test/LongLongLongLongName50
+    === RUN   Test/LongLongLongLongName51
+    >>>
+    
+    Fixes #18741
+    
+    Change-Id: I2529d724065dc65b3e9eb3d7cbeeda82a2d0cfd4
+    Reviewed-on: https://go-review.googlesource.com/35556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/testing/sub_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  |  4 +++-
+ 2 files changed, 46 insertions(+), 1 deletion(-)

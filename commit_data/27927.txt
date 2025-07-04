@@ -1,0 +1,29 @@
+commit 93372673ce51b9462d7ae0f87ac28ffe0c2ad37d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 19:21:26 2016 -0700
+
+    io: fix infinite loop bug in MultiReader
+    
+    If an io.Reader returned (non-zero, EOF), MultiReader would yield
+    bytes forever.
+    
+    This bug has existed before Go 1 (!!), introduced in the original
+    MultiReader implementation in https://golang.org/cl/1764043 and also
+    survived basically the only update to this code since then
+    (https://golang.org/cl/17873, git rev ccdca832c), which was added in
+    Go 1.7.
+    
+    This just bit me when writing a test for some unrelated code.
+    
+    Fixes #16795
+    
+    Change-Id: I36e6a701269793935d19a47ac12f67b07179fbff
+    Reviewed-on: https://go-review.googlesource.com/27397
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/io/multi.go      |  9 +++++----
+ src/io/multi_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 4 deletions(-)

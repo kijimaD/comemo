@@ -1,0 +1,16 @@
+commit 8b3dc5399d507f168128f7102ddb300f9b14895d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 13:14:35 2023 -0400
+
+    cmd/dist: add needCC comment, fix needCC
+    
+    This was missed in CL 475377.
+    
+    Change-Id: I4e8c4c0459a92029a3f448c1e4172d3343280c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475958
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

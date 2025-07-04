@@ -1,0 +1,15 @@
+commit 9a58c9c52ac5dd160cb77e3a5c74922c9f88eb17
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 16 12:16:11 2008 -0700
+
+    update more tests to reflect tweaked grammar for if, switch
+    
+    SVN=122916
+
+ test/bugs/bug006.go                | 14 --------------
+ test/{bugs => fixedbugs}/bug001.go |  0
+ test/{bugs => fixedbugs}/bug002.go |  0
+ test/{bugs => fixedbugs}/bug003.go |  3 +--
+ test/{bugs => fixedbugs}/bug004.go |  0
+ test/golden.out                    | 21 ++++++++-------------
+ 6 files changed, 9 insertions(+), 29 deletions(-)

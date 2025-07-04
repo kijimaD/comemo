@@ -1,0 +1,18 @@
+commit f3f5b10e06f6bb29731e9213dd8745a9b1857568
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Mar 14 00:47:03 2017 -0400
+
+    test: allow flags in run action
+    
+    Previously, we could not run tests with -l=4 on NaCl since the buildrun
+    action is not supported on NaCl. This lets us run tests with build flags
+    on NaCl.
+    
+    Change-Id: I103370c7b823b4ff46f47df97e802da0dc2bc7c3
+    Reviewed-on: https://go-review.googlesource.com/38170
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ test/run.go | 1 +
+ 1 file changed, 1 insertion(+)

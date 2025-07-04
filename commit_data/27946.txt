@@ -1,0 +1,20 @@
+commit 85072d5f752903298fa52b8d92a6d052061ee5b8
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 22 10:31:14 2016 +1200
+
+    cmd/link: remove Symbol.Next
+    
+    Bye bye one more class of linked list manipulation!
+    
+    Change-Id: I2412b224c847dd640f9253125d30cd5f911ce00c
+    Reviewed-on: https://go-review.googlesource.com/27414
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/link/internal/ld/data.go  | 85 ++++++++-------------------------------
+ src/cmd/link/internal/ld/dwarf.go |  8 +---
+ src/cmd/link/internal/ld/elf.go   |  4 +-
+ src/cmd/link/internal/ld/link.go  |  1 -
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ 5 files changed, 21 insertions(+), 79 deletions(-)

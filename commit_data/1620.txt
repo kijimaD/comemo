@@ -1,0 +1,21 @@
+commit fc8dca9dacb68eae277ba37a6356ea57398f96da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 13:58:43 2009 -0800
+
+    heuristic to stop pulling .6 in from .a
+    is not right if the .6 is only for data and
+    the init function.
+    
+    instead of that, pick up everything and
+    let the dead code/data eliminator throw
+    away the parts that weren't useful.
+    
+    R=r
+    DELTA=25  (0 added, 22 deleted, 3 changed)
+    OCL=24446
+    CL=24446
+
+ src/cmd/6l/go.c  | 16 ----------------
+ src/cmd/6l/l.h   |  2 --
+ src/cmd/6l/obj.c | 10 +++-------
+ 3 files changed, 3 insertions(+), 25 deletions(-)

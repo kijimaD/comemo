@@ -1,0 +1,21 @@
+commit ada6ffca8399af9ad24e82502db1429b85b7405f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 3 01:23:52 2023 +1100
+
+    internal/cpu: add default osinit for ppc64/ppc64le
+    
+    This will be used for operating systems other than AIX and Linux (both of
+    which provide a more specific version).
+    
+    Updates #56001
+    
+    Change-Id: Ia1de994866b66f03c83696faa92d0531a0b75273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473698
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/cpu/cpu_ppc64x_other.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,29 @@
+commit 4f9ec2c7568fce3db51cee0bf151ccf8534868aa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jul 11 15:59:56 2018 -0400
+
+    crypto/x509: ignore Common Name when it does not parse as a hostname
+    
+    The Common Name is used as a hostname when there are no Subject
+    Alternative Names, but it is not restricted by name constraints. To
+    protect against a name constraints bypass, we used to require SANs for
+    constrained chains. See the NameConstraintsWithoutSANs error.
+    
+    This change ignores the CN when it does not look like a hostname, so we
+    can avoid returning NameConstraintsWithoutSANs.
+    
+    This makes it possible to validate certificates with non-hostname CN
+    against chains that use name constraints to disallow all names, like the
+    Estonian IDs.
+    
+    Updates #24151
+    
+    Change-Id: I798d797990720a01ad9b5a13336756cc472ebf44
+    Reviewed-on: https://go-review.googlesource.com/123355
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/name_constraints_test.go |  72 ++++++++++--
+ src/crypto/x509/verify.go                | 117 +++++++++++++------
+ src/crypto/x509/verify_test.go           | 192 +++++++++++++++++++++++++++----
+ src/crypto/x509/x509.go                  |  17 +--
+ 4 files changed, 324 insertions(+), 74 deletions(-)

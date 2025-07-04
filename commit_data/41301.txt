@@ -1,0 +1,22 @@
+commit 13311134052aa6f5d7009356b581c3ebf593c502
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 12:57:19 2020 -0500
+
+    cmd/go: convert TestSymlink* to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I0696fa54184514d69c0763ac772d99b12e133eb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214288
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 82 ----------------------
+ src/cmd/go/testdata/script/list_symlink.txt        | 11 +++
+ .../go/testdata/script/list_symlink_internal.txt   | 26 +++++++
+ .../script/list_symlink_vendor_issue14054.txt      | 27 +++++++
+ .../script/list_symlink_vendor_issue15201.txt      | 20 ++++++
+ 5 files changed, 84 insertions(+), 82 deletions(-)

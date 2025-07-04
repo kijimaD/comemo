@@ -1,0 +1,23 @@
+commit b7e4de4b1ec67b57dfaa7a447578ddb6d759efab
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 19 16:31:20 2015 -0400
+
+    cmd/go, cmd/link: -buildmode=pie for linux/amd64
+    
+    Depends on external linking right now. I have no immediate use for
+    this, but wanted to check how hard it is to support as android/amd64
+    is coming and it will require PIE.
+    
+    Change-Id: I65c6b19159f40db4c79cf312cd0368c2b2527bfd
+    Reviewed-on: https://go-review.googlesource.com/16072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 30 ++++++++++++++++++++++++++++++
+ src/cmd/go/alldocs.go              |  5 +++++
+ src/cmd/go/build.go                |  2 +-
+ src/cmd/go/help.go                 |  5 +++++
+ src/cmd/go/pkg.go                  |  4 ++--
+ src/cmd/link/internal/ld/lib.go    |  8 +++++++-
+ 6 files changed, 50 insertions(+), 4 deletions(-)

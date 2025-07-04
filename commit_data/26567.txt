@@ -1,0 +1,22 @@
+commit 98047376fbecedd42711c5d35ef62899dc249025
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Mar 20 21:12:38 2016 +1100
+
+    path/filepath: use fsutil with TestEvalSymlinksCanonicalNames
+    
+    TestEvalSymlinksCanonicalNames fails on system where 8dot3 name creation
+    is disabled. Add new test that temporarily changes 8dot3 name creation
+    file system setting and runs TestEvalSymlinksCanonicalNames under that
+    setting. New test requires administrator access and modifies important
+    file system setting, so don't run the test unless explicitly requested
+    by specifying new test flag.
+    
+    Updates #13980
+    
+    Change-Id: I598b5b956e6bd0ed556e79d350cb244808c89c0b
+    Reviewed-on: https://go-review.googlesource.com/20863
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_windows_test.go | 105 +++++++++++++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)

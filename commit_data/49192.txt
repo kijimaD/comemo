@@ -1,0 +1,19 @@
+commit 9bd6e2776f7dde746dc39923fd2bd994c91fd182
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 5 16:54:44 2022 +0000
+
+    runtime/metrics: add the number of Go-to-C calls
+    
+    For #47216.
+    
+    Change-Id: I1c2cd518e6ff510cc3ac8d8f72fd52eadcabc16c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404306
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 6 ++++++
+ src/runtime/metrics/doc.go         | 3 +++
+ src/runtime/metrics_test.go        | 2 ++
+ 4 files changed, 17 insertions(+)

@@ -1,0 +1,15 @@
+commit ef6d3a94fbc631299d22c0b0eb09f4a20703f7e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 22:27:10 2015 -0400
+
+    cmd/dist: diagnose lack of gcc earlier in build
+    
+    Fixes #10731.
+    
+    Change-Id: I105629b03fd3323c0a2ca5b6b0fd35ee92b7fd2e
+    Reviewed-on: https://go-review.googlesource.com/12146
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/build.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/build.go |  1 +
+ 2 files changed, 54 insertions(+)

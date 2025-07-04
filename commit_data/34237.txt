@@ -1,0 +1,23 @@
+commit b1dbce31d7bbd7c3fdff1679d6f08c107d0be9a5
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Feb 16 15:20:04 2018 +0000
+
+    runtime: don't ignore address hint for sysReserve in Plan 9
+    
+    On Plan 9, sysReserve was ignoring the address hint and allocating
+    memory wherever it is available.  This causes the new
+    TestArenaCollision test to fail on 32-bit Plan 9.  We now use the
+    address hint in the specific case where sysReserve is extending the
+    process address space at its end, and similarly we contract the
+    address space in the case where sysFree is releasing memory at
+    the end.
+    
+    Fixes #23860
+    
+    Change-Id: Ia5254779ba8f1698c999832720a88de400b5f91a
+    Reviewed-on: https://go-review.googlesource.com/94776
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/mem_plan9.go | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

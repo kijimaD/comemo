@@ -1,0 +1,12 @@
+commit d58cd7626e8abf1d0e691bf169d06b17b1a53cef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 17 16:37:13 2008 -0800
+
+    - interface methods must have full function type
+    
+    R=r
+    OCL=19410
+    CL=19410
+
+ test/bugs/bug121.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

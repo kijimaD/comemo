@@ -1,0 +1,18 @@
+commit 2cea6cdb6016708e89c9472cdb0504731699681d
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 10 11:45:23 2022 -0500
+
+    cmd/internal/obj: adjust (*Link).AllPos comment in inl.go
+    
+    AllPos truncates and overwrites its slice-storage input instead
+    of appending.  This makes that clear.
+    
+    Change-Id: I81653ff49a4a7d14fe9446fd6620943f3b20bbd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449478
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/inl.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

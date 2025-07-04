@@ -1,0 +1,17 @@
+commit 4c86f7bd498453ce452f18b6fa1396bb12e6ac66
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Mon May 29 22:14:32 2017 +0200
+
+    cmd/link: fix left-over reference to reflect.c
+    
+    Replaced ../gc/reflect.c with
+    cmd/compile/internal/gc/reflect.go.
+    
+    Fixes #20525
+    
+    Change-Id: Ibafd36ea446ace5c677df27873a4bbf716a0a9bc
+    Reviewed-on: https://go-review.googlesource.com/44376
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/decodesym.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

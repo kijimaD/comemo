@@ -1,0 +1,14 @@
+commit ebf827ded7d6997747c96ae8f0f4871c15090d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:46:55 2016 -0400
+
+    testing: wrap long comment line
+    
+    Requested in CL 31324 review.
+    
+    Change-Id: Ic81410e07cce07c6f3727bc46d86b6c54c15eca0
+    Reviewed-on: https://go-review.googlesource.com/31410
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/testing/testing.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

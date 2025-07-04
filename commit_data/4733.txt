@@ -1,0 +1,14 @@
+commit 84f9b702806838c979ab7feafa461c22b181c3cc
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Jan 29 16:51:42 2010 -0800
+
+    http: increase header line limit, let req.Host override req.URL.Host
+    
+    Fixes #566.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194074
+
+ src/pkg/http/request.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

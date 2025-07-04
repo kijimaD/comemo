@@ -1,0 +1,17 @@
+commit 9a84e5274c66510b53255f9c6122eb2e1cf9a0a5
+Author: Wei Congrui <crvv.mail@gmail.com>
+Date:   Tue Sep 26 18:20:36 2017 +0800
+
+    cmd/vet: fix copylocks false positive on unsafe.Sizeof(mutex)
+    
+    Fixes #21800
+    
+    Change-Id: I6c61d3543f28e9951b2a219b3c7298077b38f29e
+    Reviewed-on: https://go-review.googlesource.com/66210
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/copylock.go          | 13 ++++++++++---
+ src/cmd/vet/testdata/copylock.go | 14 ++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

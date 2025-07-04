@@ -1,0 +1,17 @@
+commit c0d96f30e88b7ed541830a9d5a172f199d05399c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Feb 13 19:15:49 2025 -0500
+
+    net/http: unskip TestDisableContentLength/h2
+    
+    h2_bundle.go has been updated.
+    
+    Change-Id: I055b8db9aab964621c980e4731011c89f7694405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649496
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/serve_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

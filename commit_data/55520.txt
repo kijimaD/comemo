@@ -1,0 +1,21 @@
+commit 468f56b10a90176aead2443dc1b6e883a0a41ab8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 2 13:30:15 2024 -0500
+
+    cmd/compile: consistently use s.pp in genssa
+    
+    In genssa, s.pp == pp, so using either is equivalent, but use is
+    inconsistent. About half of the uses use s.pp and the other half use pp.
+    
+    This gets confusing, especially when two different uses are right next
+    to each other, because it implies that these might be different.
+    
+    Pick one and use it consistently.
+    
+    Change-Id: Ifb1bb9332138d8cb62a45c212fcd7139f8511901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560780
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 36 +++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

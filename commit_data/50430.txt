@@ -1,0 +1,24 @@
+commit a9a398220ff387fe4924aee08365ffc374767a3a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Sep 7 22:34:48 2022 +0800
+
+    all: use unsafe.{Slice, SliceData, String, StringData} to simplify code
+    
+    Because most of these APIs are recently supported, we can only do some
+    advancement work as much as possible under the premise of compatibility.
+    
+    For #54854.
+    
+    Change-Id: Id15d11288bf23902570d54eaf2704a5264210b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/modindex/read.go    | 10 +---------
+ src/hash/maphash/maphash.go             |  7 +++----
+ src/internal/fuzz/counters_supported.go | 10 +---------
+ 3 files changed, 5 insertions(+), 22 deletions(-)

@@ -1,0 +1,24 @@
+commit 9112d296e84315a07d76a24874037448e2affdd7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 29 16:47:12 2021 -0400
+
+    cmd/link: add runtime.text.N symbols to Mach-O symbol table
+    
+    On Darwin/ARM64 when external linking, for very large text we
+    split it into multiple sections. For each section (other than the
+    first) we create runtime.text.N marker symbols. In CL 316050 I
+    forgot to add those symbols to the symbol table. This CL does it.
+    
+    It doesn't actually matter for program execution. But we add them
+    on ELF when splitting text sections, so we do it here as well.
+    Also, this makes it easier to tell if we split text sections.
+    
+    Change-Id: Ida7f8e9431867881e5ee2bc1a2129eeaf83cb878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353209
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/ld_test.go | 18 ++++++++++++++----
+ src/cmd/link/internal/ld/macho.go   |  8 ++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

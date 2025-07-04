@@ -1,0 +1,13 @@
+commit 4c05d32f795a714106490e5e8b6296b920354674
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Sep 8 10:07:26 2014 -0400
+
+    androidtest.bash: adjustment for move from src/pkg to src
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/142740043
+
+ src/androidtest.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

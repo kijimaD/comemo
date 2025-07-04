@@ -1,0 +1,14 @@
+commit a9afa4e933f3eff131f12e24bb0f5b9f3168ca14
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Oct 17 23:11:54 2017 -0300
+
+    database/sql: fix example usage of Out
+    
+    Fixes #22292
+    
+    Change-Id: I016e5f2b8624a6ebaf11a693a0f6d94d7b0d3f92
+    Reviewed-on: https://go-review.googlesource.com/71550
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

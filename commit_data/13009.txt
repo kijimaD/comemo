@@ -1,0 +1,14 @@
+commit 0d55d9832f6b21a5c273073e1703d1d0ae5ecb02
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 2 17:05:52 2012 +1000
+
+    os/signal: run windows TestCtrlBreak during build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6136054
+
+ src/pkg/os/signal/signal_windows_test.go | 77 +++++++++++++++++++++++++-------
+ src/pkg/syscall/exec_windows.go          |  8 ++--
+ src/pkg/syscall/ztypes_windows.go        |  4 ++
+ 3 files changed, 70 insertions(+), 19 deletions(-)

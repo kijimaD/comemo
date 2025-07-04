@@ -1,0 +1,13 @@
+commit 2fe97c336d7402e09f689d89c8d6f7abb4e92043
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 5 15:37:09 2008 -0800
+
+    test pairwise iota assignment
+    
+    R=rsc
+    DELTA=13  (13 added, 0 deleted, 0 changed)
+    OCL=20638
+    CL=20641
+
+ test/iota.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

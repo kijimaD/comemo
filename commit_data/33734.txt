@@ -1,0 +1,32 @@
+commit 12abacb5553d6aa2fc68dfba0b96ba7f3ec95c76
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Mon May 22 18:23:31 2017 +0200
+
+    cmd/go, cmd/dist: introduce GOMIPS environment variable
+    
+    GOMIPS is a GOARCH=mips{,le} specific option, for a choice between
+    hard-float and soft-float. Valid values are 'hardfloat' (default) and
+    'softfloat'. It is passed to the assembler as
+    'GOMIPS_{hardfloat,softfloat}'.
+    
+    Note: GOMIPS will later also be used for a choice of MIPS instruction
+    set (mips32/mips32r2).
+    
+    Updates #18162
+    
+    Change-Id: I35417db8625695f09d6ccc3042431dd2eaa756a6
+    Reviewed-on: https://go-review.googlesource.com/37954
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/asm.html                        |  6 ++++++
+ src/cmd/dist/build.go               | 16 ++++++++++++++++
+ src/cmd/dist/buildruntime.go        |  2 ++
+ src/cmd/go/alldocs.go               |  3 +++
+ src/cmd/go/internal/cfg/cfg.go      |  5 +++--
+ src/cmd/go/internal/envcmd/env.go   |  2 ++
+ src/cmd/go/internal/help/helpdoc.go |  3 +++
+ src/cmd/go/internal/work/gc.go      |  6 ++++++
+ src/cmd/internal/objabi/util.go     | 10 ++++++++++
+ 9 files changed, 51 insertions(+), 2 deletions(-)

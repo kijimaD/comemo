@@ -1,0 +1,24 @@
+commit cb91dccd86ec07ecdc6cd227f0789372e3c75153
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 6 01:17:24 2017 -0500
+
+    net/http: better failure in TestTransportPersistConnLeak
+    
+    If one of the c.Get(ts.URL) results in an error, the child goroutine
+    calls t.Errorf, but the test goroutine gets stuck waiting for <-gotReqCh,
+    so the test hangs and the program is eventually killed (after 10 minutes!).
+    Whatever might have been printed to t.Errorf is never seen.
+    Adjust test so that the test fails cleanly in this case.
+    
+    Still trying to debug why c.Get might fail.
+    It seems to have something to do with occasional connection
+    failures on macOS Sierra.
+    
+    Change-Id: Ia797787bd51ea7cd6deb1192aec89c331c4f2c48
+    Reviewed-on: https://go-review.googlesource.com/34836
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

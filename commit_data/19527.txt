@@ -1,0 +1,16 @@
+commit 36207a91d3c97a9c64984572af89727495310469
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 12 16:34:36 2014 -0400
+
+    runtime: fix defer of nil func
+    
+    Fixes #8047.
+    
+    LGTM=r, iant
+    R=golang-codereviews, r, iant
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/105140044
+
+ src/pkg/runtime/stack.c      |  7 ++++++-
+ test/fixedbugs/issue8047b.go | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit fc71d7b8ca9a911ad670ec56570fa90a3c4c76f5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 9 19:41:52 2014 -0500
+
+    misc/chrome/gophertool: update for the git/gerrit transition
+    
+    Change-Id: I7b9601ae6e1cfb18ef79a7b189aa7e689c0fe942
+    Reviewed-on: https://go-review.googlesource.com/1621
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/chrome/gophertool/gopher.js  |  7 ++++++-
+ misc/chrome/gophertool/popup.html | 12 +++++++-----
+ 2 files changed, 13 insertions(+), 6 deletions(-)

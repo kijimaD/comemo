@@ -1,0 +1,15 @@
+commit 8ed95a942ce331e5581f3f58b1dc7673e2cc97bb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 13 17:30:16 2015 -0500
+
+    runtime: rename gcwork.go to mgcwork.go
+    
+    All of the other memory-related source files start with "m".  Keep up
+    the tradition.
+    
+    Change-Id: Idd88fdbf2a1453374fa12109b949b1c4d149a4f8
+    Reviewed-on: https://go-review.googlesource.com/4853
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/{gcwork.go => mgcwork.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

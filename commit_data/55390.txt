@@ -1,0 +1,21 @@
+commit a557f9dcd72f29a571088f6867b2c3f206df41e1
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Nov 23 12:08:33 2023 +0000
+
+    net/http/pprof: configure WriteDeadline
+    
+    Configure write deadline according to requested profiling duration.
+    
+    Fixes #62358
+    
+    Change-Id: I2350110ff20a637c7e90bdda57026b0b0d9c87ba
+    GitHub-Last-Rev: b79ae38defc4d9b58b23a9d13ff86fa863f18b00
+    GitHub-Pull-Request: golang/go#64360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544756
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/pprof/pprof.go | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

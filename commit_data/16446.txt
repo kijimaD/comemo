@@ -1,0 +1,15 @@
+commit 787976c73936e5e19535872f570116a6852c7c6a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 31 23:03:22 2013 +1000
+
+    testing: add test for issue 5599
+    
+    Update #5599
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9738052
+
+ src/pkg/testing/benchmark_test.go | 31 +++++++++++++++++++++++++++++++
+ src/pkg/testing/export_test.go    |  7 +++++++
+ 2 files changed, 38 insertions(+)

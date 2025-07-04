@@ -1,0 +1,22 @@
+commit 7e8e9abe0a9ef49dfcba0ec5e18232327d581fe9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 23 08:51:38 2016 -0700
+
+    cmd/compile: reduce stutter
+    
+    This is follow-up 1 of 3 to CL 20959.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9bddf7d88333fa4755e03ff8a034a35bd01b7855
+    Reviewed-on: https://go-review.googlesource.com/21052
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  8 ++------
+ src/cmd/compile/internal/gc/const.go   | 10 +++-------
+ src/cmd/compile/internal/gc/esc.go     |  3 +--
+ src/cmd/compile/internal/gc/export.go  |  3 +--
+ src/cmd/compile/internal/gc/inl.go     |  6 ++----
+ 5 files changed, 9 insertions(+), 21 deletions(-)

@@ -1,0 +1,20 @@
+commit 21f3d5816d5dc3556a3ac9a5c91b915848be254b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 12 10:41:29 2018 -0400
+
+    cmd/go: avoid type names in __debug__modinfo__ variable injected in package main
+    
+    If we use the name 'string' to refer to the built-in type, that name
+    can be shadowed by a local declaration. Use a string constant instead,
+    but keep the init function to populate it so that //go:linkname will
+    still work properly.
+    
+    Fixes #27584.
+    
+    Change-Id: I850cad6663e566f70fd123107d2e4e742c93b450
+    Reviewed-on: https://go-review.googlesource.com/134915
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/modload/build.go            |  7 ++++++-
+ src/cmd/go/testdata/script/mod_string_alias.txt | 14 ++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

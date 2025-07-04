@@ -1,0 +1,18 @@
+commit 7ad512e7ffe576c4894ea84b02e954846fbda643
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Feb 8 13:05:25 2017 -0800
+
+    time: format negative monotonic times correctly in Time.String
+    
+    Fixes #18993
+    
+    Change-Id: Ia1fa20b6d82384b07e9ba5512b909439e0bec2a5
+    Reviewed-on: https://go-review.googlesource.com/36611
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/format.go    | 12 ++++--------
+ src/time/mono_test.go | 40 +++++++++++++++++++++++-----------------
+ 2 files changed, 27 insertions(+), 25 deletions(-)

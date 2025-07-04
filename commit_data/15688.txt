@@ -1,0 +1,12 @@
+commit 404e4a90cb8c127166ee8cfa0f7c29e231a9f1bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 13:23:47 2013 -0700
+
+    net/http/httputil: fix string in test failure message
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/7722043
+
+ src/pkg/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit a92a77c56f598b28b5eb640d29fabc6843b365c2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Sep 23 16:03:43 2017 -0400
+
+    cmd/internal/obj/arm64: fix handling of unaligned offset between 256 and 504
+    
+    C_PPAUTO was matching offsets that is a multiple 8. But this
+    condition is dropped in CL 55610, causing unaligned offset
+    between 256 and 504 mistakenly matched to some classes, e.g.
+    C_UAUTO8K. This CL restores this condition, also fixes an
+    error that C_PPAUTO shouldn't match C_PSAUTO, because the
+    latter is not guaranteed to be multiple of 8. C_PPAUTO_8 is
+    unnecessary, removed.
+    
+    Fixes #21992.
+    
+    Change-Id: I75d5a0e5f5dc3dae335721fbec1bbcd4a3b862f2
+    Reviewed-on: https://go-review.googlesource.com/65730
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm64/a.out.go   |  4 +--
+ src/cmd/internal/obj/arm64/anames7.go |  2 --
+ src/cmd/internal/obj/arm64/asm7.go    | 63 +++++++++++++----------------------
+ test/fixedbugs/issue19137.go          | 16 +++++++++
+ 4 files changed, 41 insertions(+), 44 deletions(-)

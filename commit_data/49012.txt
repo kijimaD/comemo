@@ -1,0 +1,21 @@
+commit cf697253abb781e8a3e8825b7a4b5b96a534b907
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 13:09:17 2022 -0400
+
+    cmd/go: write changes to go.mod and go.sum after loading the command-line-arguments package
+    
+    This entrypoint was missed in CL 349600, and the behavior happened not
+    to be covered by existing tests.
+    
+    Fixes #52331.
+    
+    Change-Id: Iccf12e8e633215abe4bfa1c3ca2fe3a8391b5ba5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401536
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go               |  6 ++++
+ src/cmd/go/testdata/script/mod_run_issue52331.txt | 35 +++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

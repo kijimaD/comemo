@@ -1,0 +1,54 @@
+commit e9079a69f34365e99a4787f2e2e463cab8429a66
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 26 12:21:16 2017 -0400
+
+    runtime: buffered write barrier implementation
+    
+    This implements runtime support for buffered write barriers on amd64.
+    The buffered write barrier has a fast path that simply enqueues
+    pointers in a per-P buffer. Unlike the current write barrier, this
+    fast path is *not* a normal Go call and does not require the compiler
+    to spill general-purpose registers or put arguments on the stack. When
+    the buffer fills up, the write barrier takes the slow path, which
+    spills all general purpose registers and flushes the buffer. We don't
+    allow safe-points or stack splits while this frame is active, so it
+    doesn't matter that we have no type information for the spilled
+    registers in this frame.
+    
+    One minor complication is cgocheck=2 mode, which uses the write
+    barrier to detect Go pointers being written to non-Go memory. We
+    obviously can't buffer this, so instead we set the buffer to its
+    minimum size, forcing the write barrier into the slow path on every
+    call. For this specific case, we pass additional information as
+    arguments to the flush function. This also requires enabling the cgo
+    write barrier slightly later during runtime initialization, after Ps
+    (and the per-P write barrier buffers) have been initialized.
+    
+    The code in this CL is not yet active. The next CL will modify the
+    compiler to generate calls to the new write barrier.
+    
+    This reduces the average cost of the write barrier by roughly a factor
+    of 4, which will pay for the cost of having it enabled more of the
+    time after we make the GC pacer less aggressive. (Benchmarks will be
+    in the next CL.)
+    
+    Updates #14951.
+    Updates #22460.
+    
+    Change-Id: I396b5b0e2c5e5c4acfd761a3235fd15abadc6cb1
+    Reviewed-on: https://go-review.googlesource.com/73711
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/vet/all/whitelist/amd64.txt |   1 +
+ src/runtime/asm_amd64.s             |  89 +++++++++++++++
+ src/runtime/cgocheck.go             |   4 +
+ src/runtime/mgc.go                  |   1 +
+ src/runtime/mgcmark.go              |   3 +
+ src/runtime/mgcwork.go              |  33 ++++++
+ src/runtime/mwbbuf.go               | 216 ++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go                 |  17 +++
+ src/runtime/runtime1.go             |   7 --
+ src/runtime/runtime2.go             |   5 +
+ 10 files changed, 369 insertions(+), 7 deletions(-)

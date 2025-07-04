@@ -1,0 +1,22 @@
+commit d6311ff1e43dd1e7c9cb9edccd10a04b63a7c41f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 00:55:38 2019 -0500
+
+    math/big: add %#b and %O integer formats
+    
+    Matching fmt, %#b now prints an 0b prefix,
+    and %O prints octal with an 0o prefix.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #19308.
+    For #12711.
+    
+    Change-Id: I139c5a9a1dfae15415621601edfa13c6a5f19cfc
+    Reviewed-on: https://go-review.googlesource.com/c/160250
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/intconv.go      | 12 +++++++++---
+ src/math/big/intconv_test.go |  6 +++++-
+ 2 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,0 +1,39 @@
+commit 0b79dde1128462963db740efd3c9ed98eda2735e
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 29 15:14:39 2018 -0700
+
+    cmd/compile: don't use CMOV ops to compute load addresses
+    
+    We want to issue loads as soon as possible, especially when they
+    are going to miss in the cache. Using a conditional move (CMOV) here:
+    
+    i := ...
+    if cond {
+       i++
+    }
+    ... = a[i]
+    
+    means that we have to wait for cond to be computed before the load
+    is issued. Without a CMOV, if the branch is predicted correctly the
+    load can be issued in parallel with computing cond.
+    Even if the branch is predicted incorrectly, maybe the speculative
+    load is close to the real load, and we get a prefetch for free.
+    In the worst case, when the prediction is wrong and the address is
+    way off, we only lose by the time difference between the CMOV
+    latency (~2 cycles) and the mispredict restart latency (~15 cycles).
+    
+    We only squash CMOVs that affect load addresses. Results of CMOVs
+    that are used for other things (store addresses, store values) we
+    use as before.
+    
+    Fixes #26306
+    
+    Change-Id: I82ca14b664bf05e1d45e58de8c4d9c775a127ca1
+    Reviewed-on: https://go-review.googlesource.com/c/145717
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/branchelim.go | 63 +++++++++++++++++++++++++++---
+ test/codegen/condmove.go                   | 17 ++++++++
+ 2 files changed, 74 insertions(+), 6 deletions(-)

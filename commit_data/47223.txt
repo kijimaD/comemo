@@ -1,0 +1,15 @@
+commit fa19146038e0e94480c93d43e2a8306c419d5119
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 16:18:36 2021 +0100
+
+    net/netip: fix various typos in comments
+    
+    Change-Id: I67998f70969ac6e6ff1b52a56e49a61ef167ed50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361055
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/netip/netip.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

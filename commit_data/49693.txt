@@ -1,0 +1,17 @@
+commit 0ad2ec6596afc51341fa3059528d89a0508956ab
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:18:15 2022 -0400
+
+    runtime: clean up dopanic_m
+    
+    gp is a user G running on the same M as getg(), so it is a fine proxy
+    for gp.m.
+    
+    Change-Id: I9aa1dd283ecf28878eeedd7da4ded5c901809832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418576
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/panic.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

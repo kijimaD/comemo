@@ -1,0 +1,21 @@
+commit f0b8f84d3735f94724e4255dd074db18b807f897
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jan 22 13:55:53 2011 +1100
+
+    runtime: implementation of callback functions for windows
+    
+    R=rsc, lxn, alex.brainman, dho
+    CC=golang-dev
+    https://golang.org/cl/1696051
+
+ src/pkg/exp/wingui/Makefile         |  26 +++++
+ src/pkg/exp/wingui/gui.go           | 157 ++++++++++++++++++++++++++
+ src/pkg/exp/wingui/winapi.go        | 148 +++++++++++++++++++++++++
+ src/pkg/exp/wingui/zwinapi.go       | 214 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/386/asm.s           |   2 +-
+ src/pkg/runtime/windows/386/sys.s   |  41 ++++++-
+ src/pkg/runtime/windows/os.h        |   4 +
+ src/pkg/runtime/windows/syscall.goc |   4 +
+ src/pkg/runtime/windows/thread.c    |  84 ++++++++++++++
+ src/pkg/syscall/syscall_windows.go  |  20 ++++
+ 10 files changed, 698 insertions(+), 2 deletions(-)

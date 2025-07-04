@@ -1,0 +1,11 @@
+commit 3e8bb54c2fcf7a5f2739c07ac63bee4c19a2d510
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 20 11:26:40 2009 -0800
+
+    fix build
+    
+    R=rsc
+    https://golang.org/cl/159044
+
+ src/pkg/regexp/regexp.go | 1 -
+ 1 file changed, 1 deletion(-)

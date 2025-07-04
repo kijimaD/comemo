@@ -1,0 +1,17 @@
+commit 4b95575bd4baa683bf1c5b75bd42adf8ab2871af
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 10:57:48 2016 -0700
+
+    cmd/compile: fix build
+    
+    Pushed from an old client by mistake.  These are the
+    missing changes.
+    
+    Change-Id: Ia8d61c5c0bde907369366ea9ea98711823342803
+    Reviewed-on: https://go-review.googlesource.com/21349
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/go/types/stdlib_test.go  | 1 +
+ test/fixedbugs/issue15002.go | 2 +-
+ test/run.go                  | 4 ++--
+ 3 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit a119f88f2c52e6eb969f51c5bf610d6f105348a3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 11 18:39:46 2016 -0400
+
+    go/importer: make For("gccgo",  nil) not panic
+    
+    Apparently we forgot to test this.
+    
+    Fixes #15092
+    
+    Change-Id: I33d4fef0f659dfbdfc1ebf8401e96610c8215592
+    Reviewed-on: https://go-review.googlesource.com/21860
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/importer/importer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

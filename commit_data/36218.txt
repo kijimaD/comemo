@@ -1,0 +1,13 @@
+commit d8935731553800e22b5b071414782b2738f87fb0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 15:42:26 2018 -0400
+
+    cmd/go: fix outdated comments
+    
+    Change-Id: I09532546c96b3758f76528fb5010dafc638139b8
+    Reviewed-on: https://go-review.googlesource.com/128135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/import.go | 2 +-
+ src/cmd/go/internal/modload/load.go   | 3 ---
+ 2 files changed, 1 insertion(+), 4 deletions(-)

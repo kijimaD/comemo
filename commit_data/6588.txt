@@ -1,0 +1,36 @@
+commit 69188ad9bb14d0ad608184d94135e25e1c4fecff
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 21 06:56:20 2010 +0200
+
+    arm: prop up software floating point
+    
+    Just enough to make mov instructions work,
+    which in turn is enough to make strconv work
+    when it avoids any floating point calculations.
+    That makes a bunch of other packages pass
+    their tests.
+    
+    Should suffice until hardware floating point
+    is available.
+    
+    Enable package tests that now pass
+    (some due to earlier fixes).
+    
+    Looks like there is a new integer math bug
+    exposed in the fmt and json tests.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2638041
+
+ src/cmd/5g/Makefile              |  3 ++-
+ src/cmd/5g/cgen.c                | 18 ++++++++++--------
+ src/cmd/5g/gsubr.c               |  5 +++++
+ src/cmd/8g/cgen.c                |  2 +-
+ src/cmd/ld/data.c                |  6 +++---
+ src/pkg/Makefile                 | 24 ++++++++----------------
+ src/pkg/runtime/arm/softfloat.c  |  7 +++++--
+ src/pkg/strconv/atof.go          |  4 +++-
+ src/pkg/strconv/ftoa.go          |  4 ++++
+ src/pkg/strconv/internal_test.go |  8 ++++++++
+ 10 files changed, 49 insertions(+), 32 deletions(-)

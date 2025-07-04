@@ -1,0 +1,16 @@
+commit 69f49e1cbcc38be1abb4bd8b2bd3376f53cc55c3
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Mar 12 21:09:14 2016 +0200
+
+    cmd/pprof: fix crash with invalid source
+    
+    pprof crashed when running with:
+    
+         go tool pprof %INVALID
+    
+    Change-Id: I47c2a4da7273e3a97a833f320a650b8c6b59d6b9
+    Reviewed-on: https://go-review.googlesource.com/20632
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

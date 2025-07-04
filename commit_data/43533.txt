@@ -1,0 +1,24 @@
+commit 76bce1dd52b0c2a06d48bf7db4e89e8dec47c507
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 21:45:16 2020 +0000
+
+    runtime: implement addrRanges.findSucc with a binary search
+    
+    This change modifies addrRanges.findSucc to more efficiently find the
+    successor range in an addrRanges by using a binary search to narrow down
+    large addrRanges and iterate over no more than 8 addrRanges.
+    
+    This change makes the runtime more robust against systems that may
+    aggressively randomize the address space mappings it gives the runtime
+    (e.g. Fuchsia).
+    
+    For #40191.
+    
+    Change-Id: If529df2abd2edb1b1496d8690ddd284ecd7138c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242679
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mranges.go | 40 +++++++++++++++++++++++++++++++++-------
+ 1 file changed, 33 insertions(+), 7 deletions(-)

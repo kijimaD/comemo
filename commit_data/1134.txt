@@ -1,0 +1,13 @@
+commit 2567c073ea230cf96078477be117f07a16e93470
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Nov 16 13:02:47 2008 -0800
+
+    random permutation function
+    func perm(n int) *map[int]int
+    
+    R=r
+    OCL=19340
+    CL=19340
+
+ src/lib/rand.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

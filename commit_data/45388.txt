@@ -1,0 +1,60 @@
+commit 4fe324dd0f3497f6bf4f46ba39921d7855dbc29b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Apr 26 23:06:53 2021 +0100
+
+    cmd/go: make TOOLEXEC_IMPORTPATH consistent with 'go list -f {{.ImportPath}}'
+    
+    TOOLEXEC_IMPORTPATH is useful for the toolexec program to know what
+    package is currently being built. This is otherwise tricky to figure out.
+    
+    Unfortunately, for test packages it was lacking. In the added test case,
+    we have a total of four packages in 'go list -test':
+    
+            test/main
+            test/main.test
+            test/main [test/main.test]
+            test/main_test [test/main.test]
+    
+    And, when running with -toolexec, one would get the following values:
+    
+            # test/main_test [test/main.test]
+            compile TOOLEXEC_IMPORTPATH="test/main_test"
+            # test/main [test/main.test]
+            compile TOOLEXEC_IMPORTPATH="test/main"
+            # test/main.test
+            compile TOOLEXEC_IMPORTPATH="test/main.test"
+    
+    Note how the " [test/main.test]" suffixes are missing. Because of that,
+    when one sees TOOLEXEC_IMPORTPATH="test/main", it is ambiguous whether
+    the regular "test/main" package is meant, or its test variant, otherwise
+    known as "test/main [test/main.test]" and including foo_test.go
+    
+    To fix this, we need unambiguous strings to identify the packages
+    involved, just like one can do with "go list -test". "go list" already
+    has such a field, ImportPath, which is also used when printing output
+    from each build "action" as seen above.
+    
+    That string is not really an import path - internally, it's
+    load.Package.Desc, and called a "description". However, it makes sense
+    to be consistent with "go list -json", because it's the source of truth
+    for practically all tools interacting with the Go toolchain.
+    
+    To keep cmd/go more consistent, "go list -f {{.ImportPath}}" now calls
+    Package.Desc as well, instead of having its own copy of the string
+    concatenation for ForTest.
+    
+    Fixes #44963.
+    
+    Change-Id: Ibce7fbb5549209dac50526043c0c7daa0beebc08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313770
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/alldocs.go                   |  2 ++
+ src/cmd/go/internal/list/list.go        |  2 +-
+ src/cmd/go/internal/work/build.go       |  2 ++
+ src/cmd/go/internal/work/exec.go        |  5 +++-
+ src/cmd/go/testdata/script/toolexec.txt | 51 ++++++++++++++++++++++++++++-----
+ 5 files changed, 53 insertions(+), 9 deletions(-)

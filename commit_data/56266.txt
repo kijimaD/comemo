@@ -1,0 +1,30 @@
+commit a088e230d4e7892b15851babe161bbd1766738a1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 4 04:51:24 2024 +0000
+
+    unique: add unique package and implement Make/Handle
+    
+    This change adds the unique package for canonicalizing values, as
+    described by the proposal in #62483.
+    
+    Fixes #62483.
+    
+    Change-Id: I1dc3d34ec12351cb4dc3838a8ea29a5368d59e99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ api/next/62483.txt                         |   3 +
+ doc/next/6-stdlib/2-unique.md              |  13 +++
+ doc/next/6-stdlib/99-minor/unique/62483.md |   1 +
+ src/go/build/deps_test.go                  |   3 +
+ src/go/doc/comment/std.go                  |   1 +
+ src/runtime/mgc.go                         |  23 +++-
+ src/unique/clone.go                        | 100 +++++++++++++++++
+ src/unique/clone_test.go                   |  37 ++++++
+ src/unique/doc.go                          |   9 ++
+ src/unique/handle.go                       | 174 +++++++++++++++++++++++++++++
+ src/unique/handle_bench_test.go            |  63 +++++++++++
+ src/unique/handle_test.go                  | 111 ++++++++++++++++++
+ 12 files changed, 537 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit ab2cc45cc9a094bb29d7adc3191dd6ee2080af83
+Author: Allen Li <darkfeline@felesatra.moe>
+Date:   Mon Mar 23 03:23:27 2020 +0000
+
+    go/ast: fix inflection in comments to match plurality
+    
+    Change-Id: I3a725c5691a1090952acdc2ae0bed96aaa8d7067
+    GitHub-Last-Rev: 339a0dda36aeb1c0b38e531b4292048ebfae05ad
+    GitHub-Pull-Request: golang/go#37256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219737
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

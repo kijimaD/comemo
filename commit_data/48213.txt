@@ -1,0 +1,33 @@
+commit a064a4f29a97a4fc7398d1ac9d7c53c5ba0bc646
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 25 15:10:24 2022 -0800
+
+    cmd/compile: ensure dictionary assignment statements are defining statements
+    
+    The problem in 51355 is that escape analysis decided that the
+    dictionary variable was captured by reference instead of by value. We
+    want dictionaries to always be captured by value.
+    
+    Escape analysis was confused because it saw what it thought was a
+    reassignment of the dictionary variable. In fact, it was the only
+    assignment, it just wasn't marked as the defining assignment. Fix
+    that.
+    
+    Add an assert to make sure this stays true.
+    
+    Fixes #51355
+    
+    Change-Id: Ifd9342455fa107b113f5ff521a94cdbf1b8a7733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388115
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/escape.go |  4 ++++
+ src/cmd/compile/internal/noder/stencil.go |  4 +++-
+ test/typeparam/issue51355.go              | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 1 deletion(-)

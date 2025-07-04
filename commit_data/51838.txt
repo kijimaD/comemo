@@ -1,0 +1,17 @@
+commit 45bee5e72b350ae3aa871e114267b8722dbd68f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 27 16:34:00 2023 -0500
+
+    cmd/dist: keep flag list sorted
+    
+    force before no-*
+    
+    Change-Id: Ia1273cd676f8fe7d116e84db2d33728561e7b17e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464136
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit d20b6d8849ca3c7c1461b28418afb15ed7652712
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 12:08:12 2018 -0500
+
+    cmd/go/internal/modload: add missing build constraint in testgo.go
+    
+    That file is supposed to make unexpected dependencies on the main
+    module easier to diagnose in 'go test cmd/go', but I accidentally left
+    off the build constraint, so it was triggering outside of the test.
+    
+    Updates #29097
+    
+    Change-Id: I1cde3fe6c1d80add37c98a8c95ce48524ea05024
+    Reviewed-on: https://go-review.googlesource.com/c/153159
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/testgo.go | 2 ++
+ 1 file changed, 2 insertions(+)

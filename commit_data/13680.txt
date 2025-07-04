@@ -1,0 +1,18 @@
+commit 37b40dab51e31ed246e2cd40b827d26b93cf9003
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Thu Aug 23 19:29:47 2012 -0700
+
+    database/sql: stop reuse of bad connections
+    
+    The second parameter for sql.putConn() (err) is always nil. As a result bad
+    connections are reused, even if the driver returns an driver.ErrBadConn.
+    Unsing a pointer to err instead achievs the desired behavior.
+    See http://code.google.com/p/go/issues/detail?id=3777 for more details.
+    Fixes #3777.
+    
+    R=golang-dev, dave, bradfitz, jameshuachow, BlakeSGentry
+    CC=golang-dev
+    https://golang.org/cl/6348069
+
+ src/pkg/database/sql/sql.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 696815c542b3653f8f3088ceaeecc8e5c12a5457
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 4 13:35:19 2008 -0700
+
+    extend composite literal test.
+    update tests.
+    update golden.out
+    
+    R=gri
+    OCL=14816
+    CL=14816
+
+ test/complit.go                    | 18 +++++++++++++++++-
+ test/{bugs => fixedbugs}/bug081.go |  0
+ test/golden.out                    |  8 +++-----
+ 3 files changed, 20 insertions(+), 6 deletions(-)

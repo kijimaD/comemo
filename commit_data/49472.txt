@@ -1,0 +1,20 @@
+commit f9c0264107a9a36832d70781fe100cff16917855
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 14 15:53:59 2022 -0700
+
+    net: avoid infinite recursion in Windows Resolver.lookupTXT
+    
+    For #33097
+    
+    Change-Id: I6138dc844f0b29b01c78a02efc1e1b1ad719b803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412139
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/lookup_windows.go      |  2 +-
+ src/net/lookup_windows_test.go | 82 ++++++++++++++++++++++++------------------
+ 2 files changed, 49 insertions(+), 35 deletions(-)

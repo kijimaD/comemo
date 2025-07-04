@@ -1,0 +1,22 @@
+commit 45ed3dbddf98eb421bc3aefd4c29c016a69c9ab1
+Author: Romain Baugue <romain.baugue@gmail.com>
+Date:   Fri Apr 26 11:55:38 2019 +0200
+
+    encoding/json: add a Fuzz function
+    
+    Adds a sample Fuzz test function to package encoding/json following the
+    guidelines defined in #31309, based on
+    https://github.com/dvyukov/go-fuzz-corpus/blob/master/json/json.go
+    
+    Fixes #31309
+    Updates #19109
+    
+    Change-Id: I5fe04d9a5f41c0de339f8518dae30896ec14e356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174058
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/fuzz.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

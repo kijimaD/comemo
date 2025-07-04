@@ -1,0 +1,26 @@
+commit fa497796f5cbbbf962876422a133f3bef97f53df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 22 09:55:37 2011 -0700
+
+    go/parser: report illegal label declarations at ':' rather than guessing the start
+    
+    Also:
+    - Add parser.SpuriousError flag. If set, the parser reports all (including
+      spurious) errors rather then at most one error per line.
+    - Add -e flag to gofmt and gotype: If set, gofmt and gotype report all
+      (including spurious) errors rather than at most one error per line.
+    - Updated the respective documentation.
+    
+    Fixes #2088.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4803047
+
+ src/cmd/gofmt/doc.go           |  6 +++++-
+ src/cmd/gofmt/gofmt.go         |  4 ++++
+ src/cmd/gotype/doc.go          | 14 ++++++++------
+ src/cmd/gotype/gotype.go       |  4 ++++
+ src/pkg/go/parser/interface.go | 27 ++++++++++++++++++++-------
+ src/pkg/go/parser/parser.go    |  9 ++++++++-
+ 6 files changed, 49 insertions(+), 15 deletions(-)

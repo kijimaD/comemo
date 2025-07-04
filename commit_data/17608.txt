@@ -1,0 +1,14 @@
+commit 2ec53b07053fa8d974759661de3881aacef8c6db
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 16:13:27 2013 +1000
+
+    cmd/nm: put the -S flag in the usage message
+    The -S flag reports symbol size, but is missing from the usage message.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13660046
+
+ src/cmd/nm/doc.go | 2 +-
+ src/cmd/nm/nm.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

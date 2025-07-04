@@ -1,0 +1,18 @@
+commit 637f34fee0dd3533e2d9eead6fd6e1dc25eb8d26
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 30 10:49:09 2019 -0400
+
+    cmd/link: allow duplicated weak symbols on Mach-O
+    
+    This fixes cgo test issue29563 on Darwin.
+    
+    Updates #29563.
+    
+    Change-Id: If480078461247cd7c95931ae3ad4ca89736dd550
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170015
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/loadmacho/ldmacho.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

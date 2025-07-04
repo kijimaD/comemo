@@ -1,0 +1,27 @@
+commit 12518e441b77ce261ff0125c85687fa04cd215cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 17:50:02 2010 -0800
+
+    runtime cleanup.
+      * move memory code into $GOOS-specific directory.
+      * allow printing of static strings < 256 bytes.
+        (dynamic strings will bump maxstring as they are allocated.)
+      * use cgo2c for runtime.mal.
+    
+    R=r, dho
+    CC=golang-dev
+    https://golang.org/cl/186143
+
+ src/pkg/runtime/Makefile       |  4 ++++
+ src/pkg/runtime/darwin/mem.c   | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/freebsd/mem.c  | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/linux/mem.c    | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/malloc.cgo     | 35 -----------------------------------
+ src/pkg/runtime/malloc.h       |  4 ++++
+ src/pkg/runtime/mem.c          | 21 ---------------------
+ src/pkg/runtime/mingw/mem.c    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/mingw/os.h     |  2 ++
+ src/pkg/runtime/mingw/thread.c | 10 +---------
+ src/pkg/runtime/runtime1.cgo   | 11 +++++++++++
+ src/pkg/runtime/string.cgo     |  2 +-
+ 12 files changed, 148 insertions(+), 66 deletions(-)

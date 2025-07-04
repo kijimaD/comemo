@@ -1,0 +1,16 @@
+commit adf72bbc9a11fa14de80b1e68fd58f0e4a0248a8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Jun 15 00:08:26 2018 +0200
+
+    misc/wasm: add stub for fs.openSync for browsers
+    
+    This stub is necessary so the time package can fail to load
+    the timezone files in a nice way. It transitively makes the
+    log package work in browsers.
+    
+    Change-Id: I4d360df82989d9b40cd31bb4508a6d057534443e
+    Reviewed-on: https://go-review.googlesource.com/118977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js | 5 +++++
+ 1 file changed, 5 insertions(+)

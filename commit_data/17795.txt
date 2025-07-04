@@ -1,0 +1,15 @@
+commit 56aeec31c6ea439188d1800b1167b193b7bfd14a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 15 12:46:14 2013 -0400
+
+    cmd/cgo: work around bug in clang debug info for builtins like memset
+    
+    Fixes #6506.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14682044
+
+ misc/cgo/test/issue6506.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 48 ++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 98 insertions(+), 2 deletions(-)

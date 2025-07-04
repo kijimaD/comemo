@@ -1,0 +1,12 @@
+commit cecd16362580c8b7efc3db111f5bc4045641024d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 1 20:45:29 2010 +1100
+
+    language FAQ entry on braces and semicolons
+    
+    R=rsc, iant, gri
+    CC=golang-dev
+    https://golang.org/cl/196075
+
+ doc/go_lang_faq.html | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

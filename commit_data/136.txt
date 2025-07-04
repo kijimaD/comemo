@@ -1,0 +1,11 @@
+commit 814896ea5fabbff590c83ac7f4de11c922c2c5d7
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 19:21:16 2008 -0700
+
+    update lots of tests
+    
+    SVN=121624
+
+ test/golden.out        | 22 +++++-----------------
+ test/ken/robliteral.go |  2 +-
+ 2 files changed, 6 insertions(+), 18 deletions(-)

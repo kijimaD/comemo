@@ -1,0 +1,23 @@
+commit fcfd824e31fa0160b9490496fdddd90f4b61f924
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 14 17:39:01 2024 -0700
+
+    cmd/compile: compute type eq/hash algorithm in CalcSize instead of on demand
+    
+    For #65540
+    
+    Actually more correct in some very weird, and probably impossible to
+    trigger currently, cases. For instance, a struct with a NOEQ
+    and a NOALG field (the old code would not report the noalg bit).
+    
+    Change-Id: I36c473b59aa5775d8a520ac746b114d16a22699d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571542
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types/alg.go            | 122 +++++------------------
+ src/cmd/compile/internal/types/algkind_string.go |  53 ++++------
+ src/cmd/compile/internal/types/size.go           |  62 +++++++++++-
+ src/cmd/compile/internal/types/type.go           |   4 +
+ 4 files changed, 111 insertions(+), 130 deletions(-)

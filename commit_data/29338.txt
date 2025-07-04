@@ -1,0 +1,16 @@
+commit fc2e282c04a3c36761254eb662bb20bad4eb4a35
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:31:08 2016 -0400
+
+    cmd/go: add version of GOROOT to go bug details
+    
+    Fixes #15877.
+    
+    Change-Id: Ia1e327c0cea3be43e5f8ba637c97c223cee4bb5a
+    Reviewed-on: https://go-review.googlesource.com/32643
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/bug.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

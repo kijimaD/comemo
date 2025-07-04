@@ -1,0 +1,19 @@
+commit 8088a7fc12a335248395d636e09e1e4c67d13730
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 2 10:02:41 2018 -0700
+
+    cmd/go: fix testsuite for gccgo
+    
+    A number of cmd/go tests can never work with gccgo, for various
+    different reasons. Skip those tests when using gccgo. Adjust some
+    other tests to pass when using gccgo. Adjust one test to not skip when
+    using gccgo, since it does work.
+    
+    Change-Id: I33b09558581a1e304416cf1c05a96f9526abba0e
+    Reviewed-on: https://go-review.googlesource.com/110915
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/go_test.go | 132 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 90 insertions(+), 42 deletions(-)

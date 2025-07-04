@@ -1,0 +1,20 @@
+commit b3ca8d2b3c78d36595c534de0ca604e7d3e37123
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 25 22:59:33 2023 +0700
+
+    types2, go/types: record final type for min/max arguments
+    
+    Fixes #60991
+    
+    Change-Id: I6130ccecbdc209996dbb376491be9df3b8988327
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506055
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go |  5 +++++
+ src/go/types/builtins.go                    |  5 +++++
+ test/fixedbugs/issue60991.go                | 13 +++++++++++++
+ 3 files changed, 23 insertions(+)

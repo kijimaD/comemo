@@ -1,0 +1,19 @@
+commit 722ecf34474a33663f69220838af8c715185b5b7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 3 09:34:42 2024 +0200
+
+    archive/tar: use hash/crc32 instead of crypto/md5 for test checksums
+    
+    Using MD5 for checksums in tests is an overkill, as MD5 is designed for
+    cryptographic purposes. Use hash/crc32 instead, which is designed for
+    detecting random data corruptions, aka checksums.
+    
+    Change-Id: I03b30ed7f38fba2a2e59d06bd4133b495f64a013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/archive/tar/reader_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

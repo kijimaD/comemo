@@ -1,0 +1,30 @@
+commit 903f095c1ae3cafc40855662c69722121c42e3a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 13:33:47 2018 -0700
+
+    go/types: adopt spec terminology, use 'embedded' rather then 'anonyous' field
+    
+    Commit f8b4123613a (https://go-review.googlesource.com/35108) adjusted
+    the spec to uniformly use 'embedded' rather than 'anonymous' for struct
+    embedded fields. Adjust go/types' internal terminology.
+    
+    Provide an additional accessor Var.IsEmbedded().
+    
+    This is essentially a rename of an internal field and adjustments of
+    documentation.
+    
+    Change-Id: Icd07aa192bc5df7a2ee103185fa7e9c55e8f1ac3
+    Reviewed-on: https://go-review.googlesource.com/112716
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api.go              |  6 +++---
+ src/go/types/lookup.go           |  4 ++--
+ src/go/types/methodset.go        |  2 +-
+ src/go/types/object.go           | 24 ++++++++++++++----------
+ src/go/types/predicates.go       |  4 ++--
+ src/go/types/testdata/decls0.src |  2 +-
+ src/go/types/type.go             |  2 +-
+ src/go/types/typestring.go       |  4 ++--
+ src/go/types/typexpr.go          | 22 +++++++++++-----------
+ 9 files changed, 37 insertions(+), 33 deletions(-)

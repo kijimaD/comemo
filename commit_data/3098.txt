@@ -1,0 +1,18 @@
+commit 5cbc96d958e7026b6d2c82c947e24e6159e57564
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 26 21:51:03 2009 -0700
+
+    Introduce the image package.
+    
+    R=rsc
+    APPROVED=r,rsc
+    DELTA=244  (244 added, 0 deleted, 0 changed)
+    OCL=33733
+    CL=33940
+
+ src/pkg/Make.deps      |   1 +
+ src/pkg/Makefile       |   1 +
+ src/pkg/image/Makefile |  12 +++++
+ src/pkg/image/color.go |  90 +++++++++++++++++++++++++++++++
+ src/pkg/image/image.go | 140 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 244 insertions(+)

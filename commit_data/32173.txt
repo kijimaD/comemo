@@ -1,0 +1,40 @@
+commit 019d8a07e102bd0047a70d026986d7c02781e26f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 17 16:39:37 2015 -0700
+
+    archive/tar: forbid NUL character in string fields
+    
+    USTAR and GNU strings are NUL-terminated. Thus, we should never
+    allow the NUL terminator, otherwise we will lose data round-trip.
+    
+    Relevant specification text:
+    <<<
+    The fields magic, uname, and gname are character strings each terminated by a NUL character.
+    >>>
+    
+    Technically, PAX keys and values should be UTF-8, but the observance
+    of invalid files in the wild causes us to be more liberal.
+    <<<
+    The <length> field, <blank>, <equals-sign>, and <newline> shown shall
+    be limited to the portable character set, as encoded in UTF-8.
+    >>>
+    
+    Thus, we only reject NULs in PAX keys, and NULs for PAX values
+    representing the USTAR string fields (i.e., path, linkpath, uname, gname).
+    These are treated more strictly because they represent strings that
+    are typically represented as C-strings on POSIX systems.
+    
+    Change-Id: I305b794d9d966faad852ff660bd0b3b0964e52bf
+    Reviewed-on: https://go-review.googlesource.com/14724
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/reader_test.go              | 143 ++++++++++++++++------------
+ src/archive/tar/strconv.go                  |  36 ++++++-
+ src/archive/tar/strconv_test.go             |  36 ++++---
+ src/archive/tar/testdata/gnu-long-nul.tar   | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/pax-nul-path.tar   | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/pax-nul-xattrs.tar | Bin 0 -> 2560 bytes
+ src/archive/tar/writer.go                   |   6 +-
+ src/archive/tar/writer_test.go              |  81 +++++++++-------
+ 8 files changed, 191 insertions(+), 111 deletions(-)

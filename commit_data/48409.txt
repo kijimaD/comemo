@@ -1,0 +1,24 @@
+commit 66865363f017a8d4cb0b07d84a3a6117fcf1cd30
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 16 19:21:49 2022 -0400
+
+    syscall: call ABI0 exitsyscall on Plan 9/AMD64
+    
+    CL 376356 changes syscall.Syscall to call ABIInternal entersyscall
+    and exitsyscall. As mentioned in the CL description, it is
+    important to call entersyscall without ABI wrapper, but it is not
+    important to call exitsyscall this way. In fact, it is actually
+    problematic -- on Plan 9, syscall may clobber our fixed G register,
+    and we did not restore it. This CL changes it back to ABI0
+    exitsyscall, which will restore the G register through the wrapper.
+    
+    Should fix Plan 9/AMD64 build.
+    
+    Change-Id: I1f03d553f03e7b9f36d64686f20f2b2df0a0bf79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393494
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/syscall/asm_plan9_amd64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

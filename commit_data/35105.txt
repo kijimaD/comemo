@@ -1,0 +1,24 @@
+commit fb017c60bc60f8df771ac2a9119ec55ea915929c
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Apr 23 14:11:40 2018 -0500
+
+    cmd/compile/internal/ssa: fix endless compile loop on AMD64
+    
+    We currently rewrite
+    (TESTQ (MOVQconst [c] x)) into (TESTQconst [c] x)
+    and (TESTQconst [-1] x) into (TESTQ x x)
+    if x is a (MOVQconst [-1]) we will be stuck in the endless rewrite loop.
+    Don't perform the rewrite in such cases.
+    
+    Fixes #25006
+    
+    Change-Id: I77f561ba2605fc104f1e5d5c57f32e9d67a2c000
+    Reviewed-on: https://go-review.googlesource.com/108879
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 +++++++++++++++----
+ test/fixedbugs/issue25006.go                 | 30 ++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 8 deletions(-)

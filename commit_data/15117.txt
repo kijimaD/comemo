@@ -1,0 +1,17 @@
+commit 6a003d7589e9f820bd94140ca151d5bb6b8e1a41
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 22:41:00 2013 -0500
+
+    time: handle zone file with no transitions
+    
+    Code fix by Alex Bramley.
+    
+    Fixes #4064.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7289049
+
+ src/pkg/time/time_test.go     | 16 ++++++++++++++++
+ src/pkg/time/zoneinfo_read.go |  6 ++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,12 @@
+commit 784788ba44a94df0da922a46c694b6646132ed4e
+Author: Caine Tighe <arctanofyourface@gmail.com>
+Date:   Fri Dec 24 11:48:45 2010 +1100
+
+    goinstall/download.go: Add checkout concept and helper functions to clean and fix implementation (Issue 1265)
+    
+    R=rsc, niemeyer, adg
+    CC=golang-dev
+    https://golang.org/cl/3536041
+
+ src/cmd/goinstall/download.go | 45 +++++++++++++++++++++++++++----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)

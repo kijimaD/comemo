@@ -1,0 +1,23 @@
+commit 053c75411fbc3b6cf7689e3bfa5a46680c20e76f
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:32:49 2015 -0400
+
+    cmd/link: added support for mips64{,le}
+    
+    Only internal linking without cgo is supported for now.
+    
+    Change-Id: Ie6074a8ff3ec13605b72028f2d60758034f87185
+    Reviewed-on: https://go-review.googlesource.com/14444
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/arch.go    |  18 +++
+ src/cmd/link/internal/ld/dwarf.go   |   4 +-
+ src/cmd/link/internal/ld/elf.go     |  27 ++--
+ src/cmd/link/internal/ld/ldelf.go   |   6 +
+ src/cmd/link/internal/ld/lib.go     |   4 +-
+ src/cmd/link/internal/ld/symtab.go  |   2 +-
+ src/cmd/link/internal/mips64/asm.go | 248 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/mips64/l.go   |  75 +++++++++++
+ src/cmd/link/internal/mips64/obj.go | 158 +++++++++++++++++++++++
+ src/cmd/link/main.go                |   3 +
+ 10 files changed, 529 insertions(+), 16 deletions(-)

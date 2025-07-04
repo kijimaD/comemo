@@ -1,0 +1,19 @@
+commit e3f15e3b1d8e6db892267cbd01b956bd587905df
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 17 23:46:12 2018 -0400
+
+    cmd/go: convert even more module tests to scripts
+    
+    Change-Id: Iba185e00e9df2462e9089566053f6c64e24a6a92
+    Reviewed-on: https://go-review.googlesource.com/124698
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/mod_test.go                           | 357 -----------------------
+ src/cmd/go/testdata/script/mod_bad_domain.txt    |  21 ++
+ src/cmd/go/testdata/script/mod_bad_filenames.txt |  11 +
+ src/cmd/go/testdata/script/mod_case.txt          |  13 +
+ src/cmd/go/testdata/script/mod_file_proxy.txt    |  27 ++
+ src/cmd/go/testdata/script/mod_init_dep.txt      |  34 +++
+ src/cmd/go/testdata/script/mod_list.txt          |  60 ++++
+ src/cmd/go/testdata/script/mod_verify.txt        |  85 ++++++
+ 8 files changed, 251 insertions(+), 357 deletions(-)

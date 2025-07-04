@@ -1,0 +1,19 @@
+commit ff262913fee4d9d8cc5ce86790d80c070a4b5f89
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 17 08:29:18 2017 -0700
+
+    cmd/compile: seed rand with time when race enabled
+    
+    When the race detector is enabled,
+    the compiler randomizes the order in which functions are compiled,
+    in an attempt to shake out bugs.
+    But we never re-seed the rand source, so every execution is identical.
+    Fix that to get more coverage.
+    
+    Change-Id: If5cdde03ef4f1bab5f45e07f03fb6614945481d7
+    Reviewed-on: https://go-review.googlesource.com/43572
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

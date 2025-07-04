@@ -1,0 +1,19 @@
+commit 027500ce385709ecaa8fe11320a23a12f8e3b3de
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 9 20:50:24 2017 +0000
+
+    src/*.bash: use tabs consistently
+    
+    make.bash used mostly tabs and buildall.bash used mostly spaces, but
+    they were both mixing them. Be consistent and use tabs, as that's what's
+    more common and what the Go code uses.
+    
+    Change-Id: Ia6affbfccfe64fda800c1ac400965df364d2c545
+    Reviewed-on: https://go-review.googlesource.com/37967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/buildall.bash | 64 +++++++++++++++++++++++++++----------------------------
+ src/make.bash     |  2 +-
+ 2 files changed, 33 insertions(+), 33 deletions(-)

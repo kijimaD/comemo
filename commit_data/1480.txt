@@ -1,0 +1,13 @@
+commit e28692f07d6b476ff9c684577cf11877fdb8991d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 15:10:46 2009 -0800
+
+    - converted tabwriter to new naming scheme
+    
+    R=r
+    OCL=22870
+    CL=22870
+
+ src/lib/tabwriter/tabwriter.go      | 98 ++++++++++++++++++-------------------
+ src/lib/tabwriter/tabwriter_test.go | 94 +++++++++++++++++------------------
+ 2 files changed, 96 insertions(+), 96 deletions(-)

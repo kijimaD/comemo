@@ -1,0 +1,53 @@
+commit c4fe503119ee517e202e81913f08b2e9940e1a72
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu May 7 17:19:30 2015 -0400
+
+    runtime: reduce thrashing of gs between ps
+    
+    One important use case is a pipeline computation that pass values
+    from one Goroutine to the next and then exits or is placed in a
+    wait state. If GOMAXPROCS > 1 a Goroutine running on P1 will enable
+    another Goroutine and then immediately make P1 available to execute
+    it. We need to prevent other Ps from stealing the G that P1 is about
+    to execute. Otherwise the Gs can thrash between Ps causing unneeded
+    synchronization and slowing down throughput.
+    
+    Fix this by changing the stealing logic so that when a P attempts to
+    steal the only G on some other P's run queue, it will pause
+    momentarily to allow the victim P to schedule the G.
+    
+    As part of optimizing stealing we also use a per P victim queue
+    move stolen gs. This eliminates the zeroing of a stack local victim
+    queue which turned out to be expensive.
+    
+    This CL is a necessary but not sufficient prerequisite to changing
+    the default value of GOMAXPROCS to something > 1 which is another
+    CL/discussion.
+    
+    For highly serialized programs, such as GoroutineRing below this can
+    make a large difference. For larger and more parallel programs such
+    as the x/benchmarks there is no noticeable detriment.
+    
+    ~/work/code/src/rsc.io/benchstat/benchstat old.txt new.txt
+    name                old mean              new mean              delta
+    GoroutineRing       30.2µs × (0.98,1.01)  30.1µs × (0.97,1.04)     ~    (p=0.941)
+    GoroutineRing-2      113µs × (0.91,1.07)    30µs × (0.98,1.03)  -73.17% (p=0.004)
+    GoroutineRing-4      144µs × (0.98,1.02)    32µs × (0.98,1.01)  -77.69% (p=0.000)
+    GoroutineRingBuf    32.7µs × (0.97,1.03)  32.5µs × (0.97,1.02)     ~    (p=0.795)
+    GoroutineRingBuf-2   120µs × (0.92,1.08)    33µs × (1.00,1.00)  -72.48% (p=0.004)
+    GoroutineRingBuf-4   138µs × (0.92,1.06)    33µs × (1.00,1.00)  -76.21% (p=0.003)
+    
+    The bench benchmarks show little impact.
+                          old        new
+    garbage               7032879    7011696
+    httpold                 25509      25301
+    splayold              1022073    1019499
+    jsonold              28230624   28081433
+    
+    Change-Id: I228c48fed8d85c9bbef16a7edc53ab7898506f50
+    Reviewed-on: https://go-review.googlesource.com/9872
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc1.go    | 44 +++++++++++++++++++++++++++-----------------
+ src/runtime/runtime2.go |  7 ++++---
+ 2 files changed, 31 insertions(+), 20 deletions(-)

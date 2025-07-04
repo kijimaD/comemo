@@ -1,0 +1,18 @@
+commit 72bf3bc1763cd8dd07c511919ca86577720fc163
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 6 11:35:58 2012 -0800
+
+    cmd/gc: check for array bounds overflow in slice expression
+    
+    The test for this is test/index.go, which is not run by
+    default.  That test does not currently pass even after this is
+    applied, due to issue 4348.
+    
+    Fixes #4344.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6815085
+
+ src/cmd/gc/typecheck.c | 62 ++++++++++++++++++++++++++++----------------------
+ 1 file changed, 35 insertions(+), 27 deletions(-)

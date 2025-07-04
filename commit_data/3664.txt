@@ -1,0 +1,26 @@
+commit d2829faa7c46cd2105eb897e77c92a86baefcd79
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 27 22:47:54 2009 -0700
+
+    files that are okay from the last gofmt round
+    
+    R=gri
+    http://go/go-review/1015011
+
+ src/pkg/bignum/nrdiv_test.go      |  2 +-
+ src/pkg/bytes/buffer_test.go      |  6 +++---
+ src/pkg/bytes/bytes_test.go       | 16 ++++++----------
+ src/pkg/debug/elf/file.go         |  2 +-
+ src/pkg/debug/proc/proc_linux.go  | 24 ++++++++----------------
+ src/pkg/go/doc/doc.go             |  8 ++++----
+ src/pkg/image/png/reader.go       |  2 +-
+ src/pkg/os/exec.go                |  4 ++--
+ src/pkg/os/path_test.go           |  4 ++--
+ src/pkg/path/path_test.go         | 22 ++++++++++------------
+ src/pkg/strconv/decimal_test.go   |  4 ++--
+ src/pkg/template/template_test.go |  4 +---
+ src/pkg/time/time_test.go         |  6 +++---
+ src/pkg/time/zoneinfo.go          |  2 +-
+ src/pkg/unicode/script_test.go    |  7 ++++---
+ src/pkg/utf8/utf8_test.go         |  8 ++++----
+ 16 files changed, 53 insertions(+), 68 deletions(-)

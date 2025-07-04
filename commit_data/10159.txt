@@ -1,0 +1,17 @@
+commit 92926f54722ce3e67765e440d0d6e5ef6da7474b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 17:53:39 2011 -0400
+
+    pkg: minor cleanup
+    
+    remove some redundant .String()
+    change variable name to make it os.Error-proof
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5302075
+
+ src/pkg/archive/zip/struct.go | 6 +++---
+ src/pkg/big/int_test.go       | 2 +-
+ src/pkg/big/rat_test.go       | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,30 @@
+commit ec0ebc2281f79294c299ece35c5a690a6415e0e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 20 21:32:22 2015 -0800
+
+    cmd/gc: treat non-local vars inlined into wrapper as escaping
+    
+    The compiler has a phase ordering problem.  Escape analysis runs
+    before wrapper generation.  When a generated wrapper calls a method
+    defined in a different package, if that call is inlined, there will be
+    no escape information for the variables defined in the inlined call.
+    Those variables will be placed on the stack, which fails if they
+    actually do escape.
+    
+    There are probably various complex ways to fix this.  This is a simple
+    way to avoid it: when a generated wrapper calls a method defined in a
+    different package, treat all local variables as escaping.
+    
+    Fixes #9537.
+    
+    Change-Id: I530f39346de16ad173371c6c3f69cc189351a4e9
+    Reviewed-on: https://go-review.googlesource.com/3092
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/go.h                   |  1 +
+ src/cmd/gc/inl.c                  |  9 +++++---
+ src/cmd/gc/subr.c                 |  9 ++++++++
+ test/fixedbugs/issue9537.dir/a.go | 25 +++++++++++++++++++++++
+ test/fixedbugs/issue9537.dir/b.go | 43 +++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue9537.go       | 10 +++++++++
+ 6 files changed, 94 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit fdb855420b5d8690d9ad0f5d4833375f085637c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 14 21:25:26 2015 -0800
+
+    net: fix some typos in comments
+    
+    Change-Id: I1bf1ab930a5c258f5fcc85ca3037692c71bf3cb2
+    Reviewed-on: https://go-review.googlesource.com/2870
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/dnsclient_unix_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

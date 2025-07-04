@@ -1,0 +1,14 @@
+commit 299862db8fc2ca6376d2c9c58ea0d57702d467e0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Feb 7 18:46:40 2015 -0500
+
+    include/u.h: fix name clash of REG_R* on solaris
+    
+    Fixes build for solaris.
+    
+    Change-Id: Ic6ffab36df9bd68fc38b258f1484a29fa2a0cd39
+    Reviewed-on: https://go-review.googlesource.com/4180
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ include/u.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 9abe6d9dd0ee46b696f8c261417444777af19f6e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 15:56:48 2014 -0500
+
+    crypto/rsa: explain random parameter for GenerateKey and GenerateMultiPrimeKey.
+    Fixes #6850.
+    
+    LGTM=agl
+    R=golang-codereviews, agl
+    CC=golang-codereviews
+    https://golang.org/cl/60500046
+
+ src/pkg/crypto/rsa/rsa.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

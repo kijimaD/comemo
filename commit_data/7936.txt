@@ -1,0 +1,14 @@
+commit e008757d64663eeb3dc4e434963638b9a9cb474d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 14:24:32 2011 -0700
+
+    test: don't require specific GOARCH values.
+    
+    This lets the test work for gccgo on other architectures.
+    
+    R=r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4326044
+
+ test/env.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

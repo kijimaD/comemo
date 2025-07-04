@@ -1,0 +1,13 @@
+commit 2a6bb2c63e5256d50da8b75c17b6bb311fb84300
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:56:39 2009 -0800
+
+    gotest: show the test file pattern in "no test files" error
+    
+    Fixes #190.
+    
+    R=r
+    https://golang.org/cl/154142
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

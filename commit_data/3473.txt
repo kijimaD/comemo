@@ -1,0 +1,53 @@
+commit 91549438d8027970d40fbf7a4976fe063dc88ca4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 7 11:55:06 2009 -0700
+
+    apply gofmt to rand reflect regexp rpc runtime sort strconv strings sync syscall testing time unicode unsafe utf8
+    
+    R=gri
+    DELTA=1409  (79 added, 24 deleted, 1306 changed)
+    OCL=35415
+    CL=35437
+
+ src/pkg/rand/rand.go             | 378 +++++++++++++++++++--------------------
+ src/pkg/reflect/deepequal.go     |  14 +-
+ src/pkg/reflect/tostring_test.go |  12 +-
+ src/pkg/reflect/type.go          | 164 +++++++++--------
+ src/pkg/regexp/all_test.go       | 188 +++++++++----------
+ src/pkg/rpc/debug.go             |  27 ++-
+ src/pkg/rpc/server.go            |  43 ++---
+ src/pkg/rpc/server_test.go       |  30 ++--
+ src/pkg/runtime/extern.go        |   8 +-
+ src/pkg/sort/sort.go             | 104 +++++++----
+ src/pkg/sort/sort_test.go        |  31 ++--
+ src/pkg/strconv/atof.go          |  39 ++--
+ src/pkg/strconv/atof_test.go     | 124 ++++++-------
+ src/pkg/strconv/atoi.go          |  56 +++---
+ src/pkg/strconv/atoi_test.go     |  91 +++++-----
+ src/pkg/strconv/decimal_test.go  |  95 +++++-----
+ src/pkg/strconv/fp_test.go       |   7 +-
+ src/pkg/strconv/ftoa_test.go     | 168 ++++++++---------
+ src/pkg/strconv/internal_test.go |   1 -
+ src/pkg/strconv/itoa.go          |   6 +-
+ src/pkg/strconv/itoa_test.go     | 110 ++++++------
+ src/pkg/strconv/quote.go         |  32 ++--
+ src/pkg/strconv/quote_test.go    | 176 +++++++++---------
+ src/pkg/strings/strings_test.go  | 114 ++++++------
+ src/pkg/sync/internal_test.go    |   4 +-
+ src/pkg/sync/mutex.go            |   7 +-
+ src/pkg/sync/mutex_test.go       |   5 +-
+ src/pkg/testing/iotest/logger.go |  12 +-
+ src/pkg/testing/iotest/reader.go |  11 +-
+ src/pkg/testing/iotest/writer.go |   8 +-
+ src/pkg/testing/testing.go       |  14 +-
+ src/pkg/time/tick.go             |  16 +-
+ src/pkg/time/tick_test.go        |  14 +-
+ src/pkg/time/time.go             | 144 +++++++--------
+ src/pkg/time/zoneinfo.go         |  83 +++++----
+ src/pkg/unicode/digit.go         |   2 +-
+ src/pkg/unicode/digit_test.go    |  10 +-
+ src/pkg/unicode/letter.go        |  27 +--
+ src/pkg/unicode/letter_test.go   | 176 +++++++++---------
+ src/pkg/unsafe/unsafe.go         |  14 +-
+ src/pkg/utf8/utf8_test.go        |  92 +++++-----
+ 41 files changed, 1356 insertions(+), 1301 deletions(-)

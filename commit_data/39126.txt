@@ -1,0 +1,22 @@
+commit d41a0a0690ccb699401c7c8904999895b2c92511
+Author: David Chase <drchase@google.com>
+Date:   Fri May 10 12:18:43 2019 -0400
+
+    cmd/compile: remove large intermediate slice from gc.scopePCs
+    
+    Three loops can be converted into one.
+    Minor reviewer-recommended refactoring.
+    Passes toolstash-check.
+    
+    Updates #27739.
+    
+    Change-Id: Ia87a11d88ae3ce56fcc4267fe6c5a9c13bf7f533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176577
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+
+ src/cmd/compile/internal/gc/scope.go | 34 ++++------------------------------
+ src/cmd/internal/dwarf/dwarf.go      | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 30 deletions(-)

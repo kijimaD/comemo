@@ -1,0 +1,16 @@
+commit 9b8ad3fde27c56f825f15aebad2174860adbf6a4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Mar 7 12:05:03 2015 -0500
+
+    sync/atomic: skip test on darwin/arm
+    
+    Updates #7338.
+    
+    Change-Id: I859a73543352dbdd13ec05efb23a95aecbcc628a
+    Reviewed-on: https://go-review.googlesource.com/7164
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/atomic_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

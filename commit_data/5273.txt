@@ -1,0 +1,13 @@
+commit fe7826858c6923f8c18acfa9926cd36192883bdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 11 14:51:35 2010 -0700
+
+    gc: make sure main.main has correct type
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/883049
+
+ src/cmd/gc/go.y          | 11 +++++++++--
+ test/fixedbugs/bug039.go |  2 +-
+ 2 files changed, 10 insertions(+), 3 deletions(-)

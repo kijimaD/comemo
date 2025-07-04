@@ -1,0 +1,27 @@
+commit 1a0b1cca4c26d41fe7508ffdb355de78b4ea2a19
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 21:07:52 2016 -0400
+
+    net: fix Dial(":80") on Windows
+    
+    Windows sockets allow bind to 0.0.0.0:80 but not connect to it.
+    To make Listen(":80") / Dial(":80") work as documented on Windows,
+    connect to 127.0.0.1 or ::1 (depending on network) in place of 0.0.0.0.
+    
+    Fixes #6290.
+    
+    Change-Id: Ia27537067276871648546678fbe0f1b8478329fe
+    Reviewed-on: https://go-review.googlesource.com/32101
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/dial_test.go       | 17 +++++++++++++++++
+ src/net/iprawsock_posix.go |  4 ++++
+ src/net/ipsock.go          |  7 +++++++
+ src/net/ipsock_posix.go    |  3 +++
+ src/net/sock_posix.go      |  3 +++
+ src/net/tcpsock_posix.go   |  4 ++++
+ src/net/udpsock_posix.go   |  4 ++++
+ src/net/unixsock_posix.go  |  4 ++++
+ 8 files changed, 46 insertions(+)

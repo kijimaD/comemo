@@ -1,0 +1,13 @@
+commit ee7680104ff5596be0d49ce2e93993dbaab2bb02
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 22 09:21:57 2012 +1100
+
+    A+C: Richard Eric Gavaletz (individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6734055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

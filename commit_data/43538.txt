@@ -1,0 +1,26 @@
+commit db7d42acac89bbb516194fa4c332cc79e43ec8bb
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Sep 24 00:22:05 2020 +0800
+
+    cmd/link: remove all constants of elf
+    
+    Use debug/elf instead.
+    
+    Change-Id: Ia6580648b6440e4a352f5c5ed59ac4d1c95e0175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252478
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go |    4 +-
+ src/cmd/link/internal/arm/asm.go   |    4 +-
+ src/cmd/link/internal/arm64/asm.go |    4 +-
+ src/cmd/link/internal/ld/elf.go    | 1140 +++++++++++++-----------------------
+ src/cmd/link/internal/ld/go.go     |    3 +-
+ src/cmd/link/internal/ld/lib.go    |    8 +-
+ src/cmd/link/internal/ld/symtab.go |   67 +--
+ src/cmd/link/internal/ppc64/asm.go |    6 +-
+ src/cmd/link/internal/s390x/asm.go |    2 +-
+ src/cmd/link/internal/x86/asm.go   |    4 +-
+ 10 files changed, 454 insertions(+), 788 deletions(-)

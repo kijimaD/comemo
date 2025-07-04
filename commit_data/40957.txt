@@ -1,0 +1,24 @@
+commit ea89ce1ea2924138591cbf7362eb23d4e1399ded
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 6 15:51:34 2019 -0500
+
+    cmd/go/internal/modcmd: loosen path validation in "go mod edit"
+    
+    Replaced modules require only valid import paths, not full
+    module paths that can be fetched with 'go get'.
+    
+    The 'go' command does not in general reject manually-edited go.mod
+    files with these paths, so 'go mod edit' should not reject them
+    either.
+    
+    Fixes #30513
+    
+    Change-Id: I4f1a5c65937f91d41478f8d218c8018e0c70f320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210343
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/edit.go      |  8 ++++----
+ src/cmd/go/testdata/script/mod_edit.txt | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

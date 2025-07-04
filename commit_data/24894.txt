@@ -1,0 +1,16 @@
+commit 59dc25730bad088e44d67bfc1166171182b61c74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 16:00:46 2015 -0800
+
+    cmd/compile: cleanup in parser (3)
+    
+    Factored out functionality of dotname (was inlined in 3 places).
+    
+    Change-Id: Ica782737c8decbb757465830b25ba87faa9115a4
+    Reviewed-on: https://go-review.googlesource.com/16897
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 54 ++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

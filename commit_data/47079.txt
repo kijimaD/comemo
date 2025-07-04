@@ -1,0 +1,32 @@
+commit 5a3a9d87ed97f197aabcb868f6c0031c888d6122
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 27 18:53:02 2021 -0400
+
+    cmd/dist: implement //go:build parsing
+    
+    The bootstrap directories are built with the Go 1.4 go command,
+    and they will retain the // +build lines until we bump the bootstrap
+    toolchain to Go 1.17 or later.
+    
+    cmd/dist builds cmd/go and all its dependencies, using the
+    assembler, compiler, and linker that were built using Go 1.4.
+    We don't want to have to keep // +build lines in cmd/go and
+    all its dependencies, so this CL changes cmd/dist to understand
+    the //go:build lines.
+    
+    cmd/dist is a standalone Go program that must itself build with
+    very old Go releases, so we cannot assume go/build/constraint
+    is available. Instead, implement a trivial parser/evaluator.
+    
+    For #41184.
+    
+    Change-Id: I84e259dec3bd3daec3f82024eb3500120f53096d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359314
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go    |  47 +++++------------
+ src/cmd/dist/buildtag.go | 133 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+), 34 deletions(-)

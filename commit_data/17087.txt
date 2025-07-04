@@ -1,0 +1,12 @@
+commit 2f0acc1e8010f03e86ce72f3c2aac13958d5ff41
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Thu Aug 8 09:57:31 2013 -0700
+
+    doc/go1.2.txt: document previously committed features
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12585044
+
+ doc/go1.2.txt | 3 +++
+ 1 file changed, 3 insertions(+)

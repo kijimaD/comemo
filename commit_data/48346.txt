@@ -1,0 +1,15 @@
+commit 00535b839841227ba60c2de78fbf767088f865bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 9 12:58:50 2022 -0800
+
+    spec: remove note re: field accesses on type literals
+    
+    For #51576.
+    
+    Change-Id: I43f72c3fb618e724d46360a70ab9f8abc3d63273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391137
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ----
+ 1 file changed, 4 deletions(-)

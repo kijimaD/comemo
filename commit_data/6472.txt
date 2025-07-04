@@ -1,0 +1,12 @@
+commit 53fff1e74d03260e58ceba0cd2f70c3cc5a54043
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 06:36:39 2010 -0400
+
+    gc: maybe the code is only mostly dead
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2346044
+
+ src/cmd/gc/gen.c | 11 -----------
+ 1 file changed, 11 deletions(-)

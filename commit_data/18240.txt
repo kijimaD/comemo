@@ -1,0 +1,14 @@
+commit 3ec60c253d9d419eb7a35a40e01315e3d1497465
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 14 10:39:50 2014 -0500
+
+    runtime: emit collection stacks in GODEBUG=allocfreetrace mode
+    
+    R=khr, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/51830043
+
+ src/pkg/runtime/malloc.h  |  1 +
+ src/pkg/runtime/mgc0.c    |  3 +++
+ src/pkg/runtime/mprof.goc | 20 ++++++++++++++++----
+ 3 files changed, 20 insertions(+), 4 deletions(-)

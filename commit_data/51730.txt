@@ -1,0 +1,21 @@
+commit 5e03c634b841f60125d69865abf85e3c39fd6376
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Mon Jan 23 16:52:33 2023 +0000
+
+    math/big: validate result of Float.GobDecode
+    
+    Fixes #57946
+    
+    Change-Id: Ia499ebfd8801432122f89fdf6bda4d1e7b6dd832
+    GitHub-Last-Rev: 29e099388680bc5b7075e0fa63499b39697579ca
+    GitHub-Pull-Request: golang/go#57951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463017
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/big/float.go           | 15 +++++++++++----
+ src/math/big/floatmarsh.go      |  4 ++++
+ src/math/big/floatmarsh_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit dd7ba3ba2c860c40be6d70b63d4a678449cae80f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 2 09:20:22 2021 -0700
+
+    net: don't rely on system hosts in TestCVE202133195
+    
+    Also don't unnecessarily deref the error return.
+    
+    Fixes #46504
+    
+    Change-Id: I22d14ac76776f8988fa0774bdcb5fcd801ce0185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324190
+    Trust: David Chase <drchase@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/dnsclient_unix_test.go | 39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)

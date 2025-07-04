@@ -1,0 +1,12 @@
+commit f7ad1834ea2db813914314d14cfdf94d197d204e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 26 01:40:29 2012 +0800
+
+    doc/install: fix FreeBSD/Linux install command
+    
+    R=adg, golang-dev, go.peter.90, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700062
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

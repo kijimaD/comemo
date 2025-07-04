@@ -1,0 +1,18 @@
+commit 3e789713132be993e74b81e821a4485e83533d61
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Nov 6 09:17:02 2023 +0700
+
+    cmd/go: ensure the correct line number is displayed when using TB.Helper
+    
+    Fixes #26995
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-race,gotip-linux-386-longtest,gotip-windows-amd64-longtest
+    Change-Id: If3b68002d205fe985a692b69f5d7e0d2f20a7bd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540016
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ .../go/testdata/script/test_race_issue26995.txt    | 42 ++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

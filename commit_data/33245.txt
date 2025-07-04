@@ -1,0 +1,22 @@
+commit 40649e697907d928316efac47902a1c7554c3196
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 25 13:46:38 2017 -0700
+
+    cmd/compile: make sure not to use SP as an index register
+    
+    ...because that's an illegal addressing mode.
+    
+    I double-checked handling of this code, and 387 is the only
+    place where this check is missing.
+    
+    Fixes #22429
+    
+    Change-Id: I2284fe729ea86251c6af2f04076ddf7a5e66367c
+    Reviewed-on: https://go-review.googlesource.com/73551
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/x86/387.go |  6 ++++++
+ test/fixedbugs/issue22429.go        | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

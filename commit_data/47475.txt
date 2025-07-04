@@ -1,0 +1,15 @@
+commit 0a54a6826ebd19e5947af57993399652c62801de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 12:04:01 2021 -0800
+
+    cmd/compile/internal/types2: move match function to end of file (cleanup)
+    
+    Change-Id: Ia09f7b1af0e84858fb73ab7e2592c5c3e983dc0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363669
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/type.go | 58 ++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

@@ -1,0 +1,18 @@
+commit b9ebc675b31303cb22da5aa39ef7cbd208d83010
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 15:19:31 2017 -0500
+
+    database/sql/driver: document that Execer, Queryer need not be implemented
+    
+    CL 21663 allowed drivers to implement ExecerContext without
+    also implementing Execer, and similarly QueryerContext without
+    Queryer, but it did not make that clear in the documentation.
+    
+    This CL updates the documentation.
+    
+    Change-Id: I9a4accaac32edfe255fe7c0b0907d4c1014322b4
+    Reviewed-on: https://go-review.googlesource.com/78129
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/driver/driver.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

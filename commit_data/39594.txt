@@ -1,0 +1,17 @@
+commit 8b058cfbcec5dc3002ddd6cedc7070ff946b2257
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 9 13:48:34 2019 -0700
+
+    net: document that a keep-alive failure also returns a timeout
+    
+    Updates #31449
+    
+    Change-Id: I76490c5e83eb2f7ba529b387a57ba088428aece5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189757
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/net/net.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

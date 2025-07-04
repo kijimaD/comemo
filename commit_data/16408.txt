@@ -1,0 +1,12 @@
+commit 46137f227bd11777f535271e842eac14fc65fd1c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat May 25 22:47:36 2013 +0400
+
+    runtime: update comment on stack allocator
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9665046
+
+ src/pkg/runtime/stack.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

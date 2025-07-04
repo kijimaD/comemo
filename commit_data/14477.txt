@@ -1,0 +1,14 @@
+commit f80f23e7480599c2397f50dd2aafa9a5f8bd58d9
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Nov 26 10:53:11 2012 -0500
+
+    runtime: re-format comments.
+    add necessary newlines.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6847067
+
+ src/pkg/runtime/debug.go  | 2 ++
+ src/pkg/runtime/extern.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,32 @@
+commit ffe83e582ea3a01450d23c17eefa036b52bc7788
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 24 09:07:47 2009 -0700
+
+    Switch ogle over to the in-tree debug/proc package.  Fix
+    debug/proc to install to the right place.  Delete the old
+    ptrace package.  The diff looks huge, but it's mostly
+    s/ptrace/proc/.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1940  (10 added, 1835 deleted, 95 changed)
+    OCL=34966
+    CL=34968
+
+ src/pkg/debug/proc/Makefile           |    2 +-
+ usr/austin/ogle/arch.go               |   18 +-
+ usr/austin/ogle/cmd.go                |   22 +-
+ usr/austin/ogle/event.go              |   10 +-
+ usr/austin/ogle/frame.go              |   42 +-
+ usr/austin/ogle/goroutine.go          |    4 +-
+ usr/austin/ogle/process.go            |   66 +-
+ usr/austin/ogle/rruntime.go           |    4 +-
+ usr/austin/ogle/rtype.go              |    4 +-
+ usr/austin/ogle/rvalue.go             |   22 +-
+ usr/austin/ogle/vars.go               |    6 +-
+ usr/austin/ptrace/Makefile            |   13 -
+ usr/austin/ptrace/process.go          |  232 ------
+ usr/austin/ptrace/ptrace-nptl.txt     |  132 ----
+ usr/austin/ptrace/ptrace_linux.go     | 1319 ---------------------------------
+ usr/austin/ptrace/regs_linux_amd64.go |  149 ----
+ 16 files changed, 100 insertions(+), 1945 deletions(-)

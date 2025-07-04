@@ -1,0 +1,18 @@
+commit 32e75bace0ed5e09819760a76d741430116e821e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 13 16:12:07 2015 +1100
+
+    all: fix race when allocating buffer for some windows syscalls
+    
+    Fixes #9753
+    
+    Change-Id: I6c641ed7ef4f687a108e7d937ab4b9c24d5baf5d
+    Reviewed-on: https://go-review.googlesource.com/4940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_windows.go               | 22 ++++----
+ src/path/filepath/symlink_windows.go | 27 +++++-----
+ src/syscall/env_windows.go           | 20 ++++----
+ src/syscall/exec_windows.go          | 16 ++----
+ src/syscall/security_windows.go      | 98 +++++++++++++++++-------------------
+ 5 files changed, 81 insertions(+), 102 deletions(-)

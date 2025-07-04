@@ -1,0 +1,25 @@
+commit c803ffc67d0c90b24eb5a60a7d573eecc39e7753
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 4 15:33:08 2018 +0000
+
+    runtime: scavenge large spans before heap growth
+    
+    This change scavenges the largest spans before growing the heap for
+    physical pages to "make up" for the newly-mapped space which,
+    presumably, will be touched.
+    
+    In theory, this approach to scavenging helps reduce the RSS of an
+    application by marking fragments in memory as reclaimable to the OS
+    more eagerly than before. In practice this may not necessarily be
+    true, depending on how sysUnused is implemented for each platform.
+    
+    Fixes #14045.
+    
+    Change-Id: Iab60790be05935865fc71f793cb9323ab00a18bd
+    Reviewed-on: https://go-review.googlesource.com/c/139719
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

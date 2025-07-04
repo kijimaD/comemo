@@ -1,0 +1,41 @@
+commit aa4d5e739f32397969fd5c33cbc95d316686039f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 9 16:16:42 2023 +0200
+
+    syscall,internal/poll: move pipe check from syscall.Seek to callers
+    
+    On Windows, syscall.Seek is a thin wrapper over SetFilePointerEx [1],
+    which does not work on pipes, although it doesn't return an error on
+    that case. To avoid this undefined behavior, Seek defensively
+    calls GetFileType and errors if the type is FILE_TYPE_PIPE.
+    
+    The problem with this approach is that Seek is a low level
+    foundational function that can be called many times for the same file,
+    and the additional cgo call (GetFileType) will artificially slow
+    down seek operations. I've seen GetFileType to account for 10% of cpu
+    time in seek-intensive workloads.
+    
+    A better approach, implemented in this CL, would be to move the check
+    one level up, where many times the file type is already known so the
+    GetFileType is unnecessary.
+    
+    The drawback is that syscall.Seek has had this behavior since pipes
+    where first introduced to Windows in
+    https://codereview.appspot.com/1715046 and someone could be relying on
+    it. On the other hand, this behavior is not documented, so we couldn't
+    be breaking any contract.
+    
+    [1] https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
+    
+    Change-Id: I7602182f9d08632e22a8a1635bc8ad9ad35a5056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493626
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_windows.go       | 11 +++++++++++
+ src/internal/poll/sendfile_windows.go |  3 +++
+ src/syscall/syscall_windows.go        |  5 -----
+ 3 files changed, 14 insertions(+), 5 deletions(-)

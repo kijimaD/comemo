@@ -1,0 +1,20 @@
+commit a6d4471b2b38f4e865cdc4d31ae0de1e8db45a7b
+Author: Colby Ranger <cranger@google.com>
+Date:   Fri Apr 20 09:31:23 2012 -0700
+
+    net/http/httputil: Made reverseproxy test less flaky.
+    
+    The reverseproxy test depended on the behavior of
+    runtime.NumGoroutines(), which makes no guarantee when
+    goroutines are reaped. Instead, modify the flushLoop()
+    to invoke a callback when it returns, so the exit
+    from the loop can be tested, instead of the number
+    of gorountines running.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6068046
+
+ src/pkg/net/http/httputil/reverseproxy.go      | 12 +++---
+ src/pkg/net/http/httputil/reverseproxy_test.go | 52 +++++++++-----------------
+ 2 files changed, 24 insertions(+), 40 deletions(-)

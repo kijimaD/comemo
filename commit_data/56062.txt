@@ -1,0 +1,18 @@
+commit b47f2febea5c570fef4a5c27a46473f511fbdaa3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 26 09:23:16 2024 -0700
+
+    runtime,hash/maphash: reuse hashSets to save memory pressure
+    
+    Might help with OOMs on 32-bit platforms
+    
+    Change-Id: Idd5129c61ecdfeedd5a9a18fce85dbba27cab946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574475
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/hash/maphash/smhasher_test.go | 52 +++++++++++++++++----------------
+ src/runtime/hash_test.go          | 60 ++++++++++++++++++++-------------------
+ 2 files changed, 58 insertions(+), 54 deletions(-)

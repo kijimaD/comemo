@@ -1,0 +1,16 @@
+commit ed2671aa150598e5bf23c1c69b200a1afbb577d3
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 22 16:00:18 2024 +0000
+
+    cmd/link/internal/ld: temporarily add skip for new portion of TestElfBindNow
+    
+    Skip newly added sections in TestElfBindNow from elf_test.go
+    temporarily pending resolution of failures on loong64 and ppc64le.
+    
+    Change-Id: I22e0e52c9fbbcad88a4d0088f631ed7be15bf9da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/elf_test.go | 82 +++++++++++++++++++-----------------
+ 1 file changed, 43 insertions(+), 39 deletions(-)

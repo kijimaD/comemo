@@ -1,0 +1,25 @@
+commit bb45bc27b5d786943bdc058bdae54b1bde78613b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 15 22:49:52 2017 +0100
+
+    cmd/compile: make more use of value switches
+    
+    Use them to replace if/else chains with at least three comparisons,
+    where the code becomes clearly simpler.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: Ic98aa3905944ddcab5aef5f9d9ba376853263d94
+    Reviewed-on: https://go-review.googlesource.com/70934
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go   | 18 ++++-----
+ src/cmd/compile/internal/gc/noder.go |  9 ++---
+ src/cmd/compile/internal/gc/sinit.go |  6 +--
+ src/cmd/compile/internal/gc/ssa.go   | 16 ++++----
+ src/cmd/compile/internal/gc/walk.go  | 77 ++++++++++++++++--------------------
+ 5 files changed, 58 insertions(+), 68 deletions(-)

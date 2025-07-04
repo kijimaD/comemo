@@ -1,0 +1,22 @@
+commit 49aa1d791be26de71ba7ed02d6c6cd1dd0092b71
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 30 14:16:12 2016 -0700
+
+    crypto/x509: return better error when a certificate contains no names.
+    
+    Currently, if a certificate contains no names (that we parsed),
+    verification will return the confusing error:
+        x509: certificate is valid for , not example.com.
+    
+    This change improves the error for that situation.
+    
+    Fixes #16834.
+    
+    Change-Id: I2ed9ed08298d7d50df758e503bdb55277449bf55
+    Reviewed-on: https://go-review.googlesource.com/30152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/verify.go | 4 ++++
+ 1 file changed, 4 insertions(+)

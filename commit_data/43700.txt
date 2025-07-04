@@ -1,0 +1,19 @@
+commit e4b4e4b733624a4922741f13dcdaa493c01fe9fd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 15:40:37 2020 -0500
+
+    race.bash: add darwin/arm64
+    
+    Race detector support was added in previous CLs.
+    
+    Updates #38485.
+    
+    Change-Id: Ie9ae69406ff4770f573c2287bfbbb0421769b3ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267098
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/race.bash | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

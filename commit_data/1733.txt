@@ -1,0 +1,20 @@
+commit 63b332eddd383da8b9ea9ab68cbe179814d1ba6c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 16:00:06 2009 -0800
+
+    - allow ()'s and {}'s for now when parsing calls/composite literals
+    - require ()'s around composite literals at the if/for/switch control clause level
+    - fixed a nasty bug: passing a value instead of a pointer to a value to an interface
+      variable - and not noticing that the value is copied
+    
+    R=r
+    OCL=25649
+    CL=25649
+
+ usr/gri/pretty/ast.go         |  3 ++-
+ usr/gri/pretty/compilation.go | 10 ++--------
+ usr/gri/pretty/parser.go      | 41 +++++++++++++++++++++++++++++------------
+ usr/gri/pretty/platform.go    |  4 ++--
+ usr/gri/pretty/printer.go     |  9 ++++++---
+ usr/gri/pretty/scanner.go     |  2 +-
+ 6 files changed, 42 insertions(+), 27 deletions(-)

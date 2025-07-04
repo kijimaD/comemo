@@ -1,0 +1,23 @@
+commit cf338eb89076049bc070e44a037a6364b8ec884a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 13:55:47 2023 -0700
+
+    cmd/compile: eliminate fallback code for missing -p flag
+    
+    cmd/compile has required the -p flag since go.dev/cl/391014. It's safe
+    to eliminate the fallback code that tried to cope without.
+    
+    Change-Id: I9a62ff829e34a6fa5bfe6ae6a836610cc3f0cd33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523337
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/dwarfgen/dwarf.go      |  4 +---
+ src/cmd/compile/internal/noder/import.go        |  5 ++++-
+ src/cmd/compile/internal/noder/noder.go         |  3 +--
+ src/cmd/compile/internal/reflectdata/reflect.go | 20 +++++---------------
+ src/cmd/compile/internal/types/size.go          |  6 ++++--
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ 6 files changed, 16 insertions(+), 24 deletions(-)

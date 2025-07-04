@@ -1,0 +1,19 @@
+commit 640e9169155ea96a6f1156663269dba5babf0632
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 8 17:35:27 2016 -0400
+
+    cmd/trace: track each G's state explicitly
+    
+    Currently the trace tool tracks an overall counts of goroutine states,
+    but not the states of any individual goroutine. We're about to add
+    more sophisticated blocked-state tracking, so add this tracking and
+    base the state counts off the tracked goroutine states.
+    
+    Change-Id: I943ed61782436cf9540f4ee26c5561715c5b4a1d
+    Reviewed-on: https://go-review.googlesource.com/30703
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/trace.go | 68 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 42 insertions(+), 26 deletions(-)

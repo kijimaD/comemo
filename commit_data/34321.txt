@@ -1,0 +1,14 @@
+commit ef3ab3f5e2e612532733b3cdd38eefa387595fe3
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Tue Feb 6 08:56:53 2018 +0300
+
+    database/sql: add String method to IsolationLevel
+    
+    Fixes #23632
+    
+    Change-Id: I7197e13df6cf28400a6dd86c110f41129550abb6
+    Reviewed-on: https://go-review.googlesource.com/92235
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

@@ -1,0 +1,14 @@
+commit d6c9af6a4ec531369340e51cb008da514477ef17
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 27 00:17:50 2012 -0400
+
+    cmd/go: update for go1 tag format
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5919048
+
+ src/cmd/go/get.go      | 62 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/tag_test.go | 24 +++++++++++++++++++
+ src/cmd/go/vcs.go      |  2 +-
+ 3 files changed, 86 insertions(+), 2 deletions(-)

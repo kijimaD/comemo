@@ -1,0 +1,31 @@
+commit 1f0ca748c24e84fa6849e1d9669232dd99cd61ad
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jan 13 23:03:22 2014 +0100
+
+    os/exec: disable fd check in TestHelperProcess on Plan 9
+    
+    On Plan 9, we can observe the following open file descriptors:
+    
+      0 r  c    0 (000000000000000a   0 00)     0        0 /dev/null
+      1 rw |    0 (0000000001df6742   0 00) 65536       54 #|/data1
+      2 rw |    0 (0000000001df6782   0 00) 65536        0 #|/data1
+      3 rw M 1956 (0000000000d66dd2   0 00)  8192       12 /tmp/333163398
+      4 r  c    0 (0000000000000001   0 00)     0      528 /dev/bintime
+      5 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      6 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      7 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      8 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      9 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     10 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     11 r  c    0 (000000000000000f   0 00)     0       32 /dev/random
+     12 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     13 r  c    0 (000000000000000a   0 00)     0        0 /dev/null
+     14 rw |    0 (0000000001df6801   0 00) 65536        0 #|/data
+     15 rw |    0 (0000000001df6802   0 00) 65536     1275 #|/data1
+    
+    R=rsc, bradfitz, aram
+    CC=golang-codereviews
+    https://golang.org/cl/51420044
+
+ src/pkg/os/exec/exec_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

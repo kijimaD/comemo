@@ -1,0 +1,21 @@
+commit f27a40ce5fbb2574b81cf05c61c6630e0dfcaf4a
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 12 11:13:26 2024 -0400
+
+    cmd/compile: give the closure generated for rangefunc bodies a name.
+    
+    The generated name has the form "#yield%d" for %d = 1, 2, 3, ...
+    This may help the debugger connect execution within a rangefunc
+    loop's body to the frame containing the rest of the source code.
+    (It may not actually be necessary; we need to confirm with Alessandro
+    Aarzilli or someone else on the Delve team.)
+    
+    Change-Id: Iabbb2ea5604a4bc1558c160819ac80197e1f2242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592175
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/rangefunc/rewrite.go | 44 +++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 12 deletions(-)

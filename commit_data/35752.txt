@@ -1,0 +1,15 @@
+commit 707ca18d97ccc769d78f9d16bdf94b992858977d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 19 10:20:35 2018 -0700
+
+    cmd/compile: more accurate position for select case error message
+    
+    Fixes #25958.
+    
+    Change-Id: I1f4808a70c20334ecfc4eb1789f5389d94dcf00e
+    Reviewed-on: https://go-review.googlesource.com/119755
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/select.go | 10 +++++++++-
+ test/fixedbugs/issue25958.go          | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

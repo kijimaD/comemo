@@ -1,0 +1,16 @@
+commit 5e400ebf18aeee7bc26f10b25044d15b8b4379e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 6 16:11:40 2009 -0800
+
+    - wrote simple template substitution package
+    - use template in pretty printing now instead of hand-coded mechanism
+    
+    R=r
+    OCL=25863
+    CL=25863
+
+ usr/gri/pretty/Makefile      |   2 +-
+ usr/gri/pretty/printer.go    | 115 +++++++------------------------------------
+ usr/gri/pretty/template.go   | 105 +++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/template.html |   3 ++
+ 4 files changed, 128 insertions(+), 97 deletions(-)

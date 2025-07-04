@@ -1,0 +1,14 @@
+commit d9859ad40438cc27415ec294e9a06bb58fa24e9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 17:57:26 2015 -0800
+
+    math/big: fix several issues with string->Float conversion
+    
+    Change-Id: I7bf7154e2d8d779fdf7f1d2bb561a06ad174f3b0
+    Reviewed-on: https://go-review.googlesource.com/4883
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go          | 12 ++---
+ src/math/big/floatconv.go      | 99 ++++++++++++++++++++++++++++++------------
+ src/math/big/floatconv_test.go | 62 +++++++++++++++++++++-----
+ 3 files changed, 128 insertions(+), 45 deletions(-)

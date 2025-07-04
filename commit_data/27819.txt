@@ -1,0 +1,19 @@
+commit b98d8cd5ce0c279674472af247d86f8c0b73828a
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Tue Jun 21 00:54:52 2016 +0430
+
+    container/heap: remove one unnecessary comparison in Fix
+    
+    The heap.Fix function calls both down and up.  If the element is moved
+    down, we don't need to call up and we could save a comparison.
+    
+    (per suggestion by Radu Berinde)
+    
+    Fixes #16098.
+    
+    Change-Id: I83a74710e66cf0d274d8c0743338c26f89f31afe
+    Reviewed-on: https://go-review.googlesource.com/24273
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/container/heap/heap.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

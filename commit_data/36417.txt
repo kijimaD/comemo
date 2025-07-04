@@ -1,0 +1,20 @@
+commit 5ddecd150821713c53de15f439c7925b28c9f535
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Jun 6 16:23:44 2018 -0300
+
+    strconv: use bytealg implementation of IndexByteString
+    
+        benchmark                  old ns/op     new ns/op     delta
+        BenchmarkUnquoteEasy-4     188           79.5          -57.71%
+        BenchmarkUnquoteHard-4     653           622           -4.75%
+    
+    Fixes #23821
+    
+    Change-Id: I1ebfab1b7f0248fd313de21396e0f8612076aa6d
+    Reviewed-on: https://go-review.googlesource.com/116755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/quote.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

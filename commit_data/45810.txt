@@ -1,0 +1,18 @@
+commit 9d13f8d43e88a349762c61aee84614ac83dab521
+Author: Eric Wang <wangchaogo1990@gmail.com>
+Date:   Mon Jun 14 11:29:33 2021 +0000
+
+    runtime: update the variable name in comment
+    
+    The comment use allg to refer to allgs in code. Update the comment to
+    use the same variable name.
+    
+    Change-Id: Id059fce7846776737fb038b86bcf8765a4a7c9c0
+    GitHub-Last-Rev: 234fb0a208f105352d33456159725a3fce3a3071
+    GitHub-Pull-Request: golang/go#46723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327629
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

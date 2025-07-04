@@ -1,0 +1,16 @@
+commit 54f691d69d39bc19c2069384cd702c6fdec0b92d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 23:18:53 2016 -0400
+
+    runtime: skip TestMemmoveOverflow if mmap of needed page fails
+    
+    Fixes #16731.
+    
+    Change-Id: I6d393357973d008ab7cf5fb264acb7d38c9354eb
+    Reviewed-on: https://go-review.googlesource.com/32104
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/memmove_linux_amd64_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

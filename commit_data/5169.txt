@@ -1,0 +1,44 @@
+commit 570af81e190ecbd06dbe530849ea0d8405a483c4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 29 17:37:22 2010 -0700
+
+    Flags: add user-defined flag types. The change is really no code; it's just publishing
+    the set() method and add() functions.  But we rename add() to Var() for consistency.
+    Also rename FlagValue to Value for simplicity.
+    
+    Also, delete the check for multiple settings for a flag.  This makes it possible to
+    define a flag that collects values, such as into a slice of strings.
+    
+    type flagVar []string
+    
+    func (f *flagVar) String() string {
+            return fmt.Sprint(v)
+    }
+    
+    func (f *flagVar) Set(value string) bool {
+            if v == nil {
+                    v = make(flagVar, 1)
+            } else {
+                    nv := make(flagVar, len(v)+1)
+                    copy(nv, v)
+                    v = nv
+            }
+            v[len(v)-1] = value
+            return true
+    }
+    
+    var v flagVar
+    
+    func main() {
+            flag.Var(&v, "testV", "multiple values build []string")
+            flag.Parse()
+            fmt.Printf("v = %v\n", v)
+    }
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/842041
+
+ src/pkg/flag/flag.go      | 90 +++++++++++++++++++++++------------------------
+ src/pkg/flag/flag_test.go | 19 ++++++++++
+ 2 files changed, 64 insertions(+), 45 deletions(-)

@@ -1,0 +1,16 @@
+commit aca92f352d6a5bc0b17cd39d3b1bbe23ae0bb5ac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 11:35:17 2017 -0700
+
+    runtime: CSE some function arguments in evacuate
+    
+    Shrinks evacuate's machine code a little.
+    
+    Change-Id: I08874c92abdc7e621bc0737e22f2a6be31542cab
+    Reviewed-on: https://go-review.googlesource.com/54652
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

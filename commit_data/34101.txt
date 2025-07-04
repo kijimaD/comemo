@@ -1,0 +1,24 @@
+commit 252f1170e5f13d9b12ec3a117ca2bb2241f74c08
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
+
+    runtime: buffered write barrier for 386
+    
+    Updates #22460.
+    
+    Change-Id: I3c8e90fd6bcda7e28911036591873d63665aaca7
+    Reviewed-on: https://go-review.googlesource.com/92696
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go        |  8 +++--
+ src/cmd/compile/internal/ssa/config.go     | 11 ++++++
+ src/cmd/compile/internal/ssa/gen/386.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  4 +++
+ src/cmd/compile/internal/ssa/opGen.go      | 15 ++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 20 +++++++++++
+ src/cmd/compile/internal/x86/ssa.go        |  6 ++++
+ src/cmd/vet/all/whitelist/386.txt          |  2 ++
+ src/runtime/asm_386.s                      | 58 ++++++++++++++++++++++++++++++
+ 9 files changed, 124 insertions(+), 3 deletions(-)

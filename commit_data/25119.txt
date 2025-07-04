@@ -1,0 +1,15 @@
+commit 4480d6a9272cdf90ff958163fcdc3819216e8889
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Wed Nov 25 17:31:57 2015 -0800
+
+    runtime/cgo: define x_cgo_inittls() for android/arm64.
+    
+    On android, runtime.tls_g is a normal variable.
+    TLS offset is computed in x_cgo_inittls.
+    
+    Change-Id: I64cfd3543040776dcdf73cad8dba54fc6aaf6f35
+    Reviewed-on: https://go-review.googlesource.com/17245
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/gcc_android_arm64.c | 38 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

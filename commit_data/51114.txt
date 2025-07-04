@@ -1,0 +1,16 @@
+commit 1a4cc091a9a0d5729db5f276ed1ad6f3aa768023
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 19:46:57 2022 -0400
+
+    cmd/compile/internal/pgo: remove label handling
+    
+    We don't use it. Make graph building a little faster.
+    
+    Change-Id: I4a6f516f8e68bf338be8350f91c51f6f1dea26bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447800
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/graph.go | 218 ++--------------------------------
+ 1 file changed, 8 insertions(+), 210 deletions(-)

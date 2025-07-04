@@ -1,0 +1,40 @@
+commit 41402b59bd7401bf0b4ff3043dfe3d3fa712e05c
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Mar 23 13:00:47 2018 +0000
+
+    crypto/rc4: optimize generic implementation slightly
+    
+    The compiler can't currently figure out that it can eliminate both c.s
+    loads (using store to load forwarding) in the second line of the
+    following code:
+    
+            ...
+            c.s[i], c.s[j] = c.s[j], c.s[i]
+            x := c.s[j] + c.s[i]
+            ...
+    
+    The compiler eliminates the second load of c.s[j] (using the original
+    value of c.s[i]), however the load of c.s[i] remains because the compiler
+    doesn't know that c.s[i] and c.s[j] either overlap completely or not at
+    all.
+    
+    Introducing temporaries to make this explicit improves the performance
+    of the generic code slightly, the goal being to remove the assembly in
+    this package in the future. This change also hoists a bounds check out
+    of the main loop which gives a slight performance boost and also makes
+    the behaviour identical to the assembly implementation when len(dst) <
+    len(src).
+    
+    name       old speed     new speed     delta
+    RC4_128-4  491MB/s ± 3%  596MB/s ± 5%  +21.51%  (p=0.000 n=9+9)
+    RC4_1K-4   504MB/s ± 2%  616MB/s ± 1%  +22.33%  (p=0.000 n=10+10)
+    RC4_8K-4   509MB/s ± 1%  630MB/s ± 2%  +23.85%  (p=0.000 n=8+9)
+    
+    Change-Id: I27adc775713b2e74a1a94e0c1de0909fb4379463
+    Reviewed-on: https://go-review.googlesource.com/102335
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rc4/rc4.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 06637fb3146cd7fd19efc7463cd9d2c0006bff67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 27 14:14:05 2017 -0500
+
+    text/template: fix method lookup on addressable nil pointer
+    
+    Fixes #18816.
+    
+    Change-Id: I4f8f1cac2680dbde492c56d3a5a038577605e7c1
+    Reviewed-on: https://go-review.googlesource.com/36542
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

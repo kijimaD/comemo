@@ -1,0 +1,19 @@
+commit d57c889ae8bdfdddbfb242f90b90f649988a720e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 7 22:59:29 2015 -0400
+
+    runtime: wait to update arena_used until after mapping bitmap
+    
+    This avoids a race with gcmarkwb_m that was leading to faults.
+    
+    Fixes #10212.
+    
+    Change-Id: I6fcf8d09f2692227063ce29152cb57366ea22487
+    Reviewed-on: https://go-review.googlesource.com/10816
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go  | 12 ++++++------
+ src/runtime/mbitmap.go |  9 +++++++--
+ src/runtime/mheap.go   | 14 +++++++++++---
+ 3 files changed, 24 insertions(+), 11 deletions(-)

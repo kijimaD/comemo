@@ -1,0 +1,14 @@
+commit b68c02e2919aec347438a7ec6512b0d2accd163f
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Nov 5 10:40:31 2021 +0800
+
+    internal/poll: fix the wrong function names in comments
+    
+    Change-Id: Ib17df2751209129ad6d1c148829625b347b702a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361514
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/fd_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

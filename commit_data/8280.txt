@@ -1,0 +1,25 @@
+commit 807ce2719c243f6d8640de774599e3335883eacb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 07:26:40 2011 -0700
+
+    jpeg: speed up RGBA encoding ~%50
+    
+    Avoids image.At(), color.RGBA(), opposing 8 bit shifts,
+    and min function calls in a loop.  Not as pretty as before,
+    but the pure version is still there to revert back to
+    later if/when the compiler gets better.
+    
+    before (best of 5)
+    jpeg.BenchmarkEncodeRGBOpaque   50   64781360 ns/op   18.97 MB/s
+    
+    after (best of 5)
+    jpeg.BenchmarkEncodeRGBOpaque   50   42044300 ns/op   29.23 MB/s
+    
+    (benchmarked on an HP z600; 16 core Xeon E5520 @ 2.27Ghz)
+    
+    R=r, r2, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4433088
+
+ src/pkg/image/jpeg/writer.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

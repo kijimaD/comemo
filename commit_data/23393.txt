@@ -1,0 +1,12 @@
+commit 1fc114c7973930653ff445481c1e7f4df4b60bfd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 15 14:25:13 2015 -0400
+
+    cmd/addr2line: simplify windows test
+    
+    Change-Id: I0fcc35f43bc6059e6203af6134319cfc060c4b9a
+    Reviewed-on: https://go-review.googlesource.com/11085
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit 53d24f76fb129fe682cc92cc99c69998af4212b2
+Author: Andrii Soldatenko <andrii.soldatenko@gmail.com>
+Date:   Sun Sep 3 17:23:39 2017 +0300
+
+    doc: Fixed missing dot in effective_go.html
+    
+    First sentence of https://golang.org/doc/effective_go.html#maps dot is missing.
+    
+    Change-Id: Ic93b407945a6ad24a73ae9f7b6076ac9619871db
+    Reviewed-on: https://go-review.googlesource.com/61020
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

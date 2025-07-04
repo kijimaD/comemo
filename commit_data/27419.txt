@@ -1,0 +1,20 @@
+commit 9d36cac99c8248292be1cb6a196bbe0715d0c057
+Author: Colin Cross <ccross@android.com>
+Date:   Tue May 17 13:09:11 2016 -0700
+
+    reflect: remove out of date UTF-8 StructOf restriction
+    
+    The initial implementation of reflect.StructOf in
+    https://golang.org/cl/9251 had a limitation that field names had to be
+    ASCII, which was later lifted by https://golang.org/cl/21777.  Remove
+    the out-of-date documentation disallowing UTF-8 field names.
+    
+    Updates: #5748
+    Updates: #15064
+    
+    Change-Id: I2c5bfea46bfd682449c6e847fc972a1a131f51b7
+    Reviewed-on: https://go-review.googlesource.com/23170
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/type.go | 4 ----
+ 1 file changed, 4 deletions(-)

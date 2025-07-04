@@ -1,0 +1,39 @@
+commit d6f89c69c46bb624735073e2a12399ce9b699040
+Author: Phil Pennock <pdp@golang.org>
+Date:   Tue Jul 28 11:23:24 2009 -0700
+
+    Support use of $GOBINDIR to override $HOME/bin
+    
+    R=r,gri,rsc
+    APPROVED=rsc
+    DELTA=53  (12 added, 6 deleted, 35 changed)
+    OCL=31822
+    CL=32282
+
+ src/Make.conf             | 5 ++++-
+ src/cmd/5a/Makefile       | 2 +-
+ src/cmd/5c/Makefile       | 3 +--
+ src/cmd/5g/Makefile       | 2 +-
+ src/cmd/5l/Makefile       | 2 +-
+ src/cmd/6a/Makefile       | 4 +---
+ src/cmd/6c/Makefile       | 3 +--
+ src/cmd/6g/Makefile       | 2 +-
+ src/cmd/6l/Makefile       | 3 ++-
+ src/cmd/8a/Makefile       | 2 +-
+ src/cmd/8c/Makefile       | 3 +--
+ src/cmd/8g/Makefile       | 2 +-
+ src/cmd/8l/Makefile       | 3 +--
+ src/cmd/ar/Makefile       | 2 +-
+ src/cmd/cov/Makefile      | 2 +-
+ src/cmd/ebnflint/Makefile | 3 ++-
+ src/cmd/gobuild/Makefile  | 7 ++++---
+ src/cmd/godefs/Makefile   | 2 +-
+ src/cmd/godoc/Makefile    | 3 ++-
+ src/cmd/gofmt/Makefile    | 3 ++-
+ src/cmd/gotest/Makefile   | 4 ++--
+ src/cmd/nm/Makefile       | 2 +-
+ src/cmd/prof/Makefile     | 2 +-
+ src/make.bash             | 7 ++++---
+ test/run                  | 2 +-
+ usr/gri/pretty/Makefile   | 5 +++--
+ 26 files changed, 42 insertions(+), 38 deletions(-)

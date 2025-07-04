@@ -1,0 +1,13 @@
+commit e5ed3a53e18df45f9c32a17aaa927337898f959d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jan 17 09:04:51 2012 +1100
+
+    doc: fix anchor tag for latest weekly.
+    
+    R=golang-dev
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/5545068
+
+ doc/devel/weekly.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

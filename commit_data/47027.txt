@@ -1,0 +1,36 @@
+commit e9eb66da307ec2da922a05b890b13363ea4e830e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 25 12:18:40 2021 -0400
+
+    cmd/internal/obj/riscv: don't split ADD to SP to two adds
+    
+    When adding a large constant to a register we generate two adds,
+    we may generate two ADD instructions if the constant does not fit
+    in one ADD but does fit in two. This is generally fine except that
+    if the target register is SP (such as in function prologues or
+    epilogues for functions with large frames), this creates an
+    intermediate state that the SP is not 0 nor the full frame size.
+    For signal safety (preemption signal and profiling signal) we
+    require that the frame is either not created at all or fully
+    created, meaning that the SP must be written in a single
+    instruction. Splitting to two adds breaks the requirement. So not
+    splitting it.
+    
+    (We could mark such instructions not async-preemptible. But
+    profiling signal can still cause problems.)
+    
+    (We could generate "ADD $c1, SP, Rtmp; ADD $c2; Rtmp; SP" to save
+    an instruction if that is desired, while still ensuring that SP
+    is written in a single instruction.)
+    
+    May fix flaky failures like https://build.golang.org/log/11537ec020a902b0ec0fc065f61161b729eb9880
+    
+    Change-Id: I5cf38a6a028afe01aa3b6eeb163487bbd504b64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358436
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

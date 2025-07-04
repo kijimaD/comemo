@@ -1,0 +1,14 @@
+commit 8d72e59853de42cb50a5aa172cedcc9010345184
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jan 22 16:21:32 2019 -0500
+
+    crypto/tls: remove superfluous for label
+    
+    Change-Id: I8ea3043fcbaf7a5f73b2a796171a7f1cb3cb3693
+    Reviewed-on: https://go-review.googlesource.com/c/158818
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_client.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,33 @@
+commit b71d43296f87b3318a81cb808881d314391d101a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 22 21:39:54 2023 +0000
+
+    runtime: fix race in BenchmarkSetType* benchmarks
+    
+    Currently the BenchmarkSetType* benchmarks are racy: they call
+    heapBitsSetType on an allocation that might be in a span in-use for
+    allocation on another P. Because heap bits are bits but are written
+    byte-wise non-atomically (because a P assumes it has total ownership of
+    a span's bits), two threads can race writing the same heap bitmap byte
+    creating incorrect metadata.
+    
+    Fix this by forcing every value we're writing heap bits for into a large
+    object. Large object spans will never be written to concurrently unless
+    they're freed first.
+    
+    Also, while we're here, refactor the benchmarks a bit. Use generics to
+    eliminate the reflect nastiness in gc_test.go, and pass b.ResetTimer
+    down into the test to get slightly more accurate results.
+    
+    Fixes #60050.
+    
+    Change-Id: Ib7d6249b321963367c8c8ca88385386c8ae9af1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497215
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go | 128 ++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/gc_test.go     |  71 ++++++++++++-------------
+ 2 files changed, 144 insertions(+), 55 deletions(-)

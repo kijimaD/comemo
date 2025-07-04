@@ -1,0 +1,19 @@
+commit 0ae0d5c62eae1a4043d1d9cb41acc563a5e75daa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 21 19:15:24 2021 -0700
+
+    cmd/compile: remove MarkUsedIfaceMethodIndex mechanism
+    
+    We don't need it any more, after CL 357835.
+    
+    Change-Id: I1ff5f24b5540c3e80c4b35be8215a1c378952274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357894
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go       | 28 +++++--------------------
+ src/cmd/compile/internal/reflectdata/reflect.go | 10 ---------
+ 2 files changed, 5 insertions(+), 33 deletions(-)

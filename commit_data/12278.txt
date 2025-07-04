@@ -1,0 +1,12 @@
+commit 357b257cd161f390554cee7c4d404be3f868e465
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 1 03:11:37 2012 +0800
+
+    runtime/pprof: skip test on 64-bit Mac OS X 10.6
+    
+    R=rsc, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/5709060
+
+ src/pkg/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

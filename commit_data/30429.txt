@@ -1,0 +1,22 @@
+commit 016569f204ed1c1060778b03ecacb33bc882d69a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 11:02:08 2017 -0800
+
+    cmd/vet/all: move suspicious shift whitelists to 64 bit
+    
+    This is an inconsequential consequence of updating
+    math/big to use math/bits.
+    
+    Better would be to teach the vet shift test
+    to size int/uint/uintptr to the platform in use,
+    eliminating the whole category of "might be too small".
+    Filed #19321 for that.
+    
+    Change-Id: I7e0b837bd329132d7a564468c18502dd2e724fc6
+    Reviewed-on: https://go-review.googlesource.com/37576
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/64bit.txt | 15 +++++++++++++++
+ src/cmd/vet/all/whitelist/all.txt   | 17 -----------------
+ 2 files changed, 15 insertions(+), 17 deletions(-)

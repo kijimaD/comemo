@@ -1,0 +1,22 @@
+commit d411b3197cbd73b060f456b2518b94728bc4a91b
+Author: David Chase <drchase@google.com>
+Date:   Sat Nov 11 15:32:45 2023 -0500
+
+    cmd/compile: add compiler debug flag to disable range func iterator checking
+    
+    E.g.
+    `GOEXPERIMENT=rangefunc go test -v -gcflags=-d=rangefunccheck=0 rangefunc_test.go`
+    will turn off the checking and fail.
+    
+    The benchmarks, which do not use pathological iterators, run slightly faster.
+    
+    Change-Id: Ia3e175e86d67ef74bbae9bcc5d2def6a2cdf519d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541995
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go        |  1 +
+ src/cmd/compile/internal/base/flag.go         |  1 +
+ src/cmd/compile/internal/rangefunc/rewrite.go | 49 +++++++++++++++++++++------
+ 3 files changed, 40 insertions(+), 11 deletions(-)

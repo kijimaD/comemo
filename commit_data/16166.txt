@@ -1,0 +1,16 @@
+commit 696901204f2e7a5180ed4beb4046fbfea05841b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 12 13:21:17 2013 -0700
+
+    cmd/ld: always do external link for -linkmode=external
+    
+    There are tests in run.bash for -linkmode=external.
+    
+    Fixes #5238.
+    
+    R=golang-dev, bradfitz, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/8716044
+
+ src/cmd/ld/lib.c | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)

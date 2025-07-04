@@ -1,0 +1,18 @@
+commit 055f16a9e9fb7ba7e1360b40e5924cc7ba95317c
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Mar 8 11:56:16 2019 +0530
+
+    cmd/doc: add a line gap after a method with no comment
+    
+    Fixes #30492
+    
+    Change-Id: Iec658bdf8bfac21e1bcc3eed900722cc535ec00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166178
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/doc_test.go     | 1 +
+ src/cmd/doc/pkg.go          | 3 +++
+ src/cmd/doc/testdata/pkg.go | 4 ++++
+ 3 files changed, 8 insertions(+)

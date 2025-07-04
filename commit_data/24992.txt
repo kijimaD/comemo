@@ -1,0 +1,14 @@
+commit ec3daf0c626a79cab3b3b4cf13d0a912619d4303
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Nov 19 18:36:41 2015 -0500
+
+    cmd/dist: run testcshared test on linux/386
+    
+    Change-Id: Iaa0fb133e5fc2078bfaf59ed721fd07a1a713ab3
+    Reviewed-on: https://go-review.googlesource.com/17075
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

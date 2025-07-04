@@ -1,0 +1,18 @@
+commit 225981f8e78b6755bbe34c2e5d035a534ed1b25d
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 29 03:24:13 2018 +0000
+
+    syscall: skip an unsupported test case on android
+    
+    Lookup is not supported on android, and the test
+    syscall/exec_linux_test.go which relies on it will fail on
+    android/arm64.
+    
+    Fixes #27327
+    
+    Change-Id: I6fdb8992d4634ac7e3689360ff114e9431b5e90c
+    Reviewed-on: https://go-review.googlesource.com/131995
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

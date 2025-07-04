@@ -1,0 +1,16 @@
+commit 7d33667218ab010022a73b41ea9780474128a35f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 7 15:03:53 2017 -0800
+
+    cmd/go: don't run TestUserOverrideFlags in parallel
+    
+    It creates files in the cmd/go directory, which can confuse other tests.
+    
+    Fixes #22584.
+    
+    Change-Id: Iad5a25c62e7d413af1648dbc5359ed78bfd61d2a
+    Reviewed-on: https://go-review.googlesource.com/76398
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

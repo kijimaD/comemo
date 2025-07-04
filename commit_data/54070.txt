@@ -1,0 +1,30 @@
+commit 7e2e648a2d55547f0e541668b893329ec195691a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 14:39:47 2023 -0700
+
+    cmd/compile/internal/typecheck: normalize go/defer statements earlier
+    
+    Normalizing go/defer statements to always use functions with zero
+    parameters and zero results was added to escape analysis, because that
+    was the earliest point at which all three frontends converged. Now
+    that we only have the unified frontend, we can do it during typecheck,
+    which is where we perform all other desugaring and normalization
+    rewrites.
+    
+    Change-Id: Iebf7679b117fd78b1dffee2974bbf85ebc923b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520260
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/call.go    |  62 ++-------
+ src/cmd/compile/internal/ir/func.go        |  53 ++++---
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/noder/reader.go   |   2 +-
+ src/cmd/compile/internal/typecheck/stmt.go | 213 +++++++++++++++++++++++------
+ src/runtime/race/output_test.go            |   4 +-
+ test/fixedbugs/issue24491a.go              |   2 +-
+ test/fixedbugs/issue31573.go               |   4 +-
+ 8 files changed, 223 insertions(+), 119 deletions(-)

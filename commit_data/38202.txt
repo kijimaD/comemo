@@ -1,0 +1,26 @@
+commit beadf433c37498dafc6748cc510eeab2636b5be3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 2 11:14:33 2019 -0800
+
+    os/exec: provide map size hint in dedupEnvCase
+    
+    The common case is that most env vars are distinct;
+    optimize for that.
+    
+    name        old time/op    new time/op    delta
+    ExecEcho-8    2.16ms ± 3%    2.14ms ± 1%     ~     (p=0.315 n=10+10)
+    
+    name        old alloc/op   new alloc/op   delta
+    ExecEcho-8    7.87kB ± 0%    6.35kB ± 0%  -19.31%  (p=0.000 n=9+10)
+    
+    name        old allocs/op  new allocs/op  delta
+    ExecEcho-8      72.0 ± 0%      69.0 ± 0%   -4.17%  (p=0.000 n=10+10)
+    
+    Change-Id: I42bb696c6862f2ea12c5cbd2f24c64336a7a759a
+    Reviewed-on: https://go-review.googlesource.com/c/164960
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

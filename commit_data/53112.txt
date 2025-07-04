@@ -1,0 +1,27 @@
+commit b5515eef565a7d0fd820009fc8c7b282155340a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 17 15:47:12 2023 -0700
+
+    go/types, types2: implement min/max builtins
+    
+    For #59488.
+    
+    Change-Id: I4553ab11af9179a4786dede44877f88286c168dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496038
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go      |  57 ++++++++++++
+ src/cmd/compile/internal/types2/builtins_test.go |  12 +++
+ src/cmd/compile/internal/types2/universe.go      |   5 ++
+ src/go/types/builtins.go                         |  57 ++++++++++++
+ src/go/types/builtins_test.go                    |  12 +++
+ src/go/types/universe.go                         |   5 ++
+ src/internal/types/errors/code_string.go         |   7 +-
+ src/internal/types/errors/codes.go               |  12 +++
+ src/internal/types/testdata/check/builtins0.go   | 108 +++++++++++++++++++++++
+ src/internal/types/testdata/check/builtins1.go   |  42 +++++++++
+ 10 files changed, 314 insertions(+), 3 deletions(-)

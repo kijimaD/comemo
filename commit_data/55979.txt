@@ -1,0 +1,36 @@
+commit 190d0d3e69b113bea0b6b604ba2f0beb62c08741
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 16 18:29:06 2024 -0700
+
+    database/sql: optimize connection request pool
+    
+    This replaces a map used as a set with a slice.
+    
+    We were using a surprising amount of CPU in this code, making mapiters
+    to pull out a random element of the map. Instead, just rand.IntN to pick
+    a random element of the slice.
+    
+    It also adds a benchmark:
+    
+                         │    before    │                after                │
+                         │    sec/op    │   sec/op     vs base                │
+        ConnRequestSet-8   1818.0n ± 0%   452.4n ± 0%  -75.12% (p=0.000 n=10)
+    
+    (whether random is a good policy is a bigger question, but this
+     optimizes the current policy without changing behavior)
+    
+    Updates #66361
+    
+    Change-Id: I3d456a819cc720c2d18e1befffd2657e5f50f1e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572119
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 163 +++++++++++++++++++++++++++++++++----------
+ src/database/sql/sql_test.go | 104 ++++++++++++++++++++++++++-
+ src/go/build/deps_test.go    |   5 +-
+ 3 files changed, 234 insertions(+), 38 deletions(-)

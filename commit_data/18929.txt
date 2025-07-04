@@ -1,0 +1,14 @@
+commit c790b029e6a6478819c0ad611fb649d6b99f62ce
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 25 11:17:30 2014 +1100
+
+    regexp: document that it is linear in the input size.
+    Fixes #7488.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/78050043
+
+ src/pkg/regexp/regexp.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

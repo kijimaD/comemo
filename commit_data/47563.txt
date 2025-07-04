@@ -1,0 +1,16 @@
+commit 91abe4be0e8f3329bd891838fc047d83a5762c61
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Nov 19 17:52:41 2021 -0800
+
+    test: fix -G=0 mode for longtest builder
+    
+    For -G=3 for test using 'any'.
+    
+    Change-Id: Ia37ee944a38be4f4330e62ad187f10f2d42e41bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365839
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/fixedbugs/issue49665.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

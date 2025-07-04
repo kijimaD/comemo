@@ -1,0 +1,19 @@
+commit d3e827d371ac2e6bb68c81d992f99ccd4b1b2cf1
+Author: Deleplace <deleplace@google.com>
+Date:   Thu Feb 22 23:44:31 2024 +0100
+
+    slices: Delete clears the tail when j == len(s)
+    
+    Fixes #65669
+    
+    Change-Id: Ifd2011dd604fef399e4352b804fc2f6a9e74096e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566237
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/slices/slices.go      |  6 +++++-
+ src/slices/slices_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

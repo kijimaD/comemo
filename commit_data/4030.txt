@@ -1,0 +1,13 @@
+commit 662ee8704cae149c2927e6eeebc66e6a22afb78c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 13 13:10:53 2009 -0800
+
+    test/run: use bash, not sh.
+    use bash builtin time instead of
+    assuming /usr/bin/time exists.
+    
+    R=r
+    https://golang.org/cl/152124
+
+ test/run | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

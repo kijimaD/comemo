@@ -1,0 +1,19 @@
+commit 98dfdc82c85c238a5ab6131d6f1e86e0da259851
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 5 21:09:40 2021 -0500
+
+    cmd/compile: fix broken type+offset calc for register args
+    
+    Includes more enhancements to debugging output.
+    
+    Updates #44816.
+    
+    Change-Id: I5b21815cf37ed21e7dec6c06f538090f32260203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299409
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go     |  29 ++++---
+ src/cmd/compile/internal/ssa/expand_calls.go | 110 ++++++++++++++-------------
+ test/abi/bad_internal_offsets.go             |  74 ++++++++++++++++++
+ 3 files changed, 150 insertions(+), 63 deletions(-)

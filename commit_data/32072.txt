@@ -1,0 +1,12 @@
+commit b3188e99fd1a77403a2f827e0dbccac9f813661c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Jul 20 18:16:03 2017 -0700
+
+    doc: minor fixes to the editor guide
+    
+    Change-Id: I8f6bcfab27251ef6962306d56e40d306ef85fe60
+    Reviewed-on: https://go-review.googlesource.com/50472
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/editors.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

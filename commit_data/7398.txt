@@ -1,0 +1,13 @@
+commit 642c7740818834faf752e9c64b7e746762194663
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 9 12:37:08 2011 +1100
+
+    src/run.bash: get rid of long windows expression
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4138041
+
+ src/env.bash |  2 +-
+ src/run.bash | 34 ++++++++++++++--------------------
+ 2 files changed, 15 insertions(+), 21 deletions(-)

@@ -1,0 +1,19 @@
+commit ac346a5fd99711e94996cae030cad1064da1daf2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 28 14:40:27 2019 -0400
+
+    crypto/elliptic: clean up ppc64le implementation slightly
+    
+    As suggested by comments from the review of CL 168478, this adds
+    Go code to do reverse bytes and removes the asm code, as well
+    as making a few cosmetic changes.
+    
+    Change-Id: I08276a11222e03c3b42f4c9dc0d10a371a418be7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203937
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/crypto/elliptic/p256_asm_ppc64le.s | 31 ++++---------------------------
+ src/crypto/elliptic/p256_ppc64le.go    | 24 ++++++++++++++++++++----
+ 2 files changed, 24 insertions(+), 31 deletions(-)

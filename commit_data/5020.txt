@@ -1,0 +1,19 @@
+commit 5b1a196c37d7191d1e20aab0d24dfc436117f29a
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Mon Mar 8 18:13:19 2010 -0800
+
+    arm: cleanup build warnings
+    
+    trivial stuff
+    lex.c: these prototypes are in a.h
+    asm.c: unused variables
+    arm-pass.txt deal w/ sieve.go rename and addition of sieve2.go
+    
+    R=kaib, rsc
+    CC=golang-dev
+    https://golang.org/cl/244041
+
+ src/cmd/5a/lex.c  | 3 ---
+ src/cmd/5l/asm.c  | 4 ++--
+ test/arm-pass.txt | 3 ++-
+ 3 files changed, 4 insertions(+), 6 deletions(-)

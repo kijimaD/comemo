@@ -1,0 +1,20 @@
+commit cb659ece0e9a74dd330d774552a1f26c4a4d4ee3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 28 13:32:31 2009 -0800
+
+    additions to array container:
+    - added Slice, Cut, InsertArray, AppendArray
+    - renamed Remove -> Delete (so we have: Insert, Delete, Cut)
+    - more factoring of code
+    - extra tests (could use some more)
+    
+    R=r,rsc
+    DELTA=179  (127 added, 22 deleted, 30 changed)
+    OCL=23648
+    CL=23685
+
+ src/lib/container/array/array.go      | 101 +++++++++++++++++++++++++---------
+ src/lib/container/array/array_test.go |  96 +++++++++++++++++++++++++-------
+ src/lib/container/array/intarray.go   |   4 +-
+ test/vectors.go                       |   2 +-
+ 4 files changed, 154 insertions(+), 49 deletions(-)

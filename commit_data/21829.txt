@@ -1,0 +1,35 @@
+commit dd82d5e72867392d2ca4656685c6af0945c5f83d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 21:29:25 2015 -0500
+
+    runtime: fix traceback of crash before LR is stored
+    
+    This fixes runtime's TestBreakpoint on ppc64:
+    the Breakpoint frame was not showing up in the trace.
+    
+    It seems like f.frame should be either the frame size
+    including the saved LR (if any) or the frame size
+    not including the saved LR.
+    
+    On ppc64, f.frame is the frame size not including the saved LR.
+    
+    On arm, f.frame is the frame size not including the saved LR,
+    except when that's -4, f.frame is 0 instead.
+    
+    The code here in the runtime expects that f.frame is the frame
+    size including the saved LR.
+    
+    Since all three disagree and nothing else uses f.frame anymore,
+    stop using it here too. Use funcspdelta, which tells us the exact
+    difference between the FP and SP. If it's zero, LR has not been
+    saved yet, so the one saved for sigpanic should be recorded.
+    
+    This fixes TestBreakpoint on both ppc64 and ppc64le.
+    I don't really understand how it ever worked there.
+    
+    Change-Id: I2d2c580d5c0252cc8471e828980aeedcab76858d
+    Reviewed-on: https://go-review.googlesource.com/6430
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

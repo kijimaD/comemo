@@ -1,0 +1,35 @@
+commit c96e94e69d5b29787589385d93eb4452af05c6f3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 30 16:15:32 2016 -0800
+
+    cmd/compile: generate frame pointers for otherwise frameless functions
+    
+    func f() {
+        g()
+    }
+    
+    We mistakenly don't add a frame pointer for f.  This means f
+    isn't seen when walking the frame pointer linked list.  That
+    matters for kernel-gathered profiles, and is an impediment for
+    issues like #16638.
+    
+    To fix, allocate a stack frame even for otherwise frameless functions
+    like f.  It is a bit tricky because we need to avoid some runtime
+    internals that really, really don't want one.
+    
+    No test at the moment, as only kernel CPU profiles would catch it.
+    Tests will come with the implementation of #16638.
+    
+    Fixes #18103
+    
+    Change-Id: I411206cc9de4c8fdd265bee2e4fa61d161ad1847
+    Reviewed-on: https://go-review.googlesource.com/33754
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go   |  3 +++
+ src/cmd/compile/internal/gc/subr.go   |  2 ++
+ src/cmd/compile/internal/gc/syntax.go |  1 +
+ src/cmd/internal/obj/x86/obj6.go      | 24 ++++++++++++++++++++----
+ 4 files changed, 26 insertions(+), 4 deletions(-)

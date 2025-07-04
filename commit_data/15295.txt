@@ -1,0 +1,14 @@
+commit 07e87885ad4094aa27f166d1e666b29b910c0429
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 18 13:29:55 2013 -0500
+
+    cmd/6c: fix build
+    
+    copy+paste error while cleaning up CL 7303099 before submit
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7308104
+
+ src/cmd/6c/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

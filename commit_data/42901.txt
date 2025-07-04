@@ -1,0 +1,12 @@
+commit 6c76edeb1b67a5751dff215aaa712572d87a4ce8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 2 21:49:30 2020 +1000
+
+    image/gif: have BenchmarkEncodeRealisticRGBA convert to RGBA
+    
+    Change-Id: I98f5d987b92a29dcff06ae23b92f293cc7d6c02f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252597
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/image/gif/writer_test.go | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

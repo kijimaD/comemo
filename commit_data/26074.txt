@@ -1,0 +1,18 @@
+commit 72d90d8238c00daf8893fa6b849e43a9e917e10e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 15:26:38 2016 -0800
+
+    cmd/compile: change parser, racewalk, range to use nodeSeq
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I0809c6b88643f04c7fc503f866ffe25e69f29910
+    Reviewed-on: https://go-review.googlesource.com/20260
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go   | 70 ++++++++++++++--------------
+ src/cmd/compile/internal/gc/racewalk.go | 82 +++++++++++++--------------------
+ src/cmd/compile/internal/gc/range.go    | 60 ++++++++++++------------
+ 3 files changed, 97 insertions(+), 115 deletions(-)

@@ -1,0 +1,20 @@
+commit 47b04228858e9a4a767acd12a029e59d582f3ba1
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Feb 24 11:58:57 2016 -0800
+
+    os: fix tests on brillo
+    
+    Not every Android contains the /system/framework directory, e.g. Brillo.
+    Test against other Android-only system files.
+    
+    Fixes #14489.
+    
+    Change-Id: I6d9ec1c4d4ceba3803798015e6917d59cf515de8
+    Reviewed-on: https://go-review.googlesource.com/19904
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Run-TryBot: Burcu Dogan <jbd@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 49e7c7672d6d065435f7058df90b082cb552c7dd
+Author: Lucas Bremgartner <lucas@bremis.ch>
+Date:   Fri Sep 13 19:46:50 2019 +0000
+
+    encoding/json: make Number with the ,string option marshal with quotes
+    
+    Add quotes when marshaling a json.Number with the string option
+    set via a struct tag. This ensures that the resulting json
+    can be unmarshaled into the source struct without error.
+    
+    Fixes #34268
+    
+    Change-Id: Ide167d9dec77019554870b5957b37dc258119d81
+    GitHub-Last-Rev: dde81b71208be01c253bb87dbb6f81ac6e0785be
+    GitHub-Pull-Request: golang/go#34269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195043
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go      | 6 ++++++
+ src/encoding/json/encode_test.go | 5 ++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

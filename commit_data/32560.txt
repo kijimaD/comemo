@@ -1,0 +1,19 @@
+commit 54125d191d967da12c5aab957bf6ffcb222df9ed
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 13:31:45 2017 +0200
+
+    runtime: move dynamic makemap checks into cmd/compile
+    
+    Check map invariants, type size and alignments during compile time.
+    
+    Keep runtime checks for reflect by adding them to reflect_makemap.
+    
+    Change-Id: Ia28610626591bf7fafb7d5a1ca318da272e54879
+    Reviewed-on: https://go-review.googlesource.com/59914
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 62 ++++++++++++++++++++++++++---
+ src/runtime/hashmap.go                 | 72 ++++++++++++++++++----------------
+ 2 files changed, 94 insertions(+), 40 deletions(-)

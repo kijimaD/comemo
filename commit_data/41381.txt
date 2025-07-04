@@ -1,0 +1,20 @@
+commit 576cc530c93d416f6fe3a0b8fefac47e83715216
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 30 00:25:19 2020 +0100
+
+    misc/cgo: enable testso and testsovar on mips64x
+    
+    External linking on mips64 was implemented in CL 19803 and CL 19809
+    
+    Updates #12560
+    Updates #14126
+    
+    Change-Id: I2cc127d71173aade56ad181bdd947355a76b3e46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217017
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testso/so_test.go    | 2 --
+ misc/cgo/testsovar/so_test.go | 2 --
+ 2 files changed, 4 deletions(-)

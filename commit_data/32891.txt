@@ -1,0 +1,23 @@
+commit bad5abf64d76f9c302c084c5f62e6f70920d3c81
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sat Sep 23 01:20:12 2017 +0200
+
+    cmd/compile: avoid copying in nilcheckelim2
+    
+    nilcheckelim2 cleans up by copying b.Values in a loop, omitting
+    OpUnknowns. However, the common case is that there are no OpUnknowns,
+    in which case we can skip a lot of work.
+    
+    So we track the first nilcheck which was eliminated, if any, and only
+    start copying from there. If no nilcheck was eliminated we won't copy at all.
+    
+    Fixes #20964
+    
+    Change-Id: Icd44194cf8ac81ce6485ce257b4d33e093003a40
+    Reviewed-on: https://go-review.googlesource.com/65651
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

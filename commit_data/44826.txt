@@ -1,0 +1,27 @@
+commit 11b4aee05bfe83513cf08f83091e5aef8b33e766
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 28 09:30:36 2019 -0400
+
+    cmd/compile: mark R16, R17 clobbered for non-standard calls on ARM64
+    
+    On ARM64, (external) linker generated trampoline may clobber R16
+    and R17. In CL 183842 we change Duff's devices not to use those
+    registers. However, this is not enough. The register allocator
+    also needs to know that these registers may be clobbered in any
+    calls that don't follow the standard Go calling convention. This
+    include Duff's devices and the write barrier.
+    
+    Fixes #32773, second attempt.
+    
+    Change-Id: Ia52a891d9bbb8515c927617dd53aee5af5bd9aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184437
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  9 ++++--
+ src/cmd/compile/internal/ssa/opGen.go        |  6 ++--
+ src/runtime/asm_arm64.s                      | 47 +++++++++++++---------------
+ 3 files changed, 31 insertions(+), 31 deletions(-)

@@ -1,0 +1,29 @@
+commit d9a198c7d0526f00a42f00d90cc4b91802a3354c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 02:29:04 2017 +0000
+
+    Revert "math/rand: make Perm match Shuffle"
+    
+    This reverts CL 55972.
+    
+    Reason for revert: this changes Perm's behavior unnecessarily.
+    I asked for this change originally but I now regret it.
+    Reverting so that I don't have to justify it in Go 1.10 release notes.
+    
+    Edited to keep the change to rand_test.go, which seems to have
+    been mostly unrelated.
+    
+    Fixes #22744.
+    
+    Change-Id: If8bb1bcde3ced0db2fdcd0aa65ab128613686c66
+    Reviewed-on: https://go-review.googlesource.com/78195
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/rand/example_test.go |  8 ++++----
+ src/math/rand/rand.go         | 26 +++++++++-----------------
+ src/math/rand/regress_test.go | 28 ++++++++++++++--------------
+ 3 files changed, 27 insertions(+), 35 deletions(-)

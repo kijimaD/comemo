@@ -1,0 +1,25 @@
+commit baa934d26dd6e201dcda0962dd51b0e5f6f69c1b
+Author: Tim King <taking@google.com>
+Date:   Wed May 19 18:45:53 2021 -0700
+
+    cmd: go get golang.org/x/tools/analysis@49064d23 && go mod vendor
+    
+    This brings in CLs 312829, 317431, 319211.
+    
+    Fixes #40356.
+    Fixes #46129.
+    
+    Change-Id: I2ee1f858b2a41ffa60d88b0c17511ccad57f1816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321389
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Tim King <taking@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                          |  2 +-
+ src/cmd/go.sum                                          |  4 ++--
+ .../x/tools/go/analysis/passes/printf/printf.go         |  2 +-
+ .../tools/go/analysis/passes/sigchanyzer/sigchanyzer.go | 11 +++++++++--
+ .../x/tools/go/analysis/passes/stdmethods/stdmethods.go | 17 +++++++++++++++++
+ src/cmd/vendor/modules.txt                              |  2 +-
+ 6 files changed, 31 insertions(+), 7 deletions(-)

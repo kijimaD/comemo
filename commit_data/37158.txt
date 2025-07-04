@@ -1,0 +1,28 @@
+commit 7b0fa529f33fc444e762af7e33d6c8deba5298b3
+Author: BigMikes <giulio.micheloni@gmail.com>
+Date:   Mon Oct 29 11:45:16 2018 +0100
+
+    net/http: in Transport, don't error on non-chunked response with Trailer header
+    
+    There are cases where HTTP message specifies the Trailer header
+    but not the Transfer-Encoding = chunked. The existing
+    implementation would return an error in those cases, without
+    returning also the message itself.
+    Instead, it would be preferable to let the library user decide when
+    the message is valid or not.
+    This change makes the fixTrailer() function not to return an error
+    and to keep the Trailer value in the Response.Header map but not
+    populate Response.Trailer.
+    
+    Fixes #27197
+    
+    Change-Id: Ic1e96791fde97f31dc5ecb8de05c8e4f49465c2c
+    Reviewed-on: https://go-review.googlesource.com/c/145398
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go       |  5 +++--
+ src/net/http/response_test.go | 28 ++++++++++++++++++++++++++++
+ src/net/http/transfer.go      | 14 ++++++++++----
+ 3 files changed, 41 insertions(+), 6 deletions(-)

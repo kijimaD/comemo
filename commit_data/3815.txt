@@ -1,0 +1,15 @@
+commit 9786b3f1bd488be4b1c543eddaa2540623ff9730
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:43:03 2009 -0800
+
+    gofmt-ify 4s, iterable
+    
+    R=rsc
+    http://go/go-review/1016055
+
+ src/pkg/exp/4s/4s.go                  |   8 +-
+ src/pkg/exp/4s/data.go                | 248 +++++++++++++-------------
+ src/pkg/exp/4s/xs.go                  | 316 ++++++++++++++++++----------------
+ src/pkg/exp/iterable/iterable.go      |  78 ++++-----
+ src/pkg/exp/iterable/iterable_test.go |  89 +++++-----
+ 5 files changed, 375 insertions(+), 364 deletions(-)

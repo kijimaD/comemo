@@ -1,0 +1,17 @@
+commit dbd0ce84d7c1da2e788c516c72fef44d5b760337
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Aug 27 12:55:43 2022 +0930
+
+    debug/elf: validate offset and file size ranges
+    
+    Change-Id: Iebe31b91c6e81438120f50a8089a8efca3d5339d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426115
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/elf/file.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

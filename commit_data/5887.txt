@@ -1,0 +1,12 @@
+commit b49561d884237703732a34a047cf7fe1f1373946
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 16:52:51 2010 -0700
+
+    gc: graceful exit on seg fault
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1882043
+
+ src/cmd/gc/lex.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

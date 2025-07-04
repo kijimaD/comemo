@@ -1,0 +1,21 @@
+commit 97572d5552699fbc7cce215f83d7b02265e7f1de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 8 22:50:17 2016 -0500
+
+    cmd/go: silence standard imports non-standard error for non-existent import target
+    
+    This error only affects the compilation of the standard library,
+    but I discovered that if you import "notexist" from the standard
+    library then you get both an error about notexist not existing
+    and an error about notexist being a non-standard package
+    (because the non-existant package is in fact not a standard package).
+    Silence the second error.
+    
+    Change-Id: Ib4c1523e89844260fde90de3459ec1e752df8f25
+    Reviewed-on: https://go-review.googlesource.com/19383
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit 36ce2ece09f74cc8d71cc1d097b62be6264ddb86
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 4 14:49:37 2022 -0400
+
+    cmd/dist: restructure cgo_test
+    
+    Currently, dist test has a single test called "cgo_test" that runs a
+    large number of different "go test"s.
+    
+    This commit restructures cgo_test into several individual tests, each
+    of which runs a single "go test" that can be described by a goTest
+    object and registered with registerTest. Since this lets us raise the
+    abstraction level of constructing these tests and these tests are
+    mostly covering the Cartesian product of a small number of orthogonal
+    dimensions, we pull the common logic for constructing these tests into
+    a helper function.
+    
+    For consistency, we now pass -tags=static to the static testtls and
+    nocgo tests, but this tag doesn't affect the build of these tests at
+    all. I traced all exec calls from cmd/dist on linux/amd64 and this is
+    the only non-trivial change.
+    
+    For #37486.
+    
+    Change-Id: I53c1efa1c38d785dc71968f05e8d7d636b553e96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450017
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 143 ++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 83 insertions(+), 60 deletions(-)

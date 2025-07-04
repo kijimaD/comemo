@@ -1,0 +1,14 @@
+commit 5083eedf88de13dc661f78077d9d7b7eaeebcf78
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Fri Nov 12 09:57:46 2010 -0800
+
+    Fixed recover() documentation.
+    
+    Added a "return" to the end of an example which previously threw a compile error if used.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3052041
+
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,18 @@
+commit e44a031651d042107d446b4038a70c6da763e2d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 09:28:50 2019 -0500
+
+    cmd/go/internal/modload: do not fetch modules in searchPackages if -mod=vendor is set
+    
+    Updates #30228
+    Updates #30241
+    
+    Change-Id: I6b5f842d00ba273ed241abe55a1ea71c105ec284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165377
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/search.go           | 5 +++++
+ src/cmd/go/testdata/script/mod_vendor_build.txt | 6 ++++++
+ 2 files changed, 11 insertions(+)

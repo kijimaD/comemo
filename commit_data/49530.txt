@@ -1,0 +1,27 @@
+commit 41e1d9075e428c2fc32d966b3752a3029b620e2c
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Fri Apr 29 11:54:13 2022 +0200
+
+    strconv: avoid panic on invalid call to FormatFloat
+    
+    Calling FormatFloat with an invalid value of fmt is expected
+    to return a string containing '%' and the input fmt character.
+    Since even before Go 1.0, the code has been panicking in the
+    case where prec=0.
+    
+    Fixes #52187
+    
+    Change-Id: I74fec601eedb7fe28efc5132c4253674661452aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/strconv/ftoa.go      | 3 +++
+ src/strconv/ftoa_test.go | 5 +++++
+ 2 files changed, 8 insertions(+)

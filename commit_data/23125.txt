@@ -1,0 +1,12 @@
+commit 75250a9f791e650bcf0fe16e9d3436314a94dde6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 11:31:47 2015 -0700
+
+    cmd/compile/internal/gc: simplify mpgetflt (remove switch and indirection)
+    
+    Change-Id: I6ae3534defdae9367e1b856dbb8e846c3263a758
+    Reviewed-on: https://go-review.googlesource.com/10358
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/mparith3.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

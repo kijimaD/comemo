@@ -1,0 +1,24 @@
+commit 5d68121628afe73ea093bb46dac45f71f92eecac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 23 21:02:36 2023 +0000
+
+    runtime: move pinned object out of inner loop for benchmarks
+    
+    In theory by allocating new objects every time, the benchmark is
+    including the performance of allocating new pinner bits for a span. In
+    practice however, most of the time each span already does have pinner
+    bits allocated (it's still a rare operation).
+    
+    We can get a better sense of the raw cost of pinning an object (minus
+    pinner bits allocation) by moving the object allocation out of the inner
+    loop.
+    
+    Change-Id: I2869fa6c3f353b726fe8440d2e6b7f89902f9364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497620
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pinner_test.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

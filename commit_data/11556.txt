@@ -1,0 +1,12 @@
+commit df7f34dd2be6f7b9c387ed45a87932e9313cd6f2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 2 17:53:28 2012 +1100
+
+    vet: fix comment typo.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/5620049
+
+ src/cmd/vet/method.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

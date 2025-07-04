@@ -1,0 +1,16 @@
+commit 87f51f103181e47c78a5c3fd9a41d43fb707817b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 7 10:56:58 2014 -0700
+
+    math/big: fix doc comments
+    
+    Fixes #8904.
+    
+    TBR=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/148650043
+
+ src/math/big/int.go | 4 ++--
+ src/math/big/rat.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

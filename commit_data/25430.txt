@@ -1,0 +1,23 @@
+commit ae8e55860b1c7cecd00ce70ed87539b56e360dae
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Dec 23 15:33:55 2015 +1300
+
+    cmd/go: special case shared library name when passed "$prefix/..."
+    
+    Before golang.org/cl/13921, "go install -buildmode=shared prefix/..." created a
+    file called "libprefix.so", which was obviously a problem when prefix was
+    something like "." or "../".  However, now it expands the ... into all the
+    matched packages, joins them with -, which can clearly be a very long name
+    indeed. Because I plan to build shared libraries for Ubuntu by running commands
+    exactly like "go install -buildmode=shared prefix/...", this special cases this
+    to produce the old behaviour (but de-relativises prefix first).
+    
+    Fixes #13714
+    
+    Change-Id: I4fd8d4934279f9a18cc70a13e4ef3e23f6abcb6e
+    Reviewed-on: https://go-review.googlesource.com/18114
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go    |  22 +++++++--
+ src/cmd/go/pkg_test.go | 119 ++++++++++++++++++++++++++++---------------------
+ 2 files changed, 87 insertions(+), 54 deletions(-)

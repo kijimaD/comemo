@@ -1,0 +1,16 @@
+commit 2c3187cd4295605033740ff0522b1457a702d84d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 7 14:32:22 2022 -0700
+
+    spec: describe slice-to-array conversions
+    
+    For #46505.
+    
+    Change-Id: I1a30fd895496befd16626afb48717ac837ed5778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429315
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 18b281978c0dba02d3312d9fbee03f711f0b26c9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jun 16 02:24:44 2012 +0800
+
+    doc: delete Mercurial Queues doc
+            Fixes #3716.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6310044
+
+ doc/codereview_with_mq.html | 115 --------------------------------------------
+ doc/contribute.html         |   5 --
+ 2 files changed, 120 deletions(-)

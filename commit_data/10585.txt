@@ -1,0 +1,15 @@
+commit 2a876beb1899d875b80285b3032192f9dc6d7670
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Dec 2 14:29:24 2011 +1100
+
+    os/exec: make LookPath always search the current directory under Windows.
+    
+    cmd.exe implicitly looks in "." before consulting PATH.
+    LookPath should match this behavior.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5434093
+
+ src/pkg/os/exec/lp_windows.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

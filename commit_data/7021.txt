@@ -1,0 +1,15 @@
+commit 5530bf90cdbd96b01f090c9f83020f39cd5cdacc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 4 14:22:18 2011 +1100
+
+    goinstall: fix -u for bzr
+    
+    Changeset 7012:65601d7cac9e broke goinstall -u for bzr
+    branches.  This will fix it.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/3852041
+
+ src/cmd/goinstall/download.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

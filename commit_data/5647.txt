@@ -1,0 +1,17 @@
+commit ee0bca35a437505e2dd38c28abb4c9dc35410008
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 11 15:29:19 2010 -0700
+
+    gopack: simplify go metadata code
+    
+    There's only one Go object file per package now,
+    so there's no need to parse the metadata and merge
+    metadata from multiple files.  Just save the original
+    and use it as __.PKGDEF verbatim.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1647042
+
+ src/cmd/gopack/ar.c | 350 ++++++----------------------------------------------
+ 1 file changed, 36 insertions(+), 314 deletions(-)

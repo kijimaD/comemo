@@ -1,0 +1,14 @@
+commit a99a7f60c32121d61365a25eb09091e73043958c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 00:28:08 2009 -0700
+
+    tests changed - throw calls panic directly now
+    instead of dereferencing nil, so no more SIGSEGVs.
+    
+    R=r
+    DELTA=28  (0 added, 14 deleted, 14 changed)
+    OCL=26881
+    CL=26881
+
+ test/golden.out | 28 +++++++---------------------
+ 1 file changed, 7 insertions(+), 21 deletions(-)

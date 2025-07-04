@@ -1,0 +1,26 @@
+commit 2e0b97dde69cb66416844dba45c084bc13bd58fa
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 6 16:14:47 2022 -0400
+
+    cmd/go: set dependency go versions for go install --mod=readonly mod@vers
+    
+    When running go install --mod=readonly module@version. modfetch.GoSumFile
+    was not set, so the checksumOk check that's done when checking whether
+    we need to set the GoVersion from the go mod file was failing. Bypass
+    the checksumOk check when there's no GoSumFile.
+    
+    For #54908
+    
+    Change-Id: I56cf9d36a505b1223e6bf82a7d455746e2f09849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439855
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/build.go               |  2 +-
+ src/cmd/go/internal/modload/import.go              |  8 +++++++-
+ .../mod/example.com_depends_on_generics_v1.0.0.txt | 23 ++++++++++++++++++++++
+ .../testdata/mod/example.com_generics_v1.0.0.txt   | 21 ++++++++++++++++++++
+ src/cmd/go/testdata/script/install_dep_version.txt |  6 ++++++
+ 5 files changed, 58 insertions(+), 2 deletions(-)

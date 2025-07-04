@@ -1,0 +1,23 @@
+commit a888fcf7a792bdf0c456dd95ac509fc65f4d7b21
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 10 17:23:00 2015 -0700
+
+    runtime: remove runtime wait/notify from ppc64x architectures.
+    
+    Related to issue #10410
+    
+    For some reason, any non-trivial code in _cgo_wait_runtime_init_done
+    (even fprintf()) will crash that call.
+    
+    If anybody has any guess why this is happening, please let me know!
+    
+    For now, I'm clearing the functions for ppc64, as it's currently not used.
+    
+    Change-Id: I1b11383aaf4f9f9a16f1fd6606842cfeedc9f0b3
+    Reviewed-on: https://go-review.googlesource.com/8766
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
+
+ src/runtime/cgo/gcc_libinit.c              |  1 +
+ src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

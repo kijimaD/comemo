@@ -1,0 +1,17 @@
+commit 4b6284a7d918aa5813891bde2874411f29d5b418
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Fri Jun 5 10:12:34 2015 +1000
+
+    flag: Describe the ErrorHandling enum values.
+    
+    ContinueOnError is particularly confusing, because it causes
+    FlagSet.Parse to return as soon as it sees an error. I gather that the
+    intent is "continue the program" rather than "continue parsing",
+    compared to exiting or panicking.
+    
+    Change-Id: I27370ce1f321ea4debcee5b03faff3532495c71a
+    Reviewed-on: https://go-review.googlesource.com/10740
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

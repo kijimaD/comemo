@@ -1,0 +1,19 @@
+commit 40a144b94f14c3f3fbe06e097a236a5543ada57f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 15 19:27:32 2020 +0000
+
+    crypto/tls: add Dialer
+    
+    Fixes #18482
+    
+    Change-Id: I99d65dc5d824c00093ea61e7445fc121314af87f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214977
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html            | 12 +++++++
+ src/crypto/tls/conn.go     |  8 +++--
+ src/crypto/tls/tls.go      | 89 ++++++++++++++++++++++++++++++++++++++++------
+ src/crypto/tls/tls_test.go | 42 ++++++++++++++++++++++
+ src/go/build/deps_test.go  |  2 +-
+ 5 files changed, 139 insertions(+), 14 deletions(-)

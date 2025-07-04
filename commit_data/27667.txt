@@ -1,0 +1,17 @@
+commit 5f3eb432884ae1b3c61977d93a4bdf0263fcdce6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Jun 9 12:01:43 2016 -0400
+
+    syscall: add a padding field to EpollEvent on s390x
+    
+    Fixes #16021.
+    
+    Change-Id: I55df38bbccd2641abcb54704115002a9aa04325d
+    Reviewed-on: https://go-review.googlesource.com/23962
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/types_linux.go        | 2 +-
+ src/syscall/ztypes_linux_s390x.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

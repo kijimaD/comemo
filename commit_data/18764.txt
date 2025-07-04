@@ -1,0 +1,13 @@
+commit f40872d3c7f451429146a14da037100b4453baf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 5 15:39:34 2014 -0500
+
+    CONTRIBUTORS: add David Covert (Google CLA)
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71670043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

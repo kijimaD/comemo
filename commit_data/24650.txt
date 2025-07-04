@@ -1,0 +1,30 @@
+commit 31430bda0988aed3dab6ee48c00afc1b0fb65093
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 28 06:44:26 2015 +0100
+
+    runtime: don't use FP when calling nextSample in the Plan 9 sighandler
+    
+    In the Go signal handler on Plan 9, when a signal with
+    the _SigThrow flag is received, we call startpanic before
+    printing the stack trace.
+    
+    The startpanic function calls systemstack which calls
+    startpanic_m. In the startpanic_m function, we call
+    allocmcache to allocate _g_.m.mcache. The problem is
+    that allocmcache calls nextSample, which does a floating
+    point operation to return a sampling point for heap profiling.
+    
+    However, Plan 9 doesn't support floating point in the
+    signal handler.
+    
+    This change adds a new function nextSampleNoFP, only
+    called when in the Plan 9 signal handler, which is
+    similar to nextSample, but avoids floating point.
+    
+    Change-Id: Iaa30437aa0f7c8c84d40afbab7567ad3bd5ea2de
+    Reviewed-on: https://go-review.googlesource.com/16307
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/malloc.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

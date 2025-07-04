@@ -1,0 +1,46 @@
+commit 5f625de4d09843ba1c996019abaddd1f85840f56
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 13:41:08 2022 -0400
+
+    cmd/compile,cmd/internal/obj: replace Ctxt.FixedFrameSize method with Arch field
+    
+    And delete now-unused FixedFrameSize methods.
+    
+    Change-Id: Id257e1647dbeb4eb4ab866c53744010c4efeb953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400819
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go     |  2 +-
+ src/cmd/compile/internal/amd64/ssa.go        |  2 +-
+ src/cmd/compile/internal/arm/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/dwarfgen/dwarf.go   |  4 ++--
+ src/cmd/compile/internal/escape/desugar.go   |  4 ++--
+ src/cmd/compile/internal/mips/ggen.go        |  4 ++--
+ src/cmd/compile/internal/mips/ssa.go         |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go       |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go       |  6 +++---
+ src/cmd/compile/internal/ppc64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/riscv64/ggen.go     |  2 +-
+ src/cmd/compile/internal/riscv64/ssa.go      |  4 ++--
+ src/cmd/compile/internal/s390x/ggen.go       |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/config.go       |  4 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
+ src/cmd/compile/internal/ssagen/pgen.go      |  4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go       |  6 +++---
+ src/cmd/compile/internal/x86/ssa.go          |  2 +-
+ src/cmd/internal/obj/link.go                 |  8 --------
+ src/cmd/internal/obj/mips/asm0.go            |  6 +++---
+ src/cmd/internal/obj/mips/obj0.go            | 10 +++++-----
+ src/cmd/internal/obj/ppc64/asm9.go           |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go           |  8 ++++----
+ src/cmd/internal/obj/riscv/obj.go            |  4 ++--
+ src/cmd/internal/obj/s390x/asmz.go           |  4 ++--
+ src/cmd/internal/obj/s390x/objz.go           |  6 +++---
+ src/cmd/link/internal/ld/lib.go              |  2 +-
+ src/cmd/link/internal/ld/link.go             |  8 --------
+ 31 files changed, 58 insertions(+), 74 deletions(-)

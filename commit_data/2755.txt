@@ -1,0 +1,16 @@
+commit f687fb7e7379c73e0050982f9e1b4848ff689787
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 20 13:19:47 2009 -0700
+
+    6l cleanup: last set of magic numbers for elf64 moved to ld/elf64*.
+    
+    R=rsc
+    DELTA=68  (21 added, 28 deleted, 19 changed)
+    OCL=31857
+    CL=31864
+
+ src/cmd/6l/asm.c   | 18 +++++++++---------
+ src/cmd/6l/obj.c   |  2 +-
+ src/cmd/ld/elf64.c | 54 +++++++++++++++++++++---------------------------------
+ src/cmd/ld/elf64.h | 13 +++++++++----
+ 4 files changed, 40 insertions(+), 47 deletions(-)

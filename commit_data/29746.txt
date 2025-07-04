@@ -1,0 +1,18 @@
+commit 749720a0362557eabbf87ef9f1494b18444c0adb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 5 15:57:45 2016 -0800
+
+    cmd/compile: fix static-initialization compilation failure
+    
+    Fixes #13263.
+    
+    Change-Id: Ie1cafc62b6bfe6c5381c35d9a95563267b4cc9b0
+    Reviewed-on: https://go-review.googlesource.com/33970
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go |  4 +++-
+ test/fixedbugs/issue13263.go         | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

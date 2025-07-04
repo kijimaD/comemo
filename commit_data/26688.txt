@@ -1,0 +1,29 @@
+commit 74c0fea9e8a37ae08d4c08b71d27be94feb3332a
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Apr 2 12:04:45 2016 -0300
+
+    go/types: better error when assigning to struct field in map
+    
+    Identify this assignment case and instead of the more general error
+    
+        prog.go:6: cannot assign to students["sally"].age (value of type int)
+    
+    produce
+    
+        prog.go:6: cannot directly assign to struct field students["sally"].age in map
+    
+    that explains why the assignment is not possible. Used ExprString
+    instead of String of operand since the type of the field is not relevant
+    to the error.
+    
+    Updates #13779.
+    
+    Change-Id: I581251145ae6336ddd181b9ddd77f657c51b5aff
+    Reviewed-on: https://go-review.googlesource.com/21463
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/assignments.go     | 8 ++++++++
+ src/go/types/testdata/stmt0.src | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

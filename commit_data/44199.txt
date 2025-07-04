@@ -1,0 +1,22 @@
+commit cd176b361591420f84fcbcaaf0cf24351aed0995
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 26 23:06:51 2021 +1100
+
+    runtime: switch runtime to libc for openbsd/arm64
+    
+    Use libc rather than performing direct system calls for the runtime on
+    openbsd/arm64.
+    
+    Updates #36435
+    
+    Change-Id: I8bd41dfec16209f2b9a83dda24b9a1e4b06757c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286814
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/defs_openbsd_arm64.go  |   5 +
+ src/runtime/os_openbsd_syscall2.go |   2 +-
+ src/runtime/proc.go                |   2 +-
+ src/runtime/sys_openbsd2.go        |   2 +-
+ src/runtime/sys_openbsd_arm64.s    | 485 +++++++++++++++----------------------
+ 5 files changed, 201 insertions(+), 295 deletions(-)

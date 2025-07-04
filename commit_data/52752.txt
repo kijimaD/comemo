@@ -1,0 +1,42 @@
+commit 7843ca83e7c8229f4fdca22949428a2418f45138
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 17 16:50:00 2023 -0400
+
+    internal/abi, runtime, cmd: merge PCDATA_* and FUNCDATA_* consts into internal/abi
+    
+    We also rename the constants related to unsafe-points: currently, they
+    follow the same naming scheme as the PCDATA table indexes, but are not
+    PCDATA table indexes.
+    
+    For #59670.
+    
+    Change-Id: I06529fecfae535be5fe7d9ac56c886b9106c74fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485497
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/asm.go            |  4 +--
+ src/cmd/compile/internal/liveness/arg.go   |  4 +--
+ src/cmd/compile/internal/liveness/plive.go |  9 +++---
+ src/cmd/compile/internal/objw/prog.go      | 10 +++---
+ src/cmd/compile/internal/ssagen/ssa.go     | 13 ++++----
+ src/cmd/dist/buildtool.go                  |  2 +-
+ src/cmd/internal/obj/plist.go              | 34 ++++++++++----------
+ src/cmd/internal/obj/util.go               |  4 +--
+ src/cmd/internal/objabi/funcdata.go        | 51 ------------------------------
+ src/cmd/link/internal/ld/pcln.go           | 16 +++++-----
+ src/internal/abi/symtab.go                 | 42 ++++++++++++++++++++++++
+ src/runtime/debugcall.go                   |  9 ++++--
+ src/runtime/funcdata.h                     |  2 +-
+ src/runtime/heapdump.go                    |  7 ++--
+ src/runtime/panic.go                       |  2 +-
+ src/runtime/preempt.go                     | 10 +++---
+ src/runtime/stkframe.go                    | 12 +++----
+ src/runtime/symtab.go                      | 39 -----------------------
+ src/runtime/symtabinl.go                   |  4 +--
+ src/runtime/trace.go                       |  2 +-
+ src/runtime/traceback.go                   |  6 ++--
+ 21 files changed, 120 insertions(+), 162 deletions(-)

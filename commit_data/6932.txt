@@ -1,0 +1,24 @@
+commit 9da73612edc47aa10856e8e21a883f17523ee17b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 13:20:04 2010 -0500
+
+    cgo: do not reset tag generator between files
+    
+    Clean up an error message and error exit too.
+    Insert blank line after "DO NOT EDIT" comment
+    to keep it from being a doc comment.
+    
+    Fixes #1213.
+    Fixes #1222.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3608042
+
+ misc/cgo/stdio/Makefile |  1 +
+ misc/cgo/stdio/test.go  | 33 ++++++++++++++++++++++++++++++++-
+ misc/cgo/stdio/test1.go | 29 +++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go      |  8 ++++----
+ src/cmd/cgo/main.go     |  3 +++
+ src/cmd/cgo/out.go      |  6 +++---
+ 6 files changed, 72 insertions(+), 8 deletions(-)

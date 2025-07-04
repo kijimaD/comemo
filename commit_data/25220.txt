@@ -1,0 +1,81 @@
+commit e05b48e22c3cc4ad334fdd9542bb9a69370cf79a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 4 19:06:01 2015 +0900
+
+    net, internal/syscall/windows: fix interface and address identification on windows
+    
+    The current implementation including Go 1.5 through 1.5.2 misuses
+    Windows API and mishandles the returned values from GetAdapterAddresses
+    on Windows. This change fixes various issues related to network facility
+    information by readjusting interface and interface address parsers.
+    
+    Updates #5395.
+    Updates #10530.
+    Updates #12301.
+    Updates #12551.
+    Updates #13542.
+    Fixes #12691.
+    Fixes #12811.
+    Fixes #13476.
+    Fixes #13544.
+    
+    Also fixes fragile screen scraping test cases in net_windows_test.go.
+    
+    Additional information for reviewers:
+    
+    It seems like almost all the issues above have the same root cause and
+    it is misunderstanding of Windows API. If my interpretation of the
+    information on MSDN is correctly, current implementation contains the
+    following bugs:
+    
+    - SIO_GET_INTERFACE_LIST should not be used for IPv6. The behavior of
+      SIO_GET_INTERFACE_LIST is different on kernels and probably it doesn't
+      work correctly for IPv6 on old kernels such as Windows XP w/ SP2.
+      Unfortunately MSDN doesn't describe the detail of
+      SIO_GET_INTERFACE_LIST, but information on the net suggests so.
+    
+    - Fetching IP_ADAPTER_ADDRESSES structures with fixed size area may not
+      work when using IPv6. IPv6 generates ton of interface addresses for
+      various addressing scopes. We need to adjust the area appropriately.
+    
+    - PhysicalAddress field of IP_ADAPTER_ADDRESSES structure may have extra
+      space. We cannot ignore PhysicalAddressLength field of
+      IP_ADAPTER_ADDRESS structure.
+    
+    - Flags field of IP_ADAPTER_ADDRESSES structure doesn't represent any of
+      administratively and operatinal statuses. It just represents settings
+      for windows network adapter.
+    
+    - MTU field of IP_ADAPTER_ADDRESSES structure may have a uint32(-1) on
+      64-bit platform. We need to convert the value to interger
+      appropriately.
+    
+    - IfType field of IP_ADAPTER_ADDRESSES structure is not a bit field.
+      Bitwire operation for the field is completely wrong.
+    
+    - OperStatus field of IP_ADAPTER_ADDRESSES structure is not a bit field.
+      Bitwire operation for the field is completely wrong.
+    
+    - IPv6IfIndex field of IP_ADAPTER_ADDRESSES structure is just a
+      substitute for IfIndex field. We cannot prefer IPv6IfIndex to IfIndex.
+    
+    - Windows XP, 2003 server and below don't set OnLinkPrefixLength field
+      of IP_ADAPTER_UNICAST_ADDRESS structure. We cannot rely on the field
+      on old kernels. We can use FirstPrefix field of IP_ADAPTER_ADDRESSES
+      structure and IP_ADAPTER_PREFIX structure instead.
+    
+    - Length field of IP_ADAPTER_{UNICAST,ANYCAST,MULTICAST}_ADDRESS
+      sturecures doesn't represent an address prefix length. It just
+      represents a socket address length.
+    
+    Change-Id: Icabdaf7bd1d41360a981d2dad0b830b02b584528
+    Reviewed-on: https://go-review.googlesource.com/17412
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/syscall_windows.go  |  14 +-
+ src/internal/syscall/windows/zsyscall_windows.go |   4 +-
+ src/net/interface_test.go                        |  30 +-
+ src/net/interface_windows.go                     | 338 +++++++++++++----------
+ src/net/interface_windows_test.go                | 132 +++++++++
+ src/net/net_windows_test.go                      |   8 +-
+ 6 files changed, 366 insertions(+), 160 deletions(-)

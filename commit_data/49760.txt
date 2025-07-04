@@ -1,0 +1,23 @@
+commit e7307034ccdd3c3e482f80b9ea6d4a69bb04d7b6
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 5 14:01:57 2022 +0000
+
+    cmd/compile: store combine on amd64
+    
+    Fixes #54120
+    
+    Change-Id: I6915b6e8d459d9becfdef4fdcba95ee4dea6af05
+    GitHub-Last-Rev: 03f19942c7a697d3b5e696e700a9827633d709bb
+    GitHub-Pull-Request: golang/go#54126
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420115
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 13 +++++----
+ src/cmd/compile/internal/ssa/rewrite.go      |  3 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 40 +++++++++++++++++-----------
+ test/codegen/memcombine.go                   |  8 ++++++
+ 4 files changed, 43 insertions(+), 21 deletions(-)

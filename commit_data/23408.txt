@@ -1,0 +1,23 @@
+commit e72f5f67a1ba523ad647fe1c8c0e49e6aeb4141a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Apr 20 15:57:52 2015 +0300
+
+    runtime: fix tracing of syscallexit
+    
+    There were two issues.
+    1. Delayed EvGoSysExit could have been emitted during TraceStart,
+    while it had not yet emitted EvGoInSyscall.
+    2. Delayed EvGoSysExit could have been emitted during next tracing session.
+    
+    Fixes #10476
+    Fixes #11262
+    
+    Change-Id: Iab68eb31cf38eb6eb6eee427f49c5ca0865a8c64
+    Reviewed-on: https://go-review.googlesource.com/9132
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/trace_test.go |  1 -
+ src/runtime/proc1.go            | 25 ++++++---------
+ src/runtime/runtime2.go         | 69 +++++++++++++++++++++--------------------
+ src/runtime/trace.go            | 20 ++++++++++--
+ 4 files changed, 64 insertions(+), 51 deletions(-)

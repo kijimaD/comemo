@@ -1,0 +1,15 @@
+commit 964b6cf352291e015114ea67d3d60ab1fa8b8bea
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 14 20:47:39 2009 -0700
+
+    add HTTP support
+    
+    R=rsc
+    DELTA=159  (110 added, 29 deleted, 20 changed)
+    OCL=31646
+    CL=31652
+
+ src/pkg/rpc/client.go      | 20 ++++++++++
+ src/pkg/rpc/server.go      | 91 ++++++++++++++++++++++++++++++++++------------
+ src/pkg/rpc/server_test.go | 52 +++++++++++++++++---------
+ 3 files changed, 122 insertions(+), 41 deletions(-)

@@ -1,0 +1,17 @@
+commit 0c861724a05009a75eaa2a3f187101bd13a583b5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 14:42:56 2020 -0400
+
+    cmd/go/internal/modload: add structured errors for queries matching the main module
+    
+    For #37438
+    
+    Change-Id: I7df80ae0917b0b4ecad98947da39ddf8554b07c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266717
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/query.go | 46 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 43 insertions(+), 3 deletions(-)

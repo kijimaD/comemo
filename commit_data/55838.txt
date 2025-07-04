@@ -1,0 +1,19 @@
+commit 911b066bf87980099b52ad0ee93fed1f13fdc813
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 6 14:43:13 2024 +0100
+
+    internal/syscall/windows/registry: append .dll when loading kernel32
+    
+    Win32 LoadLibrary supports loading a DLL omitting the .dll extension,
+    but it is better to be explicit and include the extension. This is
+    consistent with all other uses of LoadLibrary in the Go standard
+    library.
+    
+    Change-Id: I7349d0a27db5f8ab59061434f37d10918e43b869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/registry/registry_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

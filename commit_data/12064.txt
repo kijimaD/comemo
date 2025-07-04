@@ -1,0 +1,15 @@
+commit d5b28ad2b6da460ef10f9b94bb067053fb1a2e13
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Mon Feb 20 08:33:28 2012 +1100
+
+    doc: update contrib.html
+    
+    Fix all the local links, as contrib.html is served as
+    /project/
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5656105
+
+ doc/contrib.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

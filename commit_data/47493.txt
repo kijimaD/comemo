@@ -1,0 +1,18 @@
+commit 50dac3b410b9bc47dabc3f3c2afd21f7aecfb118
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 22:27:19 2021 -0500
+
+    go/types: move some functions into different files (cleanup)
+    
+    This is a clean port of CL 362995 from types2 to go/types.
+    
+    Change-Id: Iefc37b28178795ea944e0bc0ff91982251de2944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363989
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/builtins.go | 40 ----------------------------------------
+ src/go/types/type.go     | 44 +++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 43 deletions(-)

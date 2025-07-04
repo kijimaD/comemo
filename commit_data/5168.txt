@@ -1,0 +1,20 @@
+commit d99a3da7b26c3423ff94cd7cea5cb739f8d7c4db
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 17:30:07 2010 -0700
+
+    runtime: a couple more memory stats.
+    
+    now runtime.MemStats.Sys really is the sum of all the other Sys fields.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/843041
+
+ src/pkg/runtime/extern.go      | 2 ++
+ src/pkg/runtime/malloc.h       | 2 ++
+ src/pkg/runtime/mheap.c        | 1 +
+ src/pkg/runtime/mheapmap32.c   | 1 +
+ src/pkg/runtime/mheapmap64.c   | 2 ++
+ src/pkg/runtime/mprof.cgo      | 4 +++-
+ src/pkg/runtime/pprof/pprof.go | 3 +++
+ 7 files changed, 14 insertions(+), 1 deletion(-)

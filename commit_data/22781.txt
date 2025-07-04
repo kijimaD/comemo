@@ -1,0 +1,23 @@
+commit 632778c3a397f348cc21bc6e3baaf30911827cb5
+Author: Peter Waldschmidt <peter@waldschmidt.com>
+Date:   Wed Apr 29 16:59:38 2015 -0400
+
+    net/http: Don't set Content-Length: -1 when responding to a POST
+    
+    Fixes an issue where Response.Write writes out a Content-Length: -1
+    header when the corresponding Request is a POST or PUT and the
+    ContentLength was not previously set.
+    
+    This was encountered when using httputil.DumpResponse
+    to write out the response from a server that responded to a PUT
+    request with no Content-Length header. The dumped output is
+    thus invalid.
+    
+    Change-Id: I52c6ae8ef3443f1f9de92aeee9f9581dabb05991
+    Reviewed-on: https://go-review.googlesource.com/9496
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/responsewrite_test.go | 15 +++++++++++++++
+ src/net/http/transfer.go           |  3 +++
+ 2 files changed, 18 insertions(+)

@@ -1,0 +1,13 @@
+commit cf35f5b7429896ae91c4644740f73423ea0dbb27
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Thu Jul 24 18:18:41 2014 -0400
+
+    time: minor typo in doc
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/120150043
+
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

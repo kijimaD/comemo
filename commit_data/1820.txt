@@ -1,0 +1,22 @@
+commit 6eb54cb05bc3ed52aac3990da9d7bb372ae7cbab
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Mar 12 17:55:11 2009 -0700
+
+    chan flags close/closed installed
+    runtime not finished.
+    
+    R=r
+    OCL=26217
+    CL=26217
+
+ src/cmd/gc/Makefile       |  2 +-
+ src/cmd/gc/builtin.c.boot |  2 ++
+ src/cmd/gc/go.h           |  1 +
+ src/cmd/gc/go.y           | 12 +++++++++++-
+ src/cmd/gc/lex.c          |  4 +++-
+ src/cmd/gc/mkbuiltin      |  3 ++-
+ src/cmd/gc/subr.c         |  2 ++
+ src/cmd/gc/sys.go         |  2 ++
+ src/cmd/gc/walk.c         | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/chan.c        | 49 ++++++++++++++++++++++++++++++++++++++++++++--
+ 10 files changed, 121 insertions(+), 6 deletions(-)

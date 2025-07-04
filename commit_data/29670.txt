@@ -1,0 +1,17 @@
+commit 0dd7e409e15d9b47d28cec422a41dd980b1479f0
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Nov 29 16:46:34 2016 -0700
+
+    doc: note net/UnixListener.SetUnlinkOnClose in go1.8.html
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I201ffe489842ff17277424be4a012558d161f0a7
+    Reviewed-on: https://go-review.googlesource.com/33672
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 7 +++++++
+ doc/go1.8.txt  | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

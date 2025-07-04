@@ -1,0 +1,31 @@
+commit 6939061d47f807fbdb9c43859a61c30c6b015da8
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 02:15:50 2013 +1000
+
+    os: dragonfly support
+    
+    Make the os package build and work on dragonfly.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13183044
+
+ src/pkg/os/dir_unix.go           |  2 +-
+ src/pkg/os/env_unix_test.go      |  2 +-
+ src/pkg/os/error_unix.go         |  2 +-
+ src/pkg/os/exec/exec_test.go     |  5 +++-
+ src/pkg/os/exec/lp_unix.go       |  2 +-
+ src/pkg/os/exec/lp_unix_test.go  |  2 +-
+ src/pkg/os/exec_posix.go         |  2 +-
+ src/pkg/os/exec_unix.go          |  2 +-
+ src/pkg/os/file_posix.go         |  2 +-
+ src/pkg/os/file_unix.go          |  2 +-
+ src/pkg/os/os_test.go            | 11 ++++++--
+ src/pkg/os/os_unix_test.go       |  2 +-
+ src/pkg/os/path_unix.go          |  2 +-
+ src/pkg/os/pipe_bsd.go           |  2 +-
+ src/pkg/os/signal/signal_test.go |  2 +-
+ src/pkg/os/signal/signal_unix.go |  2 +-
+ src/pkg/os/stat_dragonfly.go     | 61 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/sys_bsd.go            |  2 +-
+ 18 files changed, 89 insertions(+), 18 deletions(-)

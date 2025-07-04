@@ -1,0 +1,41 @@
+commit 962ccbef91057f91518443b648e02fc3afe8c764
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 25 13:35:13 2023 -0700
+
+    cmd/compile: ensure pointer arithmetic happens after the nil check
+    
+    Have nil checks return a pointer that is known non-nil. Users of
+    that pointer can use the result, ensuring that they are ordered
+    after the nil check itself.
+    
+    The order dependence goes away after scheduling, when we've fixed
+    an order. At that point we move uses back to the original pointer
+    so it doesn't change regalloc any.
+    
+    This prevents pointer arithmetic on nil from being spilled to the
+    stack and then observed by a stack scan.
+    
+    Fixes #63657
+    
+    Change-Id: I1a5fa4f2e6d9000d672792b4f90dfc1b7b67f6ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537775
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules | 14 +++---
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |  2 +-
+ src/cmd/compile/internal/ssa/check.go           | 23 ++++++++-
+ src/cmd/compile/internal/ssa/deadcode.go        |  7 ++-
+ src/cmd/compile/internal/ssa/deadstore.go       |  2 +-
+ src/cmd/compile/internal/ssa/fuse.go            |  2 +-
+ src/cmd/compile/internal/ssa/fuse_test.go       |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go        | 42 ++++++++--------
+ src/cmd/compile/internal/ssa/opGen.go           |  7 +--
+ src/cmd/compile/internal/ssa/rewrite.go         |  3 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 67 +++++++++++++------------
+ src/cmd/compile/internal/ssa/schedule.go        | 18 ++++++-
+ src/cmd/compile/internal/ssa/value.go           |  6 ++-
+ src/cmd/compile/internal/ssagen/ssa.go          | 17 ++++---
+ test/fixedbugs/issue63657.go                    | 48 ++++++++++++++++++
+ 15 files changed, 179 insertions(+), 81 deletions(-)

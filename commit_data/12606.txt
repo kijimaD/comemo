@@ -1,0 +1,15 @@
+commit d0a4c9bb626df78230613162b0dc07c72855b3c1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 13 16:03:19 2012 +1100
+
+    gc: allow ~ in import paths
+    Windows has paths like C:/Users/ADMIN~1. Also, it so happens
+    that go/parser allows ~ in import paths. So does the spec.
+    Fixes the build too.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5777073
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

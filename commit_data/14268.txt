@@ -1,0 +1,12 @@
+commit ee26a5e4f22928a20c59f70b67ccd511467c69f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 1 13:04:08 2012 +1100
+
+    run.bat: make output consistent
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6811059
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

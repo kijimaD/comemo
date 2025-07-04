@@ -1,0 +1,24 @@
+commit 752e16158751165c53538a564ca0a8bd7ba84f1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 18 17:33:05 2016 -0700
+
+    cmd/vet: allow ^& uintptr arithmetic
+    
+    The unsafe.Pointer check allows adding to
+    and subtracting from uintptrs in order to do
+    arithmetic.
+    
+    Some code needs to round uintptrs.
+    Allow &^ for that purpose.
+    
+    Updates #11041
+    
+    Change-Id: Ib90dd2954bb6c78427058271e13f2ce4c4af38fb
+    Reviewed-on: https://go-review.googlesource.com/27156
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/testdata/unsafeptr.go | 4 +++-
+ src/cmd/vet/unsafeptr.go          | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

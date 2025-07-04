@@ -1,0 +1,14 @@
+commit 7128ed0501cc73a4d644ba1c510a152d680367a9
+Author: Javier Segura <javism@gmail.com>
+Date:   Sun Oct 15 23:20:10 2017 +0200
+
+    bytes: add examples of Equal and IndexByte
+    
+    Change-Id: Ibf3179d0903eb443c89b6d886802c36f8d199898
+    Reviewed-on: https://go-review.googlesource.com/70933
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/example_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

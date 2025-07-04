@@ -1,0 +1,18 @@
+commit cff99ba167a9eb6f134a576f0438390ddacba38d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 18:40:55 2009 -0700
+
+    make Location translate relative path to absolute
+    (HTTP requires absolute in protocol).
+    
+    add URL tests
+    
+    R=r
+    DELTA=243  (242 added, 0 deleted, 1 changed)
+    OCL=27472
+    CL=27523
+
+ src/lib/http/server.go   |  43 ++++++++++++
+ src/lib/http/url.go      |  28 +++++++-
+ src/lib/http/url_test.go | 174 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 244 insertions(+), 1 deletion(-)

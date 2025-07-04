@@ -1,0 +1,12 @@
+commit 2e5fe5a14c8b9578064c686a2b62328c84136f48
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 20 22:38:06 2010 -0700
+
+    goinstall: let git/hg/svn create the final directory element
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/634044
+
+ src/cmd/goinstall/download.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

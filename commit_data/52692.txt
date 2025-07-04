@@ -1,0 +1,27 @@
+commit 5a34790d6dd0b31b1070e0f7df9b0c57c2d62525
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:59 2023 +0100
+
+    internal/poll: add GetsockoptInt
+    
+    This new function wraps the getsockopt network call with an integer
+    argument, similar to SetsockoptInt.
+    
+    This will be used in MPTCP in the following commit.
+    
+    This work has been co-developed by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Updates #59166
+    
+    Change-Id: I8f6aa00ea2535683d9bbf436993c23e9c6ca2af3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471139
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/poll/sockopt.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

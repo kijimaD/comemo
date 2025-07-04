@@ -1,0 +1,15 @@
+commit 5abfc97e84eef1fe5c5782eb8047cb911560ddb7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 9 20:05:41 2016 -0700
+
+    runtime: use correct MOV for plan9 brk_ ret value
+    
+    Updates #11041
+    
+    Change-Id: I78f8d48f00cfbb451e37c868cc472ef06ea0fd95
+    Reviewed-on: https://go-review.googlesource.com/27491
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_plan9_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

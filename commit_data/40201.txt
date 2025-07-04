@@ -1,0 +1,15 @@
+commit 19a7490e568824302b271f6e27dde3f1cd92ffc7
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Oct 9 23:48:31 2019 +0300
+
+    dog/go1.14: properly close code tags
+    
+    Some code tags in the HTML were not properly closed. Close them so that
+    the text is rendered correctly.
+    
+    Change-Id: I5c2170ffced313417f65004d53518128c34f7979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

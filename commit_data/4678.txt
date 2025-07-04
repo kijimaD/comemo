@@ -1,0 +1,13 @@
+commit 9f3738a4ebc50fe26ee311c328cae6a66996ae6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:50:46 2010 -0800
+
+    A+C: add Stephen Weinberg (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194064
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

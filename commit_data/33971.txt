@@ -1,0 +1,16 @@
+commit ee34617d0d49856c61ba21a5528ab23bccad87f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:31:45 2018 -0500
+
+    doc/debugging_with_gdb: soften text about disabling optimizations
+    
+    Don't suggest that it's always necessary to disable optimizations.
+    (The text can be misread that way, even if it's not what was meant.)
+    
+    Change-Id: I9a2dff6a75ce4a3f9210cdf4f5bad6aaaeae9b29
+    Reviewed-on: https://go-review.googlesource.com/87018
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/debugging_with_gdb.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

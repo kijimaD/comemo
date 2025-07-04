@@ -1,0 +1,23 @@
+commit 0c7fcf6bd1fd8df2bfae3a482f1261886f6313c1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 1 08:39:12 2022 -0400
+
+    cmd/link: explicitly disable PIE for windows/amd64 -race mode
+    
+    Turn off PIE explicitly for windows/amd64 when -race is in effect,
+    since at the moment the race detector runtime doesn't seem to handle
+    PIE binaries correctly. Note that newer C compilers on windows
+    produce PIE binaries by default, so the Go linker needs to explicitly
+    turn off PIE when invoking the external linker in this case.
+    
+    Updates #53539.
+    
+    Change-Id: Ib990621f22cf61a5fa383584bab81d3dfd7552e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415676
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

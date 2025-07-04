@@ -1,0 +1,17 @@
+commit 1d4d7825a70168492e440af59556bfd6734fa883
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 10 09:37:32 2020 -0500
+
+    cmd/go/internal/modload: fix an erroneous comment about the test repo
+    
+    Updates #36489
+    
+    Change-Id: I1ca215ba0a64a31d662134385b8be46bb4ba4434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214282
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/query_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

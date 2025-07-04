@@ -1,0 +1,23 @@
+commit e5017a93fcde94f09836200bca55324af037ee5f
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 1 11:17:07 2022 -0700
+
+    net/http: don't strip whitespace from Transfer-Encoding headers
+    
+    Do not accept "Transfer-Encoding: \rchunked" as a valid TE header
+    setting chunked encoding.
+    
+    Thanks to Zeyu Zhang (https://www.zeyu2001.com/) for identifying
+    the issue.
+    
+    Fixes #53188
+    Fixes CVE-2022-1705
+    
+    Change-Id: I1a16631425159267f2eca68056b057192a7edf6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409874
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 1 +
+ src/net/http/transfer.go   | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

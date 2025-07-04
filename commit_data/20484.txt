@@ -1,0 +1,20 @@
+commit 5fdea3430aed2224a88efa764034ef2ee2b4ccb1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 21:43:09 2014 -0400
+
+    runtime: revise TestSetPanicOnFault
+    
+    We can't assume all those addresses are unmapped.
+    But at least one should be.
+    
+    What we're really testing is that the program doesn't crash.
+    
+    Fixes #8542.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/144120043
+
+ src/runtime/runtime_test.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 973c0312e36fd56b6b2111a07a19de63e0dcbf03
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Apr 8 16:09:15 2019 -0400
+
+    doc: correct link in 1.12.3 notes
+    
+    Change-Id: I6dd60ea7b8a8756be97503e163c2386af16e4e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

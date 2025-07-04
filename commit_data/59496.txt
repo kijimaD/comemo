@@ -1,0 +1,19 @@
+commit 9856afa77042d901288845f31c79885ba68da464
+Author: Ian Alexander <jitsu@google.com>
+Date:   Tue May 13 12:41:36 2025 -0400
+
+    cmd/internal/script: fix copying directory when symlink fails
+    
+    The change fixes `linkOrCopy` to work on systems wihtout symlinks,
+    when copying directories.  This was originally noticed on Windows
+    systems when the user did not have admin privs.
+    
+    Fixes #73692
+    Change-Id: I8ca66d65e99433ad38e70314abfabafd43794b79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672275
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/script/scripttest/setup.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

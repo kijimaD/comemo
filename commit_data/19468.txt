@@ -1,0 +1,14 @@
+commit 3f66c0c07b271af796765ce5e9e9c21a86ddb0d7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 31 00:51:46 2014 -0700
+
+    cmd/cgo: document the cgo types also follow Go name space rules.
+    Fixes #7958.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, r, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/91520043
+
+ src/cmd/cgo/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

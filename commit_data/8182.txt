@@ -1,0 +1,22 @@
+commit 380f4ab2ff17e3b23b429de867bcabf611f731d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 21 16:58:20 2011 -0400
+
+    syscall: add BPF support for darwin/386, darwin/amd64
+    
+    note: due to issue 1466 the Msghdr and BpfProgram
+    struct for src/pkg/syscall/ztypes_darwin_386.go,
+    src/pkg/syscall/ztypes_darwin_amd64.go had to be
+    edited after the godefs generation.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4403042
+
+ src/pkg/syscall/mkerrors.sh             |   2 +
+ src/pkg/syscall/types_darwin.c          |  18 +++++
+ src/pkg/syscall/zerrors_darwin_386.go   | 117 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go | 117 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_darwin_386.go    |  35 ++++++++++
+ src/pkg/syscall/ztypes_darwin_amd64.go  |  45 +++++++++++-
+ 6 files changed, 332 insertions(+), 2 deletions(-)

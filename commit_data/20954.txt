@@ -1,0 +1,18 @@
+commit bee8ae11859d6d421027f012c3a7a3fc592f662d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Dec 10 09:29:24 2014 -0500
+
+    runtime: send android stderr to /dev/log/main
+    
+    I tried to submit this in Go 1.4 as cl/107540044 but tripped over the
+    changes for getting C off the G stack. This is a rewritten version that
+    avoids cgo and works directly with the underlying log device.
+    
+    Change-Id: I14c227dbb4202690c2c67c5a613d6c6689a6662a
+    Reviewed-on: https://go-review.googlesource.com/1285
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/print1.go               |  2 +-
+ src/runtime/print1_write.go         |  9 ++++++++
+ src/runtime/print1_write_android.go | 44 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 1 deletion(-)

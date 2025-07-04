@@ -1,0 +1,16 @@
+commit 816f5b31249634a91e5993e9f15cea20192e1786
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 00:05:47 2009 -0700
+
+    better html support.
+    turn on error reporting; not enough info otherwise.
+    
+    R=r
+    DELTA=49  (43 added, 6 deleted, 0 changed)
+    OCL=27476
+    CL=27478
+
+ src/lib/template/format.go        | 39 +++++++++++++++++++++++++++++++++------
+ src/lib/template/template.go      |  1 +
+ src/lib/template/template_test.go | 11 ++++++++++-
+ 3 files changed, 44 insertions(+), 7 deletions(-)

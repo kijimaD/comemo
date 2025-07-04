@@ -1,0 +1,14 @@
+commit 68b881791f4fdabad0feeb5d49f40f4b8f9fe9d9
+Author: Brendan O'Dea <bod@golang.org>
+Date:   Sun Apr 26 18:36:17 2009 -0700
+
+    flags.Usage() calls fmt.Fprintf() with incorrect args
+    
+    R=r
+    APPROVED=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=27777
+    CL=27876
+
+ src/lib/flag.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

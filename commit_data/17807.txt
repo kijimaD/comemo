@@ -1,0 +1,13 @@
+commit 078bcffcb83e5aafd5e368c587bc8cb159a39020
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Oct 17 11:48:27 2013 +1100
+
+    A+C: add Jamie Turner (Dropbox corporate CLA).
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14765043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

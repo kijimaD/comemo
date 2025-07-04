@@ -1,0 +1,13 @@
+commit d48cd5d1d53c3e8098b551c7b7c4390820789555
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 3 11:42:51 2013 -0800
+
+    A+C: add Yusuke Kagiwada (Individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7292043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

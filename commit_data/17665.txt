@@ -1,0 +1,14 @@
+commit afda774e95c103e7a4ecf61b945c8e5a166514ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 22 08:01:17 2013 +0100
+
+    cmd/api: always do API check if hg is available
+    
+    Fixes #6124
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13500046
+
+ src/cmd/api/run.go | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

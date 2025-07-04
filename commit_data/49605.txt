@@ -1,0 +1,24 @@
+commit c1a4e0fe014568501b194eb8b04309f54eee6b4c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 14:52:23 2022 -0700
+
+    cmd/compile: fix libfuzzer instrumentation line number
+    
+    Set a reasonable starting line number before processing the body of
+    the function in the order pass.
+    
+    We update base.Pos each time we process a node, but some of the
+    libfuzzer instrumentation is added before we process any node, so the
+    base.Pos used is junk.
+    
+    Fixes #53688
+    
+    Change-Id: I3654b805eabb8866a9a1574845ef4ff062797319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416654
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/order.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

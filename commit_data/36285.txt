@@ -1,0 +1,20 @@
+commit 239b8f2edc70046484d5bcc5bf0cac06f8e1ace4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 21:25:52 2018 -0400
+
+    cmd/go: fix and reenable TestAccidentalGitCheckout
+    
+    This is an important security problem so we shouldn't disable the test.
+    The second half was failing on case-sensitive file systems but the
+    first half is still good.
+    
+    Fixes #22983.
+    
+    Change-Id: I437bb4c9f78eb3177aa8b619e2357b2539566ca9
+    Reviewed-on: https://go-review.googlesource.com/129797
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

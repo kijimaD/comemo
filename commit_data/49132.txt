@@ -1,0 +1,21 @@
+commit e0f99775f24cd19ad96847b0a5b00952aac9d548
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon May 9 23:22:14 2022 +0300
+
+    runtime: store pointer-size words in memclr
+    
+    GC requires the whole zeroed word to be visible for a memory subsystem.
+    While the implementation of Enhanced REP STOSB tries to use as efficient
+    stores as possible, e.g writing the whole cache line and not byte-after-byte,
+    we should use REP STOSQ to guarantee the requirements of the GC.
+    
+    The performance is not affected.
+    
+    Change-Id: I1b0fd1444a40bfbb661541291ab96eba11bcc762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405274
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/memclr_amd64.s | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

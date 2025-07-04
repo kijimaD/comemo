@@ -1,0 +1,22 @@
+commit 06ac26279cb93140bb2b03bcef9a3300c166cade
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 5 16:24:14 2019 -0700
+
+    runtime: initial scheduler changes for timers on P's
+    
+    Add support to the main scheduler loop for handling timers on P's.
+    This is not used yet, as timers are not yet put on P's.
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: I6a359df408629f333a9232142ce19e8be8496dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171826
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go     | 166 ++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go |  14 +++-
+ src/runtime/time.go     |  21 ++++++
+ 3 files changed, 186 insertions(+), 15 deletions(-)

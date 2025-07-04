@@ -1,0 +1,15 @@
+commit 62cad233a62d59366dc3721bd8f97b388f02ee58
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 8 17:02:12 2021 -0500
+
+    go/types: remove stale commented-out testdata
+    
+    Change-Id: I44b191204b05cd44ab6e3c662ddd05596aa3af1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299831
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/testdata/typeparams.go2 | 29 -----------------------------
+ 1 file changed, 29 deletions(-)

@@ -1,0 +1,12 @@
+commit 1e0e65ea59205ef0b891b8672d66a7b92776ac88
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 26 13:01:24 2013 +1100
+
+    doc/articles: update reference to obsolete "package documentation".
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7475048
+
+ doc/articles/godoc_documenting_go_code.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

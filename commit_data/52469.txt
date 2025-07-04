@@ -1,0 +1,24 @@
+commit ed9744dff5341ab692154eab1e6e0f1a3c138733
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Mar 24 22:25:18 2023 -0700
+
+    cmd/compile: allow go:wasmimport in syscall
+    
+    The go:wasmimport compiler directive is used by the wasi port
+    to access host APIs, some of need to implemented in the syscall
+    package.
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I3851e154c6989094effcd25bba5864faa133564e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479615
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/cmd/compile/internal/noder/noder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

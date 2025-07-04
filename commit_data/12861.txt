@@ -1,0 +1,22 @@
+commit 098b9dcf2f92823342fcddef9d606ea176062a63
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Apr 10 21:57:05 2012 +1000
+
+    runtime: block signals during thread creation on openbsd
+    
+    Block signals during thread creation, otherwise the new thread can
+    receive a signal prior to initialisation completing.
+    
+    Fixes #3102.
+    
+    R=golang-dev, rsc, devon.odell, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5757064
+
+ src/pkg/runtime/os_openbsd.h           | 15 ++++++++++-----
+ src/pkg/runtime/signal_openbsd_amd64.c |  8 ++++----
+ src/pkg/runtime/signals_openbsd.h      | 20 ++++++++++----------
+ src/pkg/runtime/sys_openbsd_386.s      |  8 ++++++++
+ src/pkg/runtime/sys_openbsd_amd64.s    | 10 ++++++++++
+ src/pkg/runtime/thread_openbsd.c       | 11 ++++++++++-
+ 6 files changed, 52 insertions(+), 20 deletions(-)

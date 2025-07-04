@@ -1,0 +1,23 @@
+commit 5cc8561333313c4318d980fea9b5c2dab596b503
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 13 15:31:28 2015 -0700
+
+    compress/flate: reject invalid Huffman bit sizes
+    
+    If the requested coding bit sizes don't result in a full binary tree,
+    then reject the input as invalid.
+    
+    Exception: We still need to allow degenerate Huffman codings with a
+    single 1-bit code to be compatible with zlib and files compressed with
+    Go's compress/flate package.
+    
+    Update #10426.
+    
+    Change-Id: I171b98d12e65b4deb9f4031cd802407ebb5e266c
+    Reviewed-on: https://go-review.googlesource.com/8922
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/flate_test.go |  75 +++++++++++++++++++++++---
+ src/compress/flate/gen.go        | 113 ++++++++++++++++++++++++++++++---------
+ src/compress/flate/inflate.go    |  68 +++++++++++------------
+ 3 files changed, 188 insertions(+), 68 deletions(-)

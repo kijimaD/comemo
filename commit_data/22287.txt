@@ -1,0 +1,24 @@
+commit 21ed40c8cb4795433bda0cfb7754db5603a916f0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 22:18:33 2015 +0900
+
+    net: deflake TestDialGoogle, TestResolveDialGoogle
+    
+    This change makes use of the socktest package instead of the non-thread
+    safe variable syscall.SocketDisableIPv6 for simulating unreachable
+    external networks.
+    
+    Also adds -ipv4 flag, -ipv6 flag already exists, as a control knob for
+    testing on each of IPv4-only, IPv6-only and dual IP stack kernels.
+    
+    Fixes #7687.
+    
+    Change-Id: I82002007fd526e8cf4de207f935e721df049a22f
+    Reviewed-on: https://go-review.googlesource.com/8390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dialgoogle_test.go | 289 ++++++++++++++++++++++-----------------------
+ src/net/main_plan9_test.go |   4 +
+ src/net/main_posix_test.go |  34 ++++++
+ src/net/main_test.go       |   8 +-
+ 4 files changed, 184 insertions(+), 151 deletions(-)

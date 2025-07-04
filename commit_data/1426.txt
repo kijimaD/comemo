@@ -1,0 +1,12 @@
+commit 476e3cd7fda4ddaa2bb6a1cab1c1752adc43b018
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 6 17:44:59 2009 -0800
+
+    fixed and added more tests
+    
+    R=r
+    OCL=22187
+    CL=22187
+
+ test/initcomma.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

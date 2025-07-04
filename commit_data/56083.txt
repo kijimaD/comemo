@@ -1,0 +1,21 @@
+commit 8f59b28fb3b4539b182296a0e5cda51aa9df9e0c
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 28 01:24:19 2024 +0000
+
+    cmd/cgo: close the file opened in the dynimport function
+    
+    Change-Id: Ic457e994b50a0e8c1769311937eede1e710a1293
+    GitHub-Last-Rev: a8af7b5e6710687273203235c19d5402d7f28832
+    GitHub-Pull-Request: golang/go#66549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574537
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/out.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

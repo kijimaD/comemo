@@ -1,0 +1,15 @@
+commit 7e054553ad1635de7fa77222f7216d54bc932441
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 16 12:44:52 2018 +0100
+
+    runtime: update URL of the Linux vDSO parser tool
+    
+    The tool was moved to tools/Testing/selftests within the Linux kernel
+    source tree. Adjust the URL in the comments of vdso_linux.go
+    
+    Change-Id: I86b9cae4b898c4a45bc7c54891ce6ead91a22670
+    Reviewed-on: https://go-review.googlesource.com/87815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/vdso_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

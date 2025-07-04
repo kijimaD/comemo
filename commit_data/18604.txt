@@ -1,0 +1,15 @@
+commit b1c5bafda37a21216ee8e6f6d5bcfc6e1db08084
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Mon Feb 24 18:17:07 2014 +0400
+
+    net/http: don't pile up defers in b.N loop
+    
+    One defer was not removed in CL61150043.
+    
+    LGTM=dvyukov
+    R=bradfitz, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/64600044
+
+ src/pkg/net/http/serve_test.go | 1 -
+ 1 file changed, 1 deletion(-)

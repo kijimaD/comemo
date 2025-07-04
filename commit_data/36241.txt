@@ -1,0 +1,19 @@
+commit c166ff6838ff8a8b871f6efd265791442242ddad
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 18 16:18:28 2018 -0400
+
+    cmd/compile: update delve's reference data for ssa/debug_test
+    
+    Recent versions of Delve pay attention to the debugging changes
+    for 1.11, which causes different (better!) debugging behavior.
+    Update the reference data to reflect this.
+    
+    Change-Id: I2efa165aa71769ace9f7885b4ce3420cd9b2d3a3
+    Reviewed-on: https://go-review.googlesource.com/128697
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../internal/ssa/testdata/hist.dlv-opt.nexts       | 67 ----------------------
+ .../internal/ssa/testdata/scopes.dlv-opt.nexts     | 17 ------
+ 2 files changed, 84 deletions(-)

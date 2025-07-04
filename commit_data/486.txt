@@ -1,0 +1,13 @@
+commit 5adbacb8e7856cd56617e788c112e012303bcb82
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 5 11:14:35 2008 -0700
+
+    allow pointers as keys in maps, treating them the same as ints - ptr eq not value equality
+    
+    R=ken,gri
+    OCL=13879
+    CL=13879
+
+ src/runtime/map.c     | 2 +-
+ src/runtime/runtime.c | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

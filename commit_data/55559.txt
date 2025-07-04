@@ -1,0 +1,15 @@
+commit dba518999dfb7212f6fbc42d85dd303fcb78baad
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon Feb 5 01:22:58 2024 +0100
+
+    time: fix FuzzFormatRFC3339 nano comparison
+    
+    Change-Id: I13ed84b99459d5844abb6e932cc4b8e0bd3ae9f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/time/format_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

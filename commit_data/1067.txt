@@ -1,0 +1,14 @@
+commit b3c983f3a0dde0e6aef085a6e6efeb02c38b5fc3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 5 16:05:36 2008 -0800
+
+    - fixed typo in parser.go
+    - re-enabled bug118.go for pretty
+    
+    R=r
+    OCL=18604
+    CL=18604
+
+ usr/gri/pretty/parser.go | 2 +-
+ usr/gri/pretty/test.sh   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 092d6290d0fcdf79a4d6f87ab43888542fc984fa
+Author: Kai Backman <kaib@golang.org>
+Date:   Sun Jul 12 22:12:33 2009 -0700
+
+    fixed typo where output arguments where pushed on to R0
+    instead of SP.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=13  (3 added, 7 deleted, 3 changed)
+    OCL=31488
+    CL=31501
+
+ src/cmd/5g/gsubr.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

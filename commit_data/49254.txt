@@ -1,0 +1,23 @@
+commit c6965ad63fc66e02f37c9dcfc381c898983cec16
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 17 17:52:43 2022 -0400
+
+    runtime: deflake TestCgoPprofThread
+    
+    In TestCgoPprofThread, the (fake) cgo traceback function pretends
+    all C CPU samples are in cpuHogThread. But if a profiling signal
+    lands in C code but outside of that thread, e.g. before/when the
+    thread is created, we will get a sample which looks like Go calls
+    into cpuHogThread. This CL makes the cgo traceback function only
+    return cpuHogThread PCs when a signal lands on that thread.
+    
+    May fix #52726.
+    
+    Change-Id: I21c40f974d1882508626faf3ac45e8347fec31c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406934
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/testdata/testprogcgo/threadpprof.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

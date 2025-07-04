@@ -1,0 +1,19 @@
+commit 3c31998f4f20d79bf2b42f7a43df1867b8c08259
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 13:31:23 2023 -0800
+
+    doc: re-arrange release notes for go/types
+    
+    Better order in description of changes to go/types.
+    Move go/types section up so it's in alphabetical order again.
+    No changes to actual content.
+    
+    Change-Id: If2f085b665b412489e5dfdba79b7f93598ff2785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546359
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 96 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 48 insertions(+), 48 deletions(-)

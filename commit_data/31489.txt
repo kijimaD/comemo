@@ -1,0 +1,21 @@
+commit 71e63fa44f0017b03ba7ccd2bb8561c6a9ff17db
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 15:05:33 2017 +0000
+
+    all: use time.Time.Equal instead of == in some tests
+    
+    (Found by making time.Time uncomparable and rerunning std tests
+    locally.)
+    
+    Change-Id: I4fa6fb0ba7334965362387e2f6541c17a27ac3aa
+    Reviewed-on: https://go-review.googlesource.com/42616
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go          | 2 +-
+ src/net/dial_test.go           | 2 +-
+ src/net/dnsclient_unix_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

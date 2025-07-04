@@ -1,0 +1,13 @@
+commit 73c73855ea0c11d9c2370fc8718699be1e883599
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 11:00:55 2009 -0700
+
+    testing: add t.Failed() bool
+    
+    R=r
+    DELTA=18  (10 added, 4 deleted, 4 changed)
+    OCL=29000
+    CL=29034
+
+ src/lib/testing/testing.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

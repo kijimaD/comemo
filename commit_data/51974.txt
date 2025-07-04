@@ -1,0 +1,23 @@
+commit ac8a97ac9e5de94d1c0e830299ce6487cbbfd3f6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 10 14:39:20 2023 +0000
+
+    Revert "math: add Compare and Compare32"
+    
+    This reverts CL 459435.
+    
+    Reason for revert: Tests failing on MIPS.
+    
+    Change-Id: I9017bf718ba938df6d6766041555034d55d90b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467255
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/56491.txt   |  2 --
+ src/math/all_test.go | 59 ----------------------------------------------------
+ src/math/compare.go  | 53 ----------------------------------------------
+ 3 files changed, 114 deletions(-)

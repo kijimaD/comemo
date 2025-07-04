@@ -1,0 +1,16 @@
+commit 6d617a881aa6d00e7e7d44c9bdf499ea798647fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 19:29:23 2009 -0700
+
+    change template function interface to
+    
+            func(w io.Write, value interface{}, format string)
+    
+    R=r
+    DELTA=16  (3 added, 3 deleted, 10 changed)
+    OCL=27399
+    CL=27401
+
+ src/lib/template/format.go   | 11 +++++------
+ src/lib/template/template.go | 15 ++++++++-------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

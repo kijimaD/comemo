@@ -1,0 +1,12 @@
+commit e113e405dedbb5b446d86d2b395c406cb814ea84
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 08:12:34 2011 -0700
+
+    doc: auto-generated html change missing from 7ee7980ea06d
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4515077
+
+ doc/codelab/wiki/index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

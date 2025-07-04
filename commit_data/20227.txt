@@ -1,0 +1,26 @@
+commit 50199d7b35ef684aef2122b9327b3cf5036b011a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 30 14:53:47 2014 -0400
+
+    runtime: translate env*.c to Go
+    
+    In an earlier CL I wrote a separate Go-only version, but that broke Plan 9,
+    because the Go-only version assumed a non-Plan 9 system.
+    
+    Translate the real ones instead.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=0intro, golang-codereviews, iant, khr
+    https://golang.org/cl/140050044
+
+ src/pkg/runtime/cgo/setenv.c      |  2 +-
+ src/pkg/runtime/env_plan9.c       | 42 -------------------------
+ src/pkg/runtime/env_plan9.go      | 58 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/env_posix.c       | 64 ---------------------------------------
+ src/pkg/runtime/env_posix.go      | 52 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/extern.go         | 14 ---------
+ src/pkg/runtime/stubs.go          |  8 +++--
+ src/pkg/runtime/sys_plan9_amd64.s |  2 +-
+ src/pkg/runtime/thunk.s           |  3 ++
+ 9 files changed, 121 insertions(+), 124 deletions(-)

@@ -1,0 +1,25 @@
+commit 507fcf37d2a5565fbe5d13b24f7082464b17dc3a
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 29 13:38:21 2012 +0100
+
+    cmd/gc: escape analysis to track flow of in to out parameters.
+    
+    includes step 0: synthesize outparams, from 6600044
+    includes step 1,2: give outparams loopdepth 0 and verify unchanged results
+             generate esc:$mask tags, but still tie to sink if a param has mask != 0
+    from 6610054
+    
+    adds final steps:
+    - have esccall generate n->escretval, a list of nodes the function results flow to
+    - use these in esccall and ORETURN/OAS2FUNC/and f(g())
+    - only tie parameters to sink if tag is absent, otherwise according to mask, tie them to escretval
+    
+    R=rsc, bradfitz
+    CC=dave, gobot, golang-dev, iant, rsc
+    https://golang.org/cl/6741044
+
+ src/cmd/gc/esc.c | 121 +++++++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/gc/go.h  |   3 +-
+ test/escape2.go  |  26 +++++++++---
+ test/escape5.go  | 119 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 236 insertions(+), 33 deletions(-)

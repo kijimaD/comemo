@@ -1,0 +1,13 @@
+commit ab7c8a620049c52bd437317272d2bd18a8ac4e1b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 14 12:26:45 2012 +1000
+
+    A+C: add Xing Xing (individual CLA)
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6493121
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

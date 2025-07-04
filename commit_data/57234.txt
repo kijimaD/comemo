@@ -1,0 +1,70 @@
+commit 4f18477db6d6c67abb9dfbf0c9077fecfd7e5ba8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jun 27 20:02:57 2024 +1000
+
+    math/big: implement subVW in riscv64 assembly
+    
+    This provides an assembly implementation of subVW for riscv64,
+    processing up to four words per loop, resulting in a significant
+    performance gain.
+    
+    On a StarFive VisionFive 2:
+    
+                      │   subvw.1    │               subvw.2               │
+                      │    sec/op    │   sec/op     vs base                │
+    SubVW/1-4            57.43n ± 0%   41.45n ± 0%  -27.82% (p=0.000 n=10)
+    SubVW/2-4            69.31n ± 0%   48.15n ± 0%  -30.53% (p=0.000 n=10)
+    SubVW/3-4            76.12n ± 0%   54.87n ± 0%  -27.92% (p=0.000 n=10)
+    SubVW/4-4            85.47n ± 0%   56.14n ± 0%  -34.32% (p=0.000 n=10)
+    SubVW/5-4            96.15n ± 0%   62.83n ± 0%  -34.65% (p=0.000 n=10)
+    SubVW/10-4          149.60n ± 0%   89.55n ± 0%  -40.14% (p=0.000 n=10)
+    SubVW/100-4         1115.0n ± 0%   549.3n ± 0%  -50.74% (p=0.000 n=10)
+    SubVW/1000-4        10.732µ ± 0%   5.071µ ± 0%  -52.75% (p=0.000 n=10)
+    SubVW/10000-4        153.0µ ± 0%   103.7µ ± 0%  -32.21% (p=0.000 n=10)
+    SubVW/100000-4       1.542m ± 0%   1.046m ± 0%  -32.13% (p=0.000 n=10)
+    SubVWext/1-4         57.42n ± 0%   41.45n ± 0%  -27.81% (p=0.000 n=10)
+    SubVWext/2-4         69.33n ± 0%   48.15n ± 0%  -30.55% (p=0.000 n=10)
+    SubVWext/3-4         76.12n ± 0%   54.93n ± 0%  -27.84% (p=0.000 n=10)
+    SubVWext/4-4         85.47n ± 0%   56.14n ± 0%  -34.32% (p=0.000 n=10)
+    SubVWext/5-4         96.15n ± 0%   62.83n ± 0%  -34.65% (p=0.000 n=10)
+    SubVWext/10-4       149.60n ± 0%   89.56n ± 0%  -40.14% (p=0.000 n=10)
+    SubVWext/100-4      1115.0n ± 0%   549.3n ± 0%  -50.74% (p=0.000 n=10)
+    SubVWext/1000-4     10.732µ ± 0%   5.061µ ± 0%  -52.84% (p=0.000 n=10)
+    SubVWext/10000-4     152.5µ ± 0%   103.7µ ± 0%  -32.02% (p=0.000 n=10)
+    SubVWext/100000-4    1.533m ± 0%   1.046m ± 0%  -31.75% (p=0.000 n=10)
+    geomean              1.005µ        633.7n       -36.92%
+    
+                      │   subvw.1    │                subvw.2                 │
+                      │     B/s      │      B/s       vs base                 │
+    SubVW/1-4           132.9Mi ± 0%    184.1Mi ± 0%   +38.54% (p=0.000 n=10)
+    SubVW/2-4           220.1Mi ± 0%    316.9Mi ± 0%   +43.95% (p=0.000 n=10)
+    SubVW/3-4           300.7Mi ± 0%    417.1Mi ± 0%   +38.72% (p=0.000 n=10)
+    SubVW/4-4           357.1Mi ± 0%    543.6Mi ± 0%   +52.24% (p=0.000 n=10)
+    SubVW/5-4           396.7Mi ± 0%    607.2Mi ± 0%   +53.03% (p=0.000 n=10)
+    SubVW/10-4          510.1Mi ± 0%    851.9Mi ± 0%   +67.01% (p=0.000 n=10)
+    SubVW/100-4         684.2Mi ± 0%   1388.9Mi ± 0%  +102.99% (p=0.000 n=10)
+    SubVW/1000-4        710.9Mi ± 0%   1504.5Mi ± 0%  +111.63% (p=0.000 n=10)
+    SubVW/10000-4       498.7Mi ± 0%    735.7Mi ± 0%   +47.52% (p=0.000 n=10)
+    SubVW/100000-4      494.8Mi ± 0%    729.1Mi ± 0%   +47.34% (p=0.000 n=10)
+    SubVWext/1-4        132.9Mi ± 0%    184.1Mi ± 0%   +38.53% (p=0.000 n=10)
+    SubVWext/2-4        220.1Mi ± 0%    316.9Mi ± 0%   +44.00% (p=0.000 n=10)
+    SubVWext/3-4        300.7Mi ± 0%    416.7Mi ± 0%   +38.57% (p=0.000 n=10)
+    SubVWext/4-4        357.1Mi ± 0%    543.6Mi ± 0%   +52.24% (p=0.000 n=10)
+    SubVWext/5-4        396.7Mi ± 0%    607.2Mi ± 0%   +53.04% (p=0.000 n=10)
+    SubVWext/10-4       510.1Mi ± 0%    851.9Mi ± 0%   +67.01% (p=0.000 n=10)
+    SubVWext/100-4      684.2Mi ± 0%   1388.9Mi ± 0%  +102.99% (p=0.000 n=10)
+    SubVWext/1000-4     710.9Mi ± 0%   1507.6Mi ± 0%  +112.07% (p=0.000 n=10)
+    SubVWext/10000-4    500.1Mi ± 0%    735.7Mi ± 0%   +47.10% (p=0.000 n=10)
+    SubVWext/100000-4   497.8Mi ± 0%    729.4Mi ± 0%   +46.52% (p=0.000 n=10)
+    geomean             387.6Mi         614.5Mi        +58.51%
+    
+    Change-Id: I9d7fac719e977710ad9db9121fa298db6df605de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595398
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/math/big/arith_riscv64.s | 59 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit c1ab165fa6f0744c87135b53f21576d61c74dec4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 18 15:27:51 2016 +0200
+
+    net/http: enable TestTransportRemovesDeadIdleConnections on Plan 9
+    
+    This issue has been fixed in CL 31390.
+    
+    Fixes #15464.
+    
+    Change-Id: I35e088f37bf3b544100ff131c72690bcfd788e5b
+    Reviewed-on: https://go-review.googlesource.com/31393
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

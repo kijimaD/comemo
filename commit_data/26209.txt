@@ -1,0 +1,20 @@
+commit d3794f88e9b4e87567cb3fdc0a42159934db65e0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 20:07:00 2016 -0800
+
+    cmd/compile: eliminate uses of Type.Down in alg.go
+    
+    This could be done by threading the Iter value down through memrun and
+    ispaddedfield, but that ends up a bit clunky. This way is also closer
+    to how we'll want the code to look once fields are kept in slices.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8a44445c85f921eb18d97199df2026c5ce0f4f67
+    Reviewed-on: https://go-review.googlesource.com/20558
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go | 112 +++++++++++++++++++------------------
+ 1 file changed, 57 insertions(+), 55 deletions(-)

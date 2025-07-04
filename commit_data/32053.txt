@@ -1,0 +1,17 @@
+commit 0d482b382481734b430621c08cad58e20faf8aa8
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Mon Jul 17 13:51:37 2017 -0400
+
+    syscall: update check for UserNS support for centos 7
+    
+    Fixes #20796
+    Fixes #16283
+    
+    Change-Id: Ib11992fbd2bc1fbb3b14ae5a6bf0da2e4c12f641
+    Reviewed-on: https://go-review.googlesource.com/49311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

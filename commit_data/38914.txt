@@ -1,0 +1,24 @@
+commit 3d94dd78d464e4e802fdc9db345daea35f230ba2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 03:02:25 2019 +1000
+
+    runtime: add support for openbsd/arm64
+    
+    Updates #31656
+    
+    Change-Id: I0b7486f7381fd8bd16a76278c0e9ec9763671fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174119
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/defs_openbsd_arm64.go   | 150 +++++++++++++++
+ src/runtime/os_openbsd_arm64.go     |  13 ++
+ src/runtime/pprof/pprof_test.go     |   2 +-
+ src/runtime/rt0_openbsd_arm64.s     | 105 +++++++++++
+ src/runtime/signal_arm64.go         |   2 +-
+ src/runtime/signal_openbsd_arm64.go |  75 ++++++++
+ src/runtime/sys_openbsd_arm.s       |   4 +-
+ src/runtime/sys_openbsd_arm64.s     | 352 ++++++++++++++++++++++++++++++++++++
+ src/runtime/tls_arm64.h             |   5 +
+ 9 files changed, 704 insertions(+), 4 deletions(-)

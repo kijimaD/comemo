@@ -1,0 +1,25 @@
+commit 243c8c0eec20d981d8e76a3aac82f97cca991571
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 22 11:44:55 2023 -0700
+
+    encoding: require unique alphabet for base32 and base64
+    
+    In order for decoding to faithfully reproduce the encoded input,
+    the symbols must be unique (i.e., provide a bijective mapping).
+    Thus, reject duplicate symbols in NewEncoding.
+    
+    As a minor optimization, modify WithPadding to use the decodeMap
+    to quickly check whether the padding character is used in O(1)
+    instead of O(32) or O(64).
+    
+    Change-Id: I5631f6ff9335c35d59d020dc0e307e3520786fbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520335
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/base32/base32.go | 38 ++++++++++++++++++++++++--------------
+ src/encoding/base64/base64.go | 38 ++++++++++++++++++++------------------
+ 2 files changed, 44 insertions(+), 32 deletions(-)

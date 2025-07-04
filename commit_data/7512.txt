@@ -1,0 +1,13 @@
+commit 79ba1ce076561fb8f75d2f55f9c4cb810feee996
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Feb 19 07:37:24 2011 +1100
+
+    misc/dashboard: tweak build fail notification email
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4170063
+
+ misc/dashboard/godashboard/const.py   | 1 +
+ misc/dashboard/godashboard/gobuild.py | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,41 @@
+commit dab9c502c4192d90b6cef6c9e54dc98f2aee932f
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 24 10:58:26 2023 -0400
+
+    cmd/compile/internal/inline: add callsite trace output debugging flag
+    
+    Add a new debug flag "-d=dumpinlcallsitescores" that dumps out a
+    summary of all callsites in the package being compiled with info on
+    inlining heuristics, for human consumption. Sample output lines:
+    
+      Score  Adjustment  Status  Callee  CallerPos ScoreFlags
+      ...
+      115    40          DEMOTED  cmd/compile/internal/abi.(*ABIParamAssignment).Offset     expand_calls.go:1679:14|6       panicPathAdj
+      ...
+      76     -5          PROMOTED runtime.persistentalloc   mcheckmark.go:48:45|3   inLoopAdj
+      ...
+      201    0           --- PGO  unicode.DecodeRuneInString        utf8.go:312:30|1
+      ...
+      7      -5          --- PGO  internal/abi.Name.DataChecked     type.go:625:22|0        inLoopAdj
+    
+    Here "Score" is the final score calculated for the callsite,
+    "Adjustment" is the amount added to or subtracted from the original
+    hairyness estimate to form the score. "Status" shows whether anything
+    changed with the site -- did the adjustment bump it down just below
+    the threshold ("PROMOTED") or instead bump it above the threshold
+    ("DEMOTED") or did nothing happen as a result of the heuristics
+    ("---"); "Status" also shows whether PGO was involved. "Callee" is the
+    name of the function called, "CallerPos" is the position of the
+    callsite, and "ScoreFlags" is a digest of the specific properties we
+    used to make adjustments to callsite score via heuristics.
+    
+    Change-Id: Iea4b1cbfee038bc68df6ab81e9973f145636300b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513455
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/inline/inl.go             |  18 +++-
+ .../compile/internal/inline/inlheur/callsite.go    |   8 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 115 +++++++++++++++++++++
+ 4 files changed, 138 insertions(+), 4 deletions(-)

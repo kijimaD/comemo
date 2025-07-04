@@ -1,0 +1,19 @@
+commit f25631b490c7ccb8e555b4031dc12046b2534c11
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 26 00:46:17 2022 +0700
+
+    cmd/compile/internal/ir: remove NewClosureExpr
+    
+    The only usage of NewClosureExpr is inside NewClosureFunc, which is its
+    alternative version. So just remove NewClosureExpr and inline it there.
+    
+    Change-Id: I1900f4fbb48d7b4f6e6a857f7f7760cd27302671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395855
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/expr.go | 8 --------
+ src/cmd/compile/internal/ir/func.go | 4 +++-
+ 2 files changed, 3 insertions(+), 9 deletions(-)

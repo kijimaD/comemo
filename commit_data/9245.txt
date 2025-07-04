@@ -1,0 +1,20 @@
+commit 1b4dff0f6923f5d7004d47de5ebeba3758074c86
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 28 16:19:16 2011 -0700
+
+    exp/template: simplify the helper functions
+    - create a pair of "Must" functions, one for templates, one for sets
+    - regularize the return values of the parsers so they can be wrapped by Must
+    - delete all the old Must functions and methods.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4826052
+
+ src/pkg/exp/template/exec_test.go  |   8 +-
+ src/pkg/exp/template/helper.go     | 217 +++++++++++--------------------------
+ src/pkg/exp/template/parse.go      |   8 +-
+ src/pkg/exp/template/parse_test.go |   3 +-
+ src/pkg/exp/template/set.go        |   5 +-
+ src/pkg/exp/template/set_test.go   |  37 +++----
+ 6 files changed, 92 insertions(+), 186 deletions(-)

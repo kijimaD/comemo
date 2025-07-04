@@ -1,0 +1,19 @@
+commit a933d06271f6ce42cf56edb012cc6361e6551f5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 16:28:05 2023 -0700
+
+    go/types, types2: remove return values from Checker.assignVar/initVar
+    
+    Not needed anymore.
+    
+    Change-Id: I5229d556ba1625f53b9fa23b496c17138a92fc3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478717
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 29 +++++++++-----------------
+ src/go/types/assignments.go                    | 29 +++++++++-----------------
+ 2 files changed, 20 insertions(+), 38 deletions(-)

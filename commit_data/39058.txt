@@ -1,0 +1,37 @@
+commit 53374e7e068c032b9e6278e592974e973a554365
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu May 2 17:31:56 2019 -0400
+
+    crypto/ed25519: promote from golang.org/x/crypto/ed25519
+    
+    The crypto/tls and crypto/x509 APIs leak PublicKey and PrivateKey types,
+    so in order to add support for Ed25519 certificates we need the ed25519
+    package in the stdlib.
+    
+    It's also a primitive that's reasonable to use directly in applications,
+    as it is a modern, safe and fast signing algorithm, for which there
+    aren't higher level APIs. (The nacl/sign API is limiting in that it
+    repeats the message.)
+    
+    A few docs changes will come in a follow-up, and a CL will land on
+    golang.org/x/crypto/ed25519 to make it a type alias wrapper on Go 1.13+.
+    
+    Updates #25355
+    
+    Change-Id: I057f20cc7d1aca2b95c29ce73eb03c3b237e413f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174945
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ misc/nacl/testzip.proto                            |   3 +
+ src/cmd/go/internal/note/note.go                   |   3 +-
+ src/cmd/go/internal/note/note_test.go              |   5 +-
+ src/cmd/vendor/modules.txt                         |   2 -
+ .../golang.org/x => }/crypto/ed25519/ed25519.go    |   3 +-
+ src/crypto/ed25519/ed25519_test.go                 | 219 +++++++++++++++++++++
+ .../crypto/ed25519/internal/edwards25519/const.go  |   0
+ .../ed25519/internal/edwards25519/edwards25519.go  |   0
+ src/crypto/ed25519/testdata/sign.input.gz          | Bin 0 -> 50330 bytes
+ src/go/build/deps_test.go                          |   4 +
+ 10 files changed, 230 insertions(+), 9 deletions(-)

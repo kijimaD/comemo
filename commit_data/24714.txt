@@ -1,0 +1,17 @@
+commit 8c827c045a0de36a7945cf33f3373f4b6a8a07cc
+Author: unknown <nonamezeil@gmail.com>
+Date:   Wed Nov 4 15:55:21 2015 +0300
+
+    crypto/md5: uniform Write func
+    
+    Unification of implementation of existing md5.Write function
+    with other implementations (sha1, sha256, sha512).
+    
+    Change-Id: I58ae02d165b17fc221953a5b4b986048b46c0508
+    Reviewed-on: https://go-review.googlesource.com/16621
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/md5/md5.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

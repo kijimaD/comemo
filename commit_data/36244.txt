@@ -1,0 +1,34 @@
+commit 9f4ea6c25d7cee2ddb7d478cf03582baad17cc59
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 7 12:01:36 2018 -0400
+
+    cmd/go: add go mod download
+    
+    go mod download provides a way to force downloading
+    of a particular module version into the download cache
+    and also to locate its cached files.
+    
+    Forcing downloads is useful for warming caches, such as
+    in base docker images.
+    
+    Finding the cached files allows caching proxies to use
+    go mod download as the way to obtain module files
+    on cache miss.
+    
+    Fixes #26577.
+    Fixes #26610.
+    
+    Change-Id: Ib8065bcce07c9f5105868ec1d87887ef4871f07e
+    Reviewed-on: https://go-review.googlesource.com/128355
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go      | 123 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/modcmd/mod.go           |   1 +
+ src/cmd/go/internal/modfetch/cache.go       |  41 ++++++++++
+ src/cmd/go/internal/modfetch/fetch.go       |  57 +++++++++----
+ src/cmd/go/internal/modfetch/repo.go        |   7 +-
+ src/cmd/go/internal/modload/build.go        |  32 ++++----
+ src/cmd/go/testdata/script/mod_download.txt |  62 ++++++++++++++
+ 7 files changed, 291 insertions(+), 32 deletions(-)

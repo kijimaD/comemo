@@ -1,0 +1,20 @@
+commit 4c2a4004bd385a624988bee7b4d750975b99f40c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 2 10:55:27 2015 -0700
+
+    readme: emphasize issue tracker is for bugs/proposals
+    
+    Removed direct link to issue tracker in the README - it makes it too
+    easy to use it for a question - and it's abused multiple times a day
+    for questions. It's easy enough to find it if there's a real issue
+    to report.
+    
+    Added sentence to point people at golang-nuts and the new forum.
+    
+    Change-Id: If75bab888cda064aceeefc49ef672fbb964f8f54
+    Reviewed-on: https://go-review.googlesource.com/15284
+    Reviewed-by: Jason Buberel <jbuberel@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

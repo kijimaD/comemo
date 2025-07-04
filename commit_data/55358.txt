@@ -1,0 +1,19 @@
+commit 59ecebf47f70d018cffd650ade91f44e25d128ea
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jan 9 05:33:53 2024 +0000
+
+    net/http: clarify the precedence order for Request.FormValue
+    
+    Fixes #64575
+    
+    Change-Id: I0eaec642a9dc8ae3b273a6d41131cc7cb8332947
+    GitHub-Last-Rev: 17aa5170cbfe42cb86d56f1804266850d33c3eb5
+    GitHub-Pull-Request: golang/go#64578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547855
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/request.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

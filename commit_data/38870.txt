@@ -1,0 +1,20 @@
+commit 17615969b6c910972a4babb4d1c8f009b1d851e3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 23 20:49:05 2019 +0000
+
+    Revert "cmd/compile: add signed divisibility by power of 2 rules"
+    
+    This reverts CL 168038 (git 68819fb6d2bab59e4eadcdf62aa4a2a54417d640)
+    
+    Reason for revert: Doesn't work on 32 bit archs.
+    
+    Change-Id: Idec9098060dc65bc2f774c5383f0477f8eb63a3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173442
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/arith_test.go | 291 -----------------
+ src/cmd/compile/internal/ssa/gen/generic.rules     |  19 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 348 +--------------------
+ src/cmd/compile/internal/test/divconst_test.go     |  26 --
+ test/codegen/arithmetic.go                         |  11 -
+ 5 files changed, 16 insertions(+), 679 deletions(-)

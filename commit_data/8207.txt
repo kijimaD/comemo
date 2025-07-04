@@ -1,0 +1,15 @@
+commit 057fa94d3160a31b29d7a3bde9727dd1df0e31e2
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Sat Apr 23 11:34:08 2011 -0700
+
+    rc/env.bash: fix for Go tool-chain build on windows under msys.
+    
+    The path conversion is done automatically if msys' builtin
+    shell commands are used.
+    
+    R=rsc1, peterGo, brainman, Mr_Dark, r
+    CC=golang-dev
+    https://golang.org/cl/4452042
+
+ src/env.bash | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,13 @@
+commit 62747bde6c72ea6335a28daaf148a970b991987b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 22:58:04 2013 +0400
+
+    runtime: catch races between channel close and channel send in select
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10137043
+
+ src/pkg/runtime/chan.c                     |  3 ++-
+ src/pkg/runtime/race/testdata/chan_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 26 insertions(+), 2 deletions(-)

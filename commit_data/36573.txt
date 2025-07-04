@@ -1,0 +1,16 @@
+commit 5ed30d82b7ad4d5be12db588f088c34f8c1c0a86
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Mon Sep 3 16:24:12 2018 +0000
+
+    database/sql: fix Rows.Columns() documentation
+    
+    Fixes #27202
+    
+    Change-Id: I83620748a81500e433795c7b2b7f13399d17f777
+    GitHub-Last-Rev: 64457e12ceaa408efc7f75091f1b30c35b8e5d44
+    GitHub-Pull-Request: golang/go#27472
+    Reviewed-on: https://go-review.googlesource.com/133057
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 9c6fd4c1443b1c6749c816a98906f8abc94a6631
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri May 22 16:29:22 2009 -0700
+
+    Added support for .5 files in libmach_64. Copied 5obj.c from
+    plan9 libmach.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=142  (139 added, 3 deleted, 0 changed)
+    OCL=29281
+    CL=29281
+
+ src/libmach_amd64/5obj.c    | 166 ++++++++++++++++++++++++++++++++++++++++++++
+ src/libmach_amd64/Makefile  |   2 +-
+ src/libmach_amd64/fakeobj.c |   2 -
+ 3 files changed, 167 insertions(+), 3 deletions(-)

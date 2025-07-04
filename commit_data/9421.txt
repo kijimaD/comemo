@@ -1,0 +1,12 @@
+commit fd897ffc68022f436e328acfe47807e0b5ec18dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 19 09:31:50 2011 -0700
+
+    type switches: test for pathological case
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4894057
+
+ test/typeswitch2.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

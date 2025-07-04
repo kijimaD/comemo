@@ -1,0 +1,17 @@
+commit 3f12d271335abc9d49d419247528cf286a04f9a6
+Author: areski <areski@gmail.com>
+Date:   Mon Dec 22 18:16:15 2014 +0100
+
+    bytes, os/exec, strings: fix a few BUG comments
+    
+    Regular expression noteMarker requires the definition of a (who) section
+    when reading note from a sequence of comments.
+    
+    Change-Id: I9635de9b86f00d20ec108097fee4d4a8f76237b2
+    Reviewed-on: https://go-review.googlesource.com/1952
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/bytes/bytes.go     | 2 +-
+ src/os/exec/exec.go    | 2 +-
+ src/strings/strings.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

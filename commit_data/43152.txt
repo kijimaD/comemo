@@ -1,0 +1,15 @@
+commit 9b1518aeda297f87d6d06218ddb744c71fefb80d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 15:48:14 2020 -0400
+
+    io: make clear that EOF should not be wrapped
+    
+    For #40827.
+    
+    Change-Id: Ifd108421abd8d0988dd7b985e4f9e2bd5356964a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258524
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/io.go | 2 ++
+ 1 file changed, 2 insertions(+)

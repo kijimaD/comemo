@@ -1,0 +1,12 @@
+commit 8c1b0da0ac0215a29930df35d9d5c67ea3675445
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 17:14:53 2013 -0700
+
+    test: do not run SIGCHLD test on Plan 9
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10017045
+
+ test/sigchld.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

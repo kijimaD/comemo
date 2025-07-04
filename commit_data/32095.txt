@@ -1,0 +1,20 @@
+commit a8730cd93a6731a14519902ccfed604971d3e8dc
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Aug 2 16:31:46 2017 -0400
+
+    doc: hide video and share if being served from CN
+    
+    In the case where requests are coming from mainland China, hide
+    links to locations that are blocked and functionality that is
+    not permitted.
+    
+    Additionally, some very small cleanup of the JS.
+    
+    This change requires https://go-review.googlesource.com/c/52873
+    
+    Change-Id: I7fc68748e629dbe5b966d6bf117e7f7b546966eb
+    Reviewed-on: https://go-review.googlesource.com/52872
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/root.html | 155 +++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 82 insertions(+), 73 deletions(-)

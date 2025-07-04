@@ -1,0 +1,12 @@
+commit 20b9bfb1365d85cafbaad2ff882572579feae620
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 12 14:57:23 2008 -0800
+
+    wrong code for array access
+    
+    R=r
+    OCL=19107
+    CL=19109
+
+ test/bugs/bug119.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

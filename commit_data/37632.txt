@@ -1,0 +1,20 @@
+commit 963c9fdf9735bc464521cde3d46b596ce0d74eba
+Author: Andrea Nodari <andrea.nodari91@gmail.com>
+Date:   Thu Jun 21 18:01:01 2018 +0100
+
+    cmd/cover: check that the argument of -var is valid
+    
+    At the moment, the cover tool does not check that the argument of -var
+    is a valid identifier. Hence, it could generate a file that fails to
+    compile afterwards.
+    
+    Updates #25280
+    
+    Change-Id: I6eb1872736377680900a18a4a28ba002ab5ea8ca
+    Reviewed-on: https://go-review.googlesource.com/c/120316
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cover/cover.go      | 16 ++++++++++++++++
+ src/cmd/cover/cover_test.go |  6 ++++++
+ 2 files changed, 22 insertions(+)

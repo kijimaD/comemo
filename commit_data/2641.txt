@@ -1,0 +1,14 @@
+commit 0ae7882b5c31991b8e9c2971c733f456ceec1d68
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 7 21:05:24 2009 -0700
+
+    bug fix: encOpFor etc. need to indirect
+    
+    R=rsc
+    DELTA=28  (7 added, 7 deleted, 14 changed)
+    OCL=31312
+    CL=31322
+
+ src/pkg/gob/decode.go | 18 +++++++++---------
+ src/pkg/gob/encode.go | 20 ++++++++++----------
+ 2 files changed, 19 insertions(+), 19 deletions(-)

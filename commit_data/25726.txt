@@ -1,0 +1,12 @@
+commit fd9fd4c39d92f6f177d22b39e8ee000ae01a9511
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 5 15:05:35 2016 +0000
+
+    net/http: fix doc typo
+    
+    Change-Id: I93201fa4152f2d60b3eedb8d321a152819033121
+    Reviewed-on: https://go-review.googlesource.com/19270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit eaf02e1fc9d5f22415233783c02bb0b687d216ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 21 11:11:15 2017 -0700
+
+    cmd/compile/internal/types: remove unused lineno arguments for PushDcl/MarkDcl
+    
+    More steps towards simpler symbol handling:
+    
+    - Pushdcl's incoming pos argument, saved in a newly pushed *Sym, was always
+      immediately overwritten by the Lastlineno value of the saved *Sym.
+    
+    - Markdcl's incoming pos argument, saved in the stack mark *Sym, was not
+      restored when the stack mark was popped.
+    
+    - Popdcl always maintained the most recent Lastlineno for a *Sym given
+      by package and name, making it unnecessary to save Lastlineno in the
+      first place. Removed Lastlineno from the set of fields that need saving,
+      and simplified Popdcl.
+    
+    Change-Id: Ie93da1fbd780dcafc2703044e781c0c6298df569
+    Reviewed-on: https://go-review.googlesource.com/41390
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go      |  4 ++--
+ src/cmd/compile/internal/gc/bimport.go  | 10 ++++----
+ src/cmd/compile/internal/gc/dcl.go      |  4 ++--
+ src/cmd/compile/internal/gc/noder.go    | 12 +++++-----
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/types/scope.go | 41 +++++++++++----------------------
+ src/cmd/compile/internal/types/sym.go   | 14 +++++------
+ 7 files changed, 36 insertions(+), 51 deletions(-)

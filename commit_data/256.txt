@@ -1,0 +1,10 @@
+commit 390d5fe5b28b1230896e5b721dbdd3bf9b6056e8
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 27 16:59:14 2008 -0700
+
+    fixed fncall both sides
+    
+    SVN=125217
+
+ src/cmd/6g/cgen.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

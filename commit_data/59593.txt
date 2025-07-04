@@ -1,0 +1,31 @@
+commit 49a660e22cb349cf13ef0a2f6214c6fdd75afda0
+Author: Damien Neil <dneil@google.com>
+Date:   Mon May 12 11:15:08 2025 -0700
+
+    testing/synctest: add Test
+    
+    Add a synctest.Test function, superseding the experimental
+    synctest.Run function. Promote the testing/synctest package
+    out of experimental status.
+    
+    For #67434
+    For #73567
+    
+    Change-Id: I3c5ba030860d90fe2ddb517a2f3536efd60181a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671961
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ api/next/67434.txt                                 |   2 +
+ doc/next/6-stdlib/1-synctest.md                    |  11 +
+ .../6-stdlib/99-minor/testing/synctest/67434.md    |   1 +
+ src/go/build/deps_test.go                          |   6 +-
+ src/testing/synctest/context_example_test.go       |  78 ------
+ src/testing/synctest/example_test.go               | 160 +++++++++++
+ src/testing/synctest/http_example_test.go          | 101 -------
+ src/testing/synctest/run.go                        |  16 ++
+ src/testing/synctest/synctest.go                   | 298 +++++++++++++++++----
+ src/testing/synctest/synctest_test.go              | 149 +++++++++++
+ src/testing/testing.go                             |  55 ++++
+ 11 files changed, 649 insertions(+), 228 deletions(-)

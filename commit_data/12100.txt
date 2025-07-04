@@ -1,0 +1,13 @@
+commit b888671f4c6614d40bcd6864a375939ce173947e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 16:47:42 2012 +1100
+
+    test: fix broken test
+    TBR=bradfitz
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5684050
+
+ test/fixedbugs/bug423.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

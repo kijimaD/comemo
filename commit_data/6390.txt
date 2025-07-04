@@ -1,0 +1,12 @@
+commit f2db47d427b898be77f0e02828b95ee7d834dbf9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 27 11:42:58 2010 +1000
+
+    syscall: fix windows value of IPV6_V6ONLY
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2213048
+
+ src/pkg/syscall/ztypes_windows_386.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

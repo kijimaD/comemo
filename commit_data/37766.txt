@@ -1,0 +1,15 @@
+commit 4422319fbf8db7700752ae2a755244bbd24672de
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 20 09:38:37 2018 +0100
+
+    doc/go1.12: fix GOARCH value in Syscall18 link
+    
+    Currently the link works also with the non-existing GOARCH armd64, but
+    let's correct in anyhow.
+    
+    Change-Id: Ida647b8f9dd2f8460b019f5a23759f10a6da8e60
+    Reviewed-on: https://go-review.googlesource.com/c/155277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

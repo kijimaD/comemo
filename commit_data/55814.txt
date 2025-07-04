@@ -1,0 +1,20 @@
+commit c2734187cd77773a3ca34fe818f3f6c8df17468b
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon Mar 4 13:48:41 2024 +0000
+
+    doc/go1.23: document database/sql wrap errors
+    
+    For #64707.
+    For #65614.
+    
+    Change-Id: Ib07ac67d7652bc7c9e1363f70637938c7bb4bc72
+    GitHub-Last-Rev: a4d8ecacbc677111e39977bacfb8fb9b59fb4ce6
+    GitHub-Pull-Request: golang/go#66089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/database/sql/64707.md | 4 ++++
+ 1 file changed, 4 insertions(+)

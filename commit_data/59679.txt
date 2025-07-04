@@ -1,0 +1,15 @@
+commit de457fc4ea50cc3ac9dd967161b8bc31b79a26dd
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 23:50:56 2025 +0200
+
+    doc: refer to SHAKE in #69518 release note
+    
+    Change-Id: I6a6a46560b5d78710bd09d2452c80e51da936ec7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675196
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/hash/69518.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

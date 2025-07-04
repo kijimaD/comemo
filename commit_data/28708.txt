@@ -1,0 +1,16 @@
+commit 4103fedf199dbc80c11455ffe75e3ecf89c77da5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 6 19:06:49 2016 +0000
+
+    runtime: skip gdb tests on linux/ppc64 for now
+    
+    Updates #17366
+    
+    Change-Id: Ia4bd3c74c48b85f186586184a7c2b66d3b80fc9c
+    Reviewed-on: https://go-review.googlesource.com/30596
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

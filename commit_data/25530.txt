@@ -1,0 +1,16 @@
+commit 2747ca351efc2b9b0f1d0a7988c752f859feebb7
+Author: Harshavardhana <hrshvardhana@gmail.com>
+Date:   Sat Jan 9 11:55:32 2016 -0800
+
+    net/http: don't remove Expect Request header in Server.
+    
+    Fixes #13893
+    
+    Change-Id: I2577b38fdb19299227dc146f707cf9df663dcdfc
+    Reviewed-on: https://go-review.googlesource.com/18471
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
+ src/net/http/server.go     |  1 -
+ 2 files changed, 27 insertions(+), 1 deletion(-)

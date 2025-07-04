@@ -1,0 +1,19 @@
+commit 0decedf636326d4c2d6c50c7ca7895babfa60b45
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 20 23:45:33 2010 -0700
+
+    gc: various bug fixes
+    
+    Fixes #935.
+    Fixes #936.
+    Fixes #941.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1867042
+
+ src/cmd/gc/lex.c      | 73 +++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/gc/mparith1.c |  6 +++++
+ src/cmd/gc/print.c    |  4 +++
+ src/cmd/gc/walk.c     |  4 +++
+ 4 files changed, 70 insertions(+), 17 deletions(-)

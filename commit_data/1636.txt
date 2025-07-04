@@ -1,0 +1,14 @@
+commit a85e06f302bec96a26db989ab0513f0329a871c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 16:45:37 2009 -0800
+
+    bug: empty statement not properly recognized in conjunction w/ labels
+    
+    R=r
+    DELTA=14  (14 added, 0 deleted, 0 changed)
+    OCL=24610
+    CL=24610
+
+ test/bugs/bug136.go | 15 +++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 18 insertions(+)

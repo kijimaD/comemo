@@ -1,0 +1,19 @@
+commit 18dd68267263b0b37c14969349f7faa59556b1a8
+Author: zhangjian <zj.cosmos@gmail.com>
+Date:   Wed May 1 06:20:37 2024 +0000
+
+    cmd/compile/internal/ssa: correct error message for AuxArm64BitField
+    
+    Change-Id: I2e1f48c02cb5c6e90a9cb894eb3bc330a4c5c4b5
+    GitHub-Last-Rev: 303d1f8a13bab67ec53b69b37712a6953163d973
+    GitHub-Pull-Request: golang/go#67124
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582615
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

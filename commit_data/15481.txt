@@ -1,0 +1,12 @@
+commit 64648986e32ce8d3b1bfdab7fe255c3f69baa163
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 27 21:15:36 2013 -0300
+
+    net/http: don't drop error on request write
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7230059
+
+ src/pkg/net/http/transfer.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

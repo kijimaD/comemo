@@ -1,0 +1,12 @@
+commit 21f3080d0f223e0797add8eb5c10970a6ea7f24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 3 16:52:56 2011 -0800
+
+    gofmt: exclude test file that is not legal Go
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4252053
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit dbed1c6361f333f7a7aaec1a33a69d0b53956f6b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 13:26:08 2016 -0700
+
+    cmd/compile: eliminate NumFields wrapper functions
+    
+    Change-Id: I3c6035559288cfdc33857216f50241b81932c8a4
+    Reviewed-on: https://go-review.googlesource.com/20811
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/type.go      |  5 -----
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 8 files changed, 19 insertions(+), 24 deletions(-)

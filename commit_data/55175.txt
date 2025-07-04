@@ -1,0 +1,19 @@
+commit 446a5dcf5a3230ce9832682d8f521071d8a34a2b
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 5 12:20:11 2023 -0700
+
+    bytes: add a boundary test for Count of 1 byte
+    
+    This bottoms out in internal/bytealg.Count, which does a fair amount
+    of avx shenanigans. Make sure we're not reading out of bounds.
+    
+    Change-Id: Ied0e461f536f75acc24c6797f7fc74e3f3901c10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533116
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/bytes/boundary_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

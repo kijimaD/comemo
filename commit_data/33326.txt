@@ -1,0 +1,77 @@
+commit 622cfd88337a1f733a41119fabf2f01968ea6f52
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 4 14:33:10 2017 -0400
+
+    cmd/compile: don't fold address of global into load/store on PPC64
+    
+    On PPC64 (and a few other architectures), accessing global
+    requires multiple instructions and use of temp register.
+    The compiler emits a single MOV prog, and the assembler
+    expands it to multiple instructions. If globals are accessed
+    multiple times, each time it generates a reload of the temp
+    register. As this is done by the assembler, the compiler
+    cannot optimize it.
+    
+    This CL makes the compiler not fold address of global into load
+    and store. If a global is accessed multiple times, or multiple
+    fields of a struct are accessed, the compiler can CSE the
+    address. Currently, this doesn't help the case where different
+    globals are accessed, even though they may be close to each
+    other in the address space (which we don't know at compile time).
+    
+    It helps a little bit in go1 benchmark:
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-2              4.84s ± 1%     4.84s ± 1%    ~     (p=0.796 n=10+10)
+    Fannkuch11-2                4.10s ± 0%     4.08s ± 0%  -0.58%  (p=0.000 n=9+8)
+    FmtFprintfEmpty-2          97.9ns ± 1%    96.8ns ± 1%  -1.08%  (p=0.000 n=10+10)
+    FmtFprintfString-2          147ns ± 0%     147ns ± 1%    ~     (p=0.129 n=9+10)
+    FmtFprintfInt-2             152ns ± 0%     152ns ± 0%    ~     (p=0.294 n=10+8)
+    FmtFprintfIntInt-2          218ns ± 1%     217ns ± 0%  -0.64%  (p=0.000 n=10+8)
+    FmtFprintfPrefixedInt-2     263ns ± 1%     256ns ± 0%  -2.77%  (p=0.000 n=10+8)
+    FmtFprintfFloat-2           375ns ± 1%     368ns ± 0%  -1.95%  (p=0.000 n=10+7)
+    FmtManyArgs-2               849ns ± 0%     850ns ± 0%    ~     (p=0.621 n=8+9)
+    GobDecode-2                12.3ms ± 1%    12.2ms ± 1%  -0.94%  (p=0.003 n=10+10)
+    GobEncode-2                10.3ms ± 1%    10.5ms ± 1%  +2.03%  (p=0.000 n=10+10)
+    Gzip-2                      414ms ± 1%     414ms ± 0%    ~     (p=0.842 n=9+10)
+    Gunzip-2                   66.3ms ± 0%    66.4ms ± 0%    ~     (p=0.077 n=9+9)
+    HTTPClientServer-2         66.3µs ± 5%    66.4µs ± 1%    ~     (p=0.661 n=10+9)
+    JSONEncode-2               23.9ms ± 1%    23.9ms ± 1%    ~     (p=0.905 n=10+9)
+    JSONDecode-2                119ms ± 1%     116ms ± 0%  -2.65%  (p=0.000 n=10+10)
+    Mandelbrot200-2            5.11ms ± 0%    4.92ms ± 0%  -3.71%  (p=0.000 n=10+10)
+    GoParse-2                  5.81ms ± 1%    5.84ms ± 1%    ~     (p=0.052 n=10+10)
+    RegexpMatchEasy0_32-2       315ns ± 0%     317ns ± 0%  +0.67%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_1K-2       658ns ± 0%     638ns ± 0%  -3.01%  (p=0.000 n=9+9)
+    RegexpMatchEasy1_32-2       315ns ± 1%     317ns ± 0%  +0.56%  (p=0.000 n=9+9)
+    RegexpMatchEasy1_1K-2       935ns ± 0%     926ns ± 0%  -0.96%  (p=0.000 n=9+9)
+    RegexpMatchMedium_32-2      394ns ± 0%     396ns ± 1%  +0.46%  (p=0.001 n=10+10)
+    RegexpMatchMedium_1K-2     65.1µs ± 0%    64.5µs ± 0%  -0.90%  (p=0.000 n=9+9)
+    RegexpMatchHard_32-2       3.16µs ± 0%    3.17µs ± 0%  +0.35%  (p=0.000 n=10+9)
+    RegexpMatchHard_1K-2       89.4µs ± 0%    89.3µs ± 0%    ~     (p=0.136 n=9+9)
+    Revcomp-2                   703ms ± 2%     694ms ± 2%  -1.41%  (p=0.009 n=10+10)
+    Template-2                  107ms ± 1%     107ms ± 1%    ~     (p=0.053 n=9+10)
+    TimeParse-2                 526ns ± 0%     524ns ± 0%  -0.34%  (p=0.002 n=9+9)
+    TimeFormat-2                534ns ± 0%     504ns ± 1%  -5.51%  (p=0.000 n=10+10)
+    [Geo mean]                 93.8µs         93.1µs       -0.70%
+    
+    It also helps in the case mentioned in issue #17110, main.main
+    in package math's test. Now it generates 4 loads of R31 instead
+    of 10, for the same piece of code.
+    
+    This causes a slight increase of binary size: cmd/go increases
+    0.66%.
+    
+    If this is a good idea, we should do it on other architectures
+    where accessing global is expensive.
+    
+    Updates #17110.
+    
+    Change-Id: I2687af6eafc04f2a57c19781ec300c33567094b6
+    Reviewed-on: https://go-review.googlesource.com/68250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  59 ++++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 288 +++++++++++++--------------
+ 2 files changed, 185 insertions(+), 162 deletions(-)

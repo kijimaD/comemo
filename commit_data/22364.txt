@@ -1,0 +1,19 @@
+commit 68f57c83274c0f30b94a6adc1668fe034b5780f2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 09:28:05 2015 -0400
+
+    androidtest.bash: copy pkg for gcimporter tests
+    
+    The tests for go/types depend on reading gc export data from the
+    $GOROOT/pkg directory. This is the first use of these files as
+    testdata, so previously they were not copied to the android device.
+    Now they are used, copy them.
+    
+    Fixes android/arm build.
+    
+    Change-Id: If13bbe603ce0aff697a73a97ae9a7d6b3ea800f9
+    Reviewed-on: https://go-review.googlesource.com/8624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/androidtest.bash | 2 ++
+ 1 file changed, 2 insertions(+)

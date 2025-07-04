@@ -1,0 +1,17 @@
+commit 31283dd4836542f94b063bfd2886fc32639358f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 6 18:11:38 2016 +0000
+
+    net/http: don't assume Response.Request is populated after redirect errors
+    
+    Fixes #15577
+    
+    Change-Id: I5f023790a393b17235db2e66c02c2483773ddc1a
+    Reviewed-on: https://go-review.googlesource.com/22857
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      |  2 +-
+ src/net/http/client_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

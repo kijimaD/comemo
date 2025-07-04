@@ -1,0 +1,17 @@
+commit 78cc89ce6740057bfbf9da211102c75659f83c89
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 16 14:10:35 2014 +1000
+
+    cmd/ld: fix operator precedence
+    
+    Fixes #8480.
+    
+    This CL reapplies CL 114420043. This attempt doesn't blow up when encountering hidden symbols.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/128310043
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

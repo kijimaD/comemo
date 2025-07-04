@@ -1,0 +1,36 @@
+commit 68998433556a5c9ee0f7d8d544ffb006a724adaf
+Author: Cyrill Schumacher <cyrill@schumacher.fm>
+Date:   Sat Aug 20 11:32:32 2016 +0200
+
+    net/http: optimize internal cookie functions
+    
+    - precalculate *Cookie slice in read cookie functions
+    - readSetCookies: pre-allocs depending on the count of Set-Cookies
+    - rename success variable to ok; avoid else
+    - refactor Cookie.String to use less allocations
+    - remove fmt package and replace with writes to a bytes.Buffer
+    - add BenchmarkReadSetCookies and BenchmarkReadCookies
+    
+    name              old time/op    new time/op    delta
+    CookieString-8      1.42µs ± 2%    0.78µs ± 1%  -45.36%        (p=0.000 n=10+10)
+    ReadSetCookies-8    3.46µs ± 1%    3.42µs ± 2%   -1.39%        (p=0.001 n=10+10)
+    ReadCookies-8       5.12µs ± 1%    5.15µs ± 2%     ~           (p=0.393 n=10+10)
+    
+    name              old alloc/op   new alloc/op   delta
+    CookieString-8        520B ± 0%      384B ± 0%  -26.15%        (p=0.000 n=10+10)
+    ReadSetCookies-8      968B ± 0%      960B ± 0%   -0.83%        (p=0.000 n=10+10)
+    ReadCookies-8       2.01kB ± 0%    2.01kB ± 0%     ~     (all samples are equal)
+    
+    name              old allocs/op  new allocs/op  delta
+    CookieString-8        10.0 ± 0%       3.0 ± 0%  -70.00%        (p=0.000 n=10+10)
+    ReadSetCookies-8      18.0 ± 0%      17.0 ± 0%   -5.56%        (p=0.000 n=10+10)
+    ReadCookies-8         16.0 ± 0%      16.0 ± 0%     ~     (all samples are equal)
+    
+    Change-Id: I870670987f10f3e52f9c657cfb8e6eaaa97a6162
+    Reviewed-on: https://go-review.googlesource.com/27850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/cookie.go      | 58 +++++++++++++++++------------
+ src/net/http/cookie_test.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+), 23 deletions(-)

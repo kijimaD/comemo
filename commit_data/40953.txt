@@ -1,0 +1,26 @@
+commit 1de31310d9f29f1ccf78f37eb9c7da3fb7867494
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 6 14:48:26 2019 -0500
+
+    cmd/go: avoid generating "malformed module path" errors for standard-library paths
+    
+    If the path looks like it belongs in GOROOT/src and isn't there, we
+    should mention that in the error message — instead of the fact
+    that the path is not a valid module path, which the user likely
+    already knows.
+    
+    Fixes #34769
+    Fixes #35734
+    
+    Change-Id: I3589336d102e420a5ad3bf246816e29f3cbe6d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210339
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/import.go             | 27 +++++++++---
+ src/cmd/go/testdata/script/mod_bad_domain.txt     |  8 +++-
+ src/cmd/go/testdata/script/mod_build_info_err.txt |  4 +-
+ src/cmd/go/testdata/script/mod_goroot_errors.txt  | 53 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_tidy_error.txt     |  4 +-
+ 5 files changed, 84 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit b5f54db35927cf1eee7f70a1a8d1d3a13e8578ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 15:29:59 2010 -0700
+
+    gc: bug267
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1067042
+
+ src/cmd/gc/lex.c                   | 2 ++
+ test/{bugs => fixedbugs}/bug267.go | 0
+ test/golden.out                    | 4 ----
+ 3 files changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 3c06cff7d1d7382b74ab39bd3bf0e46264ac845d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 17:32:07 2015 -0700
+
+    cmd/internal/gc: explicitly set zero bool Val
+    
+    This trivial change is a prerequisite to
+    converting Val.U to an interface{}.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I17ff036f68d29a9ed0097a8b23ae1c91e6ce8c21
+    Reviewed-on: https://go-review.googlesource.com/10058
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/gen.go | 1 +
+ 1 file changed, 1 insertion(+)

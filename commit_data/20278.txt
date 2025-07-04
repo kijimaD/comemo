@@ -1,0 +1,17 @@
+commit f40341643cc254aa4e00baf455aa85684957cd92
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 4 12:53:51 2014 +0900
+
+    net: fix parsing literal IPv6 address with zone identifier in builtin dns stub resolver
+    
+    Fixes #8619.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/132560043
+
+ src/pkg/net/dnsconfig_unix.go      | 4 +++-
+ src/pkg/net/dnsconfig_unix_test.go | 2 +-
+ src/pkg/net/testdata/resolv.conf   | 1 +
+ 3 files changed, 5 insertions(+), 2 deletions(-)

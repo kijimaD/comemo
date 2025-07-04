@@ -1,0 +1,22 @@
+commit ae0824883e7f851173ff1855ad1c638bec87a426
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 19 14:11:51 2025 -0400
+
+    go/ast: deprecate FilterPackage, PackageExports, MergePackageFiles
+    
+    (More symbols that belong to the ast.Object deprecation.)
+    
+    Fixes #73088
+    Fixes #7124
+    Updates #52463
+    Updates #71122
+    
+    Change-Id: I10e3ef35b587da2f3f0a65e9154e33bd53e7a093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/73088.txt                         |  7 +++++++
+ doc/next/6-stdlib/99-minor/go/ast/73088.md |  4 ++++
+ src/go/ast/filter.go                       | 14 ++++++++++++++
+ 3 files changed, 25 insertions(+)

@@ -1,0 +1,13 @@
+commit 9fb68a9a0a4229bc15688b448d0a5e8abff4b2dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 8 10:09:52 2012 -0800
+
+    database/sql{,driver}: add ErrBadConn
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5785043
+
+ src/pkg/database/sql/driver/driver.go |  11 ++++
+ src/pkg/database/sql/sql.go           | 109 +++++++++++++++++++++++-----------
+ 2 files changed, 86 insertions(+), 34 deletions(-)

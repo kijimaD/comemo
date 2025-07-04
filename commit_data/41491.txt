@@ -1,0 +1,22 @@
+commit e674972e8c8ee37dda425e4d294a196395d80483
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 18:05:38 2020 -0500
+
+    cmd/go: convert TestLegacyModGet to the script framework
+    
+    I think this test needs to be split up eventually. It's one of
+    the longest tests.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: If2168fac040d78fd0ec3dcbdef2affd2a8f48f6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214158
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_get_legacy.txt | 57 ++++++++++++++++++++++
+ src/cmd/go/vendor_test.go                     | 69 ---------------------------
+ 2 files changed, 57 insertions(+), 69 deletions(-)

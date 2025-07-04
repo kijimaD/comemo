@@ -1,0 +1,32 @@
+commit 88704b18ce9db36c04d788b688c42ef372ec2a5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 14:05:08 2023 -0400
+
+    cmd/go: allow using go env with unknown vars already in go/env file
+    
+    If you are using a newer toolchain and set go env -w X=Y, then it's
+    a bit frustrating that you can't update the variable in an older toolchain
+    with go env -w X=OTHER or go env -u X, or even see it with go env X.
+    This CL makes all those work.
+    
+    This is particularly important when playing with go env -w GOTOOLCHAIN=oldversion
+    because from that point on the old version is handling 'go env' commands,
+    and the old version doesn't know about GOTOOLCHAIN.
+    The most complete way to recover from that situation is to use
+    
+            GOTOOLCHAIN=local go env -w ...
+    
+    but we will backport this CL to Go 1.19 and Go 1.20 so that they can
+    recover a bit more easily.
+    
+    Fixes #59870.
+    
+    Change-Id: I7a0bb043109e75a0d746069015f6e7992f78287f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496957
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go        | 65 +++++++++++++++++++++++++-------
+ src/cmd/go/testdata/script/env_write.txt | 18 +++++++++
+ 2 files changed, 69 insertions(+), 14 deletions(-)

@@ -1,0 +1,24 @@
+commit 5cc43c51c9929ce089ce2fc17a0f5631d21cd27d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 28 18:49:10 2020 -0700
+
+    cmd/compile: early devirtualization of interface method calls
+    
+    After inlining, add a pass that looks for interface calls where we can
+    statically determine the interface value's concrete type. If such a
+    case is found, insert an explicit type assertion to the concrete type
+    so that escape analysis can see it.
+    
+    Fixes #33160.
+    
+    Change-Id: I36932c691693f0069e34384086d63133e249b06b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264837
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/inl.go  | 53 +++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go |  7 +++++
+ test/escape_iface.go                | 19 ++++++-------
+ 3 files changed, 68 insertions(+), 11 deletions(-)

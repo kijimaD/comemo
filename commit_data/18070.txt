@@ -1,0 +1,12 @@
+commit 674606503e716dbea89166d2df87e2ec887aa4da
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Dec 19 00:58:23 2013 +0100
+
+    syscall: disallow slashes in file names on Plan 9
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/43480050
+
+ src/pkg/syscall/dir_plan9.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

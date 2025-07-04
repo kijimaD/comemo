@@ -1,0 +1,12 @@
+commit 895e4b8550c0e6f0ff95e61e6b793e99ac99f9ab
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Dec 18 19:47:29 2014 -0500
+
+    compress/bzip2: s/repeat_power/repeatPower/
+    
+    Change-Id: I64c8c247acd5d134b2f17ed7aab0a035d7710679
+    Reviewed-on: https://go-review.googlesource.com/1804
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/compress/bzip2/bzip2.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

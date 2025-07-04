@@ -1,0 +1,15 @@
+commit d493964976a443f0f8213ffe5ff521da366d6bad
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 26 10:13:07 2009 -0700
+
+    add a favicon plus a couple of hi-res versions of gordon
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1013013
+
+ doc/gordon/gopherbw.png         | Bin 0 -> 210660 bytes
+ doc/gordon/gophercolor.png      | Bin 0 -> 231683 bytes
+ doc/gordon/gophercolor16x16.png | Bin 0 -> 785 bytes
+ favicon.ico                     | Bin 0 -> 785 bytes
+ 4 files changed, 0 insertions(+), 0 deletions(-)

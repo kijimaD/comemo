@@ -1,0 +1,17 @@
+commit b8ed88db8dbea46b868b6bc9b4b688666afe9dfa
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:14:11 2022 +0800
+
+    compress: remove useless break statement
+    
+    Change-Id: Ia2b376d134d4fd273924de2e4cdee9eba5a15c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436707
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/compress/flate/huffman_bit_writer.go | 3 ---
+ src/compress/flate/huffman_code.go       | 3 ---
+ 2 files changed, 6 deletions(-)

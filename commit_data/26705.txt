@@ -1,0 +1,16 @@
+commit 31f2bb4ba28fa0e9908026def705822dd9b4fa6c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 12:54:46 2016 +1000
+
+    debug/gosym: do not forget to close test binay file handle in TestPCLine
+    
+    Fixes #15121
+    
+    Change-Id: I651521743c56244c55eda5762905889d7e06887a
+    Reviewed-on: https://go-review.googlesource.com/21521
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/gosym/pclntab_test.go | 1 +
+ 1 file changed, 1 insertion(+)

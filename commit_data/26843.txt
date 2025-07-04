@@ -1,0 +1,13 @@
+commit 7166dfe0c11bd25b962d7f691ea1be857842dfbf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 11 11:54:07 2016 -0700
+
+    image/color: add YCbCrToRGB benchmark
+    
+    Change-Id: I9ba76d5b0861a901415fdceccaf2f5caa2facb7f
+    Reviewed-on: https://go-review.googlesource.com/21837
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/color/ycbcr_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,0 +1,11 @@
+commit c1342802dd61244b6bb9b4838a7133d00133e68c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 10:47:11 2009 -0700
+
+    gccgo does not yet implement _
+    
+    OCL=34517
+    CL=34517
+
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 11d1c05fee22bd0609cab9dfc852fd4c6bc69b66
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 12 17:02:33 2014 +1100
+
+    cmd/api: treat a hex-y VERSION as devel and permit API changes
+    
+    Change-Id: I2b05b7ff217586851ab41744e3077fddc480253c
+    Reviewed-on: https://go-review.googlesource.com/1405
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/cmd/api/goapi.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

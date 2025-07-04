@@ -1,0 +1,22 @@
+commit 43e6923131c4c83e02f5263a9632d81819f15a62
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 11:33:47 2014 -0800
+
+    cmd/gc: optimize existence-only map lookups
+    
+    The compiler converts 'val, ok = m[key]' to
+    
+            tmp, ok = <runtime call>
+            val = *tmp
+    
+    For lookups of the form '_, ok = m[key]',
+    the second statement is unnecessary.
+    By not generating it we save a nil check.
+    
+    Change-Id: I21346cc195cb3c62e041af8b18770c0940358695
+    Reviewed-on: https://go-review.googlesource.com/1975
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/walk.c | 17 +++++++++++------
+ test/nilcheck.go  |  5 +++++
+ 2 files changed, 16 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 0061e5619624bbb99a54196014f0a0807fd2e612
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 22 13:02:43 2008 -0700
+
+    Add names to types to avoid recursive explosion and to get
+    the right answer when a type name redefines an existing type.
+    
+    R=rsc
+    DELTA=133  (53 added, 8 deleted, 72 changed)
+    OCL=17637
+    CL=17639
+
+ usr/r/reflect/main.go     |   4 +-
+ usr/r/reflect/tostring.go |   3 +
+ usr/r/reflect/type.go     | 170 +++++++++++++++++++++++++++++-----------------
+ 3 files changed, 111 insertions(+), 66 deletions(-)

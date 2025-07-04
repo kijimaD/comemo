@@ -1,0 +1,17 @@
+commit c72199482f1ab55d824c5a49908c904d3617d170
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Oct 13 23:33:13 2019 +0200
+
+    internal/syscall/unix: remove unused *Trap consts
+    
+    These are unused since the darwin port switched to libc calls in
+    CL 148457.
+    
+    Change-Id: I309bb5b0a52c9069484e7a649d4a652efcb8e160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200866
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/unix/at_sysnum_darwin.go | 4 ----
+ 1 file changed, 4 deletions(-)

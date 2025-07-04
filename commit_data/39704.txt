@@ -1,0 +1,22 @@
+commit 400d02123303115cc46a2ccc949bdcc2bfcc30e4
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 1 00:36:02 2019 +0700
+
+    cmd/compile: fix wrong field type in scasetype
+    
+    The only place set releasetime to negative is in runtime.selectgo
+    (when blockprofilerate greater than zero), so we are safe in compiler
+    code.
+    
+    But scasetype must keep in sync with runtime/select.go scase struct, so
+    releasetime must be int64.
+    
+    Change-Id: I39ea944f5f2872452d3ffd57f7604d51e0d2590a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179799
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/select.go | 2 +-
+ src/runtime/select.go                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

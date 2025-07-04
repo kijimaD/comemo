@@ -1,0 +1,29 @@
+commit 517a44d57e6a0834e98b763045fab9be8f4673d0
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Oct 19 16:41:01 2016 -0400
+
+    cmd/compile: intrinsify atomic operations on s390x
+    
+    Implements the following intrinsics on s390x:
+     - AtomicAdd{32,64}
+     - AtomicCompareAndSwap{32,64}
+     - AtomicExchange{32,64}
+     - AtomicLoad{32,64,Ptr}
+     - AtomicStore{32,64,PtrNoWB}
+    
+    I haven't added rules for And8 or Or8 yet.
+    
+    Change-Id: I647af023a8e513718e90e98a60191e7af6167314
+    Reviewed-on: https://go-review.googlesource.com/31614
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           |  24 +--
+ src/cmd/compile/internal/s390x/prog.go       |   6 +
+ src/cmd/compile/internal/s390x/ssa.go        |  91 ++++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  26 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  58 +++++
+ src/cmd/compile/internal/ssa/opGen.go        | 188 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 308 +++++++++++++++++++++++++++
+ 7 files changed, 689 insertions(+), 12 deletions(-)

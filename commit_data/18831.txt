@@ -1,0 +1,14 @@
+commit 5b5c8f0576e15db9bc5aa1e63507cef3aa370478
+Author: Dhiru Kholia <dhiru.kholia@gmail.com>
+Date:   Tue Mar 11 18:49:50 2014 -0700
+
+    dwarf: add extensions for multi-file compression (.dwz)
+    
+    LGTM=iant
+    R=golang-codereviews, iant, bradfitz
+    CC=golang-codereviews, math-nuts
+    https://golang.org/cl/72820044
+
+ src/pkg/debug/dwarf/const.go | 4 ++++
+ src/pkg/debug/dwarf/entry.go | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 548c9c862426b9e66c2b6c1cbe2bbff62126e291
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 15:02:32 2011 -0700
+
+    cgi: set Request.TLS and Request.RemoteAddr for children
+    
+    R=agl, eds, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4432079
+
+ src/pkg/http/cgi/child.go      | 20 ++++++++++++++++----
+ src/pkg/http/cgi/child_test.go |  8 ++++++++
+ 2 files changed, 24 insertions(+), 4 deletions(-)

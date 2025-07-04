@@ -1,0 +1,25 @@
+commit 4a431983906fb1bcb7d8b95b2e1cb497c799b76a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 14:39:42 2009 -0800
+
+    update compiler to new func rules
+    
+    R=ken
+    OCL=23958
+    CL=23961
+
+ src/cmd/6g/align.c  | 26 ++++++++++++---
+ src/cmd/6g/cgen.c   | 10 +++---
+ src/cmd/6g/gen.c    | 96 ++++++++++++++++++++---------------------------------
+ src/cmd/6g/gg.h     |  2 ++
+ src/cmd/6g/gsubr.c  | 30 +++++++++++++++--
+ src/cmd/6g/obj.c    |  6 ++--
+ src/cmd/gc/const.c  |  1 +
+ src/cmd/gc/dcl.c    | 12 +++----
+ src/cmd/gc/export.c | 14 ++++----
+ src/cmd/gc/go.h     |  3 +-
+ src/cmd/gc/go.y     | 37 +++++++--------------
+ src/cmd/gc/lex.c    |  1 +
+ src/cmd/gc/subr.c   |  9 +++--
+ src/cmd/gc/walk.c   | 12 +++++--
+ 14 files changed, 141 insertions(+), 118 deletions(-)

@@ -1,0 +1,43 @@
+commit b116404444addc69b5ec987a2a64b92d4956eab0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 22 17:47:43 2020 +0000
+
+    runtime: shift timeHistogram buckets and allow negative durations
+    
+    Today, timeHistogram, when copied, has the wrong set of counts for the
+    bucket that should represent (-inf, 0), when in fact it contains [0, 1).
+    In essence, the buckets are all shifted over by one from where they're
+    supposed to be.
+    
+    But this also means that the existence of the overflow bucket is wrong:
+    the top bucket is supposed to extend to infinity, and what we're really
+    missing is an underflow bucket to represent the range (-inf, 0).
+    
+    We could just always zero this bucket and continue ignoring negative
+    durations, but that likely isn't prudent.
+    
+    timeHistogram is intended to be used with differences in nanotime, but
+    depending on how a platform is implemented (or due to a bug in that
+    platform) it's possible to get a negative duration without having done
+    anything wrong. We should just be resilient to that and be able to
+    detect it.
+    
+    So this change removes the overflow bucket and replaces it with an
+    underflow bucket, and timeHistogram no longer panics when faced with a
+    negative duration.
+    
+    Fixes #43328.
+    Fixes #43329.
+    
+    Change-Id: If336425d7d080fd37bf071e18746800e22d38108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279468
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go    |  4 ++--
+ src/runtime/histogram.go      | 30 +++++++++++++++---------------
+ src/runtime/histogram_test.go | 22 +++++++++++++++++-----
+ src/runtime/metrics.go        |  4 ++--
+ 4 files changed, 36 insertions(+), 24 deletions(-)

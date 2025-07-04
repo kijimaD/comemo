@@ -1,0 +1,12 @@
+commit 42534cbc29de9bb645b06dd7f9b1c7bee72fbe2d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 16 16:46:59 2012 +1000
+
+    test: change run.go to ignore \r in compiler output (fixes windows build)
+    
+    R=golang-dev, dave, minux.ma, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6460093
+
+ test/run.go | 3 +++
+ 1 file changed, 3 insertions(+)

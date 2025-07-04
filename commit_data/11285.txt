@@ -1,0 +1,12 @@
+commit 5e59e8537c6154862214bffb787a68f24ae58252
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 18:56:17 2012 -0800
+
+    net: fix linux build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5558056
+
+ src/pkg/net/unicast_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

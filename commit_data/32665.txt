@@ -1,0 +1,18 @@
+commit 04212a16d054a989560ca06a16b2edeb081ce2c3
+Author: Will Faught <will.faught@gmail.com>
+Date:   Sun Sep 10 01:39:23 2017 -0700
+
+    log: move Ldate doc to general declaration
+    
+    The Ldate doc refers to all the constants.
+    
+    Note that I changed "Bits or'ed" to "Bits are or'ed".
+    
+    Fixes #21810
+    
+    Change-Id: I82a66b589689e29063a39aa6d56000e00a5ed150
+    Reviewed-on: https://go-review.googlesource.com/62671
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/log.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

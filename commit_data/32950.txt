@@ -1,0 +1,12 @@
+commit dbb13eff8eab8b1094d6b63447cf6be7d259570d
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Oct 4 11:09:15 2017 -0700
+
+    doc: document go1.9.1 and go1.8.4
+    
+    Change-Id: Ib42fabc6829b6033373c0378713733f88e73e73d
+    Reviewed-on: https://go-review.googlesource.com/68230
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/devel/release.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

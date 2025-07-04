@@ -1,0 +1,15 @@
+commit 8553b9c68f265073bc46029f3b72a1aa47529f82
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 28 10:14:58 2010 +1000
+
+    template: remove reference to json-template
+    
+    Rather than confuse people by linking to a spec we
+    don't fully support, let them just use the package docs.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1016041
+
+ src/pkg/template/template.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

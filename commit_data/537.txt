@@ -1,0 +1,14 @@
+commit b59b551be7e31ed970b97652b2baae2041570d18
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 13 15:24:55 2008 -0700
+
+    allow predefined identifiers (len, etc.) to be exported.
+    (they were not accepted as names by the import parser)
+    
+    R=ken
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=14159
+    CL=14159
+
+ src/cmd/gc/go.y | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

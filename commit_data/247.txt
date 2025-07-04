@@ -1,0 +1,10 @@
+commit 0f99bec402196f0bd1c27144ebedbb0c4b2b1cea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 18:35:22 2008 -0700
+
+    - added calc cmd
+    
+    SVN=125025
+
+ test/bugs/bug058.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

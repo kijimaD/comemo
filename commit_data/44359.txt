@@ -1,0 +1,24 @@
+commit 811167e2c94e1480328513575cdddbc9ad9a7447
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 14 14:44:14 2021 +0100
+
+    cmd/link: do not pass -Bsymbolic for PE DLLs
+    
+    This is only a valid option on ELF. Binutils accepts it, but LLVM
+    rejects it, so for Windows, it's best to just omit it.
+    
+    Updates #44250.
+    Updates #39326.
+    Updates #38755.
+    Updates #36439.
+    Updates #43800.
+    
+    Change-Id: Iffd2345d757f23dd737e63bd464cd412527077c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291632
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

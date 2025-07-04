@@ -1,0 +1,25 @@
+commit 13dc4d378bb40261fb2e7f9e1f0eb2f840250040
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 11 01:32:22 2016 +0000
+
+    vendor: add golang.org/x/net/idna to the vendor directory for Punycode
+    
+    Adds golang.org/x/net/idna to the Go repo from the
+    golang.org/x/net repo's git rev 7db922ba (Dec 2012).
+    
+    Punycode is needed for http.Get("привет.рф") etc., which will
+    come in separate commits.
+    
+    Updates #13835
+    
+    Change-Id: I313ed82d292737579a3ec5dcf8a9e766f2f75138
+    Reviewed-on: https://go-review.googlesource.com/28961
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/vendor/golang_org/x/net/idna/idna.go          |  68 ++++++++
+ src/vendor/golang_org/x/net/idna/idna_test.go     |  43 +++++
+ src/vendor/golang_org/x/net/idna/punycode.go      | 200 ++++++++++++++++++++++
+ src/vendor/golang_org/x/net/idna/punycode_test.go | 198 +++++++++++++++++++++
+ 4 files changed, 509 insertions(+)

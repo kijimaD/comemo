@@ -1,0 +1,12 @@
+commit ecf3274143a512153b4b85b77a06aacd620fcfa9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 9 11:27:29 2013 -0700
+
+    io/ioutil: add WriteString to Discard
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/12580045
+
+ src/pkg/io/ioutil/ioutil.go | 4 ++++
+ 1 file changed, 4 insertions(+)

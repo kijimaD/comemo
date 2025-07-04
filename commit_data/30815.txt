@@ -1,0 +1,14 @@
+commit 899532487f88a68ed6b7861fb701a1d4fab9456b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 20:33:23 2017 -0700
+
+    cmd/compile: don't crash when calling String on a TFUNCARGS Type
+    
+    Change-Id: If5eabd622700a6b82dc4961ae9174c9d907eedb7
+    Reviewed-on: https://go-review.googlesource.com/38465
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

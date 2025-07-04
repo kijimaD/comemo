@@ -1,0 +1,14 @@
+commit ea941f09bf63c694e52632965750228dda9370ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 17:07:51 2010 -0700
+
+    gc: more accurate error description
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1284041
+
+ src/cmd/gc/go.errors  | 4 ++--
+ test/syntax/vareq.go  | 2 +-
+ test/syntax/vareq1.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

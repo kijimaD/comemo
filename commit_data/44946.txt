@@ -1,0 +1,42 @@
+commit 5cc5576a9cff098e6e47397ee32cb250de43d814
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:46:21 2021 -0400
+
+    cmd/compile: untangle Wrapper and ABIWrapper flags
+    
+    Currently, there are Wrapper and ABIWrapper attributes. Wrapper
+    is set when compiler generates an wrapper function (e.g. method
+    wrapper). ABIWrapper is set when compiler generates an ABI
+    wrapper. It also sets Wrapper flag for ABI wrappers.
+    
+    Currently, they have the following meanings:
+    - Wrapper flag hides the frame from (normal) traceback.
+    - Wrapper flag enables special panic+recover adjustment, so it
+      can correctly recover when a wrapper function is deferred.
+    - ABIWrapper flag disables the panic+recover adjustment, because
+      we never defer an ABI wrapper that can recover.
+    
+    This CL changes them to:
+    - Both Wrapper and ABIWrapper flags hide the frame from (normal)
+      traceback. (Setting one is enough.)
+    - Wrapper flag enables special panic+recover adjustment.
+      ABIWrapper flag no longer has effect on this.
+    
+    This makes it clearer if we do want an ABI wrapper that also does
+    the panic+recover adjustment. In the old mechanism we'd have to
+    unset ABIWrapper flag, even if the function is actually an ABI
+    wrapper. In the new mechanism we just need to set both ABIWrapper
+    and Wrapper flags.
+    
+    Updates #40724.
+    
+    Change-Id: I7fbc83f85d23676dc94db51dfda63dcacdf1fc19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307235
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 7 -------
+ src/cmd/internal/obj/plist.go          | 2 +-
+ src/cmd/internal/obj/x86/obj6.go       | 4 ++--
+ 3 files changed, 3 insertions(+), 10 deletions(-)

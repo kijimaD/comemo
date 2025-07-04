@@ -1,0 +1,12 @@
+commit 88411547d4d8fca47403ce6518e0c170d8cc8282
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:53:53 2013 +0900
+
+    net: simplify dial
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12884044
+
+ src/pkg/net/dial.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

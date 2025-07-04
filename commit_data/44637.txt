@@ -1,0 +1,19 @@
+commit 7588ef0d9020c8e628adcd0a0046231252f0d90d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 18:10:08 2021 -0800
+
+    cmd/compile/internal/types2: use self_test.go from go/types
+    
+    This CL replaces self_test.go with the (improved) version
+    from go/types, modified for types2.
+    
+    To see the differences between go/types/self_test.go and
+    this version, compare against patch set 1.
+    
+    Change-Id: I7ae830a17f7a0de40cc1f5063166a7247f78ec27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300997
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/self_test.go | 86 +++++++++++++++++-----------
+ 1 file changed, 53 insertions(+), 33 deletions(-)

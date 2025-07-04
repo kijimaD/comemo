@@ -1,0 +1,15 @@
+commit d3a2dcf5a88354ffcfe1f445caf0b579840b043a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 18:47:34 2010 -0400
+
+    build: fix cgo with -j2
+    
+    a b: c expands to multiple rules,
+    which then run in parallel.
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/2007047
+
+ src/Make.pkg | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

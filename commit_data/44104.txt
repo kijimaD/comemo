@@ -1,0 +1,25 @@
+commit 0c5afc4fb7e3349ec4efdce6554f83554e3d087c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 7 17:50:14 2021 -0500
+
+    testing/fstest,os: clarify racy behavior of TestFS
+    
+    The testing.TestFS function assumes that the file system it's testing
+    doesn't change under it. Clarify this in the documentation and fix the
+    use of os.TestDirFS that's currently susceptible to this race.
+    
+    Fixes #42637.
+    
+    Change-Id: Ia7792380726177f8953d150ee87381b66cb01cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282452
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/os_test.go            | 2 +-
+ src/os/testdata/dirfs/a      | 0
+ src/os/testdata/dirfs/b      | 0
+ src/os/testdata/dirfs/dir/x  | 0
+ src/testing/fstest/testfs.go | 1 +
+ 5 files changed, 2 insertions(+), 1 deletion(-)

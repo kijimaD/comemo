@@ -1,0 +1,14 @@
+commit 8d8245623fa6f5f53a7a72d97d9e1b4bfa551bae
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jul 15 10:12:06 2009 -0700
+
+    Add a dummy WaitStatus.TrapCause for Darwin to unbreak the build.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=31673
+    CL=31673
+
+ src/pkg/syscall/syscall_darwin.go | 5 +++++
+ 1 file changed, 5 insertions(+)

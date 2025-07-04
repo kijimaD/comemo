@@ -1,0 +1,16 @@
+commit f4d3d22a942bb1553f648474c80434e10389a423
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 17:32:44 2009 -0700
+
+    enforce channel direction
+    
+    R=ken
+    OCL=29209
+    CL=29216
+
+ src/cmd/gc/builtin.c.boot | 18 ++++++++---------
+ src/cmd/gc/go.h           |  6 +++---
+ src/cmd/gc/subr.c         |  7 +++++++
+ src/cmd/gc/sys.go         | 18 ++++++++---------
+ src/cmd/gc/walk.c         | 51 +++++++++++++++++++++++++++++++++++++----------
+ 5 files changed, 68 insertions(+), 32 deletions(-)

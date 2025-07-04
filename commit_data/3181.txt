@@ -1,0 +1,14 @@
+commit 2364f8c30cecf7f9bc04f8b9e6e2e191166ebeb0
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Sep 1 16:46:16 2009 -0700
+
+    Don't crash for regexps > 19 characters.
+    
+    R=r
+    APPROVED=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=34216
+    CL=34220
+
+ src/pkg/testing/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

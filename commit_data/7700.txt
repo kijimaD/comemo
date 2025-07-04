@@ -1,0 +1,12 @@
+commit 64f75f103408b5cfd94d1aacf400e7f9ce3fe58a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 09:58:18 2011 -0800
+
+    strings: better benchmark names; add BenchmarkIndex
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4264052
+
+ src/pkg/strings/strings_test.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

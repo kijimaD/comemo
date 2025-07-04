@@ -1,0 +1,14 @@
+commit 6f18233373454eae26386f0ca11cefe41106e7a0
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Sep 19 11:03:43 2011 -0700
+
+    suffixarray: generate less garbage during construction
+    
+    Minorly improves runtime by about 2-3%
+    
+    R=gri, jeff
+    CC=golang-dev
+    https://golang.org/cl/5052045
+
+ src/pkg/index/suffixarray/qsufsort.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

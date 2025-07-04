@@ -1,0 +1,21 @@
+commit 49dafc70c8558271fc2205061d07eed490f2bc18
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 22 17:00:37 2018 +0200
+
+    cmd: add XCOFF objfile and adapt cmd/nm tests
+    
+    This commit adds a new file format in cmd/internal/objfile for XCOFF.
+    It also adapts tests inside cmd/nm for AIX.
+    
+    Updates: #25893
+    
+    Change-Id: I1e55ea0b7f7d08a871343bee27d11e2d3baad254
+    Reviewed-on: https://go-review.googlesource.com/c/145397
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objfile/objfile.go |   1 +
+ src/cmd/internal/objfile/xcoff.go   | 133 ++++++++++++++++++++++++++++++++++++
+ src/cmd/nm/nm_test.go               |  37 +++++++---
+ 3 files changed, 161 insertions(+), 10 deletions(-)

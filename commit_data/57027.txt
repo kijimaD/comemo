@@ -1,0 +1,24 @@
+commit 7b867b9bb7e7c20803a7168faaf9c87e11f88cef
+Author: David Chase <drchase@google.com>
+Date:   Wed May 22 15:00:20 2024 -0700
+
+    cmd/compile/internal/ir: add DoChildrenWithHidden
+    
+    Analogous to EditChildrenWithHidden.
+    A commit written by Matthew Dempsky
+    
+    Old-Change-Id: I9fe0d3ee98d9dbe5f77eb02d666b9f317ee5b6af
+    Change-Id: I41aacb1545ab3142862b156bd1767fe4a3df4ca0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600497
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go      |   9 +-
+ src/cmd/compile/internal/ir/mknode.go    |   8 +
+ src/cmd/compile/internal/ir/name.go      |   9 +-
+ src/cmd/compile/internal/ir/node.go      |   1 +
+ src/cmd/compile/internal/ir/node_gen.go  | 638 ++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ir/op_string.go |   4 +-
+ src/cmd/compile/internal/ir/visit.go     |  12 +
+ 7 files changed, 670 insertions(+), 11 deletions(-)

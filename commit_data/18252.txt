@@ -1,0 +1,12 @@
+commit 591265fcb4ab80d6a000521eb607600e81c83155
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 14 15:04:16 2014 -0800
+
+    reflect: better document the tri-state for TryRecv
+    
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/52360043
+
+ src/pkg/reflect/value.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

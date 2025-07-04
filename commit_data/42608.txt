@@ -1,0 +1,24 @@
+commit 4f2a2d7e26f5aa07b1e4efe6ac04682cf3651a1d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jul 7 14:04:18 2020 -0400
+
+    crypto/x509/internal/macos: rename package to lowercase
+    
+    Also add a test to lock in this policy.
+    
+    Fixes #40065
+    
+    Change-Id: Iedc4586f2f5598046d84132a8f3bba8f2e93ddc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241274
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../internal/{macOS => macos}/corefoundation.go    |  0
+ .../internal/{macOS => macos}/corefoundation.s     |  0
+ .../x509/internal/{macOS => macos}/security.go     |  0
+ .../x509/internal/{macOS => macos}/security.s      |  0
+ src/crypto/x509/root_darwin_amd64.go               |  2 +-
+ src/go/build/deps_test.go                          | 26 +++++++++++++++++++---
+ src/runtime/sys_darwin.go                          |  2 +-
+ 7 files changed, 25 insertions(+), 5 deletions(-)

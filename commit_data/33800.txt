@@ -1,0 +1,17 @@
+commit bb22a697ab30358605292f435ca75d1badcb212c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 21:05:52 2017 -0500
+
+    time: condense, expand Time.Unix example
+    
+    The new example is shorter but illustrates the
+    interesting parts of the Unix function and methods.
+    
+    Change-Id: Ief8ec38909d4ed7829e8d3da58e7b7f712537f99
+    Reviewed-on: https://go-review.googlesource.com/82079
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

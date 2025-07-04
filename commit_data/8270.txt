@@ -1,0 +1,14 @@
+commit 2e7d6729d44489277b994856221a06e388b204fd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 29 10:38:07 2011 -0700
+
+    http/cgi: pass down environment variables for irix and solaris
+    
+    Used by gccgo.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4435080
+
+ src/pkg/http/cgi/host.go | 2 ++
+ 1 file changed, 2 insertions(+)

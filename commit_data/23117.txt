@@ -1,0 +1,20 @@
+commit 994b2d46455509f95d60f0abd0d37d3d789f89f2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 22 12:55:47 2015 +1000
+
+    net: fix panic in TestDialerDualStack
+    
+    This change ensures that the test does not try to close dual stack
+    listeners which have not yet been opened.
+    
+    Spotted in crash here
+    http://build.golang.org/log/e5843777df400868ce708b7f00c50dc32c2ec478
+    
+    Change-Id: I79d513e166effb3e018e2b9dfc23751d92fcbe4b
+    Reviewed-on: https://go-review.googlesource.com/10371
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mockserver_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f74ea6cd99d36462709c5f0afc51788ceb587d5f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jun 10 21:56:01 2015 +1200
+
+    doc: update install-source.html to cover new architectures
+    
+    Change-Id: I09b99eb36e550d92bd865cc4749058a398fa00cb
+    Reviewed-on: https://go-review.googlesource.com/10838
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/install-source.html | 46 +++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 37 insertions(+), 9 deletions(-)

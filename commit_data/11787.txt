@@ -1,0 +1,12 @@
+commit 0846e275a88b1b0b92a8cacab5b7e4cfc747e072
+Author: Bjorn Tipling <bjorn.tipling@gmail.com>
+Date:   Fri Feb 10 22:39:57 2012 -0200
+
+    net/http: fix reference to URL.RawPath in docs
+    
+    R=go.peter.90, n13m3y3r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5655053
+
+ src/pkg/net/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

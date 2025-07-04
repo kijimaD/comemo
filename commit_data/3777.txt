@@ -1,0 +1,12 @@
+commit 03678f7417b3bde7a870a854102578a3a04c97e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:03:08 2009 -0800
+
+    gofmt-ify asn1
+    
+    R=rsc
+    http://go/go-review/1018047
+
+ src/pkg/asn1/asn1.go      | 42 +++++++++++++++++++++---------------------
+ src/pkg/asn1/asn1_test.go |  4 ++--
+ 2 files changed, 23 insertions(+), 23 deletions(-)

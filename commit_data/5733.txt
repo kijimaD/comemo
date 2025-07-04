@@ -1,0 +1,18 @@
+commit bb9261bf3b15969b4a3c4358791ab4e8b577126d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 29 20:23:39 2010 -0700
+
+    net: initial attempt to implement windows version
+    
+    R=rsc, Mateusz Czaplinski
+    CC=golang-dev
+    https://golang.org/cl/1600041
+
+ src/pkg/net/Makefile                    |  20 +-
+ src/pkg/net/fd_windows.go               | 368 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/mksyscall_windows.sh    |  25 ++-
+ src/pkg/syscall/syscall_windows.go      | 187 ++++++++++++++++
+ src/pkg/syscall/zerrors_windows_386.go  |   1 +
+ src/pkg/syscall/zsyscall_windows_386.go | 230 +++++++++++++++++---
+ src/pkg/syscall/ztypes_windows_386.go   |  78 +++++--
+ 7 files changed, 861 insertions(+), 48 deletions(-)

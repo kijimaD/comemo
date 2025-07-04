@@ -1,0 +1,46 @@
+commit 39ec97da15e9167e7a17746c643f264baae6ce7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 10:38:02 2022 -0400
+
+    crypto/internal/boring: update to newer boringcrypto, add arm64
+    
+    Update the version of BoringCrypto to boringssl tag
+    fips-20210429, for which FIPS approval is "in process".
+    
+    Add GOARCH=arm64 BoringCrypto support.
+    
+    Shuffle build to run as distinct steps in Docker so that
+    we can rerun later parts like build-goboring.sh without
+    rerunning all the setup.
+    
+    Strip unnecessary parts of the syso using --strip-unneeded,
+    which cuts the amd64 syso from 10MB to 2.5MB.
+    The new arm64 syso is 2MB, so even though we added a new
+    architecture, we have half as much syso to distribute.
+    
+    Change-Id: I0f7327389a3a485b82577abea9153d006418298f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423362
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/crypto/boring/boring_test.go                   |   2 +-
+ src/crypto/internal/boring/Dockerfile              |  85 +++++---
+ src/crypto/internal/boring/README.md               |  19 ++
+ src/crypto/internal/boring/aes.go                  |   3 +-
+ src/crypto/internal/boring/boring.go               |   3 +-
+ src/crypto/internal/boring/build-boring.sh         |  44 ++++
+ src/crypto/internal/boring/build-goboring.sh       | 233 +++++++++++++++++++++
+ src/crypto/internal/boring/build.sh                | 222 ++++----------------
+ src/crypto/internal/boring/div_test.c              |  83 ++++++++
+ src/crypto/internal/boring/ecdsa.go                |   3 +-
+ src/crypto/internal/boring/goboringcrypto.h        |   2 +-
+ src/crypto/internal/boring/hmac.go                 |   3 +-
+ src/crypto/internal/boring/notboring.go            |   3 +-
+ src/crypto/internal/boring/rand.go                 |   3 +-
+ src/crypto/internal/boring/rsa.go                  |   3 +-
+ src/crypto/internal/boring/sha.go                  |   3 +-
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 10864368 -> 2555552 bytes
+ .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 0 -> 1980184 bytes
+ 18 files changed, 477 insertions(+), 237 deletions(-)

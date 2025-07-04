@@ -1,0 +1,21 @@
+commit fac3dfe63819fa4293ab002faae23f724be2157c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 22 11:02:56 2008 -0700
+
+    More reflection code.
+    Beginnings of values.
+    typestrings are grabbed from the environment.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1046  (952 added, 3 deleted, 91 changed)
+    OCL=17593
+    CL=17621
+
+ usr/r/reflect/Makefile     |   4 +-
+ usr/r/reflect/main.go      |  33 +-
+ usr/r/reflect/tostring.go  |  81 ++++-
+ usr/r/reflect/type.go      | 201 +++++++----
+ usr/r/reflect/typestring.c |  12 +
+ usr/r/reflect/value.go     | 810 +++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 1048 insertions(+), 93 deletions(-)

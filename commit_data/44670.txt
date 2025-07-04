@@ -1,0 +1,22 @@
+commit 96aecdcb36ad5240a9858f7f7d77ace30f2deaaa
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Mar 14 13:46:23 2021 -0700
+
+    cmd/compile: fix case where func-valued field of a generic type is called
+    
+    Added test example orderedmap.go (binary search tree) that requires this
+    fix (calling function compare in _Map).
+    
+    Also added new tests slices.go and metrics.go that just work.
+    
+    Change-Id: Ifa5f42ab6eee9aa54c40f0eca19e00a87f8f608a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301829
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |   7 +
+ test/typeparam/metrics.go                 | 196 ++++++++++++++++++
+ test/typeparam/orderedmap.go              | 286 +++++++++++++++++++++++++++
+ test/typeparam/slices.go                  | 318 ++++++++++++++++++++++++++++++
+ 4 files changed, 807 insertions(+)

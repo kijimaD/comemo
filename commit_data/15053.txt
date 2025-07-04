@@ -1,0 +1,19 @@
+commit 0e74f04accf82abb075a4d7a908e0b726d9752dd
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Jan 30 23:14:29 2013 -0800
+
+    container/heap: split example into two
+    
+    This adds a simple IntHeap example, and modifies the more complex
+    PriorityQueue example to make use of the index field it maintains.
+    
+    Fixes #4331.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/7068048
+
+ src/pkg/container/heap/example_intheap_test.go     | 43 +++++++++++++
+ .../heap/{example_test.go => example_pq_test.go}   | 73 ++++++++++------------
+ src/pkg/container/heap/heap.go                     |  2 +-
+ 3 files changed, 78 insertions(+), 40 deletions(-)

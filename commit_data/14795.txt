@@ -1,0 +1,44 @@
+commit 4e2aa9bff0eb76f98bb3b238c7f56bea6330f70d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 4 17:03:57 2013 -0500
+
+    cmd/ld: use native-endian symbol values in symbol table
+    
+    The Plan 9 symbol table format defines big-endian symbol values
+    for portability, but we want to be able to generate an ELF object file
+    and let the host linker link it, as part of the solution to issue 4069.
+    The symbol table itself, since it is loaded into memory at run time,
+    must be filled in by the final host linker, using relocation directives
+    to set the symbol values. On a little-endian machine, the linker will
+    only fill in little-endian values during relocation, so we are forced
+    to use little-endian symbol values.
+    
+    To preserve most of the original portability of the symbol table
+    format, we make the table itself say whether it uses big- or
+    little-endian values. If the table begins with the magic sequence
+            fe ff ff ff 00 00
+    then the actual table begins after those six bytes and contains
+    little-endian symbol values. Otherwise, the table is in the original
+    format and contains big-endian symbol values. The magic sequence
+    looks like an "end of table" entry (the fifth byte is zero), so legacy
+    readers will see a little-endian table as an empty table.
+    
+    All the gc architectures are little-endian today, so the practical
+    effect of this CL is to make all the generated tables little-endian,
+    but if a big-endian system comes along, ld will not generate
+    the magic sequence, and the various readers will fall back to the
+    original big-endian interpretation.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7066043
+
+ doc/go1.1.html                      |  9 +++++
+ src/cmd/ld/data.c                   | 60 +++++++++++++---------------------
+ src/cmd/ld/lib.h                    |  8 +----
+ src/cmd/ld/symtab.c                 | 65 +++++++++++++++++++++++++++++++------
+ src/libmach/sym.c                   | 33 ++++++++++++++-----
+ src/pkg/debug/gosym/pclntab_test.go |  2 +-
+ src/pkg/debug/gosym/symtab.go       | 12 +++++--
+ src/pkg/runtime/symtab.c            | 31 +++++++++++++-----
+ 8 files changed, 145 insertions(+), 75 deletions(-)

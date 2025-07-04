@@ -1,0 +1,16 @@
+commit a4eba85fada2a312fc7df20e6f1e215eda8e6a4d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Sep 4 10:34:40 2024 -0400
+
+    cmd/internal/obj: drop NOFRAME TODO
+    
+    NOFRAME is long since implemented beyond ppc64x.
+    
+    Change-Id: Ia02c732badc3330bf876723bb64eff390f3e6622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/obj/textflag.go | 1 -
+ 1 file changed, 1 deletion(-)

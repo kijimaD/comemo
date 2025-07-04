@@ -1,0 +1,12 @@
+commit f015c53ada70323a3159140e562f45eab6e2707d
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Mon Mar 8 17:00:14 2010 -0800
+
+    gc: avoid fixed length buffer cleanbuf
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/302042
+
+ src/cmd/gc/lex.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

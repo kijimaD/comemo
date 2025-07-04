@@ -1,0 +1,26 @@
+commit 98a902323f6406d39c068d60253a0872364041ac
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 25 21:26:18 2021 +0100
+
+    cmd/vendor, cmd/pprof: use golang.org/x/term directly
+    
+    The cmd/pprof package currently uses golang.org/x/crypto/ssh/terminal
+    which - as of CL 258003 - is merely a wrapper around golang.org/x/term.
+    
+    Thus, drop the dependency on golang.org/x/crypto/ssh/terminal and use
+    golang.org/x/term directly.
+    
+    Change-Id: Ib15f1f110c338b9dba4a91a873171948ae6298a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304691
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  4 +-
+ src/cmd/pprof/readlineui.go                        | 20 +++---
+ .../golang.org/x/crypto/ssh/terminal/terminal.go   | 76 ----------------------
+ src/cmd/vendor/modules.txt                         |  1 -
+ 4 files changed, 12 insertions(+), 89 deletions(-)

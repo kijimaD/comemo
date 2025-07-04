@@ -1,0 +1,22 @@
+commit b4fb00b69bfdde92aa94b4fdd2376e47f0293c40
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 8 09:46:53 2010 -0800
+
+    *l/*c: add -V flag to display version number
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204044
+
+ src/cmd/5l/doc.go |  2 ++
+ src/cmd/5l/obj.c  |  3 +++
+ src/cmd/6l/doc.go |  2 ++
+ src/cmd/6l/obj.c  |  3 +++
+ src/cmd/8l/doc.go |  2 ++
+ src/cmd/8l/obj.c  |  3 +++
+ src/cmd/gc/doc.go |  2 ++
+ src/cmd/gc/lex.c  |  4 ++++
+ src/lib9/Makefile |  2 +-
+ src/lib9/goos.c   |  6 ++++++
+ src/version.bash  | 22 ++++++++++++++++++++++
+ 11 files changed, 50 insertions(+), 1 deletion(-)

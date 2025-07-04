@@ -1,0 +1,72 @@
+commit 133a158bd82901f48d6baa2680953e917c53339e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 3 10:37:12 2009 -0700
+
+    8c, 8l dynamic loading support.
+    better mach binaries.
+    cgo working on darwin+linux amd64+386.
+    eliminated context switches - pi is 30x faster.
+    add libcgo to build.
+    
+    on snow leopard:
+      - non-cgo binaries work; all tests pass.
+      - cgo binaries work on amd64 but not 386.
+    
+    R=r
+    DELTA=2031  (1316 added, 626 deleted, 89 changed)
+    OCL=35264
+    CL=35304
+
+ misc/cgo/gmp/Makefile               |  21 ++-
+ misc/cgo/gmp/fib.go                 |  43 +++++
+ misc/cgo/gmp/{pidigits.go => pi.go} |   0
+ misc/cgo/stdio/Makefile             |  17 ++
+ misc/cgo/stdio/fib.go               |  47 ++++++
+ misc/cgo/stdio/file.go              |  43 +++++
+ misc/cgo/stdio/hello.go             |  12 ++
+ src/Make.pkg                        |   9 +-
+ src/cmd/6l/asm.c                    | 101 +-----------
+ src/cmd/6l/l.h                      |   4 +
+ src/cmd/6l/obj.c                    |   6 +-
+ src/cmd/6l/pass.c                   |  10 +-
+ src/cmd/6l/span.c                   |  11 ++
+ src/cmd/8l/asm.c                    | 109 +++---------
+ src/cmd/8l/l.h                      |   4 +
+ src/cmd/8l/obj.c                    |  21 ++-
+ src/cmd/8l/pass.c                   |  12 +-
+ src/cmd/8l/span.c                   |  11 ++
+ src/cmd/cgo/ast.go                  |   1 +
+ src/cmd/cgo/gcc.go                  |  16 +-
+ src/cmd/cgo/main.go                 |  38 +++--
+ src/cmd/cgo/out.go                  |   2 +-
+ src/cmd/ld/elf.h                    |   2 +-
+ src/cmd/ld/macho.c                  | 321 ++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/macho.h                  |   9 +-
+ src/libcgo/386.S                    |  37 +++++
+ src/libcgo/Makefile                 |  26 ++-
+ src/libcgo/amd64.S                  |  45 +++++
+ src/libcgo/cgocall.c                | 308 ----------------------------------
+ src/libcgo/darwin_386.c             | 144 ++++++++++++++++
+ src/libcgo/darwin_amd64.c           |  46 ++++++
+ src/libcgo/libcgo.h                 |  60 +++++++
+ src/libcgo/linux_386.c              |  57 +++++++
+ src/libcgo/linux_amd64.c            |  46 ++++++
+ src/libcgo/linux_arm.c              |   1 +
+ src/libcgo/nacl_386.c               |   1 +
+ src/libcgo/util.c                   |  35 ++++
+ src/libmach/executable.c            |  12 +-
+ src/make.bash                       |   2 +-
+ src/pkg/runtime/386/asm.s           |  40 ++++-
+ src/pkg/runtime/Makefile            |   4 +-
+ src/pkg/runtime/amd64/asm.s         |  20 +++
+ src/pkg/runtime/cgocall.c           |  43 ++---
+ src/pkg/runtime/cgocall.h           |  31 ----
+ src/pkg/runtime/darwin/386/sys.s    |  39 +++--
+ src/pkg/runtime/darwin/thread.c     |   9 +-
+ src/pkg/runtime/linux/386/rt0.s     |   6 -
+ src/pkg/runtime/linux/386/sys.s     |  25 ++-
+ src/pkg/runtime/linux/thread.c      |   2 +-
+ src/pkg/runtime/mkasmh.sh           |   8 +-
+ src/pkg/runtime/proc.c              |  45 ++++-
+ src/pkg/runtime/runtime.h           |  10 +-
+ 52 files changed, 1333 insertions(+), 639 deletions(-)

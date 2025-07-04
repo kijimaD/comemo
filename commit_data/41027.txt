@@ -1,0 +1,25 @@
+commit dcd3b2c173b77d93be1c391e3b5f932e0779fb1f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 26 19:49:39 2019 +0000
+
+    runtime: check whether scavAddr is in inUse on scavengeOne fast path
+    
+    This change makes it so that we check whether scavAddr is actually
+    mapped before trying to look at the summary for the fast path, since we
+    may segfault if that that part of the summary is not mapped in.
+    Previously this wasn't a problem because we would conservatively map
+    all memory for the summaries between the lowest mapped heap address and
+    the highest one.
+    
+    This change also adds a test for this case.
+    
+    Change-Id: I2b1d89b5e044dce81745964dfaba829f4becdc57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212637
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mgcscavenge.go      |  5 ++++-
+ src/runtime/mgcscavenge_test.go | 25 +++++++++++++++++++++++--
+ src/runtime/mranges.go          | 14 ++++++++++++++
+ 3 files changed, 41 insertions(+), 3 deletions(-)

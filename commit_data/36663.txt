@@ -1,0 +1,19 @@
+commit a708353a0c2c39ce4e8182ea75e5082135ae674f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 13 15:02:27 2018 -0700
+
+    cmd/go: correct gccgo buildid file on ARM
+    
+    The GNU assembler for ARM treats @ as a comment character, so section
+    types must be written using % instead.
+    
+    Fixes https://gcc.gnu.org/PR87260.
+    
+    Change-Id: I5461e4bf5b20793db321f540c7f25a9e6e12b6f4
+    Reviewed-on: https://go-review.googlesource.com/135297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/buildid.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

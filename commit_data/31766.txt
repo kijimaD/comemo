@@ -1,0 +1,23 @@
+commit a48998beb571ce03650da75326a052991134e5ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 21:43:54 2017 +0000
+
+    net/http: remove invalid checks of Request.Proto* for outgoing requests
+    
+    The net/http package has long documented that Request.ProtoMajor and
+    Request.ProtoMinor are ignored for outgoing requests (HTTP/1.1 or
+    HTTP/2 is always used, never HTTP/1.0). There was one part in the code
+    that was actually checking 1.0 vs 1.1, but it appears to have been
+    harmless. Remove it.
+    
+    Fixes #18407
+    
+    Change-Id: I362ed6c47ca2de7a2fbca917ed3e866273cfe41f
+    Reviewed-on: https://go-review.googlesource.com/45155
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go  | 12 ------------
+ src/net/http/transfer.go |  4 ++--
+ 2 files changed, 2 insertions(+), 14 deletions(-)

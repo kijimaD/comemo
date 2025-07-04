@@ -1,0 +1,15 @@
+commit f0e0be6e9020caff0b44e0dcb44c8b2e707710f0
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 26 11:24:40 2019 +0700
+
+    os: document exit status range value
+    
+    Fixes #30959
+    
+    Change-Id: I9d30d79e2dbb3f8c8d6555f8c64862b133638d5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

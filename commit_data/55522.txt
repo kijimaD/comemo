@@ -1,0 +1,32 @@
+commit 2c6f24c825aa91632a286ac34603d970f7a9f2f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 29 16:34:16 2024 -0800
+
+    go/types, types2: bail early if we want a type but don't have one
+    
+    If we do know whether we need a type or not, make use of the
+    information when we know that we don't have a type and bail out.
+    
+    Fixes the issue at hand and also improves some other error messages
+    which now report that we don't have a type instead of reporting a cycle.
+    
+    For #65344.
+    
+    Change-Id: I11182efd452c485d89e6c09ead8a647ea05d7318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559335
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/typexpr.go          | 16 +++++++++++++++-
+ src/go/types/typexpr.go                             | 16 +++++++++++++++-
+ src/internal/types/testdata/check/cycles5.go        |  4 ++--
+ src/internal/types/testdata/check/cycles5a.go       |  4 ++--
+ src/internal/types/testdata/check/decls1.go         |  2 +-
+ src/internal/types/testdata/check/issues0.go        |  2 +-
+ src/internal/types/testdata/fixedbugs/issue39634.go |  8 ++++++--
+ src/internal/types/testdata/fixedbugs/issue65344.go | 19 +++++++++++++++++++
+ 8 files changed, 61 insertions(+), 10 deletions(-)

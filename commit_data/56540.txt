@@ -1,0 +1,25 @@
+commit 1667dbd7be0da5e75a25f14c339c859ed2190b43
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri May 17 06:13:32 2024 +0000
+
+    net: use stringslite package for string operations
+    
+    - Replace manual string suffix removal with stringslite.TrimSuffix in conf.go
+    - Use stringslite.Cut for string splitting in ParseCIDR function in ip.go
+    - Add stringslite import in ip.go
+    
+    This change simplifies string operations and improves code readability.
+    
+    Change-Id: I02c238d0bc91e95789d8060e6ef4c7d4f6e3f0d9
+    GitHub-Last-Rev: aef5dc5011217abc95b2a2d7c1d991ca84060d59
+    GitHub-Pull-Request: golang/go#67461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586157
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/conf.go | 4 +---
+ src/net/ip.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 75b74ea8ff0ee62828c04e9567ccc5238cec5d49
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 18 21:40:55 2014 +0200
+
+    doc/go1.3.html: Plan 9 support
+    
+    LGTM=aram, r
+    R=r, aram, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/89130045
+
+ doc/go1.3.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

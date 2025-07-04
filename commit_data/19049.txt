@@ -1,0 +1,13 @@
+commit 0b07effab1a009c345d732fb66a9ea86139d91e7
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Apr 7 12:59:55 2014 -0700
+
+    cmd/go: Check error from SWIG link step.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/85070043
+
+ src/cmd/go/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

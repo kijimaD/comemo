@@ -1,0 +1,18 @@
+commit 998cc2a1c5cad0e928f0ac07f69af36123192460
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Apr 29 12:24:30 2019 +1000
+
+    cmd,runtime: enable cgo for openbsd/arm64
+    
+    Updates #31656.
+    
+    Change-Id: Ide6f829282fcdf20c67998b766a201a6a92c3035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174132
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go               |  2 +-
+ src/cmd/nm/nm_cgo_test.go           |  9 +++--
+ src/runtime/cgo/gcc_openbsd_arm64.c | 67 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 3 deletions(-)

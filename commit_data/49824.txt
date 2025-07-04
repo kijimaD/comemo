@@ -1,0 +1,22 @@
+commit 2e6ffd6c5d573d36e969ec8c21f70680493e58b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 5 20:29:51 2022 -0700
+
+    cmd/compile/internal/noder: explicitly handle function instantiations
+    
+    This CL changes unified IR to explicitly handle function
+    instantiations within expression handling, rather than leaving it to
+    the underlying object reading logic.
+    
+    Change-Id: I009a56013fbe9fbc4dabf80eea98993d34af4272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/codes.go  |  1 +
+ src/cmd/compile/internal/noder/reader.go | 38 +++++++++--------
+ src/cmd/compile/internal/noder/writer.go | 73 ++++++++++++++++++++------------
+ src/internal/pkgbits/encoder.go          |  1 +
+ 4 files changed, 67 insertions(+), 46 deletions(-)

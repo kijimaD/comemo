@@ -1,0 +1,14 @@
+commit 49110eaa2203bc59c754bc2534ba11f969e448f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 13:48:03 2012 -0500
+
+    encoding/json: document buffering
+    
+    Fixes #1955.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5643058
+
+ src/pkg/encoding/json/stream.go | 3 +++
+ 1 file changed, 3 insertions(+)

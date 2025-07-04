@@ -1,0 +1,15 @@
+commit dfb1af4b97ffed0c2acbbc52b0f85355d727974a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 8 23:56:26 2012 +0900
+
+    cmd/gofmt: fix race in long test
+    
+    Fixes #3249.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5792043
+
+ src/cmd/gofmt/gofmt.go     | 10 +++++-----
+ src/cmd/gofmt/long_test.go | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit 7d86d5744484bd3297acb7c4a71fadd5670e5f82
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Oct 15 18:59:01 2015 +0300
+
+    net: use IndexByte implementation from runtime package
+    
+    In net/parse.go we reimplement bytes.IndexByte and strings.IndexByte,
+    However those are implemented in runtime/$GOARCH_asm.s.
+    Using versions from runtime should provide performance advantage,
+    and keep the same code together.
+    
+    Change-Id: I6212184bdf6aa1f2c03ce26d4b63f5b379d8ed0c
+    Reviewed-on: https://go-review.googlesource.com/15953
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/parse.go | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

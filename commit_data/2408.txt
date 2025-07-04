@@ -1,0 +1,13 @@
+commit b71598f70407dd98326564586c1b10352db28ea3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 23:54:44 2009 -0700
+
+    set reasonable initial time stamp (instead of begin of epoch)
+    
+    R=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=29970
+    CL=29973
+
+ usr/gri/pretty/godoc.go | 1 +
+ 1 file changed, 1 insertion(+)

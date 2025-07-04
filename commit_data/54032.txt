@@ -1,0 +1,32 @@
+commit e72ecc6a6becab9ca895c0108047db4723394296
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 15 17:45:50 2023 -0400
+
+    cmd/compile: in expandCalls, move all arg marshalling into call block
+    
+    For aggregate-typed arguments passed to a call, expandCalls
+    decomposed them into parts in the same block where the value
+    was created.  This is not necessarily the call block, and in
+    the case where stores are involved, can change the memory
+    leaving that block, and getting that right is problematic.
+    
+    Instead, do all the expanding in the same block as the call,
+    which avoids the problems of (1) not being able to reorder
+    loads/stores across a block boundary to conform to memory
+    order and (2) (incorrectly, not) exposing the new memory to
+    consumers in other blocks.  Putting it all in the same block
+    as the call allows reordering, and the call creates its own
+    new memory (which is already dealt with correctly).
+    
+    Fixes #61992.
+    
+    Change-Id: Icc7918f0d2dd3c480cc7f496cdcd78edeca7f297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519276
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 35 +++++++++++++++-------------
+ test/fixedbugs/issue61992.go                 | 26 +++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 16 deletions(-)

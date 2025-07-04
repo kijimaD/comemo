@@ -1,0 +1,20 @@
+commit 06b0a655a1f46abab2e3c173259ad184b557dd89
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Apr 26 12:34:35 2022 -0400
+
+    net: skip TestDialCancel on darwin-arm64
+    
+    We're turning up Macs in a network environment that clashes with this
+    test. I don't think it's critical to get it working, so skip it.
+    
+    For #49149.
+    
+    Change-Id: I925e3ecc5356c4cefd208bdcff3d98021215d0b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402181
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dial_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,41 @@
+commit 56c91c05020408fbe18a8c511fc005c365f30d58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 9 15:37:34 2023 -0800
+
+    go/types, types2: remove local version processing in favor of go/version
+    
+    In the Checker, maintain a map of versions for each file, even if the
+    file doensn't specify a version. In that case, the version is the module
+    version.
+    
+    If Info.FileVersions is set, use that map directly; otherwise allocate
+    a Checker-local map.
+    
+    Introduce a new type, goVersion, which represents a Go language version.
+    This type effectively takes the role of the earlier version struct.
+    Replace all versions-related logic accordingly and use the go/version
+    package for version parsing/validation/comparison.
+    
+    Added more tests.
+    
+    Fixes #63974.
+    
+    Change-Id: Ia05ff47a9eae0f0bb03c6b4cb65a7ce0a5857402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541395
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go     |  36 +++++-
+ src/cmd/compile/internal/types2/check.go        | 100 ++++++++--------
+ src/cmd/compile/internal/types2/errors.go       |   2 +-
+ src/cmd/compile/internal/types2/version.go      | 128 +++++++-------------
+ src/cmd/compile/internal/types2/version_test.go |  24 ----
+ src/go/types/api_test.go                        |  36 +++++-
+ src/go/types/check.go                           |  91 ++++++++-------
+ src/go/types/errors.go                          |   2 +-
+ src/go/types/generate_test.go                   |   1 -
+ src/go/types/version.go                         | 149 ++++++++++--------------
+ src/go/types/version_test.go                    |  26 -----
+ 11 files changed, 269 insertions(+), 326 deletions(-)

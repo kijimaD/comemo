@@ -1,0 +1,23 @@
+commit 89192ce4fefbd618d91823bd7c4deb7d45786d9c
+Author: Vinu Rajashekhar <vinutheraj@gmail.com>
+Date:   Mon Jul 12 13:17:32 2010 -0700
+
+    test/fixedbugs/bug243.go: instead of closing stdout,
+    remove the print statements.
+    
+    This change is because of the port of gccgo to RTEMS.
+    These tests use the GCC DejaGNU framework. In some cases,
+    the tests need to be run on qemu where the status code
+    cannot be sent back to DejaGNU, so it prints the exit status
+    by putting a wrapper around the exit and abort calls.
+    
+    This testcase closes the stdout, and hence prohibits DejaGNU
+    from knowing the status in such cases, and causes this test
+    to be wrongly declared as a failure.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1792042
+
+ test/fixedbugs/bug243.go | 4 ----
+ 1 file changed, 4 deletions(-)

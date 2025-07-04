@@ -1,0 +1,13 @@
+commit 556b337ece484d34d3dee1419579ca89475fcefc
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 10 09:11:58 2013 +1000
+
+    encoding/binary: better description for intReadSize
+    It used to be called intDestSize; the new name is better too.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12713043
+
+ src/pkg/encoding/binary/binary.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

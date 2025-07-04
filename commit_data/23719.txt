@@ -1,0 +1,16 @@
+commit a93e5b4ff9449abff05a4882bf8ea86ad506b2bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 16 01:49:47 2015 +0000
+
+    Revert "runtime: diagnose invalid pointers during GC"
+    
+    Broke arm64. Update #9880.
+    
+    This reverts commit 38d9b2a3a942892193195a6912ab23cdaff23e20.
+    
+    Change-Id: I35fa21005af2183828a9d8b195ebcfbe45ec5138
+    Reviewed-on: https://go-review.googlesource.com/12247
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

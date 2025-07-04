@@ -1,0 +1,15 @@
+commit 656b192c1672e4d4b874dfd3b510cd459406e50d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jul 13 08:05:41 2012 +0200
+
+    cmd/gc: reject use of ... with multiple-valued expressions.
+    
+    Fixes #3334.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6350103
+
+ src/cmd/gc/typecheck.c |  2 +-
+ test/ddd1.go           | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,41 @@
+commit 12051f7d95ef6e97d1be0cab8a3583ad38ec1dcd
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Nov 7 13:39:17 2023 +0000
+
+    reflect: optimize Value.IsZero for array types
+    
+    For some types where the zero value is a value where all bits of this type are 0
+    optimize it
+    
+    goos: windows
+    goarch: amd64
+    pkg: reflect
+    cpu: AMD Ryzen 7 7840HS w/ Radeon 780M Graphics
+                                   │    std.txt    │               new.txt               │
+                                   │    sec/op     │   sec/op     vs base                │
+    IsZero/ArrayComparable-16          8.483n ± 0%   8.470n ± 2%        ~ (p=0.542 n=10)
+    IsZero/ArrayIncomparable-16        88.13n ± 1%   87.34n ± 2%        ~ (p=0.110 n=10)
+    IsZero/StructComparable-16         4.050n ± 2%   4.011n ± 1%        ~ (p=0.093 n=10)
+    IsZero/StructIncomparable-16       19.93n ± 1%   19.81n ± 1%        ~ (p=0.493 n=10)
+    IsZero/ArrayInt_4-16               4.445n ± 2%   4.478n ± 2%        ~ (p=0.306 n=10)
+    IsZero/ArrayInt_1024-16           3381.5n ± 3%   140.8n ± 1%  -95.84% (p=0.000 n=10)
+    IsZero/ArrayInt_1024_NoZero-16   1760.50n ± 3%   72.17n ± 1%  -95.90% (p=0.000 n=10)
+    IsZero/Struct4Int-16               4.495n ± 3%   4.478n ± 1%        ~ (p=0.579 n=10)
+    IsZero/ArrayStruct4Int_1024-16    1404.0n ± 3%   140.5n ± 0%  -90.00% (p=0.000 n=10)
+    IsZero/ArrayChanInt_1024-16       3437.0n ± 6%   140.5n ± 1%  -95.91% (p=0.000 n=10)
+    geomean                            89.94n        27.38n       -69.56%
+    
+    Change-Id: I835231a79b9cd89686d44c5b8c2fbe629ccd98ba
+    GitHub-Last-Rev: 3abe118a108faf0070b56ba9098871746daa1ac1
+    GitHub-Pull-Request: golang/go#63661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536855
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/reflect/all_test.go       | 11 +++++++++++
+ src/reflect/benchmark_test.go | 26 +++++++++++++++++++------
+ src/reflect/export_test.go    |  2 ++
+ src/reflect/value.go          | 45 +++++++++++++++++++++++++++++++++++++++----
+ 4 files changed, 74 insertions(+), 10 deletions(-)

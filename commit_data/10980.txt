@@ -1,0 +1,15 @@
+commit fc78c5aa000a1b7c5a2e894ce1b511385b280ccd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 14:15:41 2011 -0800
+
+    math/big: Rand shouldn't hang if argument is also receiver.
+    
+    Fixes #2607.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5489109
+
+ src/pkg/math/big/int_test.go | 7 +++++++
+ src/pkg/math/big/nat.go      | 6 +++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

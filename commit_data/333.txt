@@ -1,0 +1,10 @@
+commit 44f65c8f08613041734f3c051be68f8dd248ed51
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 11 19:35:14 2008 -0700
+
+    fix traceback to know about new segmenting
+    
+    SVN=126930
+
+ src/runtime/rt2_amd64.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

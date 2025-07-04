@@ -1,0 +1,25 @@
+commit de475e8a66b0f530e074c68031a364ad2ebe2a95
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 29 10:28:33 2023 +0200
+
+    syscall: implement Fchdir on Windows
+    
+    This CL adds support for os.File.Chdir() on Windows by implementing
+    syscall.Fchdir, which is internally used by Chdir.
+    
+    Windows does not provide a function that sets the working directory
+    using a file handle, so we have to fallback to retrieving the file
+    handle path and then use it in SetCurrentDirectory.
+    
+    Change-Id: I2ae93575e50411e5a9426ea531541958d7c9e812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/os/os_test.go               | 21 ++++----------------
+ src/syscall/syscall_windows.go  | 43 ++++++++++++++++++++++++++++++++++++++++-
+ src/syscall/zsyscall_windows.go | 10 ++++++++++
+ 3 files changed, 56 insertions(+), 18 deletions(-)

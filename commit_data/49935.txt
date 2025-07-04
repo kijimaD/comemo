@@ -1,0 +1,20 @@
+commit ea6cb02ae54fcf89026a2178720396f1277dd105
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 18 12:09:47 2022 -0400
+
+    cmd/go: propagate match errors in 'go run'
+    
+    Fixes #51604.
+    
+    Change-Id: I3bc86652c62d2b329d9c2db5ea443d56cf17f8d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418094
+    Reviewed-by: Nooras Saba‎ <saba@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                           |  2 +-
+ src/cmd/go/internal/modload/load.go                       |  2 +-
+ src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 11 +++++++++--
+ 3 files changed, 11 insertions(+), 4 deletions(-)

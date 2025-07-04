@@ -1,0 +1,28 @@
+commit 080e00d55d37be67be30e2723233594e64097edf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 18:33:57 2013 -0400
+
+    encoding/json: escape & always
+    
+    There are a few different places in the code that escape
+    possibly-problematic characters like < > and &.
+    This one was the only one missing &, so add it.
+    
+    This means that if you Marshal a string, you get the
+    same answer you do if you Marshal a string and
+    pass it through the compactor. (Ironically, the
+    compaction makes the string longer.)
+    
+    Because html/template invokes json.Marshal to
+    prepare escaped strings for JavaScript, this changes
+    the form of some of the escaped strings, but not
+    their meaning.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12708044
+
+ src/pkg/encoding/json/encode.go       |  2 +-
+ src/pkg/html/template/content_test.go | 12 ++++++------
+ src/pkg/html/template/escape_test.go  |  2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)

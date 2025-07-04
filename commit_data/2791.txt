@@ -1,0 +1,18 @@
+commit 30228a3bc61ab8ecc5585ae834fb9f3b50d42423
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 15:55:27 2009 -0700
+
+    avoid register computing len(x), cap(x)
+    for slice or string x.
+    
+    R=ken
+    OCL=32249
+    CL=32249
+
+ src/cmd/5g/cgen.c  | 14 +++++++++++
+ src/cmd/5g/gsubr.c | 70 ++++++++++++++++++++++++++++++++----------------------
+ src/cmd/6g/cgen.c  | 14 +++++++++++
+ src/cmd/6g/gsubr.c | 14 +++++++++++
+ src/cmd/8g/cgen.c  | 14 +++++++++++
+ src/cmd/8g/gsubr.c | 14 +++++++++++
+ 6 files changed, 111 insertions(+), 29 deletions(-)

@@ -1,0 +1,15 @@
+commit fdc6376c001f29a1245ce3f692c35a852053924d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 18 12:26:09 2011 +1100
+
+    reflect: fix test failure reporting.
+    
+    There's a problem that is manifesting on the 386 builders,
+    but this test bug is masking it.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5295042
+
+ src/pkg/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

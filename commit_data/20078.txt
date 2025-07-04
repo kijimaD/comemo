@@ -1,0 +1,18 @@
+commit 3d3d5390834629a73b745900eb1a0aeda94d927d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 22 22:21:41 2014 +1000
+
+    path, path/filepath: remove dead code
+    
+    Fixes #8503.
+    
+    Thanks to no.smile.face for the original report.
+    
+    LGTM=bradfitz, r, ruiu
+    R=bradfitz, ruiu, r
+    CC=golang-codereviews
+    https://golang.org/cl/132730043
+
+ src/pkg/path/filepath/path.go |  7 -------
+ src/pkg/path/path.go          | 10 +---------
+ 2 files changed, 1 insertion(+), 16 deletions(-)

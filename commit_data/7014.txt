@@ -1,0 +1,16 @@
+commit 03e259664f778ca55fe348afb5e6a43459ffbcce
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 27 12:55:49 2010 -0500
+
+    crypto/cipher: fix OCFB
+    
+    I messed up when reading the OCFB spec.
+    
+    TBR=rsc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3739042
+
+ src/pkg/crypto/cipher/ocfb.go | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)

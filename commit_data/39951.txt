@@ -1,0 +1,28 @@
+commit 5253a6dc72c427cfeeabdce6d95c37c0716ab451
+Author: Liz Rice <liz@lizrice.com>
+Date:   Wed Jun 20 20:33:37 2018 +0100
+
+    regexp: add more examples for Regexp methods
+    
+    Since I first started on this CL, most of the methods have had examples
+    added by other folks, so this is now one new example, and additions to
+    two existing examples for extra clarity.
+    
+    The issue has a comment about not necessarily having examples for all
+    methods, but I recall finding this package pretty confusing when I first
+    used it, and having concrete examples would have really helped me
+    navigate all the different options. There are more
+    String methods with examples now, but I think seeing how the byte-slice
+    methods work could also be helpful to explain the differences.
+    
+    Updates #21450
+    
+    Change-Id: I27b4eeb634fb8ab59f791c0961cce79a67889826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/120145
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/example_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

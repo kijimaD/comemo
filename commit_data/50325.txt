@@ -1,0 +1,16 @@
+commit c761409e01307592fc3f4e4a73dc82fe1a39c807
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:21:08 2022 +0800
+
+    misc: use strings.Builder
+    
+    Change-Id: Icb53d32f2de13287b1b4f4f67dab90fe5ee7a3df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428254
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ misc/android/go_android_exec.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

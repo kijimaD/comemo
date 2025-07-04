@@ -1,0 +1,26 @@
+commit f2717b31b5cf235457631fea1afd6d9df578737c
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 30 13:42:14 2021 -0700
+
+    cmd/compile: deal correctly with unnamed function params during stenciling
+    
+    During substitution of the function type during stenciling, we must set
+    the Name nodes of the param/result fields of the func type. We get those
+    name nodes from the substituted Dcl nodes of the PPARAMS and PPARAMOUTs.
+    But we must check that the names match with the Dcl nodes, so that we
+    skip any param fields that correspond to unnamed (in) parameters.
+    
+    Added a few tests to typelist.go by removing a variety of unneeded
+    function parameter names.
+    
+    Change-Id: If786961b64549da6f18eeeb5060ea58fab874eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305912
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 15 ++++++++++-----
+ test/typeparam/typelist.go                | 10 +++++-----
+ 2 files changed, 15 insertions(+), 10 deletions(-)

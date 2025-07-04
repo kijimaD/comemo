@@ -1,0 +1,22 @@
+commit ac76417a6210dc2cfd062eb8d9be8108bcc89570
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Feb 29 04:40:02 2024 +0000
+
+    reflect: clean up unnecessary comments for rtype
+    
+    For consistency, this CL cleans up unnecessary comments,
+    and moves these Overflow methods to exported area.
+    
+    For #60427
+    
+    Change-Id: I14d4ffbc3552d31c211ea1e0b7a0f7090a4a8b89
+    GitHub-Last-Rev: acdc6ad51bd9ad60a34fdfa8f00a7652cbe34510
+    GitHub-Pull-Request: golang/go#66019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567917
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/reflect/type.go | 96 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 44 insertions(+), 52 deletions(-)

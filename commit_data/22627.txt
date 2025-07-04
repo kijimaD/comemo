@@ -1,0 +1,30 @@
+commit af060c3086941299c399604fe0dc29388f4a6302
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 23 18:15:14 2015 -0400
+
+    runtime: generally allow preemption during concurrent GC phases
+    
+    Currently, the entire GC process runs with g.m.preemptoff set. In the
+    concurrent phases, the parts that actually need preemption disabled
+    are run on a system stack and there's no overall need to stay on the
+    same M or P during the concurrent phases. Hence, move the setting of
+    g.m.preemptoff to when we start mark termination, at which point we
+    really do need preemption disabled.
+    
+    This dramatically changes the scheduling behavior of the concurrent
+    mark phase. Currently, since this is non-preemptible, concurrent mark
+    gets one dedicated P (so 1/GOMAXPROCS utilization). With this change,
+    the GC goroutine is scheduled like any other goroutine during
+    concurrent mark, so it gets 1/<runnable goroutines> utilization.
+    
+    You might think it's not even necessary to set g.m.preemptoff at that
+    point since the world is stopped, but stackalloc/stackfree use this as
+    a signal that the per-P pools are not safe to access without
+    synchronization.
+    
+    Change-Id: I08aebe8179a7d304650fb8449ff36262b3771099
+    Reviewed-on: https://go-review.googlesource.com/8839
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

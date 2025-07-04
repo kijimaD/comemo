@@ -1,0 +1,16 @@
+commit 3c8a1de7206f64aef7a5ac8900ccf50ddfae4f98
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 25 11:36:27 2009 -0700
+
+    Add eval and ogle to the build process so they can be kept up
+    to date.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=8  (6 added, 0 deleted, 2 changed)
+    OCL=35009
+    CL=35011
+
+ src/run.bash             | 6 ++++++
+ usr/austin/ogle/Makefile | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

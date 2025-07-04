@@ -1,0 +1,18 @@
+commit 689931c5b02f7509a125f06480d3673ac85f21d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 11:28:24 2012 -0700
+
+    spec: clarify receive operator
+    
+    - receiving from a closed channel returns immediately
+    - in the ,ok form, the 2nd result is of type bool, not
+      just boolean (gc and ggcgo agree).
+    
+    Per dsymonds' suggestion.
+    
+    R=r, rsc, ken, iant, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6333057
+
+ doc/go_spec.html | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

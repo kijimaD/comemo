@@ -1,0 +1,15 @@
+commit 1b135172df75d7d5ca17aa61132a4358c29b598a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 26 10:20:49 2014 +0900
+
+    net: clean the dregs of NaCL merge
+    
+    LGTM=iant, aram, dave
+    R=golang-codereviews, iant, aram, dave
+    CC=golang-codereviews
+    https://golang.org/cl/68770044
+
+ src/pkg/net/file_test.go  | 2 +-
+ src/pkg/net/file_unix.go  | 1 -
+ src/pkg/net/ipraw_test.go | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

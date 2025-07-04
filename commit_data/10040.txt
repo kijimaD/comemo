@@ -1,0 +1,18 @@
+commit 7ecf6c997e786b4812ae5d5f6afade15a3717fa9
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Oct 18 21:09:58 2011 +0100
+
+    exp/winfsnotify: filesystem watcher for Windows
+    
+    R=rsc, alex.brainman, bradfitz
+    CC=bsiegert, go.peter.90, golang-dev
+    https://golang.org/cl/4188047
+
+ src/pkg/exp/winfsnotify/Makefile            |  11 +
+ src/pkg/exp/winfsnotify/winfsnotify.go      | 569 ++++++++++++++++++++++++++++
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 124 ++++++
+ src/pkg/syscall/syscall_windows.go          |   2 +
+ src/pkg/syscall/zsyscall_windows_386.go     |  36 ++
+ src/pkg/syscall/zsyscall_windows_amd64.go   |  36 ++
+ src/pkg/syscall/ztypes_windows.go           |  30 ++
+ 7 files changed, 808 insertions(+)

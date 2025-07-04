@@ -1,0 +1,12 @@
+commit 89669c6504abb947e0dab5994118f5cfced036db
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Feb 6 01:09:08 2015 -0500
+
+    go1.5.txt: mention the Darwin/ARM port
+    
+    Change-Id: I40feb9e65615a0f683cfc3f54e0c0cfabcf6a787
+    Reviewed-on: https://go-review.googlesource.com/4010
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.5.txt | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,23 @@
+commit 21f548400650e4e7047202ee1894ee6ddd44de82
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jul 12 11:31:29 2019 -0400
+
+    cmd/go: improve module version query documentation
+    
+    Add "upgrade" and "patch" to 'go help modules' section 'Module queries'.
+    Also explicitly call out the fact that @v2 will select the latest
+    version starting with v2, not the branch named v2, since this is a
+    common source of confusion.
+    
+    Fixes #33010
+    
+    Change-Id: I2fe27543b81a160fb6f6b8e8444a7a35f3661433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185979
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 34 +++++++++++++++++++++++++++-------
+ src/cmd/go/internal/modget/get.go   |  9 ++++++++-
+ src/cmd/go/internal/modload/help.go | 25 +++++++++++++++++++------
+ 3 files changed, 54 insertions(+), 14 deletions(-)

@@ -1,0 +1,12 @@
+commit 6ff8c1db0bb8f0d149acf0187984f29326c10d56
+Author: Julie Qiu <julie@golang.org>
+Date:   Wed Dec 5 16:36:18 2018 -0500
+
+    doc/go1.12: release notes for lib/time
+    
+    Change-Id: Ic435090bda64d1061f2c3aac0aa94ed7a4800b0b
+    Reviewed-on: https://go-review.googlesource.com/c/152743
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

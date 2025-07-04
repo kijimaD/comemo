@@ -1,0 +1,16 @@
+commit cda0aa16807b20410e57992b09570f6a9dd11f9b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 10:36:49 2016 -0400
+
+    cmd/link: cleanup Datablk debug printing
+    
+    (Split out from CL 22205.)
+    
+    Change-Id: I45838dda8ea8c451b4388b8aade2c209cde2c0e1
+    Reviewed-on: https://go-review.googlesource.com/22299
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 69 +++++++++++++++-------------------------
+ 1 file changed, 26 insertions(+), 43 deletions(-)

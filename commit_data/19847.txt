@@ -1,0 +1,14 @@
+commit d703ac338e86cefc1219e47a4055e66fb392cc21
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 30 09:18:00 2014 -0700
+
+    runtime: fix freebsd build.  Assignment is int32* on 32 bit
+    machines and int64* on 64 bit machines.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/117330044
+
+ src/pkg/runtime/os_freebsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit cac334cc5f2e4a2b68ed044da934b68d803e25af
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 15:33:17 2017 -0500
+
+    net/mail: clarify doc comment
+    
+    Rewrite the text added in CL 50911, which I did not understand.
+    
+    Change-Id: Id6271ffe2f7c8833dd7733fe0254fa4927fac150
+    Reviewed-on: https://go-review.googlesource.com/78124
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 1b56947f844b34a9cb66ea449e668b863bac8e10
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 13 13:49:42 2010 -0700
+
+    netchan: allow client to send as well as receive.
+    much rewriting and improving, but it's still experimental.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/875045
+
+ src/pkg/netchan/common.go       |  62 +++++++++++------
+ src/pkg/netchan/export.go       | 147 ++++++++++++++++++++++++----------------
+ src/pkg/netchan/import.go       |  83 +++++++++++++++--------
+ src/pkg/netchan/netchan_test.go |  71 +++++++++++++++----
+ 4 files changed, 241 insertions(+), 122 deletions(-)

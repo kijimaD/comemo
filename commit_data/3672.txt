@@ -1,0 +1,12 @@
+commit 449086eec9493722aca96fb3dd84f9c1f67d0307
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 29 10:53:37 2009 -0700
+
+    Change Stat to Lstat in Readdir so we don't recur when someone symlinks "."
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018003
+
+ src/pkg/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

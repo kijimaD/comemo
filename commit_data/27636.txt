@@ -1,0 +1,12 @@
+commit b4c7f6280ed00316e410261adbc804f6ddd209cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 10:09:08 2016 -0700
+
+    doc/go1.7.html: add missing <code> and </a>
+    
+    Change-Id: I5f4bf89345dc139063dcf34da653e914386bcde6
+    Reviewed-on: https://go-review.googlesource.com/23735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

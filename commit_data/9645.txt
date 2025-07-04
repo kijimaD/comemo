@@ -1,0 +1,16 @@
+commit 3301e5a4f5b45be69b4d58af2f3995179e2a4131
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 9 17:38:29 2011 +1000
+
+    path/filepath: make UNC file names work
+    
+    Fixes #2201
+    
+    R=golang-dev, r, rsc, alex.brainman, robert.hencke, jp
+    CC=golang-dev
+    https://golang.org/cl/4950051
+
+ src/pkg/path/filepath/path.go         |  8 +++--
+ src/pkg/path/filepath/path_test.go    | 68 +++++++++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_windows.go | 35 ++++++++++++++++--
+ 3 files changed, 107 insertions(+), 4 deletions(-)

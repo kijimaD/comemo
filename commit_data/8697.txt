@@ -1,0 +1,15 @@
+commit 95b8137a16bc6fbc6c924485c6415a6dca2e69fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jun 12 12:09:50 2011 -0700
+
+    go spec: clarify rules for append, scope rules for :=
+    
+    Fixes #1936.
+    Fixes #1940.
+    
+    R=rsc, r, iant, ken, iant
+    CC=golang-dev
+    https://golang.org/cl/4585049
+
+ doc/go_spec.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

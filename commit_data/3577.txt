@@ -1,0 +1,14 @@
+commit 8037e3ba5e3c15f9e06d41e5784286f48474b6f3
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 16 12:02:14 2009 -0700
+
+    fix arm build, add 64 bit cgen_asop
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=35845
+    CL=35845
+
+ src/cmd/5g/ggen.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

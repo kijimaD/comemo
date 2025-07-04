@@ -1,0 +1,14 @@
+commit b15b0a0cd9e4e774e20ea1292c7076650aef0fb8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 27 11:41:43 2010 +1000
+
+    bytes: fix typo in AddByte comment
+    
+    Fixes #1140.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/2240043
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

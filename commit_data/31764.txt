@@ -1,0 +1,32 @@
+commit 78cf0e56ce5372ed3bf81e41e4ab23f68d3eaa77
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 7 21:01:48 2017 +0000
+
+    net: make Dial("tcp", ln.Addr().String()) work even with bad IPv6 config
+    
+    Some machines can be configured (or came/come configured) in such a
+    state that IPv6 only half works: you can bind on [::]:n but not
+    connect back to it.
+    
+    This implements a fallback such that it's guaranteed that this pattern
+    works:
+    
+       ln, err := Listen("tcp", ":0")
+       ...
+       addr := ln.Addr().String() // "[::]:n"
+       c, err := Dial("tcp", addr)
+    
+    ... which is also now tested. It will first try to dial "[::]:n", as
+    before, but if that dial fails, it will also try "0.0.0.0:n".
+    
+    Fixes #18806 (contains more details)
+    Fixes #20611 (I was going to fix nacl later, but it was easy enough)
+    
+    Change-Id: I1107eb197e902ae8185c781ad1bc4e2bc61d1f4c
+    Reviewed-on: https://go-review.googlesource.com/45088
+    Reviewed-by: Paul Marks <pmarks@google.com>
+
+ src/net/dial_test.go    | 18 ++++++++++++++++++
+ src/net/ipsock.go       |  7 +++++++
+ src/syscall/net_nacl.go | 13 +++++++++++++
+ 3 files changed, 38 insertions(+)

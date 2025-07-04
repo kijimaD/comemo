@@ -1,0 +1,23 @@
+commit e713d6f939c90eb599c1469d08bb5edd7de8a281
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 10 08:26:34 2023 -0700
+
+    cmd/compile: memcombine if values being stored are from consecutive loads
+    
+    If we load 2 values and then store those 2 loaded values, we can likely
+    perform that operation with a single wider load and store.
+    
+    Fixes #60709
+    
+    Change-Id: Ifc5f92c2f1b174c6ed82a69070f16cec6853c770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502295
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  30 ------
+ src/cmd/compile/internal/ssa/memcombine.go    |  70 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 129 --------------------------
+ test/codegen/memcombine.go                    |  22 +++++
+ 4 files changed, 92 insertions(+), 159 deletions(-)

@@ -1,0 +1,23 @@
+commit e08aae2ee443ba8bb16b8ce9c5d3d8d4d3cfa82b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 14 11:29:45 2021 -0800
+
+    cmd/compile/internal/types2: implement Checker.implements
+    
+    Checker.implements implements the complete interface
+    "implements" predicate. Use it instead of Checker.satisfies.
+    This is mostly a refactoring of the code but the constraint
+    types have already been instatiated with the respective type
+    arguments as needed before calling "implements".
+    Future CLs will address the various TODOs.
+    
+    Change-Id: If530cca36643a561282361348f1526157a7182de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363837
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go     | 121 +++++++++++----------
+ .../types2/testdata/fixedbugs/issue45920.go2       |   4 +-
+ 2 files changed, 67 insertions(+), 58 deletions(-)

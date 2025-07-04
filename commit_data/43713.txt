@@ -1,0 +1,18 @@
+commit db8142fb8631df3ee56983cbc13db997c16f2f6f
+Author: Vee Zhang <veezhang@126.com>
+Date:   Thu Nov 5 08:27:55 2020 +0000
+
+    runtime: fix file references in hiter's comments
+    
+    The file "cmd/internal/gc/range.go" does not exist, but should be
+    "cmd/compile/internal/gc/range.go".
+    
+    Change-Id: I26e5560b9d0b7eea8502c6b375e45fc87aed1276
+    GitHub-Last-Rev: 5f19dca7e9dab942a54257c5da05bce780744b19
+    GitHub-Pull-Request: golang/go#42391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/map.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

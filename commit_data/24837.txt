@@ -1,0 +1,16 @@
+commit 58bc561d1a94b789eabefba278fb6587b391f03b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 20:47:25 2015 -0800
+
+    runtime: fix vet warning about +build rule
+    
+    cgo_ppc64x.go:7: +build comment must appear before package clause and be followed by a blank line
+    
+    Change-Id: Ib6dedddae70cc75dc3f137eb37ea338a64f8b595
+    Reviewed-on: https://go-review.googlesource.com/16835
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo_ppc64x.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

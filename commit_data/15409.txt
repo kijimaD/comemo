@@ -1,0 +1,24 @@
+commit 7edd13355f1a407a95c7a084c201867501f48ec6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Feb 25 16:22:00 2013 +0000
+
+    net/rpc: avoid racy use of closing flag.
+    
+    It's accessed without mutex protection
+    in a different goroutine from the one that
+    sets it.
+    
+    Also make sure that Client.Call after Client.Close
+    will reliably return ErrShutdown, and that clients
+    see ErrShutdown rather than io.EOF when appropriate.
+    
+    Suggestions welcome for a way to reliably test
+    the mutex issue.
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/7338045
+
+ src/pkg/net/rpc/client.go      | 12 ++++++++----
+ src/pkg/net/rpc/server_test.go | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 4 deletions(-)

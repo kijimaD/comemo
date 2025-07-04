@@ -1,0 +1,18 @@
+commit 7d8bfdde453445affb50fcaeacc050938ec98467
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jan 29 20:53:35 2017 +0100
+
+    testing: stop timeout-timer after running tests
+    
+    Fixes #18845
+    
+    Change-Id: Icdc3e2067807781e42f2ffc94d1824aed94d3713
+    Reviewed-on: https://go-review.googlesource.com/35956
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                    |  7 +++++++
+ src/cmd/go/testdata/timeoutbench_test.go | 10 ++++++++++
+ src/testing/testing.go                   |  1 +
+ 3 files changed, 18 insertions(+)

@@ -1,0 +1,20 @@
+commit 77aea691762f46daeb56c2e1fe764fd3898fff6b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 7 16:31:36 2019 +0200
+
+    doc/gccgo: update gcc status, remove double spaces
+    
+    This change updates the status of gccgo 8 and gccgo 9, which are now
+    released.
+    
+    It also replaces every instance of two-spaces with one space in text
+    paragraphs, which is the preferred style in Go documentation.
+    
+    Fixes #34167
+    
+    Change-Id: I94a4d85c06281f2623d39a68db7b6c95b5867999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193842
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/gccgo_install.html | 98 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 51 insertions(+), 47 deletions(-)

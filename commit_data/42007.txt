@@ -1,0 +1,20 @@
+commit ed5233166fd75541d9d2464e1b165079ee948a53
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 10 21:33:27 2020 -0700
+
+    cmd/compile: simplify slicebytes
+    
+    Use slicesym to implement. Remove len param.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ia6d4fb2a3b476eceeba60979b4dd82b634b43939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228887
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go   | 11 ++++-------
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ 2 files changed, 5 insertions(+), 8 deletions(-)

@@ -1,0 +1,39 @@
+commit c59b495963851d971036eb88a77b5c81db3a0982
+Author: philhofer <phofer@umich.edu>
+Date:   Wed Aug 9 05:01:26 2017 +0000
+
+    cmd/compile: add support for arm64 bit-test instructions
+    
+    Add support for generating TBZ/TBNZ instructions.
+    
+    The bit-test-and-branch pattern shows up in a number of
+    important places, including the runtime (gc bitmaps).
+    
+    Before this change, there were 3 TB[N]?Z instructions in the Go tool,
+    all of which were in hand-written assembly. After this change, there
+    are 285. Also, the go1 benchmark binary gets about 4.5kB smaller.
+    
+    Fixes #21361
+    
+    Change-Id: I170c138b852754b9b8df149966ca5e62e6dfa771
+    Reviewed-on: https://go-review.googlesource.com/54470
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go          |  59 ++++++---
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   6 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  10 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  51 +++++---
+ src/cmd/compile/internal/ssa/opGen.go          |  32 ++---
+ src/cmd/compile/internal/ssa/rewrite.go        |   4 +
+ src/cmd/compile/internal/ssa/rewrite386.go     | 103 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 119 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  81 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 165 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  37 ++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  33 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  49 ++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  41 ++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +
+ 15 files changed, 743 insertions(+), 50 deletions(-)

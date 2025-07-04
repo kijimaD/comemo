@@ -1,0 +1,21 @@
+commit fcff7226f3aa4e92302a9475d23c254ff6dccedb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 12:04:46 2022 +0700
+
+    cmd/compile: use runtime hash func for known types
+    
+    Those functions are defined in package runtime already, so just use them
+    instead of creating ONAME nodes with nil Func.
+    
+    Change-Id: If29814a5254793c578c15b70f9c194b7414911d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436959
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/reflectdata/alg.go        |  20 +--
+ .../compile/internal/typecheck/_builtin/runtime.go |  14 +--
+ src/cmd/compile/internal/typecheck/builtin.go      | 137 +++++++++++----------
+ 3 files changed, 89 insertions(+), 82 deletions(-)

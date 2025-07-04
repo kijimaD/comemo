@@ -1,0 +1,15 @@
+commit fbaf59bf1ede6d8f42ab0d8e0f238582de5f9888
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 22 13:53:38 2012 -0400
+
+    cmd/gc: export constants in hexadecimal
+    
+    R=golang-dev, r, rsc, iant, remyoudompheng, dave
+    CC=golang-dev
+    https://golang.org/cl/6206077
+
+ src/cmd/gc/fmt.c                |   2 +
+ src/cmd/gc/lex.c                |   2 +
+ src/cmd/gc/mparith1.c           | 170 ++++++++++++++++++++++++++++++++--------
+ src/pkg/exp/types/gcimporter.go |   2 +-
+ 4 files changed, 142 insertions(+), 34 deletions(-)

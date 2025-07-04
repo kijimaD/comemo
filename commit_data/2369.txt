@@ -1,0 +1,20 @@
+commit 73c10dd96785c02d8e02f46ec79c1f3e9f1b34e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:22:12 2009 -0700
+
+    386 library updates
+    
+    R=r
+    DELTA=161  (153 added, 0 deleted, 8 changed)
+    OCL=29802
+    CL=29809
+
+ src/cmd/gotest/gotest                   | 12 +++--
+ src/lib/sync/asm_386.s                  | 23 +++++++++
+ src/lib/syscall/Makefile                |  8 ++--
+ src/lib/syscall/asm_darwin_386.s        | 83 +++++++++++++++++++++++++++++++++
+ src/lib/syscall/syscall_darwin_386.go   | 40 ++++++++++++++++
+ src/lib/syscall/syscall_darwin_amd64.go | 12 +++++
+ src/lib/syscall/types_darwin_386.c      |  5 ++
+ src/runtime/mgc0.c                      |  2 +-
+ 8 files changed, 177 insertions(+), 8 deletions(-)

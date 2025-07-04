@@ -1,0 +1,14 @@
+commit 849e6f99b85eca65e6b6c9bd96aa568b4a4905f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 14:45:10 2009 -0800
+
+    http: do not crash accessing r.Form if ParseForm fails
+    
+    Fixes #233.
+    
+    R=dsymonds1
+    https://golang.org/cl/154179
+
+ src/pkg/http/request.go      | 10 ++++------
+ src/pkg/http/request_test.go |  3 ++-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

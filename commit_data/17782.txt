@@ -1,0 +1,12 @@
+commit db3374e24de5844dad9c52620058259a95cc7481
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 08:55:13 2013 -0700
+
+    doc/progs: don't try building cgo tests if CGO_ENABLED=0
+    
+    R=golang-dev, jsing, r
+    CC=golang-dev
+    https://golang.org/cl/14523056
+
+ doc/progs/run | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,18 @@
+commit 8e4e11506b639acdf7d0b69ebd2eaf07c44b21dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 20:10:09 2011 -0800
+
+    go/parser: if and switch statements still can have empty init statements
+    
+    This is a fix for the overly aggressive CL 4173075.
+    Ran all tests.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4203041
+
+ src/pkg/go/parser/parser.go                   | 17 +++++++++-----
+ src/pkg/go/parser/parser_test.go              | 34 +++++++++++++++------------
+ src/pkg/go/printer/testdata/statements.golden | 12 ++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 16 +++++++++----
+ 4 files changed, 53 insertions(+), 26 deletions(-)

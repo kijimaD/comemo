@@ -1,0 +1,25 @@
+commit e3c2e4cb7dc006d4282e6d5c85222006d380d701
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 16 13:36:28 2022 -0700
+
+    net/http: make Request.WithContext documentation less prescriptive
+    
+    WithContext makes a shallow copy of a Request, and Clone makes a
+    deep copy. Both set the context of the new request. The distinction
+    between the two is clear, and it doesn't seem useful or necessary
+    to say that "it's rare to need WithContext".
+    
+    Also update a couple locations that mention WithContext to mention
+    Clone as well.
+    
+    Fixes #53413.
+    
+    Change-Id: I89e6ddebd7d5ca6573e522fe48cd7f50cc645cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412778
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/request.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

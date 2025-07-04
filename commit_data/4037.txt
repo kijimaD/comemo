@@ -1,0 +1,12 @@
+commit 1eef6b0dd4dfc03ac32bed25077793a1e3bb5d78
+Author: David Titarenco <david.titarenco@gmail.com>
+Date:   Fri Nov 13 18:06:27 2009 -0800
+
+    Added self to AUTHORS and CONTRIBUTORS prior to first submission.
+    
+    R=rsc
+    https://golang.org/cl/153057
+
+ AUTHORS      | 3 +++
+ CONTRIBUTORS | 1 +
+ 2 files changed, 4 insertions(+)

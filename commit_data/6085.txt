@@ -1,0 +1,13 @@
+commit 0c65748e6db7f9f2bf39c18e08e5add733a4ac95
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 25 12:34:30 2010 -0400
+
+    A+C: Martin Neubauer
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1999044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

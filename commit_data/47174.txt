@@ -1,0 +1,22 @@
+commit f2ff1c6074b1591c231f8f6b3394f9700cac7fad
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 31 00:20:13 2021 +0700
+
+    cmd/compile: fix rewriting slice literal call argument
+    
+    When seeing Key:Value expression in slice literal, the compiler only
+    needs to emit tmp var for the Value, not the whole expression.
+    
+    Fixes #49240
+    
+    Change-Id: I7bda3c796a93c0fa1974f7c5930f38025dfa665c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360055
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/call.go |  6 +++++-
+ test/fixedbugs/issue49240.go            | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 50fed64dd90ca6a58cfe8fa7c1061aa8666cc76f
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Fri Nov 4 09:31:35 2016 +0200
+
+    go/doc: don't panic if method is missing recv type
+    
+    Fixes #17788
+    
+    Change-Id: I2f8a11321dc8f10bebbc8df90ba00ec65b9ee0fa
+    Reviewed-on: https://go-review.googlesource.com/32790
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/doc/reader.go                    | 5 +++++
+ src/go/doc/testdata/issue17788.0.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.1.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.2.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.go       | 8 ++++++++
+ 5 files changed, 37 insertions(+)

@@ -1,0 +1,10 @@
+commit add9c8cc18b1123f8aebfda987df25c1d4193754
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 3 15:16:17 2008 -0700
+
+    fix typo in file name
+    
+    SVN=125964
+
+ test/{simasign.go => simassign.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,12 @@
+commit 0d3cd51c9c0eeec13aa0c2eb139659ebc7d09008
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Wed Mar 22 20:26:33 2017 +0100
+
+    bytes: fix typo in comment
+    
+    Change-Id: Ia739337dc9961422982912cc6a669022559fb991
+    Reviewed-on: https://go-review.googlesource.com/38365
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

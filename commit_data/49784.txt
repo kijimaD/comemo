@@ -1,0 +1,75 @@
+commit 0f8dffd0aa71ed996d32e77701ac5ec0bc7cde01
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat May 8 00:45:06 2021 +0700
+
+    all: use ":" for compiler generated symbols
+    
+    As it can't appear in user package paths.
+    
+    There is a hack for handling "go:buildid" and "type:*" on windows/386.
+    
+    Previously, windows/386 requires underscore prefix on external symbols,
+    but that's only applied for SHOSTOBJ/SUNDEFEXT or cgo export symbols.
+    "go.buildid" is STEXT, "type.*" is STYPE, thus they are not prefixed
+    with underscore.
+    
+    In external linking mode, the external linker can't resolve them as
+    external symbols. But we are lucky that they have "." in their name,
+    so the external linker see them as Forwarder RVA exports. See:
+    
+     - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+     - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
+    
+    This CL changes "." to ":" in symbols name, so theses symbols can not be
+    found by external linker anymore. So a hacky way is adding the
+    underscore prefix for these 2 symbols. I don't have enough knowledge to
+    verify whether adding the underscore for all STEXT/STYPE symbols are
+    fine, even if it could be, that would be done in future CL.
+    
+    Fixes #37762
+    
+    Change-Id: I92eaaf24c0820926a36e0530fdb07b07af1fcc35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317917
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go              |  4 +-
+ src/cmd/compile/internal/base/link.go           | 19 +++++-
+ src/cmd/compile/internal/dwarfgen/dwarf.go      |  2 +-
+ src/cmd/compile/internal/gc/main.go             |  4 +-
+ src/cmd/compile/internal/gc/obj.go              |  2 +-
+ src/cmd/compile/internal/ir/expr.go             |  1 -
+ src/cmd/compile/internal/noder/import.go        | 12 +---
+ src/cmd/compile/internal/ppc64/ssa.go           |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 22 +++----
+ src/cmd/compile/internal/staticdata/data.go     |  2 +-
+ src/cmd/internal/dwarf/dwarf.go                 |  6 +-
+ src/cmd/internal/goobj/builtinlist.go           | 72 ++++++++++-----------
+ src/cmd/internal/goobj/mkbuiltin.go             |  6 +-
+ src/cmd/internal/obj/objfile.go                 | 14 ++---
+ src/cmd/link/internal/ld/data.go                |  8 +--
+ src/cmd/link/internal/ld/deadcode.go            |  4 +-
+ src/cmd/link/internal/ld/deadcode_test.go       |  2 +-
+ src/cmd/link/internal/ld/dwarf.go               | 84 ++++++++++++-------------
+ src/cmd/link/internal/ld/elf.go                 |  2 +-
+ src/cmd/link/internal/ld/go.go                  |  2 +-
+ src/cmd/link/internal/ld/ld.go                  |  4 +-
+ src/cmd/link/internal/ld/lib.go                 | 20 +++---
+ src/cmd/link/internal/ld/macho.go               |  8 +--
+ src/cmd/link/internal/ld/pcln.go                |  8 +--
+ src/cmd/link/internal/ld/pe.go                  | 22 ++++++-
+ src/cmd/link/internal/ld/symtab.go              | 64 +++++++++----------
+ src/cmd/link/internal/ld/xcoff.go               | 10 +--
+ src/cmd/link/internal/loader/loader.go          | 12 ++--
+ src/cmd/link/internal/loader/loader_test.go     | 10 +--
+ src/cmd/link/internal/wasm/asm.go               |  4 +-
+ src/crypto/tls/link_test.go                     |  4 +-
+ src/debug/gosym/pclntab.go                      | 12 +++-
+ src/debug/gosym/symtab.go                       | 16 ++++-
+ src/debug/gosym/symtab_test.go                  | 28 ++++++---
+ src/runtime/symtab.go                           |  4 +-
+ test/codegen/strings.go                         |  2 +-
+ test/fixedbugs/issue29312.go                    | 16 ++---
+ 37 files changed, 283 insertions(+), 231 deletions(-)

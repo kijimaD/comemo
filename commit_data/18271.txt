@@ -1,0 +1,22 @@
+commit 055b588e554ecf6bbf3aff3cdb5e663417ed4df4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 16 14:08:32 2014 -0800
+
+    syscall: add Flock_t on Linux
+    
+    Matches Darwin and the BSDs. This means leveldb-go, kv,
+    Camlistore, etc can stop defining these structs on Linux by
+    hand.
+    
+    Update #7059
+    
+    R=golang-codereviews, dave, iant
+    CC=golang-codereviews
+    https://golang.org/cl/53350043
+
+ src/pkg/syscall/consistency_unix_test.go | 10 ++++++++++
+ src/pkg/syscall/types_linux.go           |  2 ++
+ src/pkg/syscall/ztypes_linux_386.go      |  8 ++++++++
+ src/pkg/syscall/ztypes_linux_amd64.go    | 10 ++++++++++
+ src/pkg/syscall/ztypes_linux_arm.go      |  8 ++++++++
+ 5 files changed, 38 insertions(+)

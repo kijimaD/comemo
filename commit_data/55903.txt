@@ -1,0 +1,26 @@
+commit edbb5a13b4d89adcfdce3704615e2d33b5991794
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 11 13:53:40 2024 -0400
+
+    cmd/go: provide a better error message when there's no go directive
+    
+    On Go 1.21+ it's an error for a workspace to contain a module with a
+    version newer than the workspace's stated go version. If the workspace
+    doesn't explicitly have a go version it's explicitly 1.18. So if a
+    workspace without a go directive contains a module whose go directive
+    is newer on it's always an error for 1.21+. In the error, before this
+    CL the error would read "module <path> listed in go.work requires go
+    >= <version>, but go.work lists go 1.18". After this change the second
+    clause would read "but go.work implicitly requires go 1.18.
+    
+    Fixes #66207
+    
+    Change-Id: I44680880162a82e5cee9cfc8655d6774add6f762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570735
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/init.go                    | 10 ++++++++--
+ .../testdata/script/work_implicit_go_requirement.txt   | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

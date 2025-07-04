@@ -1,0 +1,25 @@
+commit 0aee59736f53ca1ef29d53163f26c2fc21a4c415
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 2 12:00:36 2022 -0700
+
+    crypto/x509: fix EKU nesting enforcement
+    
+    The path building rework broke the enforcement of EKU nesting, this
+    change goes back to using the old method of enforcement, since it ends
+    up being more efficient to check the chains after building, rather than
+    at each step during path building.
+    
+    Fixes #52659
+    
+    Change-Id: Ic7c3717a10c33905677cf7bc4bc0a20f5f15f259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403554
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/name_constraints_test.go | 195 +++++++++++++------------
+ src/crypto/x509/verify.go                |  57 ++++----
+ src/crypto/x509/verify_test.go           | 240 +++++++++++++++++++++++++++++++
+ 3 files changed, 373 insertions(+), 119 deletions(-)

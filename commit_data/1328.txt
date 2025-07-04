@@ -1,0 +1,15 @@
+commit 9ba97ca308f5c00b3a9dd69028f5f0c263bb74ed
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 11 14:41:12 2008 -0800
+
+    add uintptr to reflect and print
+    
+    R=rsc
+    DELTA=70  (35 added, 4 deleted, 31 changed)
+    OCL=20993
+    CL=20998
+
+ src/lib/fmt/print.go     |  9 +++--
+ src/lib/reflect/type.go  |  4 +++
+ src/lib/reflect/value.go | 88 ++++++++++++++++++++++++++++++------------------
+ 3 files changed, 66 insertions(+), 35 deletions(-)

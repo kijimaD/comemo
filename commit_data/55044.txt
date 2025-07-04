@@ -1,0 +1,20 @@
+commit d67ac9389517aa15e0f6355aec13cc4a8773984b
+Author: go101 <tapir.liu@gmail.com>
+Date:   Wed Nov 15 17:55:46 2023 +0000
+
+    slices: optimize Delete
+    
+    Makes Delete return early if no elements need to be deleted.
+    
+    Change-Id: Id64f716b1529e9dd5972c920a54823dba75aafe9
+    GitHub-Last-Rev: 885c1afb5dcc76423791508e21ab84c67820efb2
+    GitHub-Pull-Request: golang/go#63411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533276
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/slices/slices.go      | 6 +++++-
+ src/slices/slices_test.go | 2 ++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

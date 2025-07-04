@@ -1,0 +1,19 @@
+commit ef49b4ca78863766c86611de9b87ea14f56d8a3f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 9 01:49:28 2015 +1000
+
+    cmd/internal/obj/arm64, cmd/asm/internal/asm: support CSEL instruction on arm64
+    
+    Add support for arm64 four operand conditional instructions.
+    
+    Superceedes CL 8405.
+    
+    Change-Id: I12da8f4822938feec400bbcc426eeaf884536135
+    Reviewed-on: https://go-review.googlesource.com/8638
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/cmd/asm/internal/asm/asm.go             |  7 +++++++
+ src/cmd/asm/internal/asm/testdata/arm64.out | 25 +++++++++++++++----------
+ src/cmd/asm/internal/asm/testdata/arm64.s   |  9 ++++++---
+ src/cmd/internal/obj/arm64/asm7.go          |  2 +-
+ 4 files changed, 29 insertions(+), 14 deletions(-)

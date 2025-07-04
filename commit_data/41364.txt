@@ -1,0 +1,29 @@
+commit d532d5f0fade2630612a5bdb0ac3f95824266ad5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 11 18:26:38 2020 -0500
+
+    cmd/link: also apply R_ADDR relocation statically when internal linking PIE
+    
+    When internal linking PIE, R_ADDR relocations cannot be resolved
+    statically so we generate dynamic relocations for it. We don't
+    apply the relocations statically, so the bytes in the file are
+    left unset (likely zero). This makes some tool that examines the
+    file statically, e.g. go version, to fail to find the referenced
+    addresses.
+    
+    This CL makes the linker also apply the relocations to the file
+    content, so it holds the correct offsets and so can be examined
+    statically.
+    
+    Fixes #37173.
+    
+    Change-Id: Ia5c6b661f1a91a232843ca4224264bfd7a5509eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219199
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/version.txt | 13 ++++++++++++-
+ src/cmd/link/internal/amd64/asm.go     |  5 ++++-
+ src/cmd/link/internal/arm64/asm.go     |  5 ++++-
+ 3 files changed, 20 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 9a70762ac95fc6e6cba5f96e9363c7ea6bee5c62
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 3 17:03:22 2010 -0700
+
+    fmt.Scan: %c
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1518042
+
+ src/pkg/fmt/scan.go      | 17 ++++++++++++++++-
+ src/pkg/fmt/scan_test.go | 11 +++++++----
+ 2 files changed, 23 insertions(+), 5 deletions(-)

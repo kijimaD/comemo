@@ -1,0 +1,32 @@
+commit f5921d48f1f98a4803b1b9c112cab501bfb1713b
+Author: Kamil Rytarowski <krytarowski@users.noreply.github.com>
+Date:   Sat Jun 30 23:29:41 2018 +0000
+
+    runtime/cgo: Add initial NetBSD Thread Sanitizer support
+    
+    Recognize NetBSD in:
+     - go/internal/work/init.go
+     - race.bash
+     - runtime/race/race.go
+    
+    Add __ps_strings symbol in runtime/cgo/netbsd.go as this is
+    used internally in the TSan library for NetBSD and used for
+    ReExec().
+    
+    Tested on NetBSD/amd64 v. 8.99.12.
+    
+    Around 98% tests are passing for the ./race.bash target.
+    
+    Updates #19273
+    
+    Change-Id: Ic0e48d2fb159a7868aab5e17156eeaca1225e513
+    GitHub-Last-Rev: d6e082707b9b18df1fe63f723666f4d2eb5e6cfe
+    GitHub-Pull-Request: golang/go#24322
+    Reviewed-on: https://go-review.googlesource.com/99835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/init.go | 4 ++--
+ src/race.bash                    | 7 ++++++-
+ src/runtime/cgo/netbsd.go        | 2 ++
+ src/runtime/race/race.go         | 2 +-
+ 4 files changed, 11 insertions(+), 4 deletions(-)

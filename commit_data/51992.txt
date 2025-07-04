@@ -1,0 +1,28 @@
+commit 1e9925f461c54f5fdc100f9f23916b3df81262ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 13:52:37 2023 -0800
+
+    slices: new package
+    
+    This copies parts of x/exp/slices into the standard library.
+    We omit all functions that depend on constraints.Ordered,
+    and the Func variants of all such functions. In particular this
+    omits the various Sort and Search functions.
+    
+    Fixes #57433
+    
+    Change-Id: I3c28f4c2e6bd1e3c9ad70e120a0dd68065388f77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/57433.txt        |  14 ++
+ src/go/build/deps_test.go |   2 +-
+ src/go/doc/comment/std.go |   1 +
+ src/slices/slices.go      | 196 +++++++++++++++
+ src/slices/slices_test.go | 604 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 816 insertions(+), 1 deletion(-)

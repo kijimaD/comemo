@@ -1,0 +1,12 @@
+commit 44b0f591e7b72cfd6a00901c494b4d05ef1065fa
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 17:05:45 2009 -0700
+
+    check in the generated html for the tutorial so godoc can serve it
+    
+    DELTA=1444  (1444 added, 0 deleted, 0 changed)
+    OCL=34760
+    CL=34762
+
+ doc/go_tutorial.html | 1358 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1358 insertions(+)

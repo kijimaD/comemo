@@ -1,0 +1,42 @@
+commit bb4a817a923f9a0ea59bbaec84e11b924e568442
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu May 31 15:37:18 2012 +1000
+
+    exp/html/atom: new package.
+    
+    50% fewer mallocs in HTML tokenization, resulting in 25% fewer mallocs
+    in parsing go1.html.
+    
+    Making the parser use integer comparisons instead of string comparisons
+    will be a follow-up CL, to be co-ordinated with Andy Balholm's work.
+    
+    exp/html benchmarks before/after:
+    
+    BenchmarkParser      500           4754294 ns/op          16.44 MB/s
+            parse_test.go:409: 500 iterations, 14651 mallocs per iteration
+    BenchmarkRawLevelTokenizer          2000            903481 ns/op          86.51 MB/s
+            token_test.go:678: 2000 iterations, 28 mallocs per iteration
+    BenchmarkLowLevelTokenizer          2000           1260485 ns/op          62.01 MB/s
+            token_test.go:678: 2000 iterations, 41 mallocs per iteration
+    BenchmarkHighLevelTokenizer         1000           2165964 ns/op          36.09 MB/s
+            token_test.go:678: 1000 iterations, 6616 mallocs per iteration
+    
+    BenchmarkParser      500           4664912 ns/op          16.76 MB/s
+            parse_test.go:409: 500 iterations, 11266 mallocs per iteration
+    BenchmarkRawLevelTokenizer          2000            903065 ns/op          86.55 MB/s
+            token_test.go:678: 2000 iterations, 28 mallocs per iteration
+    BenchmarkLowLevelTokenizer          2000           1260032 ns/op          62.03 MB/s
+            token_test.go:678: 2000 iterations, 41 mallocs per iteration
+    BenchmarkHighLevelTokenizer         1000           2143356 ns/op          36.47 MB/s
+            token_test.go:678: 1000 iterations, 3231 mallocs per iteration
+    
+    R=r, rsc, rogpeppe
+    CC=andybalholm, golang-dev
+    https://golang.org/cl/6255062
+
+ src/pkg/exp/html/atom/atom.go      |  88 ++++++
+ src/pkg/exp/html/atom/atom_test.go |  52 +++
+ src/pkg/exp/html/atom/gen.go       | 405 ++++++++++++++++++++++++
+ src/pkg/exp/html/atom/table.go     | 629 +++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/html/token.go          |   7 +-
+ 5 files changed, 1178 insertions(+), 3 deletions(-)

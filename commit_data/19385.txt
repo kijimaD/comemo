@@ -1,0 +1,18 @@
+commit 4c8de36e2bb01af620cc2b32d2dba806e9f07f9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 16 15:39:59 2014 -0700
+
+    net/http: allow Content-Type on 204 responses
+    
+    Accidental change from fixing Content-Length on 204s
+    in http://golang.org/issue/6685 earlier.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/92400047
+
+ src/pkg/net/http/serve_test.go | 15 +++++++++++++++
+ src/pkg/net/http/server.go     | 12 +++++-------
+ src/pkg/net/http/transfer.go   | 16 ++++++++++++++++
+ 3 files changed, 36 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 190a540892f78449e39633a659e954f5ff4e50dd
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 21 19:52:13 2009 -0700
+
+    2 minor bugs.
+    lv context for some [] operations
+    calling implicit(*map) before walk.
+    
+    R=r
+    OCL=27706
+    CL=27706
+
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

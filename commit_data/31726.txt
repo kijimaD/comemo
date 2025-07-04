@@ -1,0 +1,16 @@
+commit 84530b4fe262757cb6f788626d3e44fc1016b5e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 00:04:12 2017 +0000
+
+    doc: start of go1.9.html release notes
+    
+    Many TODOs remain.
+    
+    Updates #20587
+    
+    Change-Id: If49854ae4d36346d9e072a386f413cc85c66b62a
+    Reviewed-on: https://go-review.googlesource.com/45012
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 571 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 571 insertions(+)

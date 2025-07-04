@@ -1,0 +1,34 @@
+commit 9dce58d30d1005e0cbac40789429cd3543d80836
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 17 11:23:53 2019 -0700
+
+    runtime/internal/atomic: remove bad go:noescape annotations on Loadp
+    
+    The //go:noescape directive says that arguments don't leak at all,
+    which is too aggressive of a claim for functions that return pointers
+    derived from their parameters.
+    
+    Remove the directive for now. Long term fix will require a new
+    directive that allows more fine-grained control over escape analysis
+    information supplied for functions implemented in assembly.
+    
+    Also, update the BAD comments in the test cases for Loadp: we really
+    want that *ptr leaks to the result parameter, not that *ptr leaks to
+    the heap.
+    
+    Updates #31525.
+    
+    Change-Id: Ibfa61f2b70daa7ed3223056b57eeee777eef2e31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172578
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/atomic/atomic_arm.go     | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.go   | 2 +-
+ src/runtime/internal/atomic/atomic_mips64x.go | 2 +-
+ src/runtime/internal/atomic/atomic_mipsx.go   | 2 +-
+ src/runtime/internal/atomic/atomic_ppc64x.go  | 2 +-
+ test/escape_runtime_atomic.go                 | 4 ++--
+ test/escape_sync_atomic.go                    | 4 ++--
+ 7 files changed, 9 insertions(+), 9 deletions(-)

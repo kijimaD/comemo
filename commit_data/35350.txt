@@ -1,0 +1,26 @@
+commit 3e297120fdf306507496e1dd650fd86ebb9aeb36
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Mar 29 19:52:31 2018 +0300
+
+    cmd/go: fix the rebuilding stale packages test
+    
+    Non-main packages do not depend on the "runtime" package,
+    but main packages still do. Use a main package in the test.
+    
+    This change passes the -i flag to the install command
+    to allow installation of updated dependencies,
+    and removes "install std" as unnecessary.
+    
+    https://golang.org/cl/107957 is relevant to fixed test.
+    
+    Updates #24436
+    
+    Change-Id: If1845f37581a16ad77e72e50be21010e198bc7c5
+    Reviewed-on: https://go-review.googlesource.com/103675
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

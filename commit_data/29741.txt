@@ -1,0 +1,19 @@
+commit a303f05f863af89641cf9ba815f418e5bc3ec9dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 5 11:23:38 2016 -0800
+
+    misc/cgo/test: skip Test18146 on DragonFly
+    
+    Fails on builder for unknown reasons.
+    
+    Fixes #18198.
+    Update #18146.
+    
+    Change-Id: Iaa85826655eee57d86e0c73d06c930ef3f4647ec
+    Reviewed-on: https://go-review.googlesource.com/33906
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue18146.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

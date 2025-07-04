@@ -1,0 +1,12 @@
+commit 556ae65d3698111901127682e9685e1ec27a8147
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 23 17:34:13 2010 -0700
+
+    fix build - unused import
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/711041
+
+ src/pkg/go/printer/printer.go | 1 -
+ 1 file changed, 1 deletion(-)

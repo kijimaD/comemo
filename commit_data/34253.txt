@@ -1,0 +1,16 @@
+commit a95c5f04f342f151fbcad8c9ccb6cab454cf08d5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 19 19:18:25 2018 +0000
+
+    html/template: remove unused func
+    
+    Noticed while reading some code.
+    
+    Change-Id: I63f8c7a453d4895583a8ffc13bec57385b6944aa
+    Reviewed-on: https://go-review.googlesource.com/95195
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/html/template/escape.go | 10 ----------
+ 1 file changed, 10 deletions(-)

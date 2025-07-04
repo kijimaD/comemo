@@ -1,0 +1,14 @@
+commit ab7a8d43a491ba5ad97b35fe670526371a71f7eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 18 13:33:28 2009 -0700
+
+    make pkg/runtime/Makefile behave like the others:
+    make builds; make install installs.
+    
+    R=r
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=30489
+    CL=30491
+
+ src/pkg/runtime/Makefile | 2 ++
+ 1 file changed, 2 insertions(+)

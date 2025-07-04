@@ -1,0 +1,24 @@
+commit c51f6c62576ab3088a981b9cef90e413ac99e333
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 18 15:14:54 2024 -0700
+
+    go/types, types2: track gotypesalias non-default behavior
+    
+    Fixes #66216.
+    
+    Change-Id: I2750a744d0dcf636a00d388299e1f2f993e5ac26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check.go      |  6 ++++++
+ src/cmd/compile/internal/types2/check_test.go |  2 +-
+ src/cmd/compile/internal/types2/decl.go       | 16 ++++++++++++++++
+ src/go/types/check.go                         |  8 +++++++-
+ src/go/types/check_test.go                    |  2 +-
+ src/go/types/decl.go                          |  4 ++++
+ src/internal/godebugs/table.go                |  2 +-
+ src/runtime/metrics/doc.go                    |  4 ++++
+ 8 files changed, 40 insertions(+), 4 deletions(-)

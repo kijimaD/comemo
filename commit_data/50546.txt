@@ -1,0 +1,42 @@
+commit d31f85009cb81604c23e3e471fc4f7d62b9089ff
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 8 14:31:42 2022 -0700
+
+    cmd/compile: skip emitting dictionaries with missing method expressions
+    
+    The nounified frontend currently tries to construct dictionaries that
+    correspond to invalid instantiations (i.e., instantiations T[X] where
+    X does not satisfy the constraints specified on T's type parameter).
+    As a consequence, we may fail to find method expressions needed by the
+    dictionary.
+    
+    The real fix for this is to avoid creating those dictionaries in the
+    first place, because they should never actually be needed at runtime.
+    But that seems scary for a backport: we've repeatedly attempted to
+    backport generics fixes, which have fixed one issue but introduced
+    another.
+    
+    This CL is a minimally invasive solution to #54225, which avoids the
+    ICE by instead skipping emitting the invalid dictionary. If the
+    dictionary ends up not being needed (which I believe will always be
+    the case), then the linker's reachability analysis will simply ignore
+    its absence.
+    
+    Or worst case, if the dictionary *is* reachable somehow, we've simply
+    turned an ICE into a link-time missing symbol failure. That's not
+    great for user experience, but it seems like a small trade off to
+    avoid risking breaking any other currently working code.
+    
+    Updates #54225.
+    
+    Change-Id: Ic379696079f4729b1dd6a66994a58cca50281a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429655
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 26 +++++++++++++++++++++++-
+ test/typeparam/issue54225.go              | 33 +++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

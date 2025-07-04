@@ -1,0 +1,14 @@
+commit 1b3083e68d2c9b93fe6ecaa1758dbf5e214e6784
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 9 14:46:55 2013 -0500
+
+    spec: clarify that f(g()) requires that g return >= 1 value
+    
+    Fixes #4573.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7322043
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

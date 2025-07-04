@@ -1,0 +1,14 @@
+commit 3f1cff395136be93ccd5f4ced34644b9dd6840c1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:37:50 2012 +1100
+
+    testing/quick: documentation tweaks
+    
+    Fixes #2960.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5652055
+
+ src/pkg/testing/quick/quick.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 845878a213e1db930e17a5c3108b215be5edbb20
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 30 13:50:19 2015 -0400
+
+    net/http: do not listen on public network during HTTP/2 test
+    
+    Avoids Mac firewall box.
+    
+    Change-Id: I000e421fa9639612d636b6fa4baf905459c5aeb2
+    Reviewed-on: https://go-review.googlesource.com/16514
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

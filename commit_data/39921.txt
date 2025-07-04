@@ -1,0 +1,22 @@
+commit c3c53661ba8823ea7a051110aebbdea2650c25d0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 8 04:11:07 2019 +1000
+
+    cmd/asm,cmd/internal/obj/riscv: implement integer computational instructions
+    
+    Add support for assembling integer computational instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: Ibf02649eebd65ce96002a9ca0624266d96def2cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195079
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/asm.go              |   4 +-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  68 +++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 209 ++++++++++++++++++++++++++-
+ 3 files changed, 278 insertions(+), 3 deletions(-)

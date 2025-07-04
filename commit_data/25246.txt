@@ -1,0 +1,12 @@
+commit 24a7955c74e5617492c256bfad03904d6f169b10
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 14 12:16:13 2015 +0900
+
+    net: fix typo
+    
+    Change-Id: I064a7e21bdc55d7f72147bcf6cfb91b96dbb77bb
+    Reviewed-on: https://go-review.googlesource.com/17795
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/interface_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

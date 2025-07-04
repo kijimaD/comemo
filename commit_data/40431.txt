@@ -1,0 +1,22 @@
+commit d1969015b4ac29be4f518b94817d3f525380639d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 4 18:54:00 2019 -0400
+
+    runtime: abstract M preemption check into a function
+    
+    We check whether an M is preemptible in a surprising number of places.
+    Put it in one function.
+    
+    For #10958, #24543.
+    
+    Change-Id: I305090fdb1ea7f7a55ffe25851c1e35012d0d06c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201439
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mgcwork.go | 10 +++++-----
+ src/runtime/preempt.go |  9 +++++++++
+ src/runtime/proc.go    |  2 +-
+ src/runtime/stack.go   |  2 +-
+ 4 files changed, 16 insertions(+), 7 deletions(-)

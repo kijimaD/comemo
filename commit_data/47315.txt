@@ -1,0 +1,21 @@
+commit b07c41d2c1c8d5729250a13b7c560c150c1d9011
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 16:46:44 2021 +0100
+
+    net/netip: add IPv4Unspecified
+    
+    There is IPv6Unspecified but there is not IPv4Unspecified, making for
+    inconsistent code. This commit adds the missing function.
+    
+    Updates #49298.
+    
+    Change-Id: Id2519b646323642f59fb1cc6ea8e335fdde16290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361056
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/netip.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

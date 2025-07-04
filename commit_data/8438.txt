@@ -1,0 +1,20 @@
+commit 1d550bdedf4fe73de48a1d77897f651a1bf5b9f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 16:33:41 2011 -0700
+
+    syscall: add netlink support for linux/386, linux/amd64, linux/arm
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4535078
+
+ src/pkg/syscall/mkerrors.sh            |  12 +-
+ src/pkg/syscall/syscall_linux.go       |  27 +-
+ src/pkg/syscall/types_linux.c          |  58 +++-
+ src/pkg/syscall/zerrors_linux_386.go   | 126 ++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 126 ++++++++
+ src/pkg/syscall/zerrors_linux_arm.go   | 532 ++++++++++++++++++++++++++-------
+ src/pkg/syscall/ztypes_linux_386.go    | 102 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go  | 102 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go    | 240 ++++++++++-----
+ 9 files changed, 1140 insertions(+), 185 deletions(-)

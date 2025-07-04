@@ -1,0 +1,27 @@
+commit b546f5071604db359caab7ae62ed66af308c27f4
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Jul 19 11:04:33 2011 -0400
+
+    runtime: make goc2c build on Plan 9
+    
+    pkg/runtime/Makefile:
+    . Adjusted so "goc2c.c" is built using the Plan 9 libraries.
+    
+    pkg/runtime/goc2c.c:
+    . Added/subtracted #include headers to correspond to Plan 9
+      toolkit.
+    . Changed fprintf(stderr,...)/exit() combinations to
+      sysfatal() calls, adjusted the "%u" format to "%ud".
+    . Added exits(0) at the end of main().
+    . Made main() a void-returning function and removed the
+      "return 0" at the end of it.
+    
+    Tested on UBUNTU and Plan 9 only.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4626093
+
+ src/pkg/runtime/Makefile |  2 +-
+ src/pkg/runtime/goc2c.c  | 96 +++++++++++++++++++++++++-----------------------
+ 2 files changed, 51 insertions(+), 47 deletions(-)

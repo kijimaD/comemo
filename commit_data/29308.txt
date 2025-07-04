@@ -1,0 +1,16 @@
+commit e22b5efb36e5977590d760c98db9f3fabaea7202
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 29 18:37:49 2016 +1100
+
+    net: implement Buffers on windows
+    
+    Updates #13451
+    
+    Change-Id: I2c3c66d9532c16e616c476e2afe31b3ddc0a8d79
+    Reviewed-on: https://go-review.googlesource.com/32371
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_windows.go  | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/writev_test.go | 21 +++++++++++++----
+ 2 files changed, 78 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 5c37397a471c061fd92a7b9cc799a9c9e66dcd9d
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 12 11:28:18 2017 -0700
+
+    database/sql: correct level of write to same var for race detector
+    
+    Rather then write to the same variable per fakeConn, write to either
+    fakeConn or rowsCursor.
+    
+    Fixes #20646
+    
+    Change-Id: Ifc79f989bd1606b8e3ebecb1e7844cce3ad06e17
+    Reviewed-on: https://go-review.googlesource.com/45393
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go | 73 ++++++++++++++++++++++++++---------------
+ src/database/sql/sql_test.go    | 12 +++----
+ 2 files changed, 51 insertions(+), 34 deletions(-)

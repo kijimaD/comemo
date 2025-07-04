@@ -1,0 +1,17 @@
+commit 49db4ae40f84c91574004565cf65bd218a5203dd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 13:04:05 2020 -0800
+
+    cmd/compile: use ellipses in MIPS64 rules
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ib9f2dc75e3063928ebe4aeb63e69fd79e439585d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217008
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  150 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 1684 ++++---------------------
+ 2 files changed, 298 insertions(+), 1536 deletions(-)

@@ -1,0 +1,13 @@
+commit e781303e271cd2c062d7e834927210ad529e4d7d
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 23 13:00:02 2010 -0700
+
+    maps access to a missing key
+    will return the "zero" value
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/700041
+
+ src/pkg/runtime/hashmap.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 882cc4d596ef179afecb920138419e694654589a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 12 20:23:57 2023 -0700
+
+    slices: handle aliasing cases in Insert/Replace
+    
+    Handle cases where the inserted slice is actually part of the slice
+    that is being inserted into.
+    
+    Requires a bit more work, but no more allocations. (Compare to #494536.)
+    
+    Not entirely sure this is worth the complication.
+    
+    Fixes #60138
+    
+    Change-Id: Ia72c872b04309b99025e6ca5a4a326ebed2abb69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/go/build/deps_test.go |   6 +-
+ src/slices/slices.go      | 265 ++++++++++++++++++++++++++++++++++++++++++----
+ src/slices/slices_test.go |  71 +++++++++++++
+ 3 files changed, 320 insertions(+), 22 deletions(-)

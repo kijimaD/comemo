@@ -1,0 +1,21 @@
+commit 1ba4556a2c84f552f7c9697ad7323fd6cdbc6970
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun May 7 16:23:04 2017 +0200
+
+    bytes: clean-up of buffer.go
+    
+    Clean-up changes in no particular order:
+    - use uint8 instead of int for readOp
+    - remove duplicated code in ReadFrom()
+    - introduce (*Buffer).empty()
+    - remove naked returns
+    
+    Change-Id: Ie6e673c20c398f980f8be0448969a36ad4778804
+    Reviewed-on: https://go-review.googlesource.com/42816
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go | 68 ++++++++++++++++++-----------------------------------
+ 1 file changed, 23 insertions(+), 45 deletions(-)

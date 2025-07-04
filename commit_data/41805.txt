@@ -1,0 +1,29 @@
+commit 34314280e46da1558bc7f9cd7e8a9ed610cf417b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 27 14:33:54 2020 -0700
+
+    cmd/compile: fix constant conversion involving complex types
+    
+    In CL 187657, I refactored constant conversion logic without realizing
+    that conversions between int/float and complex types are allowed for
+    constants (assuming the constant values are representable by the
+    destination type), but are never allowed for non-constant expressions.
+    
+    This CL expands convertop to take an extra srcConstant parameter to
+    indicate whether the source expression is a constant; and if so, to
+    allow any numeric-to-numeric conversion. (Conversions of values that
+    cannot be represented in the destination type are rejected by
+    evconst.)
+    
+    Fixes #38117.
+    
+    Change-Id: Id7077d749a14c8fd910be38da170fa5254819f2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226197
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go      | 12 ++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue38117.go             | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 3 deletions(-)

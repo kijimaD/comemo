@@ -1,0 +1,16 @@
+commit 207a0b79336a470810b4ffcd72756240097cf93d
+Author: vovapi <evgrafov.vladimir@gmail.com>
+Date:   Tue Dec 10 10:34:34 2019 +0000
+
+    testing: use conventional comments for exported internal funcs & structs
+    
+    Change-Id: I2dd5ddc22bfff143b81d5945992d8c5fccf387f4
+    GitHub-Last-Rev: aa637756e772f5ee9094b802df3be9945c8466c4
+    GitHub-Pull-Request: golang/go#36054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210497
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/benchmark.go | 10 +++++-----
+ src/testing/example.go   |  4 ++--
+ src/testing/testing.go   |  8 ++++----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

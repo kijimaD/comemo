@@ -1,0 +1,21 @@
+commit df0a1297899aff1c46b66523e75aa12b0ff5049f
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 24 16:19:49 2023 +0000
+
+    Revert "net/http: use Copy in ServeContent if CopyN not needed"
+    
+    This reverts CL 446276.
+    
+    Reason for revert: Causing surprising performance regression.
+    
+    Fixes #61530
+    
+    Change-Id: Ic970f2e05d875b606ce274ea621f7e4c8c337481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512615
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/fs.go      |  9 ++-------
+ src/net/http/fs_test.go | 43 ++-----------------------------------------
+ 2 files changed, 4 insertions(+), 48 deletions(-)

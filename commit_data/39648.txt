@@ -1,0 +1,25 @@
+commit 483d6d99256b3c486e0c99106e232b4909938328
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 22:00:42 2019 +1000
+
+    archive/zip: remove unused special case
+    
+    This removes a special case that was added to fix issue #10956, but that
+    was never actually effective. The code in the test case still fails to
+    read, so perhaps the zip64 support added in CL 6463050 inadvertently
+    caught this particular case.
+    
+    It's possible that the original theorized bug still exists, but I'm not
+    convinced it was ever fixed.
+    
+    Update #28700
+    
+    Change-Id: I4854de616364510f64a6def30b308686563f8dbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179757
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader.go      |  4 ----
+ src/archive/zip/reader_test.go | 12 +++++++-----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

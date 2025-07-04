@@ -1,0 +1,14 @@
+commit 7ae9d06880c35432fc605bacc1c039858b61f439
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 16 21:32:48 2015 +1000
+
+    runtime/pprof: disable TestTraceStressStartStop
+    
+    Updates #10476
+    
+    Change-Id: Ic4414f669104905c6004835be5cf0fa873553ea6
+    Reviewed-on: https://go-review.googlesource.com/8962
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/trace_test.go | 1 +
+ 1 file changed, 1 insertion(+)

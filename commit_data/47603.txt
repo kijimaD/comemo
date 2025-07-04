@@ -1,0 +1,13 @@
+commit ce2a20af467c8dfa10874abc4b45af413e2b1954
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 20 13:17:27 2021 -0800
+
+    spec: adjust conversion rules for type parameters
+    
+    Change-Id: I7bfddf4be0d1d95419f312bb349ae2e16b74b795
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365915
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

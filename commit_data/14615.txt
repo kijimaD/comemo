@@ -1,0 +1,12 @@
+commit c3d881b3619f265571014a52dbb50abea515a96c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 13:36:55 2012 -0500
+
+    lib/codereview: suggest argument to hg mail / hg submit
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6924050
+
+ lib/codereview/codereview.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

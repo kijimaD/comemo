@@ -1,0 +1,19 @@
+commit ec4687f337465b719efdeef72b357fa0b05879bb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 26 15:31:20 2022 -0500
+
+    cmd/go: allow users to specify required fields in JSON output
+    
+    For #29666
+    
+    Change-Id: Ibae3d75bb2c19571c8d473cb47d6c4b3a880bba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381035
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                           |  5 +-
+ src/cmd/go/internal/list/list.go                | 98 ++++++++++++++++++++-----
+ src/cmd/go/testdata/script/list_json_fields.txt | 52 +++++++++++++
+ 3 files changed, 137 insertions(+), 18 deletions(-)

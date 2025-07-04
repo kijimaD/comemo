@@ -1,0 +1,16 @@
+commit a9a7e4060918fbb1df3bc53165ae6aca29b62b66
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 11 16:01:41 2015 +0000
+
+    doc: update go1.6.txt
+    
+    Mention shallow clones.
+    
+    Fixes #13204
+    
+    Change-Id: I0ed9d4e829d388425beba0d64e6889d16d4bb173
+    Reviewed-on: https://go-review.googlesource.com/16822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

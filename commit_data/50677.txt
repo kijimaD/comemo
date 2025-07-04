@@ -1,0 +1,23 @@
+commit 8c29881dd189bac1a3f34750c1c3fc071626b660
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:42:16 2022 -0700
+
+    cmd/compile: use "shifted operand %s (type %s) must be integer" for some shift errors
+    
+    This matches what go/types and types2 report and it also matches
+    the compiler errors reported for some related shift problems.
+    
+    For #55326.
+    
+    Change-Id: Iee40e8d988d5a7f9ff2c49f019884d02485c9fdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436177
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/expr.go | 6 +-----
+ src/go/types/expr.go                    | 6 +-----
+ test/fixedbugs/issue28079c.go           | 2 +-
+ 3 files changed, 3 insertions(+), 11 deletions(-)

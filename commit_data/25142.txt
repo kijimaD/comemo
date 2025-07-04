@@ -1,0 +1,21 @@
+commit 71d2fa8bae19ea2bbfb4a7968286b046214069e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 18:32:15 2015 +0000
+
+    net/http: deflake a non-short test, clean up export_test.go
+    
+    This makes TestTransportResponseCloseRace much faster and no longer
+    flaky.
+    
+    In the process it also cleans up test hooks in net/http which were
+    inconsistent and scattered.
+    
+    Change-Id: Ifd0b11dbc7e8915c24eb5bdc36731ed6751dd7ec
+    Reviewed-on: https://go-review.googlesource.com/17316
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go    | 114 ++++++++++++++++++++---------------------
+ src/net/http/transport.go      |  50 ++++++++----------
+ src/net/http/transport_test.go |  14 ++++-
+ 3 files changed, 90 insertions(+), 88 deletions(-)

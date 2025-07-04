@@ -1,0 +1,31 @@
+commit eff27e858b771bf5e0b5e7e836827c7d2941e6d4
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 21:09:57 2021 -0700
+
+    cmd/compile: ensure constant shift amounts are in range for arm
+    
+    Ensure constant shift amounts are in the range [0-31]. When shift amounts
+    are out of range, bad things happen. Shift amounts out of range occur
+    when lowering 64-bit shifts (we take an in-range shift s in [0-63] and
+    calculate s-32 and 32-s, both of which might be out of [0-31]).
+    
+    The constant shift operations themselves still work, but their shift
+    amounts get copied unmolested to operations like ORshiftLL which use only
+    the low 5 bits. That changes an operation like <<100 which unconditionally
+    produces 0, to <<4, which doesn't.
+    
+    Fixes #48476
+    
+    Change-Id: I87363ef2b4ceaf3b2e316426064626efdfbb8ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350969
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules     | 114 ++++++------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   9 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 240 ++++++++++++++++++++++++-
+ test/fixedbugs/issue48476.go                   |  21 +++
+ 5 files changed, 318 insertions(+), 68 deletions(-)

@@ -1,0 +1,12 @@
+commit 8f48efb31c7cdddeec7d4221174254466b0891dd
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri May 13 02:05:48 2016 +0530
+
+    fmt: remove extra space in too few arguments example
+    
+    Change-Id: Iae4855c52c4da9755277251d22121226507ea26a
+    Reviewed-on: https://go-review.googlesource.com/23074
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 45a4609c0ae214e448612e0bc0846e2f2682f1b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 27 04:33:18 2017 +0000
+
+    cmd/dist: skip moved GOROOT on Go's Windows builders when not sharding tests
+    
+    Change-Id: I0bcae339624e7d61037d9ea0885b7bd07491bbb6
+    Reviewed-on: https://go-review.googlesource.com/51430
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,14 @@
+commit 4100996676835778c1bf9c2a5fb6deb90897f52b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 12 19:40:39 2017 +0000
+
+    doc: note the StripPrefix change in Go 1.9 release notes
+    
+    Fixes #20948
+    
+    Change-Id: I222bf101a5c1bdc5cbb0970949070c4b58b9b83b
+    Reviewed-on: https://go-review.googlesource.com/48190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

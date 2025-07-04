@@ -1,0 +1,22 @@
+commit 23c0d30244d5e38d928e68661bf39458eb85d2b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 23:46:48 2023 +0000
+
+    runtime: move the wakeableSleep lock under sched in the lock rank
+    
+    Currently the wakeableSleep lock is placed just after timers in the
+    ranking, but it turns out the timers lock can never be held over a timer
+    func, so that's wrong. Meanwhile, wakeableSleep can acquire sched.lock.
+    
+    wakeableSleep, as it turns out, doesn't have any dependencies -- it's
+    always acquired in a (mostly) regular goroutine context.
+    
+    Change-Id: Icc8ea76a8b309fbaf0f02215f16e5f706d49cd95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544395
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/lockrank.go   | 56 +++++++++++++++++++++++------------------------
+ src/runtime/mklockrank.go |  8 +++----
+ 2 files changed, 32 insertions(+), 32 deletions(-)

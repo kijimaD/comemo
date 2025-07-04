@@ -1,0 +1,16 @@
+commit 3877f1d9c80f57beb8a8dde778f6239598fd4a58
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 11 17:35:49 2014 +0400
+
+    runtime: remove atomic CAS loop from marknogc
+    Spans are now private to threads, and the loop
+    is removed from all other functions.
+    Remove it from marknogc for consistency.
+    
+    LGTM=khr, rsc
+    R=golang-codereviews, bradfitz, khr
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/72520043
+
+ src/pkg/runtime/mgc0.c | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

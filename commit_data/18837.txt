@@ -1,0 +1,18 @@
+commit 00e6fc1e9e709a5c29b79d9aed8ae135cd54a445
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 12 10:20:58 2014 +0400
+
+    runtime: temporary weaken a check in test
+    Currently the test fails as:
+    $ go test -v -cpu 1,1,1,1 runtime -test.run=TestStack
+    stack_test.go:1584: Stack inuse: want 4194304, got 18446744073709547520
+    
+    Update #7468
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/74010043
+
+ src/pkg/runtime/stack_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

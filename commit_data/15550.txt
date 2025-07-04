@@ -1,0 +1,16 @@
+commit fd9049f40417781f2dca9435b03d86b1f2b96a0d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 2 10:56:51 2013 +0900
+
+    net: skip interface tests when required external command not found
+    
+    Fixes #4952.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7445046
+
+ src/pkg/net/interface_bsd_test.go   | 10 ++++++----
+ src/pkg/net/interface_linux_test.go | 12 +++++++-----
+ src/pkg/net/interface_unix_test.go  |  8 ++++++--
+ 3 files changed, 19 insertions(+), 11 deletions(-)

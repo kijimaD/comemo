@@ -1,0 +1,14 @@
+commit d67e300f28b04c1de1a0ef5fa95f8e882314316d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 23 14:13:02 2013 +1000
+
+    cmd/go: check GOROOT directory is present before acting
+    
+    Fixes #5042.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7786047
+
+ src/cmd/go/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,19 @@
+commit c488548967776ca49cb9768193df9956ad74150e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 8 17:23:23 2015 -0800
+
+    cmd/compile: recognize labels even if they have the same name as packages
+    
+    Another (historic) artifact due to partially resolving symbols too early.
+    
+    Fixes #13539.
+    
+    Change-Id: Ie720c491cfa399599454f384b3a9735e75d4e8f1
+    Reviewed-on: https://go-review.googlesource.com/17600
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  7 ++++---
+ test/fixedbugs/issue13539.go          | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

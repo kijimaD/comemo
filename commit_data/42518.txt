@@ -1,0 +1,17 @@
+commit 97019105884ced2c4658f9763528e7f6983f8773
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jun 13 12:28:08 2020 +1000
+
+    image/gif: speed up initializing test image
+    
+    The benchmark throughput numbers don't change, but the set-up time (the
+    time taken before the b.ResetTimer() call) drops from 460ms to 4ms.
+    
+    Change-Id: I5a6756643dff6127f6d902455d83459c084834fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237757
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/gif/writer_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

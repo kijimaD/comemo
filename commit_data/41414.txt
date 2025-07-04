@@ -1,0 +1,20 @@
+commit 088aad5ff65120587aaba2f63aba5cbc41a6b258
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:20:53 2020 -0800
+
+    cmd/compile: use ellipses in wasm rules
+    
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I2294d10e47d904d03e489e6ca43d46679323f75d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217009
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  172 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 2451 +++++----------------------
+ 2 files changed, 542 insertions(+), 2081 deletions(-)

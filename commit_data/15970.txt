@@ -1,0 +1,14 @@
+commit e3b767a5a1dd4f45b04de991e29cacdbe9f0d041
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 27 21:51:07 2013 +0100
+
+    cmd/gc: update runtime.go for new map implementation.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/8051044
+
+ src/cmd/gc/builtin.c  | 1 +
+ src/cmd/gc/mkbuiltin  | 1 +
+ src/cmd/gc/runtime.go | 6 ++++++
+ 3 files changed, 8 insertions(+)

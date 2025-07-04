@@ -1,0 +1,11 @@
+commit bcb46c8560ce11a6bc6d47fd3b2dae623c66b1da
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 16 21:56:38 2009 -0800
+
+    fix typo in Append return type
+    
+    R=rsc
+    https://golang.org/cl/155058
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

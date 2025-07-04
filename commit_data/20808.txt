@@ -1,0 +1,18 @@
+commit 202bf8d94dfedfca3a404f5fe9dd19f19f760372
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 15:51:06 2014 -0400
+
+    doc/asm: explain coordination with garbage collector
+    
+    Also a few other minor changes.
+    
+    Fixes #8712.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/164150043
+
+ doc/asm.html           | 131 +++++++++++++++++++++++++++++++++++++++++--------
+ src/runtime/funcdata.h |   3 ++
+ 2 files changed, 114 insertions(+), 20 deletions(-)

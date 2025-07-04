@@ -1,0 +1,14 @@
+commit 29b4de25b31c1b539017da43683012d986547bc1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 22:53:12 2013 +1000
+
+    cmd/go: document that "main" is a reserved import path
+    Fixes #6312.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/13391049
+
+ src/cmd/go/doc.go  | 15 ++++++++++-----
+ src/cmd/go/help.go | 15 ++++++++++-----
+ 2 files changed, 20 insertions(+), 10 deletions(-)

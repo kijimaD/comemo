@@ -1,0 +1,26 @@
+commit 232a4e89a4ca6d52cad64e29eaad34f8874f3f7a
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 6 13:31:22 2014 -0500
+
+    crypto/sha256: block implementation in 386 assembly
+    
+    Benchmark on Intel(R) Core(TM) i5-2500S CPU @ 2.70GHz (albeit in a VM)
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes         1606          699  -56.48%
+    BenchmarkHash1K            21920         7268  -66.84%
+    BenchmarkHash8K           165696        53756  -67.56%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes         4.98        11.44    2.30x
+    BenchmarkHash1K            46.72       140.88    3.02x
+    BenchmarkHash8K            49.44       152.39    3.08x
+    
+    R=agl, cldorian
+    CC=golang-codereviews
+    https://golang.org/cl/44800044
+
+ src/pkg/crypto/sha256/sha256block.go      |   2 +-
+ src/pkg/crypto/sha256/sha256block_386.s   | 283 ++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha256/sha256block_decl.go |   2 +-
+ 3 files changed, 285 insertions(+), 2 deletions(-)

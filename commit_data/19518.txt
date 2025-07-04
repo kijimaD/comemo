@@ -1,0 +1,13 @@
+commit 09576bc695e42b19b31d9abf0205524b1a7f7278
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 12 13:29:22 2014 +1000
+
+    misc/makerelease: update default tag to release-branch.go1.3
+    
+    TBR=bradfitz
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/104090044
+
+ misc/makerelease/makerelease.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

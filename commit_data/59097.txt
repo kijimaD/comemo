@@ -1,0 +1,16 @@
+commit c8eced8580028328fde7c03cbfcb720ce15b2358
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 19:20:32 2025 +0000
+
+    net/http/httputil: document ProxyRequest.SetURL limitations
+    
+    Fixes #50337
+    
+    Change-Id: I898ff6352f46f0f9b540b053049c5116e2165827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658536
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 2 ++
+ 1 file changed, 2 insertions(+)

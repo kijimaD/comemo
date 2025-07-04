@@ -1,0 +1,15 @@
+commit e3b6188ca208112c307a0a38ce80f2047d485314
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 9 16:18:31 2010 -0500
+
+    tutorial: a couple of minor fixes.
+    Fixes #1333.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3556041
+
+ doc/go_tutorial.html     | 4 ++--
+ doc/progs/helloworld3.go | 4 ++--
+ doc/progs/sortmain.go    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

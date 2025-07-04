@@ -1,0 +1,14 @@
+commit 6037841dbdf69cf02ae2db8c01e53c6a840598a2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 00:00:25 2014 -0400
+
+    doc: remove outdated Makefile
+    Fixes #7773.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87400043
+
+ doc/Makefile | 32 --------------------------------
+ 1 file changed, 32 deletions(-)

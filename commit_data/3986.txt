@@ -1,0 +1,24 @@
+commit af1fa43a8126acdcb01cdf2eb2ca537f0197597c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 12:34:46 2009 -0800
+
+    big:
+      Turn methods that don't store the result in their receiver into
+        functions in order to preserve the convention.
+      Re-jig Exp and Div by moving their guts into nat.go.
+      Add ProbablyPrime to perform Miller-Rabin primality tests.
+    crypto/rsa: reenable key generation since we now have ProbablyPrime.
+    
+    R=gri
+    CC=go-dev
+    http://codereview.prom.corp.google.com/1024038
+
+ src/pkg/Make.deps              |   8 +-
+ src/pkg/big/int.go             | 107 ++++----------
+ src/pkg/big/int_test.go        | 113 +++++++++++++--
+ src/pkg/big/nat.go             | 311 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/big/nat_test.go        |  96 ++++++++++++-
+ src/pkg/bignum/bignum.go       |   4 +
+ src/pkg/crypto/rsa/rsa.go      |  64 ++++-----
+ src/pkg/crypto/rsa/rsa_test.go |  22 ++-
+ 8 files changed, 563 insertions(+), 162 deletions(-)

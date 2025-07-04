@@ -1,0 +1,46 @@
+commit 98521a5a8f464d90898f7324171d9a78951e7342
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Sep 6 12:06:45 2018 -0600
+
+    math: implement trignometric range reduction for huge arguments
+    
+    This change implements Payne-Hanek range reduction by Pi/4
+    to properly calculate trigonometric functions of huge arguments.
+    
+    The implementation is based on:
+    
+    "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"
+    K. C. Ng et al, March 24, 1992
+    
+    The major difference with the reference is that the simulated
+    multi-precision calculation of x*B is implemented using 64-bit
+    integer arithmetic rather than floating point to ease extraction
+    of the relevant bits of 4/Pi.
+    
+    The assembly implementations for 386 were removed since the trigonometric
+    instructions only use a 66-bit representation of Pi internally for
+    reduction.  It is not possible to use these instructions and maintain
+    accuracy without a prior accurate reduction in software as recommended
+    by Intel.
+    
+    Fixes #6794
+    
+    Change-Id: I31bf1369e0578891d738c5473447fe9b10560196
+    Reviewed-on: https://go-review.googlesource.com/c/153059
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go     |   4 +-
+ src/go/build/deps_test.go |   2 +-
+ src/math/all_test.go      | 120 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/export_test.go   |   2 +
+ src/math/sin.go           |  64 ++++++++++++++-----------
+ src/math/sin_386.s        |  38 +--------------
+ src/math/sincos.go        |  29 ++++++-----
+ src/math/sincos_386.go    |  13 -----
+ src/math/sincos_386.s     |  28 -----------
+ src/math/tan.go           |  28 ++++++-----
+ src/math/tan_386.s        |  21 +-------
+ src/math/trig_reduce.go   |  94 ++++++++++++++++++++++++++++++++++++
+ 12 files changed, 291 insertions(+), 152 deletions(-)

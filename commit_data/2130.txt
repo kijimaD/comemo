@@ -1,0 +1,15 @@
+commit a5a878986c0053d2dfb79c14a022e65edb205cf4
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun May 3 15:17:03 2009 -0700
+
+    more code fiddling
+    
+    R=r
+    OCL=28201
+    CL=28201
+
+ src/cmd/6g/cgen.c  | 11 +++++------
+ src/cmd/6g/gen.c   | 26 +++++++++++++++-----------
+ src/cmd/6g/gg.h    |  2 +-
+ src/cmd/6g/gsubr.c | 37 +++++++++++++++++++++++++++++++++----
+ 4 files changed, 54 insertions(+), 22 deletions(-)

@@ -1,0 +1,14 @@
+commit 90d43ad720a4669878bcabf14c4ea915557c0545
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 14:24:04 2012 +1100
+
+    encoding/csv: document ReadAll behavior at EOF
+    
+    Fixes #2847.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5641050
+
+ src/pkg/encoding/csv/reader.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,13 @@
+commit e46e192857cb4705786472bf094853f06c6414ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 12:38:06 2011 -0500
+
+    net: fix build
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3982051
+
+ src/pkg/net/dialgoogle_test.go | 38 +++++++++++++++++++++++++++++---------
+ src/pkg/net/timeout_test.go    | 12 ++++++++----
+ 2 files changed, 37 insertions(+), 13 deletions(-)

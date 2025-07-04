@@ -1,0 +1,18 @@
+commit d94192180fada39666081efd66e39e1ac1e81e60
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 17:28:54 2015 +0300
+
+    runtime: fix wbshadow mode
+    
+    Half of tests currently crash with GODEBUG=wbshadow.
+    _PageSize is set to 8192. So data can be extended outside
+    of actually mapped region during rounding. Which leads to crash
+    during initial copying to shadow.
+    Use _PhysPageSize instead.
+    
+    Change-Id: Iaa89992bd57f86dafa16b092b53fdc0606213acb
+    Reviewed-on: https://go-review.googlesource.com/3286
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbarrier.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit dfff1829d44356cf586ba417521a2fc275a1c97d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 20:53:07 2009 -0700
+
+    update tutorial for new slicing rules.
+    
+    R=rsc
+    DELTA=13  (6 added, 0 deleted, 7 changed)
+    OCL=27539
+    CL=27541
+
+ doc/go_tutorial.txt | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

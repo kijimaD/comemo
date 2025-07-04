@@ -1,0 +1,22 @@
+commit d83b23fd4fb146cbe4b8dfa977ac2f1849572750
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Sep 22 15:50:03 2017 +0200
+
+    archive/tar: skip TestSparseFiles on Plan 9
+    
+    CL 60871 added TestSparseFiles. This test is succeeding
+    on Plan 9 when executed on the ramfs file system, but
+    is failing when executed on the Fossil file system.
+    
+    This may be due to an issue in the handling of sparse
+    files in the Fossil file system on Plan 9 that should
+    be investigated.
+    
+    Updates #21977.
+    
+    Change-Id: I177afff519b862a5c548e094203c219504852006
+    Reviewed-on: https://go-review.googlesource.com/65352
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/tar_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

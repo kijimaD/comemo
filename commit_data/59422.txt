@@ -1,0 +1,18 @@
+commit ab2a92dd84aa4d0e12e7a6ef929aee765dd2aa8d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 7 14:00:37 2025 -0400
+
+    runtime: improve Error documentation
+    
+    The current Error documentation is vacuous and doesn't say anything
+    about what this interface is actually for. Expand to include its meaning
+    and why it might be used.
+    
+    Change-Id: I6a6a636cbd5f5788cb9d1a88845de16b98f7424b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/error.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

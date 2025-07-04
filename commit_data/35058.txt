@@ -1,0 +1,22 @@
+commit 60e3ebb9cba900f7b2f559b472726cee47e823c0
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Apr 19 17:54:29 2018 -0400
+
+    net: calling File leaves the socket in nonblocking mode
+    
+    On Unix systems, the underlying socket is no longer forced into blocking
+    mode.
+    
+    Fixes #24942
+    
+    Change-Id: I3e0c503c72df0844e30a63af298691dedacd1f46
+    Reviewed-on: https://go-review.googlesource.com/108297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_unix.go  | 8 --------
+ src/net/net.go      | 4 +---
+ src/net/tcpsock.go  | 4 ++--
+ src/net/unixsock.go | 4 ++--
+ 4 files changed, 5 insertions(+), 15 deletions(-)

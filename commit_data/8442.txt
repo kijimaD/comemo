@@ -1,0 +1,19 @@
+commit 29b246c644394f651ef4e84083ef20ae1401a7f0
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu May 19 09:24:27 2011 -0300
+
+    template: support string, int and float literals
+    
+    This enables customizing the behavior of formatters
+    with logic such as {"template"|import} or even
+    {Field1 Field2 "%.2f 0x%X"|printf}
+    
+    Thanks to Roger Peppe for some debate on this.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/4536059
+
+ src/pkg/template/template.go      | 138 +++++++++++++++++++++++++++++++-------
+ src/pkg/template/template_test.go |  39 +++++++++++
+ 2 files changed, 154 insertions(+), 23 deletions(-)

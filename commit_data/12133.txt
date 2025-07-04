@@ -1,0 +1,12 @@
+commit 818e3cdb096354dbe1a08581fd432392683529b2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 22 16:25:55 2012 +1100
+
+    spec: refine the wording about variables in type switches
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5686064
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

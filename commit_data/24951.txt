@@ -1,0 +1,26 @@
+commit 5af2be8604168dd7d11c2e3ddc09b571809837e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 17:18:08 2015 +0000
+
+    Revert "runtime: use a proper type, sigset, for m.sigmask"
+    
+    This reverts commit 7db77271e423604c3b58b4c4da60ddc3c3eecc0d.
+    
+    Change-Id: I6d8855eb05ca331025dc49a5533c6da4d1fa4e84
+    Reviewed-on: https://go-review.googlesource.com/17030
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_darwin.go    | 24 +++++++++++++-----------
+ src/runtime/os1_dragonfly.go | 11 ++++++++---
+ src/runtime/os1_freebsd.go   | 11 ++++++++---
+ src/runtime/os1_linux.go     |  9 ++++++---
+ src/runtime/os1_nacl.go      |  2 --
+ src/runtime/os1_netbsd.go    | 11 ++++++++---
+ src/runtime/os1_openbsd.go   | 23 +++++++++++++----------
+ src/runtime/os1_plan9.go     |  2 --
+ src/runtime/os1_windows.go   |  2 --
+ src/runtime/os3_solaris.go   | 11 ++++++++---
+ src/runtime/os_darwin.go     |  2 +-
+ src/runtime/os_openbsd.go    |  2 +-
+ src/runtime/runtime2.go      |  2 +-
+ 13 files changed, 67 insertions(+), 45 deletions(-)

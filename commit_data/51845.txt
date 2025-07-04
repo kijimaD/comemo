@@ -1,0 +1,23 @@
+commit e1f9499ecfff24fac827749719e5e53c0e5acaeb
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Sat Jan 28 19:56:34 2023 -0800
+
+    strconv: show what fmt package uses for float printing
+    
+    The strconv docs are not very helpful for people who just want to pick
+    a reasonable default, for example the one used by the fmt package to
+    show floats.
+    
+    Add an example illustrating what the fmt package uses.
+    
+    Change-Id: Iefefa70dfd4d4bfa9962a20654ee23662818ef38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463980
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/strconv/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,14 @@
+commit 216e5c747d28676beea2287f48a0771fa56bbaf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:40:17 2015 -0400
+
+    cmd/go: set correct install location for cmd/compile and cmd/link
+    
+    Without this, they install to $GOROOT/bin.
+    
+    Change-Id: Iae4b8f59c8392f6abd841490e56922738089f8d4
+    Reviewed-on: https://go-review.googlesource.com/10297
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/pkg.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

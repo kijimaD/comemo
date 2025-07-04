@@ -1,0 +1,18 @@
+commit b8990ec932c21e503f28e95e8323dbd9a090ac28
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 29 09:24:50 2021 -0500
+
+    test: update test/codegen/noextend.go to work with either ABI on ppc64x
+    
+    This updates the codegen tests in noextend.go so they are not
+    dependent on the ABI.
+    
+    Change-Id: I8433bea9dc78830c143290a7e0cf901b2397d38a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353070
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ test/codegen/noextend.go | 120 +++++++++++++++++------------------------------
+ 1 file changed, 44 insertions(+), 76 deletions(-)

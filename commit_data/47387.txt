@@ -1,0 +1,24 @@
+commit 0aa194f7589fb5f75fc3a9c34bb69943daf6fc5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 9 21:12:03 2021 -0800
+
+    cmd/compile/internal/types2: use type variables consistently in Checker.conversion
+    
+    We have V and T and Vu and Tu. When calling the various isX predicates
+    consistently use Vu and Tu.
+    
+    (We could also use V an T because the predicates call under anyway,
+    but using Vu and Tu removes an unnecessary call to Named.under if
+    V or T are *Named.)
+    
+    Also, removed some outdated comments.
+    
+    Change-Id: I6fcd9ce5f6292e89ac2afd597b72fd0790e84ff1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362895
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

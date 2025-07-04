@@ -1,0 +1,12 @@
+commit b16e6ab1481f4d223d90c2e20fa5360ec19ab5a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 22:26:48 2009 -0800
+
+    gofmt-ify tabwriter
+    
+    R=rsc
+    http://go/go-review/1017042
+
+ src/pkg/tabwriter/tabwriter.go      |  89 ++++++++++++-----------
+ src/pkg/tabwriter/tabwriter_test.go | 136 ++++++++++++++++++------------------
+ 2 files changed, 115 insertions(+), 110 deletions(-)

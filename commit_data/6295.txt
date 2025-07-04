@@ -1,0 +1,12 @@
+commit 555f5b6b24ae89e6dabd132f0a086b03ed887980
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 16 15:37:57 2010 -0400
+
+    gc: make sure path names are canonical
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2209042
+
+ src/cmd/gc/lex.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

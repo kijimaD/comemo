@@ -1,0 +1,20 @@
+commit 0dafb7d9624c4c2bc876f03f2a6fa8d4a2ce6963
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 20 13:16:07 2017 -0700
+
+    cmd/compile: check for missing function body earlier
+    
+    Tested by fixedbugs/issue3705.go.
+    
+    This removes a dependency on lineno
+    from near the backend.
+    
+    Change-Id: I228bd0ad7295cf881b9bdeb0df9d18483fb96821
+    Reviewed-on: https://go-review.googlesource.com/38382
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 4 ++++
+ src/cmd/compile/internal/gc/pgen.go  | 6 ------
+ 2 files changed, 4 insertions(+), 6 deletions(-)

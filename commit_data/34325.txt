@@ -1,0 +1,17 @@
+commit 70b09c72716798caa1b8b55baabdb6a10e275472
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 22 10:15:42 2018 -0800
+
+    go/types: add -panic flag to gotype command for debugging
+    
+    Setting -panic will cause gotype to panic with the first reported
+    error, producing a stack trace for debugging.
+    
+    For #23914.
+    
+    Change-Id: I40c41cf10aa13d1dd9a099f727ef4201802de13a
+    Reviewed-on: https://go-review.googlesource.com/96375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/gotype.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

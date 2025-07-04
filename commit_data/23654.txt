@@ -1,0 +1,15 @@
+commit c218a075beedef729307359969f8c76f410dac10
+Author: Ross Light <light@google.com>
+Date:   Thu Jun 25 13:14:28 2015 -0700
+
+    cmd/go: mark ssh:// URLs as secure
+    
+    Add tests for isSecure function.
+    
+    Change-Id: I49de9d2846b75d4c7be745484f85d351a6fd851d
+    Reviewed-on: https://go-review.googlesource.com/11514
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go      |  1 +
+ src/cmd/go/vcs_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

@@ -1,0 +1,22 @@
+commit 7bebc6b7222d21946a0b39b437c4a6a5e7b2eb27
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Mar 30 19:09:59 2018 -0400
+
+    net/http: fix and normalize the [Server.][ListenAnd]Serve[TLS] docs
+    
+    The only inaccurate part was the HTTP/2 caveat in Server.ServeTLS, which
+    only applies to the plain Serve variant.
+    
+    The restriction implemented in shouldConfigureHTTP2ForServe is not on
+    the setupHTTP2_ServeTLS codepath because ServeTLS owns the tls.Listener,
+    so we fix it for the user instead of disabling HTTP/2.
+    
+    Fixes #24607
+    
+    Change-Id: Ie5f207d0201f09db27bf81b75535e5f6fdaf91e2
+    Reviewed-on: https://go-review.googlesource.com/103815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/example_test.go | 22 ++++++++++++++
+ src/net/http/server.go       | 72 +++++++++-----------------------------------
+ 2 files changed, 36 insertions(+), 58 deletions(-)

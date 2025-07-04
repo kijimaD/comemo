@@ -1,0 +1,29 @@
+commit bc9748ee6bfba3632ab9c98c8dd475d8eacf41b3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 27 19:34:56 2015 -0800
+
+    syscall: make pwd process-wide on Plan 9
+    
+    On Plan 9, the pwd is apparently per-thread not per process. That
+    means different goroutines saw different current directories, even
+    changing within a goroutine as they were scheduled.
+    
+    Instead, track the the process-wide pwd protected by a mutex in the
+    syscall package and set the current goroutine thread's pwd to the
+    correct once at critical points.
+    
+    Fixes #9428
+    
+    Change-Id: I928e90886355be4a95c2be834f5883e2b50fc0cf
+    Reviewed-on: https://go-review.googlesource.com/6350
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/env_plan9.go            |   6 +-
+ src/syscall/exec_plan9.go           |  10 ++-
+ src/syscall/pwd_plan9.go            |  85 ++++++++++++++++++
+ src/syscall/syscall_plan9.go        |  56 ++++++++----
+ src/syscall/zsyscall_plan9_386.go   | 170 ++++++++++++++++++------------------
+ src/syscall/zsyscall_plan9_amd64.go | 170 ++++++++++++++++++------------------
+ 6 files changed, 304 insertions(+), 193 deletions(-)

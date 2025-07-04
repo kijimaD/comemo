@@ -1,0 +1,21 @@
+commit dd61aa55e8f4d91fdcc098e64fa26854c860ff0d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 19:18:36 2017 +0900
+
+    cmd/cgo: support indirect macro expansion for string
+    
+    Current code cannot handle string #define macros if those macros are
+    defined via other macros. This CL solve the issue.
+    
+    Updates #18720
+    
+    Change-Id: Ibed0773d10db3d545bb246b97e81c0d19e3af3d5
+    Reviewed-on: https://go-review.googlesource.com/41312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cgo_test.go   |   1 +
+ misc/cgo/test/issue18720.go |  19 ++++++
+ src/cmd/cgo/gcc.go          | 159 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 174 insertions(+), 5 deletions(-)

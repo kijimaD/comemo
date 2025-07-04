@@ -1,0 +1,12 @@
+commit 9cd3c0662aa63eea8e7fae80f558fda9d646ba98
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 15 12:02:20 2016 -0800
+
+    api: add openbsd syscall constants
+    
+    Change-Id: I3ec00dac5e7d0e6dcafb7d65851bc53e0661c2b6
+    Reviewed-on: https://go-review.googlesource.com/34500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.8.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

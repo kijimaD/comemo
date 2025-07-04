@@ -1,0 +1,16 @@
+commit 9ceb1acbfb48d1243048fbb9a8ea3821d9500d01
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 11:10:59 2015 -0800
+
+    net: use t.Fatalf, not t.Fatal, in test
+    
+    Found by cmd/vet.
+    
+    Change-Id: Id570ecd76c3f1efd9696680ccd9799610217f8f7
+    Reviewed-on: https://go-review.googlesource.com/17042
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

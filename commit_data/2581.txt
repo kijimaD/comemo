@@ -1,0 +1,14 @@
+commit 29aa3ffbf628d2322e6b82ffed240aa78bf34900
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 2 21:25:46 2009 -0700
+
+    move Structrnd to runtime.h
+    
+    R=ken
+    OCL=31125
+    CL=31125
+
+ src/pkg/runtime/chan.c    | 4 ----
+ src/pkg/runtime/hashmap.c | 4 ----
+ src/pkg/runtime/runtime.h | 5 +++++
+ 3 files changed, 5 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit e7edc7e27e13c789b56768b556dfcde767920f10
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 17 13:35:27 2016 -0700
+
+    vendor: update golang.org/x/crypto/chacha20poly1305
+    
+    This change updates the vendored chacha20poly1305 package to match
+    revision 14f9af67c679edd414f72f13d67c917447113df2 of x/crypto.
+    
+    Change-Id: I05a4ba86578b0f0cdb1ed7dd50fee3b38bb48cf5
+    Reviewed-on: https://go-review.googlesource.com/31312
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 420 ++++++++++-----------
+ 1 file changed, 210 insertions(+), 210 deletions(-)

@@ -1,0 +1,14 @@
+commit eec981e622743821a2113a892826a223fe169a04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Apr 19 17:56:27 2020 -0700
+
+    go/types: remove duplicate assert call (minor cleanup)
+    
+    Change-Id: I6051b3305f8ee02bec4ff3dc7ec2217daed38d72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228903
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/check.go | 1 -
+ 1 file changed, 1 deletion(-)

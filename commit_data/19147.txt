@@ -1,0 +1,14 @@
+commit 0a96d64c9c20afb1d47cb464fdcd978e181d5a48
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 15 14:50:19 2014 -0700
+
+    math/big: fix doc typos.
+    Fixes #7768.
+    
+    LGTM=iant, gri
+    R=golang-codereviews, iant, gri
+    CC=golang-codereviews
+    https://golang.org/cl/87260043
+
+ src/pkg/math/big/rat.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

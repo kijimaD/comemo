@@ -1,0 +1,18 @@
+commit f8c2f4f111f40551eafd12dadbfbc6c4bc4d37c0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Nov 10 15:31:32 2018 +0100
+
+    go/doc: disable playground for examples that use syscall/js
+    
+    The playground is not using GOOS=js, so it is not able to use the
+    package syscall/js. Examples that depend on syscall/js should not
+    show a "Run" button.
+    
+    Fixes #28526.
+    
+    Change-Id: I8b2fcdd0c0ee517a5c3864bf459f813129542389
+    Reviewed-on: https://go-review.googlesource.com/c/148918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/doc/example.go | 5 +++++
+ 1 file changed, 5 insertions(+)

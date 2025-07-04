@@ -1,0 +1,18 @@
+commit 22b4c8358590bff54cdbc4ad2b359913d48ff474
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 1 13:24:20 2017 -0800
+
+    go/types: don't use directory foo which might exist under GOPATH
+    
+    Simply choose an extremely unlikely path name in the test is fine.
+    
+    Fixes #21013.
+    
+    Change-Id: I56c0a1986b5ef5d618c7fe2b14701f584fe81c37
+    Reviewed-on: https://go-review.googlesource.com/81578
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/api_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 76f272d71746fec4cc91f6772e81d8745aa65384
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 11:14:46 2016 -0500
+
+    cmd/asm: remove support for amd64 3DNow! instructions
+    
+    3DNotAnymore!
+    
+    These only ever existed on AMD (not Intel) processors,
+    and AMD cancelled support for them in August 2010.
+    
+    Change-Id: Ia362259add9d4f5788fd151fb373f91288677407
+    Reviewed-on: https://go-review.googlesource.com/19611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go  |  2 --
+ src/cmd/internal/obj/x86/a.out.go  | 24 ------------------------
+ src/cmd/internal/obj/x86/anames.go | 23 -----------------------
+ src/cmd/internal/obj/x86/asm6.go   | 37 -------------------------------------
+ 4 files changed, 86 deletions(-)

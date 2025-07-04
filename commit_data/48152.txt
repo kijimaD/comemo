@@ -1,0 +1,99 @@
+commit f03ab0e0140544abfb10698b9171a91f9dd9c7a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 11 16:47:58 2022 -0800
+
+    go/types, types2: unify core types for unbound type parameters
+    
+    NOTE: Should this change cause problems, the new functionality
+    can be disabled by setting the flag enableCoreTypeUnification
+    in unify.go to false.
+    
+    In the code
+    
+    func f1[M1 map[K1]int, K1 comparable](m1 M1) {}
+    
+    func f2[M2 map[K2]int, K2 comparable](m2 M2) {
+            f1(m2)
+    }
+    
+    type inference attempts to unify the types of m1 and m2. This leads
+    to the unification attempt of M1 and M2. The result is that the type
+    argument for M1 is inferred to be M2. Since there is no furter function
+    argument to use, constraint type inference attempts to infer the type
+    for K1 which is still missing. Constraint type inference (inferB in
+    the trace below) compares the inferred type for M1 (i.e., M2) against
+    map[K1]int. M2 is bound to f2, not f1; with the existing algorithm
+    that means M2 is simply a named type without further information.
+    Unification fails and with that type inference, and the type checker
+    reports an error.
+    
+    -- inferA [M1₁, K1₂] ➞ []
+    M1₁ ≡ M2₃
+    .  M1₁ ➞ M2₃
+    -- inferB [M1₁, K1₂] ➞ [M2₃, <nil>]
+    M1₁ ➞ M2₃
+    M1₁ ≡ map[K1₂]int
+    .  M2₃ ≡ map[K1₂]int
+    .  M2₃ ≢ map[K1₂]int
+    M1₁ ≢ map[K1₂]int
+    => inferB [M1₁, K1₂] ➞ []
+    => inferA [M1₁, K1₂] ➞ []
+    
+    With this change, when attempting to unify M2 with map[K1]int,
+    rather than failing, the unifier now considers the core type of
+    M2 which is map[K2]int. This leads to the unification of K1 and
+    K2; so type inference successfully infers M2 for M1 and K2 for K1.
+    
+    -- inferA [M1₁, K1₂] ➞ []
+    M1₁ ≡ M2₃
+    .  M1₁ ➞ M2₃
+    -- inferB [M1₁, K1₂] ➞ [M2₃, <nil>]
+    M1₁ ➞ M2₃
+    M1₁ ≡ map[K1₂]int
+    .  M2₃ ≡ map[K1₂]int
+    .  .  core M2₃ ≡ map[K1₂]int
+    .  .  map[K2₄]int ≡ map[K1₂]int
+    .  .  .  K2₄ ≡ K1₂
+    .  .  .  .  K1₂ ➞ K2₄
+    .  .  .  int ≡ int
+    => inferB [M1₁, K1₂] ➞ [M2₃, K2₄]
+    => inferA [M1₁, K1₂] ➞ [M2₃, K2₄]
+    
+    The fix for this issue was provided by Rob Findley in CL 380375;
+    this change is a copy of that fix with some additional changes:
+    
+    - Constraint type inference doesn't simply use a type parameter's
+      core type. Instead, if the type parameter type set consists of
+      a single, possibly named type, it uses that type. Factor out the
+      existing code into a new function adjCoreType. This change is not
+      strictly needed but makes it easier to think about the code.
+    
+    - Tracing code is added for debugging type inference. All tracing
+      code is guarded with the flag traceEnabled which is set to false
+      by default.
+    
+    - The change to the unification algorithm is guarded with the flag
+      enableCoreTypeUnification.
+    
+    - The sprintf function has a new type switch case for lists of
+      type parameters. This is used for tracing output (and was also
+      missing for a panic that was printing type parameter lists).
+    
+    Fixes #50755.
+    
+    Change-Id: Ie50c8f4540fcd446a71b07e2b451a95339b530ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385354
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/errors.go          | 11 ++++
+ src/cmd/compile/internal/types2/infer.go           | 39 +++++++++---
+ .../types2/testdata/fixedbugs/issue50755.go2       | 27 ++++++++
+ src/cmd/compile/internal/types2/unify.go           | 74 +++++++++++++++++++++-
+ src/go/types/errors.go                             | 11 ++++
+ src/go/types/infer.go                              | 39 +++++++++---
+ src/go/types/testdata/fixedbugs/issue50755.go2     | 27 ++++++++
+ src/go/types/unify.go                              | 74 +++++++++++++++++++++-
+ 8 files changed, 280 insertions(+), 22 deletions(-)

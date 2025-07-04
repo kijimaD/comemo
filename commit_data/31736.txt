@@ -1,0 +1,18 @@
+commit f939407f34158a79c83e5c1a605861c39f276a44
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 7 11:15:55 2017 +0200
+
+    doc: remove math/bits from 'minor changes' section
+    
+    The new math/bits package has a section for itself, and should not be
+    mentioned in the 'Minor changes to the library' section of the release
+    notes.
+    
+    Updates #20587
+    
+    Change-Id: I13ecd35f5cee4324e50b2d31800e399c00159126
+    Reviewed-on: https://go-review.googlesource.com/45051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

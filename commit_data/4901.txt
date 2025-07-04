@@ -1,0 +1,12 @@
+commit 8d9c2b2eab723f442ea623ec59300a6cb9765448
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Feb 19 08:21:21 2010 -0800
+
+    http: add Pending method to ServerConn, ClientConn
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/216052
+
+ src/pkg/http/persist.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

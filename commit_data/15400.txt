@@ -1,0 +1,24 @@
+commit c5f5df4d986b37a9bbbc340a6348dc26997da5c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 24 12:36:44 2013 +0900
+
+    syscall: add network interface announce support on BSD variants
+    
+    This CL allows to receive network interface arrival and depature
+    notifications through routing sockets on BSD variants. So far
+    Darwin doesn't support this feature.
+    
+    Also does small simplification.
+    
+    Update #4866.
+    
+    R=golang-dev, lucio.dere, dave
+    CC=golang-dev
+    https://golang.org/cl/7365055
+
+ src/pkg/syscall/route_bsd.go     | 41 ++++++++++++++----------------------
+ src/pkg/syscall/route_darwin.go  | 34 ++++++++----------------------
+ src/pkg/syscall/route_freebsd.go | 45 ++++++++++++++++++----------------------
+ src/pkg/syscall/route_netbsd.go  | 32 ++++++++++++++--------------
+ src/pkg/syscall/route_openbsd.go | 32 ++++++++++++++--------------
+ 5 files changed, 77 insertions(+), 107 deletions(-)

@@ -1,0 +1,17 @@
+commit 55740f763f0c9d8e9ddfa565e403e8155d29a10e
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Jan 17 12:06:04 2013 +1100
+
+    exp/html: remove "INCOMPLETE" comment
+    
+    I think that the parser is complete enough to take that warning out.
+    It passes the test suite.
+    There may be incompatible API changes, but being in the exp directory
+    is warning enough for that.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7131050
+
+ src/pkg/exp/html/doc.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6bc0346e288996159492f37db77c986aebd11882
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 17 20:39:29 2011 +1000
+
+    runtime: increase stack system space on windows/amd64
+    
+    gotest src/pkg/exp/template/html was crashing because the exception handler overflowed the goroutine stack.
+    
+    R=alex.brainman, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5031049
+
+ src/pkg/runtime/stack.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

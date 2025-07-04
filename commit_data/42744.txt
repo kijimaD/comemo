@@ -1,0 +1,31 @@
+commit 20b4987d3e658a1cd93472185d7998f745bd062e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 13 13:57:36 2020 -0400
+
+    cmd/dist: use GO_TEST_SHORT value more consistently
+    
+    There were two places where the -short flag was added in order to
+    speed up tests when run in short mode, in CL 178399 and CL 177417.
+    
+    It appears viable to re-use the GO_TEST_SHORT value so that -short
+    flag is not used when the tests are executed on a longtest builder,
+    where it is not a goal to skip slow tests for improved performance.
+    
+    Do so, in order to make the testing configurations simpler and more
+    predictable.
+    
+    Factor out the flag name out of the string returned by short, so that
+    it can be used in context of 'go test' which can accept a -short flag,
+    and a test binary which requires the use of a longer -test.short flag.
+    
+    For #39054.
+    For #29252.
+    
+    Change-Id: I52dfbef73cc8307735c52e2ebaa609305fb05933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233898
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

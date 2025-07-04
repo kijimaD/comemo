@@ -1,0 +1,16 @@
+commit 4601857c1c7f5f72c75366763ff71fdcbe5f84be
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 7 11:34:35 2023 -0500
+
+    doc/go1.22: document openbsd/ppc64 port
+    
+    Updates #56001.
+    For #61422.
+    
+    Change-Id: Ie4afbc42191b155d28945bd8f104ad7a63d30db9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547999
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/go1.22.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

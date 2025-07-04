@@ -1,0 +1,12 @@
+commit a4292c31206f798a3a4a8498006f4a055f581860
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 16:21:01 2015 -0400
+
+    api: refresh next.txt
+    
+    Change-Id: I5e902bb3a3a51620b21840783087ed3cc410dbc5
+    Reviewed-on: https://go-review.googlesource.com/10048
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next.txt | 172 ++++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 130 insertions(+), 42 deletions(-)

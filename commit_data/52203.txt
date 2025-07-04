@@ -1,0 +1,22 @@
+commit f6cbc1da05da141a78ee33954b52d17642c95130
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Mar 4 14:35:35 2023 +1100
+
+    runtime: allow for 5 more threads in TestWindowsStackMemory*
+    
+    Original version of TestWindowsStackMemory did not consider sysmon and
+    other threads running during the test. Allow for 5 extra threads in this
+    test - this should cover any new threads in the future.
+    
+    Fixes #58570
+    
+    Change-Id: I215790f9b94ff40a32ddd7aa54af715d1dc391c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473415
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/testdata/testprog/syscall_windows.go  | 5 ++++-
+ src/runtime/testdata/testprogcgo/stack_windows.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

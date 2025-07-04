@@ -1,0 +1,20 @@
+commit b63ca1e9743571e37c42350d3931400fe4c89386
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Dec 28 19:25:44 2016 -0800
+
+    net/http: add test for http2 Server WriteTimeout
+    
+    Current handling of WriteTimeout for http2 does not
+    extend the timeout on new streams. Disable the WriteTimeout
+    in http2 for 1.8 release.
+    
+    Updates #18437
+    
+    Change-Id: I20480432ab176f115464434645defb56ebeb6ece
+    Reviewed-on: https://go-review.googlesource.com/34723
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

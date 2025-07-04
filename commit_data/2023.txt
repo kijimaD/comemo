@@ -1,0 +1,13 @@
+commit 17c290ffb9a14061321eb570a8d3e3a93d8ca2c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 18:39:35 2009 -0700
+
+    tweak flag comment
+    
+    R=r
+    DELTA=36  (1 added, 0 deleted, 35 changed)
+    OCL=27484
+    CL=27522
+
+ src/lib/flag.go | 71 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 36 insertions(+), 35 deletions(-)

@@ -1,0 +1,36 @@
+commit 22a2bdfedb95612984cec3141924953b88a607b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 17 14:29:00 2016 +0000
+
+    sort: add Slice, SliceStable, and SliceIsSorted
+    
+    Add helpers for sorting slices.
+    
+    Slice sorts slices:
+    
+        sort.Slice(s, func(i, j int) bool {
+            if s[i].Foo != s[j].Foo {
+                return s[i].Foo < s[j].Foo
+            }
+            return s[i].Bar < s[j].Bar
+        })
+    
+    SliceStable is the same, but does a stable sort.
+    
+    SliceIsSorted reports whether a slice is already sorted.
+    
+    Fixes #16721
+    
+    Change-Id: I346530af1c5dee148ea9be85946fe08f23ae53e7
+    Reviewed-on: https://go-review.googlesource.com/27321
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/deps.go      |  12 +--
+ src/go/build/deps_test.go |   2 +-
+ src/sort/genzfunc.go      | 122 +++++++++++++++++++++
+ src/sort/sort.go          |  68 ++++++++++--
+ src/sort/sort_test.go     |  74 ++++++++++---
+ src/sort/zfuncversion.go  | 265 ++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 518 insertions(+), 25 deletions(-)

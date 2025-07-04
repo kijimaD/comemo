@@ -1,0 +1,19 @@
+commit e4c2229e4c174a258499bde8f8f2729a4afc4c96
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Sun Dec 21 13:31:23 2014 -0800
+
+    encoding/pem: eliminate allocations for newlines during encoding
+    
+    benchmark           old MB/s     new MB/s     speedup
+    BenchmarkEncode     243.20       279.89       1.15x
+    
+    benchmark           old allocs     new allocs     delta
+    BenchmarkEncode     1370           4              -99.71%
+    
+    Change-Id: I3920bcc04b6dd89efa5da89db5594d4434426d74
+    Reviewed-on: https://go-review.googlesource.com/1924
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/pem.go      |  8 +++++---
+ src/encoding/pem/pem_test.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

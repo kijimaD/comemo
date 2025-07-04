@@ -1,0 +1,14 @@
+commit a75e5fc670acb860dda0ded0646f5d2bcab26122
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 16:32:51 2011 -0800
+
+    godoc: godoc: Use IsAbs to test for absolute paths (fix for win32).
+    
+    One more case.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4170044
+
+ src/cmd/godoc/utils.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

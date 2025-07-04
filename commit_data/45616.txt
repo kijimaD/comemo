@@ -1,0 +1,28 @@
+commit 9995c6b50aa55c1cc1236d1d688929df512dad53
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue May 11 17:02:20 2021 +0200
+
+    cmd/go: ignore implicit imports when the -find flag is set
+    
+    The documentation of the go list -find flag says that the Deps list will
+    be empty. However the current implementation adds implicit imports when
+    supporting Cgo or SWIG and when linking a main package.
+    
+    Update the documentation of PackageOpts.IgnoreImport to clarify that
+    both explicit and implicit imports are ignored.
+    
+    Add a regression test.
+    
+    Fixes #46092
+    
+    Change-Id: I37847528d84adb7a18eb6ff29e4af4b4318a66fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318770
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go                 | 56 +++++++++++++------------
+ src/cmd/go/testdata/script/list_find_nodeps.txt | 39 +++++++++++++++++
+ 2 files changed, 69 insertions(+), 26 deletions(-)

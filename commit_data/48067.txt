@@ -1,0 +1,22 @@
+commit b00447038a50e0923b12cb0bc3c28f6b842a7f54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 18:55:29 2022 -0800
+
+    go/types, types2: shorter list for 2nd phase of function type inference
+    
+    In the 2nd phase of function argument type inference we only
+    consider parameters with types that are single type parameters.
+    Thus there is no need to collect anything else in the first
+    phase.
+    
+    This matches the algorithm description in the forthcoming spec
+    more closely.
+    
+    Change-Id: Ie5c29f30ff43b1e37d719ecbe1688b50ed2177f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381554
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 24 +++++++++++++-----------
+ src/go/types/infer.go                    | 24 +++++++++++++-----------
+ 2 files changed, 26 insertions(+), 22 deletions(-)

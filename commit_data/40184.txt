@@ -1,0 +1,51 @@
+commit 5650a53dac73703a1bc095a277a194813519001f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 8 15:45:14 2019 -0700
+
+    go/types: don't skip defined types when reporting cycles
+    
+    The newly introduced "late-stage" cycle detection for types
+    (https://golang.org/cl/196338/) "skips" named types on the
+    RHS of a type declaration when reporting a cycle. For instance,
+    for:
+    
+            type (
+               A B
+               B [10]C
+               C A
+            )
+    
+    the reported cycle is:
+    
+            illegal cycle in declaration of C
+                   C refers to
+                   C
+    
+    because the underlying type of C resolves to [10]C (note that
+    cmd/compile does the same but simply says invalid recursive
+    type C).
+    
+    This CL introduces the Named.orig field which always refers
+    to the RHS type in a type definition (and is never changed).
+    By using Named.orig rather than Named.underlying for the type
+    validity check, the cycle as written in the source code is
+    reported:
+    
+            illegal cycle in declaration of A
+                   A refers to
+                   B refers to
+                   C refers to
+                   A
+    
+    Fixes #34771.
+    
+    Change-Id: I41e260ceb3f9a15da87ffae6a3921bd8280e2ac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199937
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/decl.go             | 10 ++++++++--
+ src/go/types/testdata/cycles.src | 19 +++++++++++++------
+ src/go/types/type.go             |  3 ++-
+ 3 files changed, 23 insertions(+), 9 deletions(-)

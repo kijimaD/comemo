@@ -1,0 +1,16 @@
+commit c00bda13528c47b604595b17d76cf4b89425f632
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 19 13:23:32 2012 -0800
+
+    go/printer: simply ignore filename changes in position information
+    
+    There's no good reason to make any printer state adjustments
+    simply because the file name in node position information has
+    changed. Eliminate the relevant code.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6856054
+
+ src/pkg/go/printer/printer.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

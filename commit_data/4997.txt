@@ -1,0 +1,15 @@
+commit 0ac5ef70db410a219eeb46fd9c45205df6a3e2f6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 5 11:34:53 2010 -0800
+
+    Add ReadRune and WriteRune to bytes.Buffer
+    
+    The comments mention bufio's WriteRune, which should come next.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/245041
+
+ src/pkg/bytes/buffer.go      | 48 ++++++++++++++++++++++++++++++++++++++------
+ src/pkg/bytes/buffer_test.go | 35 ++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 6 deletions(-)

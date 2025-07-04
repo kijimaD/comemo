@@ -1,0 +1,16 @@
+commit 0fff67d191514d4eab9e5fd1f078a8c66c8550fd
+Author: Alexander Döring <email@alexd.ch>
+Date:   Sun Oct 23 23:13:59 2016 +0200
+
+    database/sql: fix possible context leak in test
+    
+    Fixes #17560
+    
+    Change-Id: I96fcdec87220391ef5432571b5c090b5be27491a
+    Reviewed-on: https://go-review.googlesource.com/31771
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql_test.go | 1 +
+ 1 file changed, 1 insertion(+)

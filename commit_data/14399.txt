@@ -1,0 +1,14 @@
+commit e33b9f78150c05c42acc67968c3066e3634dee0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 14 10:43:21 2012 +0100
+
+    regexp: add simple package-level example
+    
+    Update #4125
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6846045
+
+ src/pkg/regexp/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

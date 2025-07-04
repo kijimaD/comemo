@@ -1,0 +1,19 @@
+commit 8a01010c26a6be4ee94917360749c8f618d68079
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 18 18:14:52 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for load instructions
+    
+    Rather than rewriting the obj.Prog for a load instruction, generate the
+    appropriate machine instruction sequence directly.
+    
+    Change-Id: Iba656dbf2dff2bce02aa221d9a5cad7b7c4630d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344451
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/cpu.go |  8 +++-
+ src/cmd/internal/obj/riscv/obj.go | 90 +++++++++++++++++++++------------------
+ 2 files changed, 55 insertions(+), 43 deletions(-)

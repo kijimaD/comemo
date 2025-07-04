@@ -1,0 +1,15 @@
+commit e0e0dab41184763899d9068f375151d97d6c5caa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 1 14:12:48 2020 -0400
+
+    cmd/link: expand a TODO comment
+    
+    CL 231397 is submitted too fast... Expand the comment to make it
+    a little clearer.
+    
+    Change-Id: Ica9737aa7b51f97320bab74457388dcab8188370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231597
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

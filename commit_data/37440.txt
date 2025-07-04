@@ -1,0 +1,35 @@
+commit 42b46585f19a6d6b3819d025e0f4b07b18a6b5b7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 2 11:27:53 2018 -0400
+
+    cmd/go: improve go vet documentation
+    
+    - restore and rework cmd/vet/doc.go, which was clobbered during the vet-lite switch.
+    - document go vet -vettool=prog flag and how to run an alternative checker.
+    - make 'go vet -help' show how to list vet tool's flags.  Example:
+    
+            $ go vet -help
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run 'go tool vet help' for the vet tool's flags.
+    
+            $ go vet -vettool=~/bin/myvet -help
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run '~/bin/myvet help' for the vet tool's flags.
+    
+    Updates #28840
+    
+    Change-Id: Ieb79dfe29e1df074f865bc9a9d47b44199675d7d
+    Reviewed-on: https://go-review.googlesource.com/c/147018
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 11 +++++-
+ src/cmd/go/internal/vet/vet.go      | 13 +++++--
+ src/cmd/go/internal/vet/vetflag.go  | 18 ++++++++++
+ src/cmd/go/testdata/script/help.txt |  1 +
+ src/cmd/vet/doc.go                  | 71 +++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go                 | 20 -----------
+ 6 files changed, 111 insertions(+), 23 deletions(-)

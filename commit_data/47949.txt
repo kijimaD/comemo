@@ -1,0 +1,27 @@
+commit 07b995e5bba0c3fe04d6ba399c16abec485bcdaa
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 14 15:22:10 2022 -0500
+
+    Revert "cmd/dist: log OS version when testing"
+    
+    Fails TestAllDependencies.
+    
+    This reverts CL 371475.
+    
+    For #50146.
+    
+    Change-Id: I1feccd772d92d80e57c6327a4ac7b8af753a8c05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378586
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/metadata.go              |  9 ---------
+ src/cmd/internal/osinfo/doc.go        |  6 ------
+ src/cmd/internal/osinfo/os_js.go      | 18 ------------------
+ src/cmd/internal/osinfo/os_plan9.go   | 21 --------------------
+ src/cmd/internal/osinfo/os_unix.go    | 36 -----------------------------------
+ src/cmd/internal/osinfo/os_windows.go | 19 ------------------
+ 6 files changed, 109 deletions(-)

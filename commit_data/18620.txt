@@ -1,0 +1,18 @@
+commit ea8750175020f162a15c827225328f8ba9e1a118
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:53:50 2014 +0400
+
+    runtime: fix heap memory corruption
+    With concurrent sweeping finc if modified by runfinq and queuefinalizer concurrently.
+    Fixes crashes like this one:
+    http://build.golang.org/log/6ad7b59ef2e93e3c9347eabfb4c4bd66df58fd5a
+    Fixes #7324.
+    Update #7396
+    
+    LGTM=rsc
+    R=golang-codereviews, minux.ma, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/67980043
+
+ src/pkg/runtime/mgc0.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

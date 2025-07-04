@@ -1,0 +1,31 @@
+commit 26d07d80ca0093f87f37a02600eb1715ca0431a1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Oct 4 06:18:08 2023 -0700
+
+    html/template: only track brace depth when we are in a JS tmpl lit
+    
+    The change that keeps on giving. Only track brace depth in tJS if we are
+    already inside of a template literal. If we start tracking depth outside
+    of nested literals it can cause the parser to think we're still in a JS
+    context when we've actually closed the string interp.
+    
+    I believe this _mostly_ captures the expected parsing, but since the
+    JS parser does not implement proper lexical goal symbols, it may not
+    be entirely accurate. At some point in the future we may be able to
+    significantly reduce the complexity of this implementation by
+    implementing a lexical parser that more closely follows the ECMAScript
+    specification, and structuring escaping rules based on which symbol an
+    action appears in. This would also allow us to catch errors, which
+    we currently cannot reasonable do (although perhaps this is beyond the
+    scope of what html/template _should_ be doing).
+    
+    Updates #61619
+    
+    Change-Id: I56e1dbc0d0705ef8fb7a5454ebe2421d4e162ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/html/template/escape_test.go | 44 ++++++++++++++++++++++------------------
+ src/html/template/transition.go  |  7 +++++++
+ 2 files changed, 31 insertions(+), 20 deletions(-)

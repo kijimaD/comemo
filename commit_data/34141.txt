@@ -1,0 +1,19 @@
+commit 8de2f604c0b225aa41cb1b4e2ab97e3512a51445
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 14 07:20:26 2018 +0900
+
+    go/build: add go1.11 build tag
+    
+    As usual, adding go1.11 early in the cycle so that we can start
+    regression testing of the master toolchain.
+    
+    Change-Id: Ie96eca7223722d60d7acc6b3b996b76740c36419
+    Reviewed-on: https://go-review.googlesource.com/93775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

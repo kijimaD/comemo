@@ -1,0 +1,12 @@
+commit 4ad1a87f8573b355b814589c63b75a7657df4069
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Mar 25 08:58:13 2013 -0700
+
+    misc/emacs: Derive mode from prog-mode if possible
+    
+    R=golang-dev, bradfitz
+    CC=adonovan, cw, golang-dev, patrick.allen.higgins
+    https://golang.org/cl/7956044
+
+ misc/emacs/go-mode.el | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

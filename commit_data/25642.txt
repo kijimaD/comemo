@@ -1,0 +1,16 @@
+commit 970ce1c866f767796ca36f5a3ac37c7222bf31d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 23 23:22:49 2016 -0500
+
+    encoding/xml: update docs for Token
+    
+    Fixes #13757.
+    
+    Change-Id: I1b52593df8df0e98ce7342767eb34eccecc11761
+    Reviewed-on: https://go-review.googlesource.com/18854
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/xml.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

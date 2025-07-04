@@ -1,0 +1,29 @@
+commit b1474672c66a6c1fd35a365195434af166cdb9a7
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Fri May 26 13:33:45 2023 +0800
+
+    cmd/compile: intrinsify Sub64 on mips64
+    
+    This CL intrinsify Sub64 on mips64.
+    
+    pkg: math/bits
+                      _   sec/op    _   sec/op     vs base               _
+    Sub-4               2.849n _ 0%   1.948n _ 0%  -31.64% (p=0.000 n=8)
+    Sub32-4             3.447n _ 0%   3.446n _ 0%        ~ (p=0.982 n=8)
+    Sub64-4             2.815n _ 0%   1.948n _ 0%  -30.78% (p=0.000 n=8)
+    Sub64multiple-4     6.124n _ 0%   3.340n _ 0%  -45.46% (p=0.000 n=8)
+    
+    Change-Id: Ibba91a4350e4a549ae0b60d8cafc4bca05034b84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498497
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 38 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
+ test/codegen/mathbits.go                       |  6 ++++
+ 4 files changed, 49 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit ae3c9992ae57a67629e884b8536aac17a56db414
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 26 19:21:13 2009 -0700
+
+    - gofmt-ify walk.go
+    - fixed several bugs
+    
+    R=rsc
+    http://go/go-review/1015015
+
+ src/pkg/go/ast/walk.go | 111 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 67 insertions(+), 44 deletions(-)

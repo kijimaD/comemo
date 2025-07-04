@@ -1,0 +1,14 @@
+commit 1b1f1b53ea8dfabf84db11c871fc6070a851532a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 7 13:29:03 2009 -0800
+
+    correct signature generation decision
+    for non-pointer types with methods.
+    
+    R=r
+    DELTA=37  (13 added, 14 deleted, 10 changed)
+    OCL=22217
+    CL=22219
+
+ src/cmd/6g/obj.c | 43 +++++++++++++++++++++----------------------
+ 1 file changed, 21 insertions(+), 22 deletions(-)

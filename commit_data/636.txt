@@ -1,0 +1,21 @@
+commit 904d4045d35605732a7b0abf1c6bc247904b6a4d
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Sep 12 16:48:35 2008 -0700
+
+    1 got rid if static 'fn wo return' test
+    2 added dynamic calls to throw for array bounds
+      and 'fn wo return'
+    3 small optimization on index[constant]
+    
+    R=r
+    OCL=15281
+    CL=15281
+
+ src/cmd/6g/cgen.c      |  28 ++-
+ src/cmd/6g/gen.c       |  24 ++-
+ src/cmd/6g/gg.h        |   4 +
+ src/cmd/gc/sys.go      |   4 +
+ src/cmd/gc/sysimport.c | 566 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |   4 +
+ src/runtime/runtime.c  |  12 ++
+ 7 files changed, 346 insertions(+), 296 deletions(-)

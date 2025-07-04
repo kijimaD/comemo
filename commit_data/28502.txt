@@ -1,0 +1,23 @@
+commit d586aae1f44ebdf0e8f92137856b4b62c41cac6a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 22 13:50:16 2016 -0400
+
+    test: errorcheck auto-generated functions
+    
+    Add an "errorcheckwithauto" action which performs error check
+    including lines with auto-generated functions (excluded by
+    default). Comment "// ERRORAUTO" matches these lines.
+    
+    Add testcase for CL 29570 (as an example).
+    
+    Updates #16016, #17186.
+    
+    Change-Id: Iaba3727336cd602f3dda6b9e5f97dafe0848e632
+    Reviewed-on: https://go-review.googlesource.com/29652
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/live.go |  9 ++++++++-
+ test/run.go  | 52 +++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 39 insertions(+), 22 deletions(-)

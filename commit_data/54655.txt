@@ -1,0 +1,16 @@
+commit 8222423e0384cce56de31fe2c38572da0a5c1943
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 9 14:18:06 2023 -0400
+
+    go/types: document unfixable bug at Selection.Indirect
+    
+    Updates #8353
+    
+    Change-Id: I80cdbfccb8f7db00e04c293a68aaebc7c71bbbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533935
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/selection.go | 5 +++++
+ src/go/types/selection.go                    | 5 +++++
+ 2 files changed, 10 insertions(+)

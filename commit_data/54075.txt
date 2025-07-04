@@ -1,0 +1,26 @@
+commit b75ac7a8d588ddda6b3a57969be6fa1d3e6ef31a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 19:43:21 2023 +0000
+
+    Revert "cmd/compile: enable zero-copy string->[]byte conversions"
+    
+    This reverts CL 520395.
+    
+    Reason for revert: thanm@ pointed out failure cases.
+    
+    Change-Id: I3fd60b73118be3652be2c08b77ab39e793b42110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520596
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/escape.go | 13 +++++++++----
+ src/cmd/compile/internal/ssagen/ssa.go    |  8 --------
+ src/cmd/compile/internal/walk/order.go    | 10 ++--------
+ src/cmd/compile/internal/walk/switch.go   |  1 -
+ test/escape2.go                           |  2 +-
+ test/escape2n.go                          |  2 +-
+ 6 files changed, 13 insertions(+), 23 deletions(-)

@@ -1,0 +1,15 @@
+commit d426b6389e676707af652f96d8929a3c04c8809a
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 21 15:40:41 2009 -0700
+
+    Implement assignment.  Move convertTo.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=591  (497 added, 76 deleted, 18 changed)
+    OCL=31933
+    CL=31955
+
+ usr/austin/eval/expr.go | 295 ++++++++++++++++++++++++++++++--------------
+ usr/austin/eval/stmt.go | 316 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 518 insertions(+), 93 deletions(-)

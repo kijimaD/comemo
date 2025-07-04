@@ -1,0 +1,14 @@
+commit 82d06e8f3cca4bd680aaa0cef6b71d83df0382bc
+Author: Robert Figueiredo <robfig@gmail.com>
+Date:   Wed Jan 25 15:50:23 2012 -0500
+
+    syscall: add NOTE_* constants on OS X
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5570043
+
+ src/pkg/syscall/mkerrors.sh             |    2 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 2074 ++++++++++++++++---------------
+ src/pkg/syscall/zerrors_darwin_amd64.go | 2074 ++++++++++++++++---------------
+ 3 files changed, 2111 insertions(+), 2039 deletions(-)

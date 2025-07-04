@@ -1,0 +1,18 @@
+commit 1c94e7276e0d5e573d5ce7071a2b9d667e19f9f4
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Mar 1 12:41:52 2016 +0530
+
+    net: fix vet warnings
+    
+    Updates #11041
+    
+    Change-Id: I12c20beab75d7981efe470eb418e4b58dc8eb066
+    Reviewed-on: https://go-review.googlesource.com/20002
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsmsg_test.go               |  4 ++--
+ src/net/http/httptest/server_test.go |  2 +-
+ src/net/net_windows_test.go          | 10 +++++-----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

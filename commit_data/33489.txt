@@ -1,0 +1,21 @@
+commit 8fc64a3060bbfcd50d2e0233eac7a184dc1654d4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Nov 9 13:48:35 2017 +0100
+
+    cmd/vendor/github.com/google/pprof: fix iOS builders
+    
+    The recent vendored pprof update broke the iOS builders. The issue was
+    reported and patched upstream. Re-vendor the internal pprof copy.
+    
+    Updates vendored pprof to commit 9e20b5b106e946f4cd1df94c1f6fe3f88456628d
+    from github.com/google/pprof (2017-11-08).
+    
+    Fixes #22612
+    
+    Change-Id: I74c46c75e92ce401e605c55e27d8545c0d66082c
+    Reviewed-on: https://go-review.googlesource.com/76651
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ .../github.com/google/pprof/internal/driver/fetch_test.go | 15 +++++++++++++--
+ src/cmd/vendor/vendor.json                                |  4 ++--
+ 2 files changed, 15 insertions(+), 4 deletions(-)

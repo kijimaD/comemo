@@ -1,0 +1,28 @@
+commit 44cf595a7efcd3d7048c745d1d1531696bcb5941
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jan 5 18:35:27 2019 +1100
+
+    path/filepath: return special error from EvalSymlinks
+    
+    CL 155597 attempted to fix #29372. But it failed to make all new
+    test cases pass. Also CL 155597 broke some existing code
+    (see #29449 for details).
+    
+    Make small adjustment to CL 155597 that fixes both #29372 and #29449.
+    
+    Suggested by Ian.
+    
+    Updates #29372
+    Fixes #29449
+    
+    Change-Id: I9777a615514d3f152af5acb65fb1239e696607b6
+    Reviewed-on: https://go-review.googlesource.com/c/156398
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path_test.go         | 25 ++++++++-----------------
+ src/path/filepath/path_windows_test.go | 32 +++++++++++++++++++++++++++-----
+ src/path/filepath/symlink.go           |  3 +--
+ src/path/filepath/symlink_unix.go      |  9 +++++++++
+ src/path/filepath/symlink_windows.go   | 26 +++++++++-----------------
+ 5 files changed, 54 insertions(+), 41 deletions(-)

@@ -1,0 +1,15 @@
+commit 5dd978a283ca445f8b5f255773b3904497365b61
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 12 13:56:11 2016 -0500
+
+    runtime: expand HACKING.md
+    
+    This adds high-level descriptions of the scheduler structures, the
+    user and system stacks, error handling, and synchronization.
+    
+    Change-Id: I1eed97c6dd4a6e3d351279e967b11c6e64898356
+    Reviewed-on: https://go-review.googlesource.com/34290
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/HACKING.md | 139 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 136 insertions(+), 3 deletions(-)

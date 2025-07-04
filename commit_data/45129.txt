@@ -1,0 +1,18 @@
+commit e9cc31e736a6a1931ab010a2fda0e5d0ac4e5127
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 19:09:40 2021 +0000
+
+    runtime: pass work.userForced to gcController.endCycle explicitly
+    
+    For #44167.
+    
+    Change-Id: I15817006f1870d6237cd06dabad988da3f23a6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306604
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 2 +-
+ src/runtime/mgcpacer.go | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,29 @@
+commit 26d27f96fec733fe09751b49b47282c9109fb8ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 27 16:34:59 2020 -0400
+
+    cmd/go/internal/modload: remove (*loader).forceStdVendor
+    
+    forceStdVendor was a special-case mechanism to allow Go contributors
+    to use vendored dependencies by default when working in GOROOT/src.
+    
+    As of Go 1.14,¹ the 'go' command uses vendored dependencies by default
+    within all modules, so the 'std' and 'cmd' modules no longer need to
+    be special cases, and we can remove this special-case code.
+    
+    ¹ https://golang.org/doc/go1.14#vendor
+    
+    Updates #33848
+    Updates #30241
+    
+    Change-Id: Ib2fb5841c253113b17fa86a086ce85a22ac3d121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251159
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go           | 25 +++++------
+ src/cmd/go/testdata/script/mod_list_std.txt   | 64 ++++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_std_vendor.txt |  6 +--
+ 3 files changed, 57 insertions(+), 38 deletions(-)

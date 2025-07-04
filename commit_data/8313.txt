@@ -1,0 +1,13 @@
+commit 684e065d05f0cd6f1dc2b141e6fa519a01056ece
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 4 13:08:36 2011 +1000
+
+    net: disable dnsmsg_test on windows
+    
+    R=golang-dev, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4466041
+
+ src/pkg/net/dnsmsg_test.go    | 7 +++++++
+ src/pkg/net/resolv_windows.go | 4 ++++
+ 2 files changed, 11 insertions(+)

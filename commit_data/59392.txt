@@ -1,0 +1,34 @@
+commit 12110c3f7ed378cd1819abf72ffadcb18502c127
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 11 12:21:14 2024 -0800
+
+    cmd/compile: improve multiplication strength reduction
+    
+    Use an automatic algorithm to generate strength reduction code.
+    You give it all the linear combination (a*x+b*y) instructions in your
+    architecture, it figures out the rest.
+    
+    Just amd64 and arm64 for now.
+    
+    Fixes #67575
+    
+    Change-Id: I35c69382bebb1d2abf4bb4e7c43fd8548c6c59a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626998
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules      |  44 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  21 +-
+ .../compile/internal/ssa/_gen/ARM64latelower.rules |   5 +
+ src/cmd/compile/internal/ssa/_gen/rulegen.go       |   6 +
+ src/cmd/compile/internal/ssa/config.go             | 260 +++++++
+ src/cmd/compile/internal/ssa/rewrite.go            |  24 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 788 ++-------------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 343 +--------
+ .../compile/internal/ssa/rewriteARM64latelower.go  |  17 +
+ src/cmd/compile/internal/test/mulconst_test.go     |  91 ++-
+ test/codegen/arithmetic.go                         |   2 +-
+ test/codegen/multiply.go                           | 312 ++++++++
+ 12 files changed, 780 insertions(+), 1133 deletions(-)

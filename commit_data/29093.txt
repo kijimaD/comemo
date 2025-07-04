@@ -1,0 +1,22 @@
+commit 3193c71c5b97c1e770f587f50824b266f04b71d8
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 23 21:53:44 2016 -0400
+
+    runtime: fix bad pointer with 0 stack barriers
+    
+    Currently, if the number of stack barriers for a stack is 0, we'll
+    create a zero-length slice that points just past the end of the stack
+    allocation. This bad pointer causes GC panics.
+    
+    Fix this by creating a nil slice if the stack barrier count is 0.
+    
+    In practice, the only way this can happen is if
+    GODEBUG=gcstackbarrieroff=1 is set because even the minimum size stack
+    reserves space for two stack barriers.
+    
+    Change-Id: I3527c9a504c445b64b81170ee285a28594e7983d
+    Reviewed-on: https://go-review.googlesource.com/31762
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/stack.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

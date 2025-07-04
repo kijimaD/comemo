@@ -1,0 +1,18 @@
+commit 034d825ea304a87e4df4f3edad7d3cfcbfc9c526
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Aug 31 21:26:03 2017 +0200
+
+    runtime: avoid redundant zeroing of hiter
+    
+    The compiler and reflect already zero hiter before mapiterinit.
+    
+    While here expand the documentation for mapiterinit.
+    
+    Change-Id: I78b05d4d14bf78e8091e5353cdac80ffed30ca1e
+    Reviewed-on: https://go-review.googlesource.com/60673
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

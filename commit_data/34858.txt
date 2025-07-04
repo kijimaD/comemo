@@ -1,0 +1,18 @@
+commit 533fdfd00e3c1fb84078e3ed9fa2c2c646fbac8c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Mar 29 00:53:26 2018 +0200
+
+    cmd/compile/internal/gc: factor out beginning of SSAGenState.Call
+    
+    This commit does not change the semantics of the Call method. Its
+    purpose is to avoid duplication of code by making PrepareCall available
+    for separate use by the wasm backend.
+    
+    Updates #18892
+    
+    Change-Id: I04a3098f56ebf0d995791c5375dd4c03b6a202a3
+    Reviewed-on: https://go-review.googlesource.com/103275
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 46 ++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 17 deletions(-)

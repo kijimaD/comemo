@@ -1,0 +1,26 @@
+commit 6ec291f4952090dfcaa4406b85efb3a8e6a42feb
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 17 15:32:13 2024 -0400
+
+    internal/runtime/atomic: fix missing linknames
+    
+    CL 544455, which added atomic And/Or APIs, raced with CL 585556, which
+    enabled stricter linkname checking. This caused linkname-related
+    failures on ARM and MIPS. Fix this by adding the necessary linknames.
+    
+    We fix one other linkname that got overlooked in CL 585556.
+    
+    Updates #61395.
+    
+    Change-Id: I454f0767ce28188e550a61bc39b7e398239bc10e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586516
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/internal/runtime/atomic/atomic_andor_generic.go | 11 +++++++++++
+ src/internal/runtime/atomic/atomic_mipsx.go         |  2 ++
+ src/runtime/runtime2.go                             |  4 ++++
+ 3 files changed, 17 insertions(+)

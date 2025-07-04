@@ -1,0 +1,25 @@
+commit 246074d043f686c532cac88dccd68e01048a23bc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 19:19:42 2016 -0700
+
+    cmd/internal/obj: remove ACHECKNIL
+    
+    Updates #16357.
+    
+    Change-Id: I35f938d675ca5c31f65c4419ee0732bbc593b5cb
+    Reviewed-on: https://go-review.googlesource.com/29368
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/prog.go  | 1 -
+ src/cmd/compile/internal/arm/prog.go    | 1 -
+ src/cmd/compile/internal/arm64/prog.go  | 1 -
+ src/cmd/compile/internal/mips64/prog.go | 1 -
+ src/cmd/compile/internal/ppc64/prog.go  | 1 -
+ src/cmd/compile/internal/s390x/prog.go  | 1 -
+ src/cmd/compile/internal/x86/prog.go    | 1 -
+ src/cmd/internal/obj/link.go            | 1 -
+ src/cmd/internal/obj/util.go            | 1 -
+ src/cmd/internal/obj/x86/asm6.go        | 1 -
+ 10 files changed, 10 deletions(-)

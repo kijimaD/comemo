@@ -1,0 +1,31 @@
+commit 54a966e383f5e866f7d89899cf100c3fde9c3a7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 12:42:18 2015 -0400
+
+    go/build: make TestDependencies check all systems at once
+    
+    We used to use build.Import to get the dependencies, but that meant
+    we had to repeat the check for every possible GOOS/GOARCH/cgo
+    combination, which took too long. So we made the test in short mode
+    only check the current GOOS/GOARCH/cgo combination.
+    But some combinations can't run the test at all. For example darwin/arm64
+    does not run tests with a full source file systems, so it cannot test itself,
+    so nothing was testing darwin/arm64. This led to bugs like #10455
+    not being caught.
+    
+    Rewrite the test to read the imports out of the source files ourselves,
+    so that we can look at all source files in a directory in one pass,
+    regardless of which GOOS/GOARCH/cgo/etc they require.
+    This one complete pass runs in the same amount of time as the
+    old single combination check ran, so we can now test all systems,
+    even in short mode.
+    
+    Change-Id: Ie216303c2515bbf1b6fb717d530a0636e271cb6d
+    Reviewed-on: https://go-review.googlesource.com/12576
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go     |  2 +-
+ src/go/build/deps_test.go | 79 +++++++++++++++++++++++++++++------------------
+ src/go/build/read.go      | 20 ++++++++----
+ src/go/build/read_test.go |  6 ++--
+ 4 files changed, 67 insertions(+), 40 deletions(-)

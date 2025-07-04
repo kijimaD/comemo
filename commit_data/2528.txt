@@ -1,0 +1,12 @@
+commit 1ea28570ecd3012ba6a99f9d94dc548ca44a4a77
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 16:57:56 2009 -0700
+
+    the any fix was too aggressive; allow any in any import.
+    
+    R=ken
+    OCL=30768
+    CL=30768
+
+ src/cmd/gc/lex.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

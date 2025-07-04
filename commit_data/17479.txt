@@ -1,0 +1,15 @@
+commit c327e82ddb306fb4730a0fe624553d9e45ebde60
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 6 12:00:27 2013 -0700
+
+    crypto/rand: make Read use io.ReadFull
+    
+    Fixes #6084
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/13523044
+
+ src/pkg/crypto/rand/example_test.go | 3 +--
+ src/pkg/crypto/rand/rand.go         | 7 +++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

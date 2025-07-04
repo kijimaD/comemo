@@ -1,0 +1,12 @@
+commit 6e8bcbbe8987d9b06ef2c349913cde11e6dd8339
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 16:11:25 2015 -0400
+
+    cmd/internal/gc: refine ginscmp comment
+    
+    Change-Id: I2ebb36c6c5de9d34e52ed523e9c888452591924a
+    Reviewed-on: https://go-review.googlesource.com/10152
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/go.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

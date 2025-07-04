@@ -1,0 +1,15 @@
+commit 05caa7f82030327ccc9ae63a2b0121a029286501
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 21 17:10:49 2008 -0700
+
+    help management of empty pkg and lib directories in perforce
+    
+    R=gri
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=13328
+    CL=13328
+
+ lib/place-holder      | 2 ++
+ pkg/place-holder      | 2 ++
+ src/cmd/gc/mksys.bash | 0
+ 3 files changed, 4 insertions(+)

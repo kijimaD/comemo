@@ -1,0 +1,13 @@
+commit 8be580e20dddd004a5c0570beefd0886e3eb4825
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 10 14:42:33 2008 -0700
+
+    - improved error handling
+    
+    SVN=126718
+
+ usr/gri/src/parser.go       | 19 ++++++-------
+ usr/gri/src/scanner.go      | 67 ++++++++++++++++++++++++++-------------------
+ usr/gri/src/test_parser.go  | 10 +++----
+ usr/gri/src/test_scanner.go | 11 +++-----
+ 4 files changed, 56 insertions(+), 51 deletions(-)

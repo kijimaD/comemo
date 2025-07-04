@@ -1,0 +1,19 @@
+commit dab268fac34baaa93c41e7239c4412b11ca1e567
+Author: James Gray <james@james4k.com>
+Date:   Wed Jan 30 08:29:33 2013 -0800
+
+    cmd/cgo: allow for stdcall decorated dynimport names
+    
+    To allow for stdcall decorated names on Windows, two changes were needed:
+    1. Change the symbol versioning delimiter '@' in cgo's dynimport output to a '#', and in cmd/ld when it parses dynimports.
+    2. Remove the "@N" decorator from the first argument of cgo's dynimport output (PE only).
+    
+    Fixes #4607.
+    
+    R=minux.ma, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7047043
+
+ src/cmd/cgo/out.go | 5 +++--
+ src/cmd/ld/go.c    | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

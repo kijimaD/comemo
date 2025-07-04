@@ -1,0 +1,12 @@
+commit 9995dec9da6a5f9edb075bc739cb5ac1b3b21a41
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 14:28:45 2010 -0700
+
+    big: fix memory corruption in nat.shr
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1084041
+
+ src/pkg/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

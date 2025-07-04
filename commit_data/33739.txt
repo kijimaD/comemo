@@ -1,0 +1,27 @@
+commit 5bd66e5e1e815f25b1a3973220ba803cfeeb98e4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Thu Nov 2 19:17:39 2017 -0400
+
+    cmd/trace: compute pprof-style output per goroutine type
+    
+    The trace command computes IO, Schedule, Block, and Syscall profiles
+    by following the unblocking links in the execution trace and summing
+    up the duration.  This change offers variations of those profiles
+    that include only selected goroutine types. The id parameter takes the
+    goroutine type - i.e. pc of the goroutine.
+    
+    The output is available from the /goroutine view. So, users can see
+    where the goroutines of interest typically block.
+    
+    Also, these profiles are available for download so users can use
+    pprof or other tools to interpret the output. This change adds links
+    for download of global profile in the main page.
+    
+    Change-Id: I35699252056d164e60de282b0406caf96d629c85
+    Reviewed-on: https://go-review.googlesource.com/75710
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+
+ src/cmd/trace/goroutines.go | 17 +++++----
+ src/cmd/trace/main.go       | 12 +++---
+ src/cmd/trace/pprof.go      | 92 +++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 101 insertions(+), 20 deletions(-)

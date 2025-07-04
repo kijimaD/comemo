@@ -1,0 +1,22 @@
+commit 4fb74e055595a0009f11272432c2a5047a64507b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 15 11:19:30 2021 -0400
+
+    reflect: preserve ctxt across moveMakeFuncArgPtrs
+    
+    In makeFuncStub and methodValueCall, it stores ctxt (DX) as an
+    argument of moveMakeFuncArgPtrs, and assumes it does not change
+    by the call. This is not guaranteed, and it does happen if
+    -clobberdead compiler flag is used. Store it somewhere else and
+    reload after the call.
+    
+    Change-Id: I9307e3cf94db4b38305ab35494088386dfcbaae8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310409
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/reflect/asm_amd64.s | 6 ++++++
+ 1 file changed, 6 insertions(+)

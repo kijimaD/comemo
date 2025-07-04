@@ -1,0 +1,19 @@
+commit c8eea1633e160d3517ea44e50898893dad09fed0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 13 18:28:25 2020 -0400
+
+    cmd/internal/obj: remove LSym.RefIdx
+    
+    LSym.RefIdx was for the old object files. I should have deleted
+    it when I deleted old object file code.
+    
+    Change-Id: I8294f43a1e7ba45b1d75e84cc83cbaf2cb32f025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262077
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/internal/obj/link.go        | 3 +--
+ src/cmd/internal/obj/sizeof_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)

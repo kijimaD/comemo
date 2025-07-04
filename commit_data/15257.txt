@@ -1,0 +1,12 @@
+commit 7c5bd322d53cdcbfb59db334ba243502ae170803
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Feb 15 11:07:31 2013 +1100
+
+    log/syslog: fix channel race in test.
+    
+    R=golang-dev, minux.ma, iant, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7314057
+
+ src/pkg/log/syslog/syslog_test.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

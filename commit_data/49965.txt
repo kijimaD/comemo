@@ -1,0 +1,18 @@
+commit 5b1658d6912759e91e404e8c728d08439a15fea9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:45:15 2022 +0700
+
+    runtime: convert profbuf.eof to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I271faaedbf8b8efca5fc765496eaf45c94927edf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423891
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/profbuf.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

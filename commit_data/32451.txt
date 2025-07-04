@@ -1,0 +1,32 @@
+commit 3723d080220080dcc5b40737eaf1970af29165b7
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Thu Aug 24 13:44:04 2017 +1200
+
+    sort: fix TestAdversary
+    
+    There are some major problems with TestAdversary (based on "A Killer
+    Adversary for Quicksort"[1] by M. D. McIlroy). See #21581 for details.
+    
+    Rewrite the test to closely match the version in the paper so it can
+    be verified as correct by virtue of similarity.
+    
+    The only major difference between this new version and the version in
+    the paper is that this version swaps the values directly instead of
+    permuting an array of indices because we don't need to recover the
+    original permutation.
+    
+    This new version also counts the number of calls to Less() and fails
+    the test if there are too many.
+    
+    Fixes #21581.
+    
+    [1]: http://www.cs.dartmouth.edu/~doug/mdmspe.pdf
+    
+    Change-Id: Ia94b5b6d288b8fa3805a5fa27661cebbc5bad9a7
+    Reviewed-on: https://go-review.googlesource.com/58330
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sort/sort_test.go | 60 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 40 insertions(+), 20 deletions(-)

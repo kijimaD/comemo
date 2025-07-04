@@ -1,0 +1,34 @@
+commit bdd0ff08db7abf07db29cd6dca98b5c1bc26ef26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 22 21:27:33 2019 -0700
+
+    go/types: process each segment of delayed actions in FIFO order
+    
+    The stack of delayed actions is grown by pushing a new action
+    on top with Checker.later. Checker.processDelayed processes
+    all actions above a top watermark and then resets the stack
+    to top.
+    
+    Until now, pushed actions above the watermark were processed
+    in LIFO order. This change processes them in FIFO order, which
+    seems more natural (if an action A was delayed before an action
+    B, A should be processed before B for that stack segment).
+    
+    (With this change, Checker.later could be used instead of
+    Checker.atEnd to postpone interface method type comparison
+    and then the specific example in issue #33656 does type-check.
+    However, in general we want interface method type comparisons
+    to run after all interfaces are completed. With Checker.later
+    we may still end up mixing interface completions and interface
+    method type comparisons in ways leading to other errors for
+    sufficiently convoluted code.)
+    
+    Also, move Checker.processDelayed from resolver.go to check.go.
+    
+    Change-Id: Id31254605e6944c490eab410553fff907630cc64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191458
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/check.go    | 15 +++++++++++++++
+ src/go/types/resolver.go | 10 ----------
+ 2 files changed, 15 insertions(+), 10 deletions(-)

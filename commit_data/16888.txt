@@ -1,0 +1,12 @@
+commit 7da7d71cf42f203aefe2c8f2bc0e934b095e5491
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 27 13:54:34 2013 +0400
+
+    misc/dashboard: fix typo in comment
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11936045
+
+ misc/dashboard/app/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 51711d1429cb592c9ddc772e6362e74ac8545dc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:33:04 2017 -0400
+
+    cmd/link: fix accidentally-quadratic library loading
+    
+    Programs built from N libraries required O(N²) time to do the
+    deduplication checks, even if there were never any duplicates.
+    In most programs N is small enough not to worry, but this may
+    affect large programs.
+    
+    Noticed by inspection, not any specific bug report.
+    
+    Fixes #20578.
+    
+    Change-Id: Ic4108f1058be39da990a79b1e0b8ce95fde44cef
+    Reviewed-on: https://go-review.googlesource.com/44852
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/ld.go   | 17 +++++++----------
+ src/cmd/link/internal/ld/link.go | 17 +++++++++--------
+ src/cmd/link/internal/ld/sym.go  |  3 ++-
+ 3 files changed, 18 insertions(+), 19 deletions(-)

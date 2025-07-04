@@ -1,0 +1,14 @@
+commit 51fe5444fac3474a538b55cdd3045ba1d3a9a264
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Jun 13 15:52:32 2012 -0400
+
+    runtime: improved continuity in hash computation
+    
+    Fixes #3695.
+    
+    R=r, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6304062
+
+ src/pkg/runtime/alg.c | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

@@ -1,0 +1,23 @@
+commit 5d28bc58b6524b2043e2864b8de99fb05e7160d5
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:37 2016 +0200
+
+    cmd/internal/obj/mips: add support for GOARCH=mips{,le}
+    
+    Implements subset of MIPS32(r1) instruction set.
+    
+    Change-Id: Iba017350f6c2763de05d4d1bc2f123e8eb76d0ff
+    Reviewed-on: https://go-review.googlesource.com/31475
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arch.go   |   2 +-
+ src/cmd/internal/obj/link.go        |   6 +-
+ src/cmd/internal/obj/mips/a.out.go  |  22 +-
+ src/cmd/internal/obj/mips/anames.go |  13 +
+ src/cmd/internal/obj/mips/asm0.go   | 740 +++++++++++++++++++++---------------
+ src/cmd/internal/obj/mips/list0.go  |   6 +-
+ src/cmd/internal/obj/mips/obj0.go   | 137 +++++--
+ src/cmd/internal/obj/util.go        |  14 +-
+ 8 files changed, 586 insertions(+), 354 deletions(-)

@@ -1,0 +1,12 @@
+commit 5789c86fc09354279c2d3531b9349f11e2bee726
+Author: Conrad Meyer <cemeyer@cs.washington.edu>
+Date:   Wed May 5 09:55:11 2010 -0700
+
+    Fix a typo in net/unixsock
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/1113041
+
+ src/pkg/net/unixsock.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

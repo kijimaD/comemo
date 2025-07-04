@@ -1,0 +1,16 @@
+commit f706d707b7f36d3465fdb2fb1489eb5ad3709d3d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 3 07:09:28 2014 +0900
+
+    net: remove the dreg of solaris merge
+    
+    Also enables netgo test on solaris.
+    
+    LGTM=aram, jsing
+    R=golang-codereviews, dave, aram, jsing
+    CC=golang-codereviews
+    https://golang.org/cl/70300043
+
+ src/pkg/net/cgo_unix.go        | 2 +-
+ src/pkg/net/netgo_unix_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

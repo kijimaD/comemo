@@ -1,0 +1,16 @@
+commit f4de59e234bfa7fb2a3a86764f390b09d4249a9b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Oct 17 21:28:47 2014 +0400
+
+    runtime/pprof: fix memory profiler test
+    Don't use cmd/pprof as it is not necessary installed
+    and does not work on nacl and plan9.
+    Instead just look at the raw profile.
+    
+    LGTM=crawshaw, rsc
+    R=golang-codereviews, crawshaw, 0intro, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/159010043
+
+ src/runtime/pprof/mprof_test.go | 90 ++++++++++-------------------------------
+ 1 file changed, 21 insertions(+), 69 deletions(-)

@@ -1,0 +1,14 @@
+commit 3cfc34a555aad78cff2023eb00358e4d9a8f7940
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 4 13:44:01 2015 -0700
+
+    reflect: fix doc string
+    
+    Fixes #12017.
+    
+    Change-Id: I3dfcf9d0b62cae02eca1973383f0aad286a6ef4d
+    Reviewed-on: https://go-review.googlesource.com/13136
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

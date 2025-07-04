@@ -1,0 +1,21 @@
+commit 68def820088ac8a9d652be648fc14e3cd39a3421
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 20 09:39:09 2018 +0100
+
+    cmd/compile: fix bit-test rules for highest bit
+    
+    Bit-test rules failed to match when matching the highest bit
+    of a word because operands in SSA are signed int64. Fix
+    them by treating them as unsigned (and correctly handling
+    32-bit operands as well).
+    
+    Tests will be added in next CL.
+    
+    Change-Id: I491c4e88e7e2f87e9bb72bd0d9fa5d4025b90736
+    Reviewed-on: https://go-review.googlesource.com/94765
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  24 +++---
+ src/cmd/compile/internal/ssa/rewrite.go      |  18 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 120 +++++++++++++--------------
+ 3 files changed, 90 insertions(+), 72 deletions(-)

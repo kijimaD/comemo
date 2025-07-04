@@ -1,0 +1,12 @@
+commit e5ddcaeb7b76530f135809e7772820553ad2c382
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 21 13:17:02 2011 -0700
+
+    gotry: add missing $
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4935046
+
+ src/cmd/gotry/gotry | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

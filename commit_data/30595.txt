@@ -1,0 +1,12 @@
+commit 6fbedc1afead2de1fd554e72f6df47a4b7948b5a
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Mar 8 10:22:00 2017 -0800
+
+    database/sql: fix spelling mistake in tests
+    
+    Change-Id: I04e150d4e4123aad2f277e5c6e9f2abd15628a28
+    Reviewed-on: https://go-review.googlesource.com/37941
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

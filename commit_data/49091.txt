@@ -1,0 +1,28 @@
+commit df57592276bc26e2eb4e4ca5e77e4e2e422c7c6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 24 19:23:17 2022 -0800
+
+    archive/zip: permit zip files to have prefixes
+    
+    A Java jar file is a zip file, but it can have a prefix that is a bash
+    script that unpacks the zip file. Most zip programs ignore such prefixes.
+    This CL changes the archive/zip package to do the same.
+    
+    Fixes #10464
+    Fixes #51337
+    
+    Change-Id: I976e9c64684644317bd21077bc5b4a2baf626ee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387976
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/archive/zip/reader.go                |  32 ++++++++++++++++++++-----------
+ src/archive/zip/reader_test.go           |  22 +++++++++++++++++++--
+ src/archive/zip/testdata/readme.notzip   | Bin 1906 -> 1906 bytes
+ src/archive/zip/testdata/test-prefix.zip | Bin 0 -> 1227 bytes
+ 4 files changed, 41 insertions(+), 13 deletions(-)

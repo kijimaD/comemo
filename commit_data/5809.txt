@@ -1,0 +1,35 @@
+commit 0432f289f7637499ac7a02ebdba9ac112da557d1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 14 17:17:53 2010 -0700
+
+    cgo: various bug fixes
+    
+    * remember #defined names, so that C.stdout can refer
+      to the real name (on OS X) __stdoutp.
+    * better handling of #defined constant expressions
+    * allow n, err = C.strtol("asdf", 0, 123) to get errno as os.Error
+    * write all output files to current directory
+    * don't require gcc output if there was no input
+    
+    Fixes #533.
+    Fixes #709.
+    Fixes #756.
+    
+    R=r
+    CC=dho, golang-dev, iant
+    https://golang.org/cl/1734047
+
+ misc/cgo/stdio/Makefile |   4 +-
+ misc/cgo/stdio/align.go |  78 ++++++++
+ misc/cgo/stdio/chain.go |   4 +-
+ misc/cgo/stdio/fib.go   |   2 +-
+ misc/cgo/stdio/file.go  |  24 ++-
+ misc/cgo/stdio/hello.go |  23 ++-
+ misc/cgo/stdio/test.go  |  91 +++++++++
+ src/cmd/cgo/ast.go      | 473 ++++++++++++++++++++++++---------------------
+ src/cmd/cgo/doc.go      |  13 ++
+ src/cmd/cgo/gcc.go      | 495 +++++++++++++++++++++++++++++++++++-------------
+ src/cmd/cgo/main.go     | 236 +++++++++++++++--------
+ src/cmd/cgo/out.go      | 403 ++++++++++++++++++++-------------------
+ src/cmd/cgo/util.go     |  45 ++++-
+ 13 files changed, 1240 insertions(+), 651 deletions(-)

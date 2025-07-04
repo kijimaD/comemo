@@ -1,0 +1,27 @@
+commit 76cef81bcff371c88d277f17c712ecf22b8c83e7
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Oct 16 17:53:31 2021 +1100
+
+    cmd/go: stamp VCS commit time into binaries
+    
+    Only Git and Mercurial are supported for now.
+    
+    This CL also:
+    - Skips tagging "revision" and "committime" for empty repositories.
+    - Stores the full Mercurial changeset ID instead of the short form.
+    
+    Fixes #37475
+    
+    Change-Id: I62ab7a986d1ddb2a0e7166a6404b5aa80c2ee387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356251
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    | 13 +++-
+ src/cmd/go/internal/vcs/vcs.go                     | 86 +++++++++++++++++-----
+ .../go/testdata/script/version_buildvcs_git.txt    | 13 +++-
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 12 ++-
+ 4 files changed, 97 insertions(+), 27 deletions(-)

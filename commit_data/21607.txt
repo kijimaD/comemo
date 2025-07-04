@@ -1,0 +1,25 @@
+commit acba34e45f78ca9d0eaa820051258a33b565ea22
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 10:47:44 2015 -0500
+
+    cmd/gc: eliminate some pointer arithmetic
+    
+    In mparith, all the a1-- are problematic. Rewrite it all without pointers.
+    It's clearer anyway.
+    
+    In popt, v is problematic because it is used both as a fixed pointer
+    (v = byvar[i]) and as a moving pointer (v = var; v++) aka slice.
+    Eliminate pointer movement.
+    
+    Tested that this still produces bit-for-bit output for 'go build -a std'
+    compared to d260756 (current master).
+    
+    Change-Id: I1a1bed0f98b594c3864fe95075dd95f9b52113e0
+    Reviewed-on: https://go-review.googlesource.com/4645
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/mparith1.c |  34 ++++++------
+ src/cmd/gc/mparith2.c | 145 ++++++++++++++++++++------------------------------
+ src/cmd/gc/popt.c     |  13 +++--
+ src/cmd/gc/reg.c      |  27 +++++-----
+ 4 files changed, 99 insertions(+), 120 deletions(-)

@@ -1,0 +1,17 @@
+commit 27493187ed98cbf4f7679a5480fb84a63ece3e40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 6 09:44:29 2018 -0700
+
+    cmd/compile: change cmplx{mpy,div} into Mpcplx methods
+    
+    Passes toolstash-check.
+    
+    Change-Id: Icae55fe4fa1bb8e4f2f83b7c69e08d30a5559d9e
+    Reviewed-on: https://go-review.googlesource.com/105047
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go   | 96 +---------------------------------
+ src/cmd/compile/internal/gc/mpfloat.go | 71 +++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 94 deletions(-)

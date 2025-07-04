@@ -1,0 +1,18 @@
+commit 4c9791299d418c7434bebe59a9a481b7a246e33b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 5 04:01:52 2021 +1000
+
+    runtime: remove redundant save_g call in mcall for arm
+    
+    The setg call a few lines earlier has already performed the same iscgo check
+    and called save_g if necessary.
+    
+    Change-Id: I6e7c44cef4e0397d6001a3d5b7e334cdfbc3ce22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316929
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/asm_arm.s | 3 ---
+ 1 file changed, 3 deletions(-)

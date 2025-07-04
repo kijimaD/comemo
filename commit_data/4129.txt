@@ -1,0 +1,24 @@
+commit 4c0f262a2d475531c4a4e9d101dea2922b5d1e09
+Author: William Josephson <wjosephson@gmail.com>
+Date:   Wed Nov 18 09:19:29 2009 -0800
+
+    Remove unnecessary execute bits.
+    
+    R=rsc
+    https://golang.org/cl/156077
+
+ src/pkg/bignum/bignum.go            | 0
+ src/pkg/container/list/list.go      | 0
+ src/pkg/container/list/list_test.go | 0
+ src/pkg/runtime/386/vlop.s          | 0
+ src/pkg/runtime/386/vlrt.c          | 0
+ src/pkg/runtime/arm/vlrt.c          | 0
+ src/pkg/runtime/darwin/386/rt0.s    | 0
+ src/pkg/runtime/freebsd/386/rt0.s   | 0
+ src/pkg/runtime/linux/386/defs.h    | 0
+ src/pkg/runtime/linux/386/rt0.s     | 0
+ src/pkg/runtime/linux/386/sys.s     | 0
+ src/pkg/runtime/nacl/386/defs.h     | 0
+ src/pkg/runtime/nacl/386/rt0.s      | 0
+ src/pkg/runtime/nacl/386/sys.s      | 0
+ 14 files changed, 0 insertions(+), 0 deletions(-)

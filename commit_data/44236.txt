@@ -1,0 +1,28 @@
+commit 249da7ec020e194208c02c8eb6a04d017bf29fea
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Feb 10 20:29:50 2021 -0500
+
+    CONTRIBUTORS: update for the Go 1.16 release
+    
+    This update was created using the updatecontrib command:
+    
+            go get golang.org/x/build/cmd/updatecontrib
+            cd gotip
+            updatecontrib
+    
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    For #12042.
+    
+    Change-Id: I030b77e8ebcc7fe02106f0f264acdfb0b56e20d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291189
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ CONTRIBUTORS | 158 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 158 insertions(+)

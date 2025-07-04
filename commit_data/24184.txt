@@ -1,0 +1,25 @@
+commit 22452ac5924faaf95ecb49fb345fea3fdd783bb6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 5 12:30:13 2015 +1000
+
+    cmd/compile: use []*Node instead of NodeList in bottomUpVisitor
+    
+    This one of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
+    
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I582ff8b077eb384b84721a1edb0c1efbc0c40059
+    Reviewed-on: https://go-review.googlesource.com/14304
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go  | 47 ++++++++++++++++++-------------------
+ src/cmd/compile/internal/gc/lex.go  | 12 ++++++----
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ 3 files changed, 31 insertions(+), 30 deletions(-)

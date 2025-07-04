@@ -1,0 +1,32 @@
+commit fcdc3c098cd016af9ba5e626bd4525575bb984f2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jul 20 17:29:15 2021 +1000
+
+    runtime: make asmcgocall g0/gsignal checks consistent
+    
+    In asmcgocall() we need to switch to the g0 stack if we're not already on
+    the g0 stack or the gsignal stack. The prefered way of doing this is to
+    check gsignal first, then g0, since if we are going to switch to g0 we will
+    need g0 handy (thus avoiding a second load).
+    
+    Rewrite/reorder 386 and amd64 to check gsignal first - this shaves a few
+    assembly instructions off and makes the order consistent with arm, arm64,
+    mips64 and ppc64. Add missing gsignal checks to mips, riscv64 and s390x.
+    
+    Change-Id: I1b027bf393c25e0c33e1d8eb80de67e4a0a3f561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335869
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_386.s     | 16 ++++++++--------
+ src/runtime/asm_amd64.s   | 17 ++++++++---------
+ src/runtime/asm_arm.s     |  3 ++-
+ src/runtime/asm_arm64.s   |  3 ++-
+ src/runtime/asm_mips64x.s |  3 ++-
+ src/runtime/asm_mipsx.s   |  5 ++++-
+ src/runtime/asm_ppc64x.s  |  5 ++---
+ src/runtime/asm_riscv64.s |  5 ++++-
+ src/runtime/asm_s390x.s   | 11 +++++++----
+ 9 files changed, 39 insertions(+), 29 deletions(-)

@@ -1,0 +1,23 @@
+commit f6509cf5cdbb5787061b784973782933c47f1782
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 20 15:38:50 2023 -0800
+
+    cmd/compile: handle constant-folding of an out-of-range jump table index
+    
+    The input index to a jump table can be out of range for unreachable code.
+    
+    Dynamically the compiler ensures that an out-of-range index can never
+    reach a jump table, but that guarantee doesn't extend to the static
+    realm.
+    
+    Fixes #64826
+    
+    Change-Id: I5829f3933ae5124ffad8337dfd7dd75e67a8ec33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552055
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/sccp.go |  7 +++++++
+ test/fixedbugs/issue64826.go         | 38 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

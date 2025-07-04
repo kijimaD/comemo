@@ -1,0 +1,18 @@
+commit 08cc3dc5e70986dde114cb5b22d94848ed1b5419
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Aug 21 14:40:01 2018 -0500
+
+    time: optimize big4
+    
+    Use the same load order in big4 as in encoding/binary.BigEndian.
+    This order is recognized by the compiler and converted into single load.
+    This isn't in the hot path, but doesn't hurt readability, so lets do this.
+    
+    Change-Id: Ib1240d0b278e9d667ad419fe91fa52b23d28cfc0
+    Reviewed-on: https://go-review.googlesource.com/130478
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

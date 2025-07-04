@@ -1,0 +1,25 @@
+commit 492c85ab84dc1d4d19be0466d2d73f4a6174f07e
+Author: Filippo Rossi <filipporossi@hey.com>
+Date:   Mon Apr 4 06:25:32 2022 +0000
+
+    cmd/go: prevent panic in go work use
+    
+    Check if paths passed as arguments are existing directories.
+    
+    Fixes #51841
+    Fixes #51749
+    
+    Change-Id: Icfd148627e6f2c4651d6f923a37d413e68c67f6c
+    GitHub-Last-Rev: 77fffa7635052f11dc93488ee23fd1c895284b4d
+    GitHub-Pull-Request: golang/go#51845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394154
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/workcmd/use.go                | 31 +++++++++++++++--------
+ src/cmd/go/testdata/script/work_use_file.txt      | 12 ---------
+ src/cmd/go/testdata/script/work_use_only_dirs.txt | 17 +++++++++++++
+ 3 files changed, 38 insertions(+), 22 deletions(-)

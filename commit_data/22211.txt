@@ -1,0 +1,15 @@
+commit 1f5617e37c9078dbe082151c9e17d5dc900cb5a0
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 17:54:55 2015 +0300
+
+    test: add additional ... tests for escape analysis
+    
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I646a29ffe24d963c63db09cba81dbc101d7c7242
+    Reviewed-on: https://go-review.googlesource.com/5296
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape2.go  | 24 ++++++++++++++++++++++--
+ test/escape2n.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 44 insertions(+), 4 deletions(-)

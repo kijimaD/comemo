@@ -1,0 +1,15 @@
+commit 1737157189e0b519a38f377910aa1a049687e46e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 21:24:30 2009 -0700
+
+    use FieldByName where possible.
+    
+    R=rsc
+    DELTA=20  (0 added, 12 deleted, 8 changed)
+    OCL=31758
+    CL=31758
+
+ src/pkg/datafmt/datafmt.go   | 7 ++-----
+ src/pkg/json/struct.go       | 6 ++----
+ src/pkg/template/template.go | 7 ++-----
+ 3 files changed, 6 insertions(+), 14 deletions(-)

@@ -1,0 +1,12 @@
+commit c1e88920606e78b06e936c9c249bd55f06dd8c51
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 11 13:04:22 2016 +0900
+
+    net: fix nits found by vet
+    
+    Change-Id: I323231f31c4e1e7415661ebd943a90b2f1e9da1c
+    Reviewed-on: https://go-review.googlesource.com/23020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient_unix_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

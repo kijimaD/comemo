@@ -1,0 +1,73 @@
+commit e31c9ab557e9f5ee20a61914f1a2bf94191997dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 24 10:57:37 2021 -0700
+
+    cmd/link,runtime: remove functab relocations
+    
+    Use an offset from runtime.text instead.
+    This removes the last relocation from functab generation,
+    which lets us simplify that code.
+    
+    size      before    after     Δ        %
+    addr2line 3680818   3652498   -28320   -0.769%
+    api       4944850   4892418   -52432   -1.060%
+    asm       4757586   4711266   -46320   -0.974%
+    buildid   2418546   2392578   -25968   -1.074%
+    cgo       4197346   4164818   -32528   -0.775%
+    compile   22076882  21875890  -200992  -0.910%
+    cover     4411362   4358418   -52944   -1.200%
+    dist      3091346   3062738   -28608   -0.925%
+    doc       3563234   3532610   -30624   -0.859%
+    fix       3020658   2991666   -28992   -0.960%
+    link      6164642   6110834   -53808   -0.873%
+    nm        3646818   3618482   -28336   -0.777%
+    objdump   4012594   3983042   -29552   -0.736%
+    pack      2153554   2128338   -25216   -1.171%
+    pprof     13011666  12870114  -141552  -1.088%
+    test2json 2383906   2357554   -26352   -1.105%
+    trace     9736514   9631186   -105328  -1.082%
+    vet       6655058   6580370   -74688   -1.122%
+    total     103927380 102914820 -1012560 -0.974%
+    
+    relocs    before  after   Δ       %
+    addr2line 25069   22709   -2360   -9.414%
+    api       17176   13321   -3855   -22.444%
+    asm       18271   15630   -2641   -14.455%
+    buildid   9233    7352    -1881   -20.373%
+    cgo       16222   13044   -3178   -19.591%
+    compile   60421   46299   -14122  -23.373%
+    cover     18479   14526   -3953   -21.392%
+    dist      10135   7733    -2402   -23.700%
+    doc       12735   9940    -2795   -21.947%
+    fix       10820   8341    -2479   -22.911%
+    link      21849   17785   -4064   -18.600%
+    nm        24988   22642   -2346   -9.389%
+    objdump   26060   23462   -2598   -9.969%
+    pack      7665    5936    -1729   -22.557%
+    pprof     60764   50998   -9766   -16.072%
+    test2json 8389    6431    -1958   -23.340%
+    trace     37180   29382   -7798   -20.974%
+    vet       24044   19055   -4989   -20.749%
+    total     409499  334585  -74914  -18.294%
+    
+    
+    Caching the field size in debug/gosym.funcTab
+    avoids a 20% PCToLine performance regression.
+    
+    name            old time/op    new time/op    delta
+    115/LineToPC-8    56.4µs ± 3%    57.3µs ± 2%  +1.66%  (p=0.006 n=15+13)
+    115/PCToLine-8     188ns ± 2%     190ns ± 3%  +1.46%  (p=0.030 n=15+15)
+    
+    
+    Change-Id: I2816a1b28e62b01852e3b306f08546f1e56cd5ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352191
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 92 +++++++++-------------------------------
+ src/debug/gosym/pclntab.go       | 16 +++++--
+ src/runtime/plugin.go            |  2 +-
+ src/runtime/symtab.go            | 34 +++++++++------
+ 4 files changed, 52 insertions(+), 92 deletions(-)

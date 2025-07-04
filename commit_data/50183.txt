@@ -1,0 +1,33 @@
+commit 629ae1cee673c66dd540b424c9e86a4ce3aaf9e3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 26 12:19:50 2022 +0700
+
+    cmd/compile: fix wrong position when rewriting to OpArg/OpArgXXX
+    
+    When spilling arg to stack or register, if it's a newly created value,
+    the arg position should be preserved. Otherwise, we may end up using
+    position information from deadcode lines.
+    
+    This fixes the minimized test case in #54625 by mdempsky@, and make
+    building std successfully. However, the inline trees for these tests
+    still be corrupted:
+    
+     - fixedbugs/issue53982.go
+     - typeparam/issue47775.go
+     - typeparam/issue47775b.go
+     - typeparam/issue49432.go
+    
+    We probably still mess up the inline position somewhere else.
+    
+    Updates #54625
+    
+    Change-Id: I0d87e26b9ab451b85b6e79787da74a2b79a16209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425785
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

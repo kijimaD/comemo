@@ -1,0 +1,12 @@
+commit c242fbc903422b27af2b065e2b90751057349558
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 22 01:31:49 2015 -0500
+
+    runtime: fix incorrectly replaced "_type" in comments
+    
+    Change-Id: I9d0b1bb68604c5a153bd5c05c7008db045c38d2a
+    Reviewed-on: https://go-review.googlesource.com/3180
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/type.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

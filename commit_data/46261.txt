@@ -1,0 +1,15 @@
+commit 592ee433f5378e4b08f1fd8860be61b9bf20ca19
+Author: seifchen <chenxuefeng1207@gmail.com>
+Date:   Tue Aug 17 23:54:33 2021 +0000
+
+    spec: adjust example for consistency
+    
+    Change-Id: I5ff9078907b78f31aec42abf749a193b15bc5109
+    GitHub-Last-Rev: 1f96d84f203275a6012c19ec387bce091889d77d
+    GitHub-Pull-Request: golang/go#47732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342789
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

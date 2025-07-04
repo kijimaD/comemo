@@ -1,0 +1,21 @@
+commit 9133245be7365c23fcd60e3bb60ebb614970cdab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 2 16:43:29 2021 -0700
+
+    cmd/compile/internal/types2: detect constraint type inference cycles
+    
+    See the detailed explanations in the code.
+    
+    Fixes #48136.
+    
+    Change-Id: I1667aabfbbff97967913b080c77e7ec04ea82feb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347300
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go           | 124 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue48136.go2       |  36 ++++++
+ 2 files changed, 160 insertions(+)

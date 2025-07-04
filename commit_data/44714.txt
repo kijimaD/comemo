@@ -1,0 +1,18 @@
+commit 2583c1b4df979eae16fab6527275030a630da42b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 17 16:49:02 2021 -0700
+
+    go/types: add test case for issue #45096
+    
+    This verifies that issue #45096 is not an issue for go/types.
+    
+    Updates #45096.
+    
+    Change-Id: I4e987b5d4928f0c864d0d2c0379149443beb4d5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302754
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/api_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,28 @@
+commit 34835df04891a1d54394888b763af88f9476101d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 9 16:52:18 2020 +0000
+
+    runtime: fix ReadMemStatsSlow's and CheckScavengedBits' chunk iteration
+    
+    Both ReadMemStatsSlow and CheckScavengedBits iterate over the page
+    allocator's chunks but don't actually check if they exist. During the
+    development process the chunks index became sparse, so now this was a
+    possibility. If the runtime tests' heap is sparse we might end up
+    segfaulting in either one of these functions, though this will generally
+    be very rare.
+    
+    The pattern here to return nil for a nonexistent chunk is also useful
+    elsewhere, so this change introduces tryChunkOf which won't throw, but
+    might return nil. It also updates the documentation of chunkOf.
+    
+    Fixes #41296.
+    
+    Change-Id: Id5ae0ca3234480de1724fdf2e3677eeedcf76fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253777
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go | 17 ++++++++++-------
+ src/runtime/mpagealloc.go  | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)

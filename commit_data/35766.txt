@@ -1,0 +1,18 @@
+commit dd0e7a95344a3ef959d9373235d250876c9a4475
+Author: Wayne Ashley Berry <wayneashleyberry@gmail.com>
+Date:   Thu Jun 7 20:54:08 2018 +0100
+
+    doc: change git clone url
+    
+    The git clone url should be a Gerrit host and not Github, otherwise the
+    codereview command will fail.
+    
+            git-codereview: failed to load Gerrit origin: git origin must be a Gerrit host, not GitHub: https://github.com/golang/go
+    
+    Change-Id: I62f62c86ee6dce0720a844fc56340135dfae8405
+    Reviewed-on: https://go-review.googlesource.com/117178
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

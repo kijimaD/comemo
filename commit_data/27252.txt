@@ -1,0 +1,26 @@
+commit 15f7a66f3686d24fd5ad233c6c6b1ff22daa42ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 17:03:36 2016 -0700
+
+    cmd/compile: use correct packages when exporting/importing _ (blank) names
+    
+    1) Blank parameters cannot be accessed so the package doesn't matter.
+       Do not export it, and consistently use localpkg when importing a
+       blank parameter.
+    
+    2) More accurately replicate fmt.go and parser.go logic when importing
+       a blank struct field. Blank struct fields get exported without
+       package qualification.
+       (This is actually incorrect, even with the old textual export format,
+       but we will fix that in a separate change. See also issue 15514.)
+    
+    Fixes #15491.
+    
+    Change-Id: I7978e8de163eb9965964942aee27f13bf94a7c3c
+    Reviewed-on: https://go-review.googlesource.com/22714
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 32 +++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/bimport.go | 13 ++++++++-----
+ src/go/internal/gcimporter/bimport.go  |  4 +++-
+ 3 files changed, 30 insertions(+), 19 deletions(-)

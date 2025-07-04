@@ -1,0 +1,40 @@
+commit 6c70f2b960b39e37a6534948d32c02735afcd774
+Author: Alexander Musman <alexander.musman@gmail.com>
+Date:   Mon Feb 17 23:27:38 2025 +0300
+
+    cmd/compile: Enable inlining of tail calls
+    
+    Enable inlining tail calls and do not limit emitting tail calls only to the
+    non-inlineable methods when generating wrappers. This change produces
+    additional code size reduction.
+    
+     Code size difference measured with this change (tried for x86_64):
+        etcd binary:
+        .text section size: 10613393 -> 10593841 (0.18%)
+        total binary size:  33450787 -> 33424307 (0.07%)
+    
+        compile binary:
+        .text section size: 10171025 -> 10126545 (0.43%)
+        total binary size:  28241012 -> 28192628 (0.17%)
+    
+        cockroach binary:
+        .text section size:  83947260 -> 83694140  (0.3%)
+        total binary size:  263799808 -> 263534160 (0.1%)
+    
+    Change-Id: I694f83cb838e64bd4c51f05b7b9f2bf0193bb551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ .../internal/inline/interleaved/interleaved.go     | 28 +++++++++++++++-------
+ src/cmd/compile/internal/ir/node_gen.go            |  4 ++--
+ src/cmd/compile/internal/ir/stmt.go                |  2 +-
+ src/cmd/compile/internal/noder/reader.go           |  3 +--
+ src/cmd/compile/internal/ssagen/ssa.go             |  2 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |  2 +-
+ src/cmd/compile/internal/walk/stmt.go              |  3 ++-
+ test/tailcall.go                                   | 10 ++++----
+ 8 files changed, 31 insertions(+), 23 deletions(-)

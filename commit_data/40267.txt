@@ -1,0 +1,38 @@
+commit 03bb3e9ad13ef49afbed7e422d21ef6eb00389c1
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Oct 12 21:13:28 2019 +0530
+
+    cmd/internal/obj/wasm,cmd/link/internal/wasm: add fast path for writeUleb128
+    
+    While building a simple hello world binary, there are total 858277 calls
+    to writeUleb during the assembler phase out of which 836625 (97%) are less than 7 bits.
+    
+    Using a simple micro-benchmark like this:
+    
+    func BenchmarkUleb(b *testing.B) {
+            var buf bytes.Buffer
+            for i := 0; i < b.N; i++ {
+                    writeUleb128(&buf, 42)
+                    buf.Reset()
+            }
+    }
+    
+    We get the following results with the fast path enabled.
+    
+    name    old time/op  new time/op  delta
+    Uleb-4  8.45ns ± 2%  7.51ns ± 2%  -11.16%  (p=0.000 n=10+10)
+    
+    Applying the time taken to the number of calls, we get roughly 6% improvement
+    in total time taken for writeUleb128.
+    
+    We also apply the change to the function in linker to make it consistent.
+    
+    Change-Id: I9fe8c41df1209f5f3aa7d8bd0181f1b0e536ceb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201177
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/wasm/wasmobj.go | 4 ++++
+ src/cmd/link/internal/wasm/asm.go    | 4 ++++
+ 2 files changed, 8 insertions(+)

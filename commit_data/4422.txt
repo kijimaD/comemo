@@ -1,0 +1,136 @@
+commit 1c729599996c05e7b743372baeec2b6c70472084
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 15:27:16 2009 -0800
+
+                   1) Change default gofmt default settings for
+                      parsing and printing to new syntax.
+    
+                      Use -oldparser to parse the old syntax,
+                      use -oldprinter to print the old syntax.
+    
+                   2) Change default gofmt formatting settings
+                      to use tabs for indentation only and to use
+                      spaces for alignment. This will make the code
+                      alignment insensitive to an editor's tabwidth.
+    
+                      Use -spaces=false to use tabs for alignment.
+    
+                   3) Manually changed src/exp/parser/parser_test.go
+                      so that it doesn't try to parse the parser's
+                      source files using the old syntax (they have
+                      new syntax now).
+    
+                   4) gofmt -w src misc test/bench
+    
+                   2nd set of files.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179067
+
+ src/pkg/debug/dwarf/buf.go               |  108 +-
+ src/pkg/debug/dwarf/const.go             |  444 ++++----
+ src/pkg/debug/dwarf/entry.go             |  172 +--
+ src/pkg/debug/dwarf/open.go              |   40 +-
+ src/pkg/debug/dwarf/type.go              |  370 +++----
+ src/pkg/debug/dwarf/type_test.go         |   36 +-
+ src/pkg/debug/dwarf/unit.go              |   50 +-
+ src/pkg/debug/elf/elf.go                 | 1246 ++++++++++-----------
+ src/pkg/debug/elf/elf_test.go            |   10 +-
+ src/pkg/debug/elf/file.go                |  312 +++---
+ src/pkg/debug/elf/file_test.go           |   60 +-
+ src/pkg/debug/gosym/pclntab.go           |   42 +-
+ src/pkg/debug/gosym/pclntab_test.go      |  110 +-
+ src/pkg/debug/gosym/symtab.go            |  334 +++---
+ src/pkg/debug/macho/file.go              |  322 +++---
+ src/pkg/debug/macho/file_test.go         |   50 +-
+ src/pkg/debug/macho/macho.go             |  234 ++--
+ src/pkg/debug/proc/proc.go               |   92 +-
+ src/pkg/debug/proc/proc_linux.go         |  670 ++++++------
+ src/pkg/debug/proc/proc_nacl.go          |    4 +-
+ src/pkg/debug/proc/regs_linux_386.go     |   38 +-
+ src/pkg/debug/proc/regs_linux_amd64.go   |   36 +-
+ src/pkg/debug/proc/regs_linux_arm.go     |   24 +-
+ src/pkg/ebnf/ebnf.go                     |  146 +--
+ src/pkg/ebnf/ebnf_test.go                |   12 +-
+ src/pkg/ebnf/parser.go                   |  128 +--
+ src/pkg/encoding/ascii85/ascii85.go      |  190 ++--
+ src/pkg/encoding/ascii85/ascii85_test.go |  140 +--
+ src/pkg/encoding/base64/base64.go        |  176 +--
+ src/pkg/encoding/base64/base64_test.go   |  128 +--
+ src/pkg/encoding/binary/binary.go        |  210 ++--
+ src/pkg/encoding/binary/binary_test.go   |   70 +-
+ src/pkg/encoding/git85/git.go            |  156 +--
+ src/pkg/encoding/git85/git_test.go       |  130 +--
+ src/pkg/encoding/hex/hex.go              |   42 +-
+ src/pkg/encoding/hex/hex_test.go         |   32 +-
+ src/pkg/encoding/pem/pem.go              |   74 +-
+ src/pkg/encoding/pem/pem_test.go         |   16 +-
+ src/pkg/exec/exec.go                     |   62 +-
+ src/pkg/exec/exec_test.go                |   18 +-
+ src/pkg/exp/4s/4s.go                     |   46 +-
+ src/pkg/exp/4s/5s.go                     |    2 +-
+ src/pkg/exp/4s/xs.go                     |  566 +++++-----
+ src/pkg/exp/datafmt/datafmt.go           |  274 ++---
+ src/pkg/exp/datafmt/datafmt_test.go      |  270 ++---
+ src/pkg/exp/datafmt/parser.go            |  222 ++--
+ src/pkg/exp/draw/arith.go                |   38 +-
+ src/pkg/exp/draw/color.go                |   96 +-
+ src/pkg/exp/draw/draw.go                 |   96 +-
+ src/pkg/exp/draw/event.go                |   18 +-
+ src/pkg/exp/draw/x11/auth.go             |   52 +-
+ src/pkg/exp/draw/x11/conn.go             |  326 +++---
+ src/pkg/exp/eval/abort.go                |   46 +-
+ src/pkg/exp/eval/bridge.go               |   74 +-
+ src/pkg/exp/eval/compiler.go             |   60 +-
+ src/pkg/exp/eval/eval_test.go            |  178 +--
+ src/pkg/exp/eval/expr.go                 | 1088 +++++++++---------
+ src/pkg/exp/eval/expr1.go                | 1764 +++++++++++++++---------------
+ src/pkg/exp/eval/expr_test.go            |    6 +-
+ src/pkg/exp/eval/func.go                 |   50 +-
+ src/pkg/exp/eval/gen.go                  |  102 +-
+ src/pkg/exp/eval/main.go                 |   80 +-
+ src/pkg/exp/eval/scope.go                |   98 +-
+ src/pkg/exp/eval/stmt.go                 |  618 +++++------
+ src/pkg/exp/eval/stmt_test.go            |    2 +-
+ src/pkg/exp/eval/type.go                 |  698 ++++++------
+ src/pkg/exp/eval/typec.go                |  268 ++---
+ src/pkg/exp/eval/util.go                 |   26 +-
+ src/pkg/exp/eval/value.go                |  356 +++---
+ src/pkg/exp/eval/world.go                |  116 +-
+ src/pkg/exp/exception/exception.go       |   22 +-
+ src/pkg/exp/exception/exception_test.go  |   18 +-
+ src/pkg/exp/iterable/array.go            |   32 +-
+ src/pkg/exp/iterable/iterable.go         |  120 +-
+ src/pkg/exp/iterable/iterable_test.go    |  302 ++---
+ src/pkg/exp/nacl/av/av.go                |  172 +--
+ src/pkg/exp/nacl/av/event.go             |  698 ++++++------
+ src/pkg/exp/nacl/av/image.go             |   50 +-
+ src/pkg/exp/nacl/srpc/client.go          |  172 +--
+ src/pkg/exp/nacl/srpc/msg.go             |  412 +++----
+ src/pkg/exp/nacl/srpc/server.go          |  118 +-
+ src/pkg/exp/ogle/abort.go                |   22 +-
+ src/pkg/exp/ogle/arch.go                 |   68 +-
+ src/pkg/exp/ogle/cmd.go                  |  210 ++--
+ src/pkg/exp/ogle/event.go                |  136 +--
+ src/pkg/exp/ogle/frame.go                |  110 +-
+ src/pkg/exp/ogle/goroutine.go            |   74 +-
+ src/pkg/exp/ogle/main.go                 |    2 +-
+ src/pkg/exp/ogle/process.go              |  272 ++---
+ src/pkg/exp/ogle/rruntime.go             |  224 ++--
+ src/pkg/exp/ogle/rtype.go                |  262 ++---
+ src/pkg/exp/ogle/rvalue.go               |  218 ++--
+ src/pkg/exp/ogle/vars.go                 |  134 +--
+ src/pkg/exp/parser/interface.go          |   82 +-
+ src/pkg/exp/parser/parser.go             | 1090 +++++++++---------
+ src/pkg/exp/parser/parser_test.go        |   20 +-
+ src/pkg/exp/spacewar/pdp1.go             |  236 ++--
+ src/pkg/exp/spacewar/spacewar.go         |  128 +--
+ src/pkg/expvar/expvar.go                 |  148 +--
+ src/pkg/expvar/expvar_test.go            |   38 +-
+ src/pkg/flag/flag.go                     |  312 +++---
+ src/pkg/flag/flag_test.go                |   64 +-
+ src/pkg/fmt/fmt_test.go                  |  132 +--
+ src/pkg/fmt/format.go                    |  276 ++---
+ src/pkg/fmt/print.go                     |  410 +++----
+ 105 files changed, 10478 insertions(+), 10476 deletions(-)

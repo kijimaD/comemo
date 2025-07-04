@@ -1,0 +1,14 @@
+commit c97cf055d91f25e25c3d576ab483586eff224e0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 17 22:19:57 2012 -0700
+
+    syscall: add a test for passing an fd over a unix socket
+    
+    Updates #1101
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5849057
+
+ src/pkg/syscall/passfd_test.go | 150 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 150 insertions(+)

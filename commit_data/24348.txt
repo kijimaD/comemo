@@ -1,0 +1,17 @@
+commit 646401bdf05e611f85f36b00b00fd28639181061
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 15 16:59:20 2015 +1000
+
+    os: add check for ERROR_BAD_NETPATH in windows IsNotExist
+    
+    Otherwise IsNotExist does not account for not existent servers and shares.
+    
+    Fixes #12374
+    
+    Change-Id: I37f6850198f91dcb02a4a917b793339d7e30e934
+    Reviewed-on: https://go-review.googlesource.com/14579
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/error_windows.go   |  3 +++
+ src/os/os_windows_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

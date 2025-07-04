@@ -1,0 +1,26 @@
+commit 0a6ddcc4f03b5a89bf2eadee1fe284faf0e20be2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 15:09:13 2022 -0700
+
+    go/types, types2: no "imported but not used" error for unimported packages
+    
+    If a package could not be imported for whatever reason, the type checker
+    creates fake package with which it continues for more tolerant type
+    checking.
+    
+    Do not report an "imported but not used" error in that case.
+    
+    Clarify a few comments along the way.
+    
+    Fixes #43109.
+    
+    Change-Id: Ifeec0daa688fbf666412dc9176ff1522d02a23ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396875
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/types2/resolver.go                 | 13 +++++++------
+ .../internal/types2/testdata/fixedbugs/issue43109.go        | 10 ++++++++++
+ src/go/types/resolver.go                                    | 13 +++++++------
+ src/go/types/testdata/fixedbugs/issue43109.go               | 10 ++++++++++
+ 4 files changed, 34 insertions(+), 12 deletions(-)

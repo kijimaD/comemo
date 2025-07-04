@@ -1,0 +1,20 @@
+commit eba396f5964e9c4260df6d444f784eba34f68554
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 23 05:10:21 2017 -0700
+
+    cmd/compile: add and use gc.Node.funcname
+    
+    Change-Id: If5631eae7e2ad2bef56e79b82f77105246e68773
+    Reviewed-on: https://go-review.googlesource.com/41494
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/noder.go   |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go    |  4 ++--
+ src/cmd/compile/internal/gc/plive.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/ssa.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go  |  5 +++++
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ 7 files changed, 17 insertions(+), 12 deletions(-)

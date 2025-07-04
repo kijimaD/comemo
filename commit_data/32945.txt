@@ -1,0 +1,32 @@
+commit aa00c607e1c2e873ef0314eb3d029a4ab3bd7252
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 18:48:12 2017 +0200
+
+    math/big: remove []byte/string conversions
+    
+    This removes some of the []byte/string conversions currently
+    existing in the (un)marshaling methods of Int and Rat.
+    
+    For Int we introduce a new function (*Int).setFromScanner() essentially
+    implementing the SetString method being given an io.ByteScanner instead
+    of a string. So we can handle the string case in (*Int).SetString with
+    a *strings.Reader and the []byte case in (*Int).UnmarshalText() with a
+    *bytes.Reader now avoiding the []byte/string conversion here.
+    
+    For Rat we introduce a new function (*Rat).marshal() essentially
+    implementing the String method outputting []byte instead of string.
+    Using this new function and the same formatting rules as in
+    (*Rat).RatString we can implement (*Rat).MarshalText() without
+    the []byte/string conversion it used to have.
+    
+    Change-Id: Ic5ef246c1582c428a40f214b95a16671ef0a06d9
+    Reviewed-on: https://go-review.googlesource.com/65950
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/int.go      | 11 ++++++++---
+ src/math/big/intmarsh.go |  8 +++++---
+ src/math/big/ratconv.go  |  7 ++++++-
+ src/math/big/ratmarsh.go |  6 ++++--
+ 4 files changed, 23 insertions(+), 9 deletions(-)

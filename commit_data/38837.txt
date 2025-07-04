@@ -1,0 +1,23 @@
+commit 9f9e17a82fd7afa622424f51e458bb383cb952ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 19 12:20:56 2019 -0700
+
+    cmd/compile: fix ICE from go/defer call to variadic function
+    
+    The special case logic for go/defer arguments in Escape.call was
+    scattered around a bit and was somewhat inconsistently handled across
+    different types of function calls and parameters. This CL pulls the
+    logic out into a separate callStmt method that's used uniformly for
+    all kinds of function calls and arguments.
+    
+    Fixes #31573.
+    
+    Change-Id: Icdcdf611754dc3fcf1af7cb52879fb4b73a7a31f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173019
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/escape.go | 94 +++++++++++++++++------------------
+ test/fixedbugs/issue31573.go          | 49 ++++++++++++++++++
+ 2 files changed, 96 insertions(+), 47 deletions(-)

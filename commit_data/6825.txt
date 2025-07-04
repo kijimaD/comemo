@@ -1,0 +1,13 @@
+commit 9a71bb00bb39ca4cc200df36b2d5bfd591169bef
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Dec 3 19:19:33 2010 +0100
+
+    [68]l: generate debug info for builtin structured types.  prettyprinting in gdb.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3309041
+
+ src/cmd/ld/dwarf.c             | 629 ++++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/runtime-gdb.py | 174 ++++++++++++
+ 2 files changed, 697 insertions(+), 106 deletions(-)

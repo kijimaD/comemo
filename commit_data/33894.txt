@@ -1,0 +1,29 @@
+commit 558eeb2d850d064b0b02b65a7bf3af6c108c248d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:45:50 2017 -0500
+
+    cmd/vet: limit printf check to known Printf-like functions
+    
+    The name-based heuristics fail too often to be on during "go test",
+    but we really want the printf vet check in "go test", so change to
+    a list of exactly which standard library functions are print-like.
+    
+    For a later release we'd like to bring back checking for user-defined
+    wrappers, but in a completely precise way. Not for Go 1.10, though.
+    
+    The new, more precise list includes t.Skipf, which caught some
+    mistakes in standard library tests.
+    
+    Fixes #22936.
+    
+    Change-Id: I110448e3f6b75afd4327cf87b6abb4cc2021fd0d
+    Reviewed-on: https://go-review.googlesource.com/83838
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/main.go           |   8 +--
+ src/cmd/vet/print.go          | 164 +++++++++++++++++++++++++++++++-----------
+ src/cmd/vet/testdata/print.go |  99 ++++++++++++-------------
+ src/cmd/vet/vet_test.go       |  24 +++++++
+ 4 files changed, 195 insertions(+), 100 deletions(-)

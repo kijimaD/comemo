@@ -1,0 +1,22 @@
+commit f2fcea5009d06d14b9869879f897c4ffb11cf953
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue May 2 18:40:56 2023 +0000
+
+    net: add tests for forceGoDNS and forceCgoDNS
+    
+    There was a bug in forceCgoDNS (CL 479416), it was fixed by CL 487196, so
+    add a test case for it.
+    
+    Change-Id: I2010374451ef236dc2898d9e9ea006eb8b40d02e
+    GitHub-Last-Rev: 34a84fad33404c66c3ee20cb63803214c42e991d
+    GitHub-Pull-Request: golang/go#59922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/main_conf_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

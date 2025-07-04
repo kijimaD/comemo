@@ -1,0 +1,22 @@
+commit 261e26761805e03c126bf3934a8f39302e8d85fb
+Author: Moritz Poldrack <git@moritz.sh>
+Date:   Fri Jun 16 21:12:25 2023 +0000
+
+    os/exec: document a method to check if a process is alive
+    
+    Fixes #34396
+    
+    Change-Id: I35c4e3447f84e349adf7edba92ccb19b324bfe14
+    GitHub-Last-Rev: 4f06764109ddd9bdfbe4841fc1bebebe026eeb29
+    GitHub-Pull-Request: golang/go#60763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec.go           |  4 +++-
+ src/os/exec_unix_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

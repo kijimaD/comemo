@@ -1,0 +1,19 @@
+commit 5131deeeb2da14668a318c1b40e5d6842af06ab1
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jun 5 01:43:04 2012 +1000
+
+    cgo: enable cgo on netbsd/386 and netbsd/amd64
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6261056
+
+ doc/progs/run                          |  5 +++
+ misc/cgo/stdio/stdio_netbsd.go         | 16 +++++++
+ src/pkg/go/build/build.go              |  6 ++-
+ src/pkg/net/cgo_netbsd.go              | 20 +++++++++
+ src/pkg/net/cgo_unix.go                |  2 +-
+ src/pkg/os/user/lookup_unix.go         |  2 +-
+ src/pkg/runtime/cgo/gcc_netbsd_386.c   | 80 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c | 80 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 207 insertions(+), 4 deletions(-)

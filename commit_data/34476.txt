@@ -1,0 +1,15 @@
+commit 85dcc709a8523877063b05c6806631c7f47e99ab
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 6 09:39:14 2018 +0100
+
+    test/codegen: port math/bits.TrailingZeros tests to codegen
+    
+    And remove them from ssa_test.
+    
+    Change-Id: Ib5de5c0d908f23915e0847eca338cacf2fa5325b
+    Reviewed-on: https://go-review.googlesource.com/98795
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 65 ---------------------------------
+ test/codegen/mathbits.go                | 34 +++++++++++++++++
+ 2 files changed, 34 insertions(+), 65 deletions(-)

@@ -1,0 +1,12 @@
+commit 002103f51cf5a448933cf4d4f97707da029786f1
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Thu Nov 1 22:57:01 2012 -0700
+
+    spec: we're now at Unicode 6.2.0
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6818083
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

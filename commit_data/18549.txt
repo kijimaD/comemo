@@ -1,0 +1,13 @@
+commit d2f61cc6603b701a09ca2d57963caafd996a7ed5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 18 13:04:59 2014 +1100
+
+    cmd/link: fix comment typo.
+    
+    LGTM=dsymonds
+    R=dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/64100045
+
+ src/cmd/link/pclntab.go | 1 -
+ 1 file changed, 1 deletion(-)

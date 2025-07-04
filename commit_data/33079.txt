@@ -1,0 +1,24 @@
+commit c37647fc3abd3aa9307d5abbce63c9d6c7c70602
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 11 18:15:25 2017 +1100
+
+    internal/poll: do not call SetFileCompletionNotificationModes if it is broken
+    
+    Current code assumes that SetFileCompletionNotificationModes
+    is safe to call even if we know that it is not safe to use
+    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag. It appears (see issue #22149),
+    SetFileCompletionNotificationModes crashes when we call it without
+    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag.
+    
+    Do not call SetFileCompletionNotificationModes in that situation.
+    We are allowed to do that, because SetFileCompletionNotificationModes
+    is just an optimisation.
+    
+    Fixes #22149
+    
+    Change-Id: I0ad3aff4eabd8c27739417a62c286b1819ae166a
+    Reviewed-on: https://go-review.googlesource.com/69870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 64 ++++++++++++++++++++++++-----------------
+ 1 file changed, 37 insertions(+), 27 deletions(-)

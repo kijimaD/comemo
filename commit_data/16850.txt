@@ -1,0 +1,12 @@
+commit e97c870692aa80feabd2e22c191476220fc1281f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 24 08:27:20 2013 +1000
+
+    math/rand: mention that the default Source is thread-safe
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11709043
+
+ src/pkg/math/rand/rand.go | 1 +
+ 1 file changed, 1 insertion(+)

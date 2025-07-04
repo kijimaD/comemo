@@ -1,0 +1,12 @@
+commit 9b827cf9a040b0e9b1bf20169277edec2ce5407d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 6 17:50:28 2008 -0800
+
+    bug in select default
+    
+    R=r
+    OCL=18741
+    CL=18741
+
+ src/runtime/chan.c | 67 +++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 36 insertions(+), 31 deletions(-)

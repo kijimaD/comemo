@@ -1,0 +1,15 @@
+commit ea3d4540b3600cd6f3255b23aa246b253a1c02fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 2 17:52:58 2009 -0800
+
+    - itob
+    - more test cases
+    
+    R=rsc
+    DELTA=97  (52 added, 4 deleted, 41 changed)
+    OCL=25585
+    CL=25607
+
+ src/lib/strconv/itoa.go      | 39 +++++++++++-------
+ src/lib/strconv/itoa_test.go | 97 ++++++++++++++++++++++++++++++--------------
+ 2 files changed, 92 insertions(+), 44 deletions(-)

@@ -1,0 +1,22 @@
+commit 9f6e87ff749ea66b8ed28724f63bf04d1d4971f7
+Author: Kota <mdryzk64smsh@gmail.com>
+Date:   Mon Jun 26 13:33:42 2023 +0000
+
+    doc/go1.21: document changes in crypto/x509
+    
+    RevocationList.RevokedCertificates has been deprecated and
+    replaced with the new RevocationList.RevokedCertificateEntries field,
+    not RevocationList.Entries.
+    
+    Change-Id: I36053e0d67a9997264483d1e04e31774fbab8702
+    GitHub-Last-Rev: a9f6949b05d73e3ed7a7ca8c83e4df1310954db6
+    GitHub-Pull-Request: golang/go#60984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505935
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit f2ac0ae8bbb5d2fad29f0f434f3a26649976cf2c
+Author: Dan Peterson <danp@danp.net>
+Date:   Thu Feb 13 17:09:23 2025 -0400
+
+    cmd/go/internal/cacheprog: drop Request.ObjectID
+    
+    ObjectID was a misnaming of OutputID from cacheprog's initial
+    implementation. It was maintained for compatibility with existing
+    cacheprog users in 1.24 but can be removed in 1.25.
+    
+    Updates #64876
+    
+    Change-Id: I8ff53bc581c16b7739e1cfbaa8bd35d285d3231d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649435
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/cache.go         |  2 +-
+ src/cmd/go/internal/cache/prog.go          |  9 ---------
+ src/cmd/go/internal/cacheprog/cacheprog.go | 13 +------------
+ 3 files changed, 2 insertions(+), 22 deletions(-)

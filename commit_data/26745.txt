@@ -1,0 +1,14 @@
+commit b2fc9f1c23453e16ab08d411ed0e439212d6e5e6
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Wed Apr 6 11:18:55 2016 -0300
+
+    net/http/pprof: note calling runtime.SetBlockProfileRate is required for block profile
+    
+    Fixes #15076
+    
+    Change-Id: I5ce8f6253245d8cc1f862a1bf618775f557f955d
+    Reviewed-on: https://go-review.googlesource.com/21610
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

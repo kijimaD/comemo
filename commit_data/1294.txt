@@ -1,0 +1,27 @@
+commit b79272d9a24256bee2755a21d6ee666e6eb6b9cb
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Dec 6 13:40:30 2008 -0800
+
+    allowed syntax for range
+    
+    a range m (implies :=)
+    a,b range m (implies :=)
+    a:b range m (implies :=)
+    
+    a := range m
+    a,b := range m
+    a:b := range m
+    
+    a = range m
+    a,b = range m
+    a:b = range m
+    
+    R=r
+    OCL=20676
+    CL=20676
+
+ src/cmd/gc/go.h   |  4 ++--
+ src/cmd/gc/go.y   | 56 ++++++++++++++++++++++++++++++++++++++++++-------------
+ src/cmd/gc/subr.c |  1 +
+ src/cmd/gc/walk.c | 36 ++++++++++++++++++++++++++++-------
+ 4 files changed, 75 insertions(+), 22 deletions(-)

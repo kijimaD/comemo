@@ -1,0 +1,35 @@
+commit 9b73238daa6a5d08eb2265fc38577cb6003f0d23
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 12:12:40 2012 -0500
+
+    cgo, runtime: diagnose callback on non-Go thread
+    
+    Before:
+    $ go run x.go
+    signal 11 (core dumped)
+    $
+    
+    After:
+    $ go run x.go
+    runtime: cgo callback on thread not created by Go.
+    signal 11 (core dumped)
+    $
+    
+    For issue 3068.
+    Not a fix, but as much of a fix as we can do before Go 1.
+    
+    R=golang-dev, rogpeppe, gri
+    CC=golang-dev
+    https://golang.org/cl/5781047
+
+ src/cmd/cgo/out.go               |  5 +++--
+ src/pkg/runtime/asm_386.s        |  8 ++++++++
+ src/pkg/runtime/asm_amd64.s      |  8 ++++++++
+ src/pkg/runtime/thread_darwin.c  | 10 ++++++++++
+ src/pkg/runtime/thread_freebsd.c | 10 ++++++++++
+ src/pkg/runtime/thread_linux.c   | 10 ++++++++++
+ src/pkg/runtime/thread_netbsd.c  | 10 ++++++++++
+ src/pkg/runtime/thread_openbsd.c | 10 ++++++++++
+ src/pkg/runtime/thread_plan9.c   | 10 ++++++++++
+ src/pkg/runtime/thread_windows.c | 19 +++++++++++++++++++
+ 10 files changed, 98 insertions(+), 2 deletions(-)

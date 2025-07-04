@@ -1,0 +1,18 @@
+commit b2249f2018155184abe10781633b8d66e566fa86
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Feb 28 07:18:02 2013 +0100
+
+    net: pass tests on Plan 9
+    
+    Ignore problematic tests and un-ignore one
+    we can now pass.
+    
+    R=rsc, rminnich, ality, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7396060
+
+ src/pkg/net/file_test.go      |  2 +-
+ src/pkg/net/net_test.go       |  4 ++++
+ src/pkg/net/protoconn_test.go |  5 +++++
+ src/pkg/net/timeout_test.go   | 15 +++++++++++++++
+ 4 files changed, 25 insertions(+), 1 deletion(-)

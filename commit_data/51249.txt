@@ -1,0 +1,22 @@
+commit 24fc64028c0faa7fcbdae2bf2a2ded825713c982
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 14 10:21:51 2022 -0800
+
+    os: don't request read access from CreateFile in Stat
+    
+    CL 448897 changed os.Stat to request GENERIC_READ access when using
+    CreateFile to examine a file. This is unnecessary; access flags of 0
+    will permit examining file metadata even if the file isn't readable.
+    Revert to the old behavior here.
+    
+    For #56217
+    
+    Change-Id: I09220b3bbee304bd89f4a94ec9b0af42042b7773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/os/stat_windows.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

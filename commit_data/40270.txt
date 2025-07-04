@@ -1,0 +1,98 @@
+commit dad616375f054d0644e006d7794724186d7a6720
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jun 24 12:59:22 2019 -0700
+
+    cmd/compile, cmd/link, runtime: make defers low-cost through inline code and extra funcdata
+    
+    Generate inline code at defer time to save the args of defer calls to unique
+    (autotmp) stack slots, and generate inline code at exit time to check which defer
+    calls were made and make the associated function/method/interface calls. We
+    remember that a particular defer statement was reached by storing in the deferBits
+    variable (always stored on the stack). At exit time, we check the bits of the
+    deferBits variable to determine which defer function calls to make (in reverse
+    order). These low-cost defers are only used for functions where no defers
+    appear in loops. In addition, we don't do these low-cost defers if there are too
+    many defer statements or too many exits in a function (to limit code increase).
+    
+    When a function uses open-coded defers, we produce extra
+    FUNCDATA_OpenCodedDeferInfo information that specifies the number of defers, and
+    for each defer, the stack slots where the closure and associated args have been
+    stored. The funcdata also includes the location of the deferBits variable.
+    Therefore, for panics, we can use this funcdata to determine exactly which defers
+    are active, and call the appropriate functions/methods/closures with the correct
+    arguments for each active defer.
+    
+    In order to unwind the stack correctly after a recover(), we need to add an extra
+    code segment to functions with open-coded defers that simply calls deferreturn()
+    and returns. This segment is not reachable by the normal function, but is returned
+    to by the runtime during recovery. We set the liveness information of this
+    deferreturn() to be the same as the liveness at the first function call during the
+    last defer exit code (so all return values and all stack slots needed by the defer
+    calls will be live).
+    
+    I needed to increase the stackguard constant from 880 to 896, because of a small
+    amount of new code in deferreturn().
+    
+    The -N flag disables open-coded defers. '-d defer' prints out the kind of defer
+    being used at each defer statement (heap-allocated, stack-allocated, or
+    open-coded).
+    
+    Cost of defer statement  [ go test -run NONE -bench BenchmarkDefer$ runtime ]
+      With normal (stack-allocated) defers only:         35.4  ns/op
+      With open-coded defers:                             5.6  ns/op
+      Cost of function call alone (remove defer keyword): 4.4  ns/op
+    
+    Text size increase (including funcdata) for go cmd without/with open-coded defers:  0.09%
+    
+    The average size increase (including funcdata) for only the functions that use
+    open-coded defers is 1.1%.
+    
+    The cost of a panic followed by a recover got noticeably slower, since panic
+    processing now requires a scan of the stack for open-coded defer frames. This scan
+    is required, even if no frames are using open-coded defers:
+    
+    Cost of panic and recover [ go test -run NONE -bench BenchmarkPanicRecover runtime ]
+      Without open-coded defers:        62.0 ns/op
+      With open-coded defers:           255  ns/op
+    
+    A CGO Go-to-C-to-Go benchmark got noticeably faster because of open-coded defers:
+    
+    CGO Go-to-C-to-Go benchmark [cd misc/cgo/test; go test -run NONE -bench BenchmarkCGoCallback ]
+      Without open-coded defers:        443 ns/op
+      With open-coded defers:           347 ns/op
+    
+    Updates #14939 (defer performance)
+    Updates #34481 (design doc)
+    
+    Change-Id: I51a389860b9676cfa1b84722f5fb84d3c4ee9e28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190098
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/escape.go      |  18 +-
+ src/cmd/compile/internal/gc/main.go        |   2 +
+ src/cmd/compile/internal/gc/obj.go         |   3 +
+ src/cmd/compile/internal/gc/reflect.go     |   4 +
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go         | 597 ++++++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/syntax.go      |  59 +--
+ src/cmd/compile/internal/gc/walk.go        |   1 -
+ src/cmd/compile/internal/ssa/deadstore.go  |   5 +
+ src/cmd/compile/internal/ssa/func.go       |  12 +-
+ src/cmd/internal/obj/link.go               |   9 +-
+ src/cmd/internal/objabi/funcdata.go        |  11 +-
+ src/cmd/internal/objabi/funcid.go          |   6 +
+ src/cmd/internal/objabi/stack.go           |   2 +-
+ src/cmd/link/internal/ld/pcln.go           |  13 +-
+ src/cmd/link/internal/ld/symtab.go         |   3 +-
+ src/runtime/callers_test.go                |  50 ++-
+ src/runtime/defer_test.go                  |  63 ++-
+ src/runtime/funcdata.h                     |   1 +
+ src/runtime/panic.go                       | 316 ++++++++++++++-
+ src/runtime/runtime2.go                    |  30 +-
+ src/runtime/runtime_test.go                |   2 +-
+ src/runtime/stack.go                       |   4 +-
+ src/runtime/symtab.go                      |  11 +-
+ test/defererrcheck.go                      |  86 +++++
+ test/live.go                               |  18 +-
+ test/nosplit.go                            |   6 +-
+ 27 files changed, 1188 insertions(+), 146 deletions(-)

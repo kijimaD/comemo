@@ -1,0 +1,15 @@
+commit 5308c6d9325735ab4e69620e99aaa8d119e02941
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 15:11:43 2014 +1100
+
+    crypto/rand: handle EAGAIN reads from /dev/urandom
+    
+    Fixes #9205
+    
+    Change-Id: Iacd608ba43332008984aa8ece17dcb5757f27b3f
+    Reviewed-on: https://go-review.googlesource.com/1611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/rand/eagain.go    | 27 +++++++++++++++++++++++++++
+ src/crypto/rand/rand_unix.go | 18 +++++++++++++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)

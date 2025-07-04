@@ -1,0 +1,22 @@
+commit 1cb254a085678170895634b33c486b3cef223286
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 12 16:12:22 2011 -0500
+
+    time: fix Plan 9 build for new API
+    
+    I had to move readFile into sys_$GOOS.go
+    since syscall.Open takes only two arguments
+    on Plan 9.
+    
+    R=lucio.dere, rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5447061
+
+ src/pkg/runtime/plan9/thread.c |  12 ++++
+ src/pkg/time/Makefile          |   1 -
+ src/pkg/time/sleep.go          |   3 +
+ src/pkg/time/sys.go            |  36 ----------
+ src/pkg/time/sys_plan9.go      |  30 +++++++++
+ src/pkg/time/sys_unix.go       |  26 ++++++++
+ src/pkg/time/zoneinfo_plan9.go | 147 +++++++++++++++++++++++++++++++++--------
+ 7 files changed, 190 insertions(+), 65 deletions(-)

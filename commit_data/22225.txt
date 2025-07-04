@@ -1,0 +1,14 @@
+commit fa3ad1ebb582b96d1eda471c68ea250561db28b1
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Fri Mar 20 15:27:35 2015 +0100
+
+    mime/quotedprintable: add binary mode to the writer
+    
+    Change-Id: Id82c3111d7571263208ced3d011ad80f3fe55984
+    Reviewed-on: https://go-review.googlesource.com/7892
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/quotedprintable/writer.go      |  6 ++++-
+ src/mime/quotedprintable/writer_test.go | 43 +++++++++++++++++++++++----------
+ 2 files changed, 35 insertions(+), 14 deletions(-)

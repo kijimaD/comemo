@@ -1,0 +1,18 @@
+commit 2b9f3fceadf26d6f73ae76c640b6f6c3b821c706
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 6 10:28:19 2014 -0700
+
+    cmd/cgo: consistently map void* to *byte under -{c,go}defs
+    
+    Fixes #8478.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/122150043
+
+ misc/cgo/testgodefs/issue8478.go | 20 +++++++++++++++++++
+ misc/cgo/testgodefs/main.go      |  3 +++
+ misc/cgo/testgodefs/test.bash    |  2 +-
+ src/cmd/cgo/gcc.go               | 42 ++++++++++++----------------------------
+ 4 files changed, 36 insertions(+), 31 deletions(-)

@@ -1,0 +1,23 @@
+commit c1363b2d91d9aa152ef17a68d7a1778426b33727
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 15:17:32 2017 -0800
+
+    cmd/compile: provide line number for cgo directive error (fix a TODO)
+    
+    Also: Remove double "go:" prefix in related error message.
+    
+    Fixes #18882.
+    
+    Change-Id: Ifbbd8e2f7529b43f035d3dbf7ca4a91f212bc6b6
+    Reviewed-on: https://go-review.googlesource.com/36121
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/lex.go      | 13 +++++++------
+ src/cmd/compile/internal/gc/lex_test.go |  8 ++++++--
+ src/cmd/compile/internal/gc/noder.go    |  7 ++++---
+ src/go/types/stdlib_test.go             |  1 +
+ test/fixedbugs/issue18459.go            |  2 +-
+ test/fixedbugs/issue18882.go            | 13 +++++++++++++
+ 6 files changed, 32 insertions(+), 12 deletions(-)

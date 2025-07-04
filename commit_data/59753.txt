@@ -1,0 +1,16 @@
+commit a37969852194c841beb61f8078e9939438841fec
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu May 29 10:29:39 2025 -0400
+
+    go/{ast,parser,types}: add signpost to golang.org/x/tools/go/packages
+    
+    Change-Id: I5d5036e7b41df67d0c1ab42163fdceed8f9c42a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677137
+    Reviewed-by: Matt Proud <mtp@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/ast/ast.go       |  4 ++++
+ src/go/parser/parser.go | 17 +++++++++++++----
+ src/go/types/api.go     |  5 +++++
+ 3 files changed, 22 insertions(+), 4 deletions(-)

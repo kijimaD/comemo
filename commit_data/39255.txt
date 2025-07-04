@@ -1,0 +1,27 @@
+commit 1531192272dfdebc61050a8dafa626ff4b36b3a4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 30 21:06:01 2019 -0700
+
+    runtime: remove VDSO fallback test and benchmarks
+    
+    These tests assume that it is OK to switch between time implementations,
+    but the clock_gettime call uses CLOCK_MONOTONIC and the fallback call,
+    gettimeofday, uses CLOCK_REALTIME. Disabling the clock_gettime call means
+    that calls to nanotime will start returning very different values.
+    This breaks the new timer code, which assumes that nanotime will return
+    a consistently increasing value.
+    
+    This test is not very useful in any case as it doesn't check the results.
+    
+    Removing this file also removes BenchmarkTimeNow, which is a duplicate
+    of BenchmarkNow in the time package.
+    
+    Updates #27707
+    Fixes #32109
+    
+    Change-Id: I6a884af07f75822d724193c5eed94742f524f07d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174679
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/vdso_linux_test.go | 63 ------------------------------------------
+ 1 file changed, 63 deletions(-)

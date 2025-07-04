@@ -1,0 +1,21 @@
+commit 7d5c54eee4718ccc1790fa9ab92bf091e9d56ef7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 1 18:39:39 2021 -0700
+
+    cmd/compile/internal/types2: remove Config.InferFromConstraints flag
+    
+    Constraint type inference is part of the proposed language.
+    Use an internal flag to control the feayure for debugging.
+    
+    Change-Id: I7a9eaee92b5ffc23c25d9e68a729acc0d705e879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306770
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go       | 1 -
+ src/cmd/compile/internal/types2/api.go        | 4 ----
+ src/cmd/compile/internal/types2/api_test.go   | 1 -
+ src/cmd/compile/internal/types2/call.go       | 2 +-
+ src/cmd/compile/internal/types2/check_test.go | 1 -
+ src/cmd/compile/internal/types2/infer.go      | 8 +++++---
+ 6 files changed, 6 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 8f0bfc5a29ab942af5b8dd1caf143383a90c2170
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 29 12:18:26 2012 -0800
+
+    net/http/httptest: make Server.Close wait for outstanding requests to finish
+    
+    Might fix issue 3050
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5708066
+
+ src/pkg/net/http/httptest/server.go | 36 +++++++++++++++++++++++++++++++++++-
+ src/pkg/net/http/sniff_test.go      |  3 ++-
+ 2 files changed, 37 insertions(+), 2 deletions(-)

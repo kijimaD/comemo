@@ -1,0 +1,19 @@
+commit 3b3f422afed632a7d332e03444a908abc170d402
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 30 09:21:34 2015 -0800
+
+    time: fix handling of -07, handle Z07
+    
+    The existing code has partial support for -07 (just the hours of a time
+    zone offset).  Complete the support, add support for Z07, and add a few
+    tests.
+    
+    Fixes #13426.
+    
+    Change-Id: Ic6377bbf3e65b4bb761b9779f7e80c07ce4f57e8
+    Reviewed-on: https://go-review.googlesource.com/17260
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/format.go      | 20 ++++++++++++++------
+ src/time/format_test.go |  3 +++
+ 2 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 9a445600334fcd4e856206b0223f8b85c71f7999
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 14:56:47 2012 +1100
+
+    time: run TestTicker for longer during short test, otherwise it fails
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5671049
+
+ src/pkg/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

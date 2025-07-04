@@ -1,0 +1,14 @@
+commit c01c1d4215ea8b19014017673a5adc8b1a9cad0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 20:05:20 2016 -0400
+
+    net: add examples to Addr definition
+    
+    Fixes #16014.
+    
+    Change-Id: I68b096df7924a3258e940c4d94ec5d06f5bdfcbb
+    Reviewed-on: https://go-review.googlesource.com/32097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 375280f1bbdd8443cd961dab0ce97f1ce80f7c92
+Author: pityonline <pityonline@gmail.com>
+Date:   Wed Mar 14 00:50:56 2018 +0800
+
+    cmd/vendor: fix JSON format
+    
+    Change-Id: I9c5a4a4031c12d67c7e75e9a276a766927abf83d
+    Reviewed-on: https://go-review.googlesource.com/100415
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/vendor/vendor.json | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

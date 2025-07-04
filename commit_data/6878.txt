@@ -1,0 +1,12 @@
+commit 7431a3165eec138028cbc2533575c1077c684d53
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:52:50 2010 -0500
+
+    ld: re-add ELF symbol tables
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3506041
+
+ src/cmd/ld/symtab.c | 43 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 41 insertions(+), 2 deletions(-)

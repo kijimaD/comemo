@@ -1,0 +1,16 @@
+commit 5fcc24074f8e48cd8404bd250c2c268aca2bc3d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 15 18:55:45 2019 +0000
+
+    syscall: skip TestSyscallNoError when temp dir is mounted nosuid
+    
+    Fixes #30258
+    
+    Change-Id: I73b63eb9d3aca00f562fdc3af010e96269bb6b9c
+    Reviewed-on: https://go-review.googlesource.com/c/162891
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/syscall/syscall_linux_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

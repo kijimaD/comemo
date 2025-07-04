@@ -1,0 +1,23 @@
+commit c9f7370a096a8b5c2db5996b8b6adbad4e2747d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:08:11 2022 -0500
+
+    cmd/go: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Ic19172b6cd05526cf6776b904e2dfebdd8b055a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450697
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/go_test.go                                      | 14 +++++++-------
+ src/cmd/go/go_windows_test.go                              |  4 ++--
+ src/cmd/go/init_test.go                                    |  3 +--
+ .../internal/lockedfile/internal/filelock/filelock_test.go |  3 +--
+ src/cmd/go/internal/lockedfile/lockedfile_test.go          |  3 +--
+ src/cmd/go/scriptreadme_test.go                            |  3 +--
+ 6 files changed, 13 insertions(+), 17 deletions(-)

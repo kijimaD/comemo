@@ -1,0 +1,18 @@
+commit c11026957972c5684596545e13b8f86cd00c73dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 16:19:38 2009 -0800
+
+    cleanup style:
+    - consistently remove all underbars from links
+    - this removes need for noline style
+    - removed unused info style
+    
+    R=r, rsc
+    http://go/go-review/1025032
+
+ doc/style.css          | 12 ++++--------
+ lib/godoc/dirlist.html |  4 ++--
+ lib/godoc/godoc.html   | 32 ++++++++++++++++----------------
+ lib/godoc/package.html | 10 +++++-----
+ lib/godoc/search.html  | 10 +++++-----
+ 5 files changed, 32 insertions(+), 36 deletions(-)

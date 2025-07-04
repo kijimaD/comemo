@@ -1,0 +1,18 @@
+commit 117826903a526c4d31c628f1a302c1d4799c1666
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:11:48 2020 -0800
+
+    flag: update comment to refer to Output, not out
+    
+    The out method was renamed to Output in CL 70391 for #17628 and #21888.
+    
+    Fixes #37514
+    
+    Change-Id: I99be47b5030ccbbf10a056df9fcc3c97cb99b015
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221383
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 70a1efbb5c2f6b7dd355cfd905ffdd13f35ac756
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 10:01:42 2019 -0400
+
+    cmd/link: remove reading/processing of function Autom records
+    
+    Remove linker reading and processing of automs (no longer needed, now
+    that the compiler is emitting R_USETYPE relocations on functions). So
+    as to avoid changing the object file format, the object still contains
+    a count of automs, but this count is required to be zero.
+    
+    Updates #34554.
+    
+    Change-Id: I10230e191057c5c5705541eeb06f747d5f73c42d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197500
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go     |  6 ------
+ src/cmd/link/internal/ld/lib.go          | 34 --------------------------------
+ src/cmd/link/internal/objfile/objfile.go | 22 +++------------------
+ src/cmd/link/internal/sym/symbol.go      |  8 --------
+ 4 files changed, 3 insertions(+), 67 deletions(-)

@@ -1,0 +1,19 @@
+commit f2af0c178099c0d785efe3b6f5f2282277f9ee9c
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Sep 27 21:44:38 2017 -0300
+
+    bytes: explicitly state if a function expects UTF-8-encoded data
+    
+    Fixes #21950
+    
+    Change-Id: I6fa392abd2c3bf6a4f80f14c6b1419470e9a944d
+    Reviewed-on: https://go-review.googlesource.com/66750
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/bytes.go         | 52 ++++++++++++++++++++++++----------------------
+ src/bytes/bytes_amd64.go   |  2 +-
+ src/bytes/bytes_generic.go |  2 +-
+ src/bytes/bytes_s390x.go   |  2 +-
+ 4 files changed, 30 insertions(+), 28 deletions(-)

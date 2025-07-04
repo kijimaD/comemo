@@ -1,0 +1,15 @@
+commit a65bf95dd8e62217223bd4d316c7f4197d8b66e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 08:39:04 2009 -0800
+
+    syscall: use correct pointer in recvfrom/sendto.
+    linux/386 stack trace: use 32-bit hex.
+    
+    Fixes #159.
+    
+    R=r
+    https://golang.org/cl/154178
+
+ src/pkg/runtime/linux/386/signal.c   | 26 +++++++++++++-------------
+ src/pkg/syscall/syscall_linux_386.go |  4 ++--
+ 2 files changed, 15 insertions(+), 15 deletions(-)

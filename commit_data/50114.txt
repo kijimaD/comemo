@@ -1,0 +1,34 @@
+commit d4ff25ac69c90bb0e6a92aff7650d0bf3d41d29e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 24 12:14:20 2022 -0500
+
+    misc/cgo/testsanitizers: determine compiler version for tsan tests on ppc64le
+    
+    Some tests in misc/cgo/testsanitizers had been disabled on ppc64le
+    until recently, due to an intermittent error in the tsan tests,
+    with the goal of trying to understand the failure.
+    
+    After further investigation, I found that the code for tsan within
+    gcc does not work consistently when ASLR is enabled on ppc64le. A
+    fix for that problem was integrated in gcc 9.
+    
+    This adds a check to testsanitizers to determine the gcc compiler
+    version on ppc64le and skip the test if the version is too old.
+    
+    A similar check is needed for asan too.
+    
+    Updates #54645
+    
+    Change-Id: I70717d1aa9e967cf1e871566e72b3862b91fea3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ misc/cgo/testsanitizers/asan_test.go    |  4 ++--
+ misc/cgo/testsanitizers/cc_test.go      | 18 +++++++++++++++++-
+ misc/cgo/testsanitizers/cshared_test.go |  5 +++++
+ misc/cgo/testsanitizers/tsan_test.go    | 13 +++++++++++++
+ 4 files changed, 37 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 9f06ccb48d9bb17deeb7515c521993879141334d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 17 12:12:01 2011 -0400
+
+    asn1: add support for unmarshalling structs with int32 members
+    
+    Also improve error message for unsupported integer types
+    
+    R=agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/4873049
+
+ src/pkg/asn1/asn1.go      | 34 ++++++++++++++++------------------
+ src/pkg/asn1/asn1_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 18 deletions(-)

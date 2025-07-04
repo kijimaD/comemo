@@ -1,0 +1,18 @@
+commit 3c7f9b80222376fa01f8c6e3b411281c23dd74ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 10:18:03 2022 -0700
+
+    net/mail: accept UT as a timezone
+    
+    Fixes #39906
+    
+    Change-Id: I8fcaf4c1ccc4131d770cff08d9c80f520885a6b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396214
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/mail/message.go      |  2 +-
+ src/net/mail/message_test.go | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

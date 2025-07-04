@@ -1,0 +1,24 @@
+commit 5c598d3c9f0b9d78f92ffe1ab5a2365fe900c631
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Thu Feb 16 13:30:04 2012 -0500
+
+    runtime: release unused memory to the OS.
+    
+    Periodically browse MHeap's freelists for long unused spans and release them if any.
+    
+    Current hardcoded settings:
+            - GC is forced if none occured over the last 2 minutes.
+            - spans are handed back after 5 minutes of uselessness.
+    
+    SysUnused (for Unix) is a wrapper on madvise MADV_DONTNEED on Linux and MADV_FREE on BSDs.
+    
+    R=rsc, dvyukov, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5451057
+
+ src/pkg/runtime/malloc.h |  9 ++++--
+ src/pkg/runtime/mem.go   | 14 ++++----
+ src/pkg/runtime/mgc0.c   |  8 +++++
+ src/pkg/runtime/mheap.c  | 83 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/proc.c   | 15 +++++++--
+ 5 files changed, 117 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 9b2df72b63ff977004756e9b847f926b4fb8d8a8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 10 11:07:48 2020 -0400
+
+    cmd/link: add copyright header
+    
+    Change-Id: I44f57019bb8e659d4aa3da8b13e8bd9a20b9d2e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253920
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/link_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

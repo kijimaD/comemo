@@ -1,0 +1,19 @@
+commit 0ea534b89949e2c7de1b9c2703b454e67102598c
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Aug 3 07:51:45 2024 +0000
+
+    crypto/internal/boring: use internal/byteorder
+    
+    Change-Id: I882dd4160fb24b1d605af28bca01227716dac717
+    GitHub-Last-Rev: c631b19068aa95dcebed29a9a68cda5644a973b8
+    GitHub-Pull-Request: golang/go#68697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602179
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Zxilly Chou <zxilly@outlook.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/boring/sha.go | 126 ++++++++++++++------------------------
+ 1 file changed, 45 insertions(+), 81 deletions(-)

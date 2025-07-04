@@ -1,0 +1,14 @@
+commit ccdbb8a6c2bf8a058d5cd8dd94374d02e584e39a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 11:28:24 2011 -0400
+
+    runtime: more stack split fixes
+    
+    Found by stkcheck after 6l, 8l bug fixes Luuk is about to submit.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/4306047
+
+ src/pkg/runtime/chan.c | 70 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 36 insertions(+), 34 deletions(-)

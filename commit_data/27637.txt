@@ -1,0 +1,16 @@
+commit cf862478c89fd94c4fe8d9ce1cb481d71e5136bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 10:49:24 2016 -0700
+
+    runtime/cgo: add TSAN locks around mmap call
+    
+    Change-Id: I806cc5523b7b5e3278d01074bc89900d78700e0c
+    Reviewed-on: https://go-review.googlesource.com/23736
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ misc/cgo/testsanitizers/test.bash | 62 ++++++++++++---------------------------
+ misc/cgo/testsanitizers/tsan6.go  | 49 +++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_mmap.c        |  4 +++
+ 3 files changed, 71 insertions(+), 44 deletions(-)

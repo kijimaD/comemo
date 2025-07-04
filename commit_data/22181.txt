@@ -1,0 +1,15 @@
+commit 713451a0975d40d2cd5a0da325fee4a6012ec5a4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 25 13:22:32 2015 -0400
+
+    misc/ios: simplify breakpoint timeout
+    
+    The clever partial timer I added interacts badly with iOS app launch
+    timeout termination. A fixed timeout will be easier to debug.
+    
+    Change-Id: I6eb4ee5f1431539f00fa707e8cde6f3cf86983fc
+    Reviewed-on: https://go-review.googlesource.com/8083
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

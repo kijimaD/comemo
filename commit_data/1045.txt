@@ -1,0 +1,17 @@
+commit 7cd11c1c09729cc3ade1289014865ed26b22c354
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 4 09:33:15 2008 -0800
+
+    - completed integer support (some logical functions missing)
+    - completed rational support
+    - better documentation
+    - more tests
+    - cleanups
+    
+    R=r
+    OCL=18438
+    CL=18438
+
+ usr/gri/bignum/bignum.go      | 1010 ++++++++++++++++++++++++++---------------
+ usr/gri/bignum/bignum_test.go |  453 ++++++++++++++----
+ 2 files changed, 993 insertions(+), 470 deletions(-)

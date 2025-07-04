@@ -1,0 +1,14 @@
+commit 4c9464525ed393793ca74126135f2ca22863d718
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 21 11:45:55 2015 -0400
+
+    runtime: document gctrace format
+    
+    Fixes #10348.
+    
+    Change-Id: I3eea9738e3f6fdc1998d04a601dc9b556dd2db72
+    Reviewed-on: https://go-review.googlesource.com/12453
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/extern.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

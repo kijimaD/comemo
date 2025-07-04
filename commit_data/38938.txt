@@ -1,0 +1,55 @@
+commit 3cf1d770809453fed8754cf3ddf4028cdd7716fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 25 21:01:17 2019 -0400
+
+    cmd/go: implement Go checksum database support
+    
+    This CL adds support for consulting the Go checksum database
+    when downloading a module that is not already listed in go.sum.
+    The overall system is described at golang.org/design/25530-sumdb,
+    and this CL implements the functionality described specifically in
+    golang.org/design/25530-sumdb#command-client.
+    
+    Although the eventual plan is to set GOPROXY and GOSUMDB to
+    default to a Google-run proxy serving the public Go ecosystem,
+    this CL leaves them off by default.
+    
+    Fixes #30601.
+    
+    Change-Id: Ie46140f93c6cc2d85573fbce0878a258819ff44d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173951
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                             |   49 +-
+ src/cmd/go/internal/cfg/cfg.go                    |   41 +-
+ src/cmd/go/internal/envcmd/env.go                 |   17 +-
+ src/cmd/go/internal/modfetch/bootstrap.go         |   17 +
+ src/cmd/go/internal/modfetch/fetch.go             |  165 +-
+ src/cmd/go/internal/modfetch/key.go               |    9 +
+ src/cmd/go/internal/modfetch/notary.go            |  156 -
+ src/cmd/go/internal/modfetch/notary_test.go       |   47 -
+ src/cmd/go/internal/modfetch/pin.go               | 3487 ---------------------
+ src/cmd/go/internal/modfetch/proxy.go             |    2 +-
+ src/cmd/go/internal/modfetch/repo.go              |    4 +-
+ src/cmd/go/internal/modfetch/sumdb.go             |  252 ++
+ src/cmd/go/internal/sumweb/server.go              |    2 +-
+ src/cmd/go/internal/web/api.go                    |   13 +
+ src/cmd/go/proxy_test.go                          |  151 +-
+ src/cmd/go/script_test.go                         |    2 +-
+ src/cmd/go/testdata/script/mod_auth.txt           |    1 +
+ src/cmd/go/testdata/script/mod_download.txt       |    1 +
+ src/cmd/go/testdata/script/mod_download_hash.txt  |    3 +-
+ src/cmd/go/testdata/script/mod_get_commit.txt     |    1 +
+ src/cmd/go/testdata/script/mod_get_moved.txt      |    1 +
+ src/cmd/go/testdata/script/mod_get_pseudo.txt     |    3 +-
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt |    3 +-
+ src/cmd/go/testdata/script/mod_notary.txt         |   73 -
+ src/cmd/go/testdata/script/mod_query_exclude.txt  |    1 +
+ src/cmd/go/testdata/script/mod_sumdb.txt          |   33 +
+ src/cmd/go/testdata/script/mod_sumdb_cache.txt    |   47 +
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt   |   25 +
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt    |   47 +
+ 29 files changed, 772 insertions(+), 3881 deletions(-)

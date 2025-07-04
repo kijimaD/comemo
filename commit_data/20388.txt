@@ -1,0 +1,15 @@
+commit 8cc6cb2f17d7fac3cd180b60ab85beabe874b24d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 11 12:47:17 2014 -0700
+
+    test: return errors earlier in run.go
+    
+    Fixes #8184.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/137510043
+
+ test/run.go | 4 ++++
+ 1 file changed, 4 insertions(+)

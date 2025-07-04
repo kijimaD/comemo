@@ -1,0 +1,20 @@
+commit ef4347f19ec70d18abba176e823e5d0d26694360
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 13 10:10:56 2009 -0700
+
+    Basic EBNF package:
+    - parsing of EBNF grammars
+    - basic consistency checks
+    
+    R=rsc
+    DELTA=695  (695 added, 0 deleted, 0 changed)
+    OCL=31479
+    CL=31516
+
+ src/pkg/Make.deps         |   1 +
+ src/pkg/Makefile          |   2 +
+ src/pkg/ebnf/Makefile     |  69 ++++++++++
+ src/pkg/ebnf/ebnf.go      | 315 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/ebnf/ebnf_test.go |  75 +++++++++++
+ src/pkg/ebnf/parser.go    | 240 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 702 insertions(+)

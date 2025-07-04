@@ -1,0 +1,19 @@
+commit 18f0e88103aaa429e92564312b4ee966dcb77102
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 3 10:47:44 2016 -0700
+
+    go/internal/gcimporter: backport changes from x/tools/go/gcimporter15
+    
+    See https://go-review.googlesource.com/32581.
+    
+    This makes x/tools/go/gcimporter15/bimport.go a close copy again
+    and the importer more robust.
+    
+    Change-Id: If96ad6acd611878b7dfa6a13d005d847ece82ab6
+    Reviewed-on: https://go-review.googlesource.com/32647
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/bimport.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

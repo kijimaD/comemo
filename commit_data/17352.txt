@@ -1,0 +1,12 @@
+commit 2f2d4c6bc3dfe374ead3296b2191d51a1ba6037f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 21 14:21:02 2013 +0400
+
+    net: ensure that Read/Write on all platforms do 0 mallocs
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12780045
+
+ src/pkg/net/tcp_test.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

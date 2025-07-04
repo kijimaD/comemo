@@ -1,0 +1,13 @@
+commit 80f0a7df26d216c96400d1f7cfbb5106d4b354df
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 21 13:23:24 2014 +1000
+
+    tag go1.3beta1 and go1.3beta2
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/100660043
+
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

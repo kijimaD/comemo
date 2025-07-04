@@ -1,0 +1,23 @@
+commit 1125fae989a3016d509c23fee15793b231e5e8e1
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Oct 29 17:43:53 2017 -0700
+
+    vendor: add golang.org/x/crypto/cryptobyte
+    
+    This change adds the cryptobyte package from x/crypto at git revision
+    faadfbdc035307d901e69eea569f5dda451a3ee3.
+    
+    Updates #22616, #15196
+    
+    Change-Id: Iffd0b022ca129d340ef429697e05b581f04e5c4f
+    Reviewed-on: https://go-review.googlesource.com/74270
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang_org/x/crypto/cryptobyte/asn1.go  | 732 +++++++++++++++++++++
+ .../golang_org/x/crypto/cryptobyte/asn1/asn1.go    |  46 ++
+ .../golang_org/x/crypto/cryptobyte/asn1_test.go    | 300 +++++++++
+ .../golang_org/x/crypto/cryptobyte/builder.go      | 309 +++++++++
+ .../x/crypto/cryptobyte/cryptobyte_test.go         | 428 ++++++++++++
+ .../golang_org/x/crypto/cryptobyte/example_test.go | 154 +++++
+ .../golang_org/x/crypto/cryptobyte/string.go       | 167 +++++
+ 7 files changed, 2136 insertions(+)

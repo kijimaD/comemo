@@ -1,0 +1,15 @@
+commit 902ee9ae8f21d2a3bb570f66c0d082b9b1cce76b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jun 5 00:40:49 2013 +0200
+
+    misc/pprof: register cnew and runtime.cnewarray as malloc wrappers.
+    
+    These functions were introduced by revision 139919984600
+    and should not show up on profiles for consistency.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10003043
+
+ misc/pprof | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,20 @@
+commit b4924870f4b8302aba051a506bb499fad99b464e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 14:35:28 2019 -0700
+
+    misc/cgo/test: use __atomic intrinsics instead of __sync
+    
+    GCC has supported the __atomic intrinsics since 4.7, and clang
+    supports them as well. They are better than the __sync intrinsics in
+    that they specify a memory model and, more importantly for our purposes,
+    they are reliably implemented either in the compiler or in libatomic.
+    
+    Change-Id: I5e0036ea3300f65c28b1c3d1f3b93fb61c1cd646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193603
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/test/testx.go | 28 +++++-----------------------
+ 1 file changed, 5 insertions(+), 23 deletions(-)

@@ -1,0 +1,24 @@
+commit 50869f377fd72a921d27e3522a05604b7753b3ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 15:21:37 2022 -0800
+
+    go/types, types2: report error for invalid string(1 << s)
+    
+    For #45114.
+    Fixes #45117.
+    
+    Change-Id: I71d6650ae2c4c06952fce19959120f15f13c08a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379256
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go                      | 1 -
+ src/cmd/compile/internal/types2/conversions.go                   | 4 ++--
+ src/cmd/compile/internal/types2/testdata/check/shifts.src        | 2 +-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go | 8 ++++++++
+ src/go/types/api_test.go                                         | 1 -
+ src/go/types/conversions.go                                      | 4 ++--
+ src/go/types/testdata/check/shifts.src                           | 2 +-
+ src/go/types/testdata/fixedbugs/issue45114.go                    | 8 ++++++++
+ test/fixedbugs/bug193.go                                         | 4 +---
+ 9 files changed, 23 insertions(+), 11 deletions(-)

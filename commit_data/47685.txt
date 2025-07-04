@@ -1,0 +1,31 @@
+commit 9b0de0854d5a5655890ef0b2b9052da2541182a3
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Mon Sep 20 16:09:47 2021 +0200
+
+    runtime: fix missing pprof labels
+    
+    Use gp.m.curg instead of the gp when recording cpu profiler stack
+    traces. This ensures profiler labels are captured when systemstack or similar
+    is executing on behalf of the current goroutine.
+    
+    After this there are still rare cases of samples containing the labelHog
+    function, so more work might be needed. This patch should fix ~99% of the
+    problem.
+    
+    Also change testCPUProfile interface a little to allow the new test to
+    re-run with a longer duration if it fails during a -short run.
+    
+    Fixes #48577.
+    
+    Change-Id: I3dbc9fd5af3c513544e822acaa43055b2e00dfa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367200
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/cpuprof.go          |  11 +-
+ src/runtime/pprof/pprof_test.go | 227 +++++++++++++++++++++++++++++-----------
+ src/runtime/proc.go             |   9 +-
+ 3 files changed, 177 insertions(+), 70 deletions(-)

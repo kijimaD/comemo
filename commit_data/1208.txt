@@ -1,0 +1,16 @@
+commit 0998eaf4a197cbdba2171fb6ccddf2830a31b110
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 20 16:26:43 2008 -0800
+
+    - correct error handling throughout
+    - documentation, cleanups
+    - more options
+    
+    R=r
+    OCL=19736
+    CL=19736
+
+ usr/gri/pretty/printer.go   |   4 +-
+ usr/gri/pretty/tabwriter.go | 259 +++++++++++++++++++++++++-------------------
+ usr/gri/pretty/untab.go     |   4 +-
+ 3 files changed, 150 insertions(+), 117 deletions(-)

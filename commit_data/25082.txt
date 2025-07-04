@@ -1,0 +1,18 @@
+commit f3b064ae0180461411add0aa98156dbf26f37de2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 16 10:57:07 2015 -0800
+
+    cmd/compile: add 386 special case for testing first field of struct variable
+    
+    This is the 386 version of the amd64-specific https://golang.org/cl/16933.
+    
+    Update #12416.
+    
+    Change-Id: Ibc3a99dcc753d6281839d8b61016d6c21dbd9649
+    Reviewed-on: https://go-review.googlesource.com/16970
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/x86/gsubr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

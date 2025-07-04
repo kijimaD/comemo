@@ -1,0 +1,34 @@
+commit 4f2a73011f2d076d97a2b46492ab21f26a33222b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 2 17:01:14 2015 -0700
+
+    cmd/internal/gc, cmd/yacc: restore remaining custom error messages
+    
+    This CL extends cmd/yacc to expose a yyErrorVerbose variable that
+    changes the error messages from just "syntax error" to "syntax error:
+    unexpected ${tokname}".
+    
+    It also moves the yyToknames table generation to after rules have been
+    processed so that entries can be generated for tokens that aren't
+    mentioned in the preamble (e.g., '.' in the case of go.y).
+    
+    Lastly, it restores gc's old code for applying yytfix to yyToknames,
+    except that substituting "LLITERAL" with litbuf happens in Yyerror.
+    
+    Fixes #9968.
+    
+    Change-Id: Icec188d11fdabc1dae31b8a471c35b5c7f6deec7
+    Reviewed-on: https://go-review.googlesource.com/8432
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/lex.go   | 22 ++++++++++++++-
+ src/cmd/internal/gc/subr.go  | 55 +++++++++++++++++--------------------
+ src/cmd/internal/gc/y.go     | 35 +++++++++++++++++++-----
+ src/cmd/internal/gc/yymsg.go |  2 +-
+ src/cmd/yacc/yacc.go         | 64 ++++++++++++++++++++++++--------------------
+ test/fixedbugs/bug349.go     |  3 ---
+ test/fixedbugs/bug388.go     |  3 ---
+ test/fixedbugs/bug435.go     |  3 ---
+ 8 files changed, 110 insertions(+), 77 deletions(-)

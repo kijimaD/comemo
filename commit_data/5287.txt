@@ -1,0 +1,12 @@
+commit 30f981d98019f130c1ef439c9585f80591c20ed2
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Apr 13 16:13:53 2010 -0700
+
+    8l: add DOS stub to PE binaries
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/915041
+
+ src/cmd/ld/pe.c | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit e4259d67b9e1f0180a923faa512a1781465faac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 30 18:13:27 2018 -0700
+
+    go/types: report object path in trace mode
+    
+    For debugging only; disabled (dead code) by default
+    unless internal constant trace flag is set to true.
+    
+    For #8699.
+    
+    Change-Id: Ib7b272c6ac8efacccbbbe24650ef500c5a9ddcf5
+    Reviewed-on: https://go-review.googlesource.com/115457
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go      | 12 ++++++++++++
+ src/go/types/decl.go       |  4 ++--
+ src/go/types/interfaces.go |  2 +-
+ 3 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 86b9e3e2b4aebd2fe80099e7c9ff8c0122fc77e4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Nov 9 08:50:10 2012 +1100
+
+    archive/tar: accept binary format when reading numeric header fields.
+    
+    Fixes #4358.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6840043
+
+ src/pkg/archive/tar/reader.go   | 12 ++++++++++++
+ src/pkg/archive/tar/tar_test.go |  1 +
+ 2 files changed, 13 insertions(+)

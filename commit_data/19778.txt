@@ -1,0 +1,15 @@
+commit 01a7d39df1d6ba5e3ba8a5b8e928b906556c6772
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 19 10:29:57 2014 -0700
+
+    runtime: fix stacks_sys accounting
+    
+    subtract freed count before span gets merged during free.
+    
+    LGTM=dvyukov
+    R=dmitry, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/112450045
+
+ src/pkg/runtime/mheap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

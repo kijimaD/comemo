@@ -1,0 +1,13 @@
+commit e45f5cd5f17c88f979adcbebaa3bead9b0d7cc1f
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Mar 17 18:30:02 2014 -0700
+
+    cmd/gc: Add tests for self-referential array types.
+    
+    LGTM=gri, iant
+    R=gri, iant
+    CC=golang-codereviews
+    https://golang.org/cl/77050045
+
+ test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

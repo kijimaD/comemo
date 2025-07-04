@@ -1,0 +1,17 @@
+commit 8e50e48f4ddd434b848240837a02a487d502b3ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Jan 20 19:14:58 2019 +0100
+
+    cmd/cgo: remove duplicate entry from gofmtLineReplacer
+    
+    CL 158457 added a duplicate entry for the ",\n" -> "," replacement to
+    gofmtLineReplacer. Remove the duplicate.
+    
+    Change-Id: I17684fcd19cbc96fa7a7b53bf7c1a6382bf1114f
+    Reviewed-on: https://go-review.googlesource.com/c/158619
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/godefs.go | 1 -
+ 1 file changed, 1 deletion(-)

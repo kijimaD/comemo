@@ -1,0 +1,12 @@
+commit de6a5881bbf85113186d9cfdbe51fd3165ba7e4c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 2 17:56:13 2015 -0700
+
+    bytes: make Buffer comment more accurate
+    
+    Change-Id: Ief22b3dbba9616dd40bf3ea8e2633d3c5e7d1886
+    Reviewed-on: https://go-review.googlesource.com/19761
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

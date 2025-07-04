@@ -1,0 +1,44 @@
+commit f47cfd6cb55ce0ba6a3f77eeb33c60713f8493e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 12:04:22 2023 -0700
+
+    cmd/compile: simplify asmhdr and plugin exports handling
+    
+    This CL removes a bunch of obsolete code, which made the overall
+    possible data flow of the compiler much harder to understand. In
+    particular, it:
+    
+    1. Removes typecheck.Declare by inlining its only two remaining uses,
+    and simplifying them down to just the couple of relevant assignments
+    for each remaining caller.
+    
+    2. Renames ir.Package.{Asms,Exports} to {AsmHdrDecls,PluginExports},
+    respectively, to better describe what they're used for. In particular,
+    PluginExports now actually holds only the subset of Exports that used
+    to be confusingly called "ptabs" in package reflectdata.
+    
+    3. Renames reflectdata.WriteTabs to reflectdata.WritePluginTable, to
+    make it clearer what it does.
+    
+    4. Removes the consistency checks on len(Exports) and len(ptabs),
+    since now it's plainly obvious that only the unified importer ever
+    appends to PluginExports.
+    
+    Change-Id: Iedc9d0a4e7648de4e734f7e3e7df302580fed542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518757
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/export.go           |  2 +-
+ src/cmd/compile/internal/gc/main.go             |  4 +-
+ src/cmd/compile/internal/gc/obj.go              | 13 +---
+ src/cmd/compile/internal/ir/package.go          | 13 ++--
+ src/cmd/compile/internal/noder/reader.go        |  8 +--
+ src/cmd/compile/internal/pkginit/init.go        |  7 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 92 +++++++++---------------
+ src/cmd/compile/internal/staticinit/sched.go    | 10 ++-
+ src/cmd/compile/internal/typecheck/dcl.go       | 95 +++----------------------
+ 9 files changed, 68 insertions(+), 176 deletions(-)

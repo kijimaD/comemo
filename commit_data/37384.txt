@@ -1,0 +1,25 @@
+commit 45e9c5538b3956d98ef0337fc19ed8d45eb17090
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 23 17:00:29 2018 -0400
+
+    runtime/debug: add API to read module info in binary
+    
+    When module is enabled, the go tool embeds build information
+    related to the module in the binary including the dependencies
+    and the replace information (See
+    src/cmd/go/internal/modload.PackageBuildInfo).
+    
+    The newly introduced ReadBuildInfo reads the information and
+    makes it accessible programmatically.
+    
+    Update #26404
+    
+    Change-Id: Ide37022d609b4a8fb6b5ce02afabb73f04fbb532
+    Reviewed-on: https://go-review.googlesource.com/c/144220
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/mod_modinfo.txt |  40 +++++++++++
+ src/runtime/debug/mod.go                   | 105 +++++++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

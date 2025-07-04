@@ -1,0 +1,12 @@
+commit 8df312135319fb2b21901b597d7156fef31b5b36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 20 10:20:15 2010 +1000
+
+    godashboard: remove obselete data models and conversion code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/919045
+
+ misc/dashboard/godashboard/gobuild.py | 61 -----------------------------------
+ 1 file changed, 61 deletions(-)

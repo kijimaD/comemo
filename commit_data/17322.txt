@@ -1,0 +1,14 @@
+commit 2f6e9a1e243c64f22d0f0542a05343bacf6d580b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 19 16:22:33 2013 +1000
+
+    cmd/go: only try to clean executables for package main
+    
+    Fixes #5665.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12807044
+
+ src/cmd/go/clean.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 121b428a7a56253d3fee252fa846ac5dbbb44158
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 8 14:04:42 2011 -0700
+
+    effective go: update to new Open signature.
+    Fixes #1788.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4519042
+
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

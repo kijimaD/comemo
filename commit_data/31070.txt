@@ -1,0 +1,22 @@
+commit 97b89dc0558e2b8e8809e74222a19c92206a6174
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 10 13:03:14 2017 -0700
+
+    cmd/compile/internal/gc: refactor ODCLFUNC creation
+    
+    Extract out some common boiler plate logic.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Iddc8a733af8262558f56d13c91d9c27ee0d61330
+    Reviewed-on: https://go-review.googlesource.com/40253
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go  | 18 ++----------------
+ src/cmd/compile/internal/gc/dcl.go  | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/init.go |  7 +------
+ src/cmd/compile/internal/gc/subr.go |  7 +------
+ src/cmd/compile/internal/gc/walk.go | 13 ++++---------
+ 5 files changed, 23 insertions(+), 37 deletions(-)

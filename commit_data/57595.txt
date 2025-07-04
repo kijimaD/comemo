@@ -1,0 +1,21 @@
+commit 841bb62f19b782277b9ce3ce80dab010fcc583c6
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Aug 19 13:51:59 2024 -0700
+
+    internal/runtime/atomic: add Xchg8 for amd64
+    
+    For #68578
+    
+    Change-Id: Idecfdbb793f46560dd69287af9170c07cf4ee973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606900
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/runtime/atomic/atomic_amd64.go |  3 +++
+ src/internal/runtime/atomic/atomic_amd64.s  | 12 +++++++++
+ src/internal/runtime/atomic/xchg8_test.go   | 39 +++++++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+)

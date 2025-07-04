@@ -1,0 +1,35 @@
+commit 654daac3bce1314d5568b46bfa48ec4c546d7395
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 19:47:42 2015 +0000
+
+    net/http: split Trailers tests into two halves
+    
+    The old test was in client_test.go but was a mix of four things:
+    
+    - clients writing trailers
+    - servers reading trailers
+    - servers writing trailers
+    - clients reading trailers
+    
+    It definitely wasn't just about clients.
+    
+    This moves it into clientserver_test.go and separates it into two
+    halves:
+    
+    - servers writing trailers + clients reading trailers
+    - clients writing trailers + servers reading trailers
+    
+    Which still isn't ideal, but is much better, and easier to read.
+    
+    Updates #13557
+    
+    Change-Id: I8c3e58a1f974c1b10bb11ef9b588cfa0f73ff5d9
+    Reviewed-on: https://go-review.googlesource.com/17895
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go       |  77 -----------------------
+ src/net/http/clientserver_test.go | 126 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go          |  30 +++++----
+ 3 files changed, 145 insertions(+), 88 deletions(-)

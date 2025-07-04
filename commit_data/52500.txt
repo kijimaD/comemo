@@ -1,0 +1,19 @@
+commit f46320849da89bea3e23bae985ad753d30bbc5da
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 3 14:09:03 2023 -0400
+
+    cmd/compile/internal/test: skip testpoint due to revert of CL 479095
+    
+    Skip one of the testpoints that verifies inlining, since it
+    no longer passes as a result of reverting CL 479095. Once we
+    roll forward with a new version of CL 479095 we can re-enable
+    this testpoint.
+    
+    Change-Id: I41f6fb3fce78f31e60c5f0ed2856be0e66865149
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 86ad85ce98264f79d7f5fc60c38f81275c40d7a6
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Oct 31 17:15:32 2018 +0200
+
+    time: display results in examples rather soon
+    
+    We have fixed the playground to display results of
+    the program when it was timed out.
+    
+    This CL fixes how soon results will be displayed to the user.
+    
+    Change-Id: Ifb75828e0de12c726c8ca6e2d04947e01913dc73
+    Reviewed-on: https://go-review.googlesource.com/c/146237
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

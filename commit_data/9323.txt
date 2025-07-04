@@ -1,0 +1,12 @@
+commit 8fced60a722e4ef58e69828235587b0fb39316e8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 10 16:05:31 2011 +1000
+
+    tag weekly.2011-08-10
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4808088
+
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,28 @@
+commit 9f726c2c8ba98d55935acc1143d2b792ca74e303
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 28 15:22:16 2009 -0800
+
+    Use explicit allspan list instead of
+    trying to find all the places where
+    spans might be recorded.
+    
+    Free can cascade into complicated
+    span manipulations that move them
+    from list to list; the old code had the
+    possibility of accidentally processing
+    a span twice or jumping to a different
+    list, causing an infinite loop.
+    
+    R=r
+    DELTA=70  (28 added, 25 deleted, 17 changed)
+    OCL=23704
+    CL=23710
+
+ src/runtime/Makefile    |  2 +-
+ src/runtime/malloc.c    |  2 +-
+ src/runtime/malloc.h    | 14 +++++++++++---
+ src/runtime/mfixalloc.c |  6 +++++-
+ src/runtime/mgc0.c      | 27 ++++-----------------------
+ src/runtime/mheap.c     | 24 +++++++++++++++++-------
+ src/runtime/proc.c      |  8 ++++----
+ 7 files changed, 43 insertions(+), 40 deletions(-)

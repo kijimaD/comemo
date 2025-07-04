@@ -1,0 +1,28 @@
+commit a63b1806aa7484d744e79cd2f6d8e3bf73c4092c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 17:38:05 2015 -0700
+
+    math/big: remove (*Float).Scan, ScanFloat; more robust (*Float).Parse
+    
+    - (*Float).Scan conflicted with fmt.Scanner.Scan; it was also only used
+      internally. Removed it, as well as the companion ScanFloat function.
+    
+    - (*Float).Parse (and thus ParseFloat) can now also parse infinities.
+      As a result, more code could be simplified.
+    
+    - Fixed a bug in rounding (round may implicitly be called for infinite
+      values). Found via existing test cases, after simplifying some code.
+    
+    - Added more test cases.
+    
+    Fixes issue #10938.
+    
+    Change-Id: I1df97821654f034965ba8b82b272e52e6dc427f1
+    Reviewed-on: https://go-review.googlesource.com/10498
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go          |   7 +--
+ src/math/big/float_test.go     |  21 ++------
+ src/math/big/floatconv.go      | 118 +++++++++++++++++++----------------------
+ src/math/big/floatconv_test.go |  34 +++++++++++-
+ 4 files changed, 94 insertions(+), 86 deletions(-)

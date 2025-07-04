@@ -1,0 +1,19 @@
+commit f6a163177f858c7158ddca55671f1cd0782b9221
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 10 19:35:01 2018 -0800
+
+    cmd/cover: simplify and correct isValidIdentifier
+    
+    Per comment on CL 120316.
+    
+    Updates #25280
+    
+    Change-Id: I7d078de4030bd10934468e04ff696a34749bd454
+    Reviewed-on: https://go-review.googlesource.com/c/153500
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

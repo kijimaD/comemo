@@ -1,0 +1,15 @@
+commit 4607ebc7d897c36687ae4ede3cfd4939c6dd0a54
+Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
+Date:   Sat Oct 2 11:59:08 2021 +0200
+
+    math: add Remainder example
+    
+    Change-Id: I4b0fa69a36b04103473aa08e246fa193315ac5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353689
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/math/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

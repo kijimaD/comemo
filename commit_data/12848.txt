@@ -1,0 +1,21 @@
+commit f27348776f3c898d9e5dc3c910dbac99ae482e52
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Apr 6 14:01:12 2012 -0400
+
+    math: make function documentation more regular
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5994043
+
+ src/pkg/math/acosh.go    | 2 +-
+ src/pkg/math/asinh.go    | 2 +-
+ src/pkg/math/atanh.go    | 2 +-
+ src/pkg/math/cbrt.go     | 2 +-
+ src/pkg/math/copysign.go | 2 +-
+ src/pkg/math/erf.go      | 4 ++--
+ src/pkg/math/gamma.go    | 2 +-
+ src/pkg/math/hypot.go    | 2 +-
+ src/pkg/math/logb.go     | 4 ++--
+ src/pkg/math/sincos.go   | 2 +-
+ 10 files changed, 12 insertions(+), 12 deletions(-)

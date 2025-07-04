@@ -1,0 +1,21 @@
+commit f9747b7f7315fa702a39b420b63977ca90e06e94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 22 21:28:32 2022 -0700
+
+    go/types, types2: report struct type for literals with too few/many elements
+    
+    This change essentially matches the 1.17 compiler error message for
+    this error.
+    
+    Fixes #51877.
+    
+    Change-Id: I24ec2f9cc93d8cd2283d097332a39bc1a0eed3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue51877.go   | 18 ++++++++++++++++++
+ src/go/types/expr.go                                   |  4 ++--
+ src/go/types/testdata/fixedbugs/issue51877.go          | 18 ++++++++++++++++++
+ 4 files changed, 40 insertions(+), 4 deletions(-)

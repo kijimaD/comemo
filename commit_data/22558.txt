@@ -1,0 +1,12 @@
+commit 7f983f2f8e4b3b2eeb9c94f24fd2bf719693974f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 17 14:11:22 2015 +1000
+
+    compress/flate: simplify the TestDegenerateHuffmanCoding data.
+    
+    Change-Id: I223a4bd6e3ee31324b46ac79a4022e40f1868491
+    Reviewed-on: https://go-review.googlesource.com/8995
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/compress/flate/flate_test.go | 60 +++++++++++++---------------------------
+ 1 file changed, 19 insertions(+), 41 deletions(-)

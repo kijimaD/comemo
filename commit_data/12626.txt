@@ -1,0 +1,14 @@
+commit 214a1ca3c5d7f8d633587cf6faff2868f341b31b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 14 15:08:54 2012 +1100
+
+    html/template: fix nil pointer bug
+    Fixes #3272.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5819046
+
+ src/pkg/html/template/escape_test.go |  9 +++++++++
+ src/pkg/html/template/template.go    | 12 +++++++++---
+ 2 files changed, 18 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 876e9d1b89cf87f3791153fa9472142cd5294223
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 10 14:36:22 2011 -0800
+
+    http: add Server type supporting timeouts
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4172041
+
+ src/pkg/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     | 48 ++++++++++++++++++++++++++++-----
+ 2 files changed, 107 insertions(+), 7 deletions(-)

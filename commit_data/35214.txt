@@ -1,0 +1,20 @@
+commit ce5c3871a461b0a2c8737b0d31215012d7a04d24
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 30 19:25:46 2018 -0700
+
+    runtime: move more syscalls to libc on Darwin
+    
+    Moving mmap, munmap, madvise, usleep.
+    
+    Also introduce __error function to get at libc's errno variable.
+    
+    Change-Id: Ic47ac1d9eb71c64ba2668ce304644dd7e5bdfb5a
+    Reviewed-on: https://go-review.googlesource.com/110437
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin.go      |  6 +++
+ src/runtime/sys_darwin_386.s   | 96 ++++++++++++++++++++++++++++--------------
+ src/runtime/sys_darwin_amd64.s | 73 +++++++++++++++++---------------
+ 3 files changed, 110 insertions(+), 65 deletions(-)

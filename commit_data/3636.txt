@@ -1,0 +1,12 @@
+commit fd5fa4b301b79ee95ad5dec2d55a33451cd4392f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 22 23:51:54 2009 -0700
+
+    Fix the sigaction declaration to match the system for Linux.
+    I don't know whether Darwin needs a change here.
+    
+    R=rsc
+    http://go/go-review/1013010
+
+ src/pkg/runtime/linux/os.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

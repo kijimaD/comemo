@@ -1,0 +1,14 @@
+commit ab0b0d903168de23aaa76d3122f99856d24a4407
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 15 12:35:01 2014 -0700
+
+    cmd/go: fix a couple of errors found by "go vet"
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/127410043
+
+ src/cmd/go/build.go    | 2 +-
+ src/cmd/go/vcs_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

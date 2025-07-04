@@ -1,0 +1,25 @@
+commit bf14663943b7c6b9968e3bf7ec6836bf9f75411a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:19:44 2023 -0700
+
+    Revert "math: add Compare and Compare32"
+    
+    This reverts CL 467515. Now that we have cmp.Compare,
+    we don't need math.Compare or math.Compare32 after all.
+    
+    For #56491
+    Fixes #60519
+    
+    Change-Id: I8ed33464adfc6d69bd6b328edb26aa2ee3d234d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499416
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ api/next/56491.txt   |  2 --
+ src/math/all_test.go | 94 ----------------------------------------------------
+ src/math/compare.go  | 53 -----------------------------
+ 3 files changed, 149 deletions(-)

@@ -1,0 +1,30 @@
+commit a2a4f00783701272e4804b7488adef673ef46666
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 20 14:57:43 2024 -0800
+
+    go/types, types2: simplify Checker.resolveBaseTypeName (cleanup)
+    
+    Method receivers that denote cgo-generated types are not permitted
+    per issues #60725 and #57926. There's no need to collect such methods
+    in the first place. Simplify Checker.resolveBaseTypeName so that it
+    doesn't find a base type name in these cases.
+    
+    Also, simplify the test case for issue #59944 and update it to use
+    current cgo-generated output.
+    
+    For #60725.
+    For #57926.
+    For #59944.
+    
+    Change-Id: I70594daebc3d4d594c5b06be138f66f8927b0e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630395
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go |  22 ++--
+ src/cmd/compile/internal/types2/resolver.go    | 140 +++++++-----------------
+ src/go/types/issues_test.go                    |  22 ++--
+ src/go/types/resolver.go                       | 142 ++++++++-----------------
+ 4 files changed, 101 insertions(+), 225 deletions(-)

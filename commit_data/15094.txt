@@ -1,0 +1,14 @@
+commit e5ea2d53358f8c28853ef91b3c325e81858e09ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 2 11:41:04 2013 -0800
+
+    runtime: fix windows build
+    
+    Fixes #4743.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7284044
+
+ src/pkg/runtime/signal_windows_386.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

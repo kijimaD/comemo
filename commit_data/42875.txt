@@ -1,0 +1,19 @@
+commit 4fc3896e7933e31822caa50e024d4e139befc75f
+Author: Shinnosuke Sawada <6warashi9@gmail.com>
+Date:   Mon Aug 17 20:37:51 2020 +0900
+
+    database/sql: shortestIdleTimeLocked correct min comparison
+    
+    When zero or less, maxIdleTime and maxLifetime means unlimited.
+    Helper function shortestIdleTimeLocked must not return the
+    minimum of the two until both are verified to be greater
+    then zero.
+    
+    Fixes #40841
+    
+    Change-Id: I1130332baf4ad259cd90c10f4221f5def8510655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248817
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,14 @@
+commit e78ff3823eac5cd79bbfb1e6b722699d592f3c6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 13:55:53 2016 -0800
+
+    cmd/compile: simplify lexer.ungetr
+    
+    Change-Id: Id041c1b2d364aecd7a6613a53237f7de2c650a7e
+    Reviewed-on: https://go-review.googlesource.com/20599
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

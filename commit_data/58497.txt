@@ -1,0 +1,43 @@
+commit c87a6f932efd3643c73f6b972da5500755048f85
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 8 10:40:39 2025 +0100
+
+    crypto/mlkem: merge mlkem768.go and mlkem1024.go to improve godoc
+    
+    The constants appeared badly ordered and grouped in the godoc before
+    
+        const (
+            CiphertextSize1024 = 1568
+            EncapsulationKeySize1024 = 1568
+        )
+        const (
+            SharedKeySize = 32
+            SeedSize = 64
+            CiphertextSize768 = 1088
+            EncapsulationKeySize768 = 1184
+        )
+    
+    while now they are a single group with the good size first
+    
+        const (
+            SharedKeySize = 32
+            SeedSize = 64
+            CiphertextSize768 = 1088
+            EncapsulationKeySize768 = 1184
+            CiphertextSize1024 = 1568
+            EncapsulationKeySize1024 = 1568
+        )
+    
+    No code changes.
+    
+    Change-Id: I6a6a4656961b1e8c8bca3992aafa33e0575af8a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640997
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/mlkem/{mlkem768.go => mlkem.go} | 85 +++++++++++++++++++++++++++
+ src/crypto/mlkem/mlkem1024.go              | 94 ------------------------------
+ 2 files changed, 85 insertions(+), 94 deletions(-)

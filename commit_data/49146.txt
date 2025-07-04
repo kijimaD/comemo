@@ -1,0 +1,30 @@
+commit d339d085c9d0cff099668d3a85ebae4e25c6afa2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 11 10:42:39 2022 -0400
+
+    cmd/go: add timestamps to script test output
+    
+    Go tests don't include timestamps by default, but we would like to
+    have them in order to correlate builder failures with server and
+    network logs.
+    
+    Since many of the Go tests with external network and service
+    dependencies are script tests for the 'go' command, logging timestamps
+    here adds a lot of logging value with one simple and very low-risk
+    change.
+    
+    For #50541.
+    For #52490.
+    For #52545.
+    For #52851.
+    
+    Change-Id: If3fa86deb4a216ec6a1abc4e6f4ee9b05030a729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405714
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit f005df8b582658d54e63d59953201299d6fee880
+Author: Ayan George <ayan@ayan.net>
+Date:   Tue Jan 11 16:37:46 2022 -0500
+
+    cmd/go: enable fuzz testing for FreeBSD
+    
+    Add "freebsd" to GOOS for which sys.FuzzSupported() returns true
+    and add freebsd to the build tags to fuzz test source.
+    
+    Fixes #46554
+    Change-Id: I5f695ecc8f09c0ab4279ced23b4715b788fcade0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377855
+    Trust: Bryan Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/cmd/internal/sys/supported.go      | 2 +-
+ src/internal/fuzz/minimize_test.go     | 2 +-
+ src/internal/fuzz/sys_posix.go         | 2 +-
+ src/internal/fuzz/sys_unimplemented.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

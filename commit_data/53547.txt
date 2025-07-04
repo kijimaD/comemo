@@ -1,0 +1,31 @@
+commit 70cb990b15807eb61351b8fbeac28704240787bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 13 14:37:57 2023 -0400
+
+    database/sql: fix flake in TestContextCancelDuringRawBytesScan
+    
+    If the cancellation takes effect between Next and Scan,
+    then Scan returns context.Canceled, but the test wasn't
+    allowing this case.
+    
+    The old flake reproduced easily with:
+    
+            go test -c
+            stress ./sql.test -test.count=100 -test.run=TestContextCancelDuringRawBytesScan
+    
+    The new test modes exercise that path directly instead of needing stress.
+    
+    The new check for context.Canceled fixes the new test mode "top".
+    
+    Fixes #60445.
+    
+    Change-Id: I3870039a0fbe0a43c3e261b43b175ef83f818765
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502876
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/database/sql/sql_test.go | 37 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)

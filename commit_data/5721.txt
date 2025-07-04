@@ -1,0 +1,16 @@
+commit d4384ff7f560ea3867749ccab4e6ad65767f0c6c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 28 17:12:09 2010 -0700
+
+    netchan: use gob DecodeValue to eliminate the need for a pointer value
+    in Import and Export.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1707047
+
+ src/pkg/netchan/common.go       |  5 +++--
+ src/pkg/netchan/export.go       | 19 ++++++++-----------
+ src/pkg/netchan/import.go       | 36 +++++++++++++-----------------------
+ src/pkg/netchan/netchan_test.go |  8 ++++----
+ 4 files changed, 28 insertions(+), 40 deletions(-)

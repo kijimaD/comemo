@@ -1,0 +1,18 @@
+commit 3494010f7dc1705d6317c82bfe458f61cf2bca66
+Author: Peter Waller <peter.waller@gmail.com>
+Date:   Tue Oct 30 17:36:18 2012 -0700
+
+    syscall/exec_linux: enable changing controlling tty
+    
+    As discussed in the following thread:
+    https://groups.google.com/forum/?fromgroups=#!topic/golang-dev/emeJffxWhVo
+    
+    This is required to enable applications such as `less` to use something
+    other than stdin as the controlling terminal.
+    
+    R=dave, iant
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6785057
+
+ src/pkg/syscall/exec_linux.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

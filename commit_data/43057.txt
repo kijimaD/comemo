@@ -1,0 +1,26 @@
+commit 5853b4ee47f41f2d5ea8e63a185b2cfd6e08b98c
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Mon Sep 21 19:35:15 2020 +0000
+
+    cmd/go/internal/get: warn about -insecure deprecation
+    
+    Adds deprecation warning for -insecure flag on go get in both modules
+    and GOPATH mode.
+    
+    Updates #37519.
+    
+    Change-Id: Ie2efeeb4a91e6dda92955295969e9715314ae50e
+    GitHub-Last-Rev: a9ebe21fe067baa12391ad4f9357d8e5b0cf7051
+    GitHub-Pull-Request: golang/go#41497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255882
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                               | 18 +++++++++++-------
+ src/cmd/go/internal/get/get.go                      | 12 ++++++++----
+ src/cmd/go/internal/modget/get.go                   | 12 +++++++++---
+ .../go/testdata/script/get_insecure_deprecated.txt  | 21 +++++++++++++++++++++
+ 4 files changed, 49 insertions(+), 14 deletions(-)

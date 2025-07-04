@@ -1,0 +1,31 @@
+commit b25a53acd71a254df54869ecbe76e44c35580ada
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 17 15:16:06 2013 -0700
+
+    bufio: make Reader buffer transient
+    
+    Share garbage between different bufio Readers. When a Reader
+    has zero buffered data, put its buffer into a pool.
+    
+    This acknowledges that most bufio.Readers eventually get
+    read to completion, and their buffers are then no longer
+    needed.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkReaderEmpty         2993         1058  -64.65%
+    
+    benchmark              old allocs   new allocs    delta
+    BenchmarkReaderEmpty            3            2  -33.33%
+    
+    benchmark               old bytes    new bytes    delta
+    BenchmarkReaderEmpty         4278          133  -96.89%
+    
+    Update #5100
+    
+    R=r
+    CC=adg, dvyukov, gobot, golang-dev, rogpeppe
+    https://golang.org/cl/8819049
+
+ src/pkg/bufio/bufio.go      | 63 ++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/bufio/bufio_test.go | 15 +++++++++++
+ 2 files changed, 71 insertions(+), 7 deletions(-)

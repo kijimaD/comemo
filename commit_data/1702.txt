@@ -1,0 +1,15 @@
+commit 4501d348e89b7287a4a4d9b27534ff620d1bf19f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 17:31:36 2009 -0800
+
+    Fix most HTML errors.
+    Cut introduction.
+    Start rewrite.
+    
+    R=gri
+    DELTA=201  (20 added, 118 deleted, 63 changed)
+    OCL=25226
+    CL=25229
+
+ doc/go_spec.html | 233 ++++++++++++++++---------------------------------------
+ 1 file changed, 67 insertions(+), 166 deletions(-)

@@ -1,0 +1,17 @@
+commit fb88a01cc26700a49783f0a0b09d487c450cdbb3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 2 13:26:40 2009 -0800
+
+    marginally better thread debugging on Linux.
+    
+    if you clone inside a traced pid, the child
+    is automatically attached and stopped,
+    apparently.
+    
+    R=r
+    DELTA=63  (41 added, 12 deleted, 10 changed)
+    OCL=24096
+    CL=24106
+
+ src/libmach_amd64/linux.c | 65 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 18 deletions(-)

@@ -1,0 +1,21 @@
+commit 3d15f768814e8b06ae159b4da8f34a0c702a4cf1
+Author: Zhongpeng Lin <zplin@uber.com>
+Date:   Mon May 21 19:04:00 2018 +0000
+
+    go/build: call ctxt.match for checking file name constraints
+    
+    This makes the checking of build tags in file names consistent to that of the build tags in `// +build` line.
+    
+    Fixed #25461
+    
+    Change-Id: Iba14d1050f8aba44e7539ab3b8711af1980ccfe4
+    GitHub-Last-Rev: 11b14e239dd85e11e669919aab45494aee7c59a3
+    GitHub-Pull-Request: golang/go#25480
+    Reviewed-on: https://go-review.googlesource.com/113818
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/build.go      | 28 +++-------------------------
+ src/go/build/build_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 25 deletions(-)

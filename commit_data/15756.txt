@@ -1,0 +1,20 @@
+commit ffbcd89f629509eef4524a1c824c4cce507ed6f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 23:32:12 2013 -0400
+
+    cmd/go: allow ~ in middle of path, just not at beginning
+    
+    An earlier CL disallowed ~ anywhere in GOPATH, to avoid
+    problems with GOPATH='~/home' instead of GOPATH=~/home.
+    But ~ is only special in the shell at the beginning of each of
+    the paths in the list, and some paths do have ~ in the middle.
+    So relax the requirement slightly.
+    
+    Fixes #4140.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7799045
+
+ src/cmd/go/main.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

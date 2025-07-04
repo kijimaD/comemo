@@ -1,0 +1,14 @@
+commit 58db5fc94d6038aa0308fc36c25b551a751260c2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 12 13:05:49 2015 +1300
+
+    runtime: run TestCgoExternalThreadSIGPROF on ppc64le
+    
+    It was disabled because of the lack of external linking.
+    
+    Change-Id: Iccb4a4ef8c57d048d53deabe4e0f4e6b9dccce33
+    Reviewed-on: https://go-review.googlesource.com/16797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

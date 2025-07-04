@@ -1,0 +1,18 @@
+commit 7944bbf2d23377b450fddc133a28086544eafcb8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 12:20:48 2011 -0700
+
+    godoc, suffixarray: switch to exp/regexp
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4983058
+
+ src/cmd/godoc/codewalk.go                     | 2 +-
+ src/cmd/godoc/format.go                       | 2 +-
+ src/cmd/godoc/godoc.go                        | 2 +-
+ src/cmd/godoc/index.go                        | 2 +-
+ src/cmd/godoc/main.go                         | 2 +-
+ src/pkg/index/suffixarray/suffixarray.go      | 2 +-
+ src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

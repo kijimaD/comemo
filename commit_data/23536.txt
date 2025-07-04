@@ -1,0 +1,12 @@
+commit d0ed87d15c8ae32b6705815085408c9fba831f81
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 28 12:21:42 2015 -0700
+
+    builtin: remove errant space in hyphenated adjective phrase
+    
+    Change-Id: I67947e0e3189093e830120941ee49f9f32086f0e
+    Reviewed-on: https://go-review.googlesource.com/11615
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/builtin/builtin.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

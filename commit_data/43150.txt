@@ -1,0 +1,21 @@
+commit 846dce9d05f19a1f53465e62a304dea21b99f910
+Author: mengxiaodong <920432478@qq.com>
+Date:   Mon Sep 28 17:38:13 2020 +0800
+
+    runtime: code cleanup about map
+    
+    1.Revise ambiguous comments: "all current buckets" means buckets in hmap.buckets, actually current bucket and all the overflow buckets connected to it are full
+    2.All the pointer address add use src/runtime/stubs.go:add, keep the code style uniform
+    
+    Change-Id: Idc7224dbe6c391e1b03bf5d009c3734bc75187ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257979
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/map.go         | 4 ++--
+ src/runtime/map_fast32.go  | 8 ++++----
+ src/runtime/map_fast64.go  | 8 ++++----
+ src/runtime/map_faststr.go | 4 ++--
+ 4 files changed, 12 insertions(+), 12 deletions(-)

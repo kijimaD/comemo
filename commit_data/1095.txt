@@ -1,0 +1,14 @@
+commit 10137e7f1d5ec7d9ddedc02b50b6ad832bed7c0a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 10 14:53:32 2008 -0800
+
+    fix start/stop bug in prof.
+    also only time-limit if a value is provided.
+    
+    R=rsc
+    DELTA=9  (4 added, 2 deleted, 3 changed)
+    OCL=18917
+    CL=18920
+
+ src/cmd/prof/main.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

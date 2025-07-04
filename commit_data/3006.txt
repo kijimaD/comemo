@@ -1,0 +1,15 @@
+commit e7acb5df0745fad4d6340a2278ae456cbe1ce210
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 18 07:14:25 2009 -0700
+
+    fix runtime and compile regression
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=33434
+    CL=33452
+
+ src/cmd/5g/ggen.c | 4 ++--
+ src/cmd/5g/gobj.c | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

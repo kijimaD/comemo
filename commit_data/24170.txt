@@ -1,0 +1,21 @@
+commit 821e124c24c2b2d753be22a04a3b20b7bf579627
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Sep 1 19:58:31 2015 -0400
+
+    cmd/link/internal/ld: align PE .text section to 32-byte when external linking
+    
+    Some symbols, for example, masks requires 16-byte alignment, and
+    they are placed in the text section. Before this change, the text
+    section is only aligned to 4-byte, and it's making masks unaligned.
+    
+    Fixes #12415.
+    
+    Change-Id: I7767778d1b4f7d3e74c2719a02848350782a4160
+    Reviewed-on: https://go-review.googlesource.com/14166
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 5 +++++
+ 1 file changed, 5 insertions(+)

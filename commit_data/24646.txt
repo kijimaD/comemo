@@ -1,0 +1,14 @@
+commit 3ae4dc8a7518fa90336436d52b540fd59fe10aa0
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Oct 27 16:39:00 2015 +1300
+
+    cmd/compile, cmd/go, cmd/link: enable -buildmode=shared and related flags on linux/386
+    
+    Change-Id: If3417135ca474468a480b08cf46334fda28f79b4
+    Reviewed-on: https://go-review.googlesource.com/16345
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go |  2 +-
+ src/cmd/go/build.go                | 11 +++++++----
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ 3 files changed, 9 insertions(+), 6 deletions(-)

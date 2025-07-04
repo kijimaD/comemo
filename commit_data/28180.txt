@@ -1,0 +1,17 @@
+commit 59877bfaaf0778d4cc2cbaf06cf5030144271349
+Author: Gleb Stepanov <glebstepanov1992@gmail.com>
+Date:   Mon Jul 25 16:25:44 2016 +0300
+
+    runtime: rename variable
+    
+    Rename variable to bitScan according to
+    TODO comment.
+    
+    Change-Id: I81dd8cc1ca28c0dc9308a654ad65cdf5b2fd2ce3
+    Reviewed-on: https://go-review.googlesource.com/25175
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 54 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

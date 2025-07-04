@@ -1,0 +1,25 @@
+commit b28a07e75fc598d9b65c2049fae03caf3efc368e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 15:49:25 2020 -0500
+
+    cmd/go: convert TestExecutableGOROOT to the script framework
+    
+    Part of converting all tests to the script framework, but also
+    just working around flakiness when adding t.Parallel to
+    TestExecutableGOROOT.
+    
+    Also, undo the changes to copyFile in golang.org/cl/220317 because
+    they didn't help.
+    
+    Fixes #37306
+    
+    Change-Id: I3348fa1d8f2589febe89604ac19a21df20075c4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220319
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                            | 109 +----------------------
+ src/cmd/go/testdata/print_goroot.go              |  14 ---
+ src/cmd/go/testdata/script/goroot_executable.txt | 104 +++++++++++++++++++++
+ 3 files changed, 106 insertions(+), 121 deletions(-)

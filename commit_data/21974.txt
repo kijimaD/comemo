@@ -1,0 +1,27 @@
+commit 532bc5f11ca47cdcdf96128800685f0b214f801c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 9 07:03:00 2015 +1100
+
+    syscall: exec_linux.go: support platforms without SYS_DUP2
+    
+    Updates #9974
+    
+    This change is in preparation for merging the arm64 platform.
+    
+    Arm64 does not support SYS_DUP2 at all, so define a new constant to be
+    the minimum dup(2) version supported. This constant defaults to SYS_DUP2
+    on all existing platforms.
+    
+    Change-Id: If405878105082c7c880f8541c1491970124c9ce4
+    Reviewed-on: https://go-review.googlesource.com/7123
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/syscall/exec_linux.go           | 6 +++---
+ src/syscall/syscall_linux_386.go    | 2 ++
+ src/syscall/syscall_linux_amd64.go  | 2 ++
+ src/syscall/syscall_linux_arm.go    | 2 ++
+ src/syscall/syscall_linux_ppc64x.go | 2 ++
+ 5 files changed, 11 insertions(+), 3 deletions(-)

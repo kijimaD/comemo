@@ -1,0 +1,19 @@
+commit 24e5fae92e2c971fa30ac170b7656ff14f3cfde5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 12 13:52:14 2018 -0400
+
+    cmd/go: fix tests from x/vgo repo
+    
+    This CL fixes up tests from the x/vgo repo that are failing
+    on some of the builders.
+    It will be submitted together with CL 123576.
+    
+    Change-Id: I6bec81a93ad4f7116e8edc8c15beafa25747530c
+    Reviewed-on: https://go-review.googlesource.com/123580
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/unzip.go |  3 ++-
+ src/cmd/go/mod_test.go                | 50 ++++++++++++++++++++++-------------
+ 2 files changed, 33 insertions(+), 20 deletions(-)

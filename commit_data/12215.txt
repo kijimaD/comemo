@@ -1,0 +1,15 @@
+commit 68c7e8a2f431577e77273f1860f3f88dc06627ea
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 07:31:34 2012 +1100
+
+    doc/go1: add justification discussions to major changes
+    
+    Fixes #3086.
+    
+    R=golang-dev, gri, r, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5700067
+
+ doc/go1.html | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ doc/go1.tmpl | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 314 insertions(+), 94 deletions(-)

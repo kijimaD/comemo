@@ -1,0 +1,12 @@
+commit 8b20200fe1cde9327d86fb58630bc786768fb0e5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 5 10:53:38 2010 +1000
+
+    run.bash: remove MAKEFLAGS=-j4 to prevent crashing on freebsd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/881044
+
+ src/run.bash | 1 -
+ 1 file changed, 1 deletion(-)

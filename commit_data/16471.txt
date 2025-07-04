@@ -1,0 +1,14 @@
+commit 354ec5166668cae9be899c82e20c38b32ae3b867
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 3 13:20:17 2013 +0400
+
+    runtime: introduce preemption function (not used for now)
+    This is part of preemptive scheduler.
+    
+    R=golang-dev, cshapiro, iant
+    CC=golang-dev
+    https://golang.org/cl/9843046
+
+ src/pkg/runtime/proc.c  | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack.h |  5 +++++
+ 2 files changed, 46 insertions(+)

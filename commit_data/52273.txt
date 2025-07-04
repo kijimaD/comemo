@@ -1,0 +1,28 @@
+commit cedfcba3e859316410ae820abc5b43f9bda4e4f6
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Mar 12 15:34:20 2023 +0800
+
+    cmd/compile: instrinsify TrailingZeros{8,32,64} for 386
+    
+    This CL add support for instrinsifying the TrialingZeros{8,32,64}
+    functions for 386 architecture. We need handle the case when the input
+    is 0, which could lead to undefined output from the BSFL instruction.
+    
+    Next CL will remove the assembly code in runtime/internal/sys package.
+    
+    Change-Id: Ic168edf68e81bf69a536102100fdd3f56f0f4a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475735
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules |  4 ++++
+ src/cmd/compile/internal/ssa/_gen/386Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go       | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go  | 27 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go      |  6 +++---
+ src/cmd/compile/internal/x86/ssa.go         | 23 +++++++++++++++++++++++
+ test/codegen/mathbits.go                    |  4 ++++
+ 7 files changed, 77 insertions(+), 3 deletions(-)

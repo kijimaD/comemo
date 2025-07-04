@@ -1,0 +1,22 @@
+commit 798ec73519a7226d6d436e42498a54aed23b8468
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 21 19:57:56 2021 -0700
+
+    runtime: don't clear timerModifiedEarliest if adjustTimers is 0
+    
+    This avoids a race when a new timerModifiedEarlier timer is created by
+    a different goroutine.
+    
+    Fixes #47329
+    
+    Change-Id: I6f6c87b4a9b5491b201c725c10bc98e23e0ed9d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336432
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/runtime2.go |  2 +-
+ src/runtime/time.go     |  5 -----
+ src/time/sleep_test.go  | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

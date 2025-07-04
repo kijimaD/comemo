@@ -1,0 +1,16 @@
+commit fe746335aaf2b7e31e4582439b8cbe25c92004a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 14:03:25 2011 -0800
+
+    gofmt: simplify flags
+    
+    -tabs replaces -tabindent
+    -spaces has been removed
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5487066
+
+ src/cmd/gofmt/doc.go   | 6 ++----
+ src/cmd/gofmt/gofmt.go | 8 ++------
+ 2 files changed, 4 insertions(+), 10 deletions(-)

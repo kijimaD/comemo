@@ -1,0 +1,16 @@
+commit 90daaa0576aafd66b3b0fb9e5c4814fbdcc4b5ce
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Dec 15 17:35:40 2023 +0800
+
+    doc/go1.22: announcing support address sanitizer on Loong64
+    
+    Change-Id: Ide5eddc6c04347ada468bc8dd4c27d9b492cf0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

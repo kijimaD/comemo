@@ -1,0 +1,17 @@
+commit 20d621d2533b0b7ad5a57a68c298f978b4fc02b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 29 13:56:42 2019 -0700
+
+    go/types: clarify documentation
+    
+    For a discussion, see the issue.
+    
+    Fixes #35189.
+    
+    Change-Id: I46c87a45bddf2ea8c33bc101d58880b7922e0f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204044
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/types/scope.go     | 2 +-
+ src/go/types/selection.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

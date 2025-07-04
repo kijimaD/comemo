@@ -1,0 +1,21 @@
+commit 15a11cedc6a9aac722369f134b76a157a559e050
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 6 13:16:46 2020 -0400
+
+    cmd/go: support walking through overlay directories
+    
+    Change-Id: I7d9d75aa1dbc34fec5073ca36091c626b9dd4920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261537
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fsys/fsys.go            |  78 ++++++-
+ src/cmd/go/internal/fsys/fsys_test.go       | 338 +++++++++++++++++++++++++++-
+ src/cmd/go/internal/modload/search.go       |   3 +-
+ src/cmd/go/internal/search/search.go        |   8 +-
+ src/cmd/go/testdata/script/list_overlay.txt |  21 +-
+ 5 files changed, 434 insertions(+), 14 deletions(-)

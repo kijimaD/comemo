@@ -1,0 +1,20 @@
+commit 518369601ca2499cea68af86451f17d2856895f8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 12:09:26 2020 +0700
+
+    cmd/compile: add Type.IsUintptr() to detect type is an uintptr
+    
+    Passes toolstash-check.
+    
+    Change-Id: I7051d45eafbfd4dea73a3d4b5ea6cff39d76cbc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253658
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go     | 6 +++---
+ src/cmd/compile/internal/gc/escape.go  | 2 +-
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ src/cmd/compile/internal/gc/walk.go    | 4 ++--
+ src/cmd/compile/internal/types/type.go | 5 +++++
+ 5 files changed, 13 insertions(+), 8 deletions(-)

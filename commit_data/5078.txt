@@ -1,0 +1,13 @@
+commit f15447ca3ec6dff8c42fe9a33fddffe2eaf4cebf
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Fri Mar 19 14:18:02 2010 -0700
+
+    websocket: use URL.RawPath to construct WebSocket-Location: header
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/651041
+
+ src/pkg/websocket/server.go         |  2 +-
+ src/pkg/websocket/websocket_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

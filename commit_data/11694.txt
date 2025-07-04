@@ -1,0 +1,16 @@
+commit 3ee208533e4da4e2f642c51d3aa753be49c6180b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 23:37:15 2012 -0500
+
+    strconv: handle very large inputs
+    
+    Fixes #2642.
+    
+    R=remyoudompheng, r, r
+    CC=golang-dev
+    https://golang.org/cl/5639052
+
+ src/pkg/strconv/atof.go      | 10 +++++++---
+ src/pkg/strconv/atof_test.go | 15 +++++++++++++++
+ src/pkg/strconv/decimal.go   | 41 ++++++++++++++++++++++++++++-------------
+ 3 files changed, 50 insertions(+), 16 deletions(-)

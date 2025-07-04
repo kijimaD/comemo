@@ -1,0 +1,24 @@
+commit 14c3f749bebafe10d60cf5a9b1f4ae6663ff862a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 12 13:20:07 2021 -0500
+
+    cmd/link: relocate dwarf examiner helper to separate package
+    
+    The linker DWARF test includes an "examiner" helper type (with
+    associated methods) that is used to help linker DWARF tests read DWARF
+    info in a higher level and more structured way than just raw
+    debug/dwarf operations. This patch extracts out "examiner" and
+    relocates it to a separate package, so that it can be used in other
+    package tests as well, if need be.
+    
+    Change-Id: Iec66061e2719ee698c12d8fa17b11698442b336d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364036
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/dwtest/dwtest.go | 197 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 266 ++++++---------------------------
+ 2 files changed, 241 insertions(+), 222 deletions(-)

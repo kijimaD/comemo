@@ -1,0 +1,16 @@
+commit dbd3cf884986c88f5b3350709c0f51fa02330805
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Aug 29 02:38:38 2021 +0900
+
+    net/http: fix comment of writeRequest
+    
+    Change-Id: I5ebfc6a89323cc086ea0e0b619370dc45da1f3a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345437
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

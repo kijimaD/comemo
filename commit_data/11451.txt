@@ -1,0 +1,12 @@
+commit fd693388e6f9dfb7f1a0c3980acdcef7aac77638
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 29 14:04:24 2012 -0500
+
+    codereview: fix initialization check
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5596046
+
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

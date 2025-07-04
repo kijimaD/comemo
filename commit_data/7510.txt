@@ -1,0 +1,12 @@
+commit 7e6488f9ad22c5d0d978bbb807575d27e976b54d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 18 10:47:38 2011 -0800
+
+    crypto/openpgp/packet: fix testing print (missing arg)
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4173062
+
+ src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

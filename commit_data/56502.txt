@@ -1,0 +1,21 @@
+commit ee0bf1d1b6227bd803c9df737a597c07adbe2aed
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu May 9 14:09:32 2024 -0400
+
+    doc/README.md: mention adding the proposal issue
+    
+    Inform users that every accepted proposal should be mentioned
+    in the release notes to avoid generating a TODO.
+    
+    Also, clarify instructions for the release team.
+    
+    For #64169.
+    
+    Change-Id: I03921739af31fc93f4b5808b2c7c98e28ad3da11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584615
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/README.md | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit c57c0212ebf44b7896477177c8e35be79ff3a586
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 19 23:01:58 2020 -0700
+
+    cmd/compile: define starting block before opening html writer
+    
+    Opening the html writer can fail, and the failure printer wants
+    to use the entry block's line number. So make sure we set up
+    the entry block first.
+    
+    Fixes #40919
+    
+    Change-Id: I4ffa2839b45a721bbaf04ff84418e8108fa1cc37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249497
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

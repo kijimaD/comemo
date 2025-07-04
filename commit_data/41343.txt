@@ -1,0 +1,15 @@
+commit e932f0addc7d764a6bd534979b5cabaf0c1a6ad8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 21:45:11 2020 -0800
+
+    cmd/compile: coalesce some 386 shift lowering rules
+    
+    No changes to generated rule matching code.
+    
+    Change-Id: I0009146a6be30e151a403c4801c03abf0646703d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216999
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 42 +++++++-----------------------
+ 1 file changed, 9 insertions(+), 33 deletions(-)

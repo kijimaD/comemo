@@ -1,0 +1,22 @@
+commit 55eaae452cf69df768b2aaf6045db22d6c1a4029
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 13:58:06 2022 -0400
+
+    os/exec: add the Cancel and WaitDelay fields
+    
+    Fixes #50436.
+    
+    Change-Id: I9dff8caa317a04b7b2b605f810b8f12ef8ca485d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/50436.txt               |   3 +
+ src/os/exec/exec.go              | 274 ++++++++++++++++---
+ src/os/exec/exec_other_test.go   |  14 +
+ src/os/exec/exec_test.go         | 563 +++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_unix_test.go    |  17 ++
+ src/os/exec/exec_windows_test.go |   5 +
+ 6 files changed, 846 insertions(+), 30 deletions(-)

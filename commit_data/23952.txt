@@ -1,0 +1,12 @@
+commit 8ac16b9d529bc42ef085cd633fe57e17d5db57f9
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Aug 3 17:20:31 2015 -0700
+
+    cmd/go: re-run mkalldocs.sh after testflag change
+    
+    Change-Id: Ia21501df23a91c065d9f2acc6f043019a1419b22
+    Reviewed-on: https://go-review.googlesource.com/13092
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/alldocs.go | 1 +
+ 1 file changed, 1 insertion(+)

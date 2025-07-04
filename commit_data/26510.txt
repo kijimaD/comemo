@@ -1,0 +1,14 @@
+commit 4e31221bd1ea3e35db4a236f656619dbba13ff6d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 25 10:16:40 2016 +0100
+
+    cmd/go: remove double space in template
+    
+    Change-Id: I6113145baa727b9fd103765f74dc5d7af86dfdf8
+    Reviewed-on: https://go-review.googlesource.com/21131
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 2 +-
+ src/cmd/go/main.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

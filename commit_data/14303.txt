@@ -1,0 +1,12 @@
+commit 90d959be78bc358b02e8a9225c30060999419477
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 2 20:46:47 2012 +1100
+
+    net: add missing locking in windows Shutdown
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6811069
+
+ src/pkg/net/fd_windows.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

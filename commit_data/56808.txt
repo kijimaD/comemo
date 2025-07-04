@@ -1,0 +1,26 @@
+commit 144c96fac3ed1a5d4329238af1b98d3c09a6c438
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon Jun 17 19:19:56 2024 +0000
+
+    cmd/go: set GoVersion for files on the command line with vet
+    
+    For: #65612
+    Fixes: #66092
+    
+    For now, we will align the behavior such that vet and the compiler agree
+    that gover.Local() will be used for command-line-files.
+    
+    We expect to change this to set the goversion as the containing module's go
+    version.
+    
+    Change-Id: If7f2ea3a82e8e876716f18dacc021026de175a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593156
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/work/exec.go               |  1 +
+ src/cmd/go/internal/work/gc.go                 |  5 ++-
+ src/cmd/go/testdata/script/run_vers.txt        | 10 ++++++
+ src/cmd/go/testdata/script/vet_commandline.txt | 43 ++++++++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 1 deletion(-)

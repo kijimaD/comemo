@@ -1,0 +1,15 @@
+commit ccb99122b137a529a8306ee81014534b28127be6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 7 16:57:07 2014 -0700
+
+    net/rpc: use html/template to render html
+    
+    Found using the vet check in CL 106370045.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/101670044
+
+ src/pkg/net/rpc/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

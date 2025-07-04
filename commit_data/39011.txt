@@ -1,0 +1,26 @@
+commit f03b3331c74ae45f0a5053287a26dd522f89f462
+Author: Pontus Leitzler <leitzler@gmail.com>
+Date:   Mon Apr 29 09:50:53 2019 +0000
+
+    cmd/go/internal/modload: make 'list -u' consider current pseudoversion
+    
+    As pointed out by thepudds in #30634, the 'list -u' documentation states that the current version should be considered for upgrade:
+    The -u flag adds information about available upgrades. When the latest version of a given module is newer than the current one, list -u sets the Module's Update field to information about the newer module.
+    
+    In go 1.12.4 (and current tip), an older version will be suggested as upgrade to a newer pseudo version.
+    
+    Updates: #30634
+    
+    Change-Id: If2c8887198884b8e7ccb3a604908065aa1f1878a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174206
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go               | 17 +++++++-----
+ ...oupgrade_v0.0.0-20190429073000-30950c05d534.txt | 13 ++++++++++
+ .../mod/example.com_pseudoupgrade_v0.1.0.txt       | 13 ++++++++++
+ ...pgrade_v0.1.1-0.20190429073117-b5426c86b553.txt | 13 ++++++++++
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 30 ++++++++++++++++++++++
+ .../go/testdata/script/mod_list_upgrade_pseudo.txt | 24 +++++++++++++++++
+ 6 files changed, 103 insertions(+), 7 deletions(-)

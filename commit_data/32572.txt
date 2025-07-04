@@ -1,0 +1,32 @@
+commit 4641d78a59f37b2a976d98b14ccb1ba5a2d379b0
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Aug 25 15:00:00 2017 -0300
+
+    runtime: fix regression in BenchmarkCompareBytes* for ppc64x
+    
+    Between go1.7 and go1.8, a performance regression was introduced in some of the
+    BenchmarkCompareBytes benchmarks.
+    
+    Go1.7 vs Go1.8:
+    BenchmarkCompareBytesToNil-8               7.44          8.44          +13.44%
+    BenchmarkCompareBytesIdentical-8           6.96          11.5          +65.23%
+    BenchmarkCompareBytesBigIdentical-8        6.65          47112         +708351.13%
+    
+    This change fixes the problem by optimizing the case where the byte slices being
+    compared are equal:
+    
+    Go1.9 vs current:
+    BenchmarkCompareBytesToNil-8               7.35          7.00          -4.76%
+    BenchmarkCompareBytesIdentical-8           11.4          6.81          -40.26%
+    BenchmarkCompareBytesBigIdentical-8        48396         9.26          -99.98%
+    
+    runtime.cmpstring can benefit from the same approach and is also changed.
+    
+    Change-Id: I3cb25f59d8b940a83a2cf687eea764cfeff90688
+    Reviewed-on: https://go-review.googlesource.com/59650
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/asm_ppc64x.s | 41 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 39 insertions(+), 2 deletions(-)

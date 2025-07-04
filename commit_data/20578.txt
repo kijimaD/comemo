@@ -1,0 +1,15 @@
+commit 705c1f5cd45d572ba32dea48f5fe997a9f970400
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 13:42:33 2014 -0700
+
+    net/http: clarify Request.FormValue docs
+    
+    Fixes #8067
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/146480043
+
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

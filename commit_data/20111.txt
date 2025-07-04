@@ -1,0 +1,14 @@
+commit 7b3677bf3c02f79dc51575ef7b05ea2f4372df90
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 12:09:42 2014 +0400
+
+    runtime: fix block profile for sync semaphores
+    Part of cl/128670043 that got lost during submit.
+    
+    TBR=rsc
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/129570043
+
+ src/pkg/runtime/sema.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

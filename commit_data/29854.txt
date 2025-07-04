@@ -1,0 +1,14 @@
+commit c5f16d4e40d0a2d9c2e32a866129d6a40535f57d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Dec 19 20:53:45 2016 -0800
+
+    crypto/x509: fix spelling/grammar in comments
+    
+    Also tweak one of the comment lines to fit in 80 characters.
+    
+    Change-Id: I9c6d2028c29318ba9264486590056cb1ffc8219e
+    Reviewed-on: https://go-review.googlesource.com/34655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_darwin.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit ae875e040c6200c9bfae0df9f17d4620abc9e707
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 21:10:45 2014 +0400
+
+    runtime: convert lfstack to Go
+    It is called from Go only in tests.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/125610043
+
+ src/pkg/runtime/export_test.go             | 27 +++++++++++++++++++++++----
+ src/pkg/runtime/{lfstack.goc => lfstack.c} | 16 +++++++++++-----
+ 2 files changed, 34 insertions(+), 9 deletions(-)

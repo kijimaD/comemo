@@ -1,0 +1,36 @@
+commit adda33483dbf9fe4753ecc54b56590d60c962acb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 28 22:21:26 2013 -0400
+
+    cmd/cgo: stop using -fno-eliminate-unused-debug-types
+    
+    This flag was added in January 2010, in CL 181102, to fix issue 497.
+    (Numbers were just shorter back then.) The fix was for OS X machines
+    and the llvm-gcc frontend.
+    
+    In July 2011 we had to change the way we get enum values, because
+    there were no flags available to force Xcode's llvm-gcc to include the
+    enum names and values in DWARF debug output.
+    
+    We now use clang, not llvm-gcc, on OS X machines.
+    Earlier versions of clang printed a warning about not knowing the flag.
+    Newer versions of clang now make that an error.
+    
+    That is:
+     - The flag was added for OS X machines.
+     - The flag is no longer necessary on OS X machines.
+     - The flag now breaks some OS X machines.
+    
+    Remove it.
+    
+    I have run the original program from issue 497 successfully
+    without the flag on both OS X and Linux machines.
+    
+    Fixes #6678.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/18850043
+
+ src/cmd/cgo/gcc.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

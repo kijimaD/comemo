@@ -1,0 +1,22 @@
+commit c99cfd93a86dc76ff276b13211ef65ab2752bfc7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 06:55:49 2017 -0700
+
+    cmd/link: don't use internal linking mode for cgo on PPC64
+    
+    The internal linker doesn't know how to handle multiple TOC sections
+    in internal linking mode. This used to work because before CL 64793 we
+    invoked ld -r on multiple objects, and that merged the TOC sections
+    for us.
+    
+    Updates #21961
+    
+    Change-Id: I48260a7195be660016f2f358ebc8cb79652210ab
+    Reviewed-on: https://go-review.googlesource.com/66270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 3 ++-
+ src/cmd/nm/nm_cgo_test.go          | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

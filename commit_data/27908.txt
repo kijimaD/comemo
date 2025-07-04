@@ -1,0 +1,35 @@
+commit c8683ff7977c526fb48ae007971fed16ef32ff62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 4 17:09:08 2016 -0800
+
+    cmd/compile/internal/syntax: fast Go syntax trees, initial commit.
+    
+    Syntax tree nodes, scanner, parser, basic printers.
+    
+    Builds syntax trees for entire Go std lib at a rate of ~1.8M lines/s
+    in warmed up state (MacMini, 2.3 GHz Intel Core i7, 8GB RAM):
+    
+    $ go test -run StdLib -fast
+    parsed 1074617 lines (2832 files) in 579.66364ms (1853863 lines/s)
+    allocated 282.212Mb (486.854Mb/s)
+    PASS
+    
+    Change-Id: Ie26d9a7bf4e5ff07457aedfcc9b89f0eba72ae3f
+    Reviewed-on: https://go-review.googlesource.com/27195
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ misc/nacl/testzip.proto                         |    4 +
+ src/cmd/compile/internal/syntax/dumper.go       |  212 +++
+ src/cmd/compile/internal/syntax/dumper_test.go  |   22 +
+ src/cmd/compile/internal/syntax/nodes.go        |  425 +++++
+ src/cmd/compile/internal/syntax/parser.go       | 2062 +++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/parser_test.go  |  157 ++
+ src/cmd/compile/internal/syntax/printer.go      |  942 +++++++++++
+ src/cmd/compile/internal/syntax/printer_test.go |   24 +
+ src/cmd/compile/internal/syntax/scanner.go      |  651 +++++++
+ src/cmd/compile/internal/syntax/scanner_test.go |  354 ++++
+ src/cmd/compile/internal/syntax/source.go       |  177 ++
+ src/cmd/compile/internal/syntax/syntax.go       |   61 +
+ src/cmd/compile/internal/syntax/tokens.go       |  263 +++
+ 13 files changed, 5354 insertions(+)

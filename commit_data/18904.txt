@@ -1,0 +1,14 @@
+commit 6ea340fd61b73d94992a4930ef0d2ee09a1ffd64
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 19 17:18:25 2014 -0700
+
+    cmd/6g: remove unused stosptr variable
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/78030043
+
+ src/cmd/6g/galign.c | 2 --
+ src/cmd/6g/gg.h     | 1 -
+ 2 files changed, 3 deletions(-)

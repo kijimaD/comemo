@@ -1,0 +1,14 @@
+commit 85773e6bc2d800de8598fdda7602d2b6e61f1039
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 20 12:05:52 2013 +1100
+
+    cmd/5l: fix arm build
+    
+    Fixes build. One part of ../misc/cgo/test appears to be unhappy but this does not cause the build to fail.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/7769047
+
+ src/cmd/5l/obj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

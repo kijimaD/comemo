@@ -1,0 +1,14 @@
+commit 0d0eff71652a0b8fcbfe678763d88eb142a544f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 15 11:46:00 2012 -0800
+
+    os: add FileMode.IsRegular
+    
+    API change.
+    
+    R=golang-dev, r, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6844048
+
+ src/pkg/os/types.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

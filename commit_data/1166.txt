@@ -1,0 +1,12 @@
+commit 866c08ff20f64147367723c256b1d1e14f75ced5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:22:31 2008 -0800
+
+    fix build for newbies
+    
+    R=r
+    OCL=19526
+    CL=19528
+
+ src/cmd/gotest/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

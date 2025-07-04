@@ -1,0 +1,24 @@
+commit 8752454ece0c4516769e1260a14763cf9fe86770
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 16:31:40 2021 -0400
+
+    cmd/internal/objabi: clarify initialization of Experiments
+    
+    Currently objabi.Experiments is set via side-effect from an init
+    function, which makes their initialization process somewhat unclear
+    (indeed, I've messed this up before) and opens the possibility of
+    accessing them from another init function before it's initialized.
+    
+    Originally, this init function set several variables, but at this
+    point it sets only objabi.Experiments, so switch to just using a
+    variable initializer to make the initialization process clear.
+    
+    Change-Id: Id0d2ac76ae463824bbf37a9305e8643a275f1365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307821
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/objabi/exp.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

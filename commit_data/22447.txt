@@ -1,0 +1,21 @@
+commit 947b6a7ec8e05edbc4fe6fc6b4002fa03efc7329
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 6 18:01:45 2015 -0400
+
+    debug/dwarf: add Entry.AttrField method to get *Field by Attr
+    
+    Currently, Entry has a Val method that looks up an attribute and
+    returns its value. Now that Field has more fields than the attribute
+    and its value, it's useful to return the whole Field and let the
+    caller retrieve the parts it needs.
+    
+    This change adds an AttrField method to Entry that does the same
+    lookup at Val, but returns the whole *Field rather than just the
+    value.
+    
+    Change-Id: Ic629744c14c0e09d7528fa1026b0e1857789948c
+    Reviewed-on: https://go-review.googlesource.com/8503
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/entry.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

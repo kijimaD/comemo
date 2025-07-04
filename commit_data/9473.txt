@@ -1,0 +1,26 @@
+commit 847b61b55429ca097c1ae9b8a83c39f8631400ca
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Aug 24 19:07:08 2011 +0200
+
+    gc: Escape analysis.
+    
+    For now it's switch-on-and-offable with -s, and the effects can be inspected
+    with -m.  Defaults are the old codepaths.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4634073
+
+ src/cmd/gc/Makefile    |   1 +
+ src/cmd/gc/dcl.c       |   4 +
+ src/cmd/gc/esc.c       | 762 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/gen.c       |  98 ++++++-
+ src/cmd/gc/go.h        |  27 +-
+ src/cmd/gc/lex.c       |  18 +-
+ src/cmd/gc/print.c     |   4 +
+ src/cmd/gc/reflect.c   |   2 +-
+ src/cmd/gc/select.c    |   3 +-
+ src/cmd/gc/subr.c      |  41 ++-
+ src/cmd/gc/typecheck.c |  92 +-----
+ test/escape2.go        | 615 +++++++++++++++++++++++++++++++++++++++
+ 12 files changed, 1560 insertions(+), 107 deletions(-)

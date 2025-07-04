@@ -1,0 +1,21 @@
+commit fc99c4b3f33226a429743a263934a237be3f71c8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 11:30:26 2023 +0000
+
+    cmd/compile: start using reflect.Value.IsZero
+    
+    We now require Go 1.17.13 to bootstrap via make.bash,
+    and since reflect.Value.IsZero was added in Go 1.13,
+    we can now use it directly to save a bit of copy pasting.
+    
+    Change-Id: I77eef782cbbf86c72a4505c8b4866c9658914a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ir/dump.go | 18 +----------------
+ src/cmd/compile/internal/ir/fmt.go  | 40 +------------------------------------
+ 2 files changed, 2 insertions(+), 56 deletions(-)

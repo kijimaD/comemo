@@ -1,0 +1,20 @@
+commit 364cb831f725dea61738171003600c76950e5448
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 3 09:22:40 2011 -0500
+
+    crypto/openpgp/packet: add basic routines
+    
+    Since nobody suggested major changes to the higher level API, I'm
+    splitting up the lower level code for review. This is the first of the
+    changes for the packet reading/writing code.
+    
+    It deliberately doesn't include a Makefile because the package is
+    incomplete.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4080051
+
+ src/pkg/crypto/openpgp/packet/packet.go      | 395 +++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/packet_test.go | 192 +++++++++++++
+ 2 files changed, 587 insertions(+)

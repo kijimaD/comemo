@@ -1,0 +1,18 @@
+commit 64967ffe6d7e8a82c87db7c11f76117072e7aff7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Oct 23 15:15:37 2018 +0200
+
+    cmd/compile/internal/ssa: fix TestStmtLines for AIX
+    
+    This commit adapts TestStmtLines for AIX operating system.
+    
+    Update #25893
+    
+    Change-Id: I1c76bbd8fc679a66b65ecfbd1ed7745518064eae
+    Reviewed-on: https://go-review.googlesource.com/c/144958
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

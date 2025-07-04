@@ -1,0 +1,16 @@
+commit 0409158cd04fea7ea2ec4ee8b5206a3016319c14
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 22 10:59:24 2015 -0700
+
+    cmd/go: ignore volume name case when checking vendor path
+    
+    Fixes #11409
+    
+    Change-Id: Ic1610e124b2d8b2b12310fc9538d5078cc7302a0
+    Reviewed-on: https://go-review.googlesource.com/11316
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/main.go        | 22 ++++++++++++++++++++++
+ src/cmd/go/pkg.go         |  2 +-
+ src/cmd/go/vendor_test.go | 16 ++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit d37624881f60f79dfba4ef81661024bee9dfc2d3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 27 22:54:51 2025 +1100
+
+    cmd/internal/obj/riscv: improve constant construction
+    
+    Attempt to construct large constants that have a consecutive sequence
+    of ones from a small negative constant, with a logical right and/or
+    left shift. This allows for a large range of mask like constants to be
+    constructed with only two or three instructions, avoiding the need to
+    load from memory.
+    
+    Change-Id: I35a77fecdd2df0ed3f33b772d518f85119d4ff66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652778
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 12 +++---
+ src/cmd/internal/obj/riscv/obj.go           | 62 ++++++++++++++++++++++-------
+ src/cmd/internal/obj/riscv/obj_test.go      | 48 ++++++++++++----------
+ 3 files changed, 82 insertions(+), 40 deletions(-)

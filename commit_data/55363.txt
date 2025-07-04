@@ -1,0 +1,20 @@
+commit ee4b61a32e9cbc8ef5ce484dbf1e5133459b8771
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 10 22:59:37 2024 -0800
+
+    runtime: don't mark unrolled bitmap type as having a gc program
+    
+    It doesn't have a GC program - the whole point is that it is
+    the unrolled version of a GC program.
+    
+    Fortunately, this isn't a bug as (*mspan).typePointersOfUnchecked
+    ignores the GCProg flag and just uses GCData as a bitmap unconditionally.
+    
+    Change-Id: I2508af85af4a1806946e54c893120c5cc0cc3da3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mbitmap_allocheaders.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

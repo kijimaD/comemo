@@ -1,0 +1,17 @@
+commit ea392b8849e886e2548246666026db5dfca929f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 5 14:32:09 2012 -0400
+
+    bufio: discourage use of ReadLine
+    
+    Too many people use it without reading what it does.
+    Those people want ReadBytes or ReadString.
+    
+    Fixes #3906.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/6442087
+
+ src/pkg/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

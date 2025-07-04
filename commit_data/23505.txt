@@ -1,0 +1,20 @@
+commit 4ec946ce95226b9e1b5258bdc3d46090d828d896
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jun 14 16:41:31 2015 -0700
+
+    crypto/x509: don't panic when decrypting invalid PEM data.
+    
+    If an encrypted PEM block contained ciphertext that was not a multiple
+    of the block size then the code would panic. This change tests for that
+    case and returns an error.
+    
+    Fixes #11215.
+    
+    Change-Id: I7b700f99e20810c4f545519b1e9d766b4640e8a7
+    Reviewed-on: https://go-review.googlesource.com/11097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/x509/pem_decrypt.go      |  4 ++++
+ src/crypto/x509/pem_decrypt_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

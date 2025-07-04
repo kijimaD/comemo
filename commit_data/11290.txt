@@ -1,0 +1,13 @@
+commit a67c69cbaee1e419b1950832afb295cc951b202e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 10:22:41 2012 -0800
+
+    goyacc: fix indexing bug when yydebug >= 2
+    Fixes #2701.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5556070
+
+ src/cmd/goyacc/goyacc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

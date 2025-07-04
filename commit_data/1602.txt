@@ -1,0 +1,13 @@
+commit b67603dfef4bd4f0c8e66af41fb461a502bbaebb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 2 11:51:07 2009 -0800
+
+    - added experimental flag '-def': will print (not parse!)
+    'def' instead of 'func', 'const', or 'type'
+    
+    R=r
+    OCL=24092
+    CL=24094
+
+ usr/gri/pretty/printer.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

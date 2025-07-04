@@ -1,0 +1,37 @@
+commit bffb0590c1e1125830377165eb98bf1b73bb016e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 9 01:08:34 2014 -0400
+
+    runtime: merge mallocgc, gomallocgc
+    
+    I assumed they were the same when I wrote
+    cgocallback.go earlier today. Merge them
+    to eliminate confusion.
+    
+    I can't tell what gomallocgc did before with
+    a nil type but without FlagNoScan.
+    I created a call like that in cgocallback.go
+    this morning, translating from a C file.
+    It was supposed to do what the C version did,
+    namely treat the block conservatively.
+    Now it will.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/141810043
+
+ src/runtime/cgocallback.go |  2 +-
+ src/runtime/chan.go        |  2 +-
+ src/runtime/malloc.c       | 15 ---------------
+ src/runtime/malloc.go      | 19 +++++++++----------
+ src/runtime/mgc0.c         |  8 ++++----
+ src/runtime/os_plan9.c     |  5 +++--
+ src/runtime/os_windows.c   |  4 +++-
+ src/runtime/panic.go       |  2 +-
+ src/runtime/parfor.c       |  3 ++-
+ src/runtime/proc.c         |  4 ++--
+ src/runtime/runtime.c      |  5 +++--
+ src/runtime/select.go      |  2 +-
+ src/runtime/string.go      |  6 +++---
+ 13 files changed, 33 insertions(+), 44 deletions(-)

@@ -1,0 +1,14 @@
+commit 69c09afb0dee368ef2fbcf9fec27bd04c2e63798
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Wed Dec 2 23:28:49 2015 +0100
+
+    net/mail: add test index to error messages in a recent test
+    
+    Add the test index so it is easier to find which test case failed.
+    
+    Change-Id: Ic04682651b26b137355950ff0c51bdbdb1d85a9c
+    Reviewed-on: https://go-review.googlesource.com/17351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

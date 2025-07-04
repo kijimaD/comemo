@@ -1,0 +1,24 @@
+commit 7fa5a11ea1e876bd9d72b0ed2e2821597f76a495
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 14:56:19 2015 -0700
+
+    math/big: move Int/Rat gob/json/xml functionality in separate files
+    
+    Like int/rat/float conversions, move this functionality into separate
+    implementation and test files.
+    
+    No implementation changes besides the move.
+    
+    Change-Id: If19c45f5a72a57b95cbce2329724693ae5a4807d
+    Reviewed-on: https://go-review.googlesource.com/14997
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go           |  62 ------------------
+ src/math/big/int_test.go      | 135 ---------------------------------------
+ src/math/big/intmarsh.go      |  71 +++++++++++++++++++++
+ src/math/big/intmarsh_test.go | 145 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/rat.go           |  60 -----------------
+ src/math/big/rat_test.go      | 114 ---------------------------------
+ src/math/big/ratmarsh.go      |  71 +++++++++++++++++++++
+ src/math/big/ratmarsh_test.go | 123 +++++++++++++++++++++++++++++++++++
+ 8 files changed, 410 insertions(+), 371 deletions(-)

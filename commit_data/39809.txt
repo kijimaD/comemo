@@ -1,0 +1,20 @@
+commit 9da99049ba45abb4e3b91ba30a4af8dc2d24f1b1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 5 15:14:02 2019 -0700
+
+    cmd/compile: restore lineno before returning in defaultlitreuse
+    
+    This affects the position information that's associated with the
+    implicit OCONV nodes created in assignconvfn.
+    
+    Not super important and the followup rewrite CL fixes this too, but
+    fixing it separately is easy and makes toolstash-check happier.
+    
+    Change-Id: Ifd65dc524b367812d14a4d996647a5d40665fb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193606
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

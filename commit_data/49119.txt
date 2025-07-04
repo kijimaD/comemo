@@ -1,0 +1,22 @@
+commit 7a574ff23f9cda0967fd63a55c897e7598b60ad2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 14:56:14 2022 -0400
+
+    cmd/compile: fix boolean comparison on PPC64
+    
+    Following CL 405114, for PPC64.
+    
+    Should fix PPC64 builds.
+    
+    Updates #52788.
+    
+    Change-Id: I193ac31cfba18b4f907dd2523b51368251fd6fad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405116
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  22 +++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 108 +++++++++++++++++++--------
+ src/cmd/objdump/objdump_test.go              |   2 +-
+ 3 files changed, 88 insertions(+), 44 deletions(-)

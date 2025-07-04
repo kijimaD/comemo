@@ -1,0 +1,16 @@
+commit 5742ded3ad6496de67a80b3745dce29cd5bd5b09
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Wed Dec 15 12:07:30 2010 +1100
+
+    godashboard: support submitting projects with non-ascii names
+    
+    Fixes #1314.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/3459043
+
+ misc/dashboard/godashboard/package.py         |  5 +++++
+ misc/dashboard/godashboard/project-notify.txt |  2 +-
+ misc/dashboard/godashboard/toutf8.py          | 14 ++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

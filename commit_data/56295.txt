@@ -1,0 +1,21 @@
+commit 8960925ad8dd1ef234731d94ebbea263e35a3e42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 17:34:38 2024 -0400
+
+    time: deflake TestChan/asynctimerchan=1 tests
+    
+    The overall time package tests increase from 3.85s to 4.85s on my laptop.
+    But they should be less flaky, and the time is spent sleeping, so it won't
+    slow down the overall machine running multiple package tests in
+    parallel.
+    
+    For #66322.
+    
+    Change-Id: I66d6647c389c943b53045e8836ede4ba3d4670c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/time/tick_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

@@ -1,0 +1,25 @@
+commit 210a9e0c7dbe9bc16522387e7a0c902d29a5f85c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Oct 4 19:28:59 2017 +0100
+
+    net/http: vendor x/net/http/httpproxy, use it in net/http
+    
+    From x/net git rev c7086645de2.
+    
+    Updates #16704
+    
+    Change-Id: I4d642478fc69a52c973964845fca2fd402716e57
+    Reviewed-on: https://go-review.googlesource.com/68091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go                          |   1 +
+ src/net/http/export_test.go                        |   4 +-
+ src/net/http/proxy_test.go                         |  39 +--
+ src/net/http/transport.go                          | 141 ++--------
+ src/net/http/transport_test.go                     |  60 +++--
+ .../golang_org/x/net/http/httpproxy/export_test.go |   7 +
+ .../golang_org/x/net/http/httpproxy/proxy.go       | 239 +++++++++++++++++
+ .../golang_org/x/net/http/httpproxy/proxy_test.go  | 298 +++++++++++++++++++++
+ 8 files changed, 605 insertions(+), 184 deletions(-)

@@ -1,0 +1,21 @@
+commit 2e0aa581b4a2544249ad2f8e86e17204ca778ca7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:56:18 2019 -0700
+
+    runtime: add new addtimer function
+    
+    When we add a timer, make sure that the network poller is initialized,
+    since we will use it if we have to wait for the timer to be ready.
+    
+    Updates #27707
+    
+    Change-Id: I0637fe646bade2cc5ce50b745712292aa9c445b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171830
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/netpoll.go      |  9 +++++--
+ src/runtime/netpoll_stub.go |  4 +++
+ src/runtime/time.go         | 63 ++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 73 insertions(+), 3 deletions(-)

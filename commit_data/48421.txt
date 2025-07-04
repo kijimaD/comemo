@@ -1,0 +1,17 @@
+commit 2d32594396b231b39d09ec21d34b22b0270268b5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 15 21:05:11 2022 -0700
+
+    runtime: call testenv.MustHaveCGO in a couple of tests
+    
+    Fixes #51695
+    
+    Change-Id: Icfe9d26ecc28a7db9040d50d4661cf9e8245471e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392916
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/signal_windows_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

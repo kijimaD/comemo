@@ -1,0 +1,25 @@
+commit a0f05823e4953d137310de164b2544e41dd767d2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Jul 14 19:40:23 2022 -0700
+
+    syscall: fix skipping some tests on Linux
+    
+    The kernel knob /proc/sys/kernel/unprivileged_userns_clone is
+    only available in Debian (and Ubuntu) kernels, so if the tests
+    are run on e.g. Fedora, skipUnprivilegedUserClone() skips a lot
+    of tests.
+    
+    Modify it to treat ENOENT as "it should work".
+    
+    Change-Id: I959201ede139ede989cc8ab646c9bf51e0539ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417694
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_linux_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

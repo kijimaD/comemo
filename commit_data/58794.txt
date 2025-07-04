@@ -1,0 +1,19 @@
+commit 7a33f793e83ad2ee8a271769df66346865bae9fe
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 19 07:15:19 2025 +0000
+
+    cmd/compile/internal/ir: correct doc comment, miniNode in now 12 bytes
+    
+    Change-Id: I5887565077f598bc7e3edc4b78188956fb13cdaa
+    GitHub-Last-Rev: 479a04b42e9dc2ffc72cb599ebb12b8fc669fe20
+    GitHub-Pull-Request: golang/go#71822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650415
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ir/mini.go        | 6 +++---
+ src/cmd/compile/internal/ir/sizeof_test.go | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 5328df6534b9fa2ca83cbbac013ef1e094e11907
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 9 09:47:45 2010 -0800
+
+    runtime: check for preemption due to garbage collection
+            in various already expensive routines.
+    
+    helps keep cpu utilization up when GOMAXPROCS > 1,
+    but not a full solution.
+    
+    http://groups.google.com/group/golang-nuts/t/7a9535c4136d3e2
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/184043
+
+ src/pkg/runtime/chan.c     | 12 ++++++++++++
+ src/pkg/runtime/hashmap.c  |  9 +++++++++
+ src/pkg/runtime/malloc.cgo |  3 ++-
+ src/pkg/runtime/mgc0.c     |  2 +-
+ src/pkg/runtime/proc.c     |  4 ++++
+ src/pkg/runtime/runtime.h  |  1 +
+ 6 files changed, 29 insertions(+), 2 deletions(-)

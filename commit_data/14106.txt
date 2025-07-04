@@ -1,0 +1,16 @@
+commit 84386416294922b948e91ebc3226271c1d049998
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 10 11:17:47 2012 +1100
+
+    godoc: add dropdown playground to nav bar
+    
+    R=gri, dsymonds, skybrian
+    CC=golang-dev
+    https://golang.org/cl/6631057
+
+ doc/godocs.js          | 32 ++++++++++++++++++++
+ doc/style.css          | 79 +++++++++++++++++++++++++++++++++++++++++++++++---
+ lib/godoc/godoc.html   | 32 ++++++++++++++++++--
+ lib/godoc/package.html |  2 --
+ src/cmd/godoc/godoc.go |  6 ++--
+ 5 files changed, 140 insertions(+), 11 deletions(-)

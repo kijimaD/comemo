@@ -1,0 +1,12 @@
+commit 20b6de135ba9307724047e2c5d92bc33861b5cf6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 14:35:36 2009 -0800
+
+    fix build
+    
+    TBR=r
+    OCL=25021
+    CL=25021
+
+ src/lib/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 84c0e5d47f46f2e1a7ce92341477d9801f0ef777
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 1 14:58:36 2021 -0700
+
+    cmd/link: move issue 43830 tests out of TestScript
+    
+    These tests pass or fail depending on the exact compiler version,
+    which the TestScript tests don't support. Rewrite into Go.
+    
+    For #43830
+    For #46295
+    
+    Change-Id: I91b61dfe329d518e461ee56f186f0e9b42858e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324049
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/testdata/script/cgo_lto2_issue43830.txt |  33 -----
+ src/cmd/go/testdata/script/cgo_lto_issue43830.txt  |  40 ------
+ src/cmd/link/cgo_test.go                           | 138 +++++++++++++++++++++
+ 3 files changed, 138 insertions(+), 73 deletions(-)

@@ -1,0 +1,31 @@
+commit 067dd573b2deba45a02383139bd2885321b2f71d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 24 12:43:09 2023 -0400
+
+    cmd/go: fix PGO script flag matching
+    
+    build_pgo.txt hard-coded a check for / rather than using ${/}, causing a
+    failure on Windows
+    
+    The failure in build_pgo_auto_multi.txt is more interesting. If the
+    first argument to stdout starts with `-` the script engine expects it to
+    be a flag to grep, and thus doesn't regexp-escape `\` in the expansion
+    of `${/}`.
+    
+    The script engine doesn't _require_ that these are flags to grep, so it
+    is still possible to use them for matching, but this ideally will change
+    in the future, so change all patterns to avoid starting with `-`.
+    
+    Fixes #60408.
+    
+    Change-Id: Ie4041a730d22ce40a4436abae7713f211dcb42e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497881
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/build_pgo.txt            |  6 ++++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt       | 20 +++++++++++---------
+ src/cmd/go/testdata/script/build_pgo_auto_multi.txt |  8 +++++---
+ 3 files changed, 20 insertions(+), 14 deletions(-)

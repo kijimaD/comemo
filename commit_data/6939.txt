@@ -1,0 +1,39 @@
+commit dc9a3b2791feb3aade3b8cf00891eddcb5b5ed90
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 16:22:19 2010 -0500
+
+    gc: align structs according to max alignment of fields
+    cc: same
+    runtime: test cc alignment (required moving #define of offsetof to runtime.h)
+    fix bug260
+    
+    Fixes #482.
+    Fixes #609.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/3563042
+
+ src/cmd/5c/swt.c                   | 30 ++++++++++++++++++++----------
+ src/cmd/5c/txt.c                   | 10 +++++-----
+ src/cmd/6c/cgen.c                  |  4 ++--
+ src/cmd/6c/swt.c                   | 27 +++++++++++++++++----------
+ src/cmd/6c/txt.c                   | 10 +++++-----
+ src/cmd/8c/cgen64.c                |  4 ++--
+ src/cmd/8c/swt.c                   | 30 ++++++++++++++++++++----------
+ src/cmd/8c/txt.c                   | 10 +++++-----
+ src/cmd/cc/cc.h                    |  3 ++-
+ src/cmd/cc/dcl.c                   | 29 ++++++++++++++++-------------
+ src/cmd/cc/pgen.c                  |  8 ++++----
+ src/cmd/cc/pswt.c                  |  2 +-
+ src/cmd/gc/align.c                 | 10 +++++++---
+ src/cmd/gc/typecheck.c             |  2 +-
+ src/pkg/reflect/value.go           | 12 +++++-------
+ src/pkg/runtime/debug.go           | 11 +++++++++++
+ src/pkg/runtime/hashmap.h          |  1 -
+ src/pkg/runtime/malloc.goc         |  2 ++
+ src/pkg/runtime/runtime.c          | 11 ++++++++++-
+ src/pkg/runtime/runtime.h          |  1 +
+ test/{bugs => fixedbugs}/bug260.go | 18 ++++++++++++------
+ test/golden.out                    |  4 ----
+ 22 files changed, 148 insertions(+), 91 deletions(-)

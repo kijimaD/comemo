@@ -1,0 +1,17 @@
+commit acfe3a59bd324cc70e8642bc07e8578f0ac64cd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 16:51:00 2015 -0800
+
+    math/big: API cleanup
+    
+    - better and more consistent documentation
+    - more functions implemented
+    - more tests
+    
+    Change-Id: If4c591e7af4ec5434fbb411a48dd0f8add993720
+    Reviewed-on: https://go-review.googlesource.com/4140
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 217 +++++++++++++++++++++++++++------------------
+ src/math/big/float_test.go |  97 ++++++++++++++++++--
+ 2 files changed, 223 insertions(+), 91 deletions(-)

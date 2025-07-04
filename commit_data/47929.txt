@@ -1,0 +1,18 @@
+commit 83bfdb6561c06bd890446af01b0f0c735360a8df
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Jan 12 09:54:19 2022 -0500
+
+    go/ast: mention that FieldLists can now be enclosed by brackets
+    
+    Type parameter lists are stored using ast.FieldLists. Update the
+    documentation to reflect that the enclosing delimiter may be a bracket.
+    
+    Change-Id: Id103e7b38975e94a1b521f75695edc10408ad3dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378014
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/ast/ast.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,31 @@
+commit 198c3cb785282ee4c199680ec2d05381805a6f66
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Dec 11 15:42:06 2024 -0500
+
+    std: pass bytes.Buffer and strings.Builder by pointer
+    
+    This CL fixes a number of (all true positive) findings of vet's
+    copylock analyzer patched to treat the Bu{ff,uild}er types
+    as non-copyable after first use.
+    
+    This does require imposing an additional indirection
+    between noder.writer and Encoder since the field is
+    embedded by value but its constructor now returns a pointer.
+    
+    Updates golang/go#25907
+    Updates golang/go#47276
+    
+    Change-Id: I0b4d77ac12bcecadf06a91709e695365da10766c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635339
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/bytes/buffer_test.go                 |  2 +-
+ src/cmd/compile/internal/noder/linker.go | 16 ++++++++--------
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ src/compress/flate/inflate_test.go       |  4 ++--
+ src/internal/pkgbits/encoder.go          |  6 +++---
+ src/runtime/pprof/pprof_test.go          |  4 ++--
+ 6 files changed, 17 insertions(+), 17 deletions(-)

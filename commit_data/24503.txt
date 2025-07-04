@@ -1,0 +1,20 @@
+commit 30b966307f475b1445816308f8cb2c5813b38232
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Oct 8 20:24:17 2015 -0400
+
+    cmd/internal/obj: move empty field to the top
+    
+    Due to #9401, trailing empty fields will occupy at least 1 byte
+    of space.
+    
+    Fixes #12884.
+    
+    Change-Id: I838d3f1a73637e526f5a6dbc348981227d5bb2fd
+    Reviewed-on: https://go-review.googlesource.com/15660
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

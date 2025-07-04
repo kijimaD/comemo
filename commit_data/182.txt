@@ -1,0 +1,15 @@
+commit 4e8142c929bf285870aaa561d8bf47c94639b89b
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jun 16 22:34:50 2008 -0700
+
+    maps
+    
+    SVN=123089
+
+ src/cmd/6g/gen.c       |  20 ++---
+ src/cmd/gc/sys.go      |   8 +-
+ src/cmd/gc/sysimport.c | 124 +++++++++++++-------------
+ src/cmd/gc/walk.c      | 229 +++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/runtime.c  |  56 ++++++------
+ src/runtime/runtime.h  |  10 ++-
+ 6 files changed, 293 insertions(+), 154 deletions(-)

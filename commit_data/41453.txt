@@ -1,0 +1,22 @@
+commit 26aadfa0442249d4b55d7135134eb7ec0a43a850
+Author: Joshua Crowgey <jcrowgey@uw.edu>
+Date:   Thu Feb 13 06:02:10 2020 +0000
+
+    cmd/vendor: create modules.txt even for unused deps
+    
+    `go mod vendor`  should create vendor/modules.txt even when the only deps
+    in go.mod are unused.
+    
+    Fixes: #36580
+    
+    Change-Id: I92a746d3f013bc2bdc3d2cec6e14b16f606c2edd
+    GitHub-Last-Rev: ea39a1c62294f42e5e5aab049f466189de0fd42d
+    GitHub-Pull-Request: golang/go#36920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217135
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go                  |  5 +++++
+ src/cmd/go/testdata/script/mod_vendor_unused_only.txt | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+)

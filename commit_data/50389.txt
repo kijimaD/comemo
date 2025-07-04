@@ -1,0 +1,27 @@
+commit 88149ed43e50325f3200b580be400c91ed01aaac
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 6 17:48:26 2022 -0700
+
+    os: fix wrong error msg from TestReadClosed
+    
+    If test would fail, the error message will have wrong error and its
+    type, because e is used after the failed type assertion.
+    
+    To fix, use the original err.
+    
+    While at it,
+     - combine the checks for error type and value into one statement;
+     - use the standard "got ..., want ..." format.
+    
+    Fixes: 212d2f82e050 ("os: add ErrClosed, return for use of closed File")
+    Change-Id: I862a96607b461ab89cce6bed2443b28aa2c16468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

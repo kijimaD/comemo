@@ -1,0 +1,21 @@
+commit e49f94560346696fe326f307ba24f1be951d2a6d
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 14 23:37:14 2013 -0500
+
+    runtime: expand error for signal received on non-Go thread.
+    
+    We call runtime.findnull dynamically to avoid exceeding the
+    static nosplit stack limit check.  (Thanks minux!)
+    
+    Fixes #4048.
+    
+    R=rsc, minux.ma, ality
+    CC=golang-dev
+    https://golang.org/cl/7232066
+
+ src/pkg/runtime/thread_darwin.c  | 8 +++++++-
+ src/pkg/runtime/thread_freebsd.c | 8 +++++++-
+ src/pkg/runtime/thread_linux.c   | 8 +++++++-
+ src/pkg/runtime/thread_netbsd.c  | 8 +++++++-
+ src/pkg/runtime/thread_openbsd.c | 8 +++++++-
+ 5 files changed, 35 insertions(+), 5 deletions(-)

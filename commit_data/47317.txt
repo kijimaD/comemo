@@ -1,0 +1,19 @@
+commit ba79c1e24198c2222e3bfe350326a8962fee0441
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Nov 5 18:40:03 2021 -0400
+
+    doc/go1.18: split bytes and strings packages
+    
+    A small touchup after CL 361894.
+    
+    For #47694.
+    
+    Change-Id: Ifc161516f897f727195d21351a3c8eda7b6e327e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361895
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.18.html | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

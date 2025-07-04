@@ -1,0 +1,18 @@
+commit 6b3bb4ba3bcc190200af4f1eedf454658094097f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 5 16:53:13 2019 -0700
+
+    runtime: handle timers on P's in procresize/(*pp).destroy
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: I52cab8bf3dc8c552463725fc1d9e4e6b12230b03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171828
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 6 ++++++
+ src/runtime/time.go | 8 ++++++++
+ 2 files changed, 14 insertions(+)

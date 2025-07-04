@@ -1,0 +1,16 @@
+commit 6a6224c88dfbe450179230ed2b1819a41391963b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 13 14:45:50 2014 +0900
+
+    net: fix TCP keepalive on dragonfly
+    
+    Fixes #7528.
+    
+    LGTM=jsing
+    R=jsing
+    CC=golang-codereviews
+    https://golang.org/cl/75140045
+
+ src/pkg/net/tcpsockopt_dragonfly.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/net/tcpsockopt_unix.go      |  2 +-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

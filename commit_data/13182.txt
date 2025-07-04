@@ -1,0 +1,13 @@
+commit b9918dbf065e91938b60b1776546e246708ef427
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Tue May 29 11:12:31 2012 -0400
+
+    A+C: Peter Kleiweg (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6260049
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

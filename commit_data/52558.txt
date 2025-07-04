@@ -1,0 +1,21 @@
+commit a3df6c0e81cd14aef0b4967721821d34b962b7be
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 10 15:14:46 2023 -0600
+
+    cmd/link/internal/ppc64: generate PCrel trampolines on P10
+    
+    PCrelative trampolines have no dependence on the TOC pointer or build
+    mode, thus they are preferable to use when supported.
+    
+    This is a step towards eliminating the need to use and maintain the
+    TOC pointer in R2 when PCrel is supported.
+    
+    Change-Id: I1b1a7e16831cfd6732b31f7fad8df2a7c88c8f84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461599
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

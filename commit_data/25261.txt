@@ -1,0 +1,14 @@
+commit 9025408ab5576af13a4ef2e395426053b9c7b28e
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Dec 14 16:17:21 2015 -0800
+
+    net/http: test client timeout against HTTP/2
+    
+    Change-Id: Id511855da1c663250a4ffb149277a3f4a7f38360
+    Reviewed-on: https://go-review.googlesource.com/17766
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

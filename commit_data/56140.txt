@@ -1,0 +1,25 @@
+commit 74cce866f865c3188a34309e4ebc7a5c9ed0683d
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Oct 23 01:19:01 2023 +0200
+
+    testing/fstest: return structured errors in TestFS
+    
+    TestFS now returns a structured error built with errors.Join to allow to
+    inspect errors using errors.Is and errors.As.
+    
+    All errors are now wrapped using fmt.Errorf and %w.
+    
+    Fixes #63675.
+    
+    Change-Id: I8fc3363f8ae70085af4afdb84c16be9ca70d7731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/next/6-stdlib/99-minor/testing/fstest/63675.md |  4 ++
+ src/testing/fstest/testfs.go                       | 69 +++++++++++-----------
+ src/testing/fstest/testfs_test.go                  | 38 ++++++++++++
+ 3 files changed, 75 insertions(+), 36 deletions(-)

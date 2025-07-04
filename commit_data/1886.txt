@@ -1,0 +1,13 @@
+commit bafd8c390aa69808feca8de1774ea81c1527926c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 25 12:44:18 2009 -0700
+
+    AST for Go programs
+    
+    R=rsc,r
+    DELTA=309  (67 added, 51 deleted, 191 changed)
+    OCL=26611
+    CL=26745
+
+ usr/gri/pretty/ast.go | 456 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 236 insertions(+), 220 deletions(-)

@@ -1,0 +1,17 @@
+commit 4047f300c9defec5b0fc0d6801f29c03c4873af9
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Nov 26 22:34:01 2012 +1100
+
+    runtime: implement SysUnused for netbsd
+    
+    R=golang-dev, bradfitz, minux.ma, dave
+    CC=golang-dev
+    https://golang.org/cl/6842081
+
+ src/pkg/runtime/defs_netbsd.go      |  2 ++
+ src/pkg/runtime/defs_netbsd_386.h   |  2 ++
+ src/pkg/runtime/defs_netbsd_amd64.h |  2 ++
+ src/pkg/runtime/mem_netbsd.c        |  4 +---
+ src/pkg/runtime/sys_netbsd_386.s    |  9 ++++++++-
+ src/pkg/runtime/sys_netbsd_amd64.s  | 12 +++++++++++-
+ 6 files changed, 26 insertions(+), 5 deletions(-)

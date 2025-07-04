@@ -1,0 +1,19 @@
+commit 8e6948fe88f8300c8a939f062b9c58d688bbab62
+Author: Bryan Alexander <Kozical@msn.com>
+Date:   Sun Aug 28 14:11:31 2016 -0500
+
+    crypto/x509: Fix bug in UnknownAuthorityError.Error
+    
+    Fix bug in UnknownAuthorityError.Error that would never allow Org
+    Name to be inserted into error message if the Common Name was empty.
+    Create tests for all three paths in UnknownAuthorityError.Error
+    
+    Change-Id: Id8afc444e897ef549df682d93a8563fd9de22a2b
+    Reviewed-on: https://go-review.googlesource.com/27992
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go      |  3 +-
+ src/crypto/x509/verify_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 0a4c439d3f85e150554266976dbf6dccfd6638e1
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 19:32:26 2018 +0100
+
+    cmd/compile: aggregate rules that fold LEA/ADD into MOVx ops
+    
+    No functional changes.
+    
+    Change-Id: I4a3642d6dedf602a62f5a69cb630d35965ad6b98
+    Reviewed-on: https://go-review.googlesource.com/94763
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 82 +++++-----------------------
+ 1 file changed, 14 insertions(+), 68 deletions(-)

@@ -1,0 +1,24 @@
+commit 7f87b82955c82937de5e87ea73ac44db1389c487
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Sun Sep 29 05:23:33 2024 +0000
+
+    context: link to context and structs blog post
+    
+    This commit amends the package documentation for the context package
+    and links the https://go.dev/blog/context-and-structs where the package
+    documentation dissuades one against embedding a context into a struct.
+    This is to help close the gap in understanding why this otherwise
+    cryptic piece of guidance is provided. The other referenced blog
+    article now points to go.dev instead of golang.org.
+    
+    Change-Id: I0844a57bde1c03b6dddd1dd2dab2d20557d791fb
+    GitHub-Last-Rev: 4b039fba90f385a6ca8e44e8a34fbc339dbc21f0
+    GitHub-Pull-Request: golang/go#69696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616515
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/context/context.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

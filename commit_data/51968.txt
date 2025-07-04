@@ -1,0 +1,21 @@
+commit 79e01ab7e6ffbc4c07515dcfef04d1f0a5ca533d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 10 10:36:16 2023 +0100
+
+    cmd/dist: remove windows-amd64-2008 code path
+    
+    `windows-amd64-2008` builder does no longer exist on go1.20,
+    so it is safe to remove conditions checking for that name.
+    
+    Updates #57003
+    Closes #56904
+    
+    Change-Id: I941ccc64cda0af3b9356996c4b581700afa81987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467175
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/test.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

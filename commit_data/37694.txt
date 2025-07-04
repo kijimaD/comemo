@@ -1,0 +1,17 @@
+commit 784d810976e6fce946d8202b19f3e3c33beb89a2
+Author: Evan Klitzke <evan@eklitzke.org>
+Date:   Mon Jun 25 20:27:58 2018 +0000
+
+    text/html: escape MIME type "application/ld+json" as JavaScript
+    
+    Fixes #26053
+    
+    Change-Id: Ic2052b1d0d4e0826a217a520c83d7bb0995ea72a
+    GitHub-Last-Rev: 5a3eea3dd22b0a194591ce2294b88cb340df1e8d
+    GitHub-Pull-Request: golang/go#26054
+    Reviewed-on: https://go-review.googlesource.com/c/120835
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/html/template/js.go      | 1 +
+ src/html/template/js_test.go | 1 +
+ 2 files changed, 2 insertions(+)

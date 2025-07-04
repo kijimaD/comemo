@@ -1,0 +1,15 @@
+commit 5dd4ef5716b12bd4f3bbdf731edb7a411bfe3e2d
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 7 16:57:01 2009 -0800
+
+    document bufio
+    
+    R=rsc
+    DELTA=61  (27 added, 2 deleted, 32 changed)
+    OCL=25877
+    CL=25889
+
+ src/lib/bufio.go           | 84 +++++++++++++++++++++++++++++-----------------
+ src/lib/bufio_test.go      |  6 ++--
+ src/lib/strconv/fp_test.go |  3 +-
+ 3 files changed, 59 insertions(+), 34 deletions(-)

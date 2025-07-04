@@ -1,0 +1,18 @@
+commit 6afdf01e5385183bea4ba2661bb4088b32626b3d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 29 12:07:55 2021 -0400
+
+    cmd/go: make assertions more precise in TestScript/gcflags_patterns
+    
+    This fixes a rare test flake observed in
+    https://build.golang.org/log/18e531785e7f8b3e6a6d5231787a9d8bdd4a60ea.
+    
+    Change-Id: I0986752f5c1abc626070b9f8ecf34c629a15cd2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359735
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

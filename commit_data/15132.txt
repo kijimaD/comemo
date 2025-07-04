@@ -1,0 +1,17 @@
+commit 92e4645f31c6a766207ce5095b9629f5e77adad5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 4 13:55:38 2013 -0800
+
+    net/http: add Next Protocol Negotation upgrade support to the Server
+    
+    This provides the mechanism to connect SPDY support to the http
+    package, without pulling SPDY into the standard library.
+    
+    R=rsc, agl, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7287045
+
+ src/pkg/net/http/httptest/server.go |  19 ++++--
+ src/pkg/net/http/npn_test.go        | 118 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go          |  80 +++++++++++++++++++++---
+ 3 files changed, 204 insertions(+), 13 deletions(-)

@@ -1,0 +1,16 @@
+commit 3e9f0636709de7cd86a08785f2e64487580bf5ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:41:15 2015 -0500
+
+    cmd/go: allow omitted user name in git ssh repo syntax
+    
+    No test because the code has no test.
+    
+    Fixes #12313.
+    
+    Change-Id: I2cfd0a0422c0cd76f0371c2d3bbbdf5bb3b3f1eb
+    Reviewed-on: https://go-review.googlesource.com/17951
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/vcs.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

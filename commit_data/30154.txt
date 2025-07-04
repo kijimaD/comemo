@@ -1,0 +1,16 @@
+commit 92cdde016ab64416188113c72e5d6b5ade87e89f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 10:56:30 2017 -0800
+
+    go/constant: use new math/big.IsInt and isUint predicates
+    
+    Slightly cleaner and more readable code.
+    
+    Change-Id: I35263dbf338861b0a1bd62d59417b6a2c6a4e670
+    Reviewed-on: https://go-review.googlesource.com/36562
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/constant/value.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

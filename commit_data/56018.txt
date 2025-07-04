@@ -1,0 +1,15 @@
+commit 0c77b0d0e078958753b21c712abcc0b1b795e52f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 01:02:53 2023 +0800
+
+    html/template: add available godoc link
+    
+    Change-Id: I2871e98eaf13f207e467120592d604761be5fe17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535084
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/template.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

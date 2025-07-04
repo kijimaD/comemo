@@ -1,0 +1,26 @@
+commit d659682de2c16c2eeec3ea67d0cc8d8cbd052609
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 9 09:42:16 2017 -0400
+
+    runtime/pprof: deflake TestGoroutineCounts
+    
+    TestGoroutineCounts currently depends on timing to get 100 goroutines
+    to a known blocking point before taking a profile. This fails
+    frequently, with different goroutines captured at different stacks.
+    The test is disabled on openbsd because it was too flaky, but in fact
+    it flakes on all platforms.
+    
+    Fix this by using Gosched instead of timing. This is both much more
+    reliable and makes the test run faster.
+    
+    Fixes #15156.
+    
+    Change-Id: Ia6e894196d717655b8fb4ee96df53f6cc8bc5f1f
+    Reviewed-on: https://go-review.googlesource.com/42953
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit 5c9035acc1e1540a564ea660000f4f64e783d5ac
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 2 19:09:08 2016 +0000
+
+    doc: fix grammar in go1.8.html > crypto/tls
+    
+    Change-Id: If8200e54b3650f789c5312f10cce32201a199b80
+    Reviewed-on: https://go-review.googlesource.com/33775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

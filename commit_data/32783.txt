@@ -1,0 +1,29 @@
+commit 39983cf491aef22579d993b59a4dffedb190666a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 18 23:29:46 2017 -0700
+
+    cmd/compile: refactor onebitwalktype1
+    
+    The existing logic tried to advance the offset for each variable's
+    width, but then tried to undo this logic with the array and struct
+    handling code. It can all be much simpler by only worrying about
+    computing offsets within the array and struct code.
+    
+    While here, include a short-circuit for zero-width arrays to fix a
+    pedantic compiler failure case.
+    
+    Passes toolstash-check.
+    
+    Fixes #20739.
+    
+    Change-Id: I98af9bb512a33e3efe82b8bf1803199edb480640
+    Reviewed-on: https://go-review.googlesource.com/64471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go    | 14 +++---
+ src/cmd/compile/internal/gc/plive.go   | 80 ++++++++++++----------------------
+ src/cmd/compile/internal/gc/reflect.go |  3 +-
+ test/fixedbugs/issue20739.go           | 16 +++++++
+ 4 files changed, 49 insertions(+), 64 deletions(-)

@@ -1,0 +1,14 @@
+commit c96ac60bcdd9c3c170fd70cc1b8b5ebfcda2d776
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 07:55:30 2018 -0700
+
+    time: document that going to sleep may stop the monotonic clock
+    
+    Fixes #23178
+    
+    Change-Id: I060a73d6263bc135f5a14c1991932a225208bb39
+    Reviewed-on: https://go-review.googlesource.com/103396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 4 ++++
+ 1 file changed, 4 insertions(+)

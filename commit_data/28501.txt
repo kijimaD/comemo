@@ -1,0 +1,21 @@
+commit 3dfb92f254ed4f94e3c98a789c171a1cd9c2563d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 21 18:53:31 2016 -0400
+
+    cmd/compile: ensure args are live in tail calls for LR machines
+    
+    On link-register machines we uses RET (sym), instead of JMP (sym),
+    for tail call (so the assembler knows and may rewrite it to
+    restore link register if necessary). Add RET to the analysis.
+    
+    Fixes #17186.
+    Fixes #16016 on link-register machines.
+    
+    Change-Id: I8690ac57dd9d49beeea76a5f291988e9a1d3afe5
+    Reviewed-on: https://go-review.googlesource.com/29570
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)

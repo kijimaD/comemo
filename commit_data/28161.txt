@@ -1,0 +1,22 @@
+commit 6fb4b15f98bba7ef3966c5edc6b8fe2cc99c6beb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 31 20:44:42 2016 +0000
+
+    Revert "runtime: improve memmove for amd64"
+    
+    This reverts commit 3607c5f4f18ad4d423e40996ebf7f46b2f79ce02.
+    
+    This was causing failures on amd64 machines without AVX.
+    
+    Fixes #16939
+    
+    Change-Id: I70080fbb4e7ae791857334f2bffd847d08cb25fa
+    Reviewed-on: https://go-review.googlesource.com/28274
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/cpuflags_amd64.go |  75 -------------
+ src/runtime/cpuidlow_amd64.s  |  22 ----
+ src/runtime/memmove_amd64.s   | 243 +-----------------------------------------
+ src/runtime/memmove_test.go   | 104 ------------------
+ 4 files changed, 1 insertion(+), 443 deletions(-)

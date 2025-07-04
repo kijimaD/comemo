@@ -1,0 +1,16 @@
+commit ad0ebc3994fc7f74434d922b80401e680162c7d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 27 10:29:06 2018 -0700
+
+    cmd/go: with -x, don't report removing a non-existent objdir
+    
+    Fixes #24389
+    Fixes #24396
+    
+    Change-Id: I37399528700e2a39d9523d7c41bdc929618eb095
+    Reviewed-on: https://go-review.googlesource.com/102619
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go            | 16 ++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  6 +++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

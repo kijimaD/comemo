@@ -1,0 +1,33 @@
+commit a03480905b0e22f84fb700fefadd73fde2f8507f
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 18 16:32:01 2017 -0400
+
+    cmd/compile: provide more names for stack slots
+    
+    Recurse into structs/arrays of one element when
+    assigning names.
+    
+    Test incorporated into existing end-to-end debugger test,
+    hand-verified that it fails without this CL.
+    
+    Fixes #19868
+    
+    Revives CL 40010
+    Old-Change-Id: I0266e58af975fb64cfa17922be383b70f0a7ea96
+    
+    Change-Id: I122ac2375931477769ec8d763607c1ec42d78a7f
+    Reviewed-on: https://go-review.googlesource.com/71731
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go         |  14 +-
+ src/cmd/compile/internal/ssa/decompose.go          | 102 ++++++---
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   2 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  19 --
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       | 206 +++++++++--------
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       | 243 ++++++++++-----------
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  33 ++-
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       | 110 +---------
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       | 223 ++++++++++---------
+ 9 files changed, 450 insertions(+), 502 deletions(-)

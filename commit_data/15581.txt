@@ -1,0 +1,27 @@
+commit 9905cec0dc04fd7cddb7c7504006b7aa618abd94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 4 13:55:35 2013 -0800
+
+    spec: terminating statements for functions
+    
+    The only functional change is the new section
+    on terminating statements.
+    
+    There is a minor syntax rewrite (not change)
+    of function declarations to make it easier to
+    refer to the notion of a function from all places
+    where it is used (function decls, method decls,
+    and function literals).
+    
+    Includes some minor fixes/additions of missing links.
+    
+    Based closely on Russ' proposal.
+    
+    Fixes #65.
+    
+    R=rsc, r, iant, ken, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7415050
+
+ doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 105 insertions(+), 17 deletions(-)

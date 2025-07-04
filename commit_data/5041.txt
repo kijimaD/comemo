@@ -1,0 +1,12 @@
+commit f7c27b9af9823baad0c2bb34d036d8991ac587e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 17:39:55 2010 -0800
+
+    ast/filter.go: missing nil-check causes crash
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/461041
+
+ src/pkg/go/ast/filter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

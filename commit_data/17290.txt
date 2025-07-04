@@ -1,0 +1,14 @@
+commit d3b04f46b5828c112053a3e7bd7384fa82dfe921
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Aug 16 01:15:04 2013 -0400
+
+    cmd/5g, cmd/6g, cmd/8g: update frame zeroing for new bitmap format
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12740046
+
+ src/cmd/5g/ggen.c | 6 +++---
+ src/cmd/6g/ggen.c | 6 +++---
+ src/cmd/8g/ggen.c | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

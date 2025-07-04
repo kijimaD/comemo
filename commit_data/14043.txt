@@ -1,0 +1,28 @@
+commit 0b9fe6d24e50aaa0e3910566d938bd6ad0bf86d7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 11:32:02 2012 +1100
+
+    image/jpeg: move the level-shift and clip out of the idct function,
+    to be consistent with the fdct function, and to ease any future
+    idct rewrites in assembly.
+    
+    The BenchmarkIDCT delta is obviously just an accounting change and not
+    a real saving, but it does give an indication of what proportion of
+    time was spent in the actual IDCT and what proportion was in shift and
+    clip. The idct time taken is now comparable to fdct.
+    
+    The BenchmarkFDCT delta is an estimate of benchmark noise.
+    
+    benchmark                   old ns/op    new ns/op    delta
+    BenchmarkFDCT                    3842         3837   -0.13%
+    BenchmarkIDCT                    5611         3478  -38.01%
+    BenchmarkDecodeRGBOpaque      2932785      2929751   -0.10%
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6625057
+
+ src/pkg/image/jpeg/dct_test.go | 22 ++++++++--------------
+ src/pkg/image/jpeg/idct.go     | 23 ++---------------------
+ src/pkg/image/jpeg/reader.go   | 26 ++++++++++++++++++++++----
+ 3 files changed, 32 insertions(+), 39 deletions(-)

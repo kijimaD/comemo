@@ -1,0 +1,24 @@
+commit f719de079871f51998e735fc51b3891d50217262
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Jul 29 16:33:13 2023 -0400
+
+    cmd/dist: tolerate macOS writing .DS_Store to GOROOT/bin
+    
+    I was trying out gorebuild (a program that runs make.bash many times)
+    on a macOS system. Unfortunately there were a few failed invocations
+    on my first try, but not with a very good or interesting reason:
+    
+    go tool dist: unexpected new file in $GOROOT/bin: .DS_Store
+    
+    Tolerate it since it's not unexpected, and will not affect the build.
+    
+    Change-Id: I656536b896098c2ba934667196d4ce82e706c8da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513763
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

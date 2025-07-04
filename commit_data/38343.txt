@@ -1,0 +1,25 @@
+commit 07b4b4a1a87a74d600d483d155ec1744e08df9c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 9 12:41:34 2019 -0800
+
+    cmd/compile: add scale field to SSA Ops
+    
+    Refactoring only.
+    
+    This makes it easier to add ops
+    that do indexed memory loads/stores.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I82df0d4154718577ec42106fa1bc76571bf65096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166425
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 93 ++++++----------------------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 92 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/gen/main.go     |  5 ++
+ src/cmd/compile/internal/ssa/op.go           |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 44 +++++++++++++
+ 5 files changed, 116 insertions(+), 119 deletions(-)

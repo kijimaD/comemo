@@ -1,0 +1,14 @@
+commit 930185f26dfc85615511fa14ed5f831fb9aa266f
+Author: Dave Russell <forfuncsake@gmail.com>
+Date:   Wed Jun 13 03:43:12 2018 +0000
+
+    doc/contribute.html: add whitespace after <code> blocks, where missing
+    
+    Change-Id: Iea5c705dd58f9b83fbeb0500defcc08c34716169
+    GitHub-Last-Rev: 35702c784e2329fe3e44947430d246f8cdb04645
+    GitHub-Pull-Request: golang/go#25858
+    Reviewed-on: https://go-review.googlesource.com/118536
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

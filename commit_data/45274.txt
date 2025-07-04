@@ -1,0 +1,33 @@
+commit 7e97e4e8ccdba9677f31ab9380802cd7613f62c5
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Fri Mar 26 19:27:22 2021 -0700
+
+    syscall: syscall.AllThreadsSyscall signal handling fixes
+    
+    The runtime support for syscall.AllThreadsSyscall() functions had
+    some corner case deadlock issues when signal handling was in use.
+    This was observed in at least 3 build test failures on ppc64 and
+    amd64 architecture CGO_ENABLED=0 builds over the last few months.
+    
+    The fixes involve more controlled handling of signals while the
+    AllThreads mechanism is being executed. Further details are
+    discussed in bug #44193.
+    
+    The all-threads syscall support is new in go1.16, so earlier
+    releases are not affected by this bug.
+    
+    Fixes #44193
+    
+    Change-Id: I01ba8508a6e1bb2d872751f50da86dd07911a41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305149
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/signal/signal_test.go | 42 +++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go          | 52 ++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go      |  7 ++++--
+ src/runtime/sigqueue.go      |  2 +-
+ 4 files changed, 96 insertions(+), 7 deletions(-)

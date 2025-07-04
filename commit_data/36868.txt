@@ -1,0 +1,30 @@
+commit 8256bcdae0da68644db1e33c0db86f5ac4395c4b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 16 16:23:52 2018 +1000
+
+    cmd/link: move .rel symbol from .rdata into .text
+    
+    .rel symbol type is sym.SELFROSECT, and that makes .rel written
+    into .rdata section. But .rel stores code - jump table used for
+    external C functions. So we have to mark whole .rdata section
+    as executable (IMAGE_SCN_MEM_EXECUTE), because of .rel presence
+    in it.
+    
+    Move .rel into .text section, and make .rdata section non executable.
+    
+    I also had to move code that adjusted the size of .rel symbol
+    before calling textaddress, otherwise textaddress would not
+    calculate size of .text section correctly.
+    
+    Fixes #25926
+    
+    Change-Id: I4962f5de7b367410154c8709adfcd8472de9ac1a
+    Reviewed-on: https://go-review.googlesource.com/c/125455
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 38 +++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/main.go |  1 +
+ src/cmd/link/internal/ld/pe.go   |  9 ---------
+ 3 files changed, 28 insertions(+), 20 deletions(-)

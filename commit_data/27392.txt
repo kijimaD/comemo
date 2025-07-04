@@ -1,0 +1,17 @@
+commit 6181db53dbfec513300a236debbdc01735f00c07
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 12 18:10:03 2016 -0400
+
+    runtime: improve heapBitsSetType documentation
+    
+    Currently the heapBitsSetType documentation says that there are no
+    races on the heap bitmap, but that isn't exactly true. There are no
+    *write-write* races, but there are read-write races. Expand the
+    documentation to explain this and why it's okay.
+    
+    Change-Id: Ibd92b69bcd6524a40a9dd4ec82422b50831071ed
+    Reviewed-on: https://go-review.googlesource.com/23092
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

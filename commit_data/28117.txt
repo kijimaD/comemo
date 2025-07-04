@@ -1,0 +1,14 @@
+commit 2af00eb63cde716b59c0d64f4c3855b83a9d5a63
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 01:09:32 2016 +0000
+
+    net/http: stop timeout timer if user cancels a request
+    
+    Change-Id: I84faeae69f294b9a70e545faac6a070feba67770
+    Reviewed-on: https://go-review.googlesource.com/28074
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 1 +
+ 1 file changed, 1 insertion(+)

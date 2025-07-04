@@ -1,0 +1,22 @@
+commit c8861432b84157363c84220e6ed71180531bf2b4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 30 14:06:30 2021 +0100
+
+    os: simplify ios checks in tests
+    
+    Go 1.16 renamed the iOS port from darwin/arm64 to ios/arm64 and
+    darwin/arm64 was repurposed for the macOS ARM64 port (see
+    https://golang.org/doc/go1.16#darwin).
+    
+    Change tests to only use GOOS=ios to detect special cases for iOS and
+    stop treating darwin/arm64 as iOS.
+    
+    Change-Id: I6a19f16fa9ec159ab1386aeb8fe912585e457171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374399
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 96 ++++++++++++++++++++++++-------------------------------
+ 1 file changed, 41 insertions(+), 55 deletions(-)

@@ -1,0 +1,20 @@
+commit 5df3f491acc9188653e2793f0e83e72a091c1931
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 14 14:05:53 2022 -0700
+
+    go/types, types2: better error msg when using fallthrough in type switch
+    
+    Fixes #51533.
+    
+    Change-Id: Ia41a2e96d1ef94f740887e3167e6396e4f52035c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392759
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go              | 16 ++++++++++++----
+ .../compile/internal/types2/testdata/check/stmt0.src |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue51533.go | 20 ++++++++++++++++++++
+ src/go/types/stmt.go                                 | 19 +++++++++++++------
+ src/go/types/testdata/check/stmt0.src                |  2 +-
+ src/go/types/testdata/fixedbugs/issue51533.go        | 20 ++++++++++++++++++++
+ 6 files changed, 67 insertions(+), 12 deletions(-)

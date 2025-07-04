@@ -1,0 +1,31 @@
+commit 4dcbb00be200bc1f88b534c311ed4289eb2fbdd5
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 26 14:19:32 2024 -0700
+
+    cmd/compile: teach prove about min/max phi operations
+    
+    If there is a phi that is computing the minimum of its two inputs,
+    then we know the result of the phi is smaller than or equal to both
+    of its inputs. Similarly for maxiumum (although max seems less useful).
+    
+    This pattern happens for the case
+    
+      n := copy(a, b)
+    
+    n is the minimum of len(a) and len(b), so with this optimization we
+    know both n <= len(a) and n <= len(b). That extra information is
+    helpful for subsequent slicing of a or b.
+    
+    Fixes #16833
+    
+    Change-Id: Ib4238fd1edae0f2940f62a5516a6b363bbe7928c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622240
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/block.go |  9 ++++
+ src/cmd/compile/internal/ssa/prove.go | 79 ++++++++++++++++++++++++++++++++++-
+ test/prove.go                         | 42 +++++++++++++++++++
+ 3 files changed, 129 insertions(+), 1 deletion(-)

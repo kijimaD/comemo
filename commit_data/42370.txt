@@ -1,0 +1,15 @@
+commit c88f6989e1137be217260fde888e85b4610b5292
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 18 17:55:50 2020 -0700
+
+    doc: require macOS 10.12 or later
+    
+    For #23011
+    
+    Change-Id: I3137820af975301e251b0a23a9349c544b42c70b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234521
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html         | 6 ++++++
+ doc/install-source.html | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 4874d14180282fd426f0bbf279a8ac2e9ea3a5aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 22 15:27:10 2011 -0800
+
+    go/printer: remove "written" result value - is never used
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5436052
+
+ src/cmd/gofix/main.go                  |  4 ++--
+ src/cmd/gofmt/gofmt.go                 |  2 +-
+ src/pkg/go/printer/performance_test.go |  2 +-
+ src/pkg/go/printer/printer.go          | 11 ++++-------
+ src/pkg/go/printer/printer_test.go     |  2 +-
+ 5 files changed, 9 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 808341dd6ec2bd15596e69804a01ea01d20cf539
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 17:18:48 2009 -0700
+
+    - completed AST cleanup
+    - implemented support for type switches
+    
+    R=r
+    OCL=26608
+    CL=26608
+
+ usr/gri/pretty/ast.go         | 775 +++++++++++++++++++++++----------------
+ usr/gri/pretty/compilation.go |   2 +-
+ usr/gri/pretty/parser.go      | 836 ++++++++++++++++++++++--------------------
+ usr/gri/pretty/printer.go     | 508 +++++++++++++------------
+ usr/gri/pretty/typechecker.go |   4 +-
+ 5 files changed, 1137 insertions(+), 988 deletions(-)

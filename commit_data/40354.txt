@@ -1,0 +1,19 @@
+commit 95544cc2c2667872a034887417f383ef14af1212
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 22 10:22:28 2019 -0400
+
+    net: ignore or skip known-flaky localhost Dial operations on macOS 10.12 builder
+    
+    Fixes #22019
+    Fixes #32919
+    
+    Change-Id: I60bf6c69b18c3e2d78b494e54adc958fe40134da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202618
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go      | 8 +++++---
+ src/net/server_test.go    | 8 ++++++++
+ src/runtime/crash_test.go | 8 ++++++++
+ 3 files changed, 21 insertions(+), 3 deletions(-)

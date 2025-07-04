@@ -1,0 +1,18 @@
+commit e79fef8e55f8a893c65f41566bbec10339d45dec
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Thu Apr 7 15:26:57 2016 -0700
+
+    cmd/link: external linking can fail on Solaris 11.2+
+    
+    Workaround external linking issues encountered on Solaris 11.2+ due to
+    the go.o object file being created with a NULL STT_FILE symtab entry by
+    using a placeholder name.
+    
+    Fixes #14957
+    
+    Change-Id: I89c501b4c548469f3c878151947d35588057982b
+    Reviewed-on: https://go-review.googlesource.com/21636
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

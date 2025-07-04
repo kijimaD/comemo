@@ -1,0 +1,18 @@
+commit 9126b75e358cc50c7bf945ec94846c03200ee2a7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 16:52:57 2009 -0700
+
+    rpc.
+    client library.
+    muxes on both ends.
+    
+    R=rsc
+    DELTA=178  (132 added, 26 deleted, 20 changed)
+    OCL=31541
+    CL=31556
+
+ src/pkg/rpc/Makefile       |  13 ++++--
+ src/pkg/rpc/client.go      | 101 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/rpc/server.go      |  27 ++++++------
+ src/pkg/rpc/server_test.go |  57 ++++++++++++-------------
+ 4 files changed, 152 insertions(+), 46 deletions(-)

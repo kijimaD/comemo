@@ -1,0 +1,28 @@
+commit 8179b9b462eb2946de8488a26dca91a89b3d22e6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 30 14:55:12 2017 -0800
+
+    cmd/compile: make sure output params are live if there is a defer
+    
+    If there is a defer, and that defer recovers, then the caller
+    can see all of the output parameters.  That means that we must
+    mark all the output parameters live at any point which might panic.
+    
+    If there is no defer then this is not necessary.  This is implemented.
+    
+    We could also detect whether there is a recover in any of the defers.
+    If not, we would need to mark only output params that the defer
+    actually references (and the closure mechanism already does that).
+    This is not implemented.
+    
+    Fixes #18860.
+    
+    Change-Id: If984fe6686eddce9408bf25e725dd17fc16b8578
+    Reviewed-on: https://go-review.googlesource.com/36030
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 31 +++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/ssa.go   |  2 ++
+ test/live.go                         | 12 ++++++++++++
+ 3 files changed, 37 insertions(+), 8 deletions(-)

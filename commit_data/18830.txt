@@ -1,0 +1,25 @@
+commit ae9b661fa859222b9bcbcafc1a63f3f305385e75
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 12 10:33:09 2014 +0900
+
+    runtime: make use of THREAD_SHARE userspace mutex on freebsd
+    
+    For now Note, futexsleep and futexwakeup are designed for threads,
+    not for processes. The explicit use of UMTX_OP_WAIT_UINT_PRIVATE and
+    UMTX_OP_WAKE_PRIVATE can avoid unnecessary traversals of VM objects,
+    to hit undiscovered bugs related to VM system on SMP/SMT/NUMA
+    environment.
+    
+    Update #7496
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/72760043
+
+ src/pkg/runtime/defs_freebsd.go      | 6 ++++--
+ src/pkg/runtime/defs_freebsd_386.h   | 6 ++++--
+ src/pkg/runtime/defs_freebsd_amd64.h | 6 ++++--
+ src/pkg/runtime/defs_freebsd_arm.h   | 6 ++++--
+ src/pkg/runtime/os_freebsd.c         | 6 +++---
+ 5 files changed, 19 insertions(+), 11 deletions(-)

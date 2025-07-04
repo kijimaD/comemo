@@ -1,0 +1,32 @@
+commit 7ae652b7c0cddb8f6e04bfa6f5805baac823dd64
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Wed Oct 5 15:29:29 2022 +0800
+
+    runtime: replace all uses of CtzXX with TrailingZerosXX
+    
+    Replace all uses of Ctz64/32/8 with TrailingZeros64/32/8, because they
+    are the same and maybe duplicated. Also renamed CtzXX functions in 386
+    assembly code.
+    
+    Change-Id: I19290204858083750f4be589bb0923393950ae6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438935
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go        | 12 +---
+ src/cmd/compile/internal/test/inl_test.go     | 12 ++--
+ src/runtime/internal/sys/intrinsics.go        | 93 ++++++++++++++++-----------
+ src/runtime/internal/sys/intrinsics_386.s     |  6 +-
+ src/runtime/internal/sys/intrinsics_common.go | 87 +++++--------------------
+ src/runtime/internal/sys/intrinsics_stubs.go  |  6 +-
+ src/runtime/internal/sys/intrinsics_test.go   | 12 ++--
+ src/runtime/malloc.go                         |  2 +-
+ src/runtime/mbitmap.go                        | 12 ++--
+ src/runtime/slice.go                          |  4 +-
+ src/runtime/stack.go                          |  2 +-
+ test/intrinsic.dir/main.go                    | 24 +++----
+ 12 files changed, 114 insertions(+), 158 deletions(-)

@@ -1,0 +1,15 @@
+commit b563fcfabba559646b42b0ff2066fc98042d8a8a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 18 13:25:51 2016 +1000
+
+    cmd/go: write test file to temporary directory
+    
+    Before this change, a go-vendor-issue-14613 file would be left in the
+    working directory after tests run.
+    
+    Change-Id: If1858421bb287215ab4a19163f489131b2e8912c
+    Reviewed-on: https://go-review.googlesource.com/22169
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/cmd/go/vendor_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

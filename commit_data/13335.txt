@@ -1,0 +1,12 @@
+commit bb3af7554a17706a7efb66f19e18b2e2b33ae308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 12 18:11:19 2012 -0700
+
+    CONTRIBUTORS: added Christopher Swenson (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6302069
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

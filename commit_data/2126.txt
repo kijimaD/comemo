@@ -1,0 +1,13 @@
+commit 49f749489422fa5d5cd828d2e13bf94156f14719
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri May 1 18:55:16 2009 -0700
+
+    code optmization
+    drip init function if it doesnt do anything
+    
+    R=r
+    OCL=28180
+    CL=28180
+
+ src/cmd/gc/dcl.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

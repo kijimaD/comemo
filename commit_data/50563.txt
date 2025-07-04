@@ -1,0 +1,22 @@
+commit 4b58b3077801b83c7ebc8eca23c7f63913d0778f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 14 11:47:08 2022 +0700
+
+    spec: describe an edge case of slice-to-array conversions
+    
+    Converting from nil slice to zero element array is ok, so explicitly
+    describe the behavior in the spec.
+    
+    For #46505
+    
+    Change-Id: I68f432deb6c21a7549bf7e870185fc62504b37f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

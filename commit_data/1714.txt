@@ -1,0 +1,13 @@
+commit cdbf619750850936c88e79238050c8fd8f2bdf6f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 17:47:45 2009 -0800
+
+    complete types
+    
+    R=gri
+    DELTA=29  (0 added, 12 deleted, 17 changed)
+    OCL=25388
+    CL=25391
+
+ doc/go_spec.html | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)

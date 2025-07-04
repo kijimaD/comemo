@@ -1,0 +1,19 @@
+commit 2b58355ef624239dbe32185dc8dfc9d1074615c6
+Author: codesoap <codesoap@mailbox.org>
+Date:   Thu Feb 8 22:18:27 2024 +0000
+
+    net/http: remove superfluous newline on redirects
+    
+    Change-Id: I30d3ae9d540f9cc85ea5a6875ee8884d3e646d6f
+    GitHub-Last-Rev: 29cabdcb3a8746ef51953617f4ec47deac3608da
+    GitHub-Pull-Request: golang/go#65623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562356
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit f9fc1ddf75b33f73787024c0cb47b15b5a40c2cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 11:34:03 2011 -0400
+
+    runtime: fix print - no %v in C
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4280061
+
+ src/pkg/runtime/freebsd/mem.c | 2 +-
+ src/pkg/runtime/linux/mem.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

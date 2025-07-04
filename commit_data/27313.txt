@@ -1,0 +1,23 @@
+commit 258a4c3daf992958f5d7dc5bccf2c5b41e236959
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri May 6 14:21:52 2016 +0100
+
+    syscall,os,net: don't use ForkLock in plan9
+    
+    This is the follow-on to CL 22610: now that it's the child instead of
+    the parent which lists unwanted fds to close in syscall.StartProcess,
+    plan9 no longer needs the ForkLock to protect the list from changing.
+    The readdupdevice function is also now unused and can be removed.
+    
+    Change-Id: I904c8bbf5dbaa7022b0f1a1de0862cd3064ca8c7
+    Reviewed-on: https://go-review.googlesource.com/22842
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/fd_plan9.go       |  2 --
+ src/net/file_plan9.go     |  2 --
+ src/os/file_plan9.go      |  5 ---
+ src/syscall/exec_plan9.go | 82 +----------------------------------------------
+ 4 files changed, 1 insertion(+), 90 deletions(-)

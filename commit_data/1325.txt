@@ -1,0 +1,20 @@
+commit 793a6effcf58e2739e3053ad3199464e87eb5a58
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 12:25:58 2008 -0800
+
+    add JSON library
+    
+    R=r
+    DELTA=1127  (1127 added, 0 deleted, 0 changed)
+    OCL=20975
+    CL=20983
+
+ src/lib/Makefile             |   3 +
+ src/lib/json/Makefile        |  64 +++++++
+ src/lib/json/generic.go      | 303 ++++++++++++++++++++++++++++++++
+ src/lib/json/generic_test.go |  72 ++++++++
+ src/lib/json/parse.go        | 400 +++++++++++++++++++++++++++++++++++++++++++
+ src/lib/json/struct.go       | 214 +++++++++++++++++++++++
+ src/lib/json/struct_test.go  |  82 +++++++++
+ src/run.bash                 |   1 +
+ 8 files changed, 1139 insertions(+)

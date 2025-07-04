@@ -1,0 +1,20 @@
+commit 8d2eb290f83bca7d3b5154c6a7b3ac7546df5e8a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 1 11:46:59 2023 +0100
+
+    syscall: fix syntax error in mkall.sh
+    
+    Fix the following error introduced by CL 518627:
+    
+        ./mkall.sh: line 370: syntax error near unexpected token `)'
+        ./mkall.sh: line 370: `openbsd_riscv64)'
+    
+    Change-Id: I044563759bf07c94840f2024734d32a0ad663aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538935
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/syscall/mkall.sh | 1 +
+ 1 file changed, 1 insertion(+)

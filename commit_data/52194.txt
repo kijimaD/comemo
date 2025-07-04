@@ -1,0 +1,19 @@
+commit 8f92ae1c63771e42b60ff64ea39d8d6ba602d8b2
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 6 20:38:31 2023 +0000
+
+    Revert "cmd/go: extend path shortening to all paths in messages"
+    
+    This reverts CL 465805 (commit 3eedba50b10ca9086646f12d7917912cff7d4d0a).
+    
+    Reason for revert: The longtest on Windows was typoed, silently ignored, and it turns out it fails there.
+    
+    Change-Id: I362e9a22a7ec569314a0da932730ba137a98ecda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                   | 29 ++------
+ .../script/build_shorten_sibling_package.txt       | 81 ----------------------
+ 2 files changed, 5 insertions(+), 105 deletions(-)

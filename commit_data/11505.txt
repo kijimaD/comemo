@@ -1,0 +1,15 @@
+commit 6f428f097915ab40fc417713ac613a7fda46b713
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 31 10:37:21 2012 -0500
+
+    cmd/go: clean test directories as they complete
+    
+    A go build currently generates around 400MB of test output prior to
+    cleaning up. With this change we use a maximum of ~15MB.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5588044
+
+ src/cmd/go/test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

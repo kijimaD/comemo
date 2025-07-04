@@ -1,0 +1,18 @@
+commit 47faad111fc025cbcef01b67a5e125a61791815a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:03:05 2022 +0800
+
+    cmd/cover: use strings.Builder
+    
+    Change-Id: Ifb51cb4ed98a93742ce4b221137a0ad73b939b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428286
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go | 2 +-
+ src/cmd/cover/html.go       | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

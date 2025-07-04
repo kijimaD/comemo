@@ -1,0 +1,21 @@
+commit a5b8b56d1d05d186999e4abf1e2147b6aa203ec9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Sep 4 13:02:09 2021 -0700
+
+    reflect: allow Value.Bytes on addressable byte arrays
+    
+    Modify Value.Bytes to be callable addressable byte arrays.
+    While related, the behavior of Value.SetBytes was not modified.
+    
+    Fixes #47066
+    
+    Change-Id: Ic3ba4432353b8da5f33b3188e20034a33b2f6ee8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357331
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++--
+ src/reflect/value.go    | 26 ++++++++++++++++++++------
+ 2 files changed, 47 insertions(+), 8 deletions(-)

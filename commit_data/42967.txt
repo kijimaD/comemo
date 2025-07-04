@@ -1,0 +1,23 @@
+commit 5f1b12bfbeb04ca6dbecbf064f5e5a42d8ba4b5a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 12 07:19:22 2020 +0700
+
+    cmd/compile: remove nodeNeedsWrapper flag
+    
+    CL 254397 attached OVARLIVE nodes to OCALLxxx nodes Nbody.
+    
+    The NeedsWrapper flag is now redundant with n.Nbody.Len() > 0
+    condition, so use that condition instead and remove the flag.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iebc3e674d3c0040a876ca4be05025943d2b4fb31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254398
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/order.go  |  1 -
+ src/cmd/compile/internal/gc/syntax.go | 41 +++++++++++------------------------
+ src/cmd/compile/internal/gc/walk.go   |  7 ++++--
+ 3 files changed, 18 insertions(+), 31 deletions(-)

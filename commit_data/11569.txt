@@ -1,0 +1,32 @@
+commit 102638cb53c0f34d5710ee7f5f13f27b95840640
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 3 10:12:25 2012 +1100
+
+    std: add struct field tags to untagged literals.
+    
+    R=rsc, dsymonds, bsiegert, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5619052
+
+ src/pkg/crypto/x509/pkcs1.go         |  2 +-
+ src/pkg/crypto/x509/x509.go          |  4 ++--
+ src/pkg/database/sql/fakedb_test.go  | 14 +++++++-------
+ src/pkg/exp/inotify/inotify_linux.go |  6 +++++-
+ src/pkg/go/doc/example.go            |  7 +++++--
+ src/pkg/go/scanner/scanner_test.go   | 15 +++++++++++++--
+ src/pkg/html/template/escape_test.go |  2 +-
+ src/pkg/image/draw/bench_test.go     |  4 ++--
+ src/pkg/image/draw/draw_test.go      | 14 +++++++-------
+ src/pkg/image/gif/reader.go          |  6 +++++-
+ src/pkg/image/jpeg/reader.go         | 12 ++++++++++--
+ src/pkg/image/jpeg/writer.go         |  2 +-
+ src/pkg/image/png/reader.go          |  6 +++++-
+ src/pkg/net/http/client.go           |  6 +++++-
+ src/pkg/net/http/httputil/persist.go |  4 ++--
+ src/pkg/net/newpollserver.go         |  6 +++++-
+ src/pkg/net/rpc/client.go            |  7 ++++++-
+ src/pkg/net/smtp/smtp.go             |  2 +-
+ src/pkg/os/exec_windows.go           |  2 +-
+ src/pkg/regexp/syntax/parse.go       |  4 ++--
+ src/pkg/unicode/maketables.go        |  6 +++++-
+ 21 files changed, 91 insertions(+), 40 deletions(-)

@@ -1,0 +1,35 @@
+commit c6aa2e5ac8097f9491a407c3bb2385159d9aed32
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu May 15 20:12:06 2014 -0700
+
+    cmd/pack: buffer writes in TestLargeDefs
+    
+    TestLargeDefs was issuing over one million small writes to
+    create a 7MB file (large.go). This is quite slow on Plan 9
+    since our disk file systems aren't very fast and they're
+    usually accessed over the network.
+    
+    Buffering the writes makes the test about six times faster.
+    Even on Linux, it's about 1.5 times faster.
+    
+    Here are the results on a slow Plan 9 machine:
+    
+    Before:
+            % ./pack.test -test.v -test.run TestLargeDefs
+            === RUN TestLargeDefs
+            --- PASS: TestLargeDefs (125.11 seconds)
+            PASS
+    
+    After:
+            % ./pack.test -test.v -test.run TestLargeDefs
+            === RUN TestLargeDefs
+            --- PASS: TestLargeDefs (20.835 seconds)
+            PASS
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/95040044
+
+ src/cmd/pack/pack_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

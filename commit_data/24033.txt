@@ -1,0 +1,12 @@
+commit 7c154d973b0c3b52991532d7401ddc91360abb79
+Author: David Glasser <glasser@meteor.com>
+Date:   Wed Aug 19 10:38:54 2015 -0700
+
+    cmd/go: fix vendoredImportPath comment
+    
+    Change-Id: I1650124dd459dc401ccd73943ff7287b1b8c57e4
+    Reviewed-on: https://go-review.googlesource.com/13689
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

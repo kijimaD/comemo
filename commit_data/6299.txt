@@ -1,0 +1,15 @@
+commit d348971103faad00599698de72214c8ce30feab3
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 16 16:42:38 2010 -0700
+
+    add readonly flag to static initialization
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2187042
+
+ src/cmd/gc/go.h    |   2 +-
+ src/cmd/gc/sinit.c | 144 +++++++++++++++++++++--------------------------------
+ src/cmd/gc/subr.c  |  13 -----
+ src/cmd/gc/walk.c  |   4 +-
+ 4 files changed, 61 insertions(+), 102 deletions(-)

@@ -1,0 +1,17 @@
+commit 08b092777168a3377067531307ffd20dd85becba
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Apr 12 16:58:56 2011 -0700
+
+    os: fix Readdir in Plan 9
+    
+    'TestReaddir.*' tests now passes.
+    
+    R=golang-dev, lucio, r
+    CC=golang-dev
+    https://golang.org/cl/4381048
+
+ src/pkg/os/dir_plan9.go   | 80 +++++++++++++++++++----------------------------
+ src/pkg/os/error_plan9.go |  3 ++
+ src/pkg/os/file_plan9.go  |  7 +++++
+ src/pkg/os/os_test.go     | 16 +++++++++-
+ 4 files changed, 57 insertions(+), 49 deletions(-)

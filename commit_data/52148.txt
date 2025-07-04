@@ -1,0 +1,15 @@
+commit a4b66b14e217391875921d7a87b33adf2eed7b18
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 28 16:21:27 2023 -0500
+
+    cmd/compile/internal/pgo: drop unused 'recursive' argument
+    
+    Change-Id: I7ccde4c6d1506cbd8e14d284a921f06b29b5f495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472258
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 01479b6c4a5a7863b9712b16123d41fea6a3951f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 3 09:49:12 2013 -0400
+
+    go/doc: update ToHTML doc comment
+    
+    Update #5429
+    
+    R=golang-dev, r, dan.kortschak
+    CC=golang-dev
+    https://golang.org/cl/14293043
+
+ src/pkg/go/doc/comment.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

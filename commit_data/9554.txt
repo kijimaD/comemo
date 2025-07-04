@@ -1,0 +1,12 @@
+commit 79260e5bfeff142244441978507307a68cee2e96
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 30 09:00:33 2011 -0400
+
+    dashboard: yet another utf-8 fix
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4964052
+
+ misc/dashboard/godashboard/gobuild.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

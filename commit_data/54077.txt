@@ -1,0 +1,19 @@
+commit bcf83825caabd77dfc8942f6d6b3b02d76a85781
+Author: Artem Teleshev <artem.teleshev@gmail.com>
+Date:   Tue Aug 15 18:48:59 2023 +0000
+
+    log/slog: rename receiver name for the Value struct from a to v
+    
+    Change-Id: Ib06234e781ed2faf5fa36efeda75c5ae439890ba
+    GitHub-Last-Rev: 760af943675ee5d44cae97ed6c33b92259d9956f
+    GitHub-Pull-Request: golang/go#61886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517556
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/value.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

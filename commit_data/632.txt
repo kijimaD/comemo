@@ -1,0 +1,15 @@
+commit 729bc5c0c78d91435dd44bfcf40a8a2c631e14d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 16:12:20 2008 -0700
+
+    rudimentary string utilities.
+    
+    R=r
+    DELTA=314  (306 added, 8 deleted, 0 changed)
+    OCL=15074
+    CL=15263
+
+ src/lib/make.bash  |  16 ++---
+ src/lib/strings.go | 198 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/stringslib.go | 108 +++++++++++++++++++++++++++++
+ 3 files changed, 314 insertions(+), 8 deletions(-)

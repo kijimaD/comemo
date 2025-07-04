@@ -1,0 +1,13 @@
+commit a3c17d58dfd56a4121754193c41b86bd6b009edd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 17:31:13 2009 -0700
+
+    channel direction fixes
+    
+    R=dsymonds
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=29210
+    CL=29215
+
+ src/lib/exvar/exvar.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

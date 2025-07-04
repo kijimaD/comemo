@@ -1,0 +1,17 @@
+commit 640a49b8d45760b7c965fc1529dffc8e000cc846
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Oct 15 15:05:36 2021 -0700
+
+    test: add a test for parameterized embedded field
+    
+    Make sure that an embedded field like "MyStruct[T]" works and can be
+    referenced via the name MyStruct.
+    
+    Change-Id: I8be1f1184dd42c4e54e4144aff2fd85e30af722f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356312
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/typecheck/subr.go |  3 --
+ test/typeparam/genembed2.go                | 46 ++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

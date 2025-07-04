@@ -1,0 +1,80 @@
+commit 137e91832aae514dda65dbd34baa438424c1cbf8
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Jun 4 11:21:16 2024 +0800
+
+    crypto/sha512: implement sha512block in hardware on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha512
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                      │  bench.old   │              bench.new              │
+                      │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New       942.3n ± 0%   627.5n ± 0%  -33.41% (p=0.000 n=20)
+    Hash8Bytes/Sum384    951.3n ± 0%   661.1n ± 0%  -30.51% (p=0.000 n=20)
+    Hash8Bytes/Sum512   1032.0n ± 0%   631.9n ± 0%  -38.77% (p=0.000 n=20)
+    Hash1K/New           6.355µ ± 0%   3.285µ ± 0%  -48.31% (p=0.000 n=20)
+    Hash1K/Sum384        6.333µ ± 0%   3.320µ ± 0%  -47.58% (p=0.000 n=20)
+    Hash1K/Sum512        6.416µ ± 0%   3.293µ ± 0%  -48.68% (p=0.000 n=20)
+    Hash8K/New           43.91µ ± 0%   22.01µ ± 0%  -49.89% (p=0.000 n=20)
+    Hash8K/Sum384        43.77µ ± 0%   22.05µ ± 0%  -49.61% (p=0.000 n=20)
+    Hash8K/Sum512        43.87µ ± 0%   22.01µ ± 0%  -49.83% (p=0.000 n=20)
+    geomean              6.480µ        3.596µ       -44.50%
+    
+                      │  bench.old   │               bench.new               │
+                      │     B/s      │      B/s       vs base                │
+    Hash8Bytes/New      8.097Mi ± 0%   12.159Mi ± 0%  +50.18% (p=0.000 n=20)
+    Hash8Bytes/Sum384   8.020Mi ± 0%   11.539Mi ± 0%  +43.88% (p=0.000 n=20)
+    Hash8Bytes/Sum512   7.391Mi ± 0%   12.074Mi ± 0%  +63.35% (p=0.000 n=20)
+    Hash1K/New          153.7Mi ± 0%    297.2Mi ± 0%  +93.43% (p=0.000 n=20)
+    Hash1K/Sum384       154.2Mi ± 0%    294.1Mi ± 0%  +90.74% (p=0.000 n=20)
+    Hash1K/Sum512       152.2Mi ± 0%    296.6Mi ± 0%  +94.84% (p=0.000 n=20)
+    Hash8K/New          177.9Mi ± 0%    355.0Mi ± 0%  +99.55% (p=0.000 n=20)
+    Hash8K/Sum384       178.5Mi ± 0%    354.3Mi ± 0%  +98.46% (p=0.000 n=20)
+    Hash8K/Sum512       178.1Mi ± 0%    355.0Mi ± 0%  +99.34% (p=0.000 n=20)
+    geomean             59.81Mi         107.8Mi       +80.19%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha512
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                      │  bench.old   │              bench.new              │
+                      │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New      1224.0n ± 0%   730.1n ± 0%  -40.36% (p=0.000 n=20)
+    Hash8Bytes/Sum384   1265.0n ± 0%   763.2n ± 0%  -39.67% (p=0.000 n=20)
+    Hash8Bytes/Sum512   1257.0n ± 0%   753.5n ± 0%  -40.06% (p=0.000 n=20)
+    Hash1K/New           8.218µ ± 0%   3.785µ ± 0%  -53.94% (p=0.000 n=20)
+    Hash1K/Sum384        8.248µ ± 0%   3.813µ ± 0%  -53.77% (p=0.000 n=20)
+    Hash1K/Sum512        8.235µ ± 0%   3.807µ ± 0%  -53.77% (p=0.000 n=20)
+    Hash8K/New           56.83µ ± 0%   25.37µ ± 0%  -55.35% (p=0.000 n=20)
+    Hash8K/Sum384        56.85µ ± 0%   25.39µ ± 0%  -55.34% (p=0.000 n=20)
+    Hash8K/Sum512        56.84µ ± 0%   25.38µ ± 0%  -55.36% (p=0.000 n=20)
+    geomean              8.360µ        4.165µ       -50.18%
+    
+                      │  bench.old   │               bench.new                │
+                      │     B/s      │      B/s       vs base                 │
+    Hash8Bytes/New      6.232Mi ± 0%   10.452Mi ± 0%   +67.71% (p=0.000 n=20)
+    Hash8Bytes/Sum384   6.027Mi ± 0%    9.995Mi ± 0%   +65.82% (p=0.000 n=20)
+    Hash8Bytes/Sum512   6.065Mi ± 0%   10.123Mi ± 0%   +66.90% (p=0.000 n=20)
+    Hash1K/New          118.8Mi ± 0%    258.0Mi ± 0%  +117.12% (p=0.000 n=20)
+    Hash1K/Sum384       118.4Mi ± 0%    256.1Mi ± 0%  +116.29% (p=0.000 n=20)
+    Hash1K/Sum512       118.6Mi ± 0%    256.5Mi ± 0%  +116.30% (p=0.000 n=20)
+    Hash8K/New          137.5Mi ± 0%    307.9Mi ± 0%  +123.96% (p=0.000 n=20)
+    Hash8K/Sum384       137.4Mi ± 0%    307.8Mi ± 0%  +123.93% (p=0.000 n=20)
+    Hash8K/Sum512       137.4Mi ± 0%    307.9Mi ± 0%  +124.01% (p=0.000 n=20)
+    geomean             46.35Mi         93.05Mi       +100.76%
+    
+    Change-Id: I0d764df16872598b8d2fd92d7253cf3fdbfdfdf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/crypto/sha512/sha512block_decl.go    |   2 +-
+ src/crypto/sha512/sha512block_generic.go |   2 +-
+ src/crypto/sha512/sha512block_loong64.s  | 238 +++++++++++++++++++++++++++++++
+ 3 files changed, 240 insertions(+), 2 deletions(-)

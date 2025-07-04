@@ -1,0 +1,15 @@
+commit 985390bc52a5dcde9001cf3a9d7e83784f3a2a8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 7 10:42:42 2009 -0700
+
+    bug167: types declared in different scopes should
+    be independent of each other
+    
+    R=rsc
+    DELTA=28  (28 added, 0 deleted, 0 changed)
+    OCL=31271
+    CL=31273
+
+ test/bugs/bug167.go | 26 ++++++++++++++++++++++++++
+ test/golden.out     |  6 ++++++
+ 2 files changed, 32 insertions(+)

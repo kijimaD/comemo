@@ -1,0 +1,18 @@
+commit 9514285da9e97522e76ba053c1b7a929c5d1b7b6
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 10:40:46 2015 +1300
+
+    cmd/compile/internal/x86: avoid CX in a couple of places in the int64 code
+    
+    I want to use CX as a scratch register in position independent code and these
+    uses are easy to remove.
+    
+    Change-Id: I9e3cb470d7f0000d85786c30bd769d9ec86d532a
+    Reviewed-on: https://go-review.googlesource.com/16382
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/x86/cgen64.go | 20 ++++++++++----------
+ src/cmd/compile/internal/x86/gsubr.go  |  8 +++-----
+ 2 files changed, 13 insertions(+), 15 deletions(-)

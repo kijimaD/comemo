@@ -1,0 +1,21 @@
+commit a289e9ce7514a34cd930469322395bf0e89b59ea
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Feb 15 10:19:16 2022 -0600
+
+    database/sql: make WAIT tests more robust, rely on waiter trigger
+    
+    Replace the WAIT query prefix with a function callback.
+    This fixes timing issues when the testing on loaded servers.
+    
+    Fixes #51208
+    
+    Change-Id: I5151b397b7066c27ce6bc02c160dde0b584934bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385934
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/fakedb_test.go |  3 +++
+ src/database/sql/sql_test.go    | 31 ++++++++++++++++++-------------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

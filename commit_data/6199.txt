@@ -1,0 +1,14 @@
+commit 55986c1329cbb2d8ca397e4d909049ce65700483
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 9 09:24:27 2010 +1000
+
+    path: fix typo in path.Visitor
+    
+    Fixes #1088.
+    
+    R=gri, iant
+    CC=golang-dev
+    https://golang.org/cl/2157043
+
+ src/pkg/path/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

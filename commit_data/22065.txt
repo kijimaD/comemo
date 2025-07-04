@@ -1,0 +1,23 @@
+commit 506615d83ebbbaba33aaf98d79a285b0b367a094
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 14:26:04 2015 -0400
+
+    runtime: factor object dumping code out of greyobject
+    
+    When checkmark fails, greyobject dumps both the object that pointed to
+    the unmarked object and the unmarked object. This code cluttered up
+    greyobject, was copy-pasted for the two objects, and the copy for
+    dumping the unmarked object was not entirely correct.
+    
+    Extract object dumping out to a new function. This declutters
+    greyobject and fixes the bugs in dumping the unmarked object. The new
+    function is slightly cleaned up from the original code to have more
+    natural control flow and shows a marker on the field in the base
+    object that points to the unmarked object to make it easy to find.
+    
+    Change-Id: Ib51318a943f50b0b99995f0941d03ee8876b9fcf
+    Reviewed-on: https://go-review.googlesource.com/7506
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 57 ++++++++++++++++++++++----------------------------
+ 1 file changed, 25 insertions(+), 32 deletions(-)

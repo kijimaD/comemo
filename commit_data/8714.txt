@@ -1,0 +1,13 @@
+commit 9e2ffc315f93ea8cf1c6fba38d2233c802b3d9e9
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jun 14 11:05:59 2011 -0400
+
+    ld:  fix link Windows PE __declspec(dllimport) symbol
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4568077
+
+ src/cmd/ld/data.c | 2 +-
+ src/cmd/ld/ldpe.c | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

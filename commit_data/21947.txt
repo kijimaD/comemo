@@ -1,0 +1,29 @@
+commit b006d38acc5bc781d624d515b1e597d94b5ae5d8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 6 18:42:58 2015 +1100
+
+    cmd/internal/gc: more int to bool cleanups
+    
+    - make paramoutheap return a bool
+    - convert Node.Assigned to a bool
+    - convert Node.Captured to a bool
+    - convert Node.Byval to a bool
+    - convert Node.Dupok to a bool
+    - convert Node.Wrapper to a bool
+    - convert Node.Reslice to a bool
+    
+    Change-Id: I5b57c019f936c31d53db4db14459fb2b0aa72305
+    Reviewed-on: https://go-review.googlesource.com/7030
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/gc/closure.go   | 26 +++++++++++++-------------
+ src/cmd/internal/gc/esc.go       |  2 +-
+ src/cmd/internal/gc/fmt.go       |  2 +-
+ src/cmd/internal/gc/pgen.go      |  4 ++--
+ src/cmd/internal/gc/popt.go      |  2 +-
+ src/cmd/internal/gc/subr.go      |  8 ++++----
+ src/cmd/internal/gc/syntax.go    | 24 ++++++++++++------------
+ src/cmd/internal/gc/typecheck.go | 12 ++++++------
+ src/cmd/internal/gc/walk.go      | 12 ++++++------
+ 9 files changed, 46 insertions(+), 46 deletions(-)

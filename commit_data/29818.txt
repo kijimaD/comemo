@@ -1,0 +1,14 @@
+commit ffc836bcbbd8739865cda617d21d924e03844525
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 14 23:17:13 2016 +0000
+
+    net/http/httptrace: clarify WroteRequest may be called multiple times
+    
+    Updates #18305
+    
+    Change-Id: I63b28d511df1a6c54e32c8bfc7e2264f94e38cd7
+    Reviewed-on: https://go-review.googlesource.com/34386
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httptrace/trace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

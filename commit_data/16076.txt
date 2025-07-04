@@ -1,0 +1,18 @@
+commit 4f1ef563cc7fa110937516be2fe847a48e700135
+Author: James Tucker <raggi@google.com>
+Date:   Wed Apr 3 11:13:40 2013 -0700
+
+    database/sql: improve standard deviation response time under high concurrency
+    
+    See https://github.com/raggi/go-and-java for runtime benchmark.
+    
+    The patch reduces the amount of map key search, moving connection oriented
+    variables onto the connection structs.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8092045
+
+ src/pkg/database/sql/sql.go      | 50 +++++++++++++--------------
+ src/pkg/database/sql/sql_test.go | 75 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 96 insertions(+), 29 deletions(-)

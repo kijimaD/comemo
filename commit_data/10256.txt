@@ -1,0 +1,15 @@
+commit cd6c7375d49edd52de557b0ec1cc5f37889ecaae
+Author: Jani Monoses <jani.monoses@ubuntu.com>
+Date:   Fri Nov 4 15:07:34 2011 -0400
+
+    goinstall: allow packages from launchpad.net/~user branches.
+    
+    The permitted filename characters should include ~ to allow
+    the names of user-owned branches in Launchpad.
+    
+    R=golang-dev, rsc, n13m3y3r, gustavo
+    CC=golang-dev, gustavo.niemeyer
+    https://golang.org/cl/5280052
+
+ src/cmd/goinstall/make.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

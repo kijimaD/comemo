@@ -1,0 +1,21 @@
+commit 8c47aa155f944278c0a79454af35c55528d02c30
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 15:46:56 2017 -0500
+
+    cmd/go: make file:line for cgo files look like non-cgo files
+    
+    Passing the absolute path to cgo puts the absolute path in the
+    generated file's //line directives, which then shows that path
+    in the compiler output, which the go command can then
+    make relative to the current directory, same as it does for
+    other compiler output.
+    
+    Change-Id: Ia2064fea40078c46fd97e3a3b8c9fa1488f913e3
+    Reviewed-on: https://go-review.googlesource.com/77154
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go                     |  3 ++-
+ src/cmd/go/go_test.go                  |  9 +++++----
+ src/cmd/go/internal/work/exec.go       | 35 ++++++++++++++++++++--------------
+ src/cmd/go/testdata/src/coverbad/p1.go |  7 +++++++
+ 4 files changed, 35 insertions(+), 19 deletions(-)

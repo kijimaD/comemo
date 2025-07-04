@@ -1,0 +1,26 @@
+commit 1e2b13355f888be3f9d31624ad178c4e4b0bb3f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 12:53:21 2014 -0800
+
+    undo CL 47560044 / 40a37153a550
+    
+    Still work to do. See http://golang.org/issue/7125
+    
+    ««« original CL description
+    net/http/cookiejar: document format of domain in PublicSuffix
+    
+    Document what values a PublicSuffixList must accept as
+    a domain in a call to PublicSuffix.
+    
+    R=bradfitz, nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/47560044
+    
+    »»»
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/51770044
+
+ src/pkg/net/http/cookiejar/jar.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

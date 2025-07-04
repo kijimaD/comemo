@@ -1,0 +1,15 @@
+commit 63ea27e9e02e9ddf5845a32082013e7344134fd7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 22 12:44:01 2022 -0400
+
+    cmd/compile: add short self-link to ABI spec
+    
+    This makes the short link discoverable.
+    
+    Change-Id: I9a2f091652bc096feebbbd79a854aa68efe702bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394634
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+
+ src/cmd/compile/abi-internal.md | 2 ++
+ 1 file changed, 2 insertions(+)

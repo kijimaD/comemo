@@ -1,0 +1,13 @@
+commit 95939e8de71d9e8d8deea3d1605bd34130588292
+Author: sryoya <ryoyasekino1993@gmail.com>
+Date:   Sat Jun 5 03:12:03 2021 +0900
+
+    cmd/compile/internal/abi: fix typo in comment
+    
+    Change-Id: I196045314b2b0e908d7b31ac0cea5b25404f3ee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325249
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 1cdf4bf33f57ca7910ab4ee1121ea7f05a6adcd1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 14:45:37 2017 -0800
+
+    cmd/compile/internal/ssa: add SymEffect attribute to SSA Ops
+    
+    To replace the progeffects tables for liveness analysis.
+    
+    Change-Id: Idc4b990665cb0a9aa300d62cdf8ad12e51c5b991
+    Reviewed-on: https://go-review.googlesource.com/38083
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go | 33 ++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/op.go       | 39 ++++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/opGen.go    |  8 ++++---
+ 3 files changed, 54 insertions(+), 26 deletions(-)

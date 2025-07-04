@@ -1,0 +1,25 @@
+commit e7ce8627b0adb0dfa8657c5186a1a53e1baad404
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 10 12:11:06 2019 -0400
+
+    cmd/compile: fix spurious R_TLE_LE reloc on android/386
+    
+    When compiling for GOARCH=386 GOOS=android, the compiler was attaching
+    R_TLS_LE relocations inappropriately -- as of Go 1.13 the TLS access
+    recipe for Android refers to a runtime symbol and no longer needs this
+    type of relocation (which was causing a crash when the linker tried to
+    process it).
+    
+    Updates #29674.
+    Fixes #34788.
+    
+    Change-Id: Ida01875011b524586597b1f7e273aa14e11815d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200337
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go |  2 +-
+ src/cmd/link/link_test.go        | 61 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 1 deletion(-)

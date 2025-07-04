@@ -1,0 +1,13 @@
+commit 1332eb5b6210e16601ff8d049885e41a6e16908d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Apr 21 17:21:09 2014 +0200
+
+    runtime/race: add test for issue 7561.
+    
+    LGTM=dvyukov
+    R=rsc, iant, khr, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/76520045
+
+ src/pkg/runtime/race/testdata/map_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

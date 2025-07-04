@@ -1,0 +1,14 @@
+commit f03b37b8df4da85fd32fbcebca45cdc538732a19
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 5 11:12:07 2011 -0700
+
+    doc: link to A Tour of Go
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5181045
+
+ doc/docs.html    | 10 ++++++++++
+ doc/install.html |  3 ++-
+ doc/root.html    |  7 +++++--
+ 3 files changed, 17 insertions(+), 3 deletions(-)

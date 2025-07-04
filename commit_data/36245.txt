@@ -1,0 +1,23 @@
+commit d611e95cabbd531418beb7c1fdc7191ba3151c2a
+Author: Suzy Mueller <suzmue@golang.org>
+Date:   Thu Aug 9 13:05:54 2018 -0400
+
+    cmd/go: make 'go list -test' report the correct import path
+    
+    When a test variant of a package is created, the two versions cannot
+    share memory for the fields that contain information about their
+    imports, as these will be different between the two packagse.
+    
+    Both the Internal.Imports and the Imports fields must be able to be
+    updated in the test variant without affecting the values of the
+    original.
+    
+    Fixes golang/go#26880
+    
+    Change-Id: Id61fad7d976e179c6c7711a394ce43ec8302fd7a
+    Reviewed-on: https://go-review.googlesource.com/128836
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/test.go                 |  2 ++
+ src/cmd/go/testdata/script/list_test_imports.txt | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+)

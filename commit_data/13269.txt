@@ -1,0 +1,15 @@
+commit afeaf554aa5dd34b0def3f18a37dd500aebd0695
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 4 08:04:40 2012 -0700
+
+    net/http: add new Server benchmark
+    
+    The new BenchmarkServer avoids profiling the client code
+    by running it in a child process.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6260053
+
+ src/pkg/net/http/serve_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

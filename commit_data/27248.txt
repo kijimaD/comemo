@@ -1,0 +1,21 @@
+commit 499cd3371997bdb6e33377266754d20782ef134d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 2 14:46:40 2016 +1200
+
+    cmd/cgo: an approach to tsan that works with gcc
+    
+    GCC, unlike clang, does not provide any way for code being compiled to tell if
+    -fsanitize-thread was passed. But cgo can look to see if that flag is being
+    passed and generate different code in that case.
+    
+    Fixes #14602
+    
+    Change-Id: I86cb5318c2e35501ae399618c05af461d1252d2d
+    Reviewed-on: https://go-review.googlesource.com/22688
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/main.go |  6 ++++++
+ src/cmd/cgo/out.go  | 13 ++++++-------
+ 2 files changed, 12 insertions(+), 7 deletions(-)

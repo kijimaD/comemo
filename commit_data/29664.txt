@@ -1,0 +1,19 @@
+commit 00047248223a68882a120e210014b66577172218
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 29 20:39:47 2016 +0000
+
+    doc: more additions to go1.8.html
+    
+    Adds crypto/tls, crypto/x509, math/big, mime.
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I3fa3739e56f8c005e2a43c19f525cc5e2d981935
+    Reviewed-on: https://go-review.googlesource.com/33666
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 156 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.8.txt  |  74 +++++++++++++--------------
+ 2 files changed, 190 insertions(+), 40 deletions(-)

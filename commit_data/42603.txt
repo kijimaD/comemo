@@ -1,0 +1,26 @@
+commit ca978a5ca9390dc759f20db989b49ad9cdcd81d4
+Author: Kush Patel <kush.patel@hootsuite.com>
+Date:   Tue Jul 7 03:58:50 2020 +0000
+
+    A+C: add Kush Patel (corporate CLA for Hootsuite Inc)
+    
+    I'm from Hootsuite. We're a Canadian tech company who provides products
+    and services to businesses, organizations and individuals to really help
+    them succeed on social. We have leveraged Go in our stack for the past
+    4+ years. I am super happy to give back to Go on behalf of Hootsuite
+    through a small contribution to pkgsite (with a few more in the works).
+    We love this project and we love open source :)
+    
+    Hopefully we can give back more in the future!
+    Kush
+    
+    Change-Id: Id534a41d78e17e1fa48a8ddecd1ca110cf812388
+    GitHub-Last-Rev: 297b8b06e75c3ce485f62677ce4591c5cabe8008
+    GitHub-Pull-Request: golang/go#40088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241218
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

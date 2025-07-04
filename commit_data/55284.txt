@@ -1,0 +1,24 @@
+commit f2d243db8f7592fc436ec8a71637875b6c3223ec
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Dec 12 21:39:54 2023 +0000
+
+    iter: fix race instrumentation for Pull2
+    
+    Pull2 tests are failing with -race, giving false-positive race conditions
+    due to bad race instrumentation.
+    
+    No tests for this as it should be caught by the race builders. The only
+    reason it was not caught is because it is behind GOEXPERIMENT=rangefunc.
+    
+    Fixes #64651
+    
+    Change-Id: I20554da930b0e19594e0e267f01a1e7a9cbc577a
+    GitHub-Last-Rev: 7c1f19238d2c0b7efa5f0a2033893914e402bbc2
+    GitHub-Pull-Request: golang/go#64653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/iter/iter.go | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

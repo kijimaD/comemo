@@ -1,0 +1,12 @@
+commit 21327e1970921152297394cc96ee145c7e25e65c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Feb 16 14:32:04 2013 +1100
+
+    runtime: fix unused variable warning
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7312103
+
+ src/pkg/runtime/race.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

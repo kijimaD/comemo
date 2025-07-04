@@ -1,0 +1,19 @@
+commit 90913cf17042af06ea783c9568dc4af892677589
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Sun Dec 11 09:23:17 2011 -0800
+
+    Housekeeping: Cleaning up the clean-up process.
+    
+    src/clean.bash:
+            Add clean-ups for previously overlooked directories.
+    doc/codelab/wiki/Makefile:
+            Dropped "index.html" from CLEANFILES so it will not be
+            deleted on cleaning.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5476050
+
+ doc/codelab/wiki/Makefile | 2 +-
+ src/clean.bash            | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

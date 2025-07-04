@@ -1,0 +1,14 @@
+commit 35ba05ee288c8760ab116a773b1055a93a419bc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 20 15:39:14 2012 -0800
+
+    bytes: simplified logic
+    
+    Also: Avoid potential crash due to reslicing of nil buffer.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5556075
+
+ src/pkg/bytes/buffer.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

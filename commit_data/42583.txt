@@ -1,0 +1,41 @@
+commit 5779bb4e92911271583faa1365fd12be2c3894ee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 29 17:07:17 2020 -0400
+
+    cmd/link: fix GC data reading from shared library
+    
+    When linking against a Go shared library, when a global variable
+    in the main module has a type defined in the shared library, the
+    linker needs to pull the GC data from the shared library to build
+    the GC program for the global variable. Currently, this fails
+    silently, as the shared library file is closed too early and the
+    read failed (with no error check), causing a zero GC map emitted
+    for the variable, which in turn causes the runtime to treat the
+    variable as pointerless.
+    
+    For now, fix this by keeping the file open. In the future we may
+    want to use mmap to read from the shared library instead.
+    
+    Also add error checking. And fix a (mostly harmless) mistake in
+    size caluculation.
+    
+    Also remove an erroneous condition for ARM64. ARM64 used to have
+    a special case to get the addend from the relocation on the
+    gcdata field. That was removed, but the new code accidentally
+    returned 0 unconditionally. It's no longer necessary to have any
+    special case, since the addend is now applied directly to the
+    gcdata field on ARM64, like on all the other platforms.
+    
+    Fixes #39927.
+    
+    Change-Id: Iecd32315b326c7059587fdc190e2fa99426e497e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240462
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/testshared/shared_test.go               | 16 ++++++++++
+ misc/cgo/testshared/testdata/gcdata/main/main.go | 37 ++++++++++++++++++++++++
+ misc/cgo/testshared/testdata/gcdata/p/p.go       |  7 +++++
+ src/cmd/link/internal/ld/decodesym.go            | 27 ++++++++++++-----
+ src/cmd/link/internal/ld/lib.go                  |  4 ++-
+ 5 files changed, 82 insertions(+), 9 deletions(-)

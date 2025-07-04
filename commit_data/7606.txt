@@ -1,0 +1,14 @@
+commit 49a4d7dc39d315f75fe700e3a5b8b775a8acfcbf
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 2 14:57:47 2011 -0500
+
+    build: simplify clean.bash
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4257045
+
+ src/clean.bash        | 11 +++--------
+ test/bench/Makefile   | 14 ++++++++++++++
+ test/bench/clean.bash |  4 ----
+ 3 files changed, 17 insertions(+), 12 deletions(-)

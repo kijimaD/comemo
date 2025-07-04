@@ -1,0 +1,12 @@
+commit 0a97ef8f71aaba6a06391c04c703ec655c68e7bc
+Author: Jonathan Pittman <jmpittman@google.com>
+Date:   Sun Jan 15 19:54:17 2012 -0500
+
+    exp/ssh: add marshal functions for uint32 and uint64 types
+    
+    R=golang-dev, dave, agl
+    CC=golang-dev
+    https://golang.org/cl/5533081
+
+ src/pkg/exp/ssh/messages.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

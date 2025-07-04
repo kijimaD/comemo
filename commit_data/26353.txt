@@ -1,0 +1,42 @@
+commit 2d56dee61bf76328b3e4289f147076eb88c5582b
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 29 10:43:18 2016 -0500
+
+    cmd/compile: escape analysis explanations added to -m -m output
+    
+    This should probably be considered "experimental" at this stage, but
+    what it needs is feedback from adventurous adopters.  I think the data
+    structure used for describing escape reasons might be extendable to
+    allow a cleanup of the underlying algorithms, which suffers from
+    insufficiently separated concerns (the graph does not deal well with
+    escape level adjustments, so it is augmented by a second custom-walk
+    portion of the "flood" phase. It would be better to put it all,
+    including level adjustments, in a single graph structure, and then
+    simply flood the graph.
+    
+    Tweaked to avoid allocations in the no-logging case.
+    
+    Modified run.go to ignore lines with leading "#" in the output (since
+    it can never match a line), and in -update_errors to ignore leading
+    tabs in output lines and to normalize embedded filenames.
+    
+    Currently requires -m -m because otherwise the noise/update
+    burden for the other escape tests is considerable.
+    
+    There is a partial test.  Existing escape analysis tests seem to
+    cover all except the panic case and what looks like it might be
+    unreachable code in escape analysis.
+    
+    Fixes #10526.
+    
+    Change-Id: I2524fdec54facae48b00b2548e25d9e46fcaf832
+    Reviewed-on: https://go-review.googlesource.com/18041
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go      | 343 ++++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/compile.go |   2 +-
+ test/escape_because.go                  | 177 ++++++++++++++++
+ test/run.go                             |   7 +-
+ 4 files changed, 419 insertions(+), 110 deletions(-)

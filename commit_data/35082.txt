@@ -1,0 +1,15 @@
+commit 20c98dc396d1cb8c3a9776f1d330feed2f2a132a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 20 17:44:55 2018 -0700
+
+    cmd/link: skip TestRuntimeTypeAttr to fix build
+    
+    Updates #24983
+    
+    Change-Id: I417453364346106d4ff4c99549175cef7df724e3
+    Reviewed-on: https://go-review.googlesource.com/108575
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

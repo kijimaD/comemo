@@ -1,0 +1,25 @@
+commit a091d2e6766786d52909dda532839840963213df
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 6 22:47:39 2013 -0500
+
+    cmd/gc, cmd/ld: rename -b to -race
+    
+    There's no b in race detector.
+    The new flag matches the one in the go command
+    (go test -race math).
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7072043
+
+ src/cmd/5l/obj.c     | 2 +-
+ src/cmd/6l/obj.c     | 2 +-
+ src/cmd/8l/obj.c     | 2 +-
+ src/cmd/gc/go.h      | 1 +
+ src/cmd/gc/lex.c     | 6 +++---
+ src/cmd/gc/pgen.c    | 2 +-
+ src/cmd/gc/reflect.c | 2 +-
+ src/cmd/go/build.go  | 4 ++--
+ src/cmd/ld/lib.c     | 4 ++--
+ src/cmd/ld/lib.h     | 1 +
+ 10 files changed, 14 insertions(+), 12 deletions(-)

@@ -1,0 +1,35 @@
+commit 3e0227f6a055fff2ceab18ed1ac6bd583a7f94a5
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 12 19:17:21 2018 +0200
+
+    internal/cpu: add invalid option warnings and support to enable cpu features
+    
+    This CL adds the ability to enable the cpu feature FEATURE by specifying
+    FEATURE=on in GODEBUGCPU. Syntax support to enable cpu features is useful
+    in combination with a preceeding all=off to disable all but some specific
+    cpu features. Example:
+    
+    GODEBUGCPU=all=off,sse3=on
+    
+    This CL implements printing of warnings for invalid GODEBUGCPU settings:
+    - requests enabling features that are not supported with the current CPU
+    - specifying values different than 'on' or 'off' for a feature
+    - settings for unkown cpu feature names
+    
+    Updates #27218
+    
+    Change-Id: Ic13e5c4c35426a390c50eaa4bd2a408ef2ee21be
+    Reviewed-on: https://go-review.googlesource.com/c/141800
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu.go          | 70 ++++++++++++++++++++++++++++------------
+ src/internal/cpu/cpu_arm.go      |  4 +--
+ src/internal/cpu/cpu_arm64.go    | 48 +++++++++++++--------------
+ src/internal/cpu/cpu_ppc64x.go   | 18 +++++------
+ src/internal/cpu/cpu_s390x.go    | 16 ++++-----
+ src/internal/cpu/cpu_test.go     |  5 ++-
+ src/internal/cpu/cpu_x86.go      | 30 ++++++++---------
+ src/internal/cpu/cpu_x86_test.go | 17 ++++++++++
+ 8 files changed, 128 insertions(+), 80 deletions(-)

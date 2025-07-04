@@ -1,0 +1,13 @@
+commit 2f5a77cd5e0ad57879ed06f412427a25eeb2b473
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 19 16:53:50 2011 -0700
+
+    A+C: Alexander Orlov (individual CLA)
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/4515114
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

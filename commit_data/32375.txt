@@ -1,0 +1,24 @@
+commit ac29f4d01ce6891cad6865eda5b16efed8ef231f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 9 15:43:25 2017 -0500
+
+    cmd/compile/internal/amd64: add ADD[Q|L]constmem
+    
+    We can add a constant to loaction in memory with 1 instruction,
+    as opposed to load+add+store, so add a new op and relevent ssa rules.
+    Triggers in e. g. encoding/json isValidNumber:
+    NumberIsValid-6          36.4ns ± 0%    35.2ns ± 1%  -3.32%  (p=0.000 n=6+10)
+    Shaves ~2.5 kb from go tool.
+    
+    Change-Id: I7ba576676c2522432360f77b290cecb9574a93c3
+    Reviewed-on: https://go-review.googlesource.com/54431
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 23 ++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 30 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 78 ++++++++++++++++++++++++++++
+ 5 files changed, 144 insertions(+), 4 deletions(-)

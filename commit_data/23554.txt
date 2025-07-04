@@ -1,0 +1,12 @@
+commit 8b99bb7b8c8369d66852dbb2713e46a58952e093
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 13:32:09 2015 -0400
+
+    runtime: fix broken arm builds
+    
+    Change-Id: I08de33aacb3fc932722286d69b1dd70ffe787c89
+    Reviewed-on: https://go-review.googlesource.com/11697
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/symtab.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

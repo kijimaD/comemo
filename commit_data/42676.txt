@@ -1,0 +1,14 @@
+commit 6072d6ee3e173bb46370dabc158e2cb25a6f4877
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 09:56:00 2020 -0700
+
+    test: add a test case that gccgo fails to compile
+    
+    Change-Id: If36394e059cdae49834d26ad4ffdd3092a72a0b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug509.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

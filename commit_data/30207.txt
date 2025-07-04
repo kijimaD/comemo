@@ -1,0 +1,18 @@
+commit 9f75ecd5e12f2b9988086954933d610cd5647918
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 19:55:10 2016 +0000
+
+    runtime/debug: don't run a GC when setting SetGCPercent negative
+    
+    If the user is calling SetGCPercent(-1), they intend to disable GC.
+    They probably don't intend to run one. If they do, they can call
+    runtime.GC themselves.
+    
+    Change-Id: I40ef40dfc7e15193df9ff26159cd30e56b666f73
+    Reviewed-on: https://go-review.googlesource.com/34013
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/debug/garbage.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

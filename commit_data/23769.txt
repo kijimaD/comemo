@@ -1,0 +1,22 @@
+commit 0505dfc637ac90bd4c21b794c96d915caee4397a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 21 12:32:59 2015 -0700
+
+    go/types: make types.Typ a slice, unexport UniverseByte/Rune
+    
+    In lieu of the more invasive https://go-review.googlesource.com/#/c/12373/ .
+    
+    Change-Id: I0221783fcaa8af04520c80cd2993d7d542d2c431
+    Reviewed-on: https://go-review.googlesource.com/12486
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.5.txt              |  4 +---
+ src/go/types/builtins.go   |  4 ++--
+ src/go/types/expr.go       |  2 +-
+ src/go/types/predicates.go |  2 +-
+ src/go/types/stmt.go       |  2 +-
+ src/go/types/universe.go   | 12 ++++++------
+ 6 files changed, 12 insertions(+), 14 deletions(-)

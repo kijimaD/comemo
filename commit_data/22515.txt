@@ -1,0 +1,12 @@
+commit 07f00cf11e208510fd83b8d7328a52f9c1c97eee
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 15 14:47:08 2015 -0400
+
+    cmd/test: require external linking for c-archive
+    
+    Change-Id: I9ceceb29291ea9f5d7b675dfabd665c5e3618471
+    Reviewed-on: https://go-review.googlesource.com/8955
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

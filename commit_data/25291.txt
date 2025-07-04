@@ -1,0 +1,14 @@
+commit ae9529a261966d98d7eba59de009e4553a86c94e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 23:16:21 2015 -0500
+
+    doc: first draft of Go 1.6 release notes
+    
+    Change-Id: I5aa54e96729b3261f491f51b37e04e59c91b0830
+    Reviewed-on: https://go-review.googlesource.com/17840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.html | 838 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.6.txt  |  96 -------
+ 2 files changed, 838 insertions(+), 96 deletions(-)

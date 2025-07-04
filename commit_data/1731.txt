@@ -1,0 +1,16 @@
+commit 49cc649e5925e3917b7102665364c5568b1959c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 08:41:02 2009 -0800
+
+    back to T{x}, stricter handling of T(x) vs x.(T)
+    
+    R=ken
+    DELTA=131  (60 added, 41 deleted, 30 changed)
+    OCL=25617
+    CL=25633
+
+ src/cmd/gc/go.h   |   4 +--
+ src/cmd/gc/go.y   |  44 ++++++++++++++++-------
+ src/cmd/gc/subr.c |   4 +--
+ src/cmd/gc/walk.c | 103 +++++++++++++++++++++++++++---------------------------
+ 4 files changed, 87 insertions(+), 68 deletions(-)

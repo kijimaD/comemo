@@ -1,0 +1,16 @@
+commit 9f56845f2ca53316e1554dff4d4b373fec91ab84
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 21 09:32:03 2019 -0700
+
+    cmd/compile: stop shadowing bool type in rewrite rules
+    
+    This disrupts code instrumentation tools like go-fuzz.
+    
+    Change-Id: I524f31316975096ca5e3b1203a82e91ed1b6097e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168801
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 20 +++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 82 ++++++++++++++--------------
+ 2 files changed, 51 insertions(+), 51 deletions(-)

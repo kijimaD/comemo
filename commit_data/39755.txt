@@ -1,0 +1,21 @@
+commit 8fc35238a701248c847a32d96bf69a11b67965b2
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Aug 26 07:08:51 2019 -0600
+
+    ld: mark PE executables as terminal services aware
+    
+    This has been the default in MSVC for a very long time, and it's hard to
+    imagine modern programs actually wanting the old legacy behavior. For
+    example, no modern programs try to install their junk into C:\windows
+    and therefore need to have an emulated writable windows directory.
+    That's not really even allowed by ACLs on modern systems.
+    
+    Change-Id: Iadaca6815e39ea5c6b05c1cac5a95cfc35e5b48a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191840
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go |  3 ++
+ src/cmd/link/internal/ld/pe.go  | 83 ++++++++++++++++++++++-------------------
+ 2 files changed, 47 insertions(+), 39 deletions(-)

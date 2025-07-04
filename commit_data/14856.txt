@@ -1,0 +1,15 @@
+commit 53e342f64805e0a2e750585e361d50d163616c9b
+Author: Stéphane Travostino <stephane.travostino@gmail.com>
+Date:   Fri Jan 11 17:02:21 2013 +1100
+
+    bytes: fix UnreadByte failure after ReadBytes
+    
+    Fixes #4583.
+    
+    R=golang-dev, minux.ma, bradfitz, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6976050
+
+ src/pkg/bytes/buffer.go      |  3 ++-
+ src/pkg/bytes/buffer_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

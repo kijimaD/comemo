@@ -1,0 +1,19 @@
+commit ca9d3f3463d8015c1650bf7e9535e4d495d06ffd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 23:41:40 2010 -0400
+
+    build: avoid bad environment interactions
+    
+    Specifically, $LIB is set on Windows.
+    
+    Also diagnose attempt to build GOOS=darwin GOARCH=arm.
+    Otherwise the build fails mysteriously in package runtime.
+    
+    Fixes #1065.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2162043
+
+ src/Make.inc | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

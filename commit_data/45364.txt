@@ -1,0 +1,22 @@
+commit bc6288794de10fddea0a3c3cfcb1cfd2bf2aa8a0
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 7 17:43:09 2021 -0400
+
+    go/scanner: improve variety in benchmarks for file scanning
+    
+    BenchmarkScanFile was scanning scanner.go, which makes comparison
+    difficult for a CL modifying that file. That file is also is not
+    necessarily representative syntax.
+    
+    Add a few additional files as subtests to provide a larger variety of
+    metrics.
+    
+    Change-Id: Ib78303c2546debd84a0b5478ae438ba891d9e6e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308610
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/scanner/scanner_test.go | 49 ++++++++++++++++++++++++++----------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)

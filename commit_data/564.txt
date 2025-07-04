@@ -1,0 +1,14 @@
+commit 1423bf3dc4d3423045d17a906a843da887722be5
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 2 19:11:25 2008 -0700
+
+    structure literals
+    
+    R=r
+    OCL=14735
+    CL=14735
+
+ src/cmd/6g/gen.c  |  7 +++----
+ src/cmd/gc/subr.c | 17 +++++++++++++++++
+ src/cmd/gc/walk.c | 24 ++----------------------
+ 3 files changed, 22 insertions(+), 26 deletions(-)

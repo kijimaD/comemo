@@ -1,0 +1,16 @@
+commit 9fba50545d4d992798b73eaf3c4a923b1f7ec20e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 18 13:52:39 2018 -0800
+
+    test: add test case where gccgo incorrectly rejected aliases
+    
+    Updates #23912
+    
+    Change-Id: I50d06506a8ac91ed99a761a9ff3fd0b03d4c8121
+    Reviewed-on: https://go-review.googlesource.com/94995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue23912.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

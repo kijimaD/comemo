@@ -1,0 +1,31 @@
+commit cb0e98b833fc2a5a346912ae725854d96ac79f78
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed Oct 7 22:25:25 2015 +0000
+
+    cmd/compile: fix some C to Go translation leftovers
+    
+    Following the C to Go translation, some useless variables
+    were left in the code. In fmt.go, this was harmless.
+    In lex.go, it broke the error message related to
+    non-canonical import paths.
+    
+    Fix it, and remove the useless variables.
+    
+    The added test case is ignored in the go/types tests, since
+    the behavior of the non-canonical import path check seems
+    to be different.
+    
+    Fixes #11362
+    
+    Change-Id: Ic9129139ede90357dc79ebf167af638cf44536fa
+    Reviewed-on: https://go-review.googlesource.com/15580
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go |  8 --------
+ src/cmd/compile/internal/gc/lex.go |  4 +---
+ src/go/types/stdlib_test.go        |  1 +
+ test/fixedbugs/issue11362.go       | 15 +++++++++++++++
+ 4 files changed, 17 insertions(+), 11 deletions(-)

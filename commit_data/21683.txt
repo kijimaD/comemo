@@ -1,0 +1,26 @@
+commit 02d80b9e937aa1ea142bac016f35011bae72907f
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 21 17:35:01 2015 +0100
+
+    gdb: fix "gdb.error: No struct named reflect.rtype."
+    
+    With a trivial Golang-built program loaded in gdb-7.8.90.20150214-7.fc23.x86_64
+    I get this error:
+    
+    (gdb) source ./src/runtime/runtime-gdb.py
+    Loading Go Runtime support.
+    Traceback (most recent call last):
+      File "./src/runtime/runtime-gdb.py", line 230, in <module>
+        _rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
+    gdb.error: No struct type named reflect.rtype.
+    (gdb) q
+    
+    No matter if this struct should or should not be in every Golang-built binary
+    this change should fix that with no disadvantages.
+    
+    Change-Id: I0c490d3c9bbe93c65a2183b41bfbdc0c0f405bd1
+    Reviewed-on: https://go-review.googlesource.com/5521
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

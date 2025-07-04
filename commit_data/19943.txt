@@ -1,0 +1,16 @@
+commit cc063592b0307552af9fd80f03be6276838e52f9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 21:39:32 2014 +0400
+
+    encoding/gob: make benchmarks parallel
+    There are lots of internal synchronization in gob,
+    so it makes sense to have parallel benchmarks.
+    Also add a benchmark with slices and interfaces.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/115960043
+
+ src/pkg/encoding/gob/timing_test.go | 57 ++++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 19 deletions(-)

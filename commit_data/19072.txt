@@ -1,0 +1,18 @@
+commit a07f6adda8663f86701356bca341112846ed251f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 9 06:41:14 2014 +0200
+
+    runtime: fix GOTRACEBACK on Plan 9
+    
+    Getenv() should not call malloc when called from
+    gotraceback(). Instead, we return a static buffer
+    in this case, with enough room to hold the longest
+    value.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85680043
+
+ src/pkg/runtime/env_plan9.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

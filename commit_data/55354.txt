@@ -1,0 +1,23 @@
+commit b702e0438ae9577dcc642ba7696a89799c86c8b7
+Author: Mehdi Mostafavi <mehdi.mostafavi7900@gmail.com>
+Date:   Mon Jan 8 16:58:39 2024 +0000
+
+    cmd/doc: fix inconsistent receiver name
+    
+    The ToText method of Package is the only one with a receiver declared
+    'p'; all the rest have 'pkg'. Fix it to be consistent.
+    
+    Change-Id: I2b47c719f4f6f8d87336316b7f80deb1b49e17dc
+    GitHub-Last-Rev: 7d273b4ef0780b7ed8b651c117a28b25bab5bcb1
+    GitHub-Pull-Request: golang/go#64912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553335
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/pkg.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

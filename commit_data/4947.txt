@@ -1,0 +1,18 @@
+commit c426427b89413157fe83bea862cf225e869eaf6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 25 10:26:43 2010 -0800
+
+    dashboard: more performance tuning
+    
+    various caching.  make benchmark data a list
+    in a single per-builder,benchmark record instead
+    of having one record for each data point.
+    significant reduction in datastore cpu charges.
+    
+    R=agl1, agl
+    CC=golang-dev
+    https://golang.org/cl/217111
+
+ misc/dashboard/godashboard/gobuild.py | 406 +++++++++++++++++++---------------
+ misc/dashboard/godashboard/index.yaml |   5 +
+ 2 files changed, 235 insertions(+), 176 deletions(-)

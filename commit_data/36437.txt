@@ -1,0 +1,17 @@
+commit d35135b9dab7415dc6eafd55597b497d013badb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 22 20:31:37 2018 +0000
+
+    internal/poll, net: fix sendfile on Windows, add test
+    
+    Fixes #27085
+    
+    Change-Id: I4eb3ff7c76e0b8e4d8fe0298f739b0284d74a031
+    Reviewed-on: https://go-review.googlesource.com/130855
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/sendfile_windows.go |  4 +--
+ src/net/sendfile_test.go              | 61 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 2 deletions(-)

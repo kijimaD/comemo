@@ -1,0 +1,29 @@
+commit 18baca6765f75c0973b9d90cb6123f1eb339ad4c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 17:19:09 2022 -0500
+
+    runtime/race: add build tag to internal amd64vN packages
+    
+    Only one of the runtime/race/internal/amd64vN packages should be
+    included in a build. Generally this is true because the
+    runtime/race package would import only one of them depending on
+    the build configuration. But for "go install -buildmode=shared std"
+    it includes all Go packages in std, which includes both, which
+    then causes link-time failure due to duplicated symbols. To avoid
+    this, we add build tags to the internal packages, so, depending on
+    the build configuation, only one package would contain buildable
+    go files therefore be included in the build.
+    
+    For #57334.
+    
+    Change-Id: I52ddc3a40e16c7d04b4dd861e9689918d27e8509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/race/internal/amd64v1/doc.go | 2 ++
+ src/runtime/race/internal/amd64v3/doc.go | 2 ++
+ src/runtime/race/race_v1_amd64.go        | 1 -
+ src/runtime/race/race_v3_amd64.go        | 1 -
+ 4 files changed, 4 insertions(+), 2 deletions(-)

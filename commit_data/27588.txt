@@ -1,0 +1,19 @@
+commit 1846c632ee37681eb92fb27f7071a58bdf6d7a3c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 31 20:48:42 2016 +1200
+
+    cmd/go: combine gccgo's ld and ldShared methods
+    
+    This fixes handling of cgo flags and makes sure packages that are only
+    implicitly included in the shared library are passed to the link.
+    
+    Fixes #15885
+    
+    Change-Id: I1e8a72b5314261973ca903c78834700fb113dde9
+    Reviewed-on: https://go-review.googlesource.com/23537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 63 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 29 insertions(+), 34 deletions(-)

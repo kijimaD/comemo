@@ -1,0 +1,19 @@
+commit f844b0be18ecab2406b2c1d20abb53e358d5574e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 12:18:19 2016 -0500
+
+    cmd/internal/obj/x86: rename POPCNT to POPCNTQ
+    
+    Ilya added POPCNT in a CL earlier this month but it's really only POPCNTQ.
+    The other forms still need to be added.
+    
+    For #4816.
+    
+    Change-Id: I1186850d32ad6d5777475c7808e6fc9d9133e118
+    Reviewed-on: https://go-review.googlesource.com/18848
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go  | 4 +++-
+ src/cmd/internal/obj/x86/anames.go | 4 +++-
+ src/cmd/internal/obj/x86/asm6.go   | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

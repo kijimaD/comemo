@@ -1,0 +1,16 @@
+commit 4e0f63940cccfabea084a7608e8ba9c55b8ed952
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 11:08:21 2017 -0800
+
+    net: use internal/poll for DragonFly setKeepAlivePeriod
+    
+    Fixes DragonFly build.
+    
+    Change-Id: Id6b439cd4023ea8e3ed7cd9b70eec553c9eee4be
+    Reviewed-on: https://go-review.googlesource.com/36916
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/tcpsockopt_dragonfly.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

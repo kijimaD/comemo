@@ -1,0 +1,24 @@
+commit 045f9df466ac6d12a2be66a1c5d4659d113719bd
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Wed Feb 25 19:13:43 2015 +0100
+
+    mime/quotedprintable: create the package
+    
+    This commit creates the mime/quotedprintable package. It moves and
+    exports the QP reader of mime/internal/quotedprintable.
+    
+    The code is almost unchanged to preserve the commit history.
+    
+    Updates #4943
+    
+    Change-Id: I4b7b5a2a40a4c84346d42e4cdd2c11a91b28f9e3
+    Reviewed-on: https://go-review.googlesource.com/5940
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                          |  2 +-
+ src/mime/multipart/multipart.go                    |  2 +-
+ .../reader.go}                                     | 27 +++++++++++-----------
+ .../reader_test.go}                                | 24 +++++++++----------
+ 4 files changed, 28 insertions(+), 27 deletions(-)

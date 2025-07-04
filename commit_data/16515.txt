@@ -1,0 +1,13 @@
+commit 8cf7044983077a5d739d54c8deeb952a4b6b152c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jun 9 21:38:37 2013 +0400
+
+    runtime: use persistentalloc instead of custom malloc in memory profiler
+    Removes code duplication.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9874055
+
+ src/pkg/runtime/mprof.goc | 45 +++++----------------------------------------
+ 1 file changed, 5 insertions(+), 40 deletions(-)

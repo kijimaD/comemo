@@ -1,0 +1,16 @@
+commit 74f9432beadb7179169e08b6c910dd533c62b7c8
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Apr 24 15:23:41 2018 +0200
+
+    internal/cpu: remove redundant build tag
+    
+    The file name suffix arm64 already limits the file to be build only on arm64.
+    
+    Change-Id: I33db713041b6dec9eb00889bac3b54c727e90743
+    Reviewed-on: https://go-review.googlesource.com/108986
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/cpu/cpu_arm64.go | 2 --
+ 1 file changed, 2 deletions(-)

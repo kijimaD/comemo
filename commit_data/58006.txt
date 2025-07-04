@@ -1,0 +1,33 @@
+commit 7020759859a3b7c2f033e497eca750b15d3aa38d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 24 13:29:39 2023 -0400
+
+    cmd/go: implement "go build -json"
+    
+    This adds support for a "-json" flag in all build-related go
+    subcommands. This causes build output and build failures to be
+    reported to stdout in a machine-readable way.
+    
+    For #62067.
+    Fixes #23037.
+    
+    Change-Id: Id045c5bd5dde9d16cc09dde6248a4b9637896a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536397
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go                     | 37 +++++++++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go            | 53 ++++++++++++++++--------------
+ src/cmd/go/internal/clean/clean.go        |  2 +-
+ src/cmd/go/internal/fix/fix.go            |  2 +-
+ src/cmd/go/internal/generate/generate.go  |  2 +-
+ src/cmd/go/internal/help/helpdoc.go       | 37 +++++++++++++++++++++
+ src/cmd/go/internal/list/list.go          |  3 +-
+ src/cmd/go/internal/load/printer.go       | 54 ++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/testflag.go      |  3 +-
+ src/cmd/go/internal/vet/vetflag.go        |  5 ++-
+ src/cmd/go/internal/work/action.go        |  9 ++++--
+ src/cmd/go/internal/work/build.go         | 12 +++++++
+ src/cmd/go/main.go                        |  1 +
+ src/cmd/go/testdata/script/build_json.txt | 48 +++++++++++++++++++++++++++
+ 14 files changed, 233 insertions(+), 35 deletions(-)

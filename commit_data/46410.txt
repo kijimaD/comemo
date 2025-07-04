@@ -1,0 +1,13 @@
+commit cf2fe5d6f12f075f265ba067869fc5f0e3b23ff0
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Aug 2 00:56:25 2021 +0800
+
+    doc/asm: fix HTML markup
+    
+    Change-Id: I33bde4835d3b83fafd55beea483f6236c4c62840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ doc/asm.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

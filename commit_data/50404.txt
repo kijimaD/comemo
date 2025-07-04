@@ -1,0 +1,27 @@
+commit 85c0d26c6a107b532ce0298c494456dac8d3b97c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 10 09:59:00 2021 -0500
+
+    cmd/asm,cmd/internal/obj/ppc64: recognize ppc64 ISA 3.1 MMA registers
+    
+    Allow the assembler frontend to match MMA register arguments added by
+    ISA 3.1. The prefix "A" (for accumulator) is chosen to identify them.
+    
+    Updates #44549
+    
+    Change-Id: I363e7d1103aee19d7966829d2079c3d876621efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419534
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/arch/arch.go      |  3 +++
+ src/cmd/asm/internal/arch/ppc64.go     |  4 ++++
+ src/cmd/internal/obj/ppc64/a.out.go    | 13 +++++++++++++
+ src/cmd/internal/obj/ppc64/anames9.go  |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go     |  3 +++
+ src/cmd/internal/obj/ppc64/asm_test.go |  1 +
+ src/cmd/internal/obj/ppc64/list9.go    |  3 +++
+ 7 files changed, 28 insertions(+)

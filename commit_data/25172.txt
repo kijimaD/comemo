@@ -1,0 +1,16 @@
+commit 336c998291b2aaf78fac65b98cca00086db61266
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 4 14:44:27 2015 -0800
+
+    cmd/compile: reject slice/map/func comparisons against converted nil
+    
+    Fixes #13480.
+    
+    Change-Id: Icbf4f83e965e84f7020f56c3f346193f8b91e7bf
+    Reviewed-on: https://go-review.googlesource.com/17461
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 14 ++++----------
+ src/cmd/compile/internal/gc/swt.go  |  2 +-
+ test/fixedbugs/issue13480.go        | 38 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 43 insertions(+), 11 deletions(-)

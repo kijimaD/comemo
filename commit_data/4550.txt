@@ -1,0 +1,12 @@
+commit c713a1f982442e77802e80397d0617af23d5bdc1
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Jan 6 19:26:04 2010 -0800
+
+    libmach: Add disassembly for newly implemented opcodes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183140
+
+ src/libmach/8db.c | 4 ++++
+ 1 file changed, 4 insertions(+)

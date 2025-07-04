@@ -1,0 +1,13 @@
+commit 13d85668ac42525564f04e85f9529d993812f345
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 18 15:53:22 2014 +1100
+
+    go/doc: document the conditions where examples are "playable"
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/64910043
+
+ src/pkg/go/doc/example.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

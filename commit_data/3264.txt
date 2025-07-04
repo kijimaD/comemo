@@ -1,0 +1,13 @@
+commit c5a441ac70e5164e91e1c0a8141f4053dfb6bc69
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 16:45:35 2009 -0700
+
+    do not crash printing the zero value for time.Time.
+    
+    R=r
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=34605
+    CL=34608
+
+ src/pkg/time/time.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

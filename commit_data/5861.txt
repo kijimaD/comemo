@@ -1,0 +1,23 @@
+commit 7be849d4a6bb8771ac2914e9166a8e10c7d7300c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 21 11:36:01 2010 -0400
+
+    crypto/tls: add client-side SNI support and PeerCertificates.
+    
+    SNI (Server Name Indication) is a way for a TLS client to
+    indicate to the server which name it knows the server by. This
+    allows the server to have several names and return the correct
+    certificate for each (virtual hosting).
+    
+    PeerCertificates returns the list of certificates presented by
+    server.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1741053
+
+ src/pkg/crypto/tls/common.go             |  3 +++
+ src/pkg/crypto/tls/conn.go               | 11 +++++++++++
+ src/pkg/crypto/tls/handshake_client.go   |  3 +++
+ src/pkg/crypto/tls/handshake_messages.go |  3 ++-
+ 4 files changed, 19 insertions(+), 1 deletion(-)

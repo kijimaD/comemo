@@ -1,0 +1,17 @@
+commit 9abf0b6e9f7d1ae1a5f6e500ee58122d4b40f776
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 17:41:16 2014 -0400
+
+    cmd/ld: handle large link base addresses
+    
+    codeblk and datblk were truncating their
+    arguments to int32. Don't do that.
+    
+    LGTM=dvyukov, rminnich
+    R=iant, dvyukov, rminnich
+    CC=golang-codereviews
+    https://golang.org/cl/126050043
+
+ src/cmd/ld/data.c | 12 ++++++------
+ src/cmd/ld/lib.h  |  4 ++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

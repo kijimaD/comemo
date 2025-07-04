@@ -1,0 +1,21 @@
+commit 64ca7e2cb3af6135a46c9602b7650cad1381456a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 30 16:28:48 2021 -0400
+
+    cmd/compile: avoid generating duplicated in-register Arg
+    
+    In expand_calls, when rewriting OpArg to OpArgIntReg/OpArgFloatReg,
+    avoid generating duplicates. Otherwise it will confuse the
+    register allocator: it would think the second occurance clobbers
+    the first's register, causing it to generate copies, which may
+    clobber other args.
+    
+    Change-Id: I4f1dc0519afb77500eae1c0e6ac8745e51f7aa4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306029
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 16 +++++++++++++++
+ test/abi/store_reg_args.go                   | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

@@ -1,0 +1,24 @@
+commit 28b95edff2108c5e567debbf5e65db1a94c2ef39
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 4 18:27:51 2016 +0000
+
+    net/http: deflake tests in full mode after t.Parallel additions
+    
+    https://golang.org/cl/18087 added a bunch of t.Parallel calls, which
+    aren't compatible with the afterTest func. But in short mode, afterTest
+    is a no-op. To keep all.bash (short mode) fast, conditionally set
+    t.Parallel when in short mode, but keep it unset for compatibility with
+    afterFunc otherwise.
+    
+    Fixes #13804
+    
+    Change-Id: Ie841fbc2544e1ffbee43ba1afbe895774e290da0
+    Reviewed-on: https://go-review.googlesource.com/18143
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/main_test.go      |  9 +++++++++
+ src/net/http/serve_test.go     |  4 ++--
+ src/net/http/transport_test.go | 16 ++++++++--------
+ 3 files changed, 19 insertions(+), 10 deletions(-)

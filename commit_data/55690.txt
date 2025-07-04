@@ -1,0 +1,39 @@
+commit e596e8831885ad057a7f1db1391fddfd53f06431
+Author: Damien Neil <dneil@google.com>
+Date:   Sat Sep 30 10:38:01 2023 -0700
+
+    path/filepath: add Localize
+    
+    Add the Localize function, which takes an io/fs slash-separated path
+    and returns an operating system path.
+    
+    Localize returns an error if the path cannot be represented on
+    the current platform.
+    
+    Replace internal/safefile.FromFS with Localize,
+    which serves the same purpose as this function.
+    
+    The internal/safefile package remains separate from path/filepath
+    to avoid a dependency cycle with the os package.
+    
+    Fixes #57151
+    
+    Change-Id: I75c88047ddea17808276761da07bf79172c4f6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531677
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/57151.txt                                |  1 +
+ doc/next/6-stdlib/99-minor/path/filepath/57151.md |  2 +
+ src/internal/safefilepath/path.go                 | 17 +++--
+ src/internal/safefilepath/path_other.go           | 24 -------
+ src/internal/safefilepath/path_plan9.go           | 14 ++++
+ src/internal/safefilepath/path_test.go            | 88 -----------------------
+ src/internal/safefilepath/path_unix.go            | 16 +++++
+ src/internal/safefilepath/path_windows.go         | 35 ++++-----
+ src/net/http/fs.go                                |  7 +-
+ src/os/dir.go                                     |  2 +-
+ src/os/file.go                                    |  5 +-
+ src/path/filepath/path.go                         | 16 +++++
+ src/path/filepath/path_test.go                    | 67 +++++++++++++++++
+ 13 files changed, 149 insertions(+), 145 deletions(-)

@@ -1,0 +1,22 @@
+commit d2ace0ce5f764a5bfb2c82975a2614c97d569cd6
+Author: Daniël de Kok <me@danieldk.eu>
+Date:   Tue Aug 21 05:09:24 2018 +0000
+
+    cmd/cgo: perform explicit conversion in _GoStringLen
+    
+    _GoStringLen performs an implicit conversion from intgo to size_t.
+    Explicitly cast to size_t.
+    
+    This change avoids warnings when using cgo with CFLAGS:
+    -Wconversion.
+    
+    Change-Id: I58f75a35e17f669a67f9805061c041b03eddbb5c
+    GitHub-Last-Rev: b5df1ac0c3c90360fa1d22c069e0f126e9f894d8
+    GitHub-Pull-Request: golang/go#27092
+    Reviewed-on: https://go-review.googlesource.com/129820
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

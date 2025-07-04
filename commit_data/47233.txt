@@ -1,0 +1,22 @@
+commit bd49a998bf68609259c155cd7b9f4ed76d948a0d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 1 14:32:39 2021 +0700
+
+    cmd/compile: fix missing update source type in storeArgOrLoad
+    
+    After removing trivial wrapper types, the source needs to be updated
+    with new type, otherwise, it leads to mismatch between field offset and
+    the source type for selecting struct/array.
+    
+    Fixes #49249
+    
+    Change-Id: I26f9440bcb2e78bcf0617afc21d9d40cdbe4aca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360057
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +
+ test/fixedbugs/issue49249.go                 | 55 ++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

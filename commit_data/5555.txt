@@ -1,0 +1,12 @@
+commit 7ee6d44e4f34e648a1698a69ff2c6344910a3b62
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 26 18:16:41 2010 -0700
+
+    fmt.Scan: custom formatters
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1315042
+
+ src/pkg/fmt/scan.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

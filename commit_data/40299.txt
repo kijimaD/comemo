@@ -1,0 +1,17 @@
+commit 584ef455ac0cd08833c3d4c7f6cb284bdba627a0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 13 23:06:29 2019 +0700
+
+    cmd/compile: skip empty init function in fninit
+    
+    Fixes #34869
+    
+    Change-Id: I21bc60b9a5d1204dade1cceed6cddccf5b537b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200958
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/init.go      |  8 ++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

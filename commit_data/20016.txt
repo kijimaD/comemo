@@ -1,0 +1,13 @@
+commit 41d75933d79bc094a5e522bf67e6e182cbd65450
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Aug 16 14:04:15 2014 +1000
+
+    cmd/ld: fix operator precedence
+    
+    LGTM=rsc
+    R=gobot, dave
+    CC=golang-codereviews, iant, rsc
+    https://golang.org/cl/114420043
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

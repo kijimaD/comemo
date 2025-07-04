@@ -1,0 +1,15 @@
+commit 28e9e15802aba9caef309edc5568c48c2965a19f
+Author: Peter Kleiweg <pkleiweg@xs4all.nl>
+Date:   Tue May 29 12:40:12 2012 -0400
+
+    Emacs go-mode: fix Emacs freeze-up when copy/pasting from string or comment.
+    
+    Fixes #3509.
+    Fixes #2767.
+    
+    R=golang-dev, sameer
+    CC=golang-dev
+    https://golang.org/cl/6139066
+
+ misc/emacs/go-mode.el | 5 +++++
+ 1 file changed, 5 insertions(+)

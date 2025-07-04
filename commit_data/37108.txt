@@ -1,0 +1,15 @@
+commit c8b2ac68906a154c470a845172f133aceae7c5c7
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Oct 25 13:52:50 2018 +0300
+
+    cmd/compile: reduce the size of header in ssa.html
+    
+    Big title and the help link were taking almost 15% of vertical space.
+    The CL makes header smaller.
+    
+    Change-Id: I36f55ceb23b444e8060a479500c5f709cbd3f6f0
+    Reviewed-on: https://go-review.googlesource.com/c/144577
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/html.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

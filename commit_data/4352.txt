@@ -1,0 +1,14 @@
+commit aacb5156681b5bbca6732db9ed8e4b6b0e3df42b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 18:20:06 2009 -0800
+
+    A+C: two more names
+       Kei Son has completed the CLA.
+       Yves Junqueira is a Google employee.
+    
+    R=r
+    https://golang.org/cl/167057
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 3 insertions(+)

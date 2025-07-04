@@ -1,0 +1,24 @@
+commit fa80fe7b1cc770d37b2263eb5d81c87db75ceb80
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 26 10:45:01 2023 -0700
+
+    cmd/go: simplify code that still assumed the build cache could be nil
+    
+    cache.Default always returns a non-nil value since Go 1.12; the docs were
+    updated in https://go.dev/cl/465555.
+    
+    This updates all the callers of cache.Default that were checking whether
+    the result was nil so the code isn't misleading/confusing to readers.
+    
+    Change-Id: Ia63567dd70affef6041c744259f65cea79a2752e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489355
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/list/list.go    | 14 -------
+ src/cmd/go/internal/test/test.go    |  8 ----
+ src/cmd/go/internal/work/buildid.go | 80 ++++++++++++++++++-------------------
+ 3 files changed, 38 insertions(+), 64 deletions(-)

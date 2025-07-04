@@ -1,0 +1,18 @@
+commit df2a9e4a337a4feda8981433639cbddeb8216d37
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Jan 19 16:27:14 2016 +1300
+
+    runtime/race: fix test so it compiles
+    
+    I'm not sure what the convert function was intended to be.
+    
+    Fixes #14011
+    
+    Change-Id: I29d905bc1827936b9433b20b13b7a0b0ac5f502e
+    Reviewed-on: https://go-review.googlesource.com/18712
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race/testdata/issue12225_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

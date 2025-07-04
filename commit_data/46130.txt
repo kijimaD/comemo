@@ -1,0 +1,30 @@
+commit 3081f817da8c194982596ddddf5d3ec321c859af
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 20 16:15:53 2021 -0700
+
+    cmd/compile: always remove receiver type from instantiated method values
+    
+    If a type T has a method foo, then
+    
+    var t T
+    var i interface{} = t.foo
+    
+    The type of foo is a method type, but the type of t.foo should be a
+    standard function type. Make sure we always do that conversion.
+    
+    Fixes #47775
+    
+    Change-Id: I464ec792196b050aba1914e070a4ede34bfd0bfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343881
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/transform.go |  6 +-----
+ src/cmd/compile/internal/typecheck/dcl.go   |  6 ++++++
+ test/typeparam/issue47775.dir/b.go          | 19 +++++++++++++++++++
+ test/typeparam/issue47775.dir/main.go       | 11 +++++++++++
+ test/typeparam/issue47775.go                |  7 +++++++
+ test/typeparam/issue47775b.go               | 28 ++++++++++++++++++++++++++++
+ 6 files changed, 72 insertions(+), 5 deletions(-)

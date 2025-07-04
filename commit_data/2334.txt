@@ -1,0 +1,21 @@
+commit 3aa006b8cd82dfbc5ac4eac03db6518c4821da4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 28 15:48:47 2009 -0700
+
+    better 64-bit handling in 8g.
+    fewer moves, fewer stupid LEALs.
+    powser1 runs (with evaln commented out).
+    beginnings of floating point.
+    
+    R=ken
+    OCL=29540
+    CL=29543
+
+ src/cmd/6g/gsubr.c |   2 +-
+ src/cmd/8c/list.c  |  24 +-
+ src/cmd/8g/cgen.c  | 319 +++++++++++++-------------
+ src/cmd/8g/gg.h    |  12 +
+ src/cmd/8g/ggen.c  |   2 +-
+ src/cmd/8g/gsubr.c | 639 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/const.c |   2 +-
+ 7 files changed, 695 insertions(+), 305 deletions(-)

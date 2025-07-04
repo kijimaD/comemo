@@ -1,0 +1,84 @@
+commit ef9217e7bd9c854e4f8d2d79ff8aec550130cbc4
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 12:18:32 2018 +0100
+
+    net: add js/wasm architecture
+    
+    This commit adds the js/wasm architecture to the net package.
+    The net package is not supported by js/wasm, but a simple fake
+    networking is available so tests of other packages that require
+    basic TCP sockets can pass. The tests of the net package itself
+    are mostly disabled.
+    
+    Updates #18892
+    
+    Change-Id: Id287200c39f0a3e23d20ef17260ca15ccdcca032
+    Reviewed-on: https://go-review.googlesource.com/109995
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/hook_unix.go                   |   2 +-
+ src/net/conn_test.go                             |   2 +
+ src/net/dial_test.go                             |   2 +
+ src/net/dnsname_test.go                          |   2 +
+ src/net/error_posix.go                           |   2 +-
+ src/net/error_test.go                            |   2 +
+ src/net/error_unix.go                            |   2 +-
+ src/net/external_test.go                         |   2 +
+ src/net/fd_plan9.go                              |  13 ++
+ src/net/fd_unix.go                               |  13 ++
+ src/net/fd_windows.go                            |  13 ++
+ src/net/file_stub.go                             |   2 +-
+ src/net/file_test.go                             |   2 +
+ src/net/hook_unix.go                             |   2 +-
+ src/net/http/cgi/host_test.go                    |   1 +
+ src/net/interface_stub.go                        |   2 +-
+ src/net/interface_test.go                        |   2 +
+ src/net/internal/socktest/main_test.go           |   2 +-
+ src/net/internal/socktest/main_unix_test.go      |   2 +-
+ src/net/internal/socktest/switch_unix.go         |   2 +-
+ src/net/internal/socktest/sys_unix.go            |   2 +-
+ src/net/ip_test.go                               |   2 +
+ src/net/iprawsock_posix.go                       |   2 +-
+ src/net/iprawsock_test.go                        |   2 +
+ src/net/ipsock_posix.go                          |   2 +-
+ src/net/listen_test.go                           |   2 +-
+ src/net/{lookup_nacl.go => lookup_fake.go}       |   2 +-
+ src/net/lookup_test.go                           |   2 +
+ src/net/main_conf_test.go                        |   2 +-
+ src/net/main_noconf_test.go                      |   2 +-
+ src/net/main_posix_test.go                       |   2 +-
+ src/net/main_test.go                             |   2 +
+ src/net/mockserver_test.go                       |   2 +
+ src/net/net.go                                   |   6 +-
+ src/net/net_fake.go                              | 284 +++++++++++++++++++++++
+ src/net/net_test.go                              |   2 +
+ src/net/packetconn_test.go                       |   2 +
+ src/net/port_unix.go                             |   2 +-
+ src/net/protoconn_test.go                        |   2 +
+ src/net/rawconn_stub_test.go                     |   2 +-
+ src/net/rawconn_test.go                          |   2 +
+ src/net/sendfile_stub.go                         |   2 +-
+ src/net/sendfile_test.go                         |   2 +
+ src/net/server_test.go                           |   2 +
+ src/net/smtp/smtp_test.go                        |   2 +-
+ src/net/sock_posix.go                            |  23 --
+ src/net/sock_stub.go                             |   2 +-
+ src/net/sockaddr_posix.go                        |  34 +++
+ src/net/sockopt_stub.go                          |   2 +-
+ src/net/sockoptip_stub.go                        |   2 +-
+ src/net/tcpsock_posix.go                         |   2 +-
+ src/net/tcpsock_test.go                          |   2 +
+ src/net/tcpsock_unix_test.go                     |   2 +-
+ src/net/tcpsockopt_stub.go                       |   2 +-
+ src/net/timeout_test.go                          |   2 +
+ src/net/udpsock_posix.go                         |   2 +-
+ src/net/udpsock_test.go                          |   2 +
+ src/net/unixsock_posix.go                        |   2 +-
+ src/net/unixsock_test.go                         |   2 +-
+ src/net/writev_test.go                           |   2 +
+ src/runtime/netpoll.go                           |   2 +-
+ src/runtime/{netpoll_nacl.go => netpoll_fake.go} |   6 +-
+ src/syscall/net_js.go                            | 121 ++++++++++
+ 63 files changed, 561 insertions(+), 59 deletions(-)

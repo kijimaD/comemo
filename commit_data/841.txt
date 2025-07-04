@@ -1,0 +1,21 @@
+commit 57b34617e0f5facc34e43dfdf75fc7e2e0317e3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 10 12:45:44 2008 -0700
+
+    - Fixed bug in spec: PrimaryExpr is too restrictive in most places
+    (for instance *p was not allowed on the left side of "="). Changed
+    to Expression everywhere (this is too liberal, UnaryExpr is probably
+    good enough, but it seems funny, and we need to check semantically
+    anyway). This matches 6g yacc.
+    - Write expression syntac recursively to express evaluation order
+    and precedence syntactically.
+    - Organized open issues list, folded in stuff from todo.txt which
+    is now obsolete.
+    
+    R=r
+    DELTA=108  (41 added, 52 deleted, 15 changed)
+    OCL=16903
+    CL=16910
+
+ doc/go_spec.txt | 85 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 57 insertions(+), 28 deletions(-)

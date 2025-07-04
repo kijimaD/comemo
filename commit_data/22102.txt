@@ -1,0 +1,21 @@
+commit 42fcc6fea03673eeed1447eaab78a7df9385246e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 19 09:28:02 2015 -0700
+
+    cmd/internal/gc: add internConcat for alloc-free string concatenation
+    
+    This is a follow-up to review comments on CL 7696.
+    
+    I believe that this includes the first regular Go test in the compiler.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: Id45f51aa664c5d52ece2a61cd7d8417159ce3cf0
+    Reviewed-on: https://go-review.googlesource.com/7820
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/gc/lex.go      |  9 +++++++++
+ src/cmd/internal/gc/lex_test.go | 22 ++++++++++++++++++++++
+ src/cmd/internal/gc/subr.go     |  6 +++---
+ src/cmd/internal/gc/walk.go     | 19 ++++++++++---------
+ 4 files changed, 44 insertions(+), 12 deletions(-)

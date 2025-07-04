@@ -1,0 +1,20 @@
+commit c174e46ae91e966ab05254f739fa1692cf451a3f
+Author: Sam Whited <sam@samwhited.com>
+Date:   Sat Sep 9 10:49:04 2017 -0500
+
+    cmd/vet: don't warn on expected space in XML tag
+    
+    The change in https://golang.org/cl/43295 added warning about spaces in
+    struct tags. However, in XML tags it is expected that there will be a
+    space between the namespace and the local name.
+    
+    Change-Id: Ic31c3bdae30797f406f25c737b83bbe2de1ed1db
+    Reviewed-on: https://go-review.googlesource.com/62570
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt | 25 -------------------------
+ src/cmd/vet/structtag.go          | 26 +++++++++++++++++++++++++-
+ src/cmd/vet/testdata/structtag.go | 24 +++++++++++++++---------
+ 3 files changed, 40 insertions(+), 35 deletions(-)

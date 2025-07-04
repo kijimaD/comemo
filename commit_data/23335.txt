@@ -1,0 +1,12 @@
+commit 368f0ee6c4dc60b314dffbb63f5eab0ad62185d2
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 11 16:44:08 2015 -0400
+
+    go/types: add Example of API usage
+    
+    Change-Id: I9d3253b80508d733053789d6cb9645e029bf52e4
+    Reviewed-on: https://go-review.googlesource.com/10927
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/example_test.go | 307 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 307 insertions(+)

@@ -1,0 +1,16 @@
+commit af96030150217fe711eac5ee994b44705bfb6832
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 14:52:04 2015 -0400
+
+    cmd/go: fix go get -u handling of changing dependencies
+    
+    Fixes #9224.
+    
+    Change-Id: Ie0f4f14407099e4fa7ebe361a95b6492012928a2
+    Reviewed-on: https://go-review.googlesource.com/12192
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/get.go     |  4 ++--
+ src/cmd/go/go_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

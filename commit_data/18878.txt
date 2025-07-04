@@ -1,0 +1,15 @@
+commit 01d49dc2ddda443f302be8ca0aa1378d550687ef
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Mar 17 12:07:30 2014 -0700
+
+    encoding/hex: add error check for write error.
+    
+    I believe the original author of this code just forgot to check for error here.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/76760043
+
+ src/pkg/encoding/hex/hex.go | 3 +++
+ 1 file changed, 3 insertions(+)

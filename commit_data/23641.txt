@@ -1,0 +1,56 @@
+commit ca6ba492690135647443817ba0d3ccb0c2f0de14
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Jul 12 21:02:13 2015 +1000
+
+    image/png: don't read filter bytes for empty interlace passes.
+    
+    Fixes #11604
+    
+    The gray-gradient.png image was created by a Go program:
+    
+    ----
+    package main
+    
+    import (
+            "image"
+            "image/color"
+            "image/png"
+            "log"
+            "os"
+    )
+    
+    func main() {
+            f, err := os.Create("a.png")
+            if err != nil {
+                    log.Fatal(err)
+            }
+            defer f.Close()
+            m := image.NewGray(image.Rect(0, 0, 1, 16))
+            for i := 0; i < 16; i++ {
+                    m.SetGray(0, i, color.Gray{uint8(i * 0x11)})
+            }
+            err = png.Encode(f, m)
+            if err != nil {
+                    log.Fatal(err)
+            }
+    }
+    ----
+    
+    The equivalent gray-gradient.interlaced.png image was created via ImageMagick:
+    $ convert -interlace PNG gray-gradient.png gray-gradient.interlaced.png
+    
+    As a sanity check:
+    $ file gray-gradient.*
+    gray-gradient.interlaced.png: PNG image data, 1 x 16, 4-bit grayscale, interlaced
+    gray-gradient.png:            PNG image data, 1 x 16, 8-bit grayscale, non-interlaced
+    
+    Change-Id: I7700284f74d1ea30073aede3bce4d7651787bdbc
+    Reviewed-on: https://go-review.googlesource.com/12064
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/png/reader.go                             |  13 ++++++++++++-
+ src/image/png/reader_test.go                        |  15 +++++++++++++++
+ src/image/png/testdata/gray-gradient.interlaced.png | Bin 0 -> 247 bytes
+ src/image/png/testdata/gray-gradient.png            | Bin 0 -> 77 bytes
+ 4 files changed, 27 insertions(+), 1 deletion(-)

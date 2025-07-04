@@ -1,0 +1,20 @@
+commit 280d46b03be642fbbb817332069d6b337774746e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 25 10:22:27 2014 -0500
+
+    cmd/go: document new -exec flag on run/test
+    
+    The new flag was added by CL 68150047 (part of the NaCl replay),
+    but the change, like the original, omitted documentation of the
+    new behavior.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/68580043
+
+ doc/go1.3.txt      |  1 +
+ src/cmd/go/doc.go  | 24 ++++++++++++++++++------
+ src/cmd/go/run.go  | 11 ++++++++++-
+ src/cmd/go/test.go |  4 ++++
+ 4 files changed, 33 insertions(+), 7 deletions(-)

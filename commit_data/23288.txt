@@ -1,0 +1,12 @@
+commit 0599913a854d997edf497297f3d01d27f800e6ab
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Jun 7 04:33:44 2015 +0200
+
+    doc/go1.5.txt: correct CL for LookupEnv addition
+    
+    Change-Id: Ib43b21daef5d8291e03c0f0fbf56999e37e21e21
+    Reviewed-on: https://go-review.googlesource.com/10820
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

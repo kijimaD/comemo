@@ -1,0 +1,19 @@
+commit 8f3c2055bd17c08d82f1ea56299802e476788307
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Sep 1 16:40:54 2012 +0200
+
+    cmd/6g, cmd/8g: eliminate short integer arithmetic when possible.
+    
+    Fixes #3909.
+    Fixes #3910.
+    
+    R=rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6442114
+
+ src/cmd/6g/peep.c                               | 103 ++++++++++++++++++
+ src/cmd/8g/gsubr.c                              |   3 +-
+ src/cmd/8g/peep.c                               | 132 +++++++++++++++++++-----
+ test/{bugs/bug440.go => fixedbugs/bug440_32.go} |   8 +-
+ test/fixedbugs/bug440_64.go                     |  21 ++++
+ 5 files changed, 235 insertions(+), 32 deletions(-)

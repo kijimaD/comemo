@@ -1,0 +1,21 @@
+commit badbc52d82b1f97861bf30457014fc9ea19dfcb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 11 12:18:33 2022 -0800
+
+    spec: highlight missing prose for easier review, fixed a few sections
+    
+    The (temporary) highlights will make it easier to review the spec
+    in formatted form as opposed to html text.
+    
+    Added a missing rule about the use of adjusted core types for
+    constraint type inference.
+    
+    Adjusted rule for invalid embedding of interface types.
+    
+    Change-Id: Ie573068d2307b66c937e803c486724175415b9c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385535
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 57 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

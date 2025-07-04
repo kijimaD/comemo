@@ -1,0 +1,15 @@
+commit 3100088743190239846d758f6a7d83de5af0efb8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 1 12:16:03 2014 -0400
+
+    go/build: add go1.3 release tag
+    
+    Fixes #7918
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/91980043
+
+ src/pkg/go/build/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

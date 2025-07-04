@@ -1,0 +1,21 @@
+commit 7c1be45f5809169393eb19404ddd73fb4bf60e49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 30 13:14:46 2010 -0700
+
+    io: Avoid race condition in pipe.
+    
+    One goroutine started up and was waiting in rw.  Then another
+    goroutine decided to close the pipe.  The closing goroutine
+    stalled calling p.io.Lock() in pipeHalf.close.  (This happened
+    in gccgo).  If the closing goroutine had been able to set the
+    ioclosed flag, it would have gone on to tell the runner that
+    the pipe was closed, which would then send an EINVAL to the
+    goroutine sleeping in rw.  Unlocking p.io before sleeping in
+    rw avoids the race.
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1682048
+
+ src/pkg/io/pipe.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

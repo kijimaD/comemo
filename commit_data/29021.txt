@@ -1,0 +1,17 @@
+commit a7cad4110ac229ecf5b0fcf0a035c5a03c699415
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 8 06:57:49 2016 -0400
+
+    net/http/httputil: log err encountered during reverseproxy body copying
+    
+    Fixes #16659
+    
+    Change-Id: I13dd797e93e0b572eaf8726f1be594870d40183b
+    Reviewed-on: https://go-review.googlesource.com/30692
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 30 ++++++++++++++++++++-
+ src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

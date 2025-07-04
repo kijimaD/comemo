@@ -1,0 +1,12 @@
+commit 4237ffe5ead50a305c52630fd6726ddf220cefa0
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Dec 21 01:22:10 2013 +0100
+
+    os: reimplement HasPrefix and LastIndex to not depend on strings
+    
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, jas
+    https://golang.org/cl/44790043
+
+ src/pkg/os/file_plan9.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

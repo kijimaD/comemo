@@ -1,0 +1,16 @@
+commit eb876dd83cb8413335d64e50aae5d38337d1ebb4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 5 09:44:00 2016 -0700
+
+    crypto/dsa: eliminate invalid PublicKey early
+    
+    For PublicKey.P == 0, Verify will fail. Don't even try.
+    
+    Change-Id: I1009f2b3dead8d0041626c946633acb10086d8c8
+    Reviewed-on: https://go-review.googlesource.com/21533
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/dsa/dsa.go | 4 ++++
+ 1 file changed, 4 insertions(+)

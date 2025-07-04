@@ -1,0 +1,19 @@
+commit 509ffb94caae3fd53130d318c013cac38a179976
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 4 11:09:45 2017 -0800
+
+    cmd/go: disable concurrent compilation under GOEXPERIMENTs
+    
+    Duplicate cmd/compile check into cmd/go. Manually tested that
+    "GOEXPERIMENT=fieldtrack make.bash" passes now.
+    
+    Updates #22223.
+    
+    Change-Id: I441970a8a5ad4aadf5bd4fbd4d6cc71847b43308
+    Reviewed-on: https://go-review.googlesource.com/81776
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/gc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

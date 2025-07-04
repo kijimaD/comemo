@@ -1,0 +1,16 @@
+commit d4007aedfaf3f551f9ea7d5e2d2f86dcd2c4c990
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Sep 26 20:45:54 2021 -0700
+
+    go/types, types2: factor out some code, fix/add comments (cleanups)
+    
+    Change-Id: Id6a2e3eadc9099abbdd21b6880e1ff3ac9cfb599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352312
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/cmd/compile/internal/types2/unify.go | 6 ++++--
+ src/go/types/infer.go                    | 2 +-
+ src/go/types/unify.go                    | 6 ++++--
+ 4 files changed, 10 insertions(+), 6 deletions(-)

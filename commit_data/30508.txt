@@ -1,0 +1,19 @@
+commit 9b480521d84654c90f6030675e1e10655b180274
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 3 13:53:13 2017 -0500
+
+    cmd/compile: fix optimization of Zero newobject on amd64p32
+    
+    On amd64p32, PtrSize and RegSize don't agree, and function return
+    value is aligned with RegSize. Fix this rule. Other architectures
+    are not affected, where PtrSize and RegSize are the same.
+    
+    Change-Id: If187d3dfde3dc3b931b8e97db5eeff49a781551b
+    Reviewed-on: https://go-review.googlesource.com/37720
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 7d7ebd2fe1ff7bc081accbadac1d80c5b6352624
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 17:47:40 2010 -0700
+
+    runtime, strconv: tiny cleanups
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1081042
+
+ src/pkg/runtime/slice.c    |  4 +---
+ src/pkg/strconv/decimal.go | 17 +++++------------
+ 2 files changed, 6 insertions(+), 15 deletions(-)

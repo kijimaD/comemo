@@ -1,0 +1,17 @@
+commit 73eb27bd3bdf727347a5e4d7d369d92f712f5ab5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 11 15:09:47 2021 -0800
+
+    misc/cgo/testcarchive: don't use == for string equality in C code
+    
+    For https://gcc.gnu.org/PR99553
+    
+    Change-Id: I29a7fbfd89963d4139bc19af99330d70567938ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300993
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ misc/cgo/testcarchive/testdata/main_unix.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

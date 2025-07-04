@@ -1,0 +1,16 @@
+commit e0db7fae8728ef47b8cd020d7fe993069c3e61d0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 3 16:33:21 2013 +0800
+
+    cmd/ld: add .note.GNU-stack section for external linking
+    Fixes #5392.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/9119043
+
+ src/cmd/ld/elf.c                | 9 ++++++++-
+ src/pkg/runtime/cgo/gcc_386.S   | 3 +++
+ src/pkg/runtime/cgo/gcc_amd64.S | 4 ++++
+ src/pkg/runtime/cgo/gcc_arm.S   | 3 +++
+ 4 files changed, 18 insertions(+), 1 deletion(-)

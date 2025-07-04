@@ -1,0 +1,20 @@
+commit 8bd9242f7cd27f69449b2cdae8acbf25a952134c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 9 14:19:13 2014 -0700
+
+    bufio: fix UnreadByte
+    
+    Also:
+    - fix error messages in tests
+    - make tests more symmetric
+    
+    Fixes #7607.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/86180043
+
+ src/pkg/bufio/bufio.go      | 24 +++++++++---------
+ src/pkg/bufio/bufio_test.go | 62 ++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 57 insertions(+), 29 deletions(-)

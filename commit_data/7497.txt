@@ -1,0 +1,19 @@
+commit f80d002438016bf622c961a724ae05f306e6b721
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 17 17:14:19 2011 -0500
+
+    json: only use alphanumeric tags
+    
+    Almost the same definition as Go identifier names.
+    (Leading digits are allowed.)
+    
+    Fixes #1520.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4173061
+
+ src/pkg/json/decode.go      | 14 ++++++++------
+ src/pkg/json/decode_test.go |  8 ++++++++
+ src/pkg/json/encode.go      | 20 +++++++++++++++++---
+ 3 files changed, 33 insertions(+), 9 deletions(-)

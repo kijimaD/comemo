@@ -1,0 +1,14 @@
+commit 11441285db2532d7446664f7bd850fd3439bed64
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 11:40:17 2012 +1100
+
+    doc: add doc/articles/index.html
+    
+    Fixes #3402.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5923043
+
+ doc/articles/index.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

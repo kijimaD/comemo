@@ -1,0 +1,21 @@
+commit c14d25c648c5269c9752708dcb36052de62298fd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 15 18:24:06 2016 -0500
+
+    runtime: generalize work.finalizersDone to work.markrootDone
+    
+    We're about to add another root marking job that needs to happen only
+    during the first markroot pass (whether that's concurrent or STW),
+    just like finalizer scanning. Rather than introducing another flag
+    that has the same value as finalizersDone, just rename finalizersDone
+    to markrootDone.
+    
+    Change-Id: I535356c6ea1f3734cb5b6add264cb7bf48de95e8
+    Reviewed-on: https://go-review.googlesource.com/20043
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go     | 24 ++++++++++++------------
+ src/runtime/mgcmark.go |  6 +++---
+ 2 files changed, 15 insertions(+), 15 deletions(-)

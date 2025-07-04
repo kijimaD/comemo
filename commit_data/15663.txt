@@ -1,0 +1,15 @@
+commit 4c40e5ae51a3a8ba76ffae04b394523e154fe1b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 16:32:00 2013 -0400
+
+    cmd/ld: wrap long data lines in -a output
+    
+    Also move symbol names onto lines by themselves: some are very long.
+    Show relocations.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7689043
+
+ src/cmd/ld/data.c | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)

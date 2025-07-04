@@ -1,0 +1,118 @@
+commit f0d6ddfac03c1c3048f20d595fd50352c79e1849
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 18 10:51:25 2024 -0700
+
+    crypto/tls: don't cache marshal'd bytes
+    
+    Only cache the wire representation for clientHelloMsg and serverHelloMsg
+    during unmarshal, which are the only places we actually need to hold
+    onto them. For everything else, remove the raw field.
+    
+    This appears to have zero performance impact:
+    
+    name                                               old time/op   new time/op   delta
+    CertCache/0-10                                       177µs ± 2%    189µs ±11%   ~     (p=0.700 n=3+3)
+    CertCache/1-10                                       184µs ± 3%    182µs ± 6%   ~     (p=1.000 n=3+3)
+    CertCache/2-10                                       187µs ±12%    187µs ± 2%   ~     (p=1.000 n=3+3)
+    CertCache/3-10                                       204µs ±21%    187µs ± 1%   ~     (p=0.700 n=3+3)
+    HandshakeServer/RSA-10                               410µs ± 2%    410µs ± 3%   ~     (p=1.000 n=3+3)
+    HandshakeServer/ECDHE-P256-RSA/TLSv13-10             473µs ± 3%    460µs ± 2%   ~     (p=0.200 n=3+3)
+    HandshakeServer/ECDHE-P256-RSA/TLSv12-10             498µs ± 3%    489µs ± 2%   ~     (p=0.700 n=3+3)
+    HandshakeServer/ECDHE-P256-ECDSA-P256/TLSv13-10      140µs ± 5%    138µs ± 5%   ~     (p=1.000 n=3+3)
+    HandshakeServer/ECDHE-P256-ECDSA-P256/TLSv12-10      132µs ± 1%    133µs ± 2%   ~     (p=0.400 n=3+3)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv13-10    168µs ± 1%    171µs ± 4%   ~     (p=1.000 n=3+3)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv12-10    166µs ± 3%    163µs ± 0%   ~     (p=0.700 n=3+3)
+    HandshakeServer/ECDHE-P521-ECDSA-P521/TLSv13-10     1.87ms ± 2%   1.81ms ± 0%   ~     (p=0.100 n=3+3)
+    HandshakeServer/ECDHE-P521-ECDSA-P521/TLSv12-10     1.86ms ± 0%   1.86ms ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/1MB/TLSv12-10                  6.79ms ± 3%   6.73ms ± 0%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/1MB/TLSv13-10                  6.73ms ± 1%   6.75ms ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/2MB/TLSv12-10                  12.8ms ± 2%   12.7ms ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/2MB/TLSv13-10                  13.1ms ± 3%   12.8ms ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/4MB/TLSv12-10                  24.9ms ± 2%   24.7ms ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/4MB/TLSv13-10                  26.0ms ± 4%   24.9ms ± 1%   ~     (p=0.100 n=3+3)
+    Throughput/MaxPacket/8MB/TLSv12-10                  50.0ms ± 3%   48.9ms ± 0%   ~     (p=0.200 n=3+3)
+    Throughput/MaxPacket/8MB/TLSv13-10                  49.8ms ± 2%   49.3ms ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/16MB/TLSv12-10                 97.3ms ± 1%   97.4ms ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/16MB/TLSv13-10                 97.9ms ± 0%   97.9ms ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/32MB/TLSv12-10                  195ms ± 0%    194ms ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/32MB/TLSv13-10                  196ms ± 0%    196ms ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/64MB/TLSv12-10                  405ms ± 3%    385ms ± 0%   ~     (p=0.100 n=3+3)
+    Throughput/MaxPacket/64MB/TLSv13-10                  391ms ± 1%    388ms ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/1MB/TLSv12-10              6.75ms ± 0%   6.75ms ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/1MB/TLSv13-10              6.84ms ± 1%   6.77ms ± 0%   ~     (p=0.100 n=3+3)
+    Throughput/DynamicPacket/2MB/TLSv12-10              12.8ms ± 1%   12.8ms ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/DynamicPacket/2MB/TLSv13-10              12.8ms ± 1%   13.0ms ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/4MB/TLSv12-10              24.8ms ± 1%   24.8ms ± 0%   ~     (p=1.000 n=3+3)
+    Throughput/DynamicPacket/4MB/TLSv13-10              25.1ms ± 2%   25.1ms ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/DynamicPacket/8MB/TLSv12-10              49.2ms ± 2%   48.9ms ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/8MB/TLSv13-10              49.3ms ± 1%   49.4ms ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/16MB/TLSv12-10             97.1ms ± 0%   98.0ms ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/16MB/TLSv13-10             98.8ms ± 1%   98.4ms ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/32MB/TLSv12-10              192ms ± 0%    198ms ± 5%   ~     (p=0.100 n=3+3)
+    Throughput/DynamicPacket/32MB/TLSv13-10              194ms ± 0%    196ms ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/DynamicPacket/64MB/TLSv12-10              385ms ± 1%    384ms ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/64MB/TLSv13-10              387ms ± 0%    388ms ± 0%   ~     (p=0.400 n=3+3)
+    Latency/MaxPacket/200kbps/TLSv12-10                  694ms ± 0%    694ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/200kbps/TLSv13-10                  699ms ± 0%    699ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/500kbps/TLSv12-10                  278ms ± 0%    278ms ± 0%   ~     (p=0.400 n=3+3)
+    Latency/MaxPacket/500kbps/TLSv13-10                  280ms ± 0%    280ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/MaxPacket/1000kbps/TLSv12-10                 140ms ± 1%    140ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/1000kbps/TLSv13-10                 141ms ± 0%    141ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/MaxPacket/2000kbps/TLSv12-10                70.5ms ± 0%   70.4ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/2000kbps/TLSv13-10                70.7ms ± 0%   70.7ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/5000kbps/TLSv12-10                28.8ms ± 0%   28.8ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/MaxPacket/5000kbps/TLSv13-10                28.9ms ± 0%   28.9ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/DynamicPacket/200kbps/TLSv12-10              134ms ± 0%    134ms ± 0%   ~     (p=0.700 n=3+3)
+    Latency/DynamicPacket/200kbps/TLSv13-10              138ms ± 0%    138ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/DynamicPacket/500kbps/TLSv12-10             54.1ms ± 0%   54.1ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/DynamicPacket/500kbps/TLSv13-10             55.7ms ± 0%   55.7ms ± 0%   ~     (p=0.100 n=3+3)
+    Latency/DynamicPacket/1000kbps/TLSv12-10            27.6ms ± 0%   27.6ms ± 0%   ~     (p=0.200 n=3+3)
+    Latency/DynamicPacket/1000kbps/TLSv13-10            28.4ms ± 0%   28.4ms ± 0%   ~     (p=0.200 n=3+3)
+    Latency/DynamicPacket/2000kbps/TLSv12-10            14.4ms ± 0%   14.4ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/DynamicPacket/2000kbps/TLSv13-10            14.6ms ± 0%   14.6ms ± 0%   ~     (p=1.000 n=3+3)
+    Latency/DynamicPacket/5000kbps/TLSv12-10            6.44ms ± 0%   6.45ms ± 0%   ~     (p=0.100 n=3+3)
+    Latency/DynamicPacket/5000kbps/TLSv13-10            6.49ms ± 0%   6.49ms ± 0%   ~     (p=0.700 n=3+3)
+    
+    name                                               old speed     new speed     delta
+    Throughput/MaxPacket/1MB/TLSv12-10                 155MB/s ± 3%  156MB/s ± 0%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/1MB/TLSv13-10                 156MB/s ± 1%  155MB/s ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/2MB/TLSv12-10                 163MB/s ± 2%  165MB/s ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/2MB/TLSv13-10                 160MB/s ± 3%  164MB/s ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/4MB/TLSv12-10                 168MB/s ± 2%  170MB/s ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/4MB/TLSv13-10                 162MB/s ± 4%  168MB/s ± 1%   ~     (p=0.100 n=3+3)
+    Throughput/MaxPacket/8MB/TLSv12-10                 168MB/s ± 3%  172MB/s ± 0%   ~     (p=0.200 n=3+3)
+    Throughput/MaxPacket/8MB/TLSv13-10                 168MB/s ± 2%  170MB/s ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/16MB/TLSv12-10                172MB/s ± 1%  172MB/s ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/16MB/TLSv13-10                171MB/s ± 0%  171MB/s ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/MaxPacket/32MB/TLSv12-10                172MB/s ± 0%  173MB/s ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/MaxPacket/32MB/TLSv13-10                171MB/s ± 0%  172MB/s ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/MaxPacket/64MB/TLSv12-10                166MB/s ± 3%  174MB/s ± 0%   ~     (p=0.100 n=3+3)
+    Throughput/MaxPacket/64MB/TLSv13-10                171MB/s ± 1%  173MB/s ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/1MB/TLSv12-10             155MB/s ± 0%  155MB/s ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/1MB/TLSv13-10             153MB/s ± 1%  155MB/s ± 0%   ~     (p=0.100 n=3+3)
+    Throughput/DynamicPacket/2MB/TLSv12-10             164MB/s ± 1%  164MB/s ± 1%   ~     (p=0.400 n=3+3)
+    Throughput/DynamicPacket/2MB/TLSv13-10             163MB/s ± 1%  162MB/s ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/4MB/TLSv12-10             169MB/s ± 1%  169MB/s ± 0%   ~     (p=1.000 n=3+3)
+    Throughput/DynamicPacket/4MB/TLSv13-10             167MB/s ± 1%  167MB/s ± 1%   ~     (p=1.000 n=3+3)
+    Throughput/DynamicPacket/8MB/TLSv12-10             170MB/s ± 2%  171MB/s ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/8MB/TLSv13-10             170MB/s ± 1%  170MB/s ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/16MB/TLSv12-10            173MB/s ± 0%  171MB/s ± 1%   ~     (p=0.200 n=3+3)
+    Throughput/DynamicPacket/16MB/TLSv13-10            170MB/s ± 1%  170MB/s ± 1%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/32MB/TLSv12-10            175MB/s ± 0%  170MB/s ± 5%   ~     (p=0.100 n=3+3)
+    Throughput/DynamicPacket/32MB/TLSv13-10            173MB/s ± 0%  171MB/s ± 1%   ~     (p=0.300 n=3+3)
+    Throughput/DynamicPacket/64MB/TLSv12-10            174MB/s ± 1%  175MB/s ± 0%   ~     (p=0.700 n=3+3)
+    Throughput/DynamicPacket/64MB/TLSv13-10            174MB/s ± 0%  173MB/s ± 0%   ~     (p=0.400 n=3+3)
+    
+    Change-Id: Ifa79cce002011850ed8b2835edd34f60e014eea8
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-arm64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/common.go                  |   9 ++
+ src/crypto/tls/handshake_client_tls13.go  |   1 -
+ src/crypto/tls/handshake_messages.go      | 211 ++++++++----------------------
+ src/crypto/tls/handshake_messages_test.go |  82 +++++++-----
+ 4 files changed, 114 insertions(+), 189 deletions(-)

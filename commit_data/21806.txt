@@ -1,0 +1,13 @@
+commit 30e36983f381e366e470d6c92e62e5804cbb9712
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:50:58 2015 -0500
+
+    cmd/go: install new5l etc to tool dir
+    
+    Change-Id: I77ab2bed5884b0763147703fd976d462d036336d
+    Reviewed-on: https://go-review.googlesource.com/6334
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/pkg.go | 4 ++++
+ 1 file changed, 4 insertions(+)

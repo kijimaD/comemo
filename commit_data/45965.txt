@@ -1,0 +1,21 @@
+commit 1f9c9d853067635305f72e247c5b49e3fa5da8af
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Aug 3 12:11:29 2021 +0800
+
+    doc: use "high address/low address" instead of "top/bottom"
+    
+    The current document uses the "top" and "bottom" when talking
+    about the address within a frame, which may easily lead to
+    misunderstandings. This patch directly uses "high address"
+    and "low address" to make the expression clearer.
+    
+    Change-Id: I7469330bbdc158672d7f0314fe6680ebdd9ab79a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339369
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/asm.html                     | 8 ++++----
+ src/cmd/internal/obj/textflag.go | 4 ++--
+ src/runtime/textflag.h           | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

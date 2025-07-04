@@ -1,0 +1,13 @@
+commit 4c945c2cfc29ccc607f2f606053953813cd0c4b6
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 24 11:02:44 2011 +1000
+
+    image/gif: simplify blockReader.Read.
+    Inverting the tests avoids recursion and simplifies the flow.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4551057
+
+ src/pkg/image/gif/reader.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

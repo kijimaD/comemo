@@ -1,0 +1,20 @@
+commit 2730c6af9fb8a7dea9bf610699be0d543aed4da1
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Sat Jun 4 03:41:06 2022 +0000
+
+    runtime: fix typo in libfuzzer_arm64.s
+    
+    statment -> statement
+    
+    Change-Id: Ia93a466fdc20157a7d6048903e359fe8717ecb8f
+    GitHub-Last-Rev: 0a9bc5cab0ec2ac8d76ede3722c8813372ac771e
+    GitHub-Pull-Request: golang/go#53231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410374
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/libfuzzer_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

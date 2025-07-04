@@ -1,0 +1,15 @@
+commit 5af6ce541f744d56d800d1810cfa41c7f95869b6
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Aug 16 17:28:16 2011 -0400
+
+    net: add multicast stubs for openbsd
+    
+    Add multicast stubs and sync with recent changes.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/4838058
+
+ src/pkg/net/Makefile             |  4 +++-
+ src/pkg/net/interface_openbsd.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 6ac08ba6387129d9cf9aef924b252270c407d4c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 12:24:59 2010 -0400
+
+    runtime: update arm softfloat - no more R12
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2555041
+
+ src/pkg/runtime/arm/softfloat.c | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

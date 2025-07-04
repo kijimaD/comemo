@@ -1,0 +1,13 @@
+commit 2243fe9fc1aa567e05bee1c025503616c7346e88
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 20 22:37:53 2010 -0700
+
+    A+C: add Kyle Consalus (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/662041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

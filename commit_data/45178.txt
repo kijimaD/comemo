@@ -1,0 +1,20 @@
+commit c692f752b5b78b919e11f3fccf158bc7dc17920b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 16 10:17:34 2021 +0200
+
+    cmd/link/internal/ld: re-enable tests on darwin
+    
+    It looks like these are fixed again for darwin on current tip after CL
+    111258 marked them to be skipped.
+    
+    Updates #23168
+    
+    Change-Id: I4abecee1152ccd4f2d44d76d1acdecb0d6140981
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308994
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

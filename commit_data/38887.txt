@@ -1,0 +1,14 @@
+commit 562b7c27ecd9320855e8c89d41fb9a549d93ff34
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Apr 24 12:09:15 2019 -0700
+
+    testing: fix minor bug with mutex profile error message
+    
+    Change-Id: I92b7a44476cfd9e2f099477b9d7903bbaa2fd8da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173720
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

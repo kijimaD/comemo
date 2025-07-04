@@ -1,0 +1,12 @@
+commit 6a13175f7decb03555476a3811abe67ac1ee8db0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 12:47:09 2011 -0800
+
+    govet: add Panic to the list of functions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4119049
+
+ src/cmd/govet/govet.go | 2 ++
+ 1 file changed, 2 insertions(+)

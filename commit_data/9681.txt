@@ -1,0 +1,12 @@
+commit 7edfcede1303b498b55d261d35eb4c98901edc4b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 14 11:18:43 2011 -0700
+
+    path/filepath: document that Walk sorts its output
+    
+    R=golang-dev, cw
+    CC=golang-dev
+    https://golang.org/cl/5004045
+
+ src/pkg/path/filepath/path.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

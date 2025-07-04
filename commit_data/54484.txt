@@ -1,0 +1,27 @@
+commit 5f872db5fc8a05c0b74bea1560595b34c268610a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Jul 7 11:46:45 2023 -0500
+
+    cmd/internal/obj/ppc64: improve RLWNM encoding
+    
+    If the rotate argument is the constant 0, rlwnm may be generated
+    instead of rlwinm. In all reasonable cases, this is OK as R0 should
+    hold 0. However, this could be problematic in some cases when
+    writing PPC64 assembly.
+    
+    This consolidates the RLWNM and RLWMI optab entries. Invalid RLWMI
+    usage is still rejected, however the error will be be slightly
+    different. The invalid usage will be caught in oprrr instead of oplook.
+    
+    Change-Id: I9958bd24660fea5f8fc9e3e50d51daa7349e3206
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527275
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  4 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 85 +++++++++++++------------------
+ 2 files changed, 40 insertions(+), 49 deletions(-)

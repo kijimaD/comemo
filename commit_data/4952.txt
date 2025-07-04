@@ -1,0 +1,12 @@
+commit dfaa6eaa76bb1d440a2e7f93fa2ee6da622f9d0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 25 15:54:12 2010 -0800
+
+    tabwriter: make use of new []byte() conversion
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224063
+
+ src/pkg/tabwriter/tabwriter.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

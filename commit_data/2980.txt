@@ -1,0 +1,13 @@
+commit ce1dd6cce375c65ecbdd11276e69f0e6de9d424b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 14 09:39:14 2009 -0700
+
+    - do not accept forward-declarations for structs and interfaces anymore
+    
+    R=r
+    DELTA=49  (0 added, 14 deleted, 35 changed)
+    OCL=33272
+    CL=33272
+
+ src/pkg/go/parser/parser.go | 76 ++++++++++++++++++---------------------------
+ 1 file changed, 31 insertions(+), 45 deletions(-)

@@ -1,0 +1,33 @@
+commit 60abe013217e224b200b6c3e6da344a6e5af431c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 15 22:27:37 2021 -0400
+
+    cmd/link: fix file-local checks in xcoff
+    
+    The xcoff writer has several "ldr.SymVersion(s) != 0" checks. The
+    intent of these is to check for file-local (or static) symbols. Prior
+    to the introduction of symbol ABIs, this was indeed equivalent since
+    only file-local symbols has non-zero versions, but ABIs also use the
+    symbol version space. This still happened to work until much more
+    recently because we were only ever cgo-exporting version 0 symbols,
+    but CL 309341 changed this, causing these checks to fail on symbols
+    that were okay to export.
+    
+    Replace these checks with ldr.IsFileLocal(s).
+    
+    This should fix the AIX builder.
+    
+    (Originally based on CL 309772.)
+    
+    Fixes #45553.
+    Updates #40724.
+    
+    Change-Id: I0a3a7f621ad8f9fe078d34e667286275257691ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310729
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/xcoff.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

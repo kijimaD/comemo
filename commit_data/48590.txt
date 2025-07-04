@@ -1,0 +1,24 @@
+commit 3943d97dc7bb1d0c9574ac5f372a10952ebae7b1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 17 10:44:13 2022 +0100
+
+    cmd/go: add comments to C.* special functions
+    
+    Adding comments to these functions help IDE tooling to display
+    meaningful documentation, p.e. on hover.
+    
+    Tested with gopls and vscode.
+    
+    Updates #51134
+    
+    Change-Id: Ie956f7cf192af0e828def4a141783f3a2589f77d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386414
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/out.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,0 +1,35 @@
+commit dea23e9ca80dd629041cba03ae2544dad19948ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 11 12:40:12 2021 -0700
+
+    src/make.*: make --no-clean flag a no-op that prints a warning
+    
+    This flag is undocumented and is no longer useful. Users who want to
+    install additional toolchains without cleaning the installed packages
+    should just use `go install`.
+    
+    This CL changes cmd/dist to print a warning that --no-clean is
+    deprecated and to advise users to use `go install std cmd` instead,
+    and then otherwise ignores it:
+    
+    ```
+    $ ./make.bash --no-clean
+    Building Go cmd/dist using $GOROOT_BOOTSTRAP. (devel +b7a85e0003 linux/amd64)
+    warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead
+    Building Go toolchain1 using $GOROOT_BOOTSTRAP.
+    ```
+    
+    Fixes #47204.
+    
+    Change-Id: I275031832098401a49e491e324e8de3427973630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341392
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go |  7 ++++++-
+ src/make.bash         |  8 +-------
+ src/make.bat          | 20 ++++++++++----------
+ src/make.rc           |  7 +------
+ 4 files changed, 18 insertions(+), 24 deletions(-)

@@ -1,0 +1,18 @@
+commit 2308aefc845d16c44882cff5590903b74aab42bf
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 1 12:25:09 2011 -0500
+
+    gofix: add a fix for hash.Sum.
+    
+    This fix adds an output argument to hash.Sum.
+    
+    Tree changes in https://golang.org/cl/5448065
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5450051
+
+ src/cmd/gofix/Makefile        |  1 +
+ src/cmd/gofix/hashsum.go      | 94 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/hashsum_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 194 insertions(+)

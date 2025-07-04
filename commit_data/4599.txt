@@ -1,0 +1,12 @@
+commit 6ae763a7270ad3c0a492ee2a044d9a5d9e7a4952
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 13:29:49 2010 -0800
+
+    vector: drop rule for bench, now in Make.pkg
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/186139
+
+ src/pkg/container/vector/Makefile | 3 ---
+ 1 file changed, 3 deletions(-)

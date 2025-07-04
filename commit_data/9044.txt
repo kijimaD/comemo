@@ -1,0 +1,24 @@
+commit 7aa1a1a64d8f43a33b41f67a5c9366b3d8b67328
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 13 15:58:31 2011 +1000
+
+    exp/template: doc and API changes suggested by rsc.
+    - template invocation is by string constant only.
+    - NewSet is gone.
+    - no global Funcs
+    - writer is now first arg to Execute
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4700043
+
+ src/pkg/exp/template/doc.go        | 72 +++++++++++++++++---------------------
+ src/pkg/exp/template/exec.go       | 27 ++++----------
+ src/pkg/exp/template/exec_test.go  |  4 +--
+ src/pkg/exp/template/funcs.go      |  9 +----
+ src/pkg/exp/template/helper.go     | 22 ++++++------
+ src/pkg/exp/template/parse.go      | 29 +++++----------
+ src/pkg/exp/template/parse_test.go | 10 +++---
+ src/pkg/exp/template/set.go        | 32 +++++++++--------
+ src/pkg/exp/template/set_test.go   |  8 ++---
+ 9 files changed, 85 insertions(+), 128 deletions(-)

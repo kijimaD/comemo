@@ -1,0 +1,16 @@
+commit 26557579005f0e70e31e2c24dd272013f47f3cd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 3 12:23:50 2011 -0700
+
+    http: don't fail on accept hitting EMFILE
+    
+    Fixes #1891
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4550112
+
+ src/pkg/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     |  4 ++++
+ src/pkg/os/error_posix.go  |  2 +-
+ 3 files changed, 42 insertions(+), 1 deletion(-)

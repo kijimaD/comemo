@@ -1,0 +1,13 @@
+commit 1d0c7792f172ab0485edf2818398deffe3d452ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 9 11:31:23 2015 -0800
+
+    runtime: add missing copyright notices
+    
+    Change-Id: Icecfe9223d8457de067391fffa9f0fcee4292be7
+    Reviewed-on: https://go-review.googlesource.com/2620
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/print1_write.go         | 4 ++++
+ src/runtime/print1_write_android.go | 4 ++++
+ 2 files changed, 8 insertions(+)

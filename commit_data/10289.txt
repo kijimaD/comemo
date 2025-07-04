@@ -1,0 +1,15 @@
+commit e50479ca889a319ffbb669236e949035a59fd82d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:34:23 2011 -0800
+
+    gofix: add go1pkgrename
+    This will do the package import renamings for Go 1.
+    
+    R=rsc, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5316078
+
+ src/cmd/gofix/Makefile             |  1 +
+ src/cmd/gofix/go1pkgrename.go      | 93 ++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/go1pkgrename_test.go | 98 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 192 insertions(+)

@@ -1,0 +1,25 @@
+commit 42137704fca158f14c4aebff61b54ebeae788a4a
+Author: 0xc0d <aliasgharjosie@gmail.com>
+Date:   Tue Nov 22 00:14:11 2022 +0000
+
+    net/mail: fix EOF error while reading header-only message
+    
+    Check if any header found in case of EOF to recognize header-only
+    messages and if so, return a Message with the found headers
+    and a body from the reader which is already empty.
+    
+    Fixes #33823.
+    
+    Change-Id: I2f0396b08e9be4e6c89c212ce62b9c87b5f63123
+    GitHub-Last-Rev: 356a9420837bf7e247247f7dc7c8a1d218684aeb
+    GitHub-Pull-Request: golang/go#47898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344269
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mail/message.go      |  2 +-
+ src/net/mail/message_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 979d9027aecf265214a6dcc27fe037bfd70355f2
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Nov 13 22:51:21 2018 -0700
+
+    math/bits: define Div to panic when y<=hi
+    
+    Div panics when y<=hi because either the quotient overflows
+    the size of the output or division by zero occurs when y==0.
+    This provides a uniform behavior for all implementations.
+    
+    Fixes #28316
+    
+    Change-Id: If23aeb10e0709ee1a60b7d614afc9103d674a980
+    Reviewed-on: https://go-review.googlesource.com/c/149517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/bits/bits.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

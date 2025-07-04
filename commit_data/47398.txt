@@ -1,0 +1,25 @@
+commit 4d0683965bd05aee6845bf6849c85c4bf2bb10d4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 5 13:02:09 2021 +0100
+
+    net: do more faithful conversion from AddrPort to UDPAddr
+    
+    A UDPAddr with a nil IP is a valid state, representing an AF-agnostic
+    unspecified address, so checking for addr.IsValid() isn't correct;
+    remove that, as it's only needed in the UDP rx path where it can be
+    added. Secondly, forcing everything to be IPv6 also is not correct, and
+    was likely done when the missing .AsSlice() made doing the right thing
+    less ergonomic. Fix this by using .AsSlice(), which properly preserves
+    IP version.
+    
+    Change-Id: Idd1eaecd4076f32a843f859a0a9802ef98f956d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361478
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/udpsock.go      | 16 +++++++---------
+ src/net/udpsock_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 9 deletions(-)

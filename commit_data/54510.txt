@@ -1,0 +1,24 @@
+commit 3c4f12a7d6bc6839b3dd2f4b04aeca962745afb3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 19 10:37:28 2023 -0400
+
+    net/http: buffer the testConn close channel in TestHandlerFinishSkipBigContentLengthRead
+    
+    Previously the test used an unbuffered channel, but testConn.Close
+    sends to it with a select-with-default, so the send would be dropped
+    if the test goroutine happened not to have parked on the receive yet.
+    
+    To make this kind of bug less likely in future tests, use a
+    newTestConn helper function instead of constructing testConn channel
+    literals in each test individually.
+    
+    Fixes #62622.
+    
+    Change-Id: I016cd0a89cf8a2a748ed57a4cdbd01a178f04dab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

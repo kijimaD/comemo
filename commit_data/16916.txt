@@ -1,0 +1,12 @@
+commit 4eaf91a7a729f96b020324cc78e66bc687f549f5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jul 30 04:31:15 2013 +0200
+
+    cmd/gc: make bisonerrors compatible with GNU Bison 3.0
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11990043
+
+ src/cmd/gc/bisonerrors | 3 +++
+ 1 file changed, 3 insertions(+)

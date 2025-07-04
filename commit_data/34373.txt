@@ -1,0 +1,13 @@
+commit 486caa26d7cd40e7aa9b1ca5d1360d093562eef4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 12 21:36:20 2017 -0800
+
+    runtime: short-circuit typedmemmove when dst==src
+    
+    Change-Id: I855268a4c0d07ad602ec90f5da66422d3d87c5f2
+    Reviewed-on: https://go-review.googlesource.com/94595
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbarrier.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,23 @@
+commit 226fb099d9c1f81296ba4395c839c52875c0b7be
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 00:55:01 2011 -0400
+
+    runtime: add UpdateMemStats, use in tests
+    
+    Drops mallocrep1.go back to a reasonable
+    amount of time.  (154 -> 0.8 seconds on my Mac)
+    
+    Fixes #2085.
+    
+    R=golang-dev, dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/4811045
+
+ src/pkg/runtime/mem.go |  7 ++++++-
+ src/pkg/runtime/mgc0.c | 16 ++++++++++++++++
+ test/gc2.go            |  3 ++-
+ test/malloc1.go        |  1 +
+ test/mallocrand.go     |  1 +
+ test/mallocrep.go      |  6 ++++--
+ test/mallocrep1.go     |  9 ++++++---
+ 7 files changed, 36 insertions(+), 7 deletions(-)

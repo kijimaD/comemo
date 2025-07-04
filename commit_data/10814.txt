@@ -1,0 +1,29 @@
+commit 1b82e03a8fd1a2558979d8870d973244505b5494
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 12:33:36 2011 -0500
+
+    os: make compatible with go/build
+    
+    It is probably a mistake to have these here at all -
+    os is supposed to be portable - but this only fixes
+    the build issue.
+    
+    R=golang-dev, r, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5487073
+
+ src/pkg/os/Makefile                 | 20 +++++----------
+ src/pkg/os/mksignals.sh             | 22 ++++++++++++++++
+ src/pkg/os/mkunixsignals.sh         |  7 +++--
+ src/pkg/os/zsignal_darwin_386.go    | 48 ++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_darwin_amd64.go  | 48 ++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_freebsd_386.go   | 50 ++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_freebsd_amd64.go | 50 ++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_linux_386.go     | 51 +++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_linux_amd64.go   | 51 +++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_linux_arm.go     | 51 +++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_openbsd_386.go   | 49 +++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_openbsd_amd64.go | 49 +++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_windows_386.go   | 29 +++++++++++++++++++++
+ src/pkg/os/zsignal_windows_amd64.go | 29 +++++++++++++++++++++
+ 14 files changed, 538 insertions(+), 16 deletions(-)

@@ -1,0 +1,13 @@
+commit c17347eea971701057a30ef97ff2ef72f684760f
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 9 23:17:38 2011 +1000
+
+    tutorial: remove all line numbers and references to them.
+    
+    R=golang-dev, mikioh.mikioh, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4675070
+
+ doc/go_tutorial.html | 82 ++++++++++++++++++++++++++--------------------------
+ doc/go_tutorial.txt  | 20 ++++++-------
+ 2 files changed, 50 insertions(+), 52 deletions(-)

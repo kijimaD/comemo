@@ -1,0 +1,23 @@
+commit 5b509d993d3a3a212b4033815be8b7b439fac672
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 12 15:49:59 2020 +0200
+
+    lib/time, time/tzdata: update tz data to 2020b
+    
+    Set ZFLAGS="-b fat" as the default was changed to '-b slim', see
+    http://mm.icann.org/pipermail/tz-announce/2020-October/000059.html
+    This will make sure that backwards-compatibibilty data is still emitted.
+    
+    Updates #22487
+    
+    Change-Id: I310a1b3a91e435673d1df41fbf8bb76abce1f94d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261363
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash       |     6 +-
+ lib/time/zoneinfo.zip      |   Bin 782509 -> 783364 bytes
+ src/time/tzdata/zipdata.go | 25139 ++++++++++++++++++++++---------------------
+ 3 files changed, 12580 insertions(+), 12565 deletions(-)

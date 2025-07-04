@@ -1,0 +1,17 @@
+commit 0e2cde7c69f2b9786b0f2fb92626d47f67cd286a
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 28 15:00:49 2017 +0900
+
+    cmd/link: refactor container()
+    
+    * rename to emitPcln because I'd like to skip not only container types,
+      but also something like "go.buildid" in the future.
+    * return bool instead of int.
+    
+    Change-Id: I029adb81292f7dd2fe98e69f3877c5c27f32ec30
+    Reviewed-on: https://go-review.googlesource.com/59415
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

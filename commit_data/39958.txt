@@ -1,0 +1,22 @@
+commit 62fb079e2b374d0e64f5432191f53cecd5282f6b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Sep 18 00:10:07 2019 -0600
+
+    syscall: avoid memory corruption in mksyscall_windows.go with *bool parameters
+    
+    Windows type PBOOL is a pointer to a 4 byte value, where 0 means false
+    and not-0 means true. That means we should use uint32 here, not bool,
+    since Go bools can be 1 byte. Since a *bool is never a "real" valid
+    Windows type, converting on both in and out is probably sufficient,
+    since *bool shouldn't ever be used as something with significance for
+    its particular address.
+    
+    Updates: #34364
+    Change-Id: I4c1b91cd9a39d91e23dae6f894b9a49f7fba2c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196122
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/mksyscall_windows.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

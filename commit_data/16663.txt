@@ -1,0 +1,16 @@
+commit b92b09300a2b85d02041499f5cf93a7b30939c36
+Author: Frithjof Schulze <schulze@math.uni-hannover.de>
+Date:   Thu Jun 27 11:23:55 2013 -0700
+
+    crypto/tls: Change TLS version to 1.1 in the package comment.
+    
+    Also use 2048-bit RSA keys as default in generate_cert.go,
+    as recommended by the NIST.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10676043
+
+ src/pkg/crypto/tls/generate_cert.go | 2 +-
+ src/pkg/crypto/tls/tls.go           | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

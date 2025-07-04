@@ -1,0 +1,12 @@
+commit 523cb45c9d46dc7765c7626303e8a80210bbc5bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 28 16:58:14 2013 -0800
+
+    net/http: document net/http/cookiejar on CookieJar
+    
+    R=golang-dev, nigeltao, adg
+    CC=golang-dev
+    https://golang.org/cl/7444048
+
+ src/pkg/net/http/jar.go | 2 ++
+ 1 file changed, 2 insertions(+)

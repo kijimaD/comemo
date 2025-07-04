@@ -1,0 +1,19 @@
+commit eb29ac7a7cf97cd364c9d343377b104bc3e90927
+Author: Gabriel Russell <gabriel.russell@gmail.com>
+Date:   Tue Aug 23 08:31:26 2016 -0400
+
+    time: fix optional fractional seconds range err
+    
+    The optional fractional seconds overrides any range error
+    from the second parsing. Instead don't look for optional fractional
+    seconds if a range error has occured.
+    
+    Change-Id: I27e0a2432740f6753668bd8833e48b9495bc4036
+    Reviewed-on: https://go-review.googlesource.com/27590
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/format.go      | 1 +
+ src/time/format_test.go | 2 ++
+ 2 files changed, 3 insertions(+)

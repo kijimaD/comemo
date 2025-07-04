@@ -1,0 +1,24 @@
+commit ece954d8b8e13a76de891c8078c27c5e7f884f9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:06:04 2021 -0500
+
+    runtime: find g in Windows profiler using SP
+    
+    The architecture-specific interpretation of m->tls[0]
+    is unnecessary and fragile. Delete it.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I927345e52fa2f1741d4914478a29d1fb8acb0dc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288806
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/os_windows.go     | 22 +++++++++++-----------
+ src/runtime/sys_windows_arm.s | 34 ----------------------------------
+ 2 files changed, 11 insertions(+), 45 deletions(-)

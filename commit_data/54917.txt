@@ -1,0 +1,17 @@
+commit fa903593fb7c40a5745817b68d9a71ab6b934009
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Tue Nov 7 13:43:23 2023 -0800
+
+    log/slog: fix method name in docs
+    
+    My hunch is the method was renamed during the development process but
+    the code comment was not updated to match.
+    
+    Change-Id: Ib7aafc863f82a6bbe09e68dc3c5e087e16f228a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540536
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/log/slog/record.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

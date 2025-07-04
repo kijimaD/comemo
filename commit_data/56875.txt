@@ -1,0 +1,31 @@
+commit 73186ba00251b3ed8baaab36e4f5278c7681155b
+Author: Manuel Sabin <msabin27@gmail.com>
+Date:   Fri Jun 7 14:50:42 2024 -0400
+
+    crypto/internal/cryptotest: add common tests for the hash.Hash interface
+    
+    This CL creates the cryptotest package to host a suite of tests
+    for interfaces that are implemented in the crypto package.  This CL
+    includes a set of tests for the hash.Hash interface, and calls these tests from the tests of hash.Hash implementations in crypto/.
+    
+    Tests for other interfaces will be included in subsequent CLs.
+    
+    Updates #25309
+    
+    Change-Id: Ic47086fd7f585e812c8b0d2186c50792c773781e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592855
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/hmac/hmac_test.go           |  41 ++-----
+ src/crypto/internal/cryptotest/hash.go | 189 +++++++++++++++++++++++++++++++++
+ src/crypto/md5/md5_test.go             |   5 +
+ src/crypto/sha1/sha1_test.go           |   5 +
+ src/crypto/sha256/sha256_test.go       |  10 ++
+ src/crypto/sha512/sha512_test.go       |  16 +++
+ src/go/build/deps_test.go              |   3 +
+ 7 files changed, 236 insertions(+), 33 deletions(-)

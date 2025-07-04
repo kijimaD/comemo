@@ -1,0 +1,22 @@
+commit 5cc030aa1996762e48ce446001078ce6447f105e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 27 14:42:06 2020 +0200
+
+    go/ast: note that in BasicLit CHARs and STRINGs are quoted
+    
+    The Value field of ast.BasicLit is a string field holding the literal
+    string. For CHARs and STRINGs, the BasicLit.Value literal includes
+    quotes, so to use the value in practise one will often need to Unquote
+    it.
+    
+    Since this is a common gotcha (I've been bitten by this a few times),
+    document it, and suggest the use of the strconv.Unquote functions.
+    
+    Fixes #39590
+    
+    Change-Id: Ie3e13f5a2a71bb1b59e03bc5b3a16d8e2e7c01d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244960
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/go/ast/ast.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

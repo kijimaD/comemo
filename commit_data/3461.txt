@@ -1,0 +1,30 @@
+commit 2c2e2c5d5582225632be487dba4ede8761374294
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 15:28:47 2009 -0700
+
+    more comment work.
+    got rid of regexps.
+    primary bug fix is that // inside /* */ do not get stripped anymore,
+    so that the text inside
+    
+    /*
+    int a;
+    // int b;
+    int c;
+    */
+    
+    is
+    
+    int a;
+    // int b;
+    int c;
+    
+    before, the "int b;" line was being uncommented too.
+    
+    R=gri
+    DELTA=65  (13 added, 42 deleted, 10 changed)
+    OCL=35334
+    CL=35404
+
+ src/pkg/go/doc/comment.go | 71 ++++++++++++++---------------------------------
+ 1 file changed, 21 insertions(+), 50 deletions(-)

@@ -1,0 +1,28 @@
+commit 47bdae942242eca4be94989bab485bb1335f354d
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Nov 7 23:37:21 2016 -0800
+
+    cmd/vet: detect defer resp.Body.Close() before error check
+    
+    This check detects the code
+    
+            resp, err := http.Get("http://foo.com")
+            defer resp.Body.Close()
+            if err != nil {
+                    ...
+            }
+    
+    For every call to a function on the net/http package or any method
+    on http.Client that returns (*http.Response, error), it checks
+    whether the next line is a defer statement that calls on the response.
+    
+    Fixes #17780.
+    
+    Change-Id: I9d70edcbfa2bad205bf7f45281597d074c795977
+    Reviewed-on: https://go-review.googlesource.com/32911
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/doc.go                   |  15 +++-
+ src/cmd/vet/httpresponse.go          | 153 +++++++++++++++++++++++++++++++++++
+ src/cmd/vet/testdata/httpresponse.go |  85 +++++++++++++++++++
+ 3 files changed, 249 insertions(+), 4 deletions(-)

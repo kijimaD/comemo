@@ -1,0 +1,22 @@
+commit b9a764ffdfa0fd41be6b0cfcd889f2349b14e2b5
+Author: Frank Schroeder <frank.schroeder@gmail.com>
+Date:   Sat Jul 14 21:58:07 2018 +0000
+
+    cmd/go: run git log with --no-show-signature
+    
+    Git timestamp parsing is broken when fetching modules if the
+    local git configuration has 'log.showsignature=true'.
+    
+    Fixes #26388
+    
+    Change-Id: I47f92381784072335a2a465de56092106c616108
+    GitHub-Last-Rev: 96f988c0a2dd39a5747ec4a7bad05e7e8ee0d384
+    GitHub-Pull-Request: golang/go#26389
+    Reviewed-on: https://go-review.googlesource.com/123958
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

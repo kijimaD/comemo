@@ -1,0 +1,21 @@
+commit a714470cce03b28321a9dbcdbf34a99ab59deb75
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 26 11:18:37 2017 -0400
+
+    runtime: allow more CPUs on FreeBSD
+    
+    Currently the FreeBSD CPU affinity code assumes that the maximum
+    GOMAXPROCS is 256, but we just removed that limit.
+    
+    This commit rewrites the FreeBSD CPU affinity code to raise the CPU
+    count limit to 65,536, like the Linux CPU affinity code, and to
+    degrade more gracefully if we do somehow go over that.
+    
+    Change-Id: Ic4ca7f88bd8b9448aae4dbd43ef21a6c1b8fea63
+    Reviewed-on: https://go-review.googlesource.com/66291
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_freebsd.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

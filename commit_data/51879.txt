@@ -1,0 +1,19 @@
+commit dd44d981dbad7191278fb629ed83bf2fd94cf1e5
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 30 17:24:14 2023 +0000
+
+    cmd/go/internal/par: generic Work
+    
+    This makes the mvs code slightly clearer.
+    
+    Change-Id: Idefc36bd1066f0348a70e7c91c37a0d56f3c02d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463844
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go       |  5 ++---
+ src/cmd/go/internal/par/work.go      | 24 ++++++++++++------------
+ src/cmd/go/internal/par/work_test.go |  9 ++++-----
+ 3 files changed, 18 insertions(+), 20 deletions(-)

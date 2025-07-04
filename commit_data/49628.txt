@@ -1,0 +1,15 @@
+commit 9c2526e6373e8cde99e62f8f6dfc73d6f79c5fad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 4 11:11:20 2022 -0400
+
+    cmd/go/internal/modfetch/codehost: add missing newline in '# lock' log message
+    
+    Change-Id: Ib92e983b6cdeed2b275a028c85b2bba583def059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403850
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

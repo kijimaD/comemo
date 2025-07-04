@@ -1,0 +1,15 @@
+commit 20583b587493250a4a39c60b0c79ae66b9ec953b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 18 09:09:40 2009 -0700
+
+    Implement remote variables
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=282  (281 added, 0 deleted, 1 changed)
+    OCL=34407
+    CL=34781
+
+ usr/austin/ogle/rvalue.go |  10 +-
+ usr/austin/ogle/vars.go   | 277 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 286 insertions(+), 1 deletion(-)

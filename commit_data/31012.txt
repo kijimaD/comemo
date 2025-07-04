@@ -1,0 +1,20 @@
+commit 168eb9cf3395583541224af0227c19ddb13e35be
+Author: Jeff Wendling <jeff@spacemonkey.com>
+Date:   Thu Apr 6 15:45:30 2017 +0000
+
+    cmd/dist: disable plugin test on linux-arm with GOARM=5
+    
+    Plugin support is patchy at the moment, so disable the test for
+    now until the test can be fixed. This way, we can get builders
+    for ARMv5 running for the rest of the code.
+    
+    Updates #19674
+    
+    Change-Id: I08aa211c08a85688656afe2ad2e680a2a6e5dfac
+    Reviewed-on: https://go-review.googlesource.com/39716
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

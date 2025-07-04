@@ -1,0 +1,20 @@
+commit 23fc9170604a3df9a0458849ffb16b570eadcc19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 3 11:24:36 2024 +0700
+
+    reflect: add missing String case in Value.UnsafePointer doc
+    
+    CL 516596 changes Value.UnsafePointer to handle String case. However,
+    the method's doc comment is not updated to reflect this change.
+    
+    Updates #61308
+    
+    Change-Id: I84e02fd969ae0244184e1a2f05cac4651cdf7bff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 9c514e149c1d986c404460121c1a5fc01ab8356c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 21 12:24:33 2015 -0700
+
+    io: add WriteString support to MultiWriter
+    
+    Fixes #11805
+    
+    Change-Id: I081e16b869dc706bd847ee645bb902bc671c123f
+    Reviewed-on: https://go-review.googlesource.com/12485
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/multi.go      | 24 ++++++++++++++++++++++++
+ src/io/multi_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 1 deletion(-)

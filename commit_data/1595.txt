@@ -1,0 +1,15 @@
+commit 7b6bdfb7350e3148e8ea931a7e267f4bc804000a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 15:11:46 2009 -0800
+
+    two uses of uninitialized memory,
+    picked up by valgrind.
+    fixes test/escape.go on linux.
+    
+    R=ken
+    OCL=23971
+    CL=23971
+
+ src/cmd/6g/cgen.c  | 2 +-
+ src/cmd/6g/gsubr.c | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

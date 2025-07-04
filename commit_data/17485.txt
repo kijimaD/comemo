@@ -1,0 +1,14 @@
+commit 8f764fb689ea4313c5a6de2cabdf65aee9f89c5d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Sep 6 15:48:21 2013 -0400
+
+    codereview: update use of promptchoice for Mercurial 2.7
+    
+    Fixes #6186.
+    
+    R=golang-dev, bradfitz, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/13112043
+
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

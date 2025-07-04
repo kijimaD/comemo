@@ -1,0 +1,16 @@
+commit aaf4099a5cabfee52b1c481f2a30ee0dd02ef247
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 23 11:47:24 2016 -0400
+
+    runtime: update malloc.go documentation
+    
+    The big documentation comment at the top of malloc.go has gotten
+    woefully out of date. Update it.
+    
+    Change-Id: Ibdb1bdcfdd707a6dc9db79d0633a36a28882301b
+    Reviewed-on: https://go-review.googlesource.com/29731
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 93 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 46 deletions(-)

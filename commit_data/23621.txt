@@ -1,0 +1,32 @@
+commit b615ad8fd57f9394db14e403d12061c369379c52
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 12:52:54 2015 +0200
+
+    net: add mechanisms to force go or cgo lookup, and to debug default strategy
+    
+    GODEBUG=netdns=1 prints a one-time strategy decision. (cgo or go DNS lookups)
+    GODEBUG=netdns=2 prints the per-lookup strategy as a function of the hostname.
+    
+    The new "netcgo" build tag forces cgo DNS lookups.
+    
+    GODEBUG=netdns=go (or existing build tag "netgo") forces Go DNS resolution.
+    GODEBUG=netdns=cgo (or new build tag "netcgo") forces libc DNS resolution.
+    
+    Options can be combined with e.g. GODEBUG=netdns=go+1 or GODEBUG=netdns=2+cgo.
+    
+    Fixes #11322
+    Fixes #11450
+    
+    Change-Id: I7a67e9f759fd0a02320e7803f9ded1638b19e861
+    Reviewed-on: https://go-review.googlesource.com/11584
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/cgo_stub.go    |  2 ++
+ src/net/conf.go        | 74 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/conf_netcgo.go | 18 ++++++++++++
+ src/net/conf_test.go   |  4 +++
+ src/net/net.go         |  8 ++++++
+ src/net/parse.go       | 23 ++++++++++++++++
+ src/net/parse_test.go  | 27 ++++++++++++++++++
+ 7 files changed, 153 insertions(+), 3 deletions(-)

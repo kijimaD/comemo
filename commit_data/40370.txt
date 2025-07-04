@@ -1,0 +1,17 @@
+commit b12703e052feb46faa3a5e4efd3d68837682717e
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Oct 16 19:15:39 2019 +0800
+
+    cmd/compile: remove amd64p32 related SSA rules
+    
+    Updates golang/go#30439
+    
+    Change-Id: Iadc737e4c6bb05bb576fe4bb344ad92403697352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201380
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 --------------------------
+ 2 files changed, 29 deletions(-)

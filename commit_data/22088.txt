@@ -1,0 +1,14 @@
+commit b90638e1de96ff329f78c600d7d8c76f57adb8c9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 14 20:03:29 2015 -0700
+
+    runtime: delete old .h files
+    
+    Change-Id: I5a49f56518adf7d64ba8610b51ea1621ad888fc4
+    Reviewed-on: https://go-review.googlesource.com/7771
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mgc0.h     | 22 ----------------------
+ src/runtime/stack.h    | 43 -------------------------------------------
+ src/runtime/typekind.h | 40 ----------------------------------------
+ 3 files changed, 105 deletions(-)

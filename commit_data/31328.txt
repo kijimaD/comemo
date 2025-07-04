@@ -1,0 +1,20 @@
+commit 94dd0f0227bb323316df3780d5ee1457f90e617b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 15:42:42 2017 +0900
+
+    os: don't use a symlink's target path for FileInfo#Name on windows
+    
+    Use an original name instead of a symlink's target path.
+    
+    Fixes #20064
+    
+    Change-Id: I9be3837a156bdcda0e9e065abbb425d535b27be3
+    Reviewed-on: https://go-review.googlesource.com/41310
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go         | 31 +++++++++++++++++--------------
+ src/os/os_windows_test.go | 22 ++++++++++++++++------
+ src/os/stat_windows.go    | 16 +++++++++-------
+ 3 files changed, 42 insertions(+), 27 deletions(-)

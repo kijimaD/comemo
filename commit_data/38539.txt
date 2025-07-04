@@ -1,0 +1,27 @@
+commit 2034fbab5b1d11bc59cb476bc3f49ee1b344839d
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 15 14:50:09 2019 -0800
+
+    cmd/compile: use existing instructions instead of nops for inline marks
+    
+    Instead of always inserting a nop to use as the target of an inline
+    mark, see if we can instead find an instruction we're issuing anyway
+    with the correct line number, and use that instruction. That way, we
+    don't need to issue a nop.
+    
+    Makes cmd/go 0.3% smaller.
+    
+    Update #29571
+    
+    Change-Id: If6cfc93ab3352ec2c6e0878f8074a3bf0786b2f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158021
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ misc/cgo/test/callback.go            |  2 +-
+ src/cmd/compile/internal/gc/dwinl.go | 46 +++++++++++++-------------
+ src/cmd/compile/internal/gc/ssa.go   | 64 ++++++++++++++++++++++++++++++++++--
+ src/cmd/internal/src/pos.go          |  4 +++
+ src/cmd/internal/src/xpos.go         |  6 ++++
+ 5 files changed, 96 insertions(+), 26 deletions(-)

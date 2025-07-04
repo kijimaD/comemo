@@ -1,0 +1,19 @@
+commit aa05674b1df8b5e49bf702068e7ec3d33c957d3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 16 09:08:51 2023 -0700
+
+    spec: explain eval order of binary operator examples with comments
+    
+    Fixes #63525.
+    
+    Change-Id: Ie9aa4dd47c025cd593e576c6e8de1774e1d1e302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535775
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

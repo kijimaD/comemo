@@ -1,0 +1,13 @@
+commit d5c7ef6216d7c3bc7e2e6da88a71edab577656d4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 27 13:53:18 2013 +0400
+
+    cmd/dist: fix crash on windows
+    currently 'dist install' always crashes on windows
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11919043
+
+ src/cmd/dist/windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

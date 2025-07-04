@@ -1,0 +1,17 @@
+commit 0a1c6e3076c4e7dd74b74c594e953e498c272ba1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 10 10:19:12 2024 -0700
+
+    doc: reference language version in pre-generic spec for easier recognition
+    
+    This matches the style we use for the current spec.
+    
+    Change-Id: I82ad8e9994da1c74801f3c18f32f21fdd7ac355a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619476
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go1.17_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

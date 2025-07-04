@@ -1,0 +1,20 @@
+commit 34f97d28d2ff435b8ac85ad6645aaf79a5d061bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 4 13:27:27 2016 -0700
+
+    runtime: put tracebackctxt C functions in .c file
+    
+    Since tracebackctxt.go uses //export functions, the C functions can't be
+    externally visible in the C comment. The code was using attributes to
+    work around that, but that failed on Windows.
+    
+    Change-Id: If4449fd8209a8998b4f6855ea89e5db1471b2981
+    Reviewed-on: https://go-review.googlesource.com/22786
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go                      |   3 -
+ src/runtime/testdata/testprogcgo/tracebackctxt.go  | 100 ++-------------------
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  90 +++++++++++++++++++
+ 3 files changed, 98 insertions(+), 95 deletions(-)

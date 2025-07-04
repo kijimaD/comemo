@@ -1,0 +1,18 @@
+commit f41b43a02431baab166d06b8b4c41467d9cc88e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 17 16:06:40 2013 -0700
+
+    net/url: fix regression when serializing relative URLs
+    
+    Only add a slash to path if it's a separator between
+    a host and path.
+    
+    Fixes #6609
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/14815043
+
+ src/pkg/net/url/url.go      | 2 +-
+ src/pkg/net/url/url_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

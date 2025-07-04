@@ -1,0 +1,12 @@
+commit 09a3a092afc01bf411ed87bfd29adc25e0d0f250
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 15:49:43 2015 -0700
+
+    cmd/go: fix fmt.Errorf call sites (latent bug)
+    
+    Change-Id: I4ff42113c5dda553d6f3d58f0e4836dce7c84710
+    Reviewed-on: https://go-review.googlesource.com/10730
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/note.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

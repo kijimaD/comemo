@@ -1,0 +1,20 @@
+commit cfc9fde54d2d27486edede6dccf107889f0d2cc6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:45:31 2015 +0000
+
+    net/http: updated bundled http2 to finish trailer support
+    
+    This updates the bundled copy of x/net/http2 to git rev d2ecd08
+    for https://golang.org/cl/17912 (http2: send client trailers)
+    and enables the final Trailer test for http2.
+    
+    Fixes #13557
+    
+    Change-Id: Iaa15552b82bf7a2cb01b7787a2e1ec5ee680a9d3
+    Reviewed-on: https://go-review.googlesource.com/17935
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/clientserver_test.go |   5 +-
+ src/net/http/h2_bundle.go         | 125 +++++++++++++++++++++++++++++---------
+ 2 files changed, 96 insertions(+), 34 deletions(-)

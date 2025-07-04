@@ -1,0 +1,29 @@
+commit a145890059e9c7aae870e1b9e74b204b6c8bc8d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 21:34:58 2016 -0800
+
+    all: don't call t.Fatal from a goroutine
+    
+    Fixes #17900.
+    
+    Change-Id: I42cda6ac9cf48ed739d3a015a90b3cb15edf8ddf
+    Reviewed-on: https://go-review.googlesource.com/33243
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_server_test.go |  3 ++-
+ src/crypto/tls/tls_test.go              |  6 ++++--
+ src/database/sql/sql_test.go            |  3 ++-
+ src/log/syslog/syslog_test.go           |  3 ++-
+ src/net/dnsclient_unix_test.go          | 12 ++++++++----
+ src/net/http/serve_test.go              |  8 +++++---
+ src/net/rpc/server_test.go              |  3 ++-
+ src/os/exec/exec_test.go                |  2 +-
+ src/runtime/chan_test.go                | 11 ++++++++---
+ src/runtime/trace/trace_stack_test.go   | 23 ++++++++++++-----------
+ src/runtime/trace/trace_test.go         |  9 ++++++---
+ src/sync/atomic/atomic_test.go          | 18 ++++++++++++------
+ src/sync/cond_test.go                   |  4 ++--
+ src/sync/pool_test.go                   |  3 ++-
+ 14 files changed, 68 insertions(+), 40 deletions(-)

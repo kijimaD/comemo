@@ -1,0 +1,15 @@
+commit 1f6e18fdce5650793da83fae62eb2353cff3f8f7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 15:10:29 2009 -0700
+
+    handle some error conditions involving bad data.
+    
+    R=rsc
+    DELTA=32  (24 added, 1 deleted, 7 changed)
+    OCL=32461
+    CL=32463
+
+ src/pkg/gob/decode.go       |  5 +++++
+ src/pkg/gob/decoder.go      | 17 +++++++++--------
+ src/pkg/gob/encoder_test.go | 17 +++++++++++++++++
+ 3 files changed, 31 insertions(+), 8 deletions(-)

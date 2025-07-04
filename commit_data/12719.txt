@@ -1,0 +1,15 @@
+commit 08959defa89f3a37775f744a52bfbbff93e742d6
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Mar 22 09:27:02 2012 -0700
+
+    sort: add time complexity to doc
+    
+    Let's tell the world that Go's sort is O(n log n).
+    Surely this is a feature we intend to keep.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5867045
+
+ src/pkg/sort/sort.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

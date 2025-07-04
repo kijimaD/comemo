@@ -1,0 +1,21 @@
+commit b810a74da3c4de519433208163ea257ab33b2d24
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 18 18:23:44 2022 -0400
+
+    internal/abi, internal/buildcfg: always enable register ABI on PPC64
+    
+    In last cycle we developed register ABI for ARM64, enabled by
+    default as a GOEXPERIMENT. This cycle we turn it on all the time.
+    Later CLs will clean up fallback code.
+    
+    Change-Id: Idac4dcff634791cbc3d30988052ecd742b55ab8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394214
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/abi/abi_generic.go | 2 +-
+ src/internal/abi/abi_ppc64x.go  | 2 +-
+ src/internal/buildcfg/exp.go    | 4 +---
+ 3 files changed, 3 insertions(+), 5 deletions(-)

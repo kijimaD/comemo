@@ -1,0 +1,28 @@
+commit 49e2087848c6c8a0f32bee62d2242d85ab044b33
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 11 17:55:16 2009 -0800
+
+    insert type assertions when narrowing.
+    
+    R=r
+    OCL=24349
+    CL=24913
+
+ src/lib/json/generic.go     |   4 +-
+ src/lib/json/struct.go      |   4 +-
+ src/lib/reflect/all_test.go |   4 +-
+ src/lib/reflect/tostring.go |   4 +-
+ src/lib/reflect/type.go     |  42 ++++++++++++++
+ src/lib/reflect/value.go    | 132 ++++++++++++++++++++++++++++++++++++++------
+ test/chan/powser2.go        |  12 ++--
+ test/fixedbugs/bug027.go    |   2 +-
+ test/fixedbugs/bug054.go    |   5 +-
+ test/fixedbugs/bug089.go    |   2 +-
+ test/fixedbugs/bug113.go    |   6 +-
+ test/interface2.go          |   2 +-
+ test/interface5.go          |  15 ++++-
+ test/ken/embed.go           |   2 +-
+ test/ken/interbasic.go      |  24 ++++----
+ test/ken/interfun.go        |   6 +-
+ usr/gri/pretty/parser.go    |   4 +-
+ 17 files changed, 208 insertions(+), 62 deletions(-)

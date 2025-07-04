@@ -1,0 +1,13 @@
+commit 8f90915692d6a8205a996d1116c9eb703f91c40c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jan 28 18:14:09 2013 -0500
+
+    exp/ssa: (#3 of 5): Function, BasicBlock and optimisations
+    
+    R=gri, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/7202051
+
+ src/pkg/exp/ssa/blockopt.go | 190 +++++++++++++++++++++
+ src/pkg/exp/ssa/func.go     | 404 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 594 insertions(+)

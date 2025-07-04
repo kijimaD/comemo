@@ -1,0 +1,13 @@
+commit 61f27d3c2224c8c6f71c9b9755d772c8049ceb57
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 10 13:53:35 2009 -0700
+
+    sample goyacc program
+    
+    R=rsc
+    OCL=34526
+    CL=34526
+
+ src/cmd/goyacc/units   | 604 +++++++++++++++++++++++++++++++++++++
+ src/cmd/goyacc/units.y | 802 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1406 insertions(+)

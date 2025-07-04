@@ -1,0 +1,21 @@
+commit d29f72f4728b75314b72337e9768c73eb22338e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 23:30:09 2016 +0000
+
+    cmd/dist: remove special test timeout scale for Windows
+    
+    In https://golang.org/cl/33804 I screwed up a GOOS == "windows"
+    check into a bogus comparison against GOARCH == "windows".
+    
+    But turns out the builders are happy anyway, so remove the windows
+    special case.
+    
+    Change-Id: I820b1d49d5b3e8cbffe4516fc39f514326dc39f8
+    Reviewed-on: https://go-review.googlesource.com/33893
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

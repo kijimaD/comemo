@@ -1,0 +1,17 @@
+commit b2f1eba3248897615f9d7c296b6531021f6c58ae
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Oct 5 13:16:43 2011 -0400
+
+    runtime: set runtime ncpu on openbsd
+    
+    Set the runtime ncpu based on the hw.ncpu sysctl.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5191043
+
+ src/pkg/runtime/openbsd/386/sys.s   | 18 ++++++++++++++++++
+ src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++++++++++
+ src/pkg/runtime/openbsd/os.h        |  1 +
+ src/pkg/runtime/openbsd/thread.c    | 33 +++++++++++++++++++++++++++++----
+ 4 files changed, 64 insertions(+), 4 deletions(-)

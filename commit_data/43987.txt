@@ -1,0 +1,17 @@
+commit 985d91666cebbd0aef36034cc28596da280ead37
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 7 15:10:43 2020 +0000
+
+    runtime/metrics: add a note about floating-point values to package docs
+    
+    This change adds a note to the package documentation that the package
+    will never produce a NaN or infinity, to help ease usability.
+    
+    Change-Id: I72ff6ab636ca23722a68ef11e707c68b0724ac04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275854
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

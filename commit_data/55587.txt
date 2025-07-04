@@ -1,0 +1,27 @@
+commit db99b9b17c124ccd18766999d3f1302e5e878f38
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Feb 7 22:51:00 2024 +0000
+
+    internal/asan: add new package
+    
+    The internal/asan package contains helper functions for manually
+    instrumenting code for the address sanitizer. It reexports the asan
+    routines in runtime unconditionally, making the functions a no-op if the
+    build flag "asan" is not present.
+    
+    For #64611
+    
+    Change-Id: Ie79e698aea7a6d969afd2a5f008c084c9545b1a5
+    GitHub-Last-Rev: e658670c146adb5a5496afe4a2425dd5291fd7ac
+    GitHub-Pull-Request: golang/go#64635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548695
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go   |  1 +
+ src/internal/asan/asan.go   | 19 +++++++++++++++++++
+ src/internal/asan/doc.go    | 10 ++++++++++
+ src/internal/asan/noasan.go | 19 +++++++++++++++++++
+ src/runtime/asan.go         |  2 ++
+ 5 files changed, 51 insertions(+)

@@ -1,0 +1,29 @@
+commit eea21f8b8507e8d993a956b0985b3732109dbd15
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 23 18:45:44 2008 -0700
+
+    rudimentary real-time profiler.
+    tested on mac only.
+    output like this:
+            tubenose=% sudo go/src/cmd/prof/6prof -p 71839 -c  -d 10
+            63.93%  mach_semaphore_signal
+             4.64%  sys·chansend1
+             3.93%  chanrecv
+             2.86%  semrelease
+             1.43%  cas
+             1.43%  sendchan
+             1.07%  xadd
+             0.71%  main·f
+             0.71%  scheduler
+             0.71%  sys·gosched
+             0.71%  dequeue
+             ...
+    
+    R=rsc
+    DELTA=361  (361 added, 0 deleted, 0 changed)
+    OCL=15731
+    CL=15736
+
+ src/cmd/prof/Makefile |  28 +++++
+ src/cmd/prof/main.c   | 341 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 369 insertions(+)

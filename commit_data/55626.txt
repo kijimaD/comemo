@@ -1,0 +1,22 @@
+commit 098a87fb1930b9ef99d394fe1bca75f1bd74ce8d
+Author: Julian Tibble <tibbes@github.com>
+Date:   Wed Feb 14 13:24:52 2024 +0000
+
+    net/http: add missing call to decConnsPerHost
+    
+    A recent change to Transport.dialConnFor introduced an early return that
+    skipped dialing. This path did not call decConnsPerHost, which can cause
+    subsequent HTTP calls to hang if Transport.MaxConnsPerHost is set.
+    
+    Fixes: #65705
+    
+    Change-Id: I157591114b02a3a66488d3ead7f1e6dbd374a41c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564036
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

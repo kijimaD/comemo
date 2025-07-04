@@ -1,0 +1,15 @@
+commit aeeda707ffdcd29efdec510ffe40061384b0dfdf
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Mon Jan 6 09:53:55 2014 -0800
+
+    runtime: Fix panic when trying to stop CPU profiling with profiler turned off
+    
+    Fixes #7063.
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/47950043
+
+ src/pkg/runtime/cpuprof.c       | 2 +-
+ src/pkg/runtime/runtime_test.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

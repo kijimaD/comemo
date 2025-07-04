@@ -1,0 +1,25 @@
+commit e7fed7fa353fa8a54759229a0adfe04c02fd7b5a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 23 14:43:51 2017 -0700
+
+    encoding/csv: forbid certain Comma and Comment runes
+    
+    The record delimiter (not configurable by user) is "\r\n" or "\n".
+    It is insensible for the user to set Comma or Comment delimiters
+    to be some character that conflicts with the record delimiter.
+    Furthermore, it is insensible for Comma or Comment to be the same rune.
+    Allowing this leaks implementation details to the user in regards to
+    the evaluation order of which rune is checked for first.
+    
+    Fixes #22404
+    
+    Change-Id: I31e86abc9b3a8fb4584e090477795587740970ae
+    Reviewed-on: https://go-review.googlesource.com/72793
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader.go      | 10 ++++++++++
+ src/encoding/csv/reader_test.go | 30 ++++++++++++++++++++++++++++++
+ src/encoding/csv/writer.go      |  4 ++++
+ 3 files changed, 44 insertions(+)

@@ -1,0 +1,16 @@
+commit 30b09bccfd2446de566f9dfd0592cb4406e639b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 10:08:18 2024 -0500
+
+    crypto/internal/fipstest: fix TestACVP not to write to module cache
+    
+    Not sure how this ever worked; the module cache is read-only.
+    
+    Change-Id: I22e4945fa0bac101995ab9101d22dcfdcee40776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629976
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fipstest/acvp_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

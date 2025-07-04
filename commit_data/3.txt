@@ -1,0 +1,11 @@
+commit 0744ac969119db8a0ad3253951d375eb77cfce9e
+Author: Brian Kernighan <research!bwk>
+Date:   Fri Apr 1 02:02:04 1988 -0500
+
+    convert to Draft-Proposed ANSI C
+    
+    R=dmr
+    DELTA=5  (2 added, 0 deleted, 3 changed)
+
+ src/pkg/debug/macho/testdata/hello.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

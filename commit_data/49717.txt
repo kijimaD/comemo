@@ -1,0 +1,16 @@
+commit ddfd6394084f534bac3966d3a1736c15c665bd3a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 19 16:15:03 2022 -0400
+
+    runtime: delete unused lock ranks
+    
+    For #53789.
+    
+    Change-Id: Ic7379afcfdcc47b541bac9b44b5bc6b43604fc0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418714
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/lockrank.go | 55 +++++++++++--------------------------------------
+ 1 file changed, 12 insertions(+), 43 deletions(-)

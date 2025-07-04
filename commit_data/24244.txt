@@ -1,0 +1,20 @@
+commit 3f2baa3e60b54b5cfc45995d7d3616d4a9a509fb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 9 22:56:26 2015 -0400
+
+    cmd/dist: re-enable GOARM auto-detection
+    
+    cmd/dist will re-exec itself to detect VFP support at run-time.
+    
+    Fixes #9732, #12548.
+    
+    Change-Id: I9ad0c5c7fa3e97bd79a32da372e1a962565bb3af
+    Reviewed-on: https://go-review.googlesource.com/3973
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go       | 51 ++++++++++++++++++----------------------------
+ src/cmd/dist/util_gc.go    |  8 ++++++++
+ src/cmd/dist/util_gccgo.go |  4 ++++
+ src/cmd/dist/vfp_arm.s     | 17 ++++++++++++++++
+ src/cmd/dist/vfp_default.s | 13 ++++++++++++
+ 5 files changed, 62 insertions(+), 31 deletions(-)

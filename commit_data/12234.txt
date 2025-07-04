@@ -1,0 +1,13 @@
+commit 9aff05e3627d607150d0dbf07901c786d11721cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 07:40:44 2012 +1100
+
+    A+C: add Yissakhar Z. Beck (Individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5698079
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

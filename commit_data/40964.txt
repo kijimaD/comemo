@@ -1,0 +1,17 @@
+commit 9d4717d5f1d9b8a16c52c46d2a670c230dc72cbc
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Dec 7 09:50:17 2019 +1100
+
+    runtime: suggest more kernel options for mlock failure
+    
+    Some Linux distributions will continue to provide 5.3.x kernels for a
+    while rather than 5.4.x.
+    
+    Updates #35777
+    
+    Change-Id: I493ef8338d94475f4fb1402ffb9040152832b0fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210299
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_linux_x86.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

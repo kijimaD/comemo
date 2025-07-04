@@ -1,0 +1,42 @@
+commit 76cbbc8a9525b07085515511e87672e0f0886aeb
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Apr 20 20:39:36 2010 -0700
+
+    big: Add Lsh and Value; convert pidigits to use big
+    
+    This yields a pretty significant performance boost to pidigits and there are still some improvements to be made. Here are my numbers:
+    
+    amd64 w/ bignum:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.10u 0.00s 2.10r
+            gc pidigits     22.92u 0.02s 22.97r
+            gc_B pidigits   22.62u 0.00s 22.65r
+    
+    amd64 w/ big:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.09u 0.02s 2.11r
+            gc pidigits     12.68u 0.04s 12.72r
+            gc_B pidigits   12.71u 0.03s 12.75r
+    
+    386 w/ bignum:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.09u 0.00s 2.09r
+            gc pidigits     44.30u 0.01s 44.35r
+            gc_B pidigits   44.29u 0.03s 44.35r
+    
+    386 w/ big:
+    pidigits 10000
+            gcc -O2 pidigits.c -lgmp        2.10u 0.00s 2.10r
+            gc pidigits     22.70u 0.06s 22.79r
+            gc_B pidigits   22.80u 0.09s 22.91r
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/881050
+
+ src/pkg/big/int.go      |  75 ++++++++++++++++------
+ src/pkg/big/int_test.go | 163 ++++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/big/nat.go      |  27 ++++----
+ src/pkg/big/nat_test.go |   2 +-
+ test/bench/pidigits.go  |  50 ++++++++-------
+ 5 files changed, 239 insertions(+), 78 deletions(-)

@@ -1,0 +1,13 @@
+commit b8b65c10e0b6d8e29ab525a6e803faaf19972e36
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 20:17:02 2015 -0700
+
+    net/http: make testCaseSensitiveMethod also test http2
+    
+    Change-Id: I6427b0914fc4ccd9b841eae3aefe3b7a355fc436
+    Reviewed-on: https://go-review.googlesource.com/17596
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

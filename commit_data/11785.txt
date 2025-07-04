@@ -1,0 +1,14 @@
+commit dbac863ed89e824c458d8dacb3860513cf648468
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 10 22:26:36 2012 -0200
+
+    cmd/dist: reset version during bootstrap
+    
+    Fixes #2927.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5651062
+
+ src/cmd/dist/build.c | 1 +
+ 1 file changed, 1 insertion(+)

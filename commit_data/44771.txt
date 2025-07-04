@@ -1,0 +1,54 @@
+commit 8f19394b62a5b1651cd66eefb1bfeacc278966b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 17 22:13:16 2021 -0700
+
+    cmd/compile/internal/types2: refactor untyped conversions
+    
+    Based on https://golang.org/cl/284256 for go/types.
+    Brings this code more in line with go/types.
+    
+    Adjusted various tests to match new error messages which
+    generally are now better: for assignment errors, instead
+    of a generic "cannot convert" we now say "cannot use"
+    followed by a clearer reason as to why not.
+    
+    Major differences to go/types with respect to the changed
+    files:
+    
+    - Some of the new code now returns error codes, but they
+      are only used internally for now, and not reported with
+      errors.
+    
+    - go/types does not "convert" untyped nil values to target
+      types, but here we do. This is unchanged from how types2
+      handled this before this CL.
+    
+    Change-Id: If45336d7ee679ece100f6d9d9f291a6ea55004d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302757
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go             |   3 +-
+ src/cmd/compile/internal/types2/assignments.go     |  28 ++-
+ src/cmd/compile/internal/types2/builtins.go        |  32 +--
+ src/cmd/compile/internal/types2/call.go            |   2 +-
+ src/cmd/compile/internal/types2/conversions.go     |   2 +-
+ .../compile/internal/types2/examples/methods.go2   |   2 +-
+ src/cmd/compile/internal/types2/expr.go            | 230 ++++++++++++---------
+ src/cmd/compile/internal/types2/operand.go         |  62 ++----
+ .../compile/internal/types2/testdata/builtins.src  |   6 +-
+ .../compile/internal/types2/testdata/constdecl.src |   8 +-
+ .../internal/types2/testdata/decls2/decls2b.src    |   6 +-
+ src/cmd/compile/internal/types2/testdata/expr3.src |  16 +-
+ .../compile/internal/types2/testdata/issues.src    |   4 +-
+ src/cmd/compile/internal/types2/testdata/stmt0.src |  18 +-
+ .../internal/types2/testdata/typeparams.go2        |   4 +-
+ test/convlit.go                                    |   2 +-
+ test/fixedbugs/bug205.go                           |   2 +-
+ test/fixedbugs/bug397.go                           |   2 +-
+ test/fixedbugs/issue11326.go                       |  16 +-
+ test/fixedbugs/issue11371.go                       |  12 +-
+ test/fixedbugs/issue13559.go                       | 114 +++++-----
+ test/fixedbugs/issue6402.go                        |   2 +-
+ test/fixedbugs/issue7153.go                        |   2 +-
+ 23 files changed, 300 insertions(+), 275 deletions(-)

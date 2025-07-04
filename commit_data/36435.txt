@@ -1,0 +1,20 @@
+commit 28fbf5b831e3c577c2e220daa82a85065047e356
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 22 22:34:39 2018 +0200
+
+    runtime: skip TestGcSys on Windows
+    
+    This is causing failures on TryBots and BuildBots:
+    --- FAIL: TestGcSys (0.06s)
+        gc_test.go:27: expected "OK\n", but got "using too much memory: 39882752 bytes\n"
+    FAIL
+    
+    Updates #27156
+    
+    Change-Id: I418bbec89002574cd583c97422e433f042c07492
+    Reviewed-on: https://go-review.googlesource.com/130875
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/gc_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

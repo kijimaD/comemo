@@ -1,0 +1,19 @@
+commit 9da49a7d2e47919ecbf54e75bfc15ffb022cf1d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 24 14:25:11 2022 +0200
+
+    time: use internal/itoa
+    
+    In initLocal for GOOS=js, use internal/itoa introduced in CL 301549
+    instead of a local implementation.
+    
+    Change-Id: If107d5cf0ce56f4d926507db2cbd6da422c6d15a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425302
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/zoneinfo_js.go | 26 +++-----------------------
+ 1 file changed, 3 insertions(+), 23 deletions(-)

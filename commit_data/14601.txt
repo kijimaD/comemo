@@ -1,0 +1,14 @@
+commit 15353d211440e0fa422f8a45a0130354365d890b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 11 11:49:02 2012 -0500
+
+    encoding/base64: new example for NewEncoder with emphasis on Close
+    Fixes #4394.
+    
+    R=iant, bradfitz, rsc, remigius.gieben
+    CC=golang-dev
+    https://golang.org/cl/6847125
+
+ src/pkg/encoding/base32/example_test.go | 15 +++++++++++++++
+ src/pkg/encoding/base64/example_test.go | 15 +++++++++++++++
+ 2 files changed, 30 insertions(+)

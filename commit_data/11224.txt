@@ -1,0 +1,13 @@
+commit 1f1c9baf78330d2a6293a583fbaa44872bf8d2e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 10:36:43 2012 -0500
+
+    doc/go1.html: add notes about hash.Hash
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5536053
+
+ doc/go1.html | 15 +++++++++++++++
+ doc/go1.tmpl | 15 +++++++++++++++
+ 2 files changed, 30 insertions(+)

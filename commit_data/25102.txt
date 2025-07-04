@@ -1,0 +1,15 @@
+commit e2071ecd08f8cb157e61f557a16502a907c21a02
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 16:15:45 2015 -0500
+
+    testing: document that T and B are safe for concurrent calls
+    
+    Fixes #13108.
+    
+    Change-Id: I474cc2a3b7ced1c9eb978fc815f9c6bae9fb3ecc
+    Reviewed-on: https://go-review.googlesource.com/17235
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go | 11 +++++++++++
+ src/testing/testing.go   |  8 ++++++++
+ 2 files changed, 19 insertions(+)

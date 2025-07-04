@@ -1,0 +1,17 @@
+commit 38d4511b104ad61d949d91652985bcdef8cbea5a
+Author: Jure Ham <jure.ham@zemanta.com>
+Date:   Tue Feb 23 11:41:27 2016 +0100
+
+    sort: fix for nondeterministic less function in quicksort pivot
+    
+    Fixes #14377
+    
+    Change-Id: I130a6e1b8bc827db44efd0a74e759b894ecc4977
+    Reviewed-on: https://go-review.googlesource.com/19823
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sort/sort.go      | 14 +++++++-------
+ src/sort/sort_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 7 deletions(-)

@@ -1,0 +1,33 @@
+commit 10838165d8249175020155751469bc7729d78fb9
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 2 17:01:41 2012 +0200
+
+    exp/locale/collate: fixed two bugs uncovered by regression tests.
+    The first bug was that tertiary ignorables had the same colElem as
+    implicit colElems, yielding unexpected results. The current encoding
+    ensures that a non-implicit colElem is never 0.  This fix uncovered
+    another bug of the trie that indexed incorrectly into the null block.
+    This was caused by an unfinished optimization that would avoid the
+    need to max out the most-significant bits of continuation bytes.
+    This bug was also present in the trie used in exp/norm and has been
+    fixed there as well. The appearence of the bug was rare, as the lower
+    blocks happened to be nearly nil.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6127070
+
+ src/pkg/exp/locale/collate/build/colelem.go      |   9 +-
+ src/pkg/exp/locale/collate/build/colelem_test.go |   6 +-
+ src/pkg/exp/locale/collate/build/trie.go         |   9 +-
+ src/pkg/exp/locale/collate/build/trie_test.go    |  24 +--
+ src/pkg/exp/locale/collate/colelem.go            |   7 +-
+ src/pkg/exp/locale/collate/colelem_test.go       |   4 +-
+ src/pkg/exp/locale/collate/trie.go               |  13 +-
+ src/pkg/exp/locale/collate/trie_test.go          |  24 +--
+ src/pkg/exp/norm/tables.go                       | 232 +++++++++++------------
+ src/pkg/exp/norm/trie.go                         |  27 ++-
+ src/pkg/exp/norm/trie_test.go                    |   6 +-
+ src/pkg/exp/norm/triedata_test.go                |  28 +--
+ src/pkg/exp/norm/triegen.go                      |  13 +-
+ 13 files changed, 201 insertions(+), 201 deletions(-)

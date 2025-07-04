@@ -1,0 +1,14 @@
+commit 3001334e7752af67036a6d9c30c919cbfea81a7c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jun 27 23:27:54 2016 -0700
+
+    doc/go1.7.html: mention recent changes to Rand.Read
+    
+    Updates #16124
+    
+    Change-Id: Ib58f2bb37fd1559efc512a2e3cba976f09b939a0
+    Reviewed-on: https://go-review.googlesource.com/24520
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

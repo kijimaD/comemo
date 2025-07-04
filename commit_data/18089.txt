@@ -1,0 +1,25 @@
+commit 0097d30c9715a524aabf62778927d2cac8b7dd35
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Dec 19 20:45:05 2013 -0500
+
+    runtime: unblock signals when we try to core dump
+    Fixes #6988.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/44070046
+
+ src/pkg/runtime/os_darwin.c    | 6 ++++++
+ src/pkg/runtime/os_darwin.h    | 2 +-
+ src/pkg/runtime/os_dragonfly.c | 6 ++++++
+ src/pkg/runtime/os_dragonfly.h | 1 +
+ src/pkg/runtime/os_freebsd.c   | 6 ++++++
+ src/pkg/runtime/os_freebsd.h   | 1 +
+ src/pkg/runtime/os_linux.c     | 6 ++++++
+ src/pkg/runtime/os_linux.h     | 1 +
+ src/pkg/runtime/os_netbsd.c    | 6 ++++++
+ src/pkg/runtime/os_netbsd.h    | 1 +
+ src/pkg/runtime/os_openbsd.c   | 6 ++++++
+ src/pkg/runtime/os_openbsd.h   | 1 +
+ src/pkg/runtime/signal_unix.c  | 1 +
+ 13 files changed, 43 insertions(+), 1 deletion(-)

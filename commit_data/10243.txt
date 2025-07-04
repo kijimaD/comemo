@@ -1,0 +1,15 @@
+commit 0865c57f252f8c192526833b9de07446477b19f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 20:37:02 2011 -0700
+
+    http: doc nits
+    
+    Remove the last two "convenience" mentions.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5344041
+
+ src/pkg/net/http/client.go | 2 +-
+ src/pkg/net/http/header.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

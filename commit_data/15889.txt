@@ -1,0 +1,12 @@
+commit d88133137bcab6839d1f1cab0d4b9edb30381b41
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 21 22:37:13 2013 -0700
+
+    go1.1.html: bufio.Scanner and reflect; more about surrogates
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7958043
+
+ doc/go1.1.html | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 88 insertions(+), 5 deletions(-)

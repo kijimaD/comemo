@@ -1,0 +1,23 @@
+commit e2662835b8dd3ca4aa69997afe3774467a677df8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 22 02:14:44 2012 +0800
+
+    test: use testlib in a few more cases
+            Introduce a new skip cmd.
+    
+    R=golang-dev, bradfitz, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5868048
+
+ test/cmplxdivide.c           | 1 +
+ test/cmplxdivide1.go         | 1 +
+ test/ddd2.go                 | 2 +-
+ test/fixedbugs/bug223.go     | 4 ++--
+ test/import2.go              | 2 +-
+ test/interface/embed0.go     | 2 +-
+ test/interface/private1.go   | 2 +-
+ test/interface/recursive1.go | 2 +-
+ test/method4a.go             | 2 +-
+ test/run.go                  | 7 +++++--
+ test/testlib                 | 4 ++++
+ 11 files changed, 19 insertions(+), 10 deletions(-)

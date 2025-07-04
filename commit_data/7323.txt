@@ -1,0 +1,12 @@
+commit 3a54d43825e548a4299f959968579b24868e45d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 16:57:45 2011 -0800
+
+    go/ast: add missing handling of SendStmt to ast.Walk
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4044048
+
+ src/pkg/go/ast/walk.go | 4 ++++
+ 1 file changed, 4 insertions(+)

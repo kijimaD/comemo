@@ -1,0 +1,16 @@
+commit 883d68f885750806ca9a244ed1c19db58a971ab7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 25 12:02:54 2011 -0400
+
+    gc: allow complex types to be receiver types
+    
+    Fixes #1716.
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4439068
+
+ src/cmd/gc/align.c       |  2 +-
+ src/cmd/gc/subr.c        |  2 +-
+ test/fixedbugs/bug334.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

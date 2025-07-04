@@ -1,0 +1,14 @@
+commit cd619caff4f27496843542cdee0169821784c4b5
+Author: Brian Downs <brian.downs@gmail.com>
+Date:   Sat Jul 15 16:55:41 2017 -0600
+
+    bytes: add example for (*Buffer).Grow
+    
+    Change-Id: I04849883dd2e1f6d083e9f57d2a8c1bd7d258953
+    Reviewed-on: https://go-review.googlesource.com/48878
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/bytes/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

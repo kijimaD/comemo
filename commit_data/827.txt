@@ -1,0 +1,20 @@
+commit b4f8e01acb8239eb8d31017d5f137cbda57e62d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 8 09:21:57 2008 -0700
+
+    more interface checks:
+            - pointer to interface cannot have methods
+            - record type names for better runtime error
+    
+    R=r,ken
+    DELTA=85  (80 added, 0 deleted, 5 changed)
+    OCL=16658
+    CL=16722
+
+ src/cmd/6g/obj.c    |  8 ++++++--
+ src/cmd/gc/subr.c   |  4 ++++
+ src/runtime/iface.c | 13 +++++++++----
+ test/golden.out     | 15 +++++++++++++++
+ test/interface1.go  | 37 +++++++++++++++++++++++++++++++++++++
+ test/interface2.go  | 23 +++++++++++++++++++++++
+ 6 files changed, 94 insertions(+), 6 deletions(-)

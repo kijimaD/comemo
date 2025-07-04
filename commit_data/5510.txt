@@ -1,0 +1,15 @@
+commit f58ba18a08b0cf1a2f116d26cadb00cd4f710f89
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 21 14:40:21 2010 -0700
+
+    runtime: correct tracebacks for nascent goroutines, even closures
+    
+    Fixes #780.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1221042
+
+ src/pkg/runtime/amd64/traceback.c | 87 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/arm/traceback.c   |  7 +++-
+ 2 files changed, 92 insertions(+), 2 deletions(-)

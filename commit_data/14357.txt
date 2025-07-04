@@ -1,0 +1,15 @@
+commit 4e75d2c7d5234f3bd9789b643e30b744de96b348
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 9 03:41:43 2012 +1100
+
+    runtime: re-enable crash test on NetBSD
+    
+    Re-enable the crash tests on NetBSD now that the issue has been
+    identified and fixed.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6813100
+
+ src/pkg/runtime/crash_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

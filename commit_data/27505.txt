@@ -1,0 +1,15 @@
+commit 93e8e704996ce100fe46b2249324442947e47a9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 24 14:12:35 2016 -0700
+
+    all: fixed a handful of typos
+    
+    Change-Id: Ib0683f27b44e2f107cca7a8dcc01d230cbcd5700
+    Reviewed-on: https://go-review.googlesource.com/23404
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/install-source.html         | 6 +++---
+ src/container/list/list_test.go | 2 +-
+ src/encoding/csv/reader.go      | 2 +-
+ src/runtime/mgc.go              | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

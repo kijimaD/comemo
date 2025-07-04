@@ -1,0 +1,12 @@
+commit a8e0035bd346beebb9d6bb5b43cb99ca901dd47a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 18 12:59:16 2011 +1000
+
+    http: drain the pipe output in TestHandlerPanic to avoid logging deadlock.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4756047
+
+ src/pkg/http/serve_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 4cde749f633753cf59d0cfc912351e1b1def2b4f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 7 12:32:30 2019 -0800
+
+    cmd/compile: restore more missing -m=2 escape analysis details
+    
+    This CL also restores analysis details for (1) expressions that are
+    directly heap allocated because of being too large for the stack or
+    non-constant in size, and (2) for assignments that we short circuit
+    because we flow their address to another escaping object.
+    
+    No change to normal compilation behavior. Only adds additional Printfs
+    guarded by -m=2.
+    
+    Updates #31489.
+    
+    Change-Id: I43682195d389398d75ced2054e29d9907bb966e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205917
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go    | 27 ++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/escape.go | 37 +++++++++++++++++++++++------------
+ 2 files changed, 46 insertions(+), 18 deletions(-)

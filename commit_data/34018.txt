@@ -1,0 +1,21 @@
+commit 4555ed2e5ef029cafb8040710537f0ebffd41ad6
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 17 18:46:47 2018 -0800
+
+    cmd/fix: add intermediate cast for *C.CFTypeRef <-> *unsafe.Pointer
+    
+    When casting between *C.CFTypeRef and *unsafe.Pointer, we used to be
+    able to do the cast directly. Now with C.CFTypeRef being a uintptr
+    instead of an unsafe.Pointer, we need an intermediate cast.
+    
+    Add the insertion of the intermediate cast to the cftype fix module.
+    
+    Fixes #23091
+    
+    Change-Id: I891be2f4a08cfd7de1cc4c6ab841b1e0d8c388a6
+    Reviewed-on: https://go-review.googlesource.com/88175
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/fix/cftype.go      | 99 ++++++++++++++++++++++++++++++++++------------
+ src/cmd/fix/cftype_test.go | 34 ++++++++++++++++
+ 2 files changed, 107 insertions(+), 26 deletions(-)

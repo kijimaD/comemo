@@ -1,0 +1,32 @@
+commit 07cf24bdfe55dd3493e580c67b5437a114df7658
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 03:53:58 2022 -0700
+
+    cmd/compile/internal/noder: set ir.Name.DictIndex for unified IR
+    
+    For local variables of derived type, Delve relies on ir.Name.DictIndex
+    being set to the type's rtype index within the function's dictionary.
+    This CL implements that functionality within unified IR.
+    
+    Manually double checked that Delve behaves correctly, at least as far
+    as I can tell from casual use. Specifically, I confirmed that running
+    the test program from TestDictIndex, stepping into testfn, and then
+    running `print mapvar` prints `map[int]main.CustomInt []`, which
+    matches the behavior under GOEXPERIMENT=nounified. (Also compare that
+    when ir.Name.DictIndex is *not* set by unified IR, `print mapvar`
+    instead prints `map[int]go.shape.int []`.)
+    
+    Fixes #54514.
+    
+    Change-Id: I90d443945895abfba04dc018f15e00217930091c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424735
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go | 17 +++++++++++++----
+ src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++++---------
+ src/cmd/link/internal/ld/dwarf_test.go   |  4 ----
+ 3 files changed, 30 insertions(+), 17 deletions(-)

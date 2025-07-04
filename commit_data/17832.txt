@@ -1,0 +1,12 @@
+commit 9b321faae7a598c6576a97e9363e9ea52d429c59
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 23 10:34:14 2013 +0400
+
+    misc/dist: use go.tools release branch
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/15450047
+
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

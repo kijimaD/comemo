@@ -1,0 +1,15 @@
+commit 58a5f1e84f4e6679ffb70a0cc81d786e078b4ef7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 28 09:27:11 2011 -0700
+
+    http: don't send a 400 Bad Request after a client shutdown
+    
+    Fixes #2312
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5143049
+
+ src/pkg/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     |  2 ++
+ 2 files changed, 34 insertions(+)

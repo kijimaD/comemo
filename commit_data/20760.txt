@@ -1,0 +1,16 @@
+commit 9d06cfc810692911372b80b7ef0dc080ee1d34d4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 20 23:03:03 2014 +0200
+
+    runtime: handle non-nil-terminated environment strings on Plan 9
+    
+    Russ Cox pointed out that environment strings are not
+    required to be nil-terminated on Plan 9.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/159130044
+
+ src/runtime/env_plan9.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

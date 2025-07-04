@@ -1,0 +1,29 @@
+commit ad22356ec660844ec43ccbe9a834845f1a6f7cf8
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 24 10:24:05 2024 -0700
+
+    all: rename internal/safefilepath to internal/filepathlite
+    
+    The safefilepath package was originally added to contain
+    the FromFS function. We subsequently added FromFS to path/filepath
+    as Localize. The safefilepath package now exists only to permit
+    the os package to import Localize.
+    
+    Rename safefilepath to filepathlite to better indicate that it's
+    a low-dependency version of filepath.
+    
+    Change-Id: I4c5f9b28e8581f841947b48c5cac9954cd0c9535
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581517
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/deps_test.go                                   | 4 ++--
+ src/internal/{safefilepath => filepathlite}/path.go         | 4 ++--
+ src/internal/{safefilepath => filepathlite}/path_plan9.go   | 2 +-
+ src/internal/{safefilepath => filepathlite}/path_unix.go    | 2 +-
+ src/internal/{safefilepath => filepathlite}/path_windows.go | 2 +-
+ src/os/dir.go                                               | 6 +++---
+ src/os/file.go                                              | 4 ++--
+ src/path/filepath/path.go                                   | 4 ++--
+ src/path/filepath/path_windows.go                           | 4 ++--
+ 9 files changed, 16 insertions(+), 16 deletions(-)

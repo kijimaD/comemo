@@ -1,0 +1,25 @@
+commit 47759fbab76cb4b4de93382158fae5d27924979f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 15 07:12:26 2019 -0700
+
+    time: avoid or clarify CEST
+    
+    In the tzdata database CEST is not recognized as a timezone name.
+    It is used as the abbreviated name for daylight saving time in
+    Central Europe.  Avoid using CEST in documentation as it suggests
+    that programs can parse dates that use CEST, which will typically
+    fail on Unix systems.
+    
+    Updates #34913
+    
+    Change-Id: I4b22f7d06607eb5b066812a48af58edd95498286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201197
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/time/example_test.go | 1 +
+ src/time/time.go         | 2 +-
+ src/time/zoneinfo.go     | 5 +++--
+ 3 files changed, 5 insertions(+), 3 deletions(-)

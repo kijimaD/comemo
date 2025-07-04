@@ -1,0 +1,15 @@
+commit ded29e7b3914b87faf0131aeb5e43436c92bc527
+Author: Michael Hendricks <michael@ndrix.org>
+Date:   Tue Jun 20 20:38:14 2017 -0500
+
+    os: fix documentation for Executable on OpenBSD
+    
+    Executable on OpenBSD now uses Args[0] so procfs is no longer
+    required.
+    
+    Change-Id: I4155ac76f8909499783e876e92ee4f13a35b47dd
+    Reviewed-on: https://go-review.googlesource.com/46211
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

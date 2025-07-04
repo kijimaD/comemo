@@ -1,0 +1,15 @@
+commit a07a57b00ec9fdd8f6b02360d39454859709d08a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 23:07:36 2014 -0400
+
+    syscall: mark ECONNRESET, ECONNABORTED as temporary network errors
+    
+    Fixes #6163.
+    
+    LGTM=adg
+    R=golang-codereviews, adg, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/141600043
+
+ src/syscall/syscall_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

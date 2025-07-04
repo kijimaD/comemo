@@ -1,0 +1,14 @@
+commit dda7985a7b748e7149dc46c29611c2ec6e861340
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 11 13:36:05 2018 -0400
+
+    doc/go1.11: first draft of release notes
+    
+    Updates golang/go#23122
+    
+    Change-Id: I2d6769101cdd580901cb08a3027d787fa438d4bc
+    Reviewed-on: https://go-review.googlesource.com/117975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 337 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 337 insertions(+)

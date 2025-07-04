@@ -1,0 +1,19 @@
+commit 829adf5047bee5a7cd746e9d6d00d09eb7ac4adb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 16:22:21 2017 -0700
+
+    cmd/compile: fix real/imag for untyped constant arguments
+    
+    Fixes #11945.
+    Fixes #17446.
+    
+    Change-Id: Ic674f6ebc0533ab0f97c650689125994941b72e1
+    Reviewed-on: https://go-review.googlesource.com/45081
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go      | 13 ------
+ src/cmd/compile/internal/gc/typecheck.go | 58 ++++++++++++++++++++------
+ test/fixedbugs/issue11945.go             | 71 ++++++++++++++++++++++++++++++++
+ 3 files changed, 117 insertions(+), 25 deletions(-)

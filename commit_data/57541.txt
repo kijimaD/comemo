@@ -1,0 +1,20 @@
+commit 9ace960d545d29ff6326732bed36b5a68ba3e7e7
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Sep 26 08:08:07 2024 +0000
+
+    hash/crc32,hash/crc64: use sync.OnceFunc
+    
+    Use sync.OnceFunc to simplify the code and to reduce global variables.
+    
+    Change-Id: I7676339177e082c5be93dcf8121e379a6a7de912
+    GitHub-Last-Rev: f796c49260ad19c33b616c9543b99f7f425dc2fe
+    GitHub-Pull-Request: golang/go#69633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615920
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/hash/crc32/crc32.go | 20 +++++++++-----------
+ src/hash/crc64/crc64.go |  9 +++------
+ 2 files changed, 12 insertions(+), 17 deletions(-)

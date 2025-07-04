@@ -1,0 +1,32 @@
+commit 28e1a8e47aa089e781aa15bdd16e15265a5180bd
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 4 16:15:35 2017 -0400
+
+    runtime: preempt fractional worker after reaching utilization goal
+    
+    Currently fractional workers run until preempted by the scheduler,
+    which means they typically run for 20ms. During this time, all other
+    goroutines on that P are blocked, which can introduce significant
+    latency variance.
+    
+    This modifies fractional workers to self-preempt shortly after
+    achieving the fractional utilization goal. In practice this means they
+    preempt much sooner, and the scale of their preemption is on the order
+    of how often the user goroutine block (so, if the application is
+    compute-bound, the fractional workers will also run for long times,
+    but if the application blocks frequently, the fractional workers will
+    also preempt quickly).
+    
+    Fixes #21698.
+    Updates #18534.
+    
+    Change-Id: I03a5ab195dae93154a46c32083c4bb52415d2017
+    Reviewed-on: https://go-review.googlesource.com/68573
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      | 28 +++++++++++++++++++++++-----
+ src/runtime/mgcmark.go  | 39 +++++++++++++++++++++++++++------------
+ src/runtime/runtime2.go |  4 ++++
+ 3 files changed, 54 insertions(+), 17 deletions(-)

@@ -1,0 +1,15 @@
+commit 1801972b306c0750138a9a4c83c2097f6ea83ad9
+Author: Ross Light <rlight2@gmail.com>
+Date:   Thu Apr 28 13:11:37 2011 -0700
+
+    http/spdy: new package
+    
+    R=bradfitz, agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4435055
+
+ src/pkg/Makefile                   |   1 +
+ src/pkg/http/spdy/Makefile         |  11 ++
+ src/pkg/http/spdy/protocol.go      | 367 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/spdy/protocol_test.go | 259 ++++++++++++++++++++++++++
+ 4 files changed, 638 insertions(+)

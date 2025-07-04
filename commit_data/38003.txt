@@ -1,0 +1,44 @@
+commit dace6544b3ff077d8cc02fc37d59187be253ab70
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 14:53:26 2019 -0500
+
+    cmd/vet: make vet_test module-agnostic
+    
+    vet_test currently uses a custom GOPATH for each test, but it turns
+    out not to be necessary.
+    
+    Updates #30228
+    
+    Change-Id: Id7a7bf6d759bd94adccf44e197be1728c2f23575
+    Reviewed-on: https://go-review.googlesource.com/c/163038
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/testdata/{src => }/asm/asm.go          |  0
+ src/cmd/vet/testdata/{src => }/asm/asm1.s          |  0
+ src/cmd/vet/testdata/{src => }/assign/assign.go    |  0
+ src/cmd/vet/testdata/{src => }/atomic/atomic.go    |  0
+ src/cmd/vet/testdata/{src => }/bool/bool.go        |  0
+ .../vet/testdata/{src => }/buildtag/buildtag.go    |  0
+ src/cmd/vet/testdata/{src => }/cgo/cgo.go          |  0
+ .../vet/testdata/{src => }/composite/composite.go  |  0
+ .../vet/testdata/{src => }/copylock/copylock.go    |  0
+ .../vet/testdata/{src => }/deadcode/deadcode.go    |  0
+ .../{src => }/httpresponse/httpresponse.go         |  0
+ .../testdata/{src => }/lostcancel/lostcancel.go    |  0
+ src/cmd/vet/testdata/{src => }/method/method.go    |  0
+ src/cmd/vet/testdata/{src => }/nilfunc/nilfunc.go  |  0
+ src/cmd/vet/testdata/{src => }/print/print.go      | 52 +++++++++++-----------
+ .../vet/testdata/{src => }/rangeloop/rangeloop.go  |  0
+ src/cmd/vet/testdata/{src => }/shift/shift.go      |  0
+ .../vet/testdata/{src => }/structtag/structtag.go  |  0
+ src/cmd/vet/testdata/{src => }/tagtest/file1.go    |  0
+ src/cmd/vet/testdata/{src => }/tagtest/file2.go    |  0
+ src/cmd/vet/testdata/{src => }/testingpkg/tests.go |  0
+ .../testdata/{src => }/testingpkg/tests_test.go    |  0
+ .../vet/testdata/{src => }/unmarshal/unmarshal.go  |  0
+ .../vet/testdata/{src => }/unsafeptr/unsafeptr.go  |  0
+ src/cmd/vet/testdata/{src => }/unused/unused.go    |  0
+ src/cmd/vet/vet_test.go                            | 14 +++---
+ 26 files changed, 31 insertions(+), 35 deletions(-)

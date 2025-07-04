@@ -1,0 +1,21 @@
+commit 7dd8f39ebac6d8b27c0ad7cf421aa5d71f155220
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Jan 2 14:25:45 2024 +0800
+
+    all: fix some comments
+    
+    Change-Id: I0ee85161846c13d938213ef04d3a34f690a93e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/noder/unified.go  | 2 +-
+ src/cmd/compile/internal/ssagen/abi.go     | 2 +-
+ src/cmd/compile/internal/typecheck/expr.go | 2 +-
+ src/cmd/compile/internal/types/type.go     | 4 ++--
+ src/net/conf.go                            | 2 +-
+ src/runtime/pinner.go                      | 2 +-
+ test/makechan.go                           | 2 +-
+ 7 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit 7c94dc04a794119dd9488fb491a56faa4507bf7e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 20 11:30:48 2011 +1100
+
+    dashboard: display correct package build state
+    
+    Includes some boring whitespace tweaks.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5492067
+
+ misc/dashboard/app/build/ui.html | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit c7e0b8baa69825d69a4abc6b7b22cf08fca5ae63
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 15:33:53 2012 -0400
+
+    regexp/syntax: define accepted syntax
+    
+    Update #3953.
+    
+    R=bradfitz, campoy
+    CC=golang-dev
+    https://golang.org/cl/6543068
+
+ src/pkg/regexp/syntax/doc.go   | 127 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/syntax/parse.go |   4 --
+ 2 files changed, 127 insertions(+), 4 deletions(-)

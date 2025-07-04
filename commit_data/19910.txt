@@ -1,0 +1,16 @@
+commit 69c2e2b9e0e9c7caee98c4e71cf3c663360d61ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 14:52:12 2014 -0400
+
+    codereview: enable work and code reviews in development branches
+    
+    This is an experiment. See mail on golang-dev
+    (subject: "an experiment: development branches").
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/117660043
+
+ lib/codereview/codereview.py | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

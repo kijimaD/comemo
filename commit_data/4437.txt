@@ -1,0 +1,15 @@
+commit a47a45ec7741d677ea6582cdeee3419325ac9488
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 18:03:59 2009 -0800
+
+    Fix for scanner bug (introduced with most recent change).
+    
+    Fixes #433.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179072
+
+ src/pkg/go/scanner/scanner.go      | 8 ++++++--
+ src/pkg/go/scanner/scanner_test.go | 2 ++
+ 2 files changed, 8 insertions(+), 2 deletions(-)

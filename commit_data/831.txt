@@ -1,0 +1,13 @@
+commit bbb00c62e1de987a0d5af4e78cb2c6ef5f8272c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 8 09:46:54 2008 -0700
+
+    split all.bash into make.bash and run.bash
+    
+    R=r
+    OCL=16720
+    CL=16728
+
+ src/all.bash | 38 +-------------------------------------
+ src/run.bash | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 37 deletions(-)

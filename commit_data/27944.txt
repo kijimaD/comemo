@@ -1,0 +1,20 @@
+commit 1756b665980613cf655d6ecde709a032568963b0
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Jul 31 23:10:35 2016 +0700
+
+    os: make ExpandEnv recognize '-' as a special shell parameter
+    
+    '-' is one of shell special parameters.
+    
+    The existing implementation of isShellSpecialVar missed '-'
+    from the list, causing "$-" and "${-}" expand differently.
+    
+    Fixes #16554
+    
+    Change-Id: Iafc7984692cc83cff58f7c1e01267bf78b3a20a9
+    Reviewed-on: https://go-review.googlesource.com/25352
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/env.go           |  2 +-
+ src/os/env_unix_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

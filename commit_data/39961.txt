@@ -1,0 +1,16 @@
+commit fe2ed5054176935d4adcf13e891715ccf2ee3cce
+Author: ZYunH <zyunhjob@163.com>
+Date:   Thu Sep 19 14:56:11 2019 +0000
+
+    net/url: add upperhex const instead of using string literal
+    
+    The mime and strconv packages already have a const with this name & value.
+    
+    Change-Id: Ibd7837f854ac8ec3f57943a9d1db07f4cf6db858
+    GitHub-Last-Rev: 775cdce3b75350aa3b9a6f31f04cfdd0033e9ac3
+    GitHub-Pull-Request: golang/go#34389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

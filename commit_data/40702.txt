@@ -1,0 +1,17 @@
+commit b2b0992b05a37b474d77c5056787780fda254fda
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 8 18:53:35 2019 +0000
+
+    Revert "encoding/asn1: fix unmarshalling SEQUENCE OF SET"
+    
+    This reverts CL 160819 (commit 4692343cf401a5bbcc29)
+    
+    Reason for revert: causing lots of failures on master
+    
+    Change-Id: I96fd39ae80fe350ba8b3aa310443d41daec38093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206146
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/asn1/asn1_test.go | 19 -------------------
+ src/encoding/asn1/common.go    |  3 ---
+ 2 files changed, 22 deletions(-)

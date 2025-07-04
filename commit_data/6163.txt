@@ -1,0 +1,14 @@
+commit a37e3697da06e2bee7be21b107c7a2190bde35d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 2 11:31:00 2010 -0700
+
+    exp/iterables: fix typo
+    
+    Fixes #1069.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2143041
+
+ src/pkg/exp/iterable/iterable.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit fc8eb264bba88b9e4eb85fa7560817abb25767f4
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 15 21:46:43 2019 -0400
+
+    runtime: ensure _Grunning Gs have a valid g.m and g.m.p
+    
+    We already claim on the documentation for _Grunning that this is case,
+    but execute transitions to _Grunning before assigning g.m. Fix this
+    and make the documentation even more explicit.
+    
+    For #10958, #24543, but also a good cleanup.
+    
+    Change-Id: I1eb0108e7762f55cfb0282aca624af1c0a15fe56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201440
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/proc.go     | 6 ++++--
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

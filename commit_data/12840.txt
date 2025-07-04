@@ -1,0 +1,12 @@
+commit fd04f05f2f5225f9a17a34a21535fd79cceb687d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 5 18:59:50 2012 +0400
+
+    runtime: replace XOR AX, AX with MOV $0, AX
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5985048
+
+ src/pkg/runtime/asm_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

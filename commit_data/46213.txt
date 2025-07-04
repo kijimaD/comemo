@@ -1,0 +1,19 @@
+commit bdc1bef8a05d4524160d56a027f110257323033d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Aug 20 14:38:09 2021 -0700
+
+    cmd/go: ensure 'go get -u' can upgrade pruned (1.17+) modules
+    
+    Fixes #47768
+    
+    Change-Id: I981a31ba4ff716570ac4c6f35b289fa480faa5bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343879
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/edit.go                |  1 +
+ .../testdata/script/mod_get_lazy_upgrade_lazy.txt  | 68 ++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

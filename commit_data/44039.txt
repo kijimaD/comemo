@@ -1,0 +1,21 @@
+commit ae652a4ac9354fef81610ca616b872262ea51281
+Author: Henrique Vicente <henriquevicente@gmail.com>
+Date:   Mon Nov 16 03:09:31 2020 +0100
+
+    os/signal: fix flaky tests for NotifyContext.
+    
+    Test failures started to happen sporadically on some builds after the introduction of NotifyContext.
+    To make these tests more robust and avoid the risk of crosstalk we run them in a separate process.
+    
+    Fixes #41561.
+    
+    Change-Id: Ia7af105c316afd11765358f1e5e253ccfe2adc2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270198
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ src/os/signal/signal_test.go | 102 +++++++++++++++++++++++++------------------
+ 1 file changed, 60 insertions(+), 42 deletions(-)

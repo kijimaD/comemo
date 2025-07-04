@@ -1,0 +1,17 @@
+commit 1948b7f8069d881822bf700185dd19dcb4b14482
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu May 25 11:50:40 2017 +0200
+
+    math/big: fix Add, Sub when receiver aliases 2nd operand
+    
+    Fixes #20490
+    
+    Change-Id: I9cfa604f9ff94df779cb9b4cbbd706258fc473ac
+    Reviewed-on: https://go-review.googlesource.com/44150
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/big/float.go      | 13 +++++++++++--
+ src/math/big/float_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

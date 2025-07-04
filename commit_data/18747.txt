@@ -1,0 +1,19 @@
+commit 18019dffd215ef3741f19657472c5234e3897b35
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Mar 6 00:08:03 2014 +1100
+
+    net: disable "udp" to IPv6 unicast address loopback test on dragonfly
+    
+    Disable the "udp" to IPv6 unicast address on the loopback interface
+    test under DragonFly BSD. This currently returns a local address of
+    0.0.0.1, rather than an IPv6 address with zone identifier.
+    
+    Update #7473
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/71500044
+
+ src/pkg/net/udp_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,24 @@
+commit 475425201a735762bccbc77d00b00a799d425a9f
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 14:35:53 2017 -0400
+
+    runtime: fix stackCache=0 debug mode
+    
+    Setting stackCache to 0 to disable stack caches for debugging hasn't
+    worked for a long time. It causes stackalloc to fall back to full span
+    allocation, round sub-page stacks down to 0 pages, and blow up.
+    
+    Fix this debug mode so it disables the per-P caches, but continues to
+    use the global stack pools for small stacks, which correctly handle
+    sub-page stacks. While we're here, rename stackCache to stackNoCache
+    so it acts like the rest of the stack allocator debug modes where "0"
+    is the right default value.
+    
+    Fixes #17291.
+    
+    Change-Id: If401c41cee3448513cbd7bb2e9334a8efab257a7
+    Reviewed-on: https://go-review.googlesource.com/43637
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stack.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

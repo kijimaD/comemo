@@ -1,0 +1,18 @@
+commit 9b011500c0b93951b0618c06be1b9d2d78ab374e
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 3 18:27:16 2011 +1000
+
+    runtime: implement exception handling on windows/amd64
+    
+    Fixes #2194.
+    
+    R=rsc, alex.brainman, vcc.163, jp
+    CC=golang-dev
+    https://golang.org/cl/4977044
+
+ src/cmd/ld/pe.c                        | 57 ++++++++++++++++++++--
+ src/pkg/runtime/windows/amd64/defs.h   | 58 +++++++++++++++++++++-
+ src/pkg/runtime/windows/amd64/signal.c | 89 +++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/windows/amd64/sys.s    | 39 +++++++++++++++
+ src/pkg/runtime/windows/defs.c         |  5 ++
+ 5 files changed, 243 insertions(+), 5 deletions(-)

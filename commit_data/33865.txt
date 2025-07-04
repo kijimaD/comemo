@@ -1,0 +1,15 @@
+commit 3f5c1adeb8951762a1b0c35194ca0ad6aca25e18
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 23 11:55:02 2017 -0400
+
+    plugin: document support for macOS
+    
+    All plugins issues I would call bugs now closed, so
+    (with some amount of optimism) update the plugin documentation.
+    
+    Change-Id: Ia421c18a166d7cdf599ac86f2336541c1ef42a0d
+    Reviewed-on: https://go-review.googlesource.com/65670
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 07e887f43323027175b22db247c50c73f0fc152f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 22 11:15:43 2012 +1100
+
+    flag: add examples
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5867049
+
+ src/pkg/flag/example_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

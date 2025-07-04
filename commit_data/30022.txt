@@ -1,0 +1,23 @@
+commit ade6bcf1d5d0fdddb7ce779e7aa3f1479e1e77a3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 08:57:46 2017 +0100
+
+    misc/ios: ignore stderr from iOS tools
+    
+    On (at least) macOS 10.12, the `security cms` subcommand used by the
+    iOS detection script will output an error to stderr. The command
+    otherwise succeeds, but the extra line confuses a later parsing step.
+    
+    To fix it, use only stdout and ignore stderr from every command run
+    by detect.go.
+    
+    For the new iOS builders.
+    
+    Change-Id: Iee426da7926d7f987ba1be061fa92ebb853ef53d
+    Reviewed-on: https://go-review.googlesource.com/36059
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/detect.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

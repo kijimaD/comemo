@@ -1,0 +1,22 @@
+commit d21bdf125c76cc4f5b5efad59f39c435ca8aaa14
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 28 20:34:05 2018 -0400
+
+    cmd/compile: check SSAability in handling of INDEX of 1-element array
+    
+    SSA can handle 1-element array, but only when the element type
+    is SSAable. When building SSA for INDEX of 1-element array, we
+    did not check the element type is SSAable. And when it's not,
+    it resulted in an unhandled SSA op.
+    
+    Fixes #26120.
+    
+    Change-Id: Id709996b5d9d90212f6c56d3f27eed320a4d8360
+    Reviewed-on: https://go-review.googlesource.com/121496
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go |  3 ++-
+ test/fixedbugs/issue26120.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

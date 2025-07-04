@@ -1,0 +1,13 @@
+commit fe79e436b6cc7bb5727c9acf998749f4b9c9ecd0
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 16:05:10 2008 -0700
+
+    update fmt to int/int32 etc split
+    
+    R=rsc
+    DELTA=9  (6 added, 0 deleted, 3 changed)
+    OCL=18072
+    CL=18075
+
+ src/lib/fmt/print.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

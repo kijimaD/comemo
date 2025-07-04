@@ -1,0 +1,31 @@
+commit 7f88d3c121a5a41f5fc286128d13f6b098dec6c1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 22 17:18:51 2017 +0100
+
+    cmd/compile: remove some more gotos in gc
+    
+    Split typecheckrange into two, separating the bigger chunk of code that
+    takes care of the range expression. It had to sometimes exit early,
+    which was done via a goto in the larger func. This lets us simplify many
+    declarations and the flow of the code. While at it, also replace the
+    toomany int with a bool.
+    
+    In the case of walkselect, split it into two funcs too since using a
+    defer for all the trailing work would be a bit much. It also lets us
+    simplify the declarations and the flow of the code, since now
+    walkselectcases has a narrower scope and straightforward signature.
+    
+    Also replace the gotos in typecheckaste with a lineno defer.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: Iacfaa0a34c987c44f180a792c473558785cf6823
+    Reviewed-on: https://go-review.googlesource.com/72374
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/range.go     | 53 +++++++++----------
+ src/cmd/compile/internal/gc/select.go    | 88 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 22 +++-----
+ 3 files changed, 75 insertions(+), 88 deletions(-)

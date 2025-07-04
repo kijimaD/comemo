@@ -1,0 +1,14 @@
+commit a4330ed694c588d495f7c72a9cbb0cd39dde31e8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 20:05:12 2018 +0000
+
+    net/http: document Server's implicit Content-Length response header
+    
+    Fixes #23450
+    
+    Change-Id: I829399194299d2e6d5e754b60e8f72b321b5da90
+    Reviewed-on: https://go-review.googlesource.com/115040
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 767c0fb9fd1e7d7210276be45b0abb5d14d34484
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 25 15:25:56 2025 -0500
+
+    go/scanner: report specific error for UCS-2 encoded files
+    
+    Windows text files may be encoded as UCS-2 (i.e. 2-byte UTF-16).
+    This CL causes the scanner to emit a better error when it reads
+    a file in this encoding.
+    
+    + test
+    
+    Fixes #71950
+    
+    Change-Id: Ia65bbf9a60e36984b0f3e4865591aa6978d2bde2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652515
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+
+ src/go/scanner/scanner.go      | 12 +++++++++++-
+ src/go/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

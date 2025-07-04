@@ -1,0 +1,12 @@
+commit 84af5ea9b40f1e564056019e1dd4938bca9e557c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:35:21 2017 +1000
+
+    cmd/link: simplify writePESymTableRecords
+    
+    Change-Id: I2da982fdef826aaecb86431f7d80ffc0fb2c4337
+    Reviewed-on: https://go-review.googlesource.com/59424
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

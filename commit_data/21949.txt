@@ -1,0 +1,19 @@
+commit 3b00197017ad8ec903448fe203202602b0a466df
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Mar 7 00:18:16 2015 -0500
+
+    runtime: add argument sizes for asm functions for bytes, strings
+    
+    Also fixed a stack corruption bug for nacl/amd64p32.
+    
+    Change-Id: I64b821b16999c296a159137d971af3870053c621
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7073
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/asm_386.s      |  4 ++--
+ src/runtime/asm_amd64.s    |  4 ++--
+ src/runtime/asm_amd64p32.s |  6 +++---
+ src/runtime/asm_arm.s      | 14 +++++++-------
+ src/runtime/asm_ppc64x.s   |  2 +-
+ 5 files changed, 15 insertions(+), 15 deletions(-)

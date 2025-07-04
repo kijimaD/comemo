@@ -1,0 +1,29 @@
+commit be1a6934776a3c7f636932918e756b44b6510214
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Aug 22 11:50:58 2021 -0700
+
+    cmd/compile: fixes for non-constant Sizeof/Alignof/Offsetof
+    
+    Includes Robert's suggested fix in validate.go to not fail on
+    non-constant alignof/offsetof/sizeof calls. Further changes to wait on
+    transforming these calls until stenciling time, when we can call
+    EvalConst() to evaluate them once all the relevant types are known.
+    
+    Added a bunch of new tests for non-constant Sizeof/Alignof/Offsetof.
+    
+    Fixes #47716
+    
+    Change-Id: I469af888eb9ce3a853124d919eda753971009b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344250
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/helpers.go   | 10 ++++-
+ src/cmd/compile/internal/noder/stencil.go   |  2 +-
+ src/cmd/compile/internal/noder/transform.go |  5 ++-
+ src/cmd/compile/internal/noder/validate.go  | 11 ++++-
+ src/cmd/compile/internal/typecheck/const.go |  4 +-
+ test/typeparam/issue47716.go                | 68 +++++++++++++++++++++++++++++
+ 6 files changed, 95 insertions(+), 5 deletions(-)

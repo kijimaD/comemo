@@ -1,0 +1,12 @@
+commit 2ac3df210b723d8f1969b070cf56f18df3b5dc57
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 23 11:54:57 2010 +1100
+
+    Fix xgb/example.go typo.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/210047
+
+ src/pkg/xgb/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

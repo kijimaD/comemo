@@ -1,0 +1,13 @@
+commit 8d652ee8ce2174f8ee6510b8e9ec297e27c9eba6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 1 23:38:06 2009 -0800
+
+    time: fix handling of Jan 1 1601, 1201, 801, ...
+    
+    R=r
+    CC=hurtonm
+    https://golang.org/cl/164074
+
+ src/pkg/time/time.go      | 12 ++++++------
+ src/pkg/time/time_test.go |  1 +
+ 2 files changed, 7 insertions(+), 6 deletions(-)

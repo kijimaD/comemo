@@ -1,0 +1,17 @@
+commit ab0ae44e91efec4440828406ef1929488a8b1b06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 20:28:14 2016 +0000
+
+    net/http: fix documentation on Server.TLSNextProto controlling http2
+    
+    Server.TLSNextProto being nil is necessary but not sufficient but
+    http2 being automatically enabled.
+    
+    Fixes #16588
+    
+    Change-Id: I5b18690582f9b12ef05b58235e1eaa52483be285
+    Reviewed-on: https://go-review.googlesource.com/33090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

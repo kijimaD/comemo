@@ -1,0 +1,17 @@
+commit 26015b95634de49bc5b4ac998e8a2d1fcb8eca79
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Aug 5 19:16:07 2016 -0400
+
+    runtime: make stack 16-byte aligned for external code in _rt0_amd64_linux_lib
+    
+    Fixes #16618.
+    
+    Change-Id: Iffada12e8672bbdbcf2e787782c497e2c45701b1
+    Reviewed-on: https://go-review.googlesource.com/25550
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Arjan Van De Ven <arjan.van.de.ven@intel.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/rt0_linux_amd64.s | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

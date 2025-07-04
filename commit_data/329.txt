@@ -1,0 +1,18 @@
+commit afbf717eebf0678aefba15f4e87747ebcc81eb05
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 10 18:05:00 2008 -0700
+
+    - created new dir (gosrc) for go-based front-end
+    - adjusted makefiles
+    
+    SVN=126763
+
+ usr/gri/{src => gosrc}/globals.go      | 4 +++-
+ usr/gri/{src => gosrc}/object.go       | 0
+ usr/gri/{src => gosrc}/parser.go       | 3 +++
+ usr/gri/{src => gosrc}/scanner.go      | 0
+ usr/gri/{src => gosrc}/scope.go        | 0
+ usr/gri/{src => gosrc}/test_parser.go  | 0
+ usr/gri/{src => gosrc}/test_scanner.go | 0
+ usr/gri/{src => gosrc}/type.go         | 0
+ 8 files changed, 6 insertions(+), 1 deletion(-)

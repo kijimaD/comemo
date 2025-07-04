@@ -1,0 +1,25 @@
+commit e221a75deab7843d5414154000f5bea7abcb60c3
+Author: Walt Della <walt@javins.net>
+Date:   Sat Feb 1 21:58:37 2020 -0800
+
+    cmd/go: improve pseudo-version timestamp error
+    
+    The previous "invalid pseudo-version: does not match version-control
+    timestamp" error message used a different timestamp format than the
+    format used in go.mod and go.sum. For cut-and-paste-ability this patch
+    makes the two consistent.
+    
+    Fixes #36974
+    
+    Change-Id: I21f344ab9898cc584c0bcf4a75d74275a703c650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           | 2 +-
+ src/cmd/go/internal/modfetch/pseudo.go             | 4 +++-
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 6 +++---
+ 3 files changed, 7 insertions(+), 5 deletions(-)

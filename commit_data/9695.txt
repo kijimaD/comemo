@@ -1,0 +1,14 @@
+commit 6430f46e4bc7fee3c2e9f5ce77618b9ca07a8e15
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 12:34:34 2011 -0400
+
+    go/build: fix build (revert test changes)
+    
+    R=adg
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/5024046
+
+ src/pkg/go/build/build_test.go      | 20 +++++---------------
+ src/pkg/go/build/cgotest/cgotest.go |  3 ---
+ 2 files changed, 5 insertions(+), 18 deletions(-)

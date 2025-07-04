@@ -1,0 +1,16 @@
+commit 8cb865c9197f0f383b0bde48e37faea7b7a2451d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 19 13:00:44 2020 -0400
+
+    cmd/dist: do not skip 'cmd' tests in race mode
+    
+    Fixes #37940
+    
+    Change-Id: Ib869a4bf84296dac201cc7252431d7161b9c96f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224038
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/dist/test.go | 3 ---
+ 1 file changed, 3 deletions(-)

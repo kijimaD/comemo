@@ -1,0 +1,17 @@
+commit b412fde53a6b53475e25aaa9e49f3c6df3c48716
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 3 10:22:28 2019 -0400
+
+    go/build: document characters allowed in build tags
+    
+    The documentation just said "alphanumeric", but underscores and dots
+    are also accepted.
+    
+    Fixes #32886
+    
+    Change-Id: I1ba872a220d5c5bf64f1d851ddba9eb3b1afb89a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184917
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go/build/doc.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

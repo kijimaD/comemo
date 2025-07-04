@@ -1,0 +1,23 @@
+commit 0ec302c49ee3dd1a7f290db9a326bbfb734e8c35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 22:57:27 2019 +0000
+
+    cmd: update go.mod versions for vetall bug
+    
+    Updates golang/go#30971
+    Updates golang/go#31040
+    
+    Change-Id: I305fbddb6f79cbe3d7e29225841309ab00b1e7dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169239
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |  6 +-
+ src/cmd/go.sum                                     | 12 ++--
+ .../golang.org/x/crypto/ssh/terminal/terminal.go   | 67 +++++++++++++---------
+ .../golang.org/x/sys/windows/syscall_windows.go    |  1 +
+ .../golang.org/x/sys/windows/types_windows.go      | 16 +++++-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   | 19 ++++++
+ .../x/tools/go/analysis/passes/tests/tests.go      | 44 ++++++++------
+ src/cmd/vendor/modules.txt                         |  6 +-
+ 8 files changed, 111 insertions(+), 60 deletions(-)

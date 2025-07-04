@@ -1,0 +1,19 @@
+commit 7d4d71e52f0714c7990705f0fc56f9104761514e
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 18 14:53:02 2023 -0700
+
+    net/http: improve error reporting in TestCancelRequestWhenSharingConnection
+    
+    Ensure that errors are reported if an HTTP request unexpectedly fails.
+    
+    For #56587
+    
+    Change-Id: I1adfb4fedc24d4177caf54e34c5033267e32caa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486075
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/transport_test.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

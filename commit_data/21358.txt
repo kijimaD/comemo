@@ -1,0 +1,15 @@
+commit 6d37c830b6bcf466cd03463c20843a89a22d0a23
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jan 27 22:55:03 2015 +0300
+
+    runtime: simplify code
+    
+    The %61 hack was added when runtime was is in C.
+    Now the Go compiler does the optimization.
+    
+    Change-Id: I79c3302ec4b931eaaaaffe75e7101c92bf287fc7
+    Reviewed-on: https://go-review.googlesource.com/3289
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc1.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

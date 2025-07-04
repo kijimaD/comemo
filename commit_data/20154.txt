@@ -1,0 +1,15 @@
+commit 9e360926972b35d2fd4c8f99f22669417876526b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 17:38:01 2014 -0400
+
+    runtime: fix plan9 build
+    
+    sighandler now returns its value on the stack.
+    
+    TBR=0intro
+    CC=golang-codereviews
+    https://golang.org/cl/135900043
+
+ src/pkg/runtime/sys_plan9_386.s   | 7 ++++---
+ src/pkg/runtime/sys_plan9_amd64.s | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

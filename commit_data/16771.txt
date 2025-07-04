@@ -1,0 +1,16 @@
+commit 45cff65502ace2783f05cf27383d807f07627cf2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 16 12:36:05 2013 +1000
+
+    runtime: switch to os stack in windows osyield and usleep
+    
+    Fixes #5831
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11266043
+
+ src/pkg/runtime/os_windows.c        | 17 +++++++++++
+ src/pkg/runtime/sys_windows_386.s   | 59 +++++++++++++++++++------------------
+ src/pkg/runtime/sys_windows_amd64.s | 52 +++++++++++++++++++-------------
+ 3 files changed, 79 insertions(+), 49 deletions(-)

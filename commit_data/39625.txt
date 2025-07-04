@@ -1,0 +1,53 @@
+commit a80c5f0588e3835ff37c45a15d179571d9e403e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 21 17:13:45 2019 -0700
+
+    go/types: allow embedding overlapping interfaces
+    
+    Quietly drop duplicate methods from embedded interfaces
+    if they have an identical signature to existing methods.
+    
+    Instead of adjusting the prior syntax-based only method set
+    computation where methods don't have signature information
+    (and thus where de-duplication according to the new rules
+    would have been somewhat tricky to get right), this change
+    completely rewrites interface method set computation, taking
+    a page from the cmd/compiler's implementation. In a first
+    pass, when type-checking interfaces, explicit methods and
+    embedded interfaces are collected, but the interfaces are
+    not "expanded", that is the final method set computation
+    is done lazily, either when needed for method lookup, or
+    at the end of type-checking.
+    
+    While this is a substantial rewrite, it allows us to get
+    rid of the separate (duplicate and delicate) syntactical
+    method set computation and generally simplifies checking
+    of interface types significantly. A few (esoteric) test
+    cases now have slightly different error messages but all
+    tests that are accepted by cmd/compile are also accepted
+    by go/types.
+    
+    (This is a replacement for golang.org/cl/190258.)
+    
+    Updates #6977.
+    
+    Change-Id: Ic8b9321374ab4f617498d97c12871b69d1119735
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191257
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/builtins.go            |   2 +-
+ src/go/types/call.go                |   6 +-
+ src/go/types/check.go               |  25 +-
+ src/go/types/check_test.go          |   1 +
+ src/go/types/errors.go              |   4 +
+ src/go/types/interfaces.go          | 451 ------------------------------------
+ src/go/types/lookup.go              |  31 ++-
+ src/go/types/methodset.go           |   5 +
+ src/go/types/testdata/cycles2.src   |  16 +-
+ src/go/types/testdata/decls0.src    |   2 +-
+ src/go/types/testdata/issue6977.src |  82 +++++++
+ src/go/types/testdata/issues.src    |   9 +-
+ src/go/types/type.go                |  73 +++---
+ src/go/types/typexpr.go             | 248 ++++++++------------
+ test/fixedbugs/bug211.go            |  14 --
+ 15 files changed, 287 insertions(+), 682 deletions(-)

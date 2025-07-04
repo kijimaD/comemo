@@ -1,0 +1,30 @@
+commit eaf040502b763a6f00dced35e4173c2ce90eb52f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 10:24:42 2022 -0500
+
+    os: eliminate arbitrary sleep in Kill tests
+    
+    The test spawned a subprocess that arbitrarily slept for one second.
+    However, on some platforms, longer than one second may elapse between
+    starting the subprocess and sending the termination signal.
+    
+    Instead, the subprocess now closes stdout and reads stdin until EOF,
+    eliminating the need for an arbitrary duration. (If the parent test
+    times out, the stdin pipe will break, so the subprocess still won't
+    leak forever.)
+    
+    This also makes the test much faster in the typical case: since it
+    uses synchronization instead of sleeping, it can run as quickly as the
+    host OS can start and kill the process.
+    
+    Fixes #44131
+    
+    Change-Id: I9753571438380dc14fc3531efdaea84578a47fae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386174
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/os_test.go | 40 +++++++++++++++++++++++++++-------------
+ 1 file changed, 27 insertions(+), 13 deletions(-)

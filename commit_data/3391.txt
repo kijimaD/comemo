@@ -1,0 +1,12 @@
+commit 8796e8ce1eeeda119fe858888dd3fd11ad13dc16
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 29 11:56:57 2009 -0700
+
+    more language FAQ
+    
+    DELTA=79  (61 added, 3 deleted, 15 changed)
+    OCL=35083
+    CL=35088
+
+ doc/go_lang_faq.html | 88 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 73 insertions(+), 15 deletions(-)

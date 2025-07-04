@@ -1,0 +1,14 @@
+commit 68f4f96c1ecd69e0aee166969729923f9ca73486
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 28 15:38:20 2015 -0700
+
+    cmd/compiler/internal/gc: fix argument for Sprintf
+    
+    Val.Ctype used to be struct field, it's now a method.
+    
+    Change-Id: I08f0b32b66dba15b2a392e84a557efb905b530cb
+    Reviewed-on: https://go-review.googlesource.com/14031
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

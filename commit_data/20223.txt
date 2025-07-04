@@ -1,0 +1,17 @@
+commit 07d86b1f2db73c6a0716aec4d4cd62dfacb04a21
+Author: Evan Kroske <evankroske@google.com>
+Date:   Sat Aug 30 10:34:51 2014 -0700
+
+    net/url: make Userinfo.String() escape ? and add test for shouldEscape
+    
+    See RFC 3986 §3.2.1.
+    Fixes #6573.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/126560043
+
+ src/pkg/net/url/url.go      | 11 +++++----
+ src/pkg/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 5 deletions(-)

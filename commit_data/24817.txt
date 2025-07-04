@@ -1,0 +1,14 @@
+commit 980b00f55be8e86a4d6ae5639ebc7d566a04421e
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 23 14:05:16 2015 -0400
+
+    runtime: added go files for mips64 architecture support
+    
+    Change-Id: Ia496470e48b3c5d39fb9fef99fac356dfb73a949
+    Reviewed-on: https://go-review.googlesource.com/14927
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/arch_mips64.go   | 19 +++++++++++++++++++
+ src/runtime/arch_mips64le.go | 19 +++++++++++++++++++
+ src/runtime/sys_mips64x.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

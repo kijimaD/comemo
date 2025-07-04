@@ -1,0 +1,31 @@
+commit 0607cdda6b9f978b268464e9a42630c702dbd833
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 1 14:19:19 2019 -0400
+
+    syscall: redirect writes to runtime.write in faketime mode
+    
+    If the faketime build tag is set, this causes syscall.Write for FDs 1
+    and 2 to redirect to runtime.write, since that's where we'll apply the
+    faketime framing. This is equivalent to what nacl currently does in
+    naclFile.write.
+    
+    We do this on all of the platforms except nacl, which has its own
+    faketime support and we're about to remove, and Windows, which would
+    require other changes to support faketime so we're leaving alone for
+    now.
+    
+    Updates #30439.
+    
+    Change-Id: I138a5ca63577d92d15b5437d037bd3159fa84ee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192739
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/fs_js.go         |  8 ++++++++
+ src/syscall/syscall_plan9.go |  8 ++++++++
+ src/syscall/syscall_unix.go  |  9 ++++++++-
+ src/syscall/time_fake.go     | 26 ++++++++++++++++++++++++++
+ src/syscall/time_nofake.go   | 14 ++++++++++++++
+ 5 files changed, 64 insertions(+), 1 deletion(-)

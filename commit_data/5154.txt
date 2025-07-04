@@ -1,0 +1,21 @@
+commit 97d0e8fe6ce41b5961e776ad08abdf0cb6d7af85
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 18:01:02 2010 -0700
+
+    gc: allow taking address of out parameters
+    
+    Fixes #186.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/793041
+
+ doc/go_spec.html       |  2 +-
+ src/cmd/5g/ggen.c      | 20 ++++++++++++++++++++
+ src/cmd/6g/ggen.c      | 27 ++++++++++++++++++++++++---
+ src/cmd/8g/ggen.c      | 27 ++++++++++++++++++++++++---
+ src/cmd/gc/typecheck.c |  6 ++----
+ src/cmd/gc/walk.c      | 26 +++++++++++++++++++++++++-
+ test/escape.go         | 32 ++++++++++++++++++++++++++++++++
+ test/escape1.go        | 17 -----------------
+ 8 files changed, 128 insertions(+), 29 deletions(-)

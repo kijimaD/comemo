@@ -1,0 +1,25 @@
+commit 49621cc311a41b71f60f03202f3872c0633cac59
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Aug 9 15:45:39 2024 +0200
+
+    cmd/compile: compute XOR's limits from argument's limits
+    
+    This help to optimize code like this:
+    
+      func f(buckets *[512]bucket, v value) {
+        a, b := v.computeSomething()
+        // assume a and b are proved < 512
+        b := &buckets[a ^ b] // pick a random bucket
+        b.store(v)
+      }
+    
+    Change-Id: I1acf702f5a8137f9ded49081b4703922879b0288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604455
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 10 ++++++++--
+ test/prove.go                         | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

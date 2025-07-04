@@ -1,0 +1,28 @@
+commit e8e1928bd22339dcdbfde17778cfd976184bb377
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 20 22:41:52 2016 +0000
+
+    net/http: update http2 to check header values, move from vendor to internal
+    
+    Updates x/net/http2 to git rev b2ed34f for https://golang.org/cl/18727
+    
+    Updates #14029 (fixes it enough for Go 1.6)
+    Fixes #13961
+    
+    Change-Id: Id301247545507671f4e79df0e7c6ec9c421d5a7c
+    Reviewed-on: https://go-review.googlesource.com/18728
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/go/build/build_test.go                         |   1 +
+ src/go/build/deps_test.go                          |   2 +-
+ .../golang.org/x/net/http2/hpack/encode.go         |   0
+ .../golang.org/x/net/http2/hpack/encode_test.go    |   0
+ .../golang.org/x/net/http2/hpack/hpack.go          |   0
+ .../golang.org/x/net/http2/hpack/hpack_test.go     |   0
+ .../golang.org/x/net/http2/hpack/huffman.go        |   0
+ .../golang.org/x/net/http2/hpack/tables.go         |   0
+ src/net/http/h2_bundle.go                          | 151 +++++++++++++++++++--
+ src/vendor/README                                  |   8 ++
+ 10 files changed, 151 insertions(+), 11 deletions(-)

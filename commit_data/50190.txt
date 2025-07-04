@@ -1,0 +1,25 @@
+commit f21514c7f8c972ce2291d41cf5b6263f0eb350c7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 29 10:48:28 2022 +0700
+
+    cmd/compile: only inline method wrapper if method don't contain closures
+    
+    CL 327871 changes methodWrapper to always perform inlining after global
+    escape analysis. However, inlining the method may reveal closures, which
+    require walking all function bodies to decide whether to capture free
+    variables by value or by ref.
+    
+    To fix it, just not doing inline if the method contains any closures.
+    
+    Fixes #53702
+    
+    Change-Id: I4b0255b86257cc6fe7e5fafbc545cc5cff9113e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426334
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 21 ++++++++++++++++++---
+ test/run.go                                     |  5 -----
+ 2 files changed, 18 insertions(+), 8 deletions(-)

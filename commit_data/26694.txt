@@ -1,0 +1,14 @@
+commit 38e11d05b9f563ca6588f020c40dbac7d4850fc2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 30 14:26:04 2016 -0700
+
+    cmd/compile: use *byte for pointer to string memory
+    
+    Change-Id: I14cff013ef4920d33b5ead0c75d51681bb4f635a
+    Reviewed-on: https://go-review.googlesource.com/21337
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

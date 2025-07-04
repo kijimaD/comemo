@@ -1,0 +1,12 @@
+commit b955e265643727892da5df5d32f51af483a591ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 12:41:00 2011 -0700
+
+    http/cgi: add openbsd environment configuration
+    
+    R=iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5016051
+
+ src/pkg/http/cgi/host.go | 1 +
+ 1 file changed, 1 insertion(+)

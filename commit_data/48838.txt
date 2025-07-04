@@ -1,0 +1,20 @@
+commit 1715a86721164bee98d95b16c78529cdd7dacc9c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Feb 10 09:47:49 2022 -0800
+
+    crypto/tls: reject duplicate extensions
+    
+    Does what it says on the tin.
+    
+    Fixes #51088
+    
+    Change-Id: I12c0fa6bba1c1ce96c1ad31ba387c77a93f801c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384894
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/tls/handshake_messages.go      | 12 ++++++++++++
+ src/crypto/tls/handshake_messages_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

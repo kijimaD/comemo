@@ -1,0 +1,16 @@
+commit 2d0db8e591513a1123057b8c330c946ddcb4fbc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 22:50:24 2014 -0500
+
+    bufio: fix reading of many blank lines in a row
+    
+    Fixes #9020.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/170030043
+
+ src/bufio/scan.go      |  3 ++-
+ src/bufio/scan_test.go | 12 ++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

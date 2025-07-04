@@ -1,0 +1,17 @@
+commit dc025c0f9b75edc5140f1895083055a559f6bd79
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 7 12:14:30 2020 +0700
+
+    cmd/compile: handle ODDD in exprformat
+    
+    Fixes #41247
+    
+    Change-Id: Iaa9502cc610e2cc64be5dfd91ba3187f86f87cbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252942
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go |  3 ++-
+ test/fixedbugs/issue41247.go       | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

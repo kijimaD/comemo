@@ -1,0 +1,21 @@
+commit a1284d0185110b82b34200a13700fecacfa200fa
+Author: Alan Donovan <adonovan@google.com>
+Date:   Sun Apr 23 13:45:08 2023 -0400
+
+    go/ast: add IsGenerated(*File) predicate
+    
+    See https://go.dev/s/generatedcode for spec.
+    
+    Fixes #28089
+    
+    Change-Id: Ic9bb138bdd180f136f9e8e74e187319acca5dbac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487935
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/next/28089.txt        |  1 +
+ src/go/ast/ast.go         | 37 ++++++++++++++++++
+ src/go/ast/issues_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 135 insertions(+)

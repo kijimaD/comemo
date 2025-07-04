@@ -1,0 +1,12 @@
+commit 116a6e9c9cad2202d8dfabf9e59c949af998eead
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 16 12:04:40 2009 -0800
+
+    - more bignum_test letter case fixes
+    
+    R=r
+    OCL=22952
+    CL=22952
+
+ src/lib/bignum_test.go | 236 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 118 insertions(+), 118 deletions(-)

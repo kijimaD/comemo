@@ -1,0 +1,16 @@
+commit c20ff36fe2379d313602496ff3c269af2a8a1839
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 26 16:37:31 2015 +1200
+
+    cmd/internal/ld: R_TLS_LE is fine on Darwin too
+    
+    Sorry about this.
+    
+    Fixes #10575
+    
+    Change-Id: I2de23be68e7d822d182e5a0d6a00c607448d861e
+    Reviewed-on: https://go-review.googlesource.com/9341
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

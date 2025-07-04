@@ -1,0 +1,12 @@
+commit 1d7699e99cdf1ef780377ae123e40cfed57da499
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 10:09:23 2013 +1000
+
+    doc/go1.2.txt: text/template's if-else
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13334043
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

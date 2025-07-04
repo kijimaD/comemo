@@ -1,0 +1,12 @@
+commit a7f258e76c1073ca70a7a2216e923608e521fb66
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 00:37:29 2015 -0400
+
+    doc/go1.5.txt: GOMAXPROCS change
+    
+    Change-Id: I5c991cad38c9e2c839314a56d3415a2aa09c1561
+    Reviewed-on: https://go-review.googlesource.com/10762
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 72772282cdba58963e6b6ee0f1b93a210b118cc6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 10 17:21:23 2008 -0700
+
+    - more frontend pieces in Go
+    
+    SVN=126744
+
+ usr/gri/src/globals.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/src/object.go  | 29 ++++++++++++++++++++++
+ usr/gri/src/scope.go   | 14 +++++++++++
+ usr/gri/src/type.go    | 33 +++++++++++++++++++++++++
+ 4 files changed, 142 insertions(+)

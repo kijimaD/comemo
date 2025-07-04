@@ -1,0 +1,28 @@
+commit 6623988eb73da429f41cfef85d481a5b93446ccd
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Dec 7 07:55:21 2016 -0600
+
+    cmd/link: fix sym sect when splitting text on ppc64le
+    
+    While processing a symbol for a function, if it is determined
+    that a function would make the text section too large then
+    a new text section is created and the address of the function
+    is in the new text section.  But the symbol for the function
+    is marked as being in the previous text section, causing
+    incorrect codegen for the function and leading to a segv if
+    that function is called.  This adds code to set the sym.Sect
+    field to the new section if a new one is created.  Note that
+    this problem only happens at the point where a new section is
+    created.
+    
+    Fixes #18218
+    
+    Change-Id: Ic21ae11368d9d88ff6d5d3977f9ea72fe6477ed1
+    Reviewed-on: https://go-review.googlesource.com/34069
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 1 +
+ 1 file changed, 1 insertion(+)

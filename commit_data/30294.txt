@@ -1,0 +1,19 @@
+commit 58d762176a6e2216760bc9b56b40665172b9f6fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 09:24:05 2017 -0500
+
+    runtime: run mutexevent profiling without holding semaRoot lock
+    
+    Suggested by Dmitry in CL 36792 review.
+    Clearly safe since there are many different semaRoots
+    that could all have profiled sudogs calling mutexevent.
+    
+    Change-Id: I45eed47a5be3e513b2dad63b60afcd94800e16d1
+    Reviewed-on: https://go-review.googlesource.com/37104
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/sema.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit 60f78765022a59725121d3b800268adffe78bde3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jun 19 10:41:44 2020 +0200
+
+    syscall: check secondary group membership for Faccessat(..., AT_EACCESS) on Linux
+    
+    Follow glibc's implementation and check secondary group memberships
+    using Getgroups.
+    
+    No test since we cannot easily change file permissions when not running
+    as root and the test is meaningless if running as root.
+    
+    Same as CL 238722 did for x/sys/unix
+    
+    Updates #39660
+    
+    Change-Id: I6af50e27b255e33405558947a0ab3dfbc33b2d50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238937
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

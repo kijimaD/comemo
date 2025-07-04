@@ -1,0 +1,23 @@
+commit 89567a35c11c343cf765d6fb1270e1250e50d83f
+Author: Junwei Zuo <zuojunwei.2023@bytedance.com>
+Date:   Wed Apr 12 18:53:51 2023 +0800
+
+    cmd/compile: fix ir.StaticValue for ORANGE
+    
+    Range statement will mutate the key and value, so we should treat them as reassigned.
+    
+    Fixes #59572
+    
+    Change-Id: I9c6b67d938760a0c6a1d9739f2737c67af4a3a10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483855
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go |  5 +++++
+ test/fixedbugs/issue59572.go        | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue59572.out       |  3 +++
+ 3 files changed, 38 insertions(+)

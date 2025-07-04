@@ -1,0 +1,16 @@
+commit f8f0d6c4deab0837b03ddccfe0edf775c3bbd49f
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 11 15:02:10 2017 -0700
+
+    cmd/compile/internal/syntax: match argument and parameter parsing (cleanup)
+    
+    No semantic change. Move functionality not related to argument
+    out of the argument parsing function, and thus match parameter
+    parsing. Also, use a better function name.
+    
+    Change-Id: Ic550875251d64e6fe1ebf91c11d33a9e4aec9fdd
+    Reviewed-on: https://go-review.googlesource.com/70491
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit 968153d0632ad138440780d6041cc5a5b50a1fa3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 13 10:27:51 2014 -0700
+
+    net/rpc: fix mutex comment
+    Fixes #8086.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/153420044
+
+ src/net/rpc/client.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

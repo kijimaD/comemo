@@ -1,0 +1,19 @@
+commit a7fb31833b6c2c39e3f3dc5ab0bc2e1abcaf8ef6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 18 15:16:07 2014 -0800
+
+    crypto/rc4: test the portable version too
+    
+    Prevent bitrot. (similar to the previous sha1 and md5 CLs)
+    
+    Fixes #6642
+    
+    LGTM=agl
+    R=agl, dave
+    CC=golang-codereviews
+    https://golang.org/cl/65690043
+
+ src/pkg/crypto/rc4/rc4.go      | 17 +++++++++++++++++
+ src/pkg/crypto/rc4/rc4_ref.go  |  9 +--------
+ src/pkg/crypto/rc4/rc4_test.go | 19 +++++++++++++++----
+ 3 files changed, 33 insertions(+), 12 deletions(-)

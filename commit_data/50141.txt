@@ -1,0 +1,16 @@
+commit 48ecc152e47db19255a3501d272b7ea3ed28915a
+Author: hopehook <hopehook@qq.com>
+Date:   Thu Aug 25 11:17:46 2022 +0800
+
+    cmd/go/internal/trace: convert traceStarted to atomic type
+    
+    Change-Id: Ia4214a29775f1178273b9b7dc84c0420bfa968de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425457
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/trace/trace.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

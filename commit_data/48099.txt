@@ -1,0 +1,23 @@
+commit 49030c87e02c02f9b3ad812e4d447c4f1e39d745
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 4 16:57:43 2022 -0800
+
+    go/types, types2: record correct argument type for cap, len
+    
+    Record the actual argument type for a cap/len call, not the
+    underlying type.
+    
+    Fixes #51055.
+    
+    Change-Id: Ia0e746a462377f030424ccaec0babf72b78da420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383474
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go      | 13 +++++++------
+ src/cmd/compile/internal/types2/builtins_test.go |  6 +++++-
+ src/go/types/builtins.go                         | 13 +++++++------
+ src/go/types/builtins_test.go                    |  6 +++++-
+ src/go/types/example_test.go                     |  2 +-
+ 5 files changed, 25 insertions(+), 15 deletions(-)

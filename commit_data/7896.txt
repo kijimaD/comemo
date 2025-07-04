@@ -1,0 +1,12 @@
+commit 2796ac1466799973973661a9ef917501c0f8416c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 13:38:24 2011 -0700
+
+    go/token: use array instead of map for token->string table
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4284070
+
+ src/pkg/go/token/token.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit 04d9c8853bf3a539b978fa081c939e4fda95ff46
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 16:11:11 2010 -0800
+
+    runtime: fix bug in Caller documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/207110
+
+ src/pkg/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

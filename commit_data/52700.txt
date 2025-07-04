@@ -1,0 +1,21 @@
+commit 903a25ae118b5f9bb0aacf7969dd637480185bd6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 18 13:48:14 2023 -0400
+
+    cmd/go: include internal/godebugs in TestNewReleaseRebuildsStalePackagesInGOPATH
+    
+    This fixes a lingering failure on the 'longtest' builders,
+    introduced in CL 476280.
+    
+    For #57001.
+    
+    Change-Id: I18872b1bc990dd16c0b86ebc5878c0a04ce9b2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485897
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

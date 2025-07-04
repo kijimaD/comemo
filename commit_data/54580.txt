@@ -1,0 +1,25 @@
+commit 9bfaaa15fd38f10ba7f11eb6cc67c6dfb21454e6
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 12 15:39:56 2023 -0500
+
+    cmd/internal/obj/ppc64: fix rebuilding of optab for asm tests
+    
+    The end-to-end asm tests reinitialize the assembler using different
+    GOPPC64 values. This caused duplicate entries to amass from the
+    prefix and generated optab entries. This bug only affects the
+    asm end-to-end tests.
+    
+    On reinitialization, optab contains the previous prefixedOptab
+    and optabGen entries, not just the initial values. Rework the
+    initialization to avoid the stale optab entries.
+    
+    Change-Id: I310499915a5272ed0174ed8135d60788e6b4b716
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go     | 22 +++++++++++++---------
+ src/cmd/internal/obj/ppc64/asm_test.go | 16 ++++++++++++++++
+ 2 files changed, 29 insertions(+), 9 deletions(-)

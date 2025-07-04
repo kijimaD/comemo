@@ -1,0 +1,13 @@
+commit ce9fbdbee05d5972b0db55a599f557ec73ee39bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 29 11:45:08 2009 -0700
+
+    typo in spec
+    
+    R=tgs
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=28032
+    CL=28032
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

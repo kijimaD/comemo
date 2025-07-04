@@ -1,0 +1,21 @@
+commit ff4e0e42d8f662529c3e6ac5af6591d31805ae2f
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Oct 10 19:11:54 2019 -0400
+
+    net/http: make TimeoutHandler log spurious WriteHeader calls
+    
+    Makes TimeoutHandler consistent with other handlers, by
+    logging any spurious WriteHeader calls.
+    
+    Fixes #30803
+    
+    Change-Id: I693fbdf8378f31bca13d579eece8e8e00eb175bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200518
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go |  6 +++
+ src/net/http/serve_test.go        | 93 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            | 32 +++++++++-----
+ 3 files changed, 120 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 22a5d2cc961a0f115ebd61f41cabec6e668ed451
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 11 17:39:34 2014 -0700
+
+    mime/multipart: fix format
+    
+    Remove unnecessary blank line.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/105040045
+
+ src/pkg/mime/multipart/multipart.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

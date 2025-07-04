@@ -1,0 +1,27 @@
+commit c761174d9618ba1458eb0d149eff4d42e2dc92ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 13 13:54:05 2024 -0700
+
+    go/types, types2: cleanup of code handling type switch cases
+    
+    Move logic for type-specific variable type into typeCases function
+    which already does all the relevant work.
+    
+    Add more detailed documentation to typeCases function.
+    
+    Uncomment alernative typeCases function so that it is being type-
+    checked and kept up-to-date. Since it's not (yet) used, the code
+    will not appear in the binary.
+    
+    Follow-up on CL 592555.
+    
+    Change-Id: I6e746503827d512a1dbf7b99b48345c480e61200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592616
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 137 ++++++++++++++++++-------------
+ src/go/types/stmt.go                    | 139 +++++++++++++++++++-------------
+ 2 files changed, 168 insertions(+), 108 deletions(-)

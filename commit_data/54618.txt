@@ -1,0 +1,44 @@
+commit a9036396080aa414c032550fc258919636295f0f
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 3 12:14:53 2023 -0400
+
+    cmd/compile: adjust GOSSAFUNC html dumping to be more ABI-aware
+    
+    Uses ,ABI instead of <ABI> because of problems with shell escaping
+    and windows file names, however if someone goes to all the trouble
+    of escaping the linker syntax and uses that instead, that works too.
+    
+    Examples:
+    ```
+    GOSSAFUNC=runtime.exitsyscall go build main.go
+    \# runtime
+    dumped SSA for exitsyscall,0 to ../../src/loopvar/ssa.html
+    dumped SSA for exitsyscall,1 to ../../src/loopvar/ssa.html
+    
+    GOSSADIR=`pwd` GOSSAFUNC=runtime.exitsyscall go build main.go
+    \# runtime
+    dumped SSA for exitsyscall,0 to ../../src/loopvar/runtime.exitsyscall,0.html
+    dumped SSA for exitsyscall,1 to ../../src/loopvar/runtime.exitsyscall,1.html
+    
+    GOSSAFUNC=runtime.exitsyscall,0 go build main.go
+    \# runtime
+    dumped SSA for exitsyscall,0 to ../../src/loopvar/ssa.html
+    
+    GOSSAFUNC=runtime.exitsyscall\<1\> go build main.go
+    \# runtime
+    dumped SSA for exitsyscall,1 to ../../src/loopvar/ssa.html
+    ```
+    
+    Change-Id: Ia1138b61c797d0de49dbfae702dc306b9650a7f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go       | 11 ++++++--
+ src/cmd/compile/internal/ssa/config.go         |  4 +--
+ src/cmd/compile/internal/ssa/func.go           | 16 ++++++++++++
+ src/cmd/compile/internal/ssa/html.go           |  4 +--
+ src/cmd/compile/internal/ssagen/ssa.go         | 35 +++++++++++++++++++-------
+ src/cmd/compile/internal/test/abiutils_test.go |  2 +-
+ 6 files changed, 56 insertions(+), 16 deletions(-)

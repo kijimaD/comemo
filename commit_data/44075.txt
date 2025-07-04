@@ -1,0 +1,21 @@
+commit 95ce805d14642a8e8e40fe1f8f50b9b5a2c4e38b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 30 17:36:08 2020 -0500
+
+    io/fs: remove darwin/arm64 special condition
+    
+    It isn't necessary on darwin/arm64 (macOS).
+    
+    It was probably leftover from the old code when darwin/arm64
+    meant iOS. The test passes on iOS builder. Apparently this is
+    not needed either. Remove.
+    
+    Change-Id: I6fa0c55d6086325d4b722862c4fe6c30bcd6e6e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280158
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/fs/walk_test.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

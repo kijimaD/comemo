@@ -1,0 +1,12 @@
+commit 0f17173f79d674b3e94e6dabf096116677468fe6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Sep 23 10:58:59 2010 +1000
+
+    exp/draw: add Point.Eq, Point.Mul, Point.Div, Rectangle.Size methods
+    
+    R=nigeltao, nigeltao_golang, rsc
+    CC=golang-dev, r
+    https://golang.org/cl/2192048
+
+ src/pkg/image/geom.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

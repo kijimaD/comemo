@@ -1,0 +1,23 @@
+commit 1d3d6ae725697c5b224b26cb3aa1325ac37f72d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 00:14:42 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥1,000 dependents
+    
+    For #67401.
+    
+    Change-Id: If23a2c07e3dd042a3c439da7088437a330b9caa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587222
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/badlinkname.go    |  3 ---
+ src/runtime/chan.go           | 10 ++++++++++
+ src/runtime/malloc.go         |  2 ++
+ src/runtime/map.go            |  4 ++++
+ src/runtime/mbarrier.go       | 19 +++++++++++++++++++
+ src/runtime/stubs.go          |  3 ++-
+ src/runtime/sys_darwin.go     |  7 +++++++
+ src/syscall/syscall_darwin.go |  9 +++++++++
+ 8 files changed, 53 insertions(+), 4 deletions(-)

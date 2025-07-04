@@ -1,0 +1,15 @@
+commit 0e00b447a5a7aa4a52a76a6b33d894a5541b58dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 30 11:27:51 2015 +0200
+
+    api: update go1.5.txt
+    
+    Fixes #11935
+    
+    Change-Id: Ife00c246345f7d3f96aa95349a35e76671ca7160
+    Reviewed-on: https://go-review.googlesource.com/12769
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.5.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

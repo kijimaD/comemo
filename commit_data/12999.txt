@@ -1,0 +1,17 @@
+commit dae2992c98bff181b023f27889c513d89714f5ac
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 1 11:33:25 2012 +1000
+
+    misc/dashboard/codereview: send mail immediately, and fill in time.Time fields.
+    
+    If we delay the mail sending, we can't send as the current user.
+    If we don't fill in the time.Time fields, datastore.Put will fail
+    because the zero time.Time value is out of its range.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6136053
+
+ misc/dashboard/codereview/dashboard/cl.go   | 7 +++----
+ misc/dashboard/codereview/dashboard/mail.go | 6 ++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

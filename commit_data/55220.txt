@@ -1,0 +1,23 @@
+commit 7b5a3733fce46aa44449c5ba28876f5a1e630650
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 4 18:29:35 2023 -0500
+
+    cmd/go/internal/modfetch/codehost: add new git tags before statLocal instead of after
+    
+    gitRepo.statLocal reports tag and version information.
+    If we are statting a hash that corresponds to a tag, we need to add that tag
+    before calling statLocal so that it can be included in that information.
+    
+    Fixes #53955.
+    Updates #56881.
+    
+    Change-Id: I69a71428e6ed9096d4cb8ed1bb79531415ff06c1
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547155
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go  | 24 ++++++----
+ src/cmd/go/testdata/script/get_issue53955.txt | 67 +++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 9 deletions(-)

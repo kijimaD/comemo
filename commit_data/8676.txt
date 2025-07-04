@@ -1,0 +1,16 @@
+commit 1fddbab736f506e760cced149d1ae3aeb55b48b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 18:38:25 2011 -0400
+
+    5l: fix softfloat nits
+    
+    Need to load math.a so that sqrtGoC is available.
+    Also was missing prototype.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4517148
+
+ src/cmd/ld/lib.c                | 20 +++++++++++++++-----
+ src/pkg/runtime/arm/softfloat.c |  1 +
+ 2 files changed, 16 insertions(+), 5 deletions(-)

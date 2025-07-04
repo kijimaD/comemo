@@ -1,0 +1,15 @@
+commit 636cdc7622abd2712ffa7bff6091d4844974892c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 28 09:11:01 2009 -0700
+
+    - collect consts and vars in one list
+    - handle absence of forward-decls correctly
+      (cannot assume a type was declared before it was used)
+    
+    R=rsc
+    DELTA=112  (32 added, 38 deleted, 42 changed)
+    OCL=34008
+    CL=34027
+
+ src/pkg/go/doc/doc.go | 144 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 69 insertions(+), 75 deletions(-)

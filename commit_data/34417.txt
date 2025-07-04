@@ -1,0 +1,18 @@
+commit 0bcf8bcd998a79f2479c2bb7096eb57a38ffee85
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:55:33 2018 +0100
+
+    test: in asmcheck, regexp must match from beginning of line
+    
+    This avoid simple bugs like "ADD" matching "FADD". Obviously
+    "ADD" will still match "ADDQ" so some care is still required
+    in this regard, but at least a first class of possible errors
+    is taken care of.
+    
+    Change-Id: I7deb04c31de30bedac9c026d9889ace4a1d2adcb
+    Reviewed-on: https://go-review.googlesource.com/97817
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/run.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

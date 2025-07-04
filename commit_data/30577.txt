@@ -1,0 +1,14 @@
+commit b91b694b37b12724ae3c3925eb9a215ac9b36271
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Mar 7 20:04:23 2017 +0100
+
+    runtime/pprof: fix the protobuf tests on Android
+    
+    Change-Id: I5f85a7980b9a18d3641c4ee8b0992671a8421bb0
+    Reviewed-on: https://go-review.googlesource.com/37896
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/proto_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

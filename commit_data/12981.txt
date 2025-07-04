@@ -1,0 +1,22 @@
+commit 9ce770afad1b967fe14ac9a9df4e984e45cea9ee
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 27 15:12:24 2012 +1000
+
+    old/regexp, old/template: delete.
+    
+    Both of these have replacements.
+    
+    R=golang-dev, r, rsc, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5979046
+
+ doc/go1.html                          |    4 +-
+ src/pkg/old/regexp/all_test.go        |  421 ----------
+ src/pkg/old/regexp/find_test.go       |  472 -----------
+ src/pkg/old/regexp/regexp.go          | 1488 ---------------------------------
+ src/pkg/old/template/doc.go           |   91 --
+ src/pkg/old/template/execute.go       |  346 --------
+ src/pkg/old/template/format.go        |   77 --
+ src/pkg/old/template/parse.go         |  742 ----------------
+ src/pkg/old/template/template_test.go |  810 ------------------
+ 9 files changed, 2 insertions(+), 4449 deletions(-)

@@ -1,0 +1,17 @@
+commit 2834526fd9de26079bebc726d3ce3ccaaf38a0aa
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 23 15:28:36 2016 -0700
+
+    time: update documentation for Duration.String regarding the zero value
+    
+    It was out of date; in 1.7 the format changes to 0s.
+    
+    Change-Id: I2013a1b0951afc5607828f313641b51c74433257
+    Reviewed-on: https://go-review.googlesource.com/24421
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

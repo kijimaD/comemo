@@ -1,0 +1,17 @@
+commit f1b5c048d7b7589a5b3ae423114baf27b3456021
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 14 19:28:20 2022 +0000
+
+    runtime/internal/atomic: add Bool
+    
+    This change adds the Bool type, a convenient wrapper around Uint8 for
+    atomic bool values.
+    
+    Change-Id: I86127d6f213b730d6999db5718ca1a5af0c5b538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393395
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/internal/atomic/types.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

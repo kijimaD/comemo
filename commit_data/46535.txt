@@ -1,0 +1,27 @@
+commit 48cf96c256ff1ec68fd9f9daa59900352d916730
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 20 15:34:09 2021 -0700
+
+    cmd/compile: don't create or instantiate methods on shape types
+    
+    We should never use or need methods on non-interface shape types. We do
+    have corresponding functions instantiated with the appropriate
+    shape types that take the dictionary and the shape-based receiver as the
+    first two arguments. Each such function has the same name as what the
+    corresponding method would be, so it's best not to create the methods
+    (which would create confusion for import/export). This fixes issue
+    48414, which happened because of the confusion between these two
+    functions/methods.
+    
+    Fixes #48414
+    
+    Change-Id: I401fbdad791bdb5792617449cad68aa8df1d9911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351114
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  7 +++++++
+ src/cmd/compile/internal/typecheck/iimport.go   | 10 ++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

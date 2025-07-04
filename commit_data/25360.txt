@@ -1,0 +1,14 @@
+commit b73e247a8eeef69ea87afea80c7a7a1b88e61553
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 18 18:26:51 2015 +0000
+
+    net/http: document that Server.TLSNextProto has automatic HTTP/2 also
+    
+    Copy the same sentence from Transport.TLSNextProto.
+    
+    Change-Id: Ib67bf054e891a68be8ba466a8c52968363374d16
+    Reviewed-on: https://go-review.googlesource.com/18031
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

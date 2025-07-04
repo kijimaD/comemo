@@ -1,0 +1,18 @@
+commit e273a2794639692a216c46a0043e5e6929e0a959
+Author: bogem <albertnigma@gmail.com>
+Date:   Fri Sep 9 23:23:32 2016 +0500
+
+    flag: use strconv instead of fmt in values' String funcs
+    
+    The existing implementation of flag values with fmt package uses
+    more memory and works slower than the implementation with strconv
+    package.
+    
+    Change-Id: I9e749179f66d5c50cafe98186641bcdbc546d2db
+    Reviewed-on: https://go-review.googlesource.com/28914
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/flag/flag.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

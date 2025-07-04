@@ -1,0 +1,28 @@
+commit f425f549573e5017861216d62ccb22ee37b68004
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 15:08:59 2017 -0700
+
+    runtime: intercept munmap as we do mmap
+    
+    For cgo programs on linux-amd64 we call the C function mmap.
+    This supports programs such as the C memory sanitizer that need to
+    intercept all calls to mmap. It turns out that there are programs that
+    intercept both mmap and munmap, or that at least expect that if they
+    intercept mmap, they also intercept munmap. So, if we permit mmap
+    to be intercepted, also permit munmap to be intercepted.
+    
+    No test, as it requires two odd things: a C program that intercepts
+    mmap and munmap, and a Go program that calls munmap.
+    
+    Change-Id: Iec33f47d59f70dbb7463fd12d30728c24cd4face
+    Reviewed-on: https://go-review.googlesource.com/45016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/cgo/gcc_mmap.c    | 14 ++++++++++++++
+ src/runtime/cgo/mmap.go       |  9 +++++++++
+ src/runtime/cgo_mmap.go       | 20 ++++++++++++++++++++
+ src/runtime/mmap.go           |  3 +++
+ src/runtime/stubs2.go         |  2 --
+ src/runtime/sys_linux_amd64.s | 15 ++++++++++++++-
+ 6 files changed, 60 insertions(+), 3 deletions(-)

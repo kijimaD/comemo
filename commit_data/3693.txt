@@ -1,0 +1,27 @@
+commit a64b69da9ee267007b79fdb0c33567fdc2af37e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 09:37:13 2009 -0800
+
+    os cleanup.
+    
+    dir_* and stat_* are just os specific,
+    not os+arch-specific.
+    
+    R=r
+    http://go/go-review/1018010
+
+ src/pkg/os/Makefile                               |  4 +-
+ src/pkg/os/{dir_darwin_386.go => dir_darwin.go}   |  0
+ src/pkg/os/dir_darwin_amd64.go                    | 74 ---------------------
+ src/pkg/os/{dir_linux_amd64.go => dir_linux.go}   |  0
+ src/pkg/os/dir_linux_arm.go                       | 81 -----------------------
+ src/pkg/os/{dir_linux_386.go => dir_nacl.go}      |  4 --
+ src/pkg/os/dir_nacl_386.go                        | 81 -----------------------
+ src/pkg/os/os_test.go                             | 20 +++---
+ src/pkg/os/{stat_darwin_386.go => stat_darwin.go} |  2 -
+ src/pkg/os/stat_darwin_amd64.go                   | 40 -----------
+ src/pkg/os/{stat_linux_amd64.go => stat_linux.go} |  6 +-
+ src/pkg/os/stat_linux_386.go                      | 44 ------------
+ src/pkg/os/stat_linux_arm.go                      | 44 ------------
+ src/pkg/os/{stat_nacl_386.go => stat_nacl.go}     |  6 --
+ 14 files changed, 14 insertions(+), 392 deletions(-)

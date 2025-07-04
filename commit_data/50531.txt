@@ -1,0 +1,18 @@
+commit c91b1009d52d91eb3a949945789ff235246c0075
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 16 09:21:59 2022 +0800
+
+    misc/cgo: replace ioutil.ReadFile with os.ReadFile
+    
+    For #45557
+    
+    Change-Id: I25be5b437fa1c9b0e0c46802a9b37efc2d47bca0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431097
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/errors/argposition_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

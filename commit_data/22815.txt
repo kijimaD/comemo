@@ -1,0 +1,16 @@
+commit e0820ac8d1cc383f9003ff8f3245cc4b246b0c32
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 19:10:59 2015 -0700
+
+    cmd/cover: fix build
+    
+    TBR=rsc
+    
+    Change-Id: I6ec69013027213c5e7adedd2edb89dea6af876d9
+    Reviewed-on: https://go-review.googlesource.com/9563
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/doc.go  | 2 +-
+ src/cmd/cover/func.go | 2 --
+ src/cmd/cover/html.go | 2 --
+ 3 files changed, 1 insertion(+), 5 deletions(-)

@@ -1,0 +1,23 @@
+commit be59731d9fffb53a499d1ae64863e2a380f2dede
+Author: Ryan Brown <ribrdb@google.com>
+Date:   Wed Apr 8 12:55:34 2015 -0700
+
+    cmd/internal/ld: output dwarf in external link mode on darwin
+    
+    Fixes #8973
+    
+    Change-Id: I746fae430db6d8f9ebd33586b8cffcb31d688cc8
+    Reviewed-on: https://go-review.googlesource.com/10284
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/asm.go                          |  14 +-
+ src/cmd/6l/asm.go                          |   2 +-
+ src/cmd/7l/asm.go                          |  14 +-
+ src/cmd/8l/asm.go                          |   2 +-
+ src/cmd/internal/ld/dwarf.go               | 144 +++++++++--
+ src/cmd/internal/ld/lib.go                 |  21 +-
+ src/cmd/internal/ld/macho.go               |   8 +-
+ src/cmd/internal/ld/macho_combine_dwarf.go | 369 +++++++++++++++++++++++++++++
+ 8 files changed, 528 insertions(+), 46 deletions(-)

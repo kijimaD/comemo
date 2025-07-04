@@ -1,0 +1,21 @@
+commit 2dbbc867dbf44f72422d1827d18a2055f9b7b72f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 19 14:17:05 2020 -0400
+
+    crypto/x509: save the temp dir in TestReadUniqueDirectoryEntries
+    
+    In CL 231958, TempDir was changed to create a new temp directory on
+    each allocation, on the theory that it is easy to save in a variable
+    for callers that want the same directory repeatedly. Apply that
+    transformation here.
+    
+    Updates #38850
+    
+    Change-Id: Ibb014095426c33038e0a2c95303579cf95d5c3ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234582
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_unix_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

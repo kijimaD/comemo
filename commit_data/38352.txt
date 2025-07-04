@@ -1,0 +1,78 @@
+commit c9ccdf1f8c1543072ffde1e3d6af1cfcb62f8cdc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 10 14:41:17 2019 -0700
+
+    cmd/compile: make deadcode pass cheaper
+    
+    The deadcode pass runs a lot.
+    I'd like it to run even more.
+    
+    This change adds dedicated storage for deadcode to ssa.Cache.
+    In addition to being a nice win now, it makes
+    deadcode easier to add other places in the future.
+    
+    name        old time/op       new time/op       delta
+    Template          210ms ± 3%        209ms ± 2%    ~     (p=0.951 n=93+95)
+    Unicode          92.2ms ± 3%       93.0ms ± 3%  +0.87%  (p=0.000 n=94+94)
+    GoTypes           739ms ± 2%        733ms ± 2%  -0.84%  (p=0.000 n=92+94)
+    Compiler          3.51s ± 2%        3.49s ± 2%  -0.57%  (p=0.000 n=94+91)
+    SSA               9.80s ± 2%        9.75s ± 2%  -0.57%  (p=0.000 n=95+92)
+    Flate             132ms ± 2%        132ms ± 3%    ~     (p=0.165 n=94+98)
+    GoParser          160ms ± 3%        159ms ± 3%  -0.42%  (p=0.005 n=96+94)
+    Reflect           446ms ± 4%        442ms ± 4%  -0.91%  (p=0.000 n=95+98)
+    Tar               186ms ± 3%        186ms ± 2%    ~     (p=0.221 n=94+97)
+    XML               252ms ± 2%        250ms ± 2%  -0.55%  (p=0.000 n=95+94)
+    [Geo mean]        430ms             429ms       -0.34%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          256ms ± 3%        257ms ± 3%    ~     (p=0.521 n=94+98)
+    Unicode           120ms ± 9%        121ms ± 9%    ~     (p=0.074 n=99+100)
+    GoTypes           935ms ± 3%        935ms ± 2%    ~     (p=0.574 n=82+96)
+    Compiler          4.56s ± 1%        4.55s ± 2%    ~     (p=0.247 n=88+90)
+    SSA               13.6s ± 2%        13.6s ± 1%    ~     (p=0.277 n=94+95)
+    Flate             155ms ± 3%        156ms ± 3%    ~     (p=0.181 n=95+100)
+    GoParser          193ms ± 8%        184ms ± 6%  -4.39%  (p=0.000 n=100+89)
+    Reflect           549ms ± 3%        552ms ± 3%  +0.45%  (p=0.036 n=94+96)
+    Tar               230ms ± 4%        230ms ± 4%    ~     (p=0.670 n=97+99)
+    XML               315ms ± 5%        309ms ±12%  -2.05%  (p=0.000 n=99+99)
+    [Geo mean]        540ms             538ms       -0.47%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         40.3MB ± 0%       38.9MB ± 0%  -3.36%  (p=0.008 n=5+5)
+    Unicode          28.6MB ± 0%       28.4MB ± 0%  -0.90%  (p=0.008 n=5+5)
+    GoTypes           137MB ± 0%        132MB ± 0%  -3.65%  (p=0.008 n=5+5)
+    Compiler          637MB ± 0%        609MB ± 0%  -4.40%  (p=0.008 n=5+5)
+    SSA              2.19GB ± 0%       2.07GB ± 0%  -5.63%  (p=0.008 n=5+5)
+    Flate            25.0MB ± 0%       24.1MB ± 0%  -3.80%  (p=0.008 n=5+5)
+    GoParser         30.0MB ± 0%       29.1MB ± 0%  -3.17%  (p=0.008 n=5+5)
+    Reflect          87.1MB ± 0%       84.4MB ± 0%  -3.05%  (p=0.008 n=5+5)
+    Tar              37.3MB ± 0%       36.0MB ± 0%  -3.31%  (p=0.008 n=5+5)
+    XML              49.8MB ± 0%       48.0MB ± 0%  -3.69%  (p=0.008 n=5+5)
+    [Geo mean]       87.6MB            84.6MB       -3.50%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           387k ± 0%         380k ± 0%  -1.76%  (p=0.008 n=5+5)
+    Unicode            342k ± 0%         341k ± 0%  -0.31%  (p=0.008 n=5+5)
+    GoTypes           1.39M ± 0%        1.37M ± 0%  -1.64%  (p=0.008 n=5+5)
+    Compiler          5.68M ± 0%        5.60M ± 0%  -1.41%  (p=0.008 n=5+5)
+    SSA               17.1M ± 0%        16.8M ± 0%  -1.49%  (p=0.008 n=5+5)
+    Flate              240k ± 0%         236k ± 0%  -1.99%  (p=0.008 n=5+5)
+    GoParser           309k ± 0%         304k ± 0%  -1.57%  (p=0.008 n=5+5)
+    Reflect           1.01M ± 0%        0.99M ± 0%  -2.69%  (p=0.008 n=5+5)
+    Tar                360k ± 0%         353k ± 0%  -1.91%  (p=0.008 n=5+5)
+    XML                447k ± 0%         441k ± 0%  -1.26%  (p=0.008 n=5+5)
+    [Geo mean]         858k              844k       -1.60%
+    
+    Fixes #15306
+    
+    Change-Id: I9f558adb911efddead3865542fe2ca71f66fe1da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166718
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/cache.go    | 21 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/deadcode.go | 25 ++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/func.go     | 27 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/print.go    |  1 +
+ 4 files changed, 71 insertions(+), 3 deletions(-)

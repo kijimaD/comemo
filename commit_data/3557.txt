@@ -1,0 +1,13 @@
+commit 974b23f569a67499eb727dda0219759dd5466e27
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 12:04:13 2009 -0700
+
+    close file after use
+    
+    R=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=35778
+    CL=35780
+
+ src/pkg/go/parser/interface.go | 1 +
+ 1 file changed, 1 insertion(+)

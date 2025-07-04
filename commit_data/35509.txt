@@ -1,0 +1,19 @@
+commit 4258b43afe3d3c48010aeeae7c438e5a88c6b5ab
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 26 21:25:57 2018 +0200
+
+    cmd/compile,go/build,internal/cpu: gofmt
+    
+    I don't know why these files were not formatted. Perhaps because
+    their changes came from Github PRs?
+    
+    Change-Id: Ida8d7b9a36f0d1064caf74ca1911696a247a9bbe
+    Reviewed-on: https://go-review.googlesource.com/114824
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmt_test.go | 56 ++++++++++++++++++++++-----------------------
+ src/go/build/build_test.go  |  2 +-
+ src/internal/cpu/cpu.go     |  4 ++--
+ 3 files changed, 31 insertions(+), 31 deletions(-)

@@ -1,0 +1,19 @@
+commit 3d62c76736717613c4a921e45f59d40190c0792e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 1 12:00:57 2023 -0400
+
+    cmd/compile/internal/ir: add "never returns" func flag
+    
+    Add a flag to ir.Func's flags field to record whether a given function
+    is deemed to never return (e.g. always calls exit or panic or
+    equivalent on all control paths). So as to not increase the amount of
+    flag storage, this new flag replaces the existing "ExportInline" flag,
+    which is currently unused.
+    
+    Change-Id: Idd336e47381048cfc995eda05faf8b62f06ba206
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518256
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

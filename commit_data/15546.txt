@@ -1,0 +1,24 @@
+commit f235d5d8d702778c7d16e573c855519a8238951c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 1 16:41:39 2013 -0800
+
+    runtime: special-case append([]byte, string) for small strings
+    Also make the crossover point an architecture-dependent constant,
+    although it's the same everywhere for now.
+    
+    BenchmarkAppendStr1Byte            416          145  -65.14%
+    BenchmarkAppendStr4Bytes           743          217  -70.79%
+    BenchmarkAppendStr8Bytes           421          270  -35.87%
+    BenchmarkAppendStr16Bytes          415          403   -2.89%
+    BenchmarkAppendStr32Bytes          415          391   -5.78%
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7459044
+
+ src/pkg/runtime/append_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/arch_386.h     |  3 ++-
+ src/pkg/runtime/arch_amd64.h   |  3 ++-
+ src/pkg/runtime/arch_arm.h     |  3 ++-
+ src/pkg/runtime/slice.c        | 16 +++++++++++++---
+ 5 files changed, 51 insertions(+), 6 deletions(-)

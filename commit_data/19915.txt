@@ -1,0 +1,43 @@
+commit 7aa3031ebaa5dc641808f55cb1cb27ddc409fbca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 15:46:33 2014 -0400
+
+    cmd/gc: make liveness ~10x faster
+    
+    1) The arrayindexof lookup function is O(n). Replace with O(1) lookups.
+    
+    2) The checkptxt function is O(n²) and is purely for debugging.
+    Only run when the debugging flags are turned on.
+    
+    3) Iterating over sparse bitmaps can be done faster word by word.
+    Introduce and use bvnext for that.
+    
+    Run times before and after, on my 2.5 GHz Core i5 MacBook Pro.
+    
+    x.go       9.48  0.84  issue 8259
+    
+    x100.go    0.01  0.01  issue 8354
+    x1000.go   0.10  0.10
+    x2000.go   0.62  0.19
+    x3000.go   1.33  0.34
+    x4000.go   2.29  0.49
+    x5000.go   3.89  0.67
+    x6000.go   5.00  0.90
+    x7000.go   6.70  1.13
+    x8000.go   9.44  1.38
+    x9000.go  11.23  1.87
+    x10000.go 13.78  2.09
+    
+    Fixes #8259.
+    Fixes #8354.
+    
+    LGTM=iant, r
+    R=golang-codereviews, iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/125720043
+
+ src/cmd/gc/array.c | 14 --------------
+ src/cmd/gc/bv.c    | 36 ++++++++++++++++++++++++++++++------
+ src/cmd/gc/go.h    |  2 +-
+ src/cmd/gc/plive.c | 52 ++++++++++++++++++++++++++++++++++++++--------------
+ 4 files changed, 69 insertions(+), 35 deletions(-)

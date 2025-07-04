@@ -1,0 +1,27 @@
+commit ff555f1159040e644332872c221daa308a7b9b82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 7 08:35:45 2016 -0800
+
+    mime/multipart: don't call Read on io.Reader after an error is seen
+    
+    The io.Reader contract makes no promises about how a Reader should
+    behave after it returns its first error. Usually the errors are
+    sticky, but they don't have to be. A regression in zlib.Reader (bug
+    accidentally relied on sticky errors.
+    
+    Minimal fix: wrap the user's provided Reader in a Reader which
+    guarantees stickiness. The minimal fix is less scary than touching
+    the multipart state machine.
+    
+    Fixes #14676
+    
+    Change-Id: I8dd8814b13ae5530824ae0e68529f788974264a5
+    Reviewed-on: https://go-review.googlesource.com/20297
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/formdata_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/mime/multipart/multipart.go     | 20 +++++++++++++++++++-
+ 2 files changed, 55 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit bd7d757e91181a0a4be26032b6d6d7fc79c85acc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 9 13:28:14 2023 -0500
+
+    runtime: skip TestG0StackOverflow on windows/arm64
+    
+    Temporarily skip to make the builder happy. Will work on a fix.
+    
+    Updates #63938.
+    
+    Change-Id: Ic9db771342108430c29774b2c3e50043791189a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

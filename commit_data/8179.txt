@@ -1,0 +1,15 @@
+commit 29d78f124348d897a505e28fb28058d9a13163d0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 21 12:09:25 2011 -0400
+
+    runtime: fix GOMAXPROCS vs garbage collection bug
+    
+    Fixes #1715.
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4434053
+
+ src/pkg/runtime/proc.c       |  6 ++++++
+ src/pkg/runtime/proc_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

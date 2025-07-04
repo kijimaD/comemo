@@ -1,0 +1,17 @@
+commit ef48dfa310450b54fcb3eb4b33ca43329df7c824
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Sep 8 10:46:55 2012 +0900
+
+    exp/locale/collate: added indices to builder for reusing blocks between locales.
+    Refactored build + buildTrie into build + buildOrdering.
+    Note that since the tailoring code is not checked in yet, all tailorings are identical
+    to root.  The table therefore should not and does not grow at this point.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6500087
+
+ src/pkg/exp/locale/collate/build/builder.go      | 124 +++++++++++++----------
+ src/pkg/exp/locale/collate/build/builder_test.go |   8 +-
+ src/pkg/exp/locale/collate/build/order.go        |   2 +
+ 3 files changed, 77 insertions(+), 57 deletions(-)

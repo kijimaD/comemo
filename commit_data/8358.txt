@@ -1,0 +1,14 @@
+commit 9d2a697fb9d04f65bb9ba6c7b2b508c263da0503
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 11 23:26:52 2011 -0400
+
+    codereview: fetch metadata using JSON API, not XML scraping
+    
+    Fixes hg clpatch.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/4524045
+
+ lib/codereview/codereview.py | 181 ++++++++++++++++++++-----------------------
+ 1 file changed, 82 insertions(+), 99 deletions(-)

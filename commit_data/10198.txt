@@ -1,0 +1,16 @@
+commit 47f4bf763dcb120d3b005974fec848eefe0858f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 23:24:28 2011 -0400
+
+    gc: add GOEXPERIMENT=os.Error
+    
+    This won't last long, I promise.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5330066
+
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/lex.c  |  1 +
+ src/cmd/gc/subr.c | 11 +++++++++++
+ 3 files changed, 13 insertions(+)

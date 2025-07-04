@@ -1,0 +1,13 @@
+commit 97b24a05dff7adef3a0fb463a575b705be985468
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 13:07:34 2014 -0700
+
+    doc/go1.4.html: gccgo status
+    
+    LGTM=iant, cmang
+    R=cmang, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169760043
+
+ doc/go1.4.html | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

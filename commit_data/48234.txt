@@ -1,0 +1,21 @@
+commit 44e92e11c74fdb9ac016c65b319afa49737871ea
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 20:35:24 2022 -0800
+
+    cmd/compile: move unified IR's reader2 into importer package
+    
+    This keeps cmd/compile/internal/importer similar to how
+    go/internal/gcimporter will work after unified IR support is added in
+    a subsequent CL.
+    
+    Change-Id: Id3c000f3a13a54a725602552c6b3191d1affb184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388614
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/importer/support.go       | 15 +++++
+ .../{noder/reader2.go => importer/ureader.go}      | 78 +++++++++++-----------
+ src/cmd/compile/internal/noder/unified.go          |  3 +-
+ 3 files changed, 56 insertions(+), 40 deletions(-)

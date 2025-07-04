@@ -1,0 +1,36 @@
+commit a2b8c186f616db92f9812e09fb2c44b0e753f8a7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Oct 26 00:27:27 2021 -0400
+
+    all: update vendored golang.org/x/tools
+    
+    Pull in CL 358034 (and some more changes with passing tests) with:
+    
+            go get -d golang.org/x/tools@f916b54
+            go mod tidy
+            go mod vendor
+    
+    This teaches x/tools/cmd/bundle and the package loader it uses about
+    the new export data version.
+    
+    Fixes #49159.
+    
+    Change-Id: Icc36e77e602b1cd2da03708f20d05a66fcf693cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358620
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/analysis/passes/composite/composite.go      |  66 ++++---
+ .../x/tools/go/analysis/passes/printf/printf.go    |   3 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   3 +
+ .../x/tools/internal/typeparams/normalize.go       | 212 +++++++++++++++++++++
+ .../x/tools/internal/typeparams/termlist.go        | 172 +++++++++++++++++
+ .../tools/internal/typeparams/typeparams_go117.go  |  46 +++--
+ .../tools/internal/typeparams/typeparams_go118.go  |  25 ++-
+ .../x/tools/internal/typeparams/typeterm.go        | 170 +++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 11 files changed, 653 insertions(+), 52 deletions(-)

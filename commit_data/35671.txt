@@ -1,0 +1,32 @@
+commit 021c39d7a3361290d9e29497cf2a4a8fd2ee7b5c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 7 12:19:42 2018 +0200
+
+    runtime: use libc for signal functions on iOS
+    
+    Also:
+     - Add extra SystemStack space for darwin/arm64 just
+    like for darwin/arm.
+     - Removed redundant stack alignment; the arm64 hardware enforces
+     the 16 byte alignment.
+     - Save and restore the g registers at library initialization.
+     - Zero g registers since libpreinit can call libc functions
+     that in turn use asmcgocall. asmcgocall requires an initialized g.
+     - Change asmcgocall to work even if no g is set. The change mimics
+     amd64.
+    
+    Change-Id: I1b8c63b07cfec23b909c0d215b50dc229f8adbc8
+    Reviewed-on: https://go-review.googlesource.com/117176
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/vet/all/whitelist/darwin_arm.txt   |   6 --
+ src/cmd/vet/all/whitelist/darwin_arm64.txt |   2 -
+ src/runtime/asm_arm.s                      |  71 +++++++++----
+ src/runtime/asm_arm64.s                    |  34 +++++-
+ src/runtime/rt0_darwin_arm64.s             |  37 ++++---
+ src/runtime/stack.go                       |   4 +-
+ src/runtime/sys_darwin_arm.s               | 157 ++++++++++++++-------------
+ src/runtime/sys_darwin_arm64.s             | 165 +++++++++++++++--------------
+ 8 files changed, 267 insertions(+), 209 deletions(-)

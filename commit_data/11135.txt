@@ -1,0 +1,14 @@
+commit 7a7d3453917c92bdd27d2b0e3fbb7d027597dcfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 12 13:15:40 2012 -0800
+
+    net/http: don't ignore Request.Write's Flush error
+    
+    Pointed out by nekotaroh in issue 2645
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5539045
+
+ src/pkg/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

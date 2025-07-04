@@ -1,0 +1,14 @@
+commit 78ebe2b392f9d3fba87a0ea7dd75569fcb998488
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 17:54:47 2009 -0700
+
+    test: comparisons have type bool
+    
+    R=r
+    DELTA=81  (57 added, 24 deleted, 0 changed)
+    OCL=34991
+    CL=34996
+
+ test/named.go  | 24 ------------------------
+ test/named1.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 24 deletions(-)

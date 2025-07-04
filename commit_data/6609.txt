@@ -1,0 +1,14 @@
+commit c28fa513f599dd47a9f1e4f4d751131728af6bf4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 22 16:07:26 2010 -0700
+
+    gob: error cleanup 2
+    Simplify error handling during the compilation phase.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2652042
+
+ src/pkg/gob/decode.go | 88 +++++++++++++---------------------------------
+ src/pkg/gob/encode.go | 97 ++++++++++++++++++++-------------------------------
+ 2 files changed, 63 insertions(+), 122 deletions(-)

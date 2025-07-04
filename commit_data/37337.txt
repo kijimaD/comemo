@@ -1,0 +1,45 @@
+commit 8607b2e825da5bbd91929080ccfdbc20ed9aef96
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Oct 20 19:59:27 2018 -0700
+
+    cmd/compile: optimize A->B->C Moves that include VarDefs
+    
+    We have an existing optimization that recognizes
+    memory moves of the form A -> B -> C and converts
+    them into A -> C, in the hopes that the store to
+    B will be end up being dead and thus eliminated.
+    
+    However, when A, B, and C are large types,
+    the front end sometimes emits VarDef ops for the moves.
+    This change adds an optimization to match that pattern.
+    
+    This required changing an old compiler test.
+    The test assumed that a temporary was required
+    to deal with a large return value.
+    With this optimization in place, that temporary
+    ended up being eliminated.
+    
+    Triggers 649 times during 'go build -a std cmd'.
+    
+    Cuts 16k off cmd/go.
+    
+    name        old object-bytes  new object-bytes  delta
+    Template          507kB ± 0%        507kB ± 0%  -0.15%  (p=0.008 n=5+5)
+    Unicode           225kB ± 0%        225kB ± 0%    ~     (all equal)
+    GoTypes          1.85MB ± 0%       1.85MB ± 0%    ~     (all equal)
+    Flate             328kB ± 0%        328kB ± 0%    ~     (all equal)
+    GoParser          402kB ± 0%        402kB ± 0%  -0.00%  (p=0.008 n=5+5)
+    Reflect          1.41MB ± 0%       1.41MB ± 0%  -0.20%  (p=0.008 n=5+5)
+    Tar               458kB ± 0%        458kB ± 0%    ~     (all equal)
+    XML               601kB ± 0%        599kB ± 0%  -0.21%  (p=0.008 n=5+5)
+    
+    Change-Id: I9b5f25c8663a0b772ad1ee51fa61f74b74d26dd3
+    Reviewed-on: https://go-review.googlesource.com/c/143479
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  9 +++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 35 ++++++++++++++++++++++++++
+ test/fixedbugs/issue20780.go                   | 15 ++++++-----
+ 3 files changed, 51 insertions(+), 8 deletions(-)

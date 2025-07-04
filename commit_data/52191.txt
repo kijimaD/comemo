@@ -1,0 +1,33 @@
+commit 74502e9bb4d732239fa684969ddb22e7b7345f3a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 28 18:43:14 2023 -0500
+
+    cmd/go: support multiple main packages with -pgo=auto
+    
+    In -pgo=auto mode, the go command finds a profile named
+    default.pgo in the main package's directly, and if found, use it
+    as the profile for the build. Currently we only support a single
+    main package when -pgo=auto is used.
+    
+    When multiple main packages are included in a build, they may
+    have different default profiles (or some have profiles whereas
+    some don't), so a common dependent package would need to be built
+    multiple times, with different profiles (or lack of). This CL
+    handles this. To do so, we need to split (unshare) the dependency
+    graph so they can attach different profiles.
+    
+    Fixes #58099.
+    
+    Change-Id: I1ad21361967aafbf5089d8d5e89229f95fe31276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472358
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  6 +-
+ src/cmd/go/internal/load/pkg.go                    | 81 +++++++++++++-------
+ src/cmd/go/internal/work/build.go                  |  6 +-
+ src/cmd/go/testdata/script/build_pgo_auto.txt      | 12 ---
+ .../go/testdata/script/build_pgo_auto_multi.txt    | 87 ++++++++++++++++++++++
+ 5 files changed, 150 insertions(+), 42 deletions(-)

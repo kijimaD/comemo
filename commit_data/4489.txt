@@ -1,0 +1,18 @@
+commit e1033d07b454c60623995bf84076b85f70e77225
+Author: Peter Froehlich <peter.hans.froehlich@gmail.com>
+Date:   Thu Dec 24 08:43:35 2009 +1100
+
+    Add query to find number of subexpressions.
+    
+    This was convenient for me to have without being forced
+    to parse the regexp myself. I'd understand if it's not
+    really wanted, but I also think that some meta information
+    about compiled regexps would be fine.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/183044
+
+ src/pkg/regexp/all_test.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go   |  3 +++
+ 2 files changed, 31 insertions(+)

@@ -1,0 +1,15 @@
+commit faa44268116df045813e36c9b57d7309b74f14f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 29 17:09:16 2020 -0700
+
+    strings: complete Reader doc string
+    
+    Follow-up on https://golang.org/cl/247523.
+    
+    Change-Id: I9e91a6d77271e640d84851f2e2a4c6d2150a2b43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266438
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

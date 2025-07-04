@@ -1,0 +1,15 @@
+commit 9af3ee5471c612813d08c1ebedfa507d46fad615
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 16:23:45 2008 -0800
+
+    - full support for sorting (assumes array elements implement LessInterface
+    - better test reporting
+    
+    R=r
+    DELTA=43  (24 added, 0 deleted, 19 changed)
+    OCL=19641
+    CL=19645
+
+ src/lib/container/array/array.go     | 11 ++++++++
+ src/lib/container/array/testarray.go | 51 ++++++++++++++++++++++--------------
+ 2 files changed, 43 insertions(+), 19 deletions(-)

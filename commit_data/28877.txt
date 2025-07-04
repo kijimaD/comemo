@@ -1,0 +1,21 @@
+commit c7e855658d73b85f345c9a0ac81de42acad7ae9b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 17 13:40:18 2016 -0400
+
+    cmd/link: trampoline support for external linking on ARM
+    
+    all.bash passes with -debugtramp=2 (except the unavoidable
+    disassembly test as we change instructions). And successfully
+    build k8s.io/kubernetes/cmd/hyperkube in both internal linking
+    and external linking mode.
+    
+    Fixes #17028.
+    
+    Change-Id: Ic8fac6a394488155c5eba9215662db1c1086e24b
+    Reviewed-on: https://go-review.googlesource.com/31143
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/arm/asm.go | 121 +++++++++++++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/data.go |   3 -
+ src/cmd/link/linkbig_test.go     |  28 ++++-----
+ 3 files changed, 126 insertions(+), 26 deletions(-)

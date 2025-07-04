@@ -1,0 +1,20 @@
+commit bf67afc84e456e03e5ca14e2e4039497b36051ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 16:53:33 2008 -0800
+
+    print field names on struct members.
+    also don't concatenate strings next
+    to each other in the struct,
+    like p.doprint does.
+    
+    expose additional print flags to formatters
+    
+    R=r
+    DELTA=128  (111 added, 11 deleted, 6 changed)
+    OCL=20991
+    CL=21018
+
+ src/lib/fmt/fmt_test.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/fmt/format.go   |  2 ++
+ src/lib/fmt/print.go    | 57 ++++++++++++++++++++++++++-----------
+ 3 files changed, 117 insertions(+), 17 deletions(-)

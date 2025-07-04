@@ -1,0 +1,21 @@
+commit 6c85693bf14e246e5a53466048329cb7571a674c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 09:50:56 2018 -0400
+
+    cmd/go: check that package paths are invariantly non-empty
+    
+    The empty string is never a valid package path.
+    Passing an empty string to a function that expects a package path
+    indicates some missing validation step further up the call chain —
+    typically (and most easily) a missed error check.
+    
+    Change-Id: I78a2403d95b473bacb0d40814cd9d477ecfd5351
+    Reviewed-on: https://go-review.googlesource.com/c/140857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go      | 10 ++++++++++
+ src/cmd/go/internal/modload/build.go |  3 +++
+ src/cmd/go/internal/modload/load.go  |  3 +++
+ 3 files changed, 16 insertions(+)

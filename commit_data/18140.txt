@@ -1,0 +1,12 @@
+commit 0333e80d63afd4cc7595fab589feaf8140154bc7
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Tue Dec 31 23:13:05 2013 +1100
+
+    crypto/sha1: add tests for Size() and BlockSize()
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/46400044
+
+ src/pkg/crypto/sha1/sha1_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

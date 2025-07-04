@@ -1,0 +1,21 @@
+commit 40ea396c0975c7a52feb1c8291d38762c774897f
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Jan 21 12:16:49 2018 +0100
+
+    cmd/vendor/github.com/google/pprof/internal/driver: skip read only dir error on Android
+    
+    On an android/amd64 emulator, $HOME points to / which is not writable.
+    Ignore the error in the pprof driver test.
+    
+    With this, androidtest.sh on android/amd64 and android/386 passes.
+    
+    Upstream pull request https://github.com/google/pprof/pull/295.
+    
+    Change-Id: If919d7f44530a977fd044631ad01bac87d32deaa
+    Reviewed-on: https://go-review.googlesource.com/88817
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

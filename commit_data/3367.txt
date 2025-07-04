@@ -1,0 +1,8 @@
+commit f6faa9de1f5767cc1b74e48452bdbe8f18536bf4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 17:25:25 2009 -0700
+
+    more cleanup
+
+ usr/gri/pretty/ast.txt | 383 -------------------------------------------------
+ 1 file changed, 383 deletions(-)

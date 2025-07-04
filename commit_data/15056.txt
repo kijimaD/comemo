@@ -1,0 +1,14 @@
+commit 956cd0059c49870161a31ed7403199e3f0e19ad2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 07:49:23 2013 -0800
+
+    encoding/json: document case-insensitive Unmarshal key matching
+    
+    Fixes #4664.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7237060
+
+ src/pkg/encoding/json/decode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

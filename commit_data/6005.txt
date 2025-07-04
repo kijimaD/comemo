@@ -1,0 +1,13 @@
+commit 879b5a02a942dc8a59f51b0fcb48e53cad1b71c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 11 22:22:36 2010 -0700
+
+    A+C: Mikio Hara (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1971042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

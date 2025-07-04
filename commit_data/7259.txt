@@ -1,0 +1,12 @@
+commit 90585bde3797b514b54dca8b7e71bfe458ff11a4
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jan 27 23:03:52 2011 +1000
+
+    misc/vim/syntax: set large value to 'syntax sync'.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/4102044
+
+ misc/vim/syntax/go.vim | 2 ++
+ 1 file changed, 2 insertions(+)

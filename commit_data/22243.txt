@@ -1,0 +1,18 @@
+commit 0de359da301d1ed5a63c87a8853bedbd829ab906
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 19 23:05:34 2015 +1300
+
+    cmd/internal/gc: directly produce importpath of package being compiled
+    
+    Relying on an importing package being linked at the same time as the
+    imported package does not work in the shared library world.
+    
+    This also lets us remove some obscure code from the linker.
+    
+    Change-Id: I57cd5447b42a1a6129b02951d44efffb10cf64be
+    Reviewed-on: https://go-review.googlesource.com/7797
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/reflect.go | 24 +++++++++++++++++++-----
+ src/cmd/internal/ld/lib.go     | 18 ------------------
+ 2 files changed, 19 insertions(+), 23 deletions(-)

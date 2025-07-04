@@ -1,0 +1,25 @@
+commit 78b722d8c2f764c3048c6f0344e9ebcd2687813d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 4 15:44:44 2022 -0400
+
+    cmd/go: place GOROOT/bin at the beginning of PATH in 'go generate' and 'go test'
+    
+    This causes tests and generators that execute 'go' as a subprocess to
+    use the same go command as the parent 'go test' or 'go generate'
+    command.
+    
+    For #51473.
+    
+    Change-Id: I003cf1d05d1c93a26c6a7fdfad25e86c11765f59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404134
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/base/env.go                    | 25 ++++++++++++-
+ src/cmd/go/internal/generate/generate.go           | 21 +++++++++--
+ src/cmd/go/internal/test/test.go                   |  7 +++-
+ .../go/testdata/script/generate_goroot_PATH.txt    | 38 ++++++++++++++++++++
+ src/cmd/go/testdata/script/test_goroot_PATH.txt    | 41 ++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 5 deletions(-)

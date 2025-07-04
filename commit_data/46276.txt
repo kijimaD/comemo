@@ -1,0 +1,22 @@
+commit 17e9d148d3354f8da745e6533213ca5b348b719e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 15:24:01 2021 +0200
+
+    syscall: drop fallback to utimes in UtimesNano on Linux
+    
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The current minimum required version is 2.6.23 and
+    utimensat was added in 2.6.22, so the fallback isn't even necessary for
+    the current minimum supported version. Remove the fallback to utimes.
+    
+    For #45964
+    
+    Change-Id: I5536f6ea7a34944dd9165f1533c10692171fb0c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346790
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

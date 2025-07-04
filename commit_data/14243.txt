@@ -1,0 +1,12 @@
+commit d77eb129981063fec19efc7dd4078c4757fcf997
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 30 09:42:43 2012 -0700
+
+    exp/gotype: add more test packages
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6822051
+
+ src/pkg/exp/gotype/gotype_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

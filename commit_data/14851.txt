@@ -1,0 +1,21 @@
+commit 810e439859afe4c2b526c4baed9d01fd72d499ed
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 11 12:42:09 2013 +1100
+
+    net: use windows ConnectEx to dial (when possible)
+    
+    Update #2631.
+    Update #3097.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7061060
+
+ src/pkg/net/dial.go                | 19 ++--------
+ src/pkg/net/dial_windows_test.go   | 74 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/fd_plan9.go            |  6 ++++
+ src/pkg/net/fd_unix.go             |  9 +++++
+ src/pkg/net/fd_windows.go          | 64 ++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/syscall_windows.go | 52 +++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go  | 39 +++++++++++++++-----
+ 7 files changed, 236 insertions(+), 27 deletions(-)

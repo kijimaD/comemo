@@ -1,0 +1,15 @@
+commit 16cf8802f87de8738a585d7cd46a388e2afc9388
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 28 14:51:13 2015 +1000
+
+    doc/go1.6.txt: start go1.6.txt with a note about nacl
+    
+    Start go1.6.txt with a note that nacl ports are no longer
+    restricted to pepper_41 and a record of the text/template change.
+    
+    Change-Id: I21dda64aec113c35caf1d565f29e3aac8171480a
+    Reviewed-on: https://go-review.googlesource.com/14004
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

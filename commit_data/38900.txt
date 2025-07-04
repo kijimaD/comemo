@@ -1,0 +1,26 @@
+commit 34fc6ced76b252203bf58d0a53a853b4f60a130b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 27 17:54:45 2019 +0100
+
+    all: update to Unicode 11
+    
+    This does *not* update the vendored tables.
+    A commit updating these tables should follow soon,
+    
+    Mostly generated running UNICODE_VERSION=11.0.0 in x/text.
+    
+    Manually updated next.txt file.
+    
+    Updates golang/go#27945.
+    
+    Change-Id: I939a01e235aeca898ee9afc99a531e7ad8444e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154420
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ api/except.txt         |   3 +-
+ api/next.txt           |   8 +
+ src/strconv/isprint.go |  94 ++++----
+ src/unicode/tables.go  | 580 +++++++++++++++++++++++++++++++++----------------
+ 4 files changed, 453 insertions(+), 232 deletions(-)

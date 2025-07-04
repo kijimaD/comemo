@@ -1,0 +1,17 @@
+commit 7f0dd8b1b753b016625d39b45849ea99417acff0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 3 11:41:01 2009 -0700
+
+    new benchmark results.
+    main changes:
+            gccgo is much slower on  binary-tree and fannkuch
+            6g seems to struggle with alignment of loops in nbody (dignosis uncertain)
+            6g is a little faster at regexps and concurrency
+    
+    R=rsc
+    DELTA=93  (93 added, 0 deleted, 0 changed)
+    OCL=34320
+    CL=34322
+
+ test/bench/timing.log | 93 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)

@@ -1,0 +1,19 @@
+commit c6130e9f1f3bb282b611488d2b5cd13d2719dc33
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 28 15:17:37 2008 -0700
+
+    get rid of static/dynamic array distinction
+    
+    R=r
+    OCL=14634
+    CL=14634
+
+ src/cmd/6g/align.c  |  7 +++----
+ src/cmd/6g/cgen.c   | 12 ++++++------
+ src/cmd/6g/gsubr.c  |  1 -
+ src/cmd/gc/dcl.c    |  2 +-
+ src/cmd/gc/export.c | 17 ++++++-----------
+ src/cmd/gc/go.h     |  7 ++++---
+ src/cmd/gc/subr.c   | 52 +++++++++++++++++++++++++++-------------------------
+ src/cmd/gc/walk.c   | 33 +++++++++++++++++----------------
+ 8 files changed, 64 insertions(+), 67 deletions(-)

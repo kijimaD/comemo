@@ -1,0 +1,15 @@
+commit 12dbd06f0a7dae479766ba4966e1b572eec52452
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 08:55:18 2009 -0800
+
+    gofmt-ify encoding
+    
+    R=rsc
+    http://go/go-review/1017048
+
+ src/pkg/encoding/ascii85/ascii85.go      | 17 +++----
+ src/pkg/encoding/ascii85/ascii85_test.go |  6 +--
+ src/pkg/encoding/git85/git.go            | 85 ++++++++++++++++----------------
+ src/pkg/encoding/git85/git_test.go       |  6 +--
+ src/pkg/encoding/hex/hex_test.go         |  6 +--
+ 5 files changed, 59 insertions(+), 61 deletions(-)

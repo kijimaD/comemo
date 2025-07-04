@@ -1,0 +1,21 @@
+commit 2619dccf3c44a38c7514c3db29d871d0640e83cb
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Mon Nov 16 20:59:35 2015 +0530
+
+    path/filepath: in Rel use case-insensitive comparison on Windows
+    
+    Compare basepath and targetpath using strings.EqualFold.  The absence
+    of this on Windows causes an unterminating condition in `for` statement
+    later in the function.
+    
+    Fixes #13258
+    
+    Change-Id: Ib5a0caba864ee425dc75ece47b9cf6fb626f47f1
+    Reviewed-on: https://go-review.googlesource.com/16857
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path.go      | 2 +-
+ src/path/filepath/path_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

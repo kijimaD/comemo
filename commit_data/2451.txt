@@ -1,0 +1,15 @@
+commit acaba18bba553e83e02db18c57f41f96db696cb3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 15 21:13:28 2009 -0700
+
+    bug163: ideographs are not letters
+    also update golden.out from bug162
+    
+    R=rsc
+    DELTA=16  (16 added, 0 deleted, 0 changed)
+    OCL=30298
+    CL=30324
+
+ test/bugs/bug163.go | 13 +++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 20 insertions(+)

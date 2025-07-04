@@ -1,0 +1,17 @@
+commit dc09a7af2e72fe4863cac51f51f8581779ee28e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 13 18:10:15 2017 +0000
+
+    test: disable flaky test/fixedbugs/issue10958.go
+    
+    Updates #18589
+    
+    Change-Id: I2c3bbc8257c68295051bd2e63e1e11794d0609c3
+    Reviewed-on: https://go-review.googlesource.com/40651
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue10958.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,10 @@
+commit 9b664c580f6cc51ca460ee3e29e40e9f8a438a67
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 13:06:09 2008 -0700
+
+    'default' bug in switch statements is fixed
+    
+    SVN=123411
+
+ test/{bugs => fixedbugs}/bug028.go | 4 ++++
+ 1 file changed, 4 insertions(+)

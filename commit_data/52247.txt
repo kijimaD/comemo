@@ -1,0 +1,24 @@
+commit 3e360b035f4c3014e9564f4994c68ccc296ef629
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 14 12:25:11 2023 -0500
+
+    runtime: new API for filling PC traceback buffers
+    
+    Currently, filling PC traceback buffers is one of the jobs of
+    gentraceback. This moves it into a new function, tracebackPCs, with a
+    simple API built around unwinder, and changes all callers to use this
+    new API.
+    
+    Updates #54466.
+    
+    Change-Id: Id2038bded81bf533a5a4e71178a7c014904d938c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468300
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  4 +-
+ src/runtime/mprof.go       |  4 +-
+ src/runtime/proc.go        | 15 ++++----
+ src/runtime/traceback.go   | 92 ++++++++++++++++++++++++++--------------------
+ 4 files changed, 66 insertions(+), 49 deletions(-)

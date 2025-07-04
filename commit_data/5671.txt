@@ -1,0 +1,12 @@
+commit 99b23a1e5bba7c02184e7875789e25bac21e153b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 18 10:52:37 2010 -0700
+
+    Effective Go: panic and recover
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1718042
+
+ doc/effective_go.html | 171 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 168 insertions(+), 3 deletions(-)

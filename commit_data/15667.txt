@@ -1,0 +1,16 @@
+commit cea78cb58ec53a564830450a9665d18a198ba266
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Mon Mar 11 12:14:42 2013 +1100
+
+    doc/contribute: add instructions to fix codereview on windows
+    
+    Tell Windows users how to update Mercurial's library.zip to add some missing dependencies.
+    
+    Fixes #4745.
+    
+    R=golang-dev, patrick.allen.higgins, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7558043
+
+ doc/contribute.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

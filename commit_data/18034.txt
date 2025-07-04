@@ -1,0 +1,12 @@
+commit ae9e4db07cde3862286cf499c71af9a6fe876b77
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 18 14:17:47 2013 +1100
+
+    runtime: skip broken TestRuntimeGogoBytes on windows
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43730043
+
+ src/pkg/runtime/runtime_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,14 @@
+commit 5de0c37ecf49b986f6231a9cf5273861101b634b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 20 15:30:31 2018 -0800
+
+    doc: go1.12: clarify use of MADV_FREE
+    
+    Fixes #29337
+    
+    Change-Id: I1d632d19058c63dac8e25d2a5ad55555c1aec9d4
+    Reviewed-on: https://go-review.googlesource.com/c/155438
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

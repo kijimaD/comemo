@@ -1,0 +1,13 @@
+commit c5b056f24f614ef60cee3d58fd71eac2906b1415
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 5 11:23:44 2009 -0700
+
+    update json comments
+    
+    R=r
+    DELTA=16  (4 added, 2 deleted, 10 changed)
+    OCL=35320
+    CL=35331
+
+ src/pkg/json/struct.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

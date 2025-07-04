@@ -1,0 +1,16 @@
+commit 0a5cb7dc49263ff63e09dfca27df5888e55aeeba
+Author: Jakob Borg <jakob@nym.se>
+Date:   Tue Jul 15 14:49:26 2014 +1000
+
+    net: Don't read beyond end of slice when parsing resolv.conf options.
+    
+    Fixes #8252.
+    
+    LGTM=adg
+    R=ruiu, josharian, adg
+    CC=golang-codereviews
+    https://golang.org/cl/102470046
+
+ src/pkg/net/dnsconfig_unix.go    | 10 +++++++---
+ src/pkg/net/testdata/resolv.conf |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)

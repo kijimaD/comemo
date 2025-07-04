@@ -1,0 +1,33 @@
+commit 42ea2eda4902469fc15be067ee4e0becfae27ec4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 16:31:20 2014 -0400
+
+    sync/atomic: fix unimportant assembly errors found by go vet
+    
+    None of these are real bugs.
+    The variable name in the reference is not semantically meaningful,
+    except that 'go vet' will double check the offset against the name for you.
+    
+    The stack sizes being corrected really are incorrect but they are also
+    in NOSPLIT functions so they typically don't matter.
+    
+    Found by vet.
+    
+    GOOS=linux GOARCH=amd64 go vet sync/atomic
+    GOOS=linux GOARCH=amd64p32 go vet sync/atomic
+    GOOS=linux GOARCH=386 go vet sync/atomic
+    GOOS=linux GOARCH=arm go vet sync/atomic
+    GOOS=freebsd GOARCH=arm go vet sync/atomic
+    GOOS=netbsd GOARCH=arm go vet sync/atomic
+    
+    LGTM=r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/100500043
+
+ src/pkg/sync/atomic/asm_386.s                | 14 +++++++-------
+ src/pkg/sync/atomic/asm_amd64.s              |  4 ++--
+ src/pkg/sync/atomic/asm_amd64p32.s           | 14 +++++++-------
+ src/pkg/sync/atomic/asm_linux_arm.s          | 12 ++++++------
+ src/pkg/sync/atomic/export_linux_arm_test.go |  2 +-
+ 5 files changed, 23 insertions(+), 23 deletions(-)

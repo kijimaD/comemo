@@ -1,0 +1,29 @@
+commit 60be6f85c15015231c41fc8296652ec006a94f80
+Author: David Chase <drchase@google.com>
+Date:   Wed Dec 20 15:27:44 2017 -0500
+
+    cmd/compile: additional test cleanup
+    
+    Refactoring to make it slightly easier to add tests,
+    easier to add variable-printing-support for Delve,
+    and made naming and tagging more consistent.
+    
+    No changes to the content of the test itself or when it is
+    run.
+    
+    Change-Id: I374815b65a203bd43b27edebd90b859466d1c33b
+    Reviewed-on: https://go-review.googlesource.com/84979
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go         | 161 ++++++++++++---------
+ .../{hist.dbg-dlv.nexts => hist.dlv-dbg.nexts}     |   0
+ .../{hist.opt-dlv.nexts => hist.dlv-opt.nexts}     |   0
+ .../{hist.dbg-gdb.nexts => hist.gdb-dbg.nexts}     |   0
+ .../{hist.opt-gdb.nexts => hist.gdb-opt.nexts}     |   0
+ ...-22558-dlv.nexts => i22558.dlv-dbg-22558.nexts} |   0
+ ...-22558-gdb.nexts => i22558.gdb-dbg-22558.nexts} |   0
+ .../ssa/testdata/i22600.dlv-dbg-race.nexts         |   7 +
+ ...bg-race-gdb.nexts => i22600.gdb-dbg-race.nexts} |   0
+ 9 files changed, 99 insertions(+), 69 deletions(-)

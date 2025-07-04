@@ -1,0 +1,14 @@
+commit a21b4bca0c82098f3a445d663365c9afea8fa699
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 30 11:08:25 2015 -0400
+
+    doc/go1.6.txt: mention possible GOTRACEBACK change
+    
+    For CL 16512, #12366, #13107.
+    
+    Change-Id: I0ed1bb9597ac3db3fa35a037c304060d5a7e6d51
+    Reviewed-on: https://go-review.googlesource.com/16513
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

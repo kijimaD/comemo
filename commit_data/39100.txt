@@ -1,0 +1,26 @@
+commit 1ea76443ba1825f03e187157b3f58560c52609b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 13:43:44 2019 -0400
+
+    runtime: fix vet complaints for linux/arm
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    This CL makes "GOOS=linux GOARCH=arm go vet -unsafeptr=false runtime" happy,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    
+    For #31916.
+    
+    Change-Id: Ifae75b832320b5356ac8773cf85055bfb2bd7214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176101
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/android_arm.txt |  4 ----
+ src/cmd/vet/all/whitelist/arm.txt         |  7 -------
+ src/cmd/vet/all/whitelist/linux_arm.txt   |  5 -----
+ src/runtime/stubs_arm.go                  | 11 +++++++++--
+ src/runtime/sys_linux_arm.s               |  2 +-
+ 5 files changed, 10 insertions(+), 19 deletions(-)

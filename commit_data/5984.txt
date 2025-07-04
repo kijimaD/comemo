@@ -1,0 +1,14 @@
+commit 90a6c91890978de61305801582590a5e43886661
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Tue Aug 10 12:25:08 2010 +1000
+
+    png: grayscale support.
+    
+    R=nigeltao_golang, r
+    CC=golang-dev
+    https://golang.org/cl/1897049
+
+ src/pkg/image/png/reader.go      | 18 +++++++++++++++---
+ src/pkg/image/png/reader_test.go |  9 ++++++++-
+ src/pkg/image/png/writer.go      | 20 +++++++++++++++++---
+ 3 files changed, 40 insertions(+), 7 deletions(-)

@@ -1,0 +1,21 @@
+commit 7abb4b3a96e240950df0bbbb30df8224be0baac6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 10:40:28 2010 -0800
+
+    gc: fix chan <- chan precedence.
+    also allow func() func().
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/194078
+
+ src/cmd/gc/go.y             | 71 ++++++++++++++++++++-------------------------
+ src/cmd/gc/print.c          |  8 +++--
+ src/cmd/gc/subr.c           | 14 +++++----
+ src/pkg/reflect/all_test.go |  2 +-
+ test/bugs/bug249.go         | 39 -------------------------
+ test/fixedbugs/bug249.go    | 39 +++++++++++++++++++++++++
+ test/golden.out             |  7 -----
+ test/import2.go             | 42 +++++++++++++++++++++++++++
+ test/import3.go             | 54 ++++++++++++++++++++++++++++++++++
+ 9 files changed, 183 insertions(+), 93 deletions(-)

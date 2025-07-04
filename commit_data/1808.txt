@@ -1,0 +1,34 @@
+commit 7a706fb3d7642e782f60d3d1d137b3c220643b46
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 12:51:10 2009 -0700
+
+    Rename os.FD to os.File.
+    
+    Make Fstat, Readdirnames, and Readdir methods
+    on os.File.
+    
+    R=r
+    DELTA=281  (79 added, 3 deleted, 199 changed)
+    OCL=25891
+    CL=26130
+
+ src/lib/exec.go                |  22 +++---
+ src/lib/http/server.go         | 162 ++++++++++++++++++++++++++++++-----------
+ src/lib/http/triv.go           |   5 +-
+ src/lib/log_test.go            |  10 +--
+ src/lib/net/fd.go              |  26 +++----
+ src/lib/net/net.go             |   4 +-
+ src/lib/net/parse.go           |   6 +-
+ src/lib/os/dir_amd64_darwin.go |  14 ++--
+ src/lib/os/dir_amd64_linux.go  |  14 ++--
+ src/lib/os/exec.go             |   2 +-
+ src/lib/os/file.go             | 114 +++++++++++++++--------------
+ src/lib/os/os_test.go          |  42 +++++------
+ src/lib/strconv/fp_test.go     |   5 +-
+ src/lib/time/zoneinfo.go       |   6 +-
+ usr/gri/pretty/compilation.go  |   4 +-
+ usr/gri/pretty/gds.go          |   8 +-
+ usr/gri/pretty/platform.go     |   6 +-
+ usr/gri/pretty/template.go     |  12 +--
+ usr/gri/pretty/untab.go        |   2 +-
+ 19 files changed, 270 insertions(+), 194 deletions(-)

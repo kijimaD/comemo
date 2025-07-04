@@ -1,0 +1,18 @@
+commit f02067a99aaf5b78cc0969f32c37454ce82200d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 14:28:44 2013 -0500
+
+    cmd/gc: implement latest rules for checking make sizes
+    
+    Fixes #4085.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7277047
+
+ src/cmd/gc/mparith1.c        |  6 +++---
+ src/cmd/gc/typecheck.c       | 51 +++++++++++++++++++++++++++++++++-----------
+ src/pkg/runtime/slice.c      |  9 ++++++--
+ test/fixedbugs/issue4085a.go | 18 ++++++++++++++++
+ test/fixedbugs/issue4085b.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 115 insertions(+), 18 deletions(-)

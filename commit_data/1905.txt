@@ -1,0 +1,14 @@
+commit de9cf52835c134a8e5a0df9a0880caa79b9b9b88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 27 23:11:54 2009 -0700
+
+    - receiver syntax verification
+    - removed left-over panic() call
+    - fixed a couple of bugs
+    
+    R=r
+    OCL=26856
+    CL=26856
+
+ usr/gri/pretty/parser.go | 80 +++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 55 insertions(+), 25 deletions(-)

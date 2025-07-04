@@ -1,0 +1,20 @@
+commit 6e615a57af895f1d4f7f7ff95d741b3f188fef5c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 4 13:14:38 2011 -0800
+
+    scan: permit base prefixes 0nnn and 0xnn when scanning
+    signed or unsigned integers using %v or the formatless scanner.
+    That is, Sscan("0x11", &i) or Sscanf("0x11", "%v", &i) will now
+    set i to 17.   If a format other than %v is presented, the behavior
+    is as before.
+    
+    Fixes #1469.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4131042
+
+ src/pkg/fmt/doc.go       |  4 ++++
+ src/pkg/fmt/scan.go      | 58 +++++++++++++++++++++++++++++++++++++-----------
+ src/pkg/fmt/scan_test.go | 14 +++++++++++-
+ 3 files changed, 62 insertions(+), 14 deletions(-)

@@ -1,0 +1,13 @@
+commit d660d4a6d0a3fe4712322b92afadc78705c6862b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 10 19:48:27 2010 +1000
+
+    exp/draw: fix double-counting of pt.Min for the src and mask points.
+    The min is typically zero, which is why this hasn't bitten us yet.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2119048
+
+ src/pkg/exp/draw/draw.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

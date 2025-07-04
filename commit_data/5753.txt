@@ -1,0 +1,13 @@
+commit 47c85ec97a483c9adde6ac00a0b9ef180a9472c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 23:34:27 2010 -0700
+
+    test: override gcc bug when preparing complex divide tables
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1666048
+
+ test/cmplxdivide.c   | 25 +++++++++++++++++++++++--
+ test/cmplxdivide1.go | 13 +++++++------
+ 2 files changed, 30 insertions(+), 8 deletions(-)

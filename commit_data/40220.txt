@@ -1,0 +1,22 @@
+commit a08cb9f473405769f292bd2ff455764a690fe3e7
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Wed Sep 5 06:35:33 2018 +0200
+
+    net/mail: added support to trailing CFWS in date
+    
+    RFC 5322 date format allows CFWS after the timezone.
+    If CFWS is valid, it is discarded and parsing is done as before
+    using time.Parse().
+    Existing test is extended with limit cases and invalid strings.
+    
+    Fixes #22661
+    
+    Change-Id: I54b96d7bc384b751962a76690e7e4786217a7941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/117596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mail/message.go      |  25 +++++++-
+ src/net/mail/message_test.go | 145 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+), 1 deletion(-)

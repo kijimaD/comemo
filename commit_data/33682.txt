@@ -1,0 +1,16 @@
+commit 2e1f07133d2447125cd45887d6d54e6aa53ba5b5
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Nov 23 15:31:28 2017 -0700
+
+    runtime: tweak doc for Goexit
+    
+    Use singular form of panic and remove the unnecessary
+    'however', when comparing Goexit's behavior to 'a panic'
+    as well as what happens for deferred recovers with Goexit.
+    
+    Change-Id: I3116df3336fa135198f6a39cf93dbb88a0e2f46e
+    Reviewed-on: https://go-review.googlesource.com/79755
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/panic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

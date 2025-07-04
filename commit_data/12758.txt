@@ -1,0 +1,12 @@
+commit 0c58eff0b6ff3ed72f1799cd9dd9c3397387656b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 10:38:10 2012 +1100
+
+    misc/dist: don't ship codereview either
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5917043
+
+ misc/dist/bindist.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

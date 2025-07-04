@@ -1,0 +1,18 @@
+commit 3202dafd4a4e9fb994fc2259f396cfeeb25c28ba
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Apr 5 09:28:49 2023 +0200
+
+    runtime: remove unused dynamically imported Sleep
+    
+    Sleep is not used, it can be removed.
+    
+    Change-Id: I237c966eb9b4e91127091d78f0b86725139c77a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482435
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_windows.go | 2 --
+ 1 file changed, 2 deletions(-)

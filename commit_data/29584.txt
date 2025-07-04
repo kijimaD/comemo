@@ -1,0 +1,21 @@
+commit 05dc6b26ca337b80f9424aa9b78f4b45f6e44c8d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 17 10:48:40 2016 -0500
+
+    runtime: improve diagnostics for "scan missed a g"
+    
+    Currently there are no diagnostics for mark root check during marking.
+    Fix this by printing out the same diagnostics we print during mark
+    termination.
+    
+    Also, drop the allglock before throwing. Holding that across a throw
+    causes a self-deadlock with tracebackothers.
+    
+    For #16083.
+    
+    Change-Id: Ib605f3ae0c17e70704b31d8378274cfaa2307dc2
+    Reviewed-on: https://go-review.googlesource.com/33339
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

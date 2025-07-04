@@ -1,0 +1,18 @@
+commit f7a867e1a6151485c3a4686d37dc80a5c40d4589
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 12:57:48 2009 -0700
+
+    move select into its own file.
+    split into typecheck + walk
+    
+    R=ken
+    OCL=32726
+    CL=32726
+
+ src/cmd/gc/Makefile    |   1 +
+ src/cmd/gc/go.h        |   5 ++
+ src/cmd/gc/select.c    | 163 ++++++++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c      |   9 ++
+ src/cmd/gc/typecheck.c |   6 +-
+ src/cmd/gc/walk.c      | 237 ++-----------------------------------------------
+ 6 files changed, 184 insertions(+), 237 deletions(-)

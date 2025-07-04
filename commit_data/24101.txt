@@ -1,0 +1,45 @@
+commit 6403c957e0fa9ecda28586be75eef54dede6d9c4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Aug 23 17:15:07 2015 +0200
+
+    compress/bzip2: make decoding faster
+    
+    Issue 6754 reports that Go bzip2 Decode function is much slower
+    (about 2.5x in go1.5) than the Python equivalent (which is
+    actually just a wrapper around the usual C library) on random data.
+    
+    Profiling the code shows that half a dozen of CMP instructions in a
+    tight loop are responsibile for most of the execution time.
+    
+    This patch reduces the number of branches of the loop, greatly
+    improving performance on random data and speeding up decoding of
+    real data.
+    
+    name            old time/op    new time/op    delta
+    DecodeDigits-4    9.28ms ± 1%    8.05ms ± 1%  -13.18%  (p=0.000 n=15+14)
+    DecodeTwain-4     28.9ms ± 2%    26.4ms ± 1%   -8.57%  (p=0.000 n=15+14)
+    DecodeRand-4      3.94ms ± 1%    3.06ms ± 1%  -22.45%  (p=0.000 n=15+14)
+    
+    name            old speed      new speed      delta
+    DecodeDigits-4  4.65MB/s ± 1%  5.36MB/s ± 1%  +15.21%  (p=0.000 n=13+14)
+    DecodeTwain-4   4.32MB/s ± 2%  4.72MB/s ± 1%   +9.36%  (p=0.000 n=15+14)
+    DecodeRand-4    4.27MB/s ± 1%  5.51MB/s ± 1%  +28.86%  (p=0.000 n=15+14)
+    
+    I've run some benchmark comparing Go bzip2 implementation with the
+    usual Linux bzip2 command (which is written in C). On my machine
+    this patch brings go1.5
+      from ~2.26x to ~1.50x of bzip2 time (on 64MB  random data)
+      from ~1.70x to ~1.50x of bzip2 time (on 100MB english text)
+      from ~2.00x to ~1.88x of bzip2 time (on 64MB  /dev/zero data)
+    
+    Fixes #6754
+    
+    Change-Id: I3cb12d2c0c2243c1617edef1edc88f05f91d26d1
+    Reviewed-on: https://go-review.googlesource.com/13853
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/bzip2/bit_reader.go            |   8 -----
+ src/compress/bzip2/bzip2_test.go            |   4 +++
+ src/compress/bzip2/huffman.go               |  44 ++++++++++++++++++----------
+ src/compress/bzip2/testdata/random.data.bz2 | Bin 0 -> 16846 bytes
+ 4 files changed, 32 insertions(+), 24 deletions(-)

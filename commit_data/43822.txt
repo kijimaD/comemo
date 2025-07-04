@@ -1,0 +1,33 @@
+commit b194b5151fdac0c33da0b7359c97f92781ab3b5e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 17 19:10:51 2020 -0500
+
+    cmd/link: recompute heapPos after copyHeap
+    
+    Immediately after a forward Seek, the offset we're writing to is
+    beyond len(buf)+len(heap):
+    
+    |<--- buf --->|<--- heap --->|
+                                        ^
+                                        off
+    
+    If we do a copyHeap at this point, the new heapPos should not be
+    0:
+    
+    |<---------- buf ----------->|<-heap->|
+                                        ^
+                                        off
+    
+    Recompute it.
+    
+    For #42082.
+    
+    Change-Id: Icb3e4e1c7bf7d1fd3d76a2e0d7dfcb319c661534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270941
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/outbuf.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

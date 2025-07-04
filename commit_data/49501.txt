@@ -1,0 +1,21 @@
+commit 19ed442807499080cf9c31ac883d4195db5415c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 07:15:33 2022 -0700
+
+    test: add regress test for #53477
+    
+    This test already passes for GOEXPERIMENT=unified; add regress test to
+    ensure it stays that way.
+    
+    Updates #53477.
+    
+    Change-Id: Ib7aa7428260595077052207899edcc044a6ab1c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413394
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/go/internal/gcimporter/gcimporter_test.go |  1 +
+ test/run.go                                   |  1 +
+ test/typeparam/issue53477.go                  | 34 +++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+)

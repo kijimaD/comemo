@@ -1,0 +1,14 @@
+commit b70adbf29699bc8c3d1ac869806ac426b3bccf18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 15 16:10:12 2017 -0700
+
+    cmd/dist: update deps.go for current dependencies
+    
+    Fixes #21456
+    
+    Change-Id: Iba7bc608686536b2d4fe3d23409fa84b59cea640
+    Reviewed-on: https://go-review.googlesource.com/55971
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+
+ src/cmd/dist/deps.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

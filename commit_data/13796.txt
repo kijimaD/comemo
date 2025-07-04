@@ -1,0 +1,12 @@
+commit b64a99da88a92a0cfb85fbc6851437e399e5d4e6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 11 17:15:20 2012 +1000
+
+    C: add Francesc Campoy (Google CLA)
+    
+    R=golang-dev, dsymonds, campoy
+    CC=golang-dev
+    https://golang.org/cl/6490102
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

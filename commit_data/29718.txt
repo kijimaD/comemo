@@ -1,0 +1,16 @@
+commit e3a1d0cb7c9e68d60b207a683e5f3ba23e62cb91
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 14:59:21 2016 -0800
+
+    cmd/internal/obj: rename obj.go to line.go
+    
+    This file is entirely about the implementation of LineHist, and I can
+    never remember which generic filename in cmd/internal/obj has it.
+    Rename to line.go to match the already existing line_test.go.
+    
+    Change-Id: Id01f3339dc550c9759569d5610d808b17bca44d0
+    Reviewed-on: https://go-review.googlesource.com/33803
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/{obj.go => line.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

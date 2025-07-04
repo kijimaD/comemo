@@ -1,0 +1,39 @@
+commit bcc333348769efed7c38acfa013e5475c53e8f5f
+Author: Obeyda Djeffal <djefobey@gmail.com>
+Date:   Fri Oct 16 16:34:15 2020 +0100
+
+    cmd/go: ignore GOFLAGS values without name in go env/bug
+    
+    This happens with 'go env' and 'go bug'.
+    
+    If GOFLAGS variable is set to something like '=value',
+    running `go env` panics with this error message:
+    
+        goroutine 1 [running]:
+        cmd/go/internal/base.SetFromGOFLAGS(0xd96838)
+            cmd/go/internal/base/goflags.go:101 +0x9a7
+        main.main()
+            cmd/go/main.go:188 +0x755
+    
+    This happens when the 'name' of the flag is not
+    specified ('=' or '=value'), with any combination of other flags.
+    Other commands show this error message:
+        go: parsing $GOFLAGS: non-flag
+    
+    This happens only with 'env' and 'bug' because we have this:
+    https://go.googlesource.com/go/+/refs/heads/master/src/cmd/go/internal/base/goflags.go#40
+    
+    New behaviour: ignore the bad flag, since we don't want to report
+    that with `go env` or `go bug`.
+    
+    Fixes: #42013
+    Change-Id: I72602840ca00293d2a92ea28451b75b9799e3d6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263098
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/base/goflags.go      | 6 +++++-
+ src/cmd/go/testdata/script/env_write.txt | 4 ++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

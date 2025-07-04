@@ -1,0 +1,12 @@
+commit b842c9aac79318cfc66ab21efdb640f28e8bc5be
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Jan 10 11:25:14 2017 -0800
+
+    doc: remove inline styles
+    
+    Change-Id: I7ca7e9a2d4cf97cf33c60a9a4d0ba5fb0ca6e44c
+    Reviewed-on: https://go-review.googlesource.com/35098
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

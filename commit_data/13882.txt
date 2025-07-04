@@ -1,0 +1,17 @@
+commit be11889ab1584a5c6dfd1422ba163d893753b1ad
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Sep 20 12:30:56 2012 -0400
+
+    crypto/x509: ignore non-critical email constraints
+    
+    Previously we tried to parse email constraints as the maximum base
+    distance (which is unused and must be omitted according to RFC 5280)
+    because they share the same tag number. Rather than complicate the
+    code further, this CL just ignores the unused values.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6552044
+
+ src/pkg/crypto/x509/x509.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

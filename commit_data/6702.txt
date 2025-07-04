@@ -1,0 +1,12 @@
+commit 0aa9d84b56e716fcba784d5007b02af839fd34df
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 3 12:20:37 2010 -0700
+
+    units: fix compilation
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/2865041
+
+ src/cmd/goyacc/units.y | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,34 @@
+commit bc20704c265be3c5c6696dd703202ecef9b31d4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 18:03:23 2024 -0500
+
+    time: move runtimeTimer out of Timer struct
+    
+    If user code has two timers t1 and t2 and does *t1 = *t2
+    (or *t1 = Timer{}), it creeps me out that we would be
+    corrupting the runtime data structures inlined in the
+    Timer struct. Replace that field with a pointer to the
+    runtime data structure instead, so that the corruption
+    cannot happen, even in a badly behaved program.
+    
+    In fact, remove the struct definition entirely and linkname
+    a constructor instead. Now the runtime can evolve the struct
+    however it likes without needing to keep package time in sync.
+    
+    Also move the workaround logic for #21874 out of
+    runtime and into package time.
+    
+    Change-Id: Ia30f7802ee7b3a11f5d8a78dd30fd9c8633dc787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568339
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/mgcscavenge.go |  4 +--
+ src/runtime/time.go        | 44 ++++++++++++++++++-----------
+ src/runtime/time_test.go   | 32 +++++++++++++++++++++
+ src/runtime/trace2.go      |  4 +--
+ src/time/internal_test.go  | 10 ++-----
+ src/time/sleep.go          | 70 +++++++++++++++++++---------------------------
+ src/time/tick.go           | 35 +++++++++++++----------
+ 8 files changed, 115 insertions(+), 86 deletions(-)

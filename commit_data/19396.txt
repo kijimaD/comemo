@@ -1,0 +1,19 @@
+commit a663e0a0381c22d3b1ef58b411df5cfbf56c2930
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 19 15:08:04 2014 -0400
+
+    cmd/gc: fix <-<-expr
+    
+    The temporary-introducing pass was not recursing
+    into the argumnt of a receive operation.
+    
+    Fixes #8011.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/91540043
+
+ src/cmd/gc/order.c          |  1 +
+ test/fixedbugs/issue8011.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+)

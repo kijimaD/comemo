@@ -1,0 +1,16 @@
+commit 5cb4f82bbcd2e79ab8fd20c99c65f9928f94c2dd
+Author: James Whitehead <jnwhiteh@gmail.com>
+Date:   Mon Jun 21 07:35:24 2010 +0200
+
+    misc/vim: clarifies syntax highlighting installation instructions
+    
+    Based on the review of CL 1723044, I've changed the installation instructions
+    for the vim syntax files to suggest symlinking the files rather than copying
+    the files. Also the wording has changed to be more consistent.
+    
+    R=golang-dev, Kyle Lemons, adg
+    CC=golang-dev
+    https://golang.org/cl/1702045
+
+ misc/vim/readme.txt | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

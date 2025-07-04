@@ -1,0 +1,19 @@
+commit 03a4a5c98885245a99d67b684acacff4f7b2326e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 14 10:17:29 2017 -0700
+
+    runtime: don't run TestCgoNumGoroutine on Windows or Plan 9
+    
+    The test requires pthreads.
+    
+    Fixes #20666.
+    
+    Change-Id: Icb2400250a80cdad6680cd1ef6c18ef7343d5e29
+    Reviewed-on: https://go-review.googlesource.com/45701
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go                    | 4 ++++
+ src/runtime/testdata/testprogcgo/numgoroutine.go | 2 ++
+ 2 files changed, 6 insertions(+)

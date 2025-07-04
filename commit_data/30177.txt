@@ -1,0 +1,14 @@
+commit 95011d4e018c9499c8a4739bc728e38ddc12b9e1
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:32:24 2017 -0800
+
+    crypto/x509: sort the list of fields used by CreateCertificate.
+    
+    Change-Id: I20f4419ca377ee9428075e42db0bad46a75d983f
+    Reviewed-on: https://go-review.googlesource.com/36557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 77f668a0f118276fdfdbe0ba65751c3039e5f5f5
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed May 27 15:56:44 2009 -0700
+
+    added protection against race condition
+    between first and second pass of converting
+    []int to string.
+    
+    R=r
+    OCL=29467
+    CL=29467
+
+ src/runtime/string.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

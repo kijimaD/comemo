@@ -1,0 +1,14 @@
+commit 40a7de7b3a28d2d97b429f7302272188eae56565
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 11 11:58:17 2017 +1000
+
+    misc/cgo/testcshared: simlpify cshared_test.go
+    
+    Change-Id: Ib35bb7fc9c5b4ccc9b8e1bd16443e0b307be9406
+    Reviewed-on: https://go-review.googlesource.com/62593
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 123 ++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 89 deletions(-)

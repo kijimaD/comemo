@@ -1,0 +1,14 @@
+commit a23dd4fe4e448d7f696360f2c84c7c57a1ccaacf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 1 15:15:02 2013 -0700
+
+    cmd/godoc: better error message for missing index files
+    
+    Fixes #5024.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8222045
+
+ src/cmd/godoc/godoc.go | 2 ++
+ 1 file changed, 2 insertions(+)

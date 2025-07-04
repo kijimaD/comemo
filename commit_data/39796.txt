@@ -1,0 +1,14 @@
+commit 6fcc2d85be557c6890a1ad50ee280fa3cd8088e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 08:42:12 2019 -0700
+
+    spec: clarify that shift count must be non-negative
+    
+    Fixes #34056.
+    
+    Change-Id: I2c9b7a20d19f458df5dcc376e29bee6be1f09f7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193277
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

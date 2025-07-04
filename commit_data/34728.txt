@@ -1,0 +1,24 @@
+commit aaeaad687065f45efedf2e070780b8db6ceb7f17
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Mar 27 14:41:19 2018 -0400
+
+    cmd/trace: assign a unique span id for slice representation
+    
+    Spans are represented using Async Event types of chrome trace viewer.
+    According to the doc, the 'id' should be unique within category, scope.
+    
+    https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.jh64i9l3vwa1
+    
+    Use the index in the task's span slice as the slice id, so it
+    can be unique within the task. The scope is the task id which
+    is unique.
+    
+    This fixes a visualization bug that caused incorrect or missing
+    presentation of nested spans.
+    
+    Change-Id: If1537ee00247f71fa967abfe45569a9e7dbcdce7
+    Reviewed-on: https://go-review.googlesource.com/102697
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/trace.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

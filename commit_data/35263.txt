@@ -1,0 +1,16 @@
+commit e3beabdb8fadf1d2204bfd1c999391d5aa562114
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 3 12:56:53 2018 -0700
+
+    cmd/compile: regenerate ssa ops
+    
+    Must have been missed in a previous CL.
+    
+    Change-Id: I303736e82585be8d58b330235c76ed4b24a92952
+    Reviewed-on: https://go-review.googlesource.com/111259
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/opGen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

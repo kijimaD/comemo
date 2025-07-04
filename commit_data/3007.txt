@@ -1,0 +1,19 @@
+commit 7a87a3e0df681461d2acc85a42b6eb00cf245214
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 18 07:16:10 2009 -0700
+
+    slashed warnings
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=35  (2 added, 1 deleted, 32 changed)
+    OCL=33436
+    CL=33453
+
+ src/cmd/5a/lex.c   |  2 +-
+ src/cmd/5g/ggen.c  |  4 ++--
+ src/cmd/5g/gobj.c  | 27 ++++++++++++-----------
+ src/cmd/5g/gsubr.c | 27 ++++++++++++-----------
+ src/cmd/5g/list.c  |  6 ++---
+ src/cmd/5l/obj.c   | 65 +++++-------------------------------------------------
+ 6 files changed, 40 insertions(+), 91 deletions(-)

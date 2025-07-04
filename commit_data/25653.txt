@@ -1,0 +1,19 @@
+commit 0408ca7de12d72025d40c4d28fd8d9fb142b3c87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 25 15:22:03 2016 -0800
+
+    runtime: don't check sigaltstack on darwin/{arm,arm64}
+    
+    Use of the alternate signal stack on darwin/{arm,arm64} is reportedly
+    buggy, and the runtime function sigaltstack does nothing.  So don't
+    check the sigaltstack result to decide how to handle the signal stack.
+    
+    Fixes #14070.
+    
+    Change-Id: Ie97ede8895fad721e3acc79225f2cafcbe1f3a81
+    Reviewed-on: https://go-review.googlesource.com/18940
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_darwin.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

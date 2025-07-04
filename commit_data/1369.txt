@@ -1,0 +1,12 @@
+commit 78fc888e643eebbe812460506b978a052e930568
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 21:15:26 2008 -0800
+
+    another [] fix
+    
+    R=ken
+    OCL=21566
+    CL=21566
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

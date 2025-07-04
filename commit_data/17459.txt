@@ -1,0 +1,12 @@
+commit 3fca983872ce86e1d73cce4ac0554a5a404fc28c
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 3 16:19:41 2013 -0400
+
+    doc/go1.2.txt: crypto/{x509,tls} changes
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13335050
+
+ doc/go1.2.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

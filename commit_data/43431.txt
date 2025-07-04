@@ -1,0 +1,20 @@
+commit 61313dab524f2c82add8442e15d87fca5b7103de
+Author: Xiangdong Ji <xiangdong.ji@gmail.com>
+Date:   Sun Oct 18 11:43:23 2020 -0700
+
+    cmd/go: use the last -linkmode flag to determine external linking
+    
+    Current linkmode checking in determining package dependencies doesn't
+    take multiple -linkmode options into consideration, may lead to redundant
+    dependency on 'runtime/cgo'.
+    
+    Fixes the problem and adds a testcase.
+    
+    Change-Id: Iac5ea9fb3ca5ef931201afd0f3441f41f946c919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263497
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                 | 14 +++++++++-----
+ src/cmd/go/testdata/script/gcflags_patterns.txt |  4 ++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

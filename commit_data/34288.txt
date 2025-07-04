@@ -1,0 +1,34 @@
+commit 2629703a5c36210435369e0dc24db6497ea059a8
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Dec 13 15:25:50 2017 -0600
+
+    archive/zip: make benchmarks more representative
+    
+    Currently zip benchmarks spend 60% in the rleBuffer code,
+    which is used only to test zip archive/zip itself:
+        17.48s 37.02% 37.02%     18.12s 38.37%  archive/zip.(*rleBuffer).ReadAt
+         9.51s 20.14% 57.16%     10.43s 22.09%  archive/zip.(*rleBuffer).Write
+         9.15s 19.38% 76.54%     10.85s 22.98%  compress/flate.(*compressor).deflate
+    
+    This means that benchmarks currently test performance of test helper.
+    Updating ReadAt/Write methods to be more performant makes benchmarks closer to real world.
+    
+    name                       old time/op    new time/op    delta
+    CompressedZipGarbage-8       2.34ms ± 0%    2.34ms ± 1%     ~     (p=0.684 n=10+10)
+    Zip64Test-8                  58.1ms ± 2%    10.7ms ± 1%  -81.54%  (p=0.000 n=10+10)
+    Zip64TestSizes/4096-8        4.05µs ± 2%    3.65µs ± 5%   -9.96%  (p=0.000 n=9+10)
+    Zip64TestSizes/1048576-8      238µs ± 0%      43µs ± 0%  -82.06%  (p=0.000 n=10+10)
+    Zip64TestSizes/67108864-8    15.3ms ± 1%     2.6ms ± 0%  -83.12%  (p=0.000 n=10+9)
+    
+    name                       old alloc/op   new alloc/op   delta
+    CompressedZipGarbage-8       17.9kB ±14%    16.0kB ±24%  -10.48%  (p=0.026 n=9+10)
+    
+    name                       old allocs/op  new allocs/op  delta
+    CompressedZipGarbage-8         44.0 ± 0%      44.0 ± 0%     ~     (all equal)
+    
+    Change-Id: Idfd920d0e4bed4aec2f5be84dc7e3919d9f1dd2d
+    Reviewed-on: https://go-review.googlesource.com/83857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/zip_test.go | 43 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 17 deletions(-)

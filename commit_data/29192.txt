@@ -1,0 +1,23 @@
+commit 8a7f0ad0b5b08faa09751b5528e5fa8831745aea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 11:06:28 2016 -0400
+
+    cmd/compile: use typedmemclr for zeroing if there are pointers
+    
+    Currently, zeroing generates an ssa.OpZero, which never has write
+    barriers, even if the assignment is an OASWB. The hybrid barrier
+    requires write barriers on zeroing, so change OASWB to generate an
+    ssa.OpZeroWB when assigning the zero value, which turns into a
+    typedmemclr.
+    
+    Updates #17503.
+    
+    Change-Id: Ib37ac5e39f578447dbd6b36a6a54117d5624784d
+    Reviewed-on: https://go-review.googlesource.com/31451
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go             | 38 ++++++++++++++++++--------
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  7 +++++
+ src/cmd/compile/internal/ssa/writebarrier.go   | 35 +++++++++++++++++-------
+ 4 files changed, 59 insertions(+), 23 deletions(-)

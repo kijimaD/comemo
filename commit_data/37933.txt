@@ -1,0 +1,21 @@
+commit f2a416b90ac68596ea05b97cefa8c72e7416e98f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 12:31:55 2019 -0800
+
+    cmd/cgo: disable GCC 9 warnings triggered by cgo code
+    
+    GCC 9 has started emitting warnings when taking the address of a field
+    in a packed struct may cause a misaligned pointer. We use packed
+    structs in cgo to ensure that our field layout matches the C
+    compiler's layout. Our pointers are always aligned, so disable the warning
+    
+    Fixes #29962
+    
+    Change-Id: I7e290a7cf694a2c2958529e340ebed9fcd62089c
+    Reviewed-on: https://go-review.googlesource.com/c/159859
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/cgo/out.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

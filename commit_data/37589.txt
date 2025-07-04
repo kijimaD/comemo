@@ -1,0 +1,16 @@
+commit 35435b27c406cdbe506a2eef56c6a10f208e3b9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 5 09:52:19 2018 -0800
+
+    cmd/link: close input files when copying to temporary directory
+    
+    Fixes #29110
+    
+    Change-Id: I077d1a9caa7f4545de1418cec718c4a37ac36ef8
+    Reviewed-on: https://go-review.googlesource.com/c/152757
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 1 +
+ 1 file changed, 1 insertion(+)

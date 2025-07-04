@@ -1,0 +1,23 @@
+commit 268f4629df14f5b256ba51b78e1cf5799ce9818b
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Jul 9 19:26:47 2022 +0800
+
+    cmd/compile: enable brachelim pass on loong64
+    
+    Change-Id: I4fd1c307901c265ab9865bf8a74460ddc15e5d14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416735
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+
+ src/cmd/compile/internal/loong64/ssa.go         |  7 ++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  4 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  3 ++
+ src/cmd/compile/internal/ssa/branchelim.go      | 11 ++++-
+ src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 55 +++++++++++++++++++++++++
+ test/codegen/condmove.go                        | 18 ++++++++
+ 7 files changed, 127 insertions(+), 1 deletion(-)

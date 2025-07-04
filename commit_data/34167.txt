@@ -1,0 +1,26 @@
+commit 0938e4cf90101ed718aebf63b583970267c87701
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jan 25 11:46:06 2018 -0500
+
+    cmd/internal/obj/mips: support NEG, avoid crash with illegal instruction
+    
+    Add support of NEG{V,W} pseudo-instructions, which are translated
+    to a SUB instruction from R0 with proper width.
+    
+    Also turn illegal instruction to UNDEF, to avoid crashing in
+    asmout when it tries to read the operands.
+    
+    Fixes #23548.
+    
+    Change-Id: I047b27559ccd9594c3dcf62ab039b636098f30a3
+    Reviewed-on: https://go-review.googlesource.com/89896
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/mips.s   |  2 ++
+ src/cmd/asm/internal/asm/testdata/mips64.s |  3 +++
+ src/cmd/internal/obj/mips/a.out.go         |  1 +
+ src/cmd/internal/obj/mips/anames.go        |  1 +
+ src/cmd/internal/obj/mips/asm0.go          | 15 +++++++++++----
+ 5 files changed, 18 insertions(+), 4 deletions(-)

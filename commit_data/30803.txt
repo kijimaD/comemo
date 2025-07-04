@@ -1,0 +1,21 @@
+commit 6f4a4585f2080c74e7e6a409d275cbcd5e0136a5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 23 10:56:58 2017 +1100
+
+    cmd/internal/obj/mips: standardize on sys.MIPS and sys.MIPS64 constants
+    
+    CL 38446 introduced the use of the sys.ArchFamily type into the
+    cmd/internal/obj/mips package and redefined the mips.Mips32 and
+    mips.Mips64 constants in terms of their sys.ArchFamily counterparts.
+    This CL removes these local declarations and consolidates on sys.MIPS
+    and sys.MIPS64 respectively.
+    
+    Change-Id: Id7aab6c7fd0de42ff43dde605df6bd4c85a3d895
+    Reviewed-on: https://go-review.googlesource.com/38287
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/mips/a.out.go |   6 -
+ src/cmd/internal/obj/mips/asm0.go  | 284 ++++++++++++++++++-------------------
+ 2 files changed, 142 insertions(+), 148 deletions(-)

@@ -1,0 +1,13 @@
+commit 50c04132ac43123b968b6057f49d4c387f922ed3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 16 23:32:16 2009 -0800
+
+    fix bug causing empty strings to be become non-nil errors on client side of rpc connection.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/155078
+
+ src/pkg/rpc/client.go | 7 ++++++-
+ src/pkg/rpc/server.go | 4 +++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

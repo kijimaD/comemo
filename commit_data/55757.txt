@@ -1,0 +1,23 @@
+commit 2fb5ef889bf86dfb25880cf087a3e02f7100df29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:01 2024 -0500
+
+    runtime: use timer.lock in modtimer
+    
+    Continue using timer.lock to simplify timer operations.
+    
+    Note the removal of a previous potential deadlock.
+    (Explained at new line 325, there was a lock inversion
+    between individual timer locks and the 'timers' lock.)
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I8c9be00d13c6acd171a8aa2882a4fc844498f754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564125
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 93 +++++++++++++++++------------------------------------
+ 1 file changed, 30 insertions(+), 63 deletions(-)

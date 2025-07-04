@@ -1,0 +1,25 @@
+commit 9ed0fb42e34ff64dd6447572d8bc9dbb05ddb552
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 13 09:59:20 2020 -0700
+
+    cmd/compile: add indexed memory modification ops to amd64
+    
+    name            old time/op  new time/op  delta
+    Modify-16        404ns ± 1%   365ns ± 1%  -9.73%  (p=0.000 n=10+10)
+    ConstModify-16   407ns ± 0%   385ns ± 2%  -5.56%  (p=0.000 n=9+10)
+    
+    Seems to generally help generated code.
+    
+    Binary size change is in the noise.
+    
+    Change-Id: I57891bfaf0f7dfc5d143bb9f7ebafc7079d2614f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228098
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |  28 +-
+ src/cmd/compile/internal/gc/bench_test.go       |  19 +
+ src/cmd/compile/internal/ssa/addressingmodes.go |  67 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  47 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 745 ++++++++++++++++++++++++
+ test/codegen/memops.go                          |  33 +-
+ 6 files changed, 936 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 1baf35e41fde449ecd008aac4f67fc0e6e0fc665
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 01:52:56 2010 -0700
+
+    bytes: shuffle implementation, making WriteByte 50% faster
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/920041
+
+ src/pkg/bytes/buffer.go | 64 +++++++++++++++++++++----------------------------
+ 1 file changed, 27 insertions(+), 37 deletions(-)

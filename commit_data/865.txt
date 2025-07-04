@@ -1,0 +1,18 @@
+commit 82fbbdfc7d355e744f5e7f34803d43b9469c48f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 15 11:48:18 2008 -0700
+
+    snapshot
+    - fixed expression and statement printing
+    - missing: declarations, comments
+    
+    R=r
+    OCL=17207
+    CL=17207
+
+ usr/gri/pretty/Makefile   |  17 ++++-
+ usr/gri/pretty/node.go    |  74 ++-----------------
+ usr/gri/pretty/parser.go  |  89 ++++++++++++-----------
+ usr/gri/pretty/printer.go | 178 +++++++++++++++++++++-------------------------
+ usr/gri/pretty/scanner.go |   4 +-
+ 5 files changed, 155 insertions(+), 207 deletions(-)

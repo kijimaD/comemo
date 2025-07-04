@@ -1,0 +1,33 @@
+commit ef7ce57ac2da02aeceada27761c282e0718c6e14
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 15:04:04 2018 -0400
+
+    internal/bytealg, runtime: provide linknames for pushed symbols
+    
+    The internal/bytealg package defines several symbols in the runtime,
+    bytes, and strings packages in assembly, and the runtime package
+    defines symbols in reflect and sync/atomic. Currently, there's no
+    corresponding Go prototype for these symbols in the defining package.
+    
+    We're going to start depending on Go prototypes in the same package as
+    their assembly definitions in order to provide ABI wrappers. Plus,
+    these are good documentation and colocate type information with
+    definitions, which could be useful for vet if it learned a little
+    about linkname.
+    
+    This CL adds linknamed Go prototypes for all pushed symbols in
+    internal/bytealg and runtime.
+    
+    For #27539.
+    
+    Change-Id: I9b0c12d935a75bb6af46b6761180d451c00f11b8
+    Reviewed-on: https://go-review.googlesource.com/c/146820
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/bytealg/compare_native.go |  9 +++++
+ src/internal/bytealg/equal_native.go   | 12 ++++++
+ src/runtime/race.go                    | 73 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 94 insertions(+)

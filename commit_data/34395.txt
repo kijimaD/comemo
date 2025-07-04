@@ -1,0 +1,16 @@
+commit 1be58dcda8f31eb0ed77fd5e33fb3f5fe47f33ab
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 28 10:17:58 2018 +1100
+
+    doc/faq: add a Q&A about virus scanners
+    
+    Fixes #23759.
+    
+    Change-Id: I0407ebfea507991fc205f7b04bc5798808a5c5f6
+    Reviewed-on: https://go-review.googlesource.com/97496
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ doc/go_faq.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

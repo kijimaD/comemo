@@ -1,0 +1,32 @@
+commit afd835434c34178eb8b8b8a89a7a41f5ec35c47c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 27 08:33:14 2016 -0900
+
+    cmd/link: deduplicate read-only string data
+    
+    Many read-only strings in Go binaries are substrings of other read-only
+    strings. A common source is the text form of type information, which
+    will include both "struct { X int }" and "*struct { X int }" or
+    "*bytes.Reader" and "func(*bytes.Reader)" in the same binary.
+    
+    Because this character data is referred to by separate string headers,
+    we can skip writing the smaller string and modify the pointer
+    relocation to point to the larger string. This CL does this
+    deduplication in the linker after the reachable set of strings has
+    been determined.
+    
+    This removes 765KB from juju (1.4% without DWARF).
+    
+    Link time goes at tip goes form 4.6s to 6.3s, but note that this CL
+    is part of a series that recently reduced link time from 9.6s.
+    
+    For #6853.
+    
+    Change-Id: Ib2087cf627c9f1e9a1181f9b4c8f81d1a3f42191
+    Reviewed-on: https://go-review.googlesource.com/19987
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/mergestrings.go | 91 +++++++++++++++++++++++++++++++-
+ 1 file changed, 90 insertions(+), 1 deletion(-)

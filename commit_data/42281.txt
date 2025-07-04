@@ -1,0 +1,20 @@
+commit d75ee813b50e1ff2fec72d501b7b77bc868a3228
+Author: Alex Gaynor <alex@alloy.us>
+Date:   Tue Apr 28 01:18:29 2020 +0000
+
+    encoding/csv: optimize Write by giving fieldNeedsQuotes a fast path for when Comma is ascii
+    
+    name     old time/op  new time/op  delta
+    Write-4  2.37µs ±20%  1.90µs ±19%  -19.54%  (p=0.015 n=6+6)
+    
+    Change-Id: Iadfd9a43c958704c49ceb540b44d145220f9a72f
+    GitHub-Last-Rev: e7d8b0bd69870a24fdd800401d721e4c5bda7750
+    GitHub-Pull-Request: golang/go#34507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197078
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/csv/writer.go      | 16 +++++++++++++++-
+ src/encoding/csv/writer_test.go | 17 +++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

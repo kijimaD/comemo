@@ -1,0 +1,14 @@
+commit 6a5660f1606716c2c68cdf804de1292a520279b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 17:01:25 2012 -0400
+
+    cmd/5l: fix PLD
+    
+    Was missing break.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6250078
+
+ src/cmd/5l/asm.c | 1 +
+ 1 file changed, 1 insertion(+)

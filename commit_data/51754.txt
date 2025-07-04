@@ -1,0 +1,22 @@
+commit 0b3f58c48e3298e49e27f80dc748f0652339d63e
+Author: hopehook <hopehook@qq.com>
+Date:   Tue Jan 3 16:23:16 2023 +0800
+
+    bytes, strings: add ContainsFunc
+    
+    Fixes #54386.
+    
+    Change-Id: I78747da337ed6129e4f7426dd0483a644bed82e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460216
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ api/next/54386.txt          |  2 ++
+ src/bytes/bytes.go          |  5 +++++
+ src/bytes/bytes_test.go     | 11 +++++++++++
+ src/strings/strings.go      |  5 +++++
+ src/strings/strings_test.go | 11 +++++++++++
+ 5 files changed, 34 insertions(+)

@@ -1,0 +1,15 @@
+commit d6a7cefd1e63dcd9ae8590c36aa0574596075ab9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 16:09:12 2008 -0800
+
+    allow any type at all in sys.unreflect;
+    accomodate empty type table in 6l.
+    
+    R=r
+    DELTA=10  (2 added, 8 deleted, 0 changed)
+    OCL=18601
+    CL=18605
+
+ src/cmd/6l/go.c     | 2 ++
+ src/runtime/iface.c | 8 --------
+ 2 files changed, 2 insertions(+), 8 deletions(-)

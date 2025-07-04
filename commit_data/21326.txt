@@ -1,0 +1,26 @@
+commit 98d914201b98a854c7d172837d19ff7d0096b405
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 22 00:25:08 2015 +0100
+
+    lib9: build tokenize on Plan 9
+    
+    The build was broken on Plan 9 after the
+    CL 2994, because of the use of getfields
+    in src/liblink/go.c.
+    
+    This happened when building 8l, because
+    getfield was part of lib9 and tokenize
+    was part of the Plan 9 libc. However,
+    both getfields and tokenize depend on
+    utfrune, causing an incompatibility.
+    
+    This change enables the build of tokenize
+    as part of lib9, so it doesn't use
+    tokenize from the Plan 9 libc anymore.
+    
+    Change-Id: I2a76903b508bd92771c4754cd53dfc64df350892
+    Reviewed-on: https://go-review.googlesource.com/3121
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/lib9/tokenize.c | 2 --
+ 1 file changed, 2 deletions(-)

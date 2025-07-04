@@ -1,0 +1,16 @@
+commit a67c481f765c08b8a2e0432e3c94cd282ee4a6d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 9 12:53:25 2018 -0700
+
+    cmd/link/internal/sym: add sizeof tests
+    
+    CL 121916 showed that sym.Symbol matters for linker performance.
+    Prevent accidental regression.
+    
+    Change-Id: I5fd998c91fdeef9e721bc3f6e30f775b81103e95
+    Reviewed-on: https://go-review.googlesource.com/122716
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/sym/sizeof_test.go | 39 ++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,0 +1,12 @@
+commit 6da41be2d3ac27da50a51f1791877fee908d21c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 09:05:33 2009 -0700
+
+    fix float32 comparison.  was doing l op l instead of l op r.
+    
+    R=ken
+    OCL=31190
+    CL=31190
+
+ src/cmd/8g/cgen.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

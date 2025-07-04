@@ -1,0 +1,15 @@
+commit 586b6dfa465d83ea86d2f725b2c4416f9d32c917
+Author: Joel Sing <jsing@google.com>
+Date:   Thu May 31 03:06:38 2012 +1000
+
+    cmd/ld: increase number of ELF sections
+    
+    On NetBSD a cgo enabled binary has more than 32 sections - bump NSECTS
+    so that we can actually link them successfully.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6261052
+
+ src/cmd/ld/elf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

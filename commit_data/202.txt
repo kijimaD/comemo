@@ -1,0 +1,10 @@
+commit d6f25597bb19b49be3db172f371328ffd174ebf4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 23:17:39 2008 -0700
+
+    print rudimentary stack traceback after panic
+    
+    SVN=123524
+
+ src/runtime/runtime.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

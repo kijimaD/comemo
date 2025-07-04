@@ -1,0 +1,14 @@
+commit dfbd42e4f881717a58309d59e40671a29572dd12
+Author: Michael Stapelberg <michael@stapelberg.de>
+Date:   Mon Jun 25 17:32:39 2012 -0400
+
+    net: fix lookup of AAAA-only hosts without cgo
+    
+    Fixes #3762.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6303106
+
+ src/pkg/net/dnsclient_unix.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit ea53e61c6c7ba2c7528b3e0a8d4680475897d679
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 5 18:35:06 2017 +0000
+
+    doc: add go get -insecure change to go1.8.html
+    
+    Change-Id: I184c86edaaaa71c26bc7360c8b995015f30fe137
+    Reviewed-on: https://go-review.googlesource.com/34819
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.8.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

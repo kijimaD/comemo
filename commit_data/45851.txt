@@ -1,0 +1,30 @@
+commit 761edf71f64bb2ef949ceb588822c47d2e1cc6ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 16 16:33:29 2021 -0400
+
+    cmd/internal/moddeps: use a temporary directory for GOMODCACHE if needed
+    
+    CL 328770 should be sufficient to fix the specific failure in the
+    report, but when attempting to reproduce it I noticed a related
+    failure mode, triggered by the environment variables set in
+    src/run.bash.
+    
+    The failure mode is currently masked on the Go project builders due to
+    the lack of any 'longtest' builder running as a non-root user
+    (#10719).
+    
+    It is also masked from Go contributors running 'run.bash' locally
+    because 'run.bash' does not actually run all of the tests unless
+    GO_TEST_SHORT=0 is set in the environment (#29266, #46054).
+    
+    Fixes #46695
+    
+    Change-Id: I272c09dae462734590dce59b3d3c5b6d3f733c92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328771
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 33 ++++++++++++++++++++++++++++++--
+ 1 file changed, 31 insertions(+), 2 deletions(-)

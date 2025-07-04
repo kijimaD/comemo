@@ -1,0 +1,12 @@
+commit cd242fb48063685ab3f48661c265bfb661bdc3d9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 13 13:05:29 2010 -0700
+
+    Use the copy function rather than a loop.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/882047
+
+ doc/effective_go.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

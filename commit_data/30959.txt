@@ -1,0 +1,52 @@
+commit 4927b9a9ffeb5e33f6586b0f9000387d8ea20730
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 16:23:01 2017 -0700
+
+    cmd/compile: remove makefuncdatasym_nsym global
+    
+    This causes a minor reduction in allocations,
+    because the old funcdatasym names were
+    being interned unnecessarily.
+    
+    Updates #15756
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      39.9MB ± 0%     39.9MB ± 0%    ~     (p=0.280 n=10+10)
+    Unicode       29.9MB ± 0%     29.8MB ± 0%  -0.26%  (p=0.000 n=10+10)
+    GoTypes        113MB ± 0%      113MB ± 0%  -0.12%  (p=0.000 n=10+10)
+    SSA            855MB ± 0%      855MB ± 0%  -0.03%  (p=0.001 n=10+10)
+    Flate         25.4MB ± 0%     25.3MB ± 0%  -0.30%  (p=0.000 n=10+10)
+    GoParser      31.9MB ± 0%     31.8MB ± 0%    ~     (p=0.065 n=10+9)
+    Reflect       78.4MB ± 0%     78.2MB ± 0%  -0.15%  (p=0.000 n=9+10)
+    Tar           26.7MB ± 0%     26.7MB ± 0%  -0.17%  (p=0.000 n=9+10)
+    XML           42.3MB ± 0%     42.4MB ± 0%  +0.07%  (p=0.011 n=10+10)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        390k ± 0%       390k ± 0%    ~     (p=0.905 n=9+10)
+    Unicode         319k ± 1%       319k ± 1%    ~     (p=0.724 n=10+10)
+    GoTypes        1.14M ± 0%      1.14M ± 0%    ~     (p=0.393 n=10+10)
+    SSA            7.60M ± 0%      7.60M ± 0%    ~     (p=0.604 n=9+10)
+    Flate           235k ± 1%       234k ± 1%    ~     (p=0.105 n=10+10)
+    GoParser        317k ± 0%       316k ± 1%    ~     (p=0.280 n=10+10)
+    Reflect         979k ± 0%       979k ± 0%    ~     (p=0.315 n=10+10)
+    Tar             251k ± 0%       251k ± 1%    ~     (p=0.762 n=8+10)
+    XML             393k ± 0%       394k ± 1%    ~     (p=0.095 n=9+10)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       684k ± 0%       684k ± 0%    ~     (all equal)
+    
+    name       old data-bytes  new data-bytes  delta
+    HelloSize       138k ± 0%       138k ± 0%    ~     (all equal)
+    
+    name       old exe-bytes   new exe-bytes   delta
+    HelloSize      1.03M ± 0%      1.03M ± 0%    ~     (all equal)
+    
+    Change-Id: Idba33da4e89c325984ac46e4852cf12e4a7fd1a9
+    Reviewed-on: https://go-review.googlesource.com/39032
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/fmt_test.go         |  1 +
+ src/cmd/compile/internal/gc/pgen.go | 28 ++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/ssa.go  |  4 ++--
+ 3 files changed, 27 insertions(+), 6 deletions(-)

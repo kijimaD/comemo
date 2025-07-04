@@ -1,0 +1,15 @@
+commit 9c13eb3729988af8be1fd00175bacdd20c7d4206
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 16 15:06:01 2016 -0700
+
+    go/build: introduce go1.8 build tag
+    
+    Change-Id: Ib8855f8125970fc7ffb271635c28d31d310fcb5b
+    Reviewed-on: https://go-review.googlesource.com/27192
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

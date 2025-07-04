@@ -1,0 +1,28 @@
+commit 774fa58d1d3c9926709e108afdf83af7010bde72
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 11:10:23 2022 -0400
+
+    A+C: delete AUTHORS and CONTRIBUTORS
+    
+    In 2009, Google's open-source lawyers asked us to create the AUTHORS
+    file to define "The Go Authors", and the CONTRIBUTORS file was in
+    keeping with open source best practices of the time.
+    
+    Re-reviewing our repos now in 2022, the open-source lawyers are
+    comfortable with source control history taking the place of the
+    AUTHORS file, and most open source projects no longer maintain
+    CONTRIBUTORS files.
+    
+    To ease maintenance, remove AUTHORS and CONTRIBUTORS from all repos.
+    
+    For #53961.
+    
+    Change-Id: I332327afb49c45d54e71e018193fb18b09e5d91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419114
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ AUTHORS      | 1505 -----------------------------
+ CONTRIBUTORS | 2965 ----------------------------------------------------------
+ 2 files changed, 4470 deletions(-)

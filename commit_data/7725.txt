@@ -1,0 +1,13 @@
+commit dc06ad5ad7bf53ac33d96751bab9e4a715e7d121
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 10 07:22:53 2011 -0800
+
+    tls: move PeerCertificates to ConnectionState
+    
+    R=agl, agl1
+    CC=golang-dev, rsc
+    https://golang.org/cl/4248078
+
+ src/pkg/crypto/tls/common.go |  4 ++++
+ src/pkg/crypto/tls/conn.go   | 10 +---------
+ 2 files changed, 5 insertions(+), 9 deletions(-)

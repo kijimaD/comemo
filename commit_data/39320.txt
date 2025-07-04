@@ -1,0 +1,23 @@
+commit 53deb812196d857ce8a7c46c1f7c1559bb167630
+Author: David Chase <drchase@google.com>
+Date:   Thu Jun 6 09:56:20 2019 -0400
+
+    cmd/compile: correct capitalization in recordFlags parameter
+    
+    Tool refactoring smallStacks into smallFrames helpfully
+    "corrected" the capitalization in a string, this undoes
+    the help.
+    
+    This is necessary to ensure correct (re)building when the
+    flag is used to research stack-marking GC latency bugs.
+    
+    Updates #27732.
+    
+    Change-Id: Ib7c8d4a36c9e4f9612559be68bd481f9d9cc69f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180958
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

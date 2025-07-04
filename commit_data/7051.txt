@@ -1,0 +1,12 @@
+commit 4cd31e8a28b84a467bbcbe74e3f2044872472fbc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 7 09:34:13 2011 +1100
+
+    doc: add golanguage.ru to foreign-language doc list
+    
+    R=r, brainman, r2
+    CC=golang-dev
+    https://golang.org/cl/3881041
+
+ doc/docs.html | 5 +++++
+ 1 file changed, 5 insertions(+)

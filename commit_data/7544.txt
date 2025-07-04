@@ -1,0 +1,17 @@
+commit da8e6eec9a69b6de4b75a92797a92fa0c6c8be3e
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 23 12:02:41 2011 -0500
+
+    compress/bzip2: fix bugs
+    
+    (Once again, proving that a fuzz tester is the first thing that I
+    should try.)
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4227042
+
+ src/pkg/compress/bzip2/bzip2.go         | 26 ++++++++++++++------------
+ src/pkg/compress/bzip2/bzip2_test.go    | 29 +++++++++++++++++++++++++----
+ src/pkg/compress/bzip2/move_to_front.go |  6 +++++-
+ 3 files changed, 44 insertions(+), 17 deletions(-)

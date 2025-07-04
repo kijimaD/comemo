@@ -1,0 +1,18 @@
+commit dff3a00ceaf63385bcde984e1ce7013e0d6ab7c3
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Feb 1 09:07:43 2024 +0800
+
+    syscall: call internal/runtime/syscall.Syscall6 in RawSyscall6
+    
+    For #65355
+    
+    Change-Id: I9168d9a767e3b2ece65ac6dcab6827ab6f6b11bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560136
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/runtime/syscall/syscall_linux.go | 23 -----------------------
+ src/syscall/syscall_linux.go                  | 22 +++++++++++++---------
+ 2 files changed, 13 insertions(+), 32 deletions(-)

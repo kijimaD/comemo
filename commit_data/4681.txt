@@ -1,0 +1,17 @@
+commit 3884f7321f7f79e6bb32029dff83882d42704cba
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jan 25 21:38:27 2010 -0800
+
+    salvaging 183105 from dead client
+    
+    a number of fixes for arm elf generation in 5l. -T now works as
+    advertised, -D now works properly.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194076
+
+ src/cmd/5l/asm.c  | 11 ++++++-----
+ src/cmd/5l/doc.go |  2 +-
+ src/cmd/5l/obj.c  |  4 ++--
+ 3 files changed, 9 insertions(+), 8 deletions(-)

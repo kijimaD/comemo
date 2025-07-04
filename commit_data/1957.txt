@@ -1,0 +1,13 @@
+commit 27d1159ab4ef75b73ad22c934de176337d0d852b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 22:59:57 2009 -0700
+
+    require ";" separator after function literals
+    
+    R=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=27057
+    CL=27059
+
+ src/lib/go/parser.go | 1 +
+ 1 file changed, 1 insertion(+)

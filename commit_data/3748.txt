@@ -1,0 +1,17 @@
+commit b9ec2adfc7cda86a5d072ddefed888b01bad1062
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 3 19:59:45 2009 -0800
+
+    Update the styling of the godoc pages.
+    
+    (root.html is just temporary. It'll need some better content.)
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1017019
+
+ doc/go-logo-blue.png | Bin 0 -> 10874 bytes
+ doc/root.html        |  96 ++++++++++++++++++++++++++++++++++++++++++---------
+ doc/style.css        |  48 ++++++++++++++++++++++++--
+ lib/godoc/godoc.html |  73 ++++++++++++++++++++++++++++++++-------
+ 4 files changed, 186 insertions(+), 31 deletions(-)

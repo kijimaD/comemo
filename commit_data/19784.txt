@@ -1,0 +1,21 @@
+commit 8259b0136e1838e440ff32785622a4cc22c14d55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 20 12:25:24 2014 -0700
+
+    test: avoid "declared but not used" errors in shift1.go
+    
+    I'm improving gccgo's detection of variables that are only set
+    but not used, and it triggers additional errors on this code.
+    The new gccgo errors are correct; gc seems to suppress them
+    due to the other, expected, errors.  This change uses the
+    variables so that no compiler will complain.
+    
+    gccgo change is https://golang.org/cl/119920043 .
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/116050043
+
+ test/shift1.go | 2 ++
+ 1 file changed, 2 insertions(+)

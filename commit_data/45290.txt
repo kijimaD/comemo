@@ -1,0 +1,21 @@
+commit e8666abd9884f6743f78229ed210bf12a35e7368
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 22 11:36:29 2021 -0400
+
+    cmd/compile: keep call's args in elim dead auto pass
+    
+    If the address of an auto is used in a Call, we need to keep it,
+    as we keep the Call itself.
+    
+    Fixes #45693.
+    
+    Change-Id: Ie548d6dffc95bf916868a8885d4ab4cf9e86355a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312670
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
+ test/fixedbugs/issue45693.go              | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

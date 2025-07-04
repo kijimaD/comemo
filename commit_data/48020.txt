@@ -1,0 +1,20 @@
+commit db48840cfc5ea9f8067cd5238827965ea01cdde1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 14:01:52 2022 -0800
+
+    Revert "spec: document the underlying type of comparable"
+    
+    This reverts CL 380854.
+    
+    Per the conluding discussions on #50791. A follow-up will
+    document `comparable` more thoroughly.
+    
+    For #50791.
+    
+    Change-Id: I15db9051784a012f713e28d725c3b8bbfeb40569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381076
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

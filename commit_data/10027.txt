@@ -1,0 +1,34 @@
+commit ec158f77bd2963d78990b84ceaa12f2e3993c9f3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 18 12:54:48 2011 -0400
+
+    exp/ssh: general cleanups for client support
+    
+    common.go:
+    * simplify findAgreedAlgorithms.
+    * add channelExtendedData support.
+    
+    messages.go:
+    * add clientExtendedData.
+    
+    server.go:
+    *  use simplified findAgreedAlgorithms.
+    
+    server_shell.go:
+    * fix shadowed err return value.
+    
+    transport.go:
+    * introduce separate cipher, mac and compression for each direction.
+    * added filteredConn and packetWriter interfaces.
+    * newTransport requires a source of randomness.
+    
+    R=golang-dev, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/5285044
+
+ src/pkg/exp/ssh/common.go       | 14 ++++++-------
+ src/pkg/exp/ssh/messages.go     |  9 +++++++++
+ src/pkg/exp/ssh/server.go       |  4 ++--
+ src/pkg/exp/ssh/server_shell.go |  3 ++-
+ src/pkg/exp/ssh/transport.go    | 44 +++++++++++++++++++++++++++--------------
+ 5 files changed, 49 insertions(+), 25 deletions(-)

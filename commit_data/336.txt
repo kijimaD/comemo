@@ -1,0 +1,12 @@
+commit 5a81d1f29fad531a639379f78d0049638449b603
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 11 20:15:12 2008 -0700
+
+    - more go code
+    
+    SVN=126934
+
+ usr/gri/gosrc/list.go   | 93 +++++++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/gosrc/object.go |  2 ++
+ usr/gri/gosrc/type.go   |  2 ++
+ 3 files changed, 97 insertions(+)

@@ -1,0 +1,15 @@
+commit dca460574f28bee2c096eaafb82cbc4f88069c0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 12:24:06 2014 -0700
+
+    net: fix misleading package comment example
+    
+    Fixes #8607
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/146470043
+
+ src/net/net.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f8a28ecc9f9ab0ca6a65ca4af4f5a7f3256f6a96
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 25 20:19:55 2012 -0800
+
+    path/filepath: fix test
+    If there's an error, sometimes you need to stop.
+    Part of issue 2787.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5570068
+
+ src/pkg/path/filepath/path_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

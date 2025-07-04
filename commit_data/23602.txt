@@ -1,0 +1,21 @@
+commit ef37184c07d501f76edfa36b8bf1101d5dc8b44d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 6 09:01:32 2015 +1000
+
+    doc: tools for go1.5.html
+    
+    Don't know why, but git deleted the previous version of this change.
+    This is the same change as https://go-review.googlesource.com/11884,
+    which I will now abandon, with a couple of fixes.
+    
+    Almost all done now. Could use help with the TODOs.
+    
+    Major missing piece is the trace command. Vendoring
+    section is also weak, but it's also undocumented elsewhere.
+    
+    Change-Id: I5d8556b23aa6628eb7bf0e330d4dd8d4ac2157c5
+    Reviewed-on: https://go-review.googlesource.com/11887
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 377 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 303 insertions(+), 74 deletions(-)

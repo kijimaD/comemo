@@ -1,0 +1,13 @@
+commit e8988bc434620b197653509b88089b11a7292d12
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 1 11:56:42 2009 -0700
+
+    don't show exported methods of non-exported types
+    
+    R=rsc
+    DELTA=44  (10 added, 30 deleted, 4 changed)
+    OCL=34195
+    CL=34200
+
+ src/pkg/go/doc/doc.go | 46 +++++++++++++---------------------------------
+ 1 file changed, 13 insertions(+), 33 deletions(-)

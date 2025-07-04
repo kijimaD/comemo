@@ -1,0 +1,13 @@
+commit 0f7306b78ca278a88be1f131a446a2aceb68d73d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 17:02:34 2009 -0800
+
+    document strings
+    
+    R=rsc
+    DELTA=9  (4 added, 0 deleted, 5 changed)
+    OCL=25793
+    CL=25795
+
+ src/lib/strings.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

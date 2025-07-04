@@ -1,0 +1,23 @@
+commit ebd27d62fdd45d2fd84f7b6b3fa0740595ac1a04
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 11:18:32 2009 -0700
+
+    time tests; sort -nr times.out | sed 10q is illuminating.
+    cut the slowest tests  down from a few seconds
+    to under half a second.
+    
+    R=r
+    DELTA=21  (6 added, 1 deleted, 14 changed)
+    OCL=35509
+    CL=35519
+
+ test/gc1.go          | 2 +-
+ test/ken/divconst.go | 2 +-
+ test/ken/modconst.go | 2 +-
+ test/mallocrand.go   | 2 +-
+ test/mallocrep.go    | 2 +-
+ test/mallocrep1.go   | 8 ++++++--
+ test/map.go          | 7 +++----
+ test/peano.go        | 2 +-
+ test/run             | 8 +++++---
+ 9 files changed, 20 insertions(+), 15 deletions(-)

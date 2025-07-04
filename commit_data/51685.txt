@@ -1,0 +1,24 @@
+commit 045b33ecfe4db7af6344cb5227c3d31501eb8cba
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 11 13:47:38 2023 -0800
+
+    net/http: close Request.Body when pconn write loop exits early
+    
+    The pconn write loop closes a request's body after sending the
+    request, but in the case where the write loop exits with an
+    unsent request in writech the body is never closed.
+    
+    Close the request body in this case.
+    
+    Fixes #49621
+    
+    Change-Id: Id94a92937bbfc0beb1396446f4dee32fd2059c7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      |  6 ++++++
+ src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

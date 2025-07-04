@@ -1,0 +1,21 @@
+commit 8323cef77cb4bc9c905aca7cd8b66655c8e3b3a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 12 13:07:15 2013 -0700
+
+    go/printer, gofmt: avoid extra final comma in multi-line signatures
+    
+    The parameter list layout function was incorrectly computing the
+    end of the previous line in cases where a parameter type spanned
+    multiple lines. As a result, an extra (valid, but not needed)
+    comma was introduced before the paremeter list's closing parenthesis.
+    
+    Fixes #4533.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7674044
+
+ src/pkg/go/printer/nodes.go                     |  4 ++--
+ src/pkg/go/printer/testdata/declarations.golden | 25 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit b3fb0fdd3f7c35e020788acf6d12278590b416cb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 13 19:05:50 2015 -0400
+
+    cmd/internal/gc: fix vet detected printf problems
+    
+    Fixes #10805.
+    
+    Change-Id: Ia77639e606a0c18fc53cba9749d92f325014025f
+    Reviewed-on: https://go-review.googlesource.com/10040
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/gc/dcl.go       |   2 +-
+ src/cmd/internal/gc/gen.go       |   2 +-
+ src/cmd/internal/gc/go.y         |   5 +-
+ src/cmd/internal/gc/typecheck.go |   8 +-
+ src/cmd/internal/gc/y.go         | 553 +++++++++++-----------
+ src/cmd/internal/gc/y.output     | 972 +++++++++++++++++++--------------------
+ 6 files changed, 772 insertions(+), 770 deletions(-)

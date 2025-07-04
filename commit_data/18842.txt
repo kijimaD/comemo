@@ -1,0 +1,17 @@
+commit f2037e1533737d5326c6ab464d165ecf85c70b7c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 13 07:58:42 2014 +1100
+
+    runtime: fix missing nacl/386 symbol
+    
+    syscall.naclWrite was missing from sys_nacl_386.s
+    
+    This gets ./make.bash passing, but doesn't pass validation. I'm not sure if this is the fault of this change, or validation was broken anyway.
+    
+    LGTM=rsc
+    R=minux.ma, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/74510043
+
+ src/pkg/runtime/sys_nacl_386.s | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

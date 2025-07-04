@@ -1,0 +1,30 @@
+commit df1cdbf7933ae03d716e4ce657f15d8e77309da5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 12 14:20:21 2019 +0200
+
+    bootstrap.bash: fix build if no exec wrapper exists
+    
+    Since CL 170941 bootstrap.bash fails if no exec wrapper exists for a
+    given GOOS/GOARCH yet:
+    
+      #### Building ../../go-linux-arm-bootstrap
+    
+      Building Go cmd/dist using /usr/local/go.
+      Building Go toolchain1 using /usr/local/go.
+      Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+      Building Go toolchain2 using go_bootstrap and Go toolchain1.
+      Building Go toolchain3 using go_bootstrap and Go toolchain2.
+      Building packages and commands for host, linux/amd64.
+      Building packages and commands for target, linux/arm.
+      rm: cannot remove 'bin/go_linux_arm_exec': No such file or directory
+    
+    Fix it by using 'rm -f' to ignore nonexisting files.
+    
+    Change-Id: Ib4b1e19747052fa4dca06319f35cc25a0545c4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171722
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ src/bootstrap.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

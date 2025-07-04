@@ -1,0 +1,27 @@
+commit f951f697c45ace2f00dccd8d2533463b6538dc36
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 29 16:41:49 2021 -0400
+
+    internal/coverage: add coverage meta-data encoder
+    
+    Add a new package with APIs for encoding coverage meta-data. This
+    provides support for accumulating information about each function
+    during the compilation process, and then encoding and emitting a
+    payload for a coverage meta-data symbol.  Not yet connected to the
+    rest of the coverage machinery (that will appear in a later patch).
+    
+    Updates #51430.
+    
+    Change-Id: I61054ce87f205b25fb1bfedaa740fd7425c34de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353453
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go                      |  10 +-
+ src/internal/coverage/defs.go                  | 374 +++++++++++++++++++++++++
+ src/internal/coverage/encodemeta/encode.go     | 215 ++++++++++++++
+ src/internal/coverage/encodemeta/encodefile.go | 132 +++++++++
+ src/internal/coverage/stringtab/stringtab.go   |  89 ++++++
+ src/internal/coverage/uleb128/uleb128.go       |  20 ++
+ 6 files changed, 839 insertions(+), 1 deletion(-)

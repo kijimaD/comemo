@@ -1,0 +1,13 @@
+commit ba593757508b3f748d4e33e4bbd86d7418d81578
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 18 10:50:06 2014 +0200
+
+    doc/go1.3.html: new package debug/plan9obj
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/86180046
+
+ doc/go1.3.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

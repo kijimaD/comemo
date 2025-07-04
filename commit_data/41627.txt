@@ -1,0 +1,23 @@
+commit 29b36a88ab0b179c140612e7c907042b2a388587
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 11 13:36:42 2020 -0400
+
+    cmd/objdump: guard against out-of-range lines from directives.
+    
+    //line bogo.go:9999999 will cause 'go tool objdump' to crash
+    unless bogo.go has that many lines.  Guard the array index
+    and return innocuous values (nil, nil) from the file cache.
+    
+    Fixes #36683
+    
+    Change-Id: I4a9f8444dc611654d270cc876e8848dfd2f84770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223081
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/objfile/disasm.go   |  5 +++++
+ src/cmd/objdump/objdump_test.go      | 13 ++++++++++---
+ src/cmd/objdump/testdata/fmthello.go |  2 ++
+ test/run.go                          |  2 +-
+ 4 files changed, 18 insertions(+), 4 deletions(-)

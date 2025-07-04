@@ -1,0 +1,15 @@
+commit 8814555534377aeae65903760c8a353d0ef4b050
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Jan 25 18:49:08 2010 -0800
+
+    http: make Request.Body an io.ReadCloser, matching Response.Body.
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/194046
+
+ src/pkg/http/client.go       |  8 +++++++-
+ src/pkg/http/request.go      | 17 +++++++----------
+ src/pkg/http/request_test.go |  2 +-
+ src/pkg/http/response.go     |  8 ++++----
+ 4 files changed, 19 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit cc928b7b6e72c367f96fcb1eda0e2d417d83a41d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 11 17:15:28 2011 -0500
+
+    http: fix text displayed in Redirect
+    
+    In the case where r.Method == "POST", was
+    calling Printf with an argument but "" format string,
+    causing a spurious %!EXTRA(...) message.
+    
+    Also escape string properly in HTML generation.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3923043
+
+ src/pkg/http/server.go | 95 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 45 deletions(-)

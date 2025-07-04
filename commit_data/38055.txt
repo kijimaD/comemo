@@ -1,0 +1,23 @@
+commit 6d781decad8cde821245d03189a1f87021d6671c
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Tue Jan 22 19:10:29 2019 -0500
+
+    cmd/compile: confusing error if composite literal field is a method
+    
+    When looking for the field specified in a composite literal, check that
+    the specified name is actually a field and not a method.
+    
+    Fixes #29855.
+    
+    Change-Id: Id77666e846f925907b1eec64213b1d25af8a2466
+    Reviewed-on: https://go-review.googlesource.com/c/158938
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  6 +++---
+ src/cmd/compile/internal/gc/typecheck.go |  5 +++--
+ src/cmd/compile/internal/types/type.go   |  5 +++++
+ test/fixedbugs/issue29855.go             | 17 +++++++++++++++++
+ 5 files changed, 29 insertions(+), 6 deletions(-)

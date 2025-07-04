@@ -1,0 +1,19 @@
+commit 4b8f80707f315a8f7611da4f977892bbb8d49582
+Author: Clide Stefani <cstefani.sites@gmail.com>
+Date:   Fri Jun 7 16:37:13 2024 -0400
+
+    crypto/tls: improve error log produced during TestBogoSuite
+    
+    The existing implementation logs some errors to the results file created in TestBogoSuite.
+    This change would additionally log json errors to the results file.
+    
+    Change-Id: Ib1a6f612ed83f6c5046531ee259c4e85dd71402a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591379
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_shim_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

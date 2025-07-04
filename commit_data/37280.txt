@@ -1,0 +1,22 @@
+commit e1978a2d7a6deac29aa778a17a1cbea25586abc6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 13:14:07 2018 +0100
+
+    cmd/compile/internal/gc: update cgo_import_dynamic for AIX
+    
+    On AIX, cmd/link needs two information in order to generate a dynamic
+    import, the library and its object needed. Currently, cmd/link isn't
+    able to retrieve this object only with the name of the library.
+    Therefore, the library pattern in cgo_import_dynamic must be
+    "lib.a/obj.o".
+    
+    Change-Id: Ib8b8aaa9807c9fa6af46ece4e312d58073ed6ec1
+    Reviewed-on: https://go-review.googlesource.com/c/146957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go                      |  4 +++
+ src/cmd/compile/internal/gc/lex.go      |  8 +++++
+ src/cmd/compile/internal/gc/lex_test.go | 56 ++++++++++++++++++++++++++-------
+ 3 files changed, 57 insertions(+), 11 deletions(-)

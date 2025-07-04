@@ -1,0 +1,17 @@
+commit 7d83d320c0c290a259fa9dcf9ecfb3e0402be30c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:31:34 2022 +0800
+
+    runtime: convert local var ready at TestMemmoveAtomicity to atomic type
+    
+    For #53821
+    
+    Change-Id: I2487b8d18a4cd3fc6e64fbbb531419812bfe0f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427136
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/memmove_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

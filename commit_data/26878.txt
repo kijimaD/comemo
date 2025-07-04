@@ -1,0 +1,18 @@
+commit 24fc3234428e138e693584185fab4146de6088db
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Apr 11 17:35:55 2016 +0300
+
+    cmd/internal/obj: split plist flushing from object writing
+    
+    Only splits into separate files, no other changes.
+    
+    Change-Id: Icc0da2c5f18e03e9ed7c0043bd7c790f741900f2
+    Reviewed-on: https://go-review.googlesource.com/21804
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go    |  21 ----
+ src/cmd/internal/obj/objfile.go | 187 ----------------------------------
+ src/cmd/internal/obj/plist.go   | 218 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 218 insertions(+), 208 deletions(-)

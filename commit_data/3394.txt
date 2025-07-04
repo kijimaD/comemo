@@ -1,0 +1,21 @@
+commit c59a965133c64b959b7d6d9f3d6738b61b001f13
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Tue Sep 29 13:16:21 2009 -0700
+
+    Deflate encoder
+    
+    APPROVED=rsc
+    OCL=34514
+    CL=35093
+
+ src/pkg/Make.deps                            |   2 +-
+ src/pkg/compress/flate/Makefile              |   6 +
+ src/pkg/compress/flate/deflate.go            | 443 +++++++++++++++++++++++
+ src/pkg/compress/flate/deflate_test.go       | 265 ++++++++++++++
+ src/pkg/compress/flate/huffman_bit_writer.go | 510 +++++++++++++++++++++++++++
+ src/pkg/compress/flate/huffman_code.go       | 373 ++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go            |  36 --
+ src/pkg/compress/flate/reverse_bits.go       |  49 +++
+ src/pkg/compress/flate/token.go              | 116 ++++++
+ src/pkg/compress/flate/util.go               |  73 ++++
+ 10 files changed, 1836 insertions(+), 37 deletions(-)

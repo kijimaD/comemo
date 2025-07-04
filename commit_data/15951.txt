@@ -1,0 +1,24 @@
+commit 7cfebf7b1d0e02663a18225c04ca02f28e4fd6df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 26 11:14:30 2013 -0700
+
+    godoc: link identifiers to declarations
+    
+    The changes are almost completely self-contained
+    in the new file linkify.go. The other changes are
+    minimal and should not disturb the currently
+    working godoc, in anticipation of Go 1.1.
+    
+    To disable the feature in case of problems, set
+    -links=false.
+    
+    Fixes #2063.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/7883044
+
+ src/cmd/godoc/format.go  |  10 +--
+ src/cmd/godoc/godoc.go   |  39 ++++++++-
+ src/cmd/godoc/linkify.go | 210 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 251 insertions(+), 8 deletions(-)

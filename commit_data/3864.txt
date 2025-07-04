@@ -1,0 +1,14 @@
+commit 5b387fb044d5492fd9641b583e11dbced84c5da9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 6 14:36:34 2009 -0800
+
+    Rename go_gccgo_setup to gccgo_install.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1026009
+
+ doc/gccgo_contribute.html                       | 2 +-
+ doc/{go_gccgo_setup.html => gccgo_install.html} | 0
+ doc/install.html                                | 4 ++--
+ 3 files changed, 3 insertions(+), 3 deletions(-)

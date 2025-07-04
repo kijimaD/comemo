@@ -1,0 +1,17 @@
+commit e3d372aea86df4b3a848c0c454b364febca825d6
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Oct 20 10:46:03 2024 +0100
+
+    encoding/xml: document that embedded interfaces look like non-embedded ones
+    
+    Fixes #69941
+    
+    Change-Id: Icc3c88d57c14fa9ca203c693d67f144686fed8cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621076
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/xml/marshal.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,23 @@
+commit c112289ee4141ebc31db50328c355b01278b987b
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 17 12:03:55 2020 -0500
+
+    cmd/compile: change the "bogus line" to be 1
+    
+    The previous value was "too bogus" and caused objdump to crash.
+    Updated infinite loop test results (only run if -args -f) in ssa/debug_test.go
+    Probably also fixes #36621 but that bug needs more info to tell for certain.
+    
+    Fixes #36570
+    
+    Change-Id: I51144641d25d559308a98d726d87806bd340cc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215297
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts | 8 ++++----
+ src/cmd/internal/src/pos.go                                 | 2 +-
+ src/cmd/objdump/testdata/fmthello.go                        | 6 ++++++
+ 3 files changed, 11 insertions(+), 5 deletions(-)

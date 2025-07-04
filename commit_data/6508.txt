@@ -1,0 +1,15 @@
+commit 712109f1f1c871498147d1ce44b6cff0b64e03e0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 12 17:27:14 2010 -0700
+
+    log: reduce allocations
+    Use a bytes.Buffer in log writing instead of string concatenation.
+    Should reduce the number of allocations significantly.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2417042
+
+ src/pkg/log/log.go      | 59 ++++++++++++++++++++++++++++++++-----------------
+ src/pkg/log/log_test.go |  4 +++-
+ 2 files changed, 42 insertions(+), 21 deletions(-)

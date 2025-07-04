@@ -1,0 +1,20 @@
+commit 2639a17f146cc7df0778298c6039156d7ca68202
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jul 17 12:42:14 2023 -0400
+
+    doc: run relnotes again
+    
+    Relnote (golang.org/x/build/cmd/relnote) was run again. Some of the
+    simpler entries were resolved. TODO's remain for other entries.
+    
+    For #58645
+    
+    Change-Id: I0acb5e87b2e9655ffd472e728259a4aa6c4da50e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510375
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit 732db407d30e9bd49d0907fd820207e6d646df9c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Oct 20 13:40:54 2021 -0500
+
+    cmd/link: make ppc64le __glink_PLTresolve position-independent
+    
+    This code is only generated when linking cgo internally with fixed
+    position code. This feature of the internal linker is only supported
+    on ppc64le/linux targets. This moves ppc64le/linux a little closer
+    to supporting PIE when internal linking.
+    
+    This is more similar to the implementation suggested in the power
+    architecture elfv2 supplement, and works with both PIE and static
+    code.
+    
+    Change-Id: I0b64e1c22b9e07b5151378d2ab19ee0e50405fc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357332
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 41 +++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit 7fe34ea002609aba6d36a5ebd4c0f351cf6a39f1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 5 12:06:48 2008 -0800
+
+    Fix powser1.go to compile with the current 6g, which doesn't
+    recognize methods for a variable whose type is a named type
+    which is a pointer type.  Add bug117 to test this case.
+    
+    R=r
+    DELTA=24  (22 added, 0 deleted, 2 changed)
+    OCL=18547
+    CL=18554
+
+ test/bugs/bug117.go  | 21 +++++++++++++++++++++
+ test/chan/powser1.go |  4 ++--
+ test/golden.out      |  6 ++++++
+ 3 files changed, 29 insertions(+), 2 deletions(-)

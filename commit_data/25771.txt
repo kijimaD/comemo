@@ -1,0 +1,15 @@
+commit 952c2fd606fad19b930937ca0d5c5571d7f5d4cb
+Author: Ian Gudger <igudger@google.com>
+Date:   Thu Feb 18 11:29:05 2016 -0800
+
+    net: fix packDomainName encoding of root and invalid names
+    
+    Fixes #14372
+    
+    Change-Id: I40d594582639e87ef2574d37ac868e37ffaa17dc
+    Reviewed-on: https://go-review.googlesource.com/19623
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/net/dnsmsg.go      | 36 +++++++++++++++++--
+ src/net/dnsmsg_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 130 insertions(+), 3 deletions(-)

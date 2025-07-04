@@ -1,0 +1,25 @@
+commit a78879ac67d62c4919492fcb5e05c8b21058217d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 10:47:38 2021 -0500
+
+    runtime: move sys.DefaultGoroot to runtime.defaultGOROOT
+    
+    The default GOROOT has nothing to do with system details.
+    Move it next to its one use in package runtime.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I1a601fad6335336b4616b834bb21bd8437ee1313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288796
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/ld/main.go | 2 +-
+ src/runtime/extern.go            | 4 +++-
+ src/runtime/internal/sys/arch.go | 4 ----
+ 3 files changed, 4 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 9cd3372f9b605a7acae2b4a10f6c3f6d80a81d1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 26 11:02:07 2011 -0700
+
+    strings: implement UnreadByte, UnreadRune
+    
+    Added corresponding tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4560045
+
+ src/pkg/strings/reader.go       | 66 +++++++++++++++++++++++++++++------------
+ src/pkg/strings/strings_test.go | 65 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 111 insertions(+), 20 deletions(-)

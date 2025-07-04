@@ -1,0 +1,19 @@
+commit b275e55d86c78b8fdcfc70ea835ab3e00c7d6eeb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 2 13:56:52 2016 -0400
+
+    runtime: clean up more traces of the old mark bit
+    
+    Commit 59877bf renamed bitMarked to bitScan, since the bitmap is no
+    longer used for marking. However, there were several other references
+    to this strewn about comments and in some other constant names. Fix
+    these up, too.
+    
+    Change-Id: I4183d28c6b01977f1d75a99ad55b150f2211772d
+    Reviewed-on: https://go-review.googlesource.com/28450
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

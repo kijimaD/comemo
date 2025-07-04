@@ -1,0 +1,25 @@
+commit b16c699195a33c4451ed9f1bae50a51fa0290ba1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 4 14:51:51 2015 -0800
+
+    internal/syscall/unix: eliminate non-trivial randomTrap initializer
+    
+    While here, enable getrandom on arm64 too (using the value found in
+    include/uapi/asm-generic/unistd.h, which seems to match up with other
+    GOARCH=arm64 syscall numbers).
+    
+    Updates #10848.
+    
+    Change-Id: I5ab36ccf6ee8d5cc6f0e1a61d09f0da7410288b9
+    Reviewed-on: https://go-review.googlesource.com/16662
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/getrandom_linux.go         | 9 ---------
+ src/internal/syscall/unix/getrandom_linux_386.go     | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_amd64.go   | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_arm.go     | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_generic.go | 9 +++++++++
+ src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 9 +++++++++
+ 6 files changed, 39 insertions(+), 9 deletions(-)

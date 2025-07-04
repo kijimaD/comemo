@@ -1,0 +1,15 @@
+commit 6b72b070166c94f386cdaeea7bc762cdcf277bd3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Jan 14 17:00:14 2012 +0100
+
+    gc: do not compile switch on interface values into a binary search.
+    
+    Fixes #2672.
+    
+    R=golang-dev, lvd
+    CC=golang-dev, remy
+    https://golang.org/cl/5543058
+
+ src/cmd/gc/swt.c         |  2 +-
+ test/fixedbugs/bug393.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

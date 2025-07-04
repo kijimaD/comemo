@@ -1,0 +1,15 @@
+commit 03bec7dc6ff6bbcdf077753230cee11211aa78ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 25 17:18:20 2023 -0700
+
+    spec: add Appendix with detailed type unification rules
+    
+    Change-Id: I0d4ccbc396c48d565c0cbe93c9558ab330a44d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513275
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 162 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 155 insertions(+), 7 deletions(-)

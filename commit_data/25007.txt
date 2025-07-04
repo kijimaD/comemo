@@ -1,0 +1,23 @@
+commit 29499858bfa616b19c5108510d3cc6c9fa937bcc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 20 13:17:32 2015 -0800
+
+    fmt: give correct error for % at end of string when scanning
+    
+    Previously it said, "bad verb %% for ...", which is not only wrong,
+    it's ironic as the fix is to use %% rather than % at the end of the
+    string. Diagnose the case where a simple % is at EOF.
+    
+    If there's anything after the percent, the error is already good
+    but this CL also puts quotes around the verb designation ('%d' etc.)
+    to make it even clearer, especially when there is a space involved.
+    
+    Fixes #12315.
+    
+    Change-Id: I31d30659965e940d0bd9ce92a475aab3e2369ef0
+    Reviewed-on: https://go-review.googlesource.com/17150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/scan.go      | 8 ++++++--
+ src/fmt/scan_test.go | 3 +++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

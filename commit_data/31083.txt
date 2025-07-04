@@ -1,0 +1,29 @@
+commit 9417c022c6d7e6457fd6de89f92bb9c52a04819b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Apr 12 01:10:01 2017 +1000
+
+    cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD
+    
+    OpenBSD 6.0 and later have support for PT_TLS in ld.so(1). Now that OpenBSD
+    6.1 has been released, OpenBSD 5.9 is no longer officially supported and Go
+    can start generating PT_TLS for OpenBSD cgo binaries. This also allows us
+    to remove the workarounds in the OpenBSD cgo runtime.
+    
+    This change also removes the environ and progname exports - these are now
+    provided directly by ld.so(1) itself.
+    
+    Fixes #19932
+    
+    Change-Id: I42e75ef9feb5dcd4696add5233497e3cbc48ad52
+    Reviewed-on: https://go-review.googlesource.com/40331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go      |   6 +-
+ src/cmd/link/internal/ld/elf.go       |  40 ++++------
+ src/cmd/link/internal/ld/lib.go       |   2 +-
+ src/runtime/cgo/gcc_libinit.c         |   2 +-
+ src/runtime/cgo/gcc_libinit_openbsd.c |  74 -------------------
+ src/runtime/cgo/gcc_openbsd_386.c     | 133 +---------------------------------
+ src/runtime/cgo/gcc_openbsd_amd64.c   | 133 +---------------------------------
+ src/runtime/cgo/openbsd.go            |  15 +---
+ 8 files changed, 25 insertions(+), 380 deletions(-)

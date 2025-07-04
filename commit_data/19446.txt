@@ -1,0 +1,15 @@
+commit 3d1c3e1e262d8f6d7ad2be52af7d226a6fb88ccf
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 27 16:26:08 2014 -0700
+
+    runtime: stack copier should handle nil defers without faulting.
+    
+    fixes #8047
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/101800043
+
+ src/pkg/runtime/stack.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

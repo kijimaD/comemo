@@ -1,0 +1,26 @@
+commit 376ce8c88033eede19d6295f9a79263f73c0fddb
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 15 21:27:04 2019 -0400
+
+    cmd/compile: shortcut intrinsic inlining AFTER getcallerXX check
+    
+    A check in inl.go to prevent inlining of functions calling
+    either getcallerpc or getcallersp does not work when these
+    functions are intrinsics. Swap checks to fix.
+    
+    Includes test.
+    
+    No bug, this was discovered in the course of a ridiculous
+    experiment with inlining.
+    
+    Change-Id: Ie1392523bb89882d586678f2674e1a4eadc5e431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172217
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go |  9 +++++----
+ test/run.go                        |  2 +-
+ test/runtime/README                |  7 +++++++
+ test/runtime/inlinegcpc.go         | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 5 deletions(-)

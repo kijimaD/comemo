@@ -1,0 +1,12 @@
+commit 379150c210d28743a85e6b835cab54b35dff7ff2
+Author: Vish Subramanian <vish@google.com>
+Date:   Sat Nov 7 15:52:27 2009 -0800
+
+    Add flags of type float to the flag package.
+    
+    R=r, rsc
+    http://go/go-review/1026011
+
+ src/pkg/flag/flag.go      | 65 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/flag/flag_test.go |  8 ++++--
+ 2 files changed, 71 insertions(+), 2 deletions(-)

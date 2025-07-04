@@ -1,0 +1,13 @@
+commit 1fa32d21a947dbe00217baa5ff22a27dd54fbb9f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 10:23:54 2012 -0700
+
+    encoding/gob: fix check for short input in slice decode
+    
+    R=golang-dev, dsymonds, r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6374059
+
+ src/pkg/encoding/gob/decode.go       |  6 +++---
+ src/pkg/encoding/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 72a2539c38d06be486b180310d5703700f9f1f5f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Sep 17 05:44:42 2014 +0000
+
+    sync: fix linux/arm build
+    
+    For real this time.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/141640043
+
+ src/sync/atomic/export_linux_arm_test.go | 2 --
+ 1 file changed, 2 deletions(-)

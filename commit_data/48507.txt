@@ -1,0 +1,22 @@
+commit 0eb2c771248c74e462d3ed77dab23bb2de566de1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 23 01:27:11 2022 +0700
+
+    cmd/compile: remove types.Field.{Broken,SetBroken}
+    
+    SetBroken is never called and Broken always returns false.
+    
+    Updates #51691
+    
+    Change-Id: I7e3fd3f2121268596d2e93a28c69e895bcf802ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394558
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/stmt.go      | 4 ++--
+ src/cmd/compile/internal/typecheck/subr.go      | 3 ---
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ src/cmd/compile/internal/types/type.go          | 3 ---
+ 4 files changed, 3 insertions(+), 9 deletions(-)

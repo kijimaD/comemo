@@ -1,0 +1,18 @@
+commit 692054e76e7686c6d5de385df69873e6427a35fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 18 13:35:12 2015 -0700
+
+    runtime: check for findmoduledatap returning nil
+    
+    The findmoduledatap function will not return nil in ordinary use, but
+    check for nil to try to avoid crashing when we are already crashing.
+    
+    Update #11783.
+    
+    Change-Id: If7b1adb51efab13b4c1a37b6f3c9ad22641a0b56
+    Reviewed-on: https://go-review.googlesource.com/12391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/symtab.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

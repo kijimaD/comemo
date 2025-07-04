@@ -1,0 +1,90 @@
+commit 35586f718cc5d808de1c7d9a367f55c54864326a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 13:52:37 2012 -0500
+
+    os/signal: selective signal handling
+    
+    Restore package os/signal, with new API:
+    Notify replaces Incoming, allowing clients
+    to ask for certain signals only.  Also, signals
+    go to everyone who asks, not just one client.
+    
+    This could plausibly move into package os now
+    that there are no magic side effects as a result
+    of the import.
+    
+    Update runtime for new API: move common Unix
+    signal handling code into signal_unix.c.
+    (It's so easy to do this now that we don't have
+    to edit Makefiles!)
+    
+    Tested on darwin,linux 386,amd64.
+    
+    Fixes #1266.
+    
+    R=r, dsymonds, bradfitz, iant, borman
+    CC=golang-dev
+    https://golang.org/cl/3749041
+
+ doc/go1.html                              |  33 ++++++++
+ doc/go1.tmpl                              |  33 ++++++++
+ src/pkg/exp/signal/signal.go              |  37 ---------
+ src/pkg/exp/signal/signal_test.go         |  24 ------
+ src/pkg/net/http/cgi/host_test.go         |   3 +-
+ src/pkg/os/exec.go                        |  13 ++-
+ src/pkg/os/exec_posix.go                  |  17 +---
+ src/pkg/os/exec_unix.go                   |   6 +-
+ src/pkg/os/exec_windows.go                |   3 +-
+ src/pkg/os/signal/sig.s                   |  16 ++++
+ src/pkg/os/signal/signal.go               |  72 ++++++++++++++++
+ src/pkg/os/signal/signal_test.go          |  60 ++++++++++++++
+ src/pkg/os/signal/signal_unix.go          |  38 +++++++++
+ src/pkg/runtime/os_darwin.h               |   5 ++
+ src/pkg/runtime/os_freebsd.h              |   4 +
+ src/pkg/runtime/os_linux.h                |   5 ++
+ src/pkg/runtime/os_netbsd.h               |   5 ++
+ src/pkg/runtime/os_openbsd.h              |   5 ++
+ src/pkg/runtime/runtime.c                 |   2 +-
+ src/pkg/runtime/runtime.h                 |  11 ++-
+ src/pkg/runtime/sig.go                    |  16 ----
+ src/pkg/runtime/signal_darwin_386.c       |  81 ++++--------------
+ src/pkg/runtime/signal_darwin_amd64.c     |  83 ++++---------------
+ src/pkg/runtime/signal_freebsd_386.c      |  75 ++++-------------
+ src/pkg/runtime/signal_freebsd_amd64.c    |  82 +++----------------
+ src/pkg/runtime/signal_linux_386.c        |  82 ++++---------------
+ src/pkg/runtime/signal_linux_amd64.c      |  77 ++++--------------
+ src/pkg/runtime/signal_linux_arm.c        |  60 +-------------
+ src/pkg/runtime/signal_netbsd_386.c       |  83 ++++---------------
+ src/pkg/runtime/signal_netbsd_amd64.c     |  84 ++++---------------
+ src/pkg/runtime/signal_openbsd_386.c      |  83 ++++---------------
+ src/pkg/runtime/signal_openbsd_amd64.c    |  84 ++++---------------
+ src/pkg/runtime/signal_unix.c             |  60 ++++++++++++++
+ src/pkg/runtime/signal_windows_386.c      |   2 +-
+ src/pkg/runtime/signal_windows_amd64.c    |   2 +-
+ src/pkg/runtime/signals_darwin.h          |  73 ++++++++---------
+ src/pkg/runtime/signals_freebsd.h         |  83 +++++++++----------
+ src/pkg/runtime/signals_linux.h           | 106 +++++++++++++++---------
+ src/pkg/runtime/signals_netbsd.h          |  83 +++++++++----------
+ src/pkg/runtime/signals_openbsd.h         |  83 +++++++++----------
+ src/pkg/runtime/sigqueue.goc              | 106 +++++++++++++++++-------
+ src/pkg/runtime/sys_linux_386.s           |   3 -
+ src/pkg/runtime/sys_linux_amd64.s         |   3 -
+ src/pkg/runtime/sys_linux_arm.s           |   3 -
+ src/pkg/runtime/thread_plan9.c            |   2 +-
+ src/pkg/syscall/mkerrors.sh               |  59 ++++++++++++--
+ src/pkg/syscall/syscall_bsd.go            |  12 +--
+ src/pkg/syscall/syscall_darwin.go         |   2 +-
+ src/pkg/syscall/syscall_linux.go          |  10 +--
+ src/pkg/syscall/syscall_unix.go           |  16 ++++
+ src/pkg/syscall/zerrors_darwin_386.go     | 131 +++++++++++++++++++-----------
+ src/pkg/syscall/zerrors_darwin_amd64.go   | 103 +++++++++++++++--------
+ src/pkg/syscall/zerrors_linux_386.go      | 118 ++++++++++++++++++---------
+ src/pkg/syscall/zerrors_linux_amd64.go    | 118 ++++++++++++++++++---------
+ src/pkg/syscall/zsyscall_freebsd_386.go   |   2 +-
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |   2 +-
+ src/pkg/syscall/zsyscall_linux_386.go     |   2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go   |   2 +-
+ src/pkg/syscall/zsyscall_linux_arm.go     |   2 +-
+ src/pkg/syscall/zsysnum_linux_386.go      |   6 --
+ src/pkg/syscall/zsysnum_linux_amd64.go    |   6 --
+ 61 files changed, 1216 insertions(+), 1266 deletions(-)

@@ -1,0 +1,13 @@
+commit 36ccbbdfc6aebf233a9833e91864b144de364c0a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 19 11:54:59 2009 -0700
+
+    fiddling while rome burns: explain why tests are commented out
+    
+    R=rsc
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=35874
+    CL=35880
+
+ test/interface/struct.go | 2 ++
+ 1 file changed, 2 insertions(+)

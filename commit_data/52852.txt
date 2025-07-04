@@ -1,0 +1,39 @@
+commit 27aa60f54018150d607287f1ad25a73079656d72
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 25 19:36:16 2023 -0400
+
+    misc/android: improve exit code workaround
+    
+    go_android_exec gets the exit status of the process run inside the
+    Android emulator by sending a small shell script that runs the desired
+    command and then prints "exitcode=" followed by the exit code. This is
+    necessary because adb does not reliably pass through the exit status
+    of the subprocess.
+    
+    An old bug about this
+    (https://code.google.com/p/android/issues/detail?id=3254) was closed
+    in 2016 as fixed in Android N (7.0), but it seems that the adb on the
+    Android builder at least still sometimes fails to pass through the
+    exit code.
+    
+    Unfortunately, this workaround has the effect of injecting
+    "exitcode=N" into the output of the subprocess it runs, which messes
+    up tests that are looking for golden output from a subprocess.
+    
+    Fix this by inserting a filter Writer that looks for the final
+    "exitcode=N" and strips it from the exec wrapper's own stdout.
+    
+    For #15919.
+    
+    This will help us in cleaning up "host tests" for #37486.
+    
+    Change-Id: I9859f5b215e0ec4a7e33ada04a1857f3cfaf55ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ misc/go_android_exec/exitcode_test.go |  76 ++++++++++++++++++++++
+ misc/go_android_exec/main.go          | 116 ++++++++++++++++++++++++++++------
+ 2 files changed, 171 insertions(+), 21 deletions(-)

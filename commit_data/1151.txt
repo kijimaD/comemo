@@ -1,0 +1,13 @@
+commit 1945cc4c3c10caeeced798695416f1323286bc51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 17 21:44:05 2008 -0800
+
+    The compiler should reject comparisons between ints and nil.
+    
+    R=gri
+    DELTA=8  (8 added, 0 deleted, 0 changed)
+    OCL=19434
+    CL=19436
+
+ test/bugs/bug124.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

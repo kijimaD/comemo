@@ -1,0 +1,12 @@
+commit 2653b4fbcc5be866dd478f79bf6854db8ede7ffd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 2 10:52:46 2011 -0400
+
+    testing: fix MB/s computation, documentation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4529100
+
+ src/pkg/testing/benchmark.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

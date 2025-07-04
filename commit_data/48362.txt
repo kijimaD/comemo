@@ -1,0 +1,27 @@
+commit c1f22134f22158ebeebf450357f711eb22fab202
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 10 09:28:09 2022 +0100
+
+    runtime/pprof, syscall: report MaxRSS on all unix platforms
+    
+    All unix platforms currently supported by Go provide the getrusage
+    syscall. On aix and solaris the Getrusage syscall wrapper is not
+    available yet, so add and use it to report MaxRSS in memory profiles.
+    
+    Change-Id: Ie880a3058171031fd2e12ccf9adfb85ce18858b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391434
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_norusage.go   |  2 +-
+ src/runtime/pprof/pprof_rusage.go     |  6 ++++--
+ src/runtime/pprof/rusage_test.go      |  2 +-
+ src/syscall/syscall_aix.go            |  1 +
+ src/syscall/syscall_solaris.go        |  1 +
+ src/syscall/zsyscall_aix_ppc64.go     | 13 +++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 13 +++++++++++++
+ 7 files changed, 34 insertions(+), 4 deletions(-)

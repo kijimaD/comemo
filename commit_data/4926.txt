@@ -1,0 +1,17 @@
+commit 5c2197ac8f6a7ca48a22e9d2d2e1128e004ebe12
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 22 20:38:56 2010 -0800
+
+    net: disable UDP server test
+    
+    has been flaking on various architectures.
+    not sure why, but doesn't seem to be Go's fault.
+    
+    Fixes #617.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/217093
+
+ src/pkg/net/server_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

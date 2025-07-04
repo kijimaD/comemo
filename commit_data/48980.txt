@@ -1,0 +1,22 @@
+commit 473c99643f3da2b02949554a66d8582c926ed725
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 7 17:51:05 2022 +0000
+
+    runtime: rewrite pacer max trigger calculation
+    
+    Currently the maximum trigger calculation is totally incorrect with
+    respect to the comment above it and its intent. This change rectifies
+    this mistake.
+    
+    For #48409.
+    
+    Change-Id: Ifef647040a8bdd304dd327695f5f315796a61a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398834
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go   |   1 +
+ src/runtime/mgcpacer.go      |  16 +++---
+ src/runtime/mgcpacer_test.go | 119 ++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 126 insertions(+), 10 deletions(-)

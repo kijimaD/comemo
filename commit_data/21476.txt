@@ -1,0 +1,23 @@
+commit 3a8713575499622dbe77d78e9871dbe2ae94b8bb
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Sat Jan 24 17:51:42 2015 -0500
+
+    runtime: support panic/print logging in android-L.
+    
+    In android-L, logging is done through the logd daemon.
+    If logd daemon is available, send logging to logd.
+    Otherwise, fallback to the legacy mechanism (/dev/log files).
+    
+    This change adds access/socket/connect calls to interact with the logd.
+    
+    Fixes golang/go#9398.
+    
+    Change-Id: I3c52b81b451f5862107d7c675f799fc85548486d
+    Reviewed-on: https://go-review.googlesource.com/3350
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/defs_linux_arm.go       |  11 ++-
+ src/runtime/print1_write_android.go | 143 +++++++++++++++++++++++++++++++-----
+ src/runtime/stubs_android.go        |  10 +++
+ src/runtime/sys_linux_arm.s         |  29 ++++++++
+ 4 files changed, 175 insertions(+), 18 deletions(-)

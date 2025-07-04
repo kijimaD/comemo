@@ -1,0 +1,19 @@
+commit 5aaeda19c1876ecec85406726b544ac49c8f799b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 3 10:33:03 2020 +0800
+
+    cmd/internal/obj/arm64: fix typos in document
+    
+    The current document mismatches Go syntax loads a signed-byte
+    instruction "MOVB" with GNU syntax loads an 64bit double-word
+    instruction "ldr". This is just a typo in the document, the
+    assembler has the correct encoding. This patch fix this error.
+    
+    Fixes #39367
+    
+    Change-Id: Idb8f65ca540514ee5bc8f07073e756838710ba93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236217
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

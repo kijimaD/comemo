@@ -1,0 +1,10 @@
+commit 18c5b488a3b2e218c0e0cf2a7d4820d9da93a554
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Mar 2 20:47:34 2008 -0800
+
+    Go spec starting point.
+    
+    SVN=111041
+
+ doc/go_spec | 1197 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1197 insertions(+)

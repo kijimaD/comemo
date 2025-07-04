@@ -1,0 +1,22 @@
+commit 3619255777ca544a08e1051ee641a1c1e2d0a903
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 23 12:07:19 2023 -0700
+
+    crypto/x509: rename duplicated test
+    
+    Rename the old TestPlatformVerifier to TestPlatformVerifierLegacy, and
+    add TODO about removing it once the synthetic root is widely deployed on
+    builders.
+    
+    Updates #52108
+    
+    Change-Id: I6cdba268e4738804c7f76ea18c354470b3e0318c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505755
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/x509/root_darwin_test.go  | 4 +++-
+ src/crypto/x509/root_windows_test.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

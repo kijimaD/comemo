@@ -1,0 +1,22 @@
+commit 55738850c43bd1ae46326f7419dbd8f49808c776
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Sep 27 08:21:27 2019 -0700
+
+    net/http: remove TestTimeoutHandlerAndFlusher due to flakes
+    
+    Removes TestTimeoutHandlerAndFlusher due to flakes on
+    one of the builders due to timing issues.
+    
+    Perhaps later, we might need to bring it back when we've
+    figured out the timing issues.
+    
+    Fixes #34573.
+    
+    Change-Id: Ia88d4da31fb228296144dc31f9a4288167fb4a53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197757
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 48 ----------------------------------------------
+ 1 file changed, 48 deletions(-)

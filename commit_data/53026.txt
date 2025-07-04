@@ -1,0 +1,26 @@
+commit cce67690b82faef7d12a86f20e8e6a158d15f2a3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 12 11:54:47 2023 -0400
+
+    cmd/compile: remove post-inlining PGO graph dump
+    
+    The RedirectEdges logic is fragile and not quite complete (doesn't
+    update in-edges), which adds overhead to maintaining this package.
+    
+    In my opinion, the post-inlining graph doesn't provide as much value as
+    the pre-inlining graph. Even the latter I am not convinced should be in
+    the compiler rather than an external tool, but it is comparatively
+    easier to maintain.
+    
+    Drop it for now. Perhaps we'll want it back in the future for tracking
+    follow-up optimizations, but for now keep things simple.
+    
+    Change-Id: I3133a2eb97893a14a6770547f96a3f1796798d17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494655
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/inline/inl.go  | 32 ----------------
+ src/cmd/compile/internal/pgo/irgraph.go | 68 ---------------------------------
+ 2 files changed, 100 deletions(-)

@@ -1,0 +1,16 @@
+commit cc352e5c1c115ac6e88a30f6ebed76235b8aaf02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 5 10:20:34 2008 -0800
+
+    The DejaGNU testsuite harness used by the gccgo testsuite is
+    broken if you give it something which matches everything--the
+    .* swallows all the error messages.  Recognize some reasonable
+    error text directly.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=20564
+    CL=20595
+
+ test/bugs/bug127.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

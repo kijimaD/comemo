@@ -1,0 +1,18 @@
+commit 42aa608f8acd50f963b0f1807a6c3ecbf651b6e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 16:40:52 2017 -0700
+
+    cmd/compile: remove confusing comment, fix comment for symExport
+    
+    The symExport flag tells whether a symbol is in the export list
+    already or not (and it's also used to avoid being added to that
+    list). Exporting is based on that export list - no need to check
+    again.
+    
+    Change-Id: I6056f97aa5c24a19376957da29199135c8da35f9
+    Reviewed-on: https://go-review.googlesource.com/39033
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/bexport.go | 10 ----------
+ src/cmd/compile/internal/gc/go.go      |  2 +-
+ 2 files changed, 1 insertion(+), 11 deletions(-)

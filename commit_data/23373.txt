@@ -1,0 +1,20 @@
+commit 047f07a285edbc60f64018973be7ce6b341fe22d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jun 14 07:50:17 2015 +0900
+
+    net: remove obsolete TestLookupHost
+    
+    The motivation of TestLookupHost was to test codepaths on LookupHost,
+    LookupIP when we set CGO_ENABLED=1. Now we have serveral tests on those
+    APIs and their codepaths such as TestLookupGooglePublicDNSAddr,
+    TestCgoLookupIP, TestGoLookupIP, and the test using the ambiguous source
+    "localhost" is unnecessary.
+    
+    Fixes #11182.
+    
+    Change-Id: I397c823e1648114d91a229b316477bff2948b4f9
+    Reviewed-on: https://go-review.googlesource.com/11057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/hosts_test.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

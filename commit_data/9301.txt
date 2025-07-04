@@ -1,0 +1,12 @@
+commit 4c268b335f0676497c43e020eaaad73d613c18c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 6 12:30:54 2011 -0700
+
+    gofmt: update test script so 'make test' succeeds
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4832055
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

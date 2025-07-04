@@ -1,0 +1,16 @@
+commit 6fb2a05ac9f6b4063f1c952df069871e9e6796d9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 8 10:09:31 2014 +1000
+
+    os: simplify windows Getwd (fixes build)
+    
+    Current version of Getwd calls Stat that
+    calls Getwd therefore infinite recursion.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/119600043
+
+ src/pkg/os/getwd.go | 5 +++++
+ 1 file changed, 5 insertions(+)

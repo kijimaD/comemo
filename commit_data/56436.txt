@@ -1,0 +1,22 @@
+commit 7f9edb42259114020c67eb51643e43cf5a2cf9a7
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Jan 24 19:02:32 2024 +0100
+
+    runtime: add runtime.debugPinnerV1
+    
+    Adds runtime.debugPinnerV1 which returns a runtime.Pinner object that
+    pins itself. This is intended to be used by debuggers in conjunction
+    with runtime.debugCall to keep heap memory reachable even if it isn't
+    referenced from anywhere else.
+    
+    Change-Id: I508ee6a7b103e68df83c96f2e04a0599200300dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558276
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm_amd64.s  |  3 ++-
+ src/runtime/asm_arm64.s  |  3 ++-
+ src/runtime/asm_ppc64x.s |  3 ++-
+ src/runtime/debug.go     | 19 +++++++++++++++++++
+ 4 files changed, 25 insertions(+), 3 deletions(-)

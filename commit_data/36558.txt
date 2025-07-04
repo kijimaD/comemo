@@ -1,0 +1,22 @@
+commit 8359b5e134052db0e5f1bc2257d496b0a81aa4fb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Aug 26 16:45:10 2018 +1000
+
+    internal/poll: advance file position in windows sendfile
+    
+    Some versions of Windows (Windows 10 1803) do not set file
+    position after TransmitFile completes. So just use Seek
+    to set file position before returning from sendfile.
+    
+    Fixes #25722
+    
+    Change-Id: I7a49be10304b5db19dda707b13ac93d338aeb190
+    Reviewed-on: https://go-review.googlesource.com/131976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/sendfile_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

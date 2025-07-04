@@ -1,0 +1,26 @@
+commit 7ffbea9fd838be851c287b2a21ee6ce1e2776b54
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 3 18:07:32 2020 +0000
+
+    reflect: when Converting between float32s, don't lose signal NaNs
+    
+    Trying this CL again, with a test that skips 387.
+    
+    When converting from float32->float64->float32, any signal NaNs
+    get converted to quiet NaNs. Avoid that so using reflect.Value.Convert
+    between two float32 types keeps the signal bit of NaNs.
+    
+    Skip the test on 387. I don't see any sane way of ensuring that a
+    float load + float store is faithful on that platform.
+    
+    Fixes #36400
+    
+    Change-Id: Ic316c74ddc155632e40424e207375b5d50dcd853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221792
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/reflect/all_test.go | 31 +++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 14 ++++++++++++++
+ 2 files changed, 45 insertions(+)

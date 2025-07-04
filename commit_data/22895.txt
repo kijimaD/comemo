@@ -1,0 +1,20 @@
+commit 92e959a414457715d10188913dd5a5bdc2bb23af
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 23 13:51:12 2015 +0100
+
+    syscall, net: use sendfile on Solaris
+    
+    Updates #5847.
+    
+    Change-Id: Ic93f2e5f9a6aa3bd49cf75b16474ec5e897d17e1
+    Reviewed-on: https://go-review.googlesource.com/7940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/sendfile_solaris.go           | 103 ++++++++++++++++++++++++++++++++++
+ src/net/sendfile_stub.go              |   2 +-
+ src/syscall/syscall_solaris.go        |   1 +
+ src/syscall/syscall_solaris_amd64.go  |   5 --
+ src/syscall/zsyscall_solaris_amd64.go |  12 ++++
+ 5 files changed, 117 insertions(+), 6 deletions(-)

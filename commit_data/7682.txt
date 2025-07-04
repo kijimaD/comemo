@@ -1,0 +1,15 @@
+commit 2168e6aaf1a1f6117f2523e4c4b1fcc0a117b81f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 7 12:04:04 2011 -0800
+
+    http: change Hijacker to return a net.Conn
+    
+    net.Conn is itself a io.ReadWriteCloser, so
+    most code should be unaffected.
+    
+    R=rsc, gburd
+    CC=golang-dev
+    https://golang.org/cl/4261052
+
+ src/pkg/http/server.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

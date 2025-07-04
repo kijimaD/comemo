@@ -1,0 +1,21 @@
+commit 26ba35666ec72b0969156c5f2d3f8339c188a7ec
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 12 07:54:20 2012 -0800
+
+    goyacc: fix units.y build breakage
+    This breakage is mainly due to API changes in pkg.
+    (e.g., package utf8 moved to unicode/utf8;
+           remove of strconv.Atof64;
+           change character type from int to rune.)
+    Also correct the usage comment.
+    
+    This fixes issue 2646.
+    PS: I don't change the goyacc.go, because I think token type
+        should not be force to rune.
+    
+    R=golang-dev, adg, rogpeppe, r, r
+    CC=golang-dev
+    https://golang.org/cl/5502093
+
+ src/cmd/goyacc/units.y | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

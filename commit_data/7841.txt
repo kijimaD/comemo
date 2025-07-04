@@ -1,0 +1,29 @@
+commit 8dee872963ca0260c3b941b54cf5ac2cd583fd02
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 11:31:42 2011 -0400
+
+    runtime: os-specific types and code for setitimer
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4273097
+
+ src/pkg/runtime/darwin/386/defs.h   | 29 ++++++++++++++++++++++-------
+ src/pkg/runtime/darwin/386/sys.s    |  5 +++++
+ src/pkg/runtime/darwin/amd64/defs.h | 34 +++++++++++++++++++++++++---------
+ src/pkg/runtime/darwin/amd64/sys.s  | 10 +++++++++-
+ src/pkg/runtime/darwin/defs.c       |  6 ++++++
+ src/pkg/runtime/darwin/os.h         |  4 ++++
+ src/pkg/runtime/freebsd/386/sys.s   |  5 +++++
+ src/pkg/runtime/freebsd/amd64/sys.s |  8 ++++++++
+ src/pkg/runtime/freebsd/defs.c      |  5 +++++
+ src/pkg/runtime/freebsd/os.h        |  4 ++++
+ src/pkg/runtime/linux/386/defs.h    | 12 +++++++++++-
+ src/pkg/runtime/linux/386/sys.s     |  9 +++++++++
+ src/pkg/runtime/linux/amd64/defs.h  | 13 +++++++++++--
+ src/pkg/runtime/linux/amd64/sys.s   |  8 ++++++++
+ src/pkg/runtime/linux/arm/sys.s     |  9 +++++++++
+ src/pkg/runtime/linux/defs.c        |  7 +++++++
+ src/pkg/runtime/linux/defs2.c       |  8 ++++++--
+ src/pkg/runtime/linux/os.h          |  4 ++++
+ 18 files changed, 158 insertions(+), 22 deletions(-)

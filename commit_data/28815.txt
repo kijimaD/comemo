@@ -1,0 +1,16 @@
+commit 1da1da3d6ab9ac8287e6b4185afcd1c3396178f5
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 9 09:40:27 2016 -0400
+
+    go/internal/gcimporter: set Pos attribute of decoded types.Objects
+    
+    This change is a copy of CL 22788 in x/tools.
+    It has no observable effect yet, but brings the two packages in synch.
+    
+    Change-Id: I266c77547cb46deb69b1a36e1674dfebc430e3a5
+    Reviewed-on: https://go-review.googlesource.com/22936
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/internal/gcimporter/bimport.go    | 74 ++++++++++++++++++++++++--------
+ src/go/internal/gcimporter/gcimporter.go |  6 ++-
+ 2 files changed, 61 insertions(+), 19 deletions(-)

@@ -1,0 +1,20 @@
+commit 1f25f5ad48b61092bdd8f43af7c068db0e947363
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 10 08:40:32 2013 +1000
+
+    encoding/binary: fast path for reading slices
+    
+    Again, it still allocates but the code is simple.
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkReadSlice1000Int32s        35580        11465  -67.78%
+    
+    benchmark                        old MB/s     new MB/s  speedup
+    BenchmarkReadSlice1000Int32s       112.42       348.86    3.10x
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12694048
+
+ src/pkg/encoding/binary/binary.go | 82 ++++++++++++++++++++++++++++++++-------
+ 1 file changed, 67 insertions(+), 15 deletions(-)

@@ -1,0 +1,27 @@
+commit 7ffdb757758c086556e5eba277202d9d8940c2bd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 14 01:00:49 2017 -0500
+
+    expvar: add benchmarks for steady-state Map Add calls
+    
+    Add a benchmark for setting a String value, which we may
+    want to treat differently from Int or Float due to the need to support
+    Add methods for the latter.
+    
+    Update tests to use only the exported API instead of making (fragile)
+    assumptions about unexported fields.
+    
+    The existing Map benchmarks construct a new Map for each iteration, which
+    focuses the benchmark results on the initial allocation costs for the
+    Map and its entries. This change adds variants of the benchmarks which
+    use a long-lived map in order to measure steady-state performance for
+    Map updates on existing keys.
+    
+    Updates #18177
+    
+    Change-Id: I62c920991d17d5898c592446af382cd5c04c528a
+    Reviewed-on: https://go-review.googlesource.com/36959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/expvar/expvar_test.go | 79 +++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 59 insertions(+), 20 deletions(-)

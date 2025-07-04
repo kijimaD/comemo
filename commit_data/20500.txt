@@ -1,0 +1,13 @@
+commit 93e5cc224e3e5c6dfaad4fc835cc89e33fb957c6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 22 09:13:09 2014 -0400
+
+    net/http: replace z_last_test hack with testing.Main
+    
+    LGTM=adg
+    R=rsc, adg
+    CC=golang-codereviews
+    https://golang.org/cl/144240043
+
+ src/net/http/{z_last_test.go => main_test.go} | 30 +++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

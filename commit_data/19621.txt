@@ -1,0 +1,13 @@
+commit a6999c88455e6453964f4b3eac7c11a9febeb5c2
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Jun 27 15:36:41 2014 +0200
+
+    runtime: fix Plan 9 build
+    
+    LGTM=0intro, aram
+    R=rsc, 0intro, aram
+    CC=golang-codereviews
+    https://golang.org/cl/109240044
+
+ src/pkg/runtime/os_plan9.c | 1 +
+ 1 file changed, 1 insertion(+)

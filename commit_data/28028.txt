@@ -1,0 +1,22 @@
+commit af9342ca10ea661ca34d6d6950edc553fdd27856
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 19 15:00:29 2016 +1000
+
+    syscall, internal/syscall/windows, internal/syscall/windows/registry: make go generate work on every os
+    
+    Fixes #16368
+    
+    Change-Id: I2ef7a2deb5798e11cc1d3f8ca29a6e1655155422
+    Reviewed-on: https://go-review.googlesource.com/27411
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/syscall/windows/mksyscall.go          | 7 +++++++
+ src/internal/syscall/windows/registry/mksyscall.go | 7 +++++++
+ src/internal/syscall/windows/registry/syscall.go   | 2 --
+ src/internal/syscall/windows/syscall_windows.go    | 2 --
+ src/syscall/mkall.sh                               | 2 +-
+ src/syscall/syscall.go                             | 2 ++
+ src/syscall/syscall_windows.go                     | 2 --
+ 7 files changed, 17 insertions(+), 7 deletions(-)

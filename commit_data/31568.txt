@@ -1,0 +1,23 @@
+commit cfae61b65a66d958367270d4d58ce7996a4987b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat May 13 08:29:47 2017 -0700
+
+    cmd/compile: tweak ssa.html colors
+    
+    Make yellow the last highlight color rather than the first.
+    Yellow is also the color that Chrome uses to highlight
+    search results, which can be confusing.
+    Also, when Night Shift is on on macOS,
+    yellow highlighting is completely invisible.
+    I suppose should be sleeping instead.
+    
+    Also, remove a completed TODO.
+    
+    Change-Id: I0eb4439272fad9ccb5fe8e2cf409fdd5dc15b26e
+    Reviewed-on: https://go-review.googlesource.com/43463
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/html.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

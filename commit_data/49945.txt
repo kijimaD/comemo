@@ -1,0 +1,18 @@
+commit 04d8c2327d5a2788757f22fd0e23198f7045c20f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:22:13 2022 +0700
+
+    runtime: convert kqueue netpollWakeSig to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I85d7444be36967e1e7e0ff2ce2f19b73581ecdde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/netpoll_kqueue.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

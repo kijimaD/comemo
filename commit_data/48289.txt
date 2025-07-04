@@ -1,0 +1,39 @@
+commit e79c39f004769fc55e60c2fb052155486295d533
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Wed Nov 17 17:46:22 2021 +0300
+
+    encoding/xml: improve the test coverage, fix minor bugs
+    
+    Improve the test coverage of encoding/xml package by adding
+    the test cases for the execution paths that were not covered before.
+    
+    Since it reveals a couple of issues, fix them as well while we're at it.
+    
+    As I used an `strings.EqualFold` instead of adding one more `strings.ToLower`,
+    our fix to `autoClose()` tends to run faster as well as a result.
+    
+            name             old time/op    new time/op    delta
+            HTMLAutoClose-8    5.93µs ± 2%    5.75µs ± 3%  -3.16%  (p=0.000 n=10+10)
+            name             old alloc/op   new alloc/op   delta
+            HTMLAutoClose-8    2.60kB ± 0%    2.58kB ± 0%  -0.46%  (p=0.000 n=10+10)
+            name             old allocs/op  new allocs/op  delta
+            HTMLAutoClose-8      72.0 ± 0%      67.0 ± 0%  -6.94%  (p=0.000 n=10+10)
+    
+    The overall `encoding/xml` test coverage increase is `88.1% -> 89.9%`;
+    although it may look insignificant, this CL covers some important corner cases,
+    like `autoClose()` functionality (that was not tested at all).
+    
+    Fixes #49635
+    Fixes #49636
+    
+    Change-Id: I50b2769896c197eb285672313b7148f4fe8bdb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364734
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/xml/xml.go      |  10 +--
+ src/encoding/xml/xml_test.go | 165 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 168 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 58490972c0d5a9dc59450474d38533faf69e4aaf
+Author: korzhao <korzhao95@gmail.com>
+Date:   Tue Aug 10 22:05:34 2021 +0800
+
+    cmd/link: fix dead reference link
+    
+    Change-Id: I0f53cc2b845f8a52fece2aaba1445a0ecb9cdc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341129
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go     | 2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

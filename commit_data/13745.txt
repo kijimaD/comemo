@@ -1,0 +1,56 @@
+commit 532dee3842298ad242355fd210efbd658cc93196
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Sep 4 14:40:49 2012 -0400
+
+    runtime: discard SIGPROF delivered to non-Go threads.
+    
+    Signal handlers are global resources but many language
+    environments (Go, C++ at Google, etc) assume they have sole
+    ownership of a particular handler.  Signal handlers in
+    mixed-language applications must therefore be robust against
+    unexpected delivery of certain signals, such as SIGPROF.
+    
+    The default Go signal handler runtime·sigtramp assumes that it
+    will never be called on a non-Go thread, but this assumption
+    is violated by when linking in C++ code that spawns threads.
+    Specifically, the handler asserts the thread has an associated
+    "m" (Go scheduler).
+    
+    This CL is a very simple workaround: discard SIGPROF delivered to non-Go threads.  runtime.badsignal(int32) now receives the signal number; if it returns without panicking (e.g. sig==SIGPROF) the signal is discarded.
+    
+    I don't think there is any really satisfactory solution to the
+    problem of signal-based profiling in a mixed-language
+    application.  It's not only the issue of handler clobbering,
+    but also that a C++ SIGPROF handler called in a Go thread
+    can't unwind the Go stack (and vice versa).  The best we can
+    hope for is not crashing.
+    
+    Note:
+    - I've ported this to all POSIX platforms, except ARM-linux which already ignores unexpected signals on m-less threads.
+    - I've avoided tail-calling runtime.badsignal because AFAICT the 6a/6l don't support it.
+    - I've avoided hoisting 'push sig' (common to both function calls) because it makes the code harder to read.
+    - Fixed an (apparently incorrect?) docstring.
+    
+    R=iant, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6498057
+
+ src/pkg/runtime/signal_linux_amd64.c | 2 ++
+ src/pkg/runtime/sys_darwin_386.s     | 9 ++++++---
+ src/pkg/runtime/sys_darwin_amd64.s   | 4 +++-
+ src/pkg/runtime/sys_freebsd_386.s    | 5 ++++-
+ src/pkg/runtime/sys_freebsd_amd64.s  | 4 +++-
+ src/pkg/runtime/sys_linux_386.s      | 5 ++++-
+ src/pkg/runtime/sys_linux_amd64.s    | 4 +++-
+ src/pkg/runtime/sys_linux_arm.s      | 3 ++-
+ src/pkg/runtime/sys_netbsd_386.s     | 5 ++++-
+ src/pkg/runtime/sys_netbsd_amd64.s   | 4 +++-
+ src/pkg/runtime/sys_openbsd_386.s    | 5 ++++-
+ src/pkg/runtime/sys_openbsd_amd64.s  | 4 +++-
+ src/pkg/runtime/thread_darwin.c      | 6 +++++-
+ src/pkg/runtime/thread_freebsd.c     | 6 +++++-
+ src/pkg/runtime/thread_linux.c       | 6 +++++-
+ src/pkg/runtime/thread_netbsd.c      | 6 +++++-
+ src/pkg/runtime/thread_openbsd.c     | 6 +++++-
+ src/pkg/runtime/thread_plan9.c       | 2 +-
+ 18 files changed, 67 insertions(+), 19 deletions(-)

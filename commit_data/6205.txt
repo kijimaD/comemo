@@ -1,0 +1,26 @@
+commit 2d8433a720f79cf758c85046b45fd183ff63e788
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 21:03:24 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    explicit.go:36:4: error: incompatible types in assignment (need explicit conversion)
+    explicit.go:41:4: error: incompatible types in assignment (type has no methods)
+    explicit.go:42:4: error: incompatible types in assignment (need explicit conversion)
+    explicit.go:45:5: error: incompatible types in assignment (need explicit conversion; missing method ‘N’)
+    explicit.go:48:9: error: invalid type conversion (need explicit conversion; missing method ‘N’)
+    explicit.go:51:4: error: incompatible types in assignment
+    explicit.go:51:7: error: invalid type conversion (need explicit conversion)
+    explicit.go:57:10: error: impossible type assertion: type does not implement interface (type has no methods)
+    explicit.go:62:10: error: impossible type assertion: type does not implement interface (incompatible type for method ‘M’ (different number of parameters))
+    explicit.go:67:5: error: incompatible type in initialization (type has no methods)
+    explicit.go:68:5: error: incompatible type in initialization (incompatible type for method ‘M’ (different number of parameters))
+    explicit.go:70:11: error: invalid type conversion (type has no methods)
+    explicit.go:71:11: error: invalid type conversion (incompatible type for method ‘M’ (different number of parameters))
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2139044
+
+ test/interface/explicit.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

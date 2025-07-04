@@ -1,0 +1,17 @@
+commit b79acf97c79c63779acc77062eef70511a42be9b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 2 09:31:44 2020 +0100
+
+    internal/cpu: use anonymous struct for CPU feature vars
+    
+    Like in x/sys/cpu, use anonymous structs to declare the CPU feature vars
+    instead of defining single-use types. Also, order the vars
+    alphabetically.
+    
+    Change-Id: Iedd3ca51916e3cbb852d2aeed18b3a4c6613e778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221757
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/cpu/cpu.go | 64 ++++++++++++++++++++-----------------------------
+ 1 file changed, 26 insertions(+), 38 deletions(-)

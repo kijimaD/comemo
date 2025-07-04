@@ -1,0 +1,12 @@
+commit 83305fecfeaf7d8f759d1b95f8f98dda2580df0b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 26 04:16:34 2011 +1000
+
+    goinstall: abort and warn when using any url scheme, not just 'http://'
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4801053
+
+ src/cmd/goinstall/main.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

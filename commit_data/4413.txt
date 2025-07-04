@@ -1,0 +1,16 @@
+commit 2a52782f5cbd66dfb822771f0cc2df9763d44dbb
+Author: Andy Davis <andy@bigandian.com>
+Date:   Mon Dec 14 15:09:49 2009 -0800
+
+    crypto/sha256: new package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/176062
+
+ src/pkg/Makefile                     |   1 +
+ src/pkg/crypto/sha256/Makefile       |  12 ++++
+ src/pkg/crypto/sha256/sha256.go      | 123 +++++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha256/sha256_test.go |  68 ++++++++++++++++++
+ src/pkg/crypto/sha256/sha256block.go | 129 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 333 insertions(+)

@@ -1,0 +1,19 @@
+commit a5f8ae9f6566946529a51b69d2f3f0689abc00eb
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Feb 29 16:09:31 2024 +0800
+
+    bytes: add a colon after Output to make the Example in the document display correctly
+    
+    The document address currently showing the problem is: https://pkg.go.dev/bytes#Buffer.ReadByte
+    
+    Change-Id: Ib52747e38f72541f3ca2a595aa8eca5d91281c80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568135
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/bytes/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

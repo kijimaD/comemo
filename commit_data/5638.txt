@@ -1,0 +1,13 @@
+commit 62b5c7c69d8f77e97ccdb0958f33b515801f11d6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 9 19:59:22 2010 -0700
+
+    add path.Base, analogous to Unix basename
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1633042
+
+ src/pkg/path/path.go      | 22 ++++++++++++++++++++++
+ src/pkg/path/path_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

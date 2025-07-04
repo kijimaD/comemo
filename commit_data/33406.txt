@@ -1,0 +1,31 @@
+commit 3392c0711def48dfd33e97dd636ebd50a85077a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 23:18:34 2017 -0400
+
+    cmd/go: add README and access log to cache directory
+    
+    The README is there to help people who stumble across the directory.
+    
+    The access log is there to help us evaluate potential algorithms for
+    managing and pruning cache directories. For now the management
+    is manual: users have to run "go clean -cache" if they want the cache
+    to get smaller.
+    
+    As a low-resolution version of the access log, we also update the
+    mtime on each cache file as they are used by the go command.
+    A simple refinement of go clean -cache would be to delete
+    (perhaps automatically) cache files that have not been used in more
+    than one day, or some suitable time period.
+    
+    Change-Id: I1dd6309952942169d71256c4b50b723583d21fca
+    Reviewed-on: https://go-review.googlesource.com/75471
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go                    |  1 +
+ src/cmd/go/internal/cache/cache.go      | 40 +++++++++++++++++++++-----
+ src/cmd/go/internal/cache/cache_test.go | 50 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cache/default.go    | 14 +++++++++
+ 4 files changed, 98 insertions(+), 7 deletions(-)

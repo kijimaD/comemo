@@ -1,0 +1,24 @@
+commit cba882ea9ba9ccfc718d995a0d787280c4009668
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Apr 12 16:41:31 2015 -0700
+
+    crypto/tls: call GetCertificate if Certificates is empty.
+    
+    This change causes the GetCertificate callback to be called if
+    Certificates is empty. Previously this configuration would result in an
+    error.
+    
+    This allows people to have servers that depend entirely on dynamic
+    certificate selection, even when the client doesn't send SNI.
+    
+    Fixes #9208.
+    
+    Change-Id: I2f5a5551215958b88b154c64a114590300dfc461
+    Reviewed-on: https://go-review.googlesource.com/8792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go                | 18 +++++++++++++-----
+ src/crypto/tls/handshake_server.go      | 22 +++++++---------------
+ src/crypto/tls/handshake_server_test.go | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 20 deletions(-)

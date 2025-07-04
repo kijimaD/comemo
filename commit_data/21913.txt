@@ -1,0 +1,25 @@
+commit a0ac493852e22408114d530105ffe89dc7dba98b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 16:50:59 2015 -0500
+
+    runtime: poison pcln.frame value
+    
+    Nothing uses it, nothing should start using it.
+    Stop leaving plausible-looking values there.
+    It would be nice to remove entirely, but that would
+    require a new version number for the object file format,
+    in order not to break external readers like debug/gosym.
+    It's easier to leave and poison.
+    
+    I came across an old mail thread suggesting we start using it
+    to speed up tracebacks. I want to make sure that doesn't happen.
+    
+    (The values there were never quite right, and the number is
+    fundamentally PC-specific anyway.)
+    
+    Change-Id: Iaf38e8a6b523cbae30b69c28497c4588ef397519
+    Reviewed-on: https://go-review.googlesource.com/6890
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/ld/pcln.go | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)

@@ -1,0 +1,15 @@
+commit 019754ed4036f9ddc7514c78548fe77a606464db
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 00:29:36 2013 -0400
+
+    encoding/xml: fix spurious "no semicolon" in error
+    
+    Noticed while doing other XML investigations.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7550045
+
+ src/pkg/encoding/xml/xml.go      |  2 +-
+ src/pkg/encoding/xml/xml_test.go | 13 ++++---------
+ 2 files changed, 5 insertions(+), 10 deletions(-)

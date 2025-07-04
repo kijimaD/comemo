@@ -1,0 +1,27 @@
+commit 16b38b554fb4dae82923cb81a5c6a76ee2959d2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 7 00:40:07 2009 -0700
+
+    add path.Clean and other utilities.
+    
+    use path.Clean in web server to sanitize URLs.
+    
+    http://triv/go/../../../etc/passwd
+    
+    no longer serves the password file.
+    it redirects to
+    
+    http://triv/etc/passwd
+    
+    which then gets a 404.
+    
+    R=r
+    DELTA=288  (286 added, 0 deleted, 2 changed)
+    OCL=27142
+    CL=27152
+
+ src/lib/Makefile       |   3 +-
+ src/lib/http/server.go |  31 ++++++++++-
+ src/lib/path.go        | 139 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/path_test.go   | 119 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 290 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 000636fdb58c9444b17e54977382dc1d6357e8c3
+Author: Povilas Versockas <p.versockas@gmail.com>
+Date:   Sun May 10 12:19:05 2020 +0300
+
+    internal/trace: add license header to writer.go
+    
+    Change-Id: I9f23490a565b81b155642fe301f897c1d0af03fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232810
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/internal/trace/writer.go | 4 ++++
+ 1 file changed, 4 insertions(+)

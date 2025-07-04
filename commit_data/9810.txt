@@ -1,0 +1,14 @@
+commit 7b1c1811a5a7b989da3d192f291ecfa6ca061d5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 27 09:40:01 2011 -0400
+
+    crypto/elliptic: use %x consistently in error print
+    
+    Fixes #2308.
+    
+    R=agl, gri
+    CC=golang-dev
+    https://golang.org/cl/5121052
+
+ src/pkg/crypto/elliptic/elliptic_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 83765d135fd0e06b8871123df8151d7970b32f29
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Mar 2 20:31:20 2016 +0100
+
+    fmt: optimize string truncation
+    
+    Count only the runes up to the requested precision
+    to decide where to truncate a string.
+    
+    Change the loop within truncate to need fewer jumps.
+    
+    name                     old time/op  new time/op  delta
+    SprintfTruncateString-2   188ns ± 3%   155ns ± 3%  -17.43%  (p=0.000 n=20+20)
+    
+    Change-Id: I17ca9fc0bb8bf7648599df48e4785251bbc31e99
+    Reviewed-on: https://go-review.googlesource.com/20098
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 10 ++++++++++
+ src/fmt/format.go   |  9 ++++-----
+ 2 files changed, 14 insertions(+), 5 deletions(-)

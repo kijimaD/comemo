@@ -1,0 +1,24 @@
+commit 272ec231b722c5aa5eacf9c86ba30206fde3dd5e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Feb 11 20:06:54 2017 +0100
+
+    strings: make parameters names less confusing
+    
+    Using 'sep' as parameter name for strings functions that take a
+    separator argument is fine, but for functions like Index or Count that
+    look for a substring it's better to use 'substr' (like Contains
+    already does).
+    
+    Fixes #19039
+    
+    Change-Id: Idd557409c8fea64ce830ab0e3fec37d3d56a79f0
+    Reviewed-on: https://go-review.googlesource.com/36874
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go         | 28 ++++++++++++++--------------
+ src/strings/strings_amd64.go   | 26 +++++++++++++-------------
+ src/strings/strings_generic.go | 16 ++++++++--------
+ src/strings/strings_s390x.go   | 26 +++++++++++++-------------
+ 4 files changed, 48 insertions(+), 48 deletions(-)

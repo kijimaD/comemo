@@ -1,0 +1,22 @@
+commit bee42067649390557c772c561e02d46b3f066fe3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 22:19:16 2016 -0400
+
+    runtime: have typelinksinit work forwards
+    
+    For reasons I have forgotten typelinksinit processed modules backwards.
+    (I suspect this was an attempt to process types in the executing
+    binary first.)
+    
+    It does not appear to be necessary, and it is not the order we want
+    when a module can be loaded at an arbitrary point during a program's
+    execution as a plugin. So reverse the order.
+    
+    While here, make it safe to call typelinksinit multiple times.
+    
+    Change-Id: Ie10587c55c8e5efa0542981efb6eb3c12dd59e8c
+    Reviewed-on: https://go-review.googlesource.com/27822
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/type.go | 39 +++++++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)

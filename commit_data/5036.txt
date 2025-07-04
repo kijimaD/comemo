@@ -1,0 +1,12 @@
+commit 2a62195153ecd2440b5f64a2e3cb0ff8e4192a76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 10 17:04:43 2010 -0800
+
+    math package: minor documentation fix
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/424041
+
+ src/pkg/math/erf.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

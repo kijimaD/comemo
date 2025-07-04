@@ -1,0 +1,19 @@
+commit a881409960a2a8117c99dcc0c91ab74885a3c53a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 10 20:14:15 2021 +0000
+
+    runtime: rewrite TestPhysicalMemoryUtilization
+    
+    This test changes TestPhysicalMemoryUtilization to be simpler, more
+    robust, and more honest about what's going on.
+    
+    Fixes #49411.
+    
+    Change-Id: I913ef055c6e166c104c62595c1597d44db62018c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362978
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/testdata/testprog/gc.go | 121 ++++++++++++++++--------------------
+ 1 file changed, 53 insertions(+), 68 deletions(-)

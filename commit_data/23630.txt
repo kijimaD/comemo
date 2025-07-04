@@ -1,0 +1,25 @@
+commit d5004ee69e117936890bf85b924c38f3bb505a6d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 6 10:34:01 2015 +1000
+
+    runtime: use AddVectoredContinueHandler on Windows XP amd64
+    
+    Recent change (CL 10370) unexpectedly broke TestRaiseException on
+    Windows XP amd64. I still do not know why. But reverting old
+    CL 8165 fixes the problem.
+    
+    This effectively makes Windows XP amd64 use AddVectoredContinueHandler
+    instead of SetUnhandledExceptionFilter for exception handling. That is
+    what we do for all recent Windows versions too.
+    
+    Fixes #11481
+    
+    Change-Id: If2e8037711f05bf97e3c69f5a8d86af67c58f6fc
+    Reviewed-on: https://go-review.googlesource.com/11888
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_windows.go    | 8 --------
+ src/runtime/signal_windows.go | 8 ++------
+ 2 files changed, 2 insertions(+), 14 deletions(-)

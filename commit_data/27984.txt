@@ -1,0 +1,20 @@
+commit cd5ab9798612a08fd39e29ccd6bc10112d1bef0a
+Author: Dhaivat Pandit <dhaivatpandit@gmail.com>
+Date:   Mon Aug 22 10:29:02 2016 -0700
+
+    net/http/httptest: updated example to use Result()
+    
+    example for httptest.Recorder was inspecting Recoder directly.
+    Using Result() to convert Recorder into a http.Response yields a much
+    better user experience.
+    
+    Closes #16837
+    
+    Change-Id: Id0e636c12cd6adb1ba11f89953ff2b0f43758cf3
+    Reviewed-on: https://go-review.googlesource.com/27495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/example_test.go | 16 +++++++++++++---
+ src/net/http/httptest/recorder.go     |  3 +++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

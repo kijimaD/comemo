@@ -1,0 +1,19 @@
+commit a14e7bf6d42d9a8b0d698c0a47422c12e38b3f6c
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Tue Nov 17 18:28:38 2020 -0500
+
+    go/ast: document invalid comment end positions with CRLF line endings
+    
+    We've decided that issues like golang/go#41197 are unfixable, so
+    instead, document the bug.
+    
+    Fixes golang/go#41197
+    
+    Change-Id: I5649027f6e2445eec765516f2f642db0d601ea20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270938
+    Trust: Rebecca Stambler <rstambler@golang.org>
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go | 5 +++++
+ 1 file changed, 5 insertions(+)

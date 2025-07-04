@@ -1,0 +1,15 @@
+commit 3e57b17dc3e490a773570b49897876ea198c24fb
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 19:28:42 2015 -0400
+
+    runtime: fix comment for assistRatio
+    
+    The comment for assistRatio claimed it to be the reciprocal of what it
+    actually is.
+    
+    Change-Id: If7f9bb853d75d0097facff3aa6704b224d9108b8
+    Reviewed-on: https://go-review.googlesource.com/15402
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

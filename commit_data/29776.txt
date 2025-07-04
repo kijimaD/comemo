@@ -1,0 +1,14 @@
+commit 2eb976eb2a040d3dd7b38f9d7e22dab2ee2a9ef0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 8 15:38:14 2016 -0500
+
+    doc/go1.8: mention trace tool changes
+    
+    Fixes #18234.
+    
+    Change-Id: I0f18992ea14e13f283873ac295f0b49d6b7dd8b2
+    Reviewed-on: https://go-review.googlesource.com/34191
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ doc/go1.8.html | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

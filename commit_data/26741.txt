@@ -1,0 +1,12 @@
+commit fd2bb1e30ae2f489e05ec022a8457a680663c27d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:39:47 2016 +0000
+
+    runtime: rename os1_windows.go to os_windows.go
+    
+    Change-Id: I11172f3d0e28f17b812e67a4db9cfe513b8e1974
+    Reviewed-on: https://go-review.googlesource.com/21565
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/{os1_windows.go => os_windows.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

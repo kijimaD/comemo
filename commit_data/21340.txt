@@ -1,0 +1,15 @@
+commit c39d6692306e479ebd9282f1195206abdd424853
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 25 19:01:58 2015 -0500
+
+    archive/tar: set Header.Mode in example
+    
+    Creating a tar containing files with 0000 permission bits is
+    not going to be useful.
+    
+    Change-Id: Ie489c2891c335d32270b18f37b0e32ecdca536a6
+    Reviewed-on: https://go-review.googlesource.com/3271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

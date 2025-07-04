@@ -1,0 +1,28 @@
+commit 9cdcb01320d9a866e46a2daedb9bde16e0d51278
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Oct 24 13:10:13 2023 -0700
+
+    runtime/pprof: include labels for caller of goroutine profile
+    
+    The goroutine profile has close to three code paths for adding a
+    goroutine record to the goroutine profile: one for the goroutine that
+    requested the profile, one for every other goroutine, plus some special
+    handling for the finalizer goroutine. The first of those captured the
+    goroutine stack, but neglected to include that goroutine's labels.
+    
+    Update the tests to check for the inclusion of labels for all three
+    types of goroutines, and include labels for the creator of the goroutine
+    profile.
+    
+    For #63712
+    
+    Change-Id: Id5387a5f536d3c37268c240e0b6db3d329a3d632
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mprof.go            |  3 +++
+ src/runtime/pprof/pprof_test.go | 37 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)

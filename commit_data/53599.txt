@@ -1,0 +1,19 @@
+commit 413e6c0499cfc29a0306ebc27160eca32882089c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Jun 20 13:58:56 2023 +0800
+
+    cmd/compile/internal/ir: typo
+    
+    n.TypeCheck() == 3 is never true now, in n.SetTypecheck(x), when x > 2,
+    it panic.
+    
+    Change-Id: Ic876680435d4536eb63dcedee20a07ccdf918b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/node.go | 1 -
+ 1 file changed, 1 deletion(-)

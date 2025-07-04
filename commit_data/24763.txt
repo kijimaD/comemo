@@ -1,0 +1,13 @@
+commit 1b4d28f8cf48f6d8cf346adc1d3cbd0ede338558
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 2 22:25:57 2015 +1200
+
+    cmd/link, runtime: arm implementation of addmoduledata
+    
+    Change-Id: I3975e10c2445e23c2798a7203a877ff2de3427c7
+    Reviewed-on: https://go-review.googlesource.com/14189
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/arm/asm.go | 75 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/asm_arm.s            | 11 ++++++
+ 2 files changed, 86 insertions(+)

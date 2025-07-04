@@ -1,0 +1,18 @@
+commit d3252a2db9b8e1b6cff26dd4d2721cedc91378dc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 02:01:55 2015 +1000
+
+    cmd/internal/gc: fix race build (again)
+    
+    Add OGETG to the list of ignored operations.
+    
+    We don't instrument the runtime package, but calls to runtime.getg
+    can appear in other packages, for example, after inlining
+    runtime.LockOSThread.
+    
+    Change-Id: I8d6e91f1f3c8fd1302b596bdead42d588c059911
+    Reviewed-on: https://go-review.googlesource.com/8553
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/internal/gc/racewalk.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

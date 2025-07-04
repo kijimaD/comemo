@@ -1,0 +1,24 @@
+commit 7e424ecdc106be705ac9b114871bc6d34cecb622
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 15:59:05 2014 -0500
+
+    cmd/5l,6l,8l: remove bogus dynsym section indexes
+    
+    Previously, this code generated bogus section indexes for dynamic
+    symbols.  It turns out this didn't matter, since we only emit these
+    when generating an executable and in an executable it only matters
+    whether a symbol is defined or undefined, but it leads to perplexing
+    code full of mysterious constants.
+    
+    Unfortunately, this happens too early to put in real section indexes,
+    so just use section index 1 to distinguish the symbol from an
+    undefined symbol.
+    
+    Change-Id: I0e514604bf31f21683598ebd3e020b66acf767ef
+    Reviewed-on: https://go-review.googlesource.com/1720
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/asm.c | 20 ++------------------
+ src/cmd/6l/asm.c | 20 ++------------------
+ src/cmd/8l/asm.c | 20 ++------------------
+ 3 files changed, 6 insertions(+), 54 deletions(-)

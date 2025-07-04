@@ -1,0 +1,33 @@
+commit cd6619d2e69162295b42a5952b4316bb80ec2049
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 9 12:39:36 2016 -0800
+
+    cmd/compile: remove remaining nodeSeqIterate calls
+    
+    Mix in several other minor cleanups, including adding some new methods
+    to Nodes: Index, Addr, SetIndex, SetNodes.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I8bd4ae3fde7c5e20ba66e7dd1654fbc70c3ddeb8
+    Reviewed-on: https://go-review.googlesource.com/20491
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |   9 +-
+ src/cmd/compile/internal/gc/cgen.go      |   8 +-
+ src/cmd/compile/internal/gc/dcl.go       |  17 +--
+ src/cmd/compile/internal/gc/esc.go       |  91 ++++++++-------
+ src/cmd/compile/internal/gc/fmt.go       |  12 +-
+ src/cmd/compile/internal/gc/inl.go       |  37 +++---
+ src/cmd/compile/internal/gc/order.go     |  60 +++++-----
+ src/cmd/compile/internal/gc/racewalk.go  |  26 +++--
+ src/cmd/compile/internal/gc/range.go     |  17 +--
+ src/cmd/compile/internal/gc/select.go    |  14 +--
+ src/cmd/compile/internal/gc/ssa.go       |  10 +-
+ src/cmd/compile/internal/gc/swt.go       |  52 ++++-----
+ src/cmd/compile/internal/gc/syntax.go    | 134 +++++-----------------
+ src/cmd/compile/internal/gc/typecheck.go | 186 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/walk.go      |  62 +++++------
+ 15 files changed, 327 insertions(+), 408 deletions(-)

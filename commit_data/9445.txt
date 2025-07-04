@@ -1,0 +1,14 @@
+commit d883f29309e867e97d30df96df246c3d41bf1f92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 22 14:06:07 2011 -0700
+
+    godoc: add dummy playground.js to silence godoc warning at start-up
+    
+    Fixes #2173.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4941044
+
+ doc/play/playground.js | 6 ++++++
+ 1 file changed, 6 insertions(+)

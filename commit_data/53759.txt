@@ -1,0 +1,23 @@
+commit 2eca0b1e1663d826893b6b1fd8bd89da98e65d1e
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Jul 21 18:49:09 2023 +0000
+
+    testing: enforce -skip in example tests
+    
+    The go test flag -skip had no effect in example tests.
+    
+    Fixes #61482
+    
+    Change-Id: I28dfddb88fef3fead2a3c74f9cb63a674a768231
+    GitHub-Last-Rev: e8c3c3460af906f4c7be7f7a8b4a4c60b71fcec1
+    GitHub-Pull-Request: golang/go#61491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511837
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_skip.txt | 10 ++++++++++
+ src/testing/example.go                   | 10 +++-------
+ 2 files changed, 13 insertions(+), 7 deletions(-)

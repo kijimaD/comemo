@@ -1,0 +1,16 @@
+commit 287967f74c9d937b1075a648be5fd9247283cef6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 21 13:59:30 2014 +1100
+
+    doc/go_faq.html: update description of stack management
+    They aren't segmented any more, at least with gc.
+    Also improve the comparison of goroutines and threads.
+    Fixes #7373.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/77950044
+
+ doc/go_faq.html | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

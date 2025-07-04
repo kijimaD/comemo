@@ -1,0 +1,18 @@
+commit 39e22f04231511f2448897e3c392e98cdbf7abea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 16:55:31 2017 -0700
+
+    cmd/compile: pass in importpkg to importer rather than rely on global
+    
+    First step towards removing global var importpkg.
+    
+    Change-Id: Ifdda7c295e5720a7ff2da9baea17f03f190d48fa
+    Reviewed-on: https://go-review.googlesource.com/38594
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 78 +++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/export.go  |  2 +-
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ 3 files changed, 42 insertions(+), 40 deletions(-)

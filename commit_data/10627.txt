@@ -1,0 +1,15 @@
+commit ee8b597b1f1ffa634189cdd8ab23f976f65dab7f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 6 12:47:12 2011 -0800
+
+    html/template: simplify ExecuteTemplate a little
+    Allow the text template to handle the error case of no template
+    with the given name.
+    Simplification suggested by Mike Samuel.
+    
+    R=mikesamuel
+    CC=golang-dev
+    https://golang.org/cl/5437147
+
+ src/pkg/html/template/template.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 71c4244430a1fce2878f29537ef8c00f0d5a736f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 13:44:39 2010 -0400
+
+    5l: handle jump to middle of floating point sequence
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2473042
+
+ src/cmd/5l/softfloat.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

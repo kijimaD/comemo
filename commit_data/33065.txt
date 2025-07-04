@@ -1,0 +1,16 @@
+commit 70576947fdc74261577bfeeb0c5c03d2afffd4f0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 11 16:05:10 2017 -0400
+
+    test: skip issue22200b.go on mipsle
+    
+    It should be skipped on 32-bit architectures.
+    
+    Change-Id: If7a64b9e90e47c3e8734dd62729bfd2944ae926c
+    Reviewed-on: https://go-review.googlesource.com/70071
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue22200b.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

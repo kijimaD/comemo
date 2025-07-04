@@ -1,0 +1,23 @@
+commit c8981c718b50352e66cb4b08ed5682af1c1a5d75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 7 12:24:20 2012 -0800
+
+    go/parser: better error synchronization
+    
+    gofmt reports now a single, accurate error for
+    the test case of issue 3106.
+    
+    Also: Added test harness for general error
+    checking and two test cases for now.
+    
+    Fixes #3106.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5755062
+
+ src/pkg/go/parser/error_test.go          | 163 +++++++++++++++++++++++++++++++
+ src/pkg/go/parser/parser.go              |  94 +++++++++++++-----
+ src/pkg/go/parser/testdata/commas.src    |  19 ++++
+ src/pkg/go/parser/testdata/issue3106.src |  46 +++++++++
+ 4 files changed, 299 insertions(+), 23 deletions(-)

@@ -1,0 +1,18 @@
+commit d0a978f5b503028bb9c34944edb59e52c4070f6f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 11:44:09 2017 +1100
+
+    cmd/link: reorder pe sections
+    
+    dwarf writing code assumes that dwarf sections follow
+    .data and .bss, not .ctors. Make pe section writing code
+    match that assumption.
+    
+    For #10776.
+    
+    Change-Id: I128c3ad125f7d0db19e922f165704a054b2af7ba
+    Reviewed-on: https://go-review.googlesource.com/36980
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

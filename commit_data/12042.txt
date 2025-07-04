@@ -1,0 +1,48 @@
+commit fc0dc040954b7a8479c978ff06fe6ea4219d1542
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 13:19:43 2012 +1100
+
+    test: [a-c]: add introductory comments to tests
+    Very few of the compiler regression tests include a comment
+    saying waht they do. Many are obvious, some are anything but.
+    I've started with a-c in the top directory. More will follow once
+    we agree on the approach, correctness, and thoroughness here.
+    zerodivide.go sneaked in too.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5656100
+
+ test/235.go        | 3 +++
+ test/alias.go      | 5 +++--
+ test/alias1.go     | 4 ++--
+ test/append.go     | 2 +-
+ test/args.go       | 2 ++
+ test/assign.go     | 3 +++
+ test/assign1.go    | 3 +++
+ test/bigalg.go     | 2 ++
+ test/bigmap.go     | 2 ++
+ test/blank.go      | 2 ++
+ test/blank1.go     | 3 +++
+ test/chancap.go    | 2 ++
+ test/char_lit.go   | 4 +++-
+ test/char_lit1.go  | 3 +++
+ test/closure.go    | 2 ++
+ test/cmp.go        | 2 ++
+ test/cmp6.go       | 3 +++
+ test/cmplx.go      | 3 +++
+ test/complit.go    | 2 ++
+ test/complit1.go   | 3 +++
+ test/compos.go     | 2 ++
+ test/const.go      | 2 ++
+ test/const1.go     | 3 +++
+ test/const2.go     | 3 +++
+ test/const3.go     | 2 ++
+ test/convert.go    | 2 ++
+ test/convert1.go   | 3 +++
+ test/convert3.go   | 3 +++
+ test/convlit.go    | 7 ++++---
+ test/convlit1.go   | 3 +++
+ test/copy.go       | 2 +-
+ test/zerodivide.go | 2 ++
+ 32 files changed, 79 insertions(+), 10 deletions(-)

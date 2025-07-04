@@ -1,0 +1,18 @@
+commit a414fd791172de8f53eb93d495a00d63514db951
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Feb 28 11:47:39 2024 +0000
+
+    crypto/internal/bigmod: remove unused ctGeq
+    
+    Change-Id: I6d76fe4a307be0f976ccaeeedb6f08d672ae4851
+    GitHub-Last-Rev: a9554cdb47489b9160d3f03efd41898b244f13d0
+    GitHub-Pull-Request: golang/go#65992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/crypto/internal/bigmod/nat.go | 8 --------
+ 1 file changed, 8 deletions(-)

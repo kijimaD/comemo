@@ -1,0 +1,22 @@
+commit bc0a033266eeaed189a5c77becd45b861fd245f5
+Author: bqyang <clamyang2018@gmail.com>
+Date:   Wed Aug 31 08:28:13 2022 +0000
+
+    runtime: fix comment typo in mpagealloc.go
+    
+    leve --> level
+    
+    Change-Id: Ia5ff46c79c4dda2df426ec75d69e8fcede909b47
+    GitHub-Last-Rev: e57cad22d99b74c7e220f4d5a7b03a830544aea9
+    GitHub-Pull-Request: golang/go#54788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426974
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mpagealloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

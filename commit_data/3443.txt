@@ -1,0 +1,14 @@
+commit 38dae338f638b2df8b166ab8d7b066460d6ec660
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 5 15:17:30 2009 -0700
+
+    add a little more saturation to the background of <pre> so it doesn't disappear on bright monitors.
+    verified as acceptable on my calibrated home monitor.
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35340
+    CL=35342
+
+ doc/style.css | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

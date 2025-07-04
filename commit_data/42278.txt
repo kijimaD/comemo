@@ -1,0 +1,19 @@
+commit 0e617d3d5c7e89b1ad1b0285fc77314b8d056211
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue May 5 15:30:22 2020 -0400
+
+    net/http: update link to chrome documentation on connection management
+    
+    The previous link at
+    https://insouciant.org/tech/connection-management-in-chromium/ is no
+    longer accessible. This CL changes it to
+    https://www.chromium.org/developers/design-documents/network-stack#TOC-Connection-Management.
+    
+    Fixes #38885.
+    
+    Change-Id: I0881e72fe0c099294ab137b5e2d0c3f5763978f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

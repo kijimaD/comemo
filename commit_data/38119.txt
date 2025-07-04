@@ -1,0 +1,19 @@
+commit fa8a3f3080bdc59d18f3c093e8239bf34e976906
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 27 12:25:59 2019 -0500
+
+    cmd/link: do not close over the loop variable in testDWARF
+    
+    Fixes #30429
+    Updates #16520
+    Updates #20733
+    
+    Change-Id: Iae41f06c09aaaed500936f5496d90cefbe8293e4
+    Reviewed-on: https://go-review.googlesource.com/c/164119
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/dwarf_test.go | 1 +
+ 1 file changed, 1 insertion(+)

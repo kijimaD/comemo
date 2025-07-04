@@ -1,0 +1,13 @@
+commit abe53f8766408c05aa9b3557105c416434acbdc4
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 25 10:54:09 2014 -0500
+
+    doc/go1.3: note a couple more crypto changes.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68600043
+
+ doc/go1.3.txt | 2 ++
+ 1 file changed, 2 insertions(+)

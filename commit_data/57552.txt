@@ -1,0 +1,21 @@
+commit de46eaadb5fb75dba66e90aaf1faf2b7a0443815
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 27 09:42:41 2024 -0700
+
+    go/types, types2: replace 2 uses of Scope.LookupParent with Checker.lookup
+    
+    A step towards removing reliance on Scope.LookupParent.
+    
+    Updates #69673.
+    
+    Change-Id: I9fdd4b08ea600b531b90895ac779fdc580ff00e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616259
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 4 ++--
+ src/go/types/call.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

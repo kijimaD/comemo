@@ -1,0 +1,34 @@
+commit b14cf3d93ae5c477dd35f13f6ba41044f01a7f7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 09:54:39 2022 -0500
+
+    sync/atomic: allow linked list of atomic pointers again
+    
+    For #56603, CL 448275 added a _ [0]T field to atomic.Pointer,
+    so that different kinds of atomic.Pointer are not convertible.
+    
+    Unfortunately, that breaks code like:
+    
+            type List struct {
+                    Next atomic.Pointer[List]
+            }
+    
+    which should be valid, just as using Next *List is valid.
+    Instead, we get:
+    
+            ./atomic_test.go:2533:6: invalid recursive type List
+                    ./atomic_test.go:2533:6: List refers to
+                    ./atomic_test.go:2534:13: "sync/atomic".Pointer refers to
+                    ./atomic_test.go:2533:6: List
+    
+    Fix by using _[0]*T instead.
+    
+    Change-Id: Icc4c83c691d35961d20cb14b824223d6c779ac5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450655
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/sync/atomic/atomic_test.go | 6 ++++++
+ src/sync/atomic/type.go        | 5 +++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

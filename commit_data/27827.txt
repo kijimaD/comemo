@@ -1,0 +1,17 @@
+commit fe27291c0039d4de0748ebd512cb236ca3c24ff6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 15 21:09:39 2016 -0700
+
+    cmd/compile: reduce garbage from autolabel
+    
+    Follow-up to CL 26661
+    
+    Change-Id: I67c58d17313094675cf0f30ce50d486818ae0dcb
+    Reviewed-on: https://go-review.googlesource.com/27113
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go  | 2 +-
+ src/cmd/compile/internal/gc/subr.go | 9 +++++++--
+ src/cmd/compile/internal/gc/swt.go  | 4 ++--
+ 3 files changed, 10 insertions(+), 5 deletions(-)

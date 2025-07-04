@@ -1,0 +1,17 @@
+commit 479c47e47801fe6af6fd11c203f5150d8b70581e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 15 17:20:05 2015 +0000
+
+    net/http: maybe deflake TestCancelRequestMidBody_h2 on linux-noopt builder
+    
+    This might deflake it. Or it'll at least give us more debugging clues.
+    
+    Fixes #13626 maybe
+    
+    Change-Id: Ie8cd0375d60dad033ec6a64830a90e7b9152a3d9
+    Reviewed-on: https://go-review.googlesource.com/17825
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

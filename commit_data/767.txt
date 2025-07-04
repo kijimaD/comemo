@@ -1,0 +1,15 @@
+commit 489b5001e22ceb1faf7624a70d17247f0b15113d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 29 13:40:23 2008 -0700
+
+    Use unsigned int in itoa to avoid relying on the behaviour of
+    signed integer overflow when negating the most negative
+    integer.
+    
+    R=rsc
+    DELTA=11  (0 added, 7 deleted, 4 changed)
+    OCL=16105
+    CL=16120
+
+ src/lib/strings.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

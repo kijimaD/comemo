@@ -1,0 +1,16 @@
+commit a909e4ba1e2044d33429d732f879a0c27bf977c2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Mar 24 11:38:57 2013 +0100
+
+    cmd/cc: fix typo leading to index out of range.
+    
+    Detected by GCC static analysis.
+    
+    Fixes #5117.
+    
+    R=golang-dev, ality, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7665047
+
+ src/cmd/cc/funct.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

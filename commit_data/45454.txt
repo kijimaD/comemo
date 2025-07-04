@@ -1,0 +1,28 @@
+commit 89bf297b2486adaaff04be154a066ea9f5e63994
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 29 21:49:15 2021 -0400
+
+    cmd/internal/objfile: emit better error for Go object of a different version
+    
+    The Go object file format can change from version to version.
+    Tools like cmd/objdump and cmd/nm only onderstand the current
+    version of the object file. Currently, when it encounters an
+    object built with a different version of the toolchain, it emits
+    a generic error "unrecognized object file", which is not very
+    helpful for users. This CL makes it emit a clearer error. Now it
+    emits
+    
+    objdump: open go116.o: go object of a different version: go116ld
+    
+    Change-Id: I063c6078ed1da78f97cea65796779ae093a1a8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315609
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/archive/archive.go |  11 ++++++++++-
+ src/cmd/internal/objfile/objfile.go |   3 +++
+ src/cmd/objdump/objdump_test.go     |  15 +++++++++++++++
+ src/cmd/objdump/testdata/go116.o    | Bin 0 -> 478 bytes
+ 4 files changed, 28 insertions(+), 1 deletion(-)

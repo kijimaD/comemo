@@ -1,0 +1,20 @@
+commit 18f273ff92d3c4c6a327ee04f1cc0aee6e36d28c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 16 23:14:34 2015 +0900
+
+    cmd/dist: don't use "uname -v" to recognize GOHOSTARCH
+    
+    We can use processor architecture or hardware platform as part of
+    hostname and it leads to misconfiguration of GOHOSARCH.
+    
+    For example,
+    
+    $ uname -m -v
+    FreeBSD 10.1-RELEASE-p5 #0: Tue Jan 27 08:52:50 UTC 2015 root@amd64-builder.daemonology.net:/usr/obj/usr/src/sys/GENERIC i386
+    
+    Change-Id: I499efd98338beff6a27c03f03273331ecb6fd698
+    Reviewed-on: https://go-review.googlesource.com/4944
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/dist/util.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

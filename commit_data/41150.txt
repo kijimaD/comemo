@@ -1,0 +1,21 @@
+commit 82a2f825b7163eafebbf9b8640ef6406e4dda9a9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:42:07 2020 +1100
+
+    runtime: add missing code for linux/riscv64
+    
+    Makes linux/riscv64 runtime buildable.
+    
+    Updates #27532
+    
+    Change-Id: I91bcadaaecb8ff3ffd70fcb437b2b6e4bbe11eda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215839
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mkpreempt.go        | 6 ++++++
+ src/runtime/mpagealloc_64bit.go | 2 +-
+ src/runtime/os_linux_riscv64.go | 7 +++++++
+ src/runtime/preempt_riscv64.s   | 8 ++++++++
+ 4 files changed, 22 insertions(+), 1 deletion(-)

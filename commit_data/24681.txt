@@ -1,0 +1,48 @@
+commit f5f480e1df6b394ebc71eb3c1ba2b4c91c232425
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Wed Oct 28 12:58:58 2015 +0200
+
+    os: reduce allocations in Readdir on unix
+    
+    Include syscall.Stat_t on unix to the
+    unexported fileStat structure rather than
+    accessing it though an interface.
+    
+    Additionally add a benchmark for Readdir
+    (and Readdirnames).
+    
+    Tested on linux, freebsd, netbsd, openbsd
+    darwin, solaris, does not touch windows
+    stuff. Does not change the API, as
+    discussed on golang-dev.
+    
+    E.g. on linux/amd64 with a directory of 65 files:
+    
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkReaddir-4     67774         66225         -2.29%
+    
+    benchmark              old allocs     new allocs     delta
+    BenchmarkReaddir-4     334            269            -19.46%
+    
+    benchmark              old bytes     new bytes     delta
+    BenchmarkReaddir-4     25208         24168         -4.13%
+    
+    Change-Id: I44ef72a04ad7055523a980f29aa11122040ae8fe
+    Reviewed-on: https://go-review.googlesource.com/16423
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file_unix.go                        | 25 +++++++++++-------
+ src/os/os_test.go                          | 42 ++++++++++++++++++++++++++++++
+ src/os/stat_darwin.go                      | 28 +++++++-------------
+ src/os/stat_dragonfly.go                   | 28 +++++++-------------
+ src/os/stat_freebsd.go                     | 28 +++++++-------------
+ src/os/stat_linux.go                       | 28 +++++++-------------
+ src/os/stat_nacl.go                        | 28 +++++++-------------
+ src/os/stat_netbsd.go                      | 28 +++++++-------------
+ src/os/stat_openbsd.go                     | 28 +++++++-------------
+ src/os/stat_solaris.go                     | 28 +++++++-------------
+ src/os/{types_notwin.go => types_plan9.go} |  6 +----
+ src/os/types_unix.go                       | 27 +++++++++++++++++++
+ 12 files changed, 158 insertions(+), 166 deletions(-)

@@ -1,0 +1,26 @@
+commit d9aca84da0556dea8a1c48e1bbd46f726dab9535
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 17:45:37 2023 -0700
+
+    cmd/compile: stop changing Field.Sym for parameters
+    
+    Field.Sym now always contains the original symbol as it appeared in Go
+    source, so we don't need OrigSym anymore.
+    
+    Instead, when the mangled name is desired, Field.Nname.Sym() can be
+    used instead, which is always non-nil if Nname is non-nil.
+    
+    Change-Id: I96cd61db6458d4a2e07ec5810239236e3dfba747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527516
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go  |  2 +-
+ src/cmd/compile/internal/escape/escape.go |  6 +++---
+ src/cmd/compile/internal/inline/inl.go    |  2 +-
+ src/cmd/compile/internal/noder/reader.go  |  3 +--
+ src/cmd/compile/internal/types/fmt.go     | 31 -------------------------------
+ src/cmd/compile/internal/walk/assign.go   |  2 +-
+ 6 files changed, 7 insertions(+), 39 deletions(-)

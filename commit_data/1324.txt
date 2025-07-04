@@ -1,0 +1,13 @@
+commit fa945d5bf887bb16b60ca3580bec10c739b524d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 11:58:45 2008 -0800
+
+    fix race with fresh perforce checkouts
+    
+    R=r
+    DELTA=15  (9 added, 0 deleted, 6 changed)
+    OCL=20977
+    CL=20981
+
+ src/cmd/gc/Makefile | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

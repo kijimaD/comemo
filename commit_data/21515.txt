@@ -1,0 +1,18 @@
+commit 810a499bda958617bcfc42f6a2dad4739a607604
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 16 01:23:56 2015 -0500
+
+    cmd/ld: restore .debug_gdb_script section after runtime reorganization
+    
+    On some systems, gdb refuses to load Python plugin from arbitrary
+    paths, so we have to add $GOROOT/src/runtime to auto-load-safe-path
+    in the gdb script test.
+    
+    Change-Id: Icc44baab8d04a65bd21ceac2ab8ddb13c8d083e8
+    Reviewed-on: https://go-review.googlesource.com/2905
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/ld/dwarf.c              |  4 ++--
+ src/runtime/runtime-gdb_test.go | 12 +++++++-----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

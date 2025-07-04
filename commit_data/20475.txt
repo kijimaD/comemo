@@ -1,0 +1,13 @@
+commit e4fa1e40354dfd1e16c2b1f912bfbbdc8c0dfa9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 16:53:35 2014 -0700
+
+    go/doc: document rationale for recent change
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/143290043
+
+ src/go/doc/exports.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

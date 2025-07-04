@@ -1,0 +1,30 @@
+commit 906a073b0badf3c76cb8225f376195da594fe5b4
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 30 16:44:31 2023 -0400
+
+    cmd/compile/internal/inline: analyze function param properties
+    
+    Add code to analyze properties of function params, specifically
+    heuristics to look for cases where unmodified params feed into "if"
+    and "switch" statements in ways that might enable constant folding
+    and/or dead code elimination if the call were inlined at a callsite
+    that passes a constant to the correct param. We also look for cases
+    where a function parameter feeds unmodified into an interface method
+    call or indirect call.
+    
+    Updates #61502.
+    
+    Change-Id: Iaf7297e19637daeabd0ec72be88d654b545546ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511561
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |   5 +-
+ .../internal/inline/inlheur/analyze_func_params.go | 259 ++++++++++++++++
+ .../compile/internal/inline/inlheur/eclassify.go   | 248 +++++++++++++++
+ .../internal/inline/inlheur/funcprops_test.go      |  12 +-
+ .../inline/inlheur/testdata/props/funcflags.go     |  89 +++---
+ .../inline/inlheur/testdata/props/params.go        | 344 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/returns.go       | 110 ++++---
+ .../internal/inline/inlheur/texpr_classify_test.go | 217 +++++++++++++
+ 8 files changed, 1191 insertions(+), 93 deletions(-)

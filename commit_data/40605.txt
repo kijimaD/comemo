@@ -1,0 +1,15 @@
+commit fb37821014fae9fe849689a900049361158111f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 5 08:06:28 2019 -0800
+
+    runtime/cgo: add -Wno-nullability-completeness on Darwin
+    
+    Fixes #35247
+    
+    Change-Id: I4f2e243c89e9f745b82bcd181add87fad1443171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/cgo/cgo.go | 3 +++
+ 1 file changed, 3 insertions(+)

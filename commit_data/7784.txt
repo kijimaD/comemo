@@ -1,0 +1,15 @@
+commit d3c61fc21466103693af76432664942c6661b6e2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 10:12:25 2011 -0700
+
+    testing: fix build
+    Dependency on bufio crept in during last CL; this breaks the cycle.
+    Also add a missing '-' to the documentation.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4274061
+
+ src/cmd/gotest/doc.go       | 2 +-
+ src/pkg/bufio/bufio_test.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit e95c41f30bef016c39f195c5a0e825c39f64f7fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 21 08:47:34 2013 -0700
+
+    go/format: fix documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/7920048
+
+ src/pkg/go/format/format.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

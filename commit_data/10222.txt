@@ -1,0 +1,14 @@
+commit d6ff3c11774bf36c797dcc6cd946819959766dc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 12:07:47 2011 -0400
+
+    gopack: do not look for Go metadata in non-Go objects
+    
+    Fixes #2333.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5316075
+
+ src/cmd/gopack/ar.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

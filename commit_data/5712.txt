@@ -1,0 +1,15 @@
+commit e0334ab798b573b0dc138d0d91c32a010e1490c0
+Author: Vinu Rajashekhar <vinutheraj@gmail.com>
+Date:   Mon Jun 28 13:58:56 2010 -0700
+
+    Move the functions, newPollServer and Run, from fd.go
+    to a new source file.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/1670046
+
+ src/pkg/net/Makefile         |  1 +
+ src/pkg/net/fd.go            | 75 --------------------------------------
+ src/pkg/net/newpollserver.go | 87 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+), 75 deletions(-)

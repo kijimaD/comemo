@@ -1,0 +1,13 @@
+commit cf06750372c054f0faa9c79f0f957a2114b68b46
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Fri Aug 3 14:46:20 2012 -0400
+
+    debug/elf: Add support for getting DynTag string table values.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6430064
+
+ src/pkg/debug/elf/file.go      | 31 ++++++++++++++++++++++---------
+ src/pkg/debug/elf/file_test.go | 11 +++++++++++
+ 2 files changed, 33 insertions(+), 9 deletions(-)

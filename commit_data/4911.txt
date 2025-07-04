@@ -1,0 +1,12 @@
+commit ed13d39972b0fa04512aba5f2c404a17f2b2f771
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 21 11:18:09 2010 -0800
+
+    gc: minor const simplifications
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/217069
+
+ src/cmd/gc/const.c | 47 +++++++++++++++--------------------------------
+ 1 file changed, 15 insertions(+), 32 deletions(-)

@@ -1,0 +1,16 @@
+commit 0dd0e1ad0c4fdd7e4090d588150628147b4171e3
+Author: Miquel Sabaté Solà <mikisabate@gmail.com>
+Date:   Tue Dec 11 12:23:04 2012 -0500
+
+    cmd/gc: merge casep and casee labels
+    
+    The code inside the casee and casep labels can perfectly be merged since
+    they essentially do the same. The character to be stored where cp points is
+    just the character contained by the c variable.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6845112
+
+ src/cmd/gc/lex.c | 37 +++++++------------------------------
+ 1 file changed, 7 insertions(+), 30 deletions(-)

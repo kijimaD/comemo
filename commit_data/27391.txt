@@ -1,0 +1,27 @@
+commit d8b08c3aa49d9aaac6ff34dbb8516040cc88a13a
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 11 14:57:33 2016 -0400
+
+    runtime: perform publication barrier even for noscan objects
+    
+    Currently we only execute a publication barrier for scan objects (and
+    skip it for noscan objects). This used to be okay because GC would
+    never consult the object itself (so it wouldn't observe uninitialized
+    memory even if it found a pointer to a noscan object), and the heap
+    bitmap was pre-initialized to noscan.
+    
+    However, now we explicitly initialize the heap bitmap for noscan
+    objects when we allocate them. While the GC will still never consult
+    the contents of a noscan object, it does need to see the initialized
+    heap bitmap. Hence, we need to execute a publication barrier to make
+    the bitmap visible before user code can expose a pointer to the newly
+    allocated object even for noscan objects.
+    
+    Change-Id: Ie4133c638db0d9055b4f7a8061a634d970627153
+    Reviewed-on: https://go-review.googlesource.com/23043
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

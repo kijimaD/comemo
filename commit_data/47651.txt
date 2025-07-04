@@ -1,0 +1,26 @@
+commit 0e1d553b4d98b71799b86b0ba9bc338de29b7dfe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 30 16:58:36 2021 +0700
+
+    cmd/compile: fix identical to recognize any and interface{}
+    
+    Currently, identical handles any and interface{} by checking against
+    Types[TINTER]. This is not always true, since when two generated
+    interface{} types may not use the same *Type instance.
+    
+    Instead, we must check whether Type is empty interface or not.
+    
+    Fixes #49875
+    
+    Change-Id: I28fe4fc0100041a01bb03da795cfe8232b515fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367754
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/identity.go |  3 ++-
+ src/cmd/compile/internal/types/type.go     |  3 ++-
+ test/typeparam/issue49875.go               | 14 ++++++++++++++
+ 3 files changed, 18 insertions(+), 2 deletions(-)

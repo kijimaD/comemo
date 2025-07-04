@@ -1,0 +1,18 @@
+commit 5b110c7b08946a2a2810cb4614c078c74645a3d1
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 6 09:30:41 2014 -0800
+
+    runtime: don't stop bitmap dump at BitsDead
+    
+    Stack bitmaps need to be scanned past any BitsDead entries.
+    
+    Object bitmaps will not have any BitsDead in them (bitmap extraction stops at
+    the first BitsDead entry in makeheapobjbv).  data/bss bitmaps also have no BitsDead entries.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/168270043
+
+ src/runtime/heapdump.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

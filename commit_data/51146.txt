@@ -1,0 +1,18 @@
+commit 0b7aa9fa5b207a3d9e2b1de2629babb6f5ce6e45
+Author: mantuliu <240951888@qq.com>
+Date:   Tue Oct 18 03:49:04 2022 +0000
+
+    cmd/asm: optimize if statement to return directly
+    
+    Change-Id: Iddf4d3bcc3bc2badf0d0f6b06375c901e76a40bb
+    GitHub-Last-Rev: 95586bfc1666985c270c3b4dcc827b0fd68d2bfa
+    GitHub-Pull-Request: golang/go#56268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/asm/internal/asm/parse.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

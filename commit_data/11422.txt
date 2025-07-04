@@ -1,0 +1,13 @@
+commit 109a9763550aac3071e30f6e13cb5ec1172aa017
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 26 16:23:29 2012 -0500
+
+    6c, 8c: make floating point code NaN-safe
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5569071
+
+ src/cmd/6c/cgen.c | 48 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/8c/cgen.c | 35 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 79 insertions(+), 4 deletions(-)

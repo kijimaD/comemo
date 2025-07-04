@@ -1,0 +1,13 @@
+commit aa7bd483893d7520c7265133baf45612a4672066
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 13:23:09 2009 -0700
+
+    bug183 - embedded vs non-embedded struct field in eqtype
+    
+    R=ken
+    OCL=32888
+    CL=32888
+
+ src/cmd/gc/subr.c        |  2 ++
+ test/fixedbugs/bug183.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

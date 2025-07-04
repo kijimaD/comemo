@@ -1,0 +1,20 @@
+commit 3873e5497d21979910a1ec7cf90a34577fa1f6ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 20 17:23:02 2019 -0400
+
+    runtime: don't async preempt NO_LOCAL_POINTERS assembly functions
+    
+    We don't async preempt assembly functions. We do that by checking
+    whether the function has a local pointer map, and assume it is
+    an assembly (or, non-Go) function if there isn't one. However,
+    assembly functions marked with NO_LOCAL_POINTERS still have local
+    pointer maps, and we wouldn't identify them. For them, check for
+    the special pointer map runtime.no_pointers_stackmap as well, and
+    treat them as not async preemptible.
+    
+    Change-Id: I1301e3b4d35893c31c4c5a5147a0d775987bd6f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202337
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/preempt.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,86 @@
+commit 4c6454aecf6cab5ad87616431a791343a91ef4b8
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 13 16:57:39 2011 -0700
+
+    exp/template/html: escape {{template}} calls and sets of templates
+    
+    This adds support for {{template "callee"}} calls.
+    It recognizes that calls can appear in many contexts.
+    
+    {{if .ImageURL}}
+        <img src="{{.ImageURL}}" alt="{{template "description"}}">
+    {{else}}
+        <p>{{template "description"}}</p>
+    {{end}}
+    
+    calls a template in two different contexts, first in an HTML attribute
+    context, and second in an HTML text context.
+    
+    Those two contexts aren't very different, but when linking text
+    to search terms, the escaping context can be materially different:
+    
+    <a href="/search?q={{template "tags"}}">{{template "tags"}}</a>
+    
+    This adds API:
+    EscapeSet(*template.Set, names ...string) os.Error
+    
+    takes a set of templates and the names of those which might be called
+    in the default context as starting points.
+    
+    It changes the escape* functions to be methods of an object which
+    maintains a conceptual mapping of
+    (template names*input context) -> output context.
+    
+    The actual mapping uses as key a mangled name which combines the
+    template name with the input context.
+    
+    The mangled name when the input context is the default context is the
+    same as the unmangled name.
+    
+    When a template is called in multiple contexts, we clone the template.
+    
+    {{define "tagLink"}}
+      <a href="/search?q={{template "tags"}}">{{template "tags"}}</a>
+    {{end}}
+    {{define "tags"}}
+      {{range .Tags}}{{.}},{{end}}
+    {{end}}
+    
+    given []string{ "foo", "O'Reilly", "bar" } produces
+    
+      <a href="/search?q=foo,O%27Reilly,bar">foo,O&#39;Reilly,bar</a>
+    
+    This involves rewriting the above to something like
+    
+    {{define "tagLink"}}
+      <a href="/search?q={{template "tags$1"}}">{{template "tags"}}</a>
+    {{end}}
+    {{define "tags"}}
+      {{range .Tags}}{{. | html}},{{end}}
+    {{end}}
+    {{define "tags$1"}}
+      {{range .Tags}}{{. | urlquery}},{{end}}
+    {{end}}
+    
+    clone.go provides a mechanism for cloning template "tags" to produce
+    "tags$1".
+    
+    changes to escape.go implement the new API and context propagation
+    around the call graph.
+    
+    context.go includes minor changes to support name mangling and
+    context_test.go tests those.
+    
+    js.go contains a bug-fix.
+    
+    R=nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/4969072
+
+ src/pkg/exp/template/html/Makefile       |   1 +
+ src/pkg/exp/template/html/clone.go       |  90 +++++++++++++
+ src/pkg/exp/template/html/clone_test.go  |  90 +++++++++++++
+ src/pkg/exp/template/html/context.go     |  23 ++++
+ src/pkg/exp/template/html/escape.go      | 213 +++++++++++++++++++++++++++----
+ src/pkg/exp/template/html/escape_test.go | 163 ++++++++++++++++++++++-
+ 6 files changed, 550 insertions(+), 30 deletions(-)

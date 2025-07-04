@@ -1,0 +1,31 @@
+commit 6db80d74200675e20c562684c0bcc6d12a5631eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 2 21:52:09 2021 -0800
+
+    cmd/compile/internal/types2: use correct recv for parameterized embedded methods
+    
+    Methods of generic types are instantiated lazily (upon use). Thus,
+    when we encounter a method of such a type, we need to instantiate
+    the method signature with the receiver type arguments. We infer
+    those type arguments from the method receiver. If the method is
+    embedded, we must use the actual embedded receiver type, otherwise
+    the receiver type declared with the method doesn't match up and
+    inference will fail.
+    
+    (Note that there's no type inference in the source code here, it's
+    only the implementation which uses the existing inference mechanism
+    to easily identify the actual type arguments. If the implementation
+    is correct, the inference will always succeed.)
+    
+    Updates #44688.
+    
+    Change-Id: Ie35b62bebaeaf42037f2ca00cf8bd34fec2ddd9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298129
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 33 +++++----
+ .../internal/types2/fixedbugs/issue44688.go2       | 83 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/selection.go       |  4 +-
+ 3 files changed, 106 insertions(+), 14 deletions(-)

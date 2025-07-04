@@ -1,0 +1,33 @@
+commit 831f9376d8d730b16fb33dfd775618dffe13ce7a
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 12 13:53:11 2021 -0800
+
+    net/http: fix ResponseWriter.ReadFrom with short reads
+    
+    CL 249238 changes ResponseWriter.ReadFrom to probe the source with
+    a single read of sniffLen bytes before writing the response header.
+    If the source returns less than sniffLen bytes without reaching
+    EOF, this can cause Content-Type and Content-Length detection to
+    fail.
+    
+    Fix ResponseWrite.ReadFrom to copy a full sniffLen bytes from
+    the source as a probe.
+    
+    Drop the explicit call to w.WriteHeader; writing the probe will
+    trigger a WriteHeader call.
+    
+    Consistently use io.CopyBuffer; ReadFrom has already acquired a
+    copy buffer, so it may as well use it.
+    
+    Fixes #44953.
+    
+    Change-Id: Ic49305fb827a2bd7da4764b68d64b797b5157dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301449
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go     |  40 ++++-----------
+ src/net/http/sniff_test.go | 122 +++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 107 insertions(+), 55 deletions(-)

@@ -1,0 +1,17 @@
+commit 65dc7dc90bece08e9810de12acf06f82cc6a6384
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 20 11:40:41 2012 -0700
+
+    sort: document two undocumented functions
+    
+    They looked out of place in godoc.
+    Includes documenting sort stability.
+    
+    Fixes #3356
+    
+    R=golang-dev, gri, trolleriprofessorn
+    CC=golang-dev
+    https://golang.org/cl/5855044
+
+ src/pkg/sort/sort.go | 3 +++
+ 1 file changed, 3 insertions(+)

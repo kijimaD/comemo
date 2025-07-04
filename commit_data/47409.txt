@@ -1,0 +1,18 @@
+commit 47b3ab5ede452a88c2da4c5eaf092b2d707d2ff4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 10 16:57:14 2021 -0500
+
+    doc/go1.18: add a release note for 'go mod vendor -o'
+    
+    For #47327
+    
+    Change-Id: I50418c0d017c4e90a2c13d26945ee639079e4e33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363174
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paschalis Tsilias <paschalistsilias@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,12 @@
+commit 0b4d8c19af1ce9268ebdca7d1a87a180335b8560
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Tue Feb 16 11:32:41 2010 -0800
+
+    cc: use "cpp" anywhere in path, not "/bin/cpp"
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206077
+
+ src/cmd/cc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

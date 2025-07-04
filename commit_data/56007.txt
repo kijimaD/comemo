@@ -1,0 +1,15 @@
+commit dc0527ee7de3a067aa1c3a1c2120b5ecf16b0aac
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 10 23:08:31 2024 +0800
+
+    net/http: add tests with zero and negative read/write timeouts
+    
+    Change-Id: I38ebd280c200b30692eb35640327034a5e898bd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570376
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/serve_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)

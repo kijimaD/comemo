@@ -1,0 +1,14 @@
+commit 3df059ece5d4c575abdf61b4b955f0ba292e5168
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 7 04:05:18 2016 +0000
+
+    net/http/fcgi: fix link to protocol docs
+    
+    Fixes #17815
+    
+    Change-Id: I766082d28a14c77f5dfb6cd1974b86cb0a8fe31a
+    Reviewed-on: https://go-review.googlesource.com/32852
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/http/fcgi/fcgi.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

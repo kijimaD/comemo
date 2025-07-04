@@ -1,0 +1,27 @@
+commit 098504c73ff6ece19566a1ac811ceed73be7c81d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 16 10:20:58 2021 -0500
+
+    cmd/link: generate trampoline for inter-dependent packages
+    
+    Currently, in the trampoline generation pass we expect packages
+    are laid out in dependency order, so a cross-package jump always
+    has a known target address so we can check if a trampoline is
+    needed. With linknames, there can be cycles in the package
+    dependency graph, making this algorithm no longer work. For them,
+    as the target address is unkown we conservatively generate a
+    trampoline. This may generate unnecessary trampolines (if the
+    packages turn out laid together), but package cycles are extremely
+    rare so this is fine.
+    
+    Updates #44073.
+    
+    Change-Id: I2dc2998edacbda27d726fc79452313a21d07787a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292490
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm/asm.go   | 16 +++++++++++-----
+ src/cmd/link/internal/ld/data.go   | 12 +++++-------
+ src/cmd/link/internal/ppc64/asm.go | 12 +++++++++---
+ 3 files changed, 25 insertions(+), 15 deletions(-)

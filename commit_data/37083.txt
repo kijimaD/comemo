@@ -1,0 +1,24 @@
+commit 9a7e70e34f98a8eea5d18083634b6e908b23e619
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 18 14:43:51 2018 -0400
+
+    cmd/compile: schedule OpArg earlier in blocks for better debugging
+    
+    The location list for OpArg starts where the OpArg appears;
+    this is not necessarily as soon as the OpArg coulde be
+    observed, and it is reasonable for a user to expect that
+    if a breakpoint is set "on f" then the arguments to f will
+    be observable where that breakpoint happens to be set (this
+    may also require setting the breakpoint after the prologue,
+    but that is another issue).
+    
+    Change-Id: I0a1b848e50f475e5d8a5fad781241126872a0400
+    Reviewed-on: https://go-review.googlesource.com/c/142819
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/schedule.go | 4 ++++
+ 1 file changed, 4 insertions(+)

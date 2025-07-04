@@ -1,0 +1,17 @@
+commit 30537789651be3e523bbdb4503f48a3b5b6ac48f
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 21 10:50:58 2012 -0500
+
+    cmd/*: add -d option to bison.
+    
+    Without -d, bison doesn't generate y.tab.h.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5685065
+
+ src/cmd/5a/Makefile | 2 +-
+ src/cmd/6a/Makefile | 2 +-
+ src/cmd/8a/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 61bf0d1c4033ef2cc6905c2ca6e03046cf54d2bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 12 18:23:34 2017 +1100
+
+    path/filepath: add test for directory junction walk
+    
+    For #10424.
+    
+    Change-Id: Ie4e87503b0ed04f65d2444652bd1db647d3529f4
+    Reviewed-on: https://go-review.googlesource.com/36851
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_windows_test.go | 42 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

@@ -1,0 +1,14 @@
+commit 5cb1c82d961a1b2e70b34492e51cc42292913781
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 14:22:41 2011 -0500
+
+    gc: remove type elision in struct literals
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5437136
+
+ src/cmd/gc/typecheck.c | 2 +-
+ test/complit.go        | 2 +-
+ test/complit1.go       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

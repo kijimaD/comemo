@@ -1,0 +1,12 @@
+commit 2ccd4e9f87662bb3bda4c8f23e3a0317fc189006
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 1 09:08:25 2013 -0800
+
+    sort: delete now-duplicate example, fix build
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7220075
+
+ src/pkg/sort/example_reverse_test.go | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

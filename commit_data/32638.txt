@@ -1,0 +1,16 @@
+commit 87dae58662c78c772cb210d685b354ae6916ef2d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Aug 30 11:14:40 2017 +0900
+
+    cmd/internal/goobj: add tests
+    
+    Change-Id: I4a0fe1c8625e7e9adfd84ac6910da83d0268f928
+    Reviewed-on: https://go-review.googlesource.com/60130
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/goobj_test.go   | 142 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/goobj/testdata/go1.go |  11 +++
+ src/cmd/internal/goobj/testdata/go2.go |  11 +++
+ 3 files changed, 164 insertions(+)

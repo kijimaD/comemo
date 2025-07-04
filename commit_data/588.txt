@@ -1,0 +1,13 @@
+commit 46eb0f7b08a93045dba6485ed365bc4ad7d33675
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 15:22:45 2008 -0700
+
+    limit tests to 4GB of memory.
+    3G works on thresher, 2G does not
+    
+    R=r
+    OCL=14956
+    CL=14958
+
+ test/run | 4 ++++
+ 1 file changed, 4 insertions(+)

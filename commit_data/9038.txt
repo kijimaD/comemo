@@ -1,0 +1,12 @@
+commit 7318664c222f9eef830569fb6e371187883f6702
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 12 17:44:59 2011 -0700
+
+    tag release.r58.1: adds OS X Lion support
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4702043
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

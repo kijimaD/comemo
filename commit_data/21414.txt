@@ -1,0 +1,15 @@
+commit 0381ba69da90d42b777a490171acc7d4eb63d71a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 27 19:50:00 2015 +1100
+
+    doc: remove redundant images
+    
+    These are no longer used by anything.
+    
+    Change-Id: I50c971418b07cafc983242833a196ba2028a2723
+    Reviewed-on: https://go-review.googlesource.com/3603
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/logo-153x55.png | Bin 3382 -> 0 bytes
+ doc/sieve.gif       | Bin 11019 -> 0 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

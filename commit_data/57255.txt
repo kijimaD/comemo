@@ -1,0 +1,46 @@
+commit 7f05a255a012db7ba15747bcc4b175ef5ecf926d
+Author: goto1134 <1134togo@gmail.com>
+Date:   Mon Aug 26 19:27:00 2024 +0000
+
+    cmd/go: scale go list with GOMAXPROCS
+    
+    Benchmark from the go-list-benchmark branch shows the following result:
+    
+    goos: darwin
+    goarch: arm64
+    pkg: cmd/go
+    cpu: Apple M1 Max
+                         │   old.txt   │               new.txt               │
+                         │   sec/op    │   sec/op     vs base                │
+    ListModules/Empty-10   7.768m ± 5%   7.768m ± 6%        ~ (p=0.989 n=20)
+    ListModules/Cmd-10     272.3m ± 2%   137.8m ± 2%  -49.40% (p=0.000 n=20)
+    ListModules/K8S-10     10.741 ± 2%    2.525 ± 5%  -76.49% (p=0.000 n=20)
+    geomean                283.2m        139.3m       -50.82%
+    
+                         │   old.txt    │               new.txt               │
+                         │  sys-sec/op  │  sys-sec/op   vs base               │
+    ListModules/Empty-10   2.380m ±  9%   2.443m ±  9%       ~ (p=0.314 n=20)
+    ListModules/Cmd-10     51.84m ± 13%   47.27m ± 14%       ~ (p=0.289 n=20)
+    ListModules/K8S-10      1.660 ±  8%    1.485 ± 28%       ~ (p=0.512 n=20)
+    geomean                58.95m         55.56m        -5.75%
+    
+                         │   old.txt    │               new.txt                │
+                         │ user-sec/op  │ user-sec/op   vs base                │
+    ListModules/Empty-10   3.034m ±  4%   3.053m ±  3%        ~ (p=0.445 n=20)
+    ListModules/Cmd-10     18.01m ± 11%   15.39m ±  5%  -14.55% (p=0.000 n=20)
+    ListModules/K8S-10     407.6m ± 11%   209.2m ± 49%  -48.67% (p=0.000 n=20)
+    geomean                28.13m         21.42m        -23.86%
+    
+    Fixes #63136
+    
+    Change-Id: Ifd406a52494eb37430306ee1f29a8bf5c1973007
+    GitHub-Last-Rev: eba40c944e8a8c57c11fa075e98e1ee5420be1a8
+    GitHub-Pull-Request: golang/go#63137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530037
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/list.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

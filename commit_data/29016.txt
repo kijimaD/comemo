@@ -1,0 +1,28 @@
+commit a6141ebd3f33c1f4330a0ce3507f686b7fd64489
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Mon Oct 24 22:39:04 2016 +0530
+
+    math/big: fix alignment in Float.Parse docs
+    
+    Leading spaces in a couple of lines instead of tabs cause those to be
+    misaligned (as seen on <https://golang.org/pkg/math/big/#Float.Parse>):
+    
+    <<<
+            number   = [ sign ] [ prefix ] mantissa [ exponent ] | infinity .
+            sign     = "+" | "-" .
+         prefix   = "0" ( "x" | "X" | "b" | "B" ) .
+            mantissa = digits | digits "." [ digits ] | "." digits .
+            exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+            digits   = digit { digit } .
+            digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+         infinity = [ sign ] ( "inf" | "Inf" ) .
+    >>>
+    
+    Replace the leading spaces with tabs so that those align well.
+    
+    Change-Id: Ibba6cd53f340001bbd929067dc587feb071dc3bd
+    Reviewed-on: https://go-review.googlesource.com/31830
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/floatconv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

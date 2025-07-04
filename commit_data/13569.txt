@@ -1,0 +1,26 @@
+commit 6fa38e5e0a2ceb83871d22e27a80fca271f26a73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 18:08:43 2012 -0700
+
+    cmd/go, go/build, misc/swig: add SWIG support to Go tool
+    
+    R=adg, rsc, franciscossouza, seb.binet, gen.battle
+    CC=golang-dev
+    https://golang.org/cl/5845071
+
+ api/next.txt                        |   2 +
+ misc/swig/callback/Makefile         |  17 ----
+ misc/swig/callback/callback.go      |  11 +++
+ misc/swig/callback/callback_test.go |  34 ++++++++
+ misc/swig/callback/run.go           |  39 ---------
+ misc/swig/stdio/file.swig           |  15 +++-
+ misc/swig/stdio/file_test.go        |  22 ++++++
+ misc/swig/stdio/hello.go            |  11 ---
+ src/cmd/go/build.go                 | 154 +++++++++++++++++++++++++++++++++++-
+ src/cmd/go/clean.go                 |  26 ++++--
+ src/cmd/go/doc.go                   |  14 ++--
+ src/cmd/go/list.go                  |  14 ++--
+ src/cmd/go/pkg.go                   |  56 +++++++++++--
+ src/cmd/go/test.go                  |  19 +++++
+ src/pkg/go/build/build.go           |  22 ++++--
+ 15 files changed, 356 insertions(+), 100 deletions(-)

@@ -1,0 +1,24 @@
+commit 7e952962dff6aafb9ed888a86a7208f01fbe9508
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:09:14 2022 -0400
+
+    runtime: clean up canpanic
+    
+    * The gp argument to canpanic is always equivalent to getg(), so no need
+    to pass it at all.
+    * gp must not be nil or _g_.m would have crashed, so no need to check
+    for nil.
+    * Use acquirem to better reason about preemption.
+    
+    Change-Id: Ic7dc8dc1e56ab4c1644965f6aeba16807cdb2df4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418575
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/os_js.go          |  2 +-
+ src/runtime/os_plan9.go       |  2 +-
+ src/runtime/panic.go          | 19 +++++++++++--------
+ src/runtime/signal_unix.go    |  2 +-
+ src/runtime/signal_windows.go |  2 +-
+ 5 files changed, 15 insertions(+), 12 deletions(-)

@@ -1,0 +1,18 @@
+commit 8615cbffe27c223230785502939ae14498f673ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 3 19:17:43 2017 -0400
+
+    time: fix Time package doc paragraph order
+    
+    Introduce the presence of the monotonic time reading first,
+    before the paragraph about comparison that mentions it multiple times.
+    
+    Change-Id: I91e31e118be013eee6c258163a1bb2cb42501527
+    Reviewed-on: https://go-review.googlesource.com/76010
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

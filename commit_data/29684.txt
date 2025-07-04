@@ -1,0 +1,13 @@
+commit 3f0f24df7b0017739b415e75bc4375a1483bd1a1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 30 10:43:14 2016 -0500
+
+    runtime: use standard comment style in cgocall
+    
+    Change-Id: I9f2c2da4aa512729ae40562b06601da95ba50d6f
+    Reviewed-on: https://go-review.googlesource.com/33689
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/cgocall.go | 26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)

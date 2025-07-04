@@ -1,0 +1,24 @@
+commit 79d05e75ca38f0e4b9986bbba4cd56398428f9fb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Jun 14 11:36:36 2017 -0700
+
+    runtime: restore arm assembly stubs for div/mod
+    
+    These are used by DIV[U] and MOD[U] assembly instructions.
+    Add a test in the stdlib so we actually exercise linking
+    to these routines.
+    
+    Update #19507
+    
+    Change-Id: I0d8e19a53e3744abc0c661ea95486f94ec67585e
+    Reviewed-on: https://go-review.googlesource.com/45703
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go        |   8 +--
+ src/runtime/softfloat_arm.go            |   6 +-
+ src/runtime/vlop_arm.s                  | 112 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue19507.dir/div_arm.s |  12 ++++
+ test/fixedbugs/issue19507.dir/main.go   |  16 +++++
+ test/fixedbugs/issue19507.go            |   8 +++
+ test/run.go                             |  59 ++++++++++++++++-
+ 7 files changed, 215 insertions(+), 6 deletions(-)

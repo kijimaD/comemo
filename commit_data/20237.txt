@@ -1,0 +1,22 @@
+commit 553378079522ca9f131c62acf9cc0a583c76164b
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Sep 1 17:47:57 2014 +1000
+
+    strings: use Rabin-Karp algorithm for LastIndex.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkSingleMatch       49443         52275         +5.73%
+    BenchmarkIndex             28.8          27.4          -4.86%
+    BenchmarkLastIndex         14.5          14.0          -3.45%
+    BenchmarkLastIndexHard1    3982782       2309200       -42.02%
+    BenchmarkLastIndexHard2    3985562       2287715       -42.60%
+    BenchmarkLastIndexHard3    3555259       2282866       -35.79%
+    
+    LGTM=josharian, nigeltao
+    R=golang-codereviews, ality, josharian, bradfitz, dave, nigeltao, gobot, nightlyone
+    CC=golang-codereviews
+    https://golang.org/cl/102560043
+
+ src/pkg/strings/strings.go      | 60 ++++++++++++++++++++++++++++++++---------
+ src/pkg/strings/strings_test.go | 19 +++++++++++++
+ 2 files changed, 67 insertions(+), 12 deletions(-)

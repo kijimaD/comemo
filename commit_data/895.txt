@@ -1,0 +1,18 @@
+commit f39b518bcba297e64fe09d08e9339f55d40f5461
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 17 16:19:31 2008 -0700
+
+    - fixed a couple of corner cases (empty statements, empty composites)
+    - more robust printing in presence of errors
+    - fixed incorrect printing of function literals
+    
+    R=r
+    OCL=17378
+    CL=17378
+
+ usr/gri/pretty/Makefile.iant |  12 +---
+ usr/gri/pretty/node.go       |  16 ++++-
+ usr/gri/pretty/parser.go     | 147 ++++++++++++++++++++++---------------------
+ usr/gri/pretty/printer.go    |  37 ++++++-----
+ usr/gri/pretty/scanner.go    |  37 +++++++----
+ 5 files changed, 136 insertions(+), 113 deletions(-)

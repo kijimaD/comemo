@@ -1,0 +1,18 @@
+commit 46d6f3c62f9f51ac349b90b2181627d5c1ed424b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 13:08:23 2013 -0500
+
+    cmd/go: update 'go get' help message
+    
+    It accepts all the build flags.
+    Say that instead of making a copy that will go stale.
+    
+    Fixes #4742.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7229081
+
+ src/cmd/go/doc.go | 8 ++++----
+ src/cmd/go/get.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

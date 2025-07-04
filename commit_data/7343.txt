@@ -1,0 +1,12 @@
+commit 27191b558c74233da9b465249a295b8ac612647d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 2 22:43:40 2011 -0500
+
+    codereview: fix hgpatch on windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3989059
+
+ lib/codereview/codereview.py | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

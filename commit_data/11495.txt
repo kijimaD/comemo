@@ -1,0 +1,23 @@
+commit 00e9a54dad85724961dce513efbc835fd8365d5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 23:42:41 2012 -0500
+
+    go: improvements
+    
+    Add 'go clean'.
+    Make 'go build' write to pkgname, not a.out.
+    Make 'go test -c' write to pkgname.test, not test.out.
+    Make 'go install' write alternate binaries to .../bin/goos_goarch/.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5600048
+
+ src/cmd/go/build.go    |  41 ++++++-----
+ src/cmd/go/clean.go    | 195 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/doc.go      |  80 +++++++++++++++++---
+ src/cmd/go/main.go     |   1 +
+ src/cmd/go/pkg.go      |   8 ++
+ src/cmd/go/test.go     |  26 +++++--
+ src/cmd/go/testflag.go |   2 +-
+ 7 files changed, 316 insertions(+), 37 deletions(-)

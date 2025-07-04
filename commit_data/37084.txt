@@ -1,0 +1,14 @@
+commit 1e38ecdbbee983a049500102af9e50ee33b446a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 23 14:54:59 2018 -0700
+
+    spec: refer to "run-time panic" rather than "exception" (cleanup)
+    
+    Fixes #28341.
+    
+    Change-Id: If8ae844c9b5e843ce9229c0a555f7006426baed7
+    Reviewed-on: https://go-review.googlesource.com/c/144260
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

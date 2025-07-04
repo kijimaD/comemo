@@ -1,0 +1,14 @@
+commit b456aac388f3d44b3fd936be00316caaff295c24
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 07:13:28 2015 -0400
+
+    cmd/objdump: skip TestDisasm* for mips64{,le}
+    
+    Disassembler for mips64 is not supported yet.
+    
+    Change-Id: Ie923dd1e37fed47fc395b9d1cd9194e55020bee5
+    Reviewed-on: https://go-review.googlesource.com/14459
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

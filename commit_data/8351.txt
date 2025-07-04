@@ -1,0 +1,12 @@
+commit 67992cae53f18b4064803baaf10c451ebfe09421
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 11 11:11:25 2011 -0700
+
+    image/gif: minor fixes.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4523054
+
+ src/pkg/image/gif/reader.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

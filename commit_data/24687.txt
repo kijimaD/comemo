@@ -1,0 +1,38 @@
+commit 7832c82bf5ebd32e24e3f324f5284194e505f3e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 29 19:16:20 2015 -0700
+
+    math: fix bad shift in Expm1
+    
+    Noticed by cmd/vet.
+    
+    Expected values array produced by Python instead of Keisan because:
+    
+    1) Keisan's website calculator is painfully difficult to copy/paste
+    values into and out of, and
+    
+    2) after tediously computing e^(vf[i] * 10) - 1 via Keisan I
+    discovered that Keisan computing vf[i]*10 in a higher precision was
+    giving substantially different output values.
+    
+    Also, testing uses "close" instead of "veryclose" because 386's
+    assembly implementation produces values for some of the test cases
+    that fail "veryclose".  Curiously, Expm1(vf[i]*10) is identical to
+    Exp(vf[i]*10)-1 on 386, whereas with the portable implementation
+    they're only "veryclose".
+    
+    Investigating these questions is left to someone else.  I just wanted
+    to fix the cmd/vet warning.
+    
+    Fixes #13101.
+    
+    Change-Id: Ica8f6c267d01aa4cc31f53593e95812746942fbc
+    Reviewed-on: https://go-review.googlesource.com/16505
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go | 18 ++++++++++++++++++
+ src/math/expm1.go    |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

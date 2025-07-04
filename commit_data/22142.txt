@@ -1,0 +1,12 @@
+commit 754bb7158458a0a663a54f3cd015543bce2b822e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 16:17:13 2015 -0700
+
+    doc/go1.5.txt: updated (composite literal lang. change, math/big.Float support)
+    
+    Change-Id: Ib8df771957f9a5bf00bee7eb8cb361d4acd5813f
+    Reviewed-on: https://go-review.googlesource.com/7911
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 3330c69476f4d8bca40a9fb6b429a0401f24f2b7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Jan 24 12:33:30 2024 +0000
+
+    reflect: fix isRegularMemory at case Array
+    
+    To match cmd/compile/internal/compare.IsRegularMemory,
+    this CL adds code for empty arrays of comparable element type.
+    
+    Change-Id: I205fb9bfda60be6c9aac2d9098ed3f0eb51cd0fa
+    GitHub-Last-Rev: 40db7ed510883633374895271145678a51418426
+    GitHub-Pull-Request: golang/go#65252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558155
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/type.go      | 6 +++++-
+ src/reflect/type_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

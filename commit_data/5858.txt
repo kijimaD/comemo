@@ -1,0 +1,12 @@
+commit b7aa56147300db8f46e9bdbfc29ba464f7291490
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Jul 21 14:51:03 2010 +0300
+
+    arm: fix build2, tweak test/nul1.go arm exclusion
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1866044
+
+ test/nul1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 41bd9a517848e4ac2d9d09f48467a0c20a979d43
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 21 04:03:26 2024 +0000
+
+    cmd/go: close debug trace file
+    
+    Change-Id: Ia83312e6b0448573d40fe9a58ab42cd0d8f8f44a
+    GitHub-Last-Rev: 30f462817b3500c02445efa1033a1191c5ad5626
+    GitHub-Pull-Request: golang/go#66436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573215
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/main.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 61c9d3f08a5a6798c3834972027d30a8fcd3a171
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 06:49:21 2011 -0700
+
+    test: adjust bugs/bug322 to match current spec.
+    
+    R=gri, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4328041
+
+ test/bugs/bug322.dir/main.go | 10 +++++-----
+ test/golden.out              |  3 +--
+ 2 files changed, 6 insertions(+), 7 deletions(-)

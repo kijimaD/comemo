@@ -1,0 +1,38 @@
+commit ace1494d9235be94f1325ab6e45105a446b3224c
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Sep 12 03:01:33 2023 +0000
+
+    cmd/compile: optimize absorbing InvertFlags into Noov comparisons for arm64
+    
+    Previously (LessThanNoov (InvertFlags x)) is lowered as:
+    CSET
+    CSET
+    BIC
+    With this CL it's lowered as:
+    CSET
+    CSEL
+    This saves one instruction.
+    
+    Similarly (GreaterEqualNoov (InvertFlags x)) is now lowered as:
+    CSET
+    CSINC
+    
+    $ benchstat old.bench new.bench
+    goos: linux
+    goarch: arm64
+                           │  old.bench  │             new.bench              │
+                           │   sec/op    │   sec/op     vs base               │
+    InvertLessThanNoov-160   2.249n ± 2%   2.190n ± 1%  -2.62% (p=0.003 n=10)
+    
+    Change-Id: Idd8979b7f4fe466e74b1a201c4aba7f1b0cffb0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526237
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/bench_test.go    | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 20 ++++++++++----------
+ test/codegen/comparisons.go                   | 13 +++++++++++++
+ 4 files changed, 43 insertions(+), 12 deletions(-)

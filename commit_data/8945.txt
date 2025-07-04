@@ -1,0 +1,14 @@
+commit 13d048a2219f422202f4dad108734b24c0b32cac
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jul 6 00:02:03 2011 +0200
+
+    gc: fix %N for OGOTO nodes.
+    
+    6g -W crashed on any source with a goto. this fixes that.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4675052
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

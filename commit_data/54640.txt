@@ -1,0 +1,30 @@
+commit b72bbaebf9035c59806fd8073f2582e2d07764d5
+Author: David Chase <drchase@google.com>
+Date:   Tue May 9 10:34:52 2023 -0400
+
+    cmd/compile: expand calls cleanup
+    
+    Convert expand calls into a smaller number of focused
+    recursive rewrites, and rely on an enhanced version of
+    "decompose" to clean up afterwards.
+    
+    Debugging information seems to emerge intact.
+    
+    Change-Id: Ic46da4207e3a4da5c8e2c47b637b0e35abbe56bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507295
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/dec.rules  |  106 ++
+ src/cmd/compile/internal/ssa/compile.go      |    4 +-
+ src/cmd/compile/internal/ssa/expand_calls.go | 2425 +++++++++-----------------
+ src/cmd/compile/internal/ssa/op.go           |    2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go   |  654 +++++++
+ src/cmd/compile/internal/ssagen/ssa.go       |    2 +-
+ test/abi/more_intstar_input.go               |    8 +-
+ test/abi/reg_not_ssa.go                      |   40 +
+ test/codegen/condmove.go                     |    2 +-
+ test/codegen/spectre.go                      |    4 +-
+ 10 files changed, 1639 insertions(+), 1608 deletions(-)

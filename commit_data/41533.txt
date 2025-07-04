@@ -1,0 +1,41 @@
+commit d7c073ecbfc3ecc506bfc753b271973b47f8bc15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 30 10:29:47 2019 -0700
+
+    cmd/compile: add specialized Value reset for OpCopy
+    
+    This:
+    
+    * Simplifies and shortens the generated code for rewrite rules.
+    * Shrinks cmd/compile by 86k (0.4%) and makes it easier to compile.
+    * Removes the stmt boundary code wrangling from Value.reset,
+      in favor of doing it in the one place where it actually does some work,
+      namely the writebarrier pass. (This was ascertained by inspecting the
+      code for cases in which notStmtBoundary values were generated.)
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I25671d4c4bbd772f235195d11da090878ea2cc07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221421
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   7 +-
+ src/cmd/compile/internal/ssa/numberlines.go    |   9 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 126 +---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 961 +++++++------------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 132 +---
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 230 ++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  80 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  44 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 368 +++-------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  12 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 415 +++--------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  60 +-
+ src/cmd/compile/internal/ssa/rewritedec.go     |  36 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  12 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 527 ++++----------
+ src/cmd/compile/internal/ssa/value.go          |  20 +-
+ src/cmd/compile/internal/ssa/writebarrier.go   |   1 +
+ 17 files changed, 820 insertions(+), 2220 deletions(-)

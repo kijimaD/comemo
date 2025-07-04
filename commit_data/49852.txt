@@ -1,0 +1,22 @@
+commit 7367aedfd2b787cff5ea0f883ed7805ead4d4ba6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 28 19:23:11 2022 -0700
+
+    debug/elf: use saferio to read section data
+    
+    For #47653
+    Fixes #45599
+    Fixes #52522
+    
+    Change-Id: Id6a80186434080cb0a205978ad7f224252674604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408679
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/debug/elf/file.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

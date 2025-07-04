@@ -1,0 +1,17 @@
+commit 41943d96390353695225da6ef44dacdca84d92df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 14:28:44 2016 -0700
+
+    cmd/compile: convert getdyn int arg to bool
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5b893b8b82b358534fd85542f05e3aa7e666bcd3
+    Reviewed-on: https://go-review.googlesource.com/26752
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

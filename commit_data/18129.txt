@@ -1,0 +1,12 @@
+commit 2f5f1939233e121b7f45ce3b6ac17551fbf0d08b
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Dec 29 11:11:28 2013 -0800
+
+    doc/contribute: golang-dev -> golang-codereviews
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/46320043
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit b243d57eb4ab77f6446380beee762ea4b5481276
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 17 11:38:26 2010 +1000
+
+    os: preserve "=C:" like env variables in env block on windows and bug fix in Clearenv()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1995043
+
+ src/pkg/os/env_windows.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

@@ -1,0 +1,36 @@
+commit 76ac54b50ea39bbb1389ecfed71f4f0991cb4289
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Jan 16 16:21:48 2023 +0100
+
+    cmd/internal/obj: generate SEH aux symbols for windows/amd64
+    
+    This CL updates the Go compiler so it generate SEH unwind info [1] as a
+    function auxiliary symbol when building for windows/amd64.
+    
+    A follow up CL will teach the Go linker how to assemble these codes
+    into the PE .xdata section.
+    
+    Updates #57302
+    
+    [1] https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
+    
+    Change-Id: I40ae0437bfee326c1a67c2b5e1496f0bf3ecea17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461749
+    Reviewed-by: Davis Goodin <dagood@microsoft.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/internal/goobj/objfile.go           |   1 +
+ src/cmd/internal/obj/link.go                |   3 +
+ src/cmd/internal/obj/objfile.go             |   8 +-
+ src/cmd/internal/obj/plist.go               |   3 +
+ src/cmd/internal/obj/sym.go                 |   2 +-
+ src/cmd/internal/obj/x86/obj6.go            |   2 +
+ src/cmd/internal/obj/x86/seh.go             | 141 ++++++++++++++++++++++++++++
+ src/cmd/internal/objabi/symkind.go          |   1 +
+ src/cmd/internal/objabi/symkind_string.go   |   5 +-
+ src/cmd/link/internal/sym/symkind.go        |   4 +
+ src/cmd/link/internal/sym/symkind_string.go |   7 +-
+ 11 files changed, 170 insertions(+), 7 deletions(-)

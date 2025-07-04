@@ -1,0 +1,19 @@
+commit 31e4ad5846d21cb5db1cc52a38a89acc915701b5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 21:10:30 2014 +0400
+
+    runtime: remove now arg from timer callback
+    Cleanup before converting to Go.
+    Fortunately nobody using it, because it is incorrect:
+    monotonic runtime time instead of claimed real time.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/129480043
+
+ src/pkg/runtime/netpoll.goc   | 21 ++++++++++-----------
+ src/pkg/runtime/time.goc      |  8 +++-----
+ src/pkg/time/internal_test.go |  2 +-
+ src/pkg/time/sleep.go         |  6 +++---
+ 4 files changed, 17 insertions(+), 20 deletions(-)

@@ -1,0 +1,21 @@
+commit 3c1155ee2d0e2e9bfb907faa61a46e0b4dd509a3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 17 13:44:44 2024 -0500
+
+    runtime: mark TestGdbCoreCrashThreadBacktrace as flaky
+    
+    This test exercises the SIGQUIT crash loop and managed to trigger the
+    race from #65138 at least once.
+    
+    For #65138.
+    Fixes #64752.
+    
+    Change-Id: I11091510aa7ae4f58b1d748e53df2e3e3dbfb323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556356
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/runtime-gdb_unix_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

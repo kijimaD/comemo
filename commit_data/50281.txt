@@ -1,0 +1,19 @@
+commit 8af6c3348ef299d17aeb2ae5711af9c6205c5940
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 1 16:02:49 2022 -0700
+
+    cmd/compile/internal/noder: refactor exprConvert code
+    
+    This CL deduplicates the explicit and implicit exprConvert code paths
+    to have a single common function, so they're easier to keep in sync.
+    
+    Change-Id: I2b145d2ce6de6018ffc2db5cdb9d891f4e223381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427677
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go | 41 +++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)

@@ -1,0 +1,19 @@
+commit d3d7998756c33f69706488cade1cd2b9b10a4c7f
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 11 09:49:14 2022 -0700
+
+    net/http: clarify that MaxBytesReader returns *MaxBytesError
+    
+    A MaxBytesReader returns a *MaxBytesError when reading beyond
+    its limit, not a MaxBytesError.
+    
+    Fixes #53764.
+    
+    Change-Id: Icac3aeac96fd8b172f951241f8f111cda633752c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416914
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

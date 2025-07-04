@@ -1,0 +1,16 @@
+commit 92cff8557ed411e9f9ec05a9ad92ac40cdbef0b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 12:49:17 2008 -0800
+
+    gotest: change pattern to Test([^a-z].*)?
+            warn about files with no tests
+    be clear about where testing warnings come from
+    
+    R=r
+    DELTA=18  (12 added, 3 deleted, 3 changed)
+    OCL=19988
+    CL=19993
+
+ src/cmd/gotest/gotest | 19 ++++++++++++++-----
+ src/lib/testing.go    |  2 +-
+ 2 files changed, 15 insertions(+), 6 deletions(-)

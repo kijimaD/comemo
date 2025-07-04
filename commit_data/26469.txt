@@ -1,0 +1,30 @@
+commit e6beec1fc81ebf8445e23254291dce331b104668
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 18 13:21:53 2016 +1100
+
+    cmd/compile/internal/ssa: avoid string conversion in zcse
+    
+    Some ssa.Type implementations fell through to gc.Tconv which generated
+    garbage to produce a string form of the Type.
+    
+    name      old time/op    new time/op    delta
+    Template     405ms ± 7%     401ms ± 6%    ~     (p=0.478 n=20+20)
+    GoTypes      1.32s ± 1%     1.30s ± 2%  -1.27%  (p=0.000 n=19+20)
+    Compiler     6.07s ± 2%     6.03s ± 2%    ~     (p=0.121 n=20+20)
+    
+    name      old alloc/op   new alloc/op   delta
+    Template    63.9MB ± 0%    63.7MB ± 0%  -0.21%  (p=0.000 n=19+20)
+    GoTypes      220MB ± 0%     219MB ± 0%  -0.21%  (p=0.000 n=20+20)
+    Compiler     966MB ± 0%     965MB ± 0%  -0.11%  (p=0.000 n=20+20)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      708k ± 0%      701k ± 0%  -0.99%  (p=0.000 n=20+20)
+    GoTypes      2.20M ± 0%     2.17M ± 0%  -1.43%  (p=0.000 n=17+20)
+    Compiler     9.45M ± 0%     9.36M ± 0%  -0.91%  (p=0.000 n=20+20)
+    
+    Change-Id: I5fcc30e0f76a823d1c301d4980b583d716a75ce3
+    Reviewed-on: https://go-review.googlesource.com/20844
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/zcse.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

@@ -1,0 +1,32 @@
+commit bb6efb96092cc8ae398c29e3b052a0051c746f88
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 21:14:43 2021 -0500
+
+    build: set GOPATH consistently in run.bash, run.bat, run.rc
+    
+    We used to clear GOPATH in all the build scripts.
+    Clearing GOPATH is misleading at best, since you just end up
+    with the default GOPATH (%USERPROFILE%\go on Windows).
+    Unless that's your GOROOT, in which case you end up with a
+    fatal error from the go command (#43938).
+    
+    run.bash changed to setting GOPATH=/dev/null, which has no
+    clear analogue on Windows.
+    
+    run.rc still clears GOPATH.
+    
+    Change them all to set GOPATH to a non-existent directory
+    /nonexist-gopath or c:\nonexist-gopath.
+    
+    Change-Id: I51edd66d37ff6a891b0d0541d91ecba97fbbb03d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288818
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/run.bash | 10 +---------
+ src/run.bat  |  4 +---
+ src/run.rc   |  9 ++++-----
+ 3 files changed, 6 insertions(+), 17 deletions(-)

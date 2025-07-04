@@ -1,0 +1,14 @@
+commit 38b2d10bb25783cc0a34eb300da654a883614865
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 20:20:17 2010 -0700
+
+    test/hilbert.go: convert to test case and benchmark for big.Rat
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1231044
+
+ src/pkg/big/hilbert_test.go | 173 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/nat.go          |   3 -
+ test/hilbert.go             | 166 ------------------------------------------
+ 3 files changed, 173 insertions(+), 169 deletions(-)

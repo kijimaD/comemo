@@ -1,0 +1,15 @@
+commit 865e5e98b685eb3a7888f5263021049c0694d16f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jan 3 00:12:34 2015 -0500
+
+    runtime: fix TestCgoExternalThreadSIGPROF again
+    
+    Shell out to `uname -r` this time, so that the test will compile
+    even if the platform doesn't have syscall.Sysctl.
+    
+    Change-Id: I3a19ab5d820bdb94586a97f4507b3837d7040525
+    Reviewed-on: https://go-review.googlesource.com/2271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_cgo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

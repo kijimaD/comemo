@@ -1,0 +1,22 @@
+commit beec631c4c6a26fc7011d9f3be2b9aaa52b39ad2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 28 11:41:48 2016 -0500
+
+    cmd/asm: fix parsing of the s390x instructions VSTE{G,F,H,B}
+    
+    The element index needs to be placed in From3. Before this CL it
+    was impossible to write a VSTE instruction that could be
+    successfully parsed, so this won't affect existing assembly code.
+    
+    Fixes #18075.
+    
+    Change-Id: I5b71be4c6632b1d5a30820a529122f96fd1bc864
+    Reviewed-on: https://go-review.googlesource.com/33584
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/arch/s390x.go        | 2 ++
+ src/cmd/asm/internal/asm/testdata/s390x.s | 5 ++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

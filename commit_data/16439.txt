@@ -1,0 +1,13 @@
+commit 573d25a42342ae094edeafc7066646cf825eb255
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu May 30 14:11:49 2013 +0400
+
+    runtime: mark runtime.goexit as nosplit
+    Required for preemptive scheduler, see the comment.
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/9841047
+
+ src/pkg/runtime/proc.c | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,14 @@
+commit 377eaa749413c1a9e4bbe9466c45980af67bcfd6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 18 14:30:00 2016 -0700
+
+    runtime: add space
+    
+    Missed this in review of 20812
+    
+    Change-Id: I01e220499dcd58e1a7205e2a577dd9630a8b7174
+    Reviewed-on: https://go-review.googlesource.com/20819
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hash_test.go | 1 +
+ 1 file changed, 1 insertion(+)

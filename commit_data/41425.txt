@@ -1,0 +1,19 @@
+commit 0d6b317ee6f232191eadee7ec8c1d4fe98458752
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 25 05:57:22 2020 +0000
+
+    Revert "reflect: when Converting between float32s, don't lose signal NaNs"
+    
+    This reverts commit 7485050c0f55492c0fdfc41f7564f3da37a1a308.
+    
+    Reason for revert: Breaking some builders (387, mips, mips64)
+    
+    Change-Id: I33e5125b7a9a96b55bc5e71880fca4ee30d226a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220695
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 11 -----------
+ src/reflect/value.go    | 14 --------------
+ 2 files changed, 25 deletions(-)

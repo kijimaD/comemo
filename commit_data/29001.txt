@@ -1,0 +1,21 @@
+commit 699fb0fc5b654b714d7e8be5628646c0b063d523
+Author: Quentin Smith <quentin@golang.org>
+Date:   Fri Oct 21 16:48:50 2016 -0400
+
+    cmd/doc: continue searching after error reading directory
+    
+    If a directory in GOPATH is unreadable, we should keep looking for other
+    packages. Otherwise we can give the misleading error "no buildable Go
+    source files".
+    
+    Fixes #16240
+    
+    Change-Id: I38e1037f56ec463d3c141f0508fb74211cb90f13
+    Reviewed-on: https://go-review.googlesource.com/31713
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/dirs.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

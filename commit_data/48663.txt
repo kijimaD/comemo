@@ -1,0 +1,27 @@
+commit 1af60b2f4990bffdd1b050ffd11e978578d1e38f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:44:35 2022 -0500
+
+    regexp/syntax: add and use ErrInvalidDepth
+    
+    The fix for #51112 introduced a depth check but used
+    ErrInternalError to avoid introduce new API in a CL that
+    would be backported to earlier releases.
+    
+    New API accepted in proposal #51684.
+    
+    This CL adds a distinct error for this case.
+    
+    For #51112.
+    Fixes #51684.
+    
+    Change-Id: I068fc70aafe4218386a06103d9b7c847fb7ffa65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384617
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/regexpdepth.txt   | 3 +++
+ src/regexp/syntax/parse.go | 7 ++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

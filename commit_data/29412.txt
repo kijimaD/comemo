@@ -1,0 +1,18 @@
+commit 4cc83d49d2a69bb9d348cb32d71ca34651aec3b5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 11:50:48 2016 -0500
+
+    cmd/dist: enable more cgo tests on ppc64le
+    
+    The tests all pass (for me at least) so I don't think there is any
+    reason not to enable them.
+    
+    Change-Id: I96e71383e573273f442a849914cf6458ada14f82
+    Reviewed-on: https://go-review.googlesource.com/32855
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

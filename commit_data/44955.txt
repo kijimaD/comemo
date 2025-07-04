@@ -1,0 +1,22 @@
+commit ee40bb666bed55e7232c50a980e238aed7a32e0c
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 5 09:47:22 2021 -0400
+
+    cmd/compile: add "surprised by IData of Arg" case for register args
+    
+    This fixes a compile crash for
+    GOEXPERIMENT=regabi,regabiargs go test -c  go/constant
+    
+    Updates #40724.
+    
+    Change-Id: I238cef436e045647815326fc8fdb025c30ba1f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307309
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  9 +++
+ test/abi/idata.go                            | 97 ++++++++++++++++++++++++++++
+ test/abi/idata.out                           |  1 +
+ 3 files changed, 107 insertions(+)

@@ -1,0 +1,12 @@
+commit 1c50c32af07047e2df0cac7fa1e56fed33649e31
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Dec 14 13:17:48 2011 +1100
+
+    exp/winfsnotify: fix build.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5483057
+
+ src/pkg/exp/winfsnotify/winfsnotify.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

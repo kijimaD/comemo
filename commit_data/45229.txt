@@ -1,0 +1,22 @@
+commit 4f5aec46039347c7abc02a10103f35f936f39c2b
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Apr 17 12:12:28 2021 +0300
+
+    all: remove redundant spaces before . and ,
+    
+    Change-Id: I6a4bd2544276d0638bddf07ebcf2ee636db30fea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311009
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/walk/assign.go |  2 +-
+ src/crypto/sha512/sha512_test.go        |  2 +-
+ src/encoding/asn1/marshal_test.go       |  2 +-
+ src/encoding/gob/decoder.go             |  2 +-
+ src/go/parser/parser.go                 |  2 +-
+ src/go/printer/testdata/parser.go       |  2 +-
+ src/hash/crc32/crc32_s390x.s            |  2 +-
+ src/math/big/arith_s390x.s              | 10 +++++-----
+ 8 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 4e408e0cc9ba09298aea4c18d800d54e78a3e553
+Author: Mark Bucciarelli <mkbucc@gmail.com>
+Date:   Sat Feb 21 21:14:45 2015 -0500
+
+    Call --> CallSlice in two spots.  No logic change, docs only.
+    
+    Change-Id: I6011e162214db2d65efc1ecdb5ec600ca8e5bfe9
+    Reviewed-on: https://go-review.googlesource.com/5542
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

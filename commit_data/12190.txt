@@ -1,0 +1,16 @@
+commit fad10f9c1cba2aef54ef3822d6c3688eb1c25483
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 22:46:04 2012 -0500
+
+    spec: allow disallow of \uFFFD in import path
+    
+    Turns out U+FFFD is a graphic character too.
+    
+    http://play.golang.org/p/YblCfKAfko
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5699052
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

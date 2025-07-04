@@ -1,0 +1,21 @@
+commit c27dd0c9e581edb71c834e161db6a920ca239997
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:58:59 2020 +1100
+
+    cmd/compile: improve Eq32/Neq32 on riscv64
+    
+    Use SUBW to perform a 32-bit subtraction, rather than zero extending from
+    32 to 64 bits. This reduces Eq32 and Neq32 to two instructions, rather than
+    the four instructions required previously.
+    
+    Change-Id: Ib2798324881e9db842c864e91a0c1b1e48c4b67b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220921
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/plive.go           |  4 ++--
+ src/cmd/compile/internal/riscv64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 22 ++++++++--------------
+ 6 files changed, 29 insertions(+), 19 deletions(-)

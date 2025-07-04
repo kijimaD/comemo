@@ -1,0 +1,15 @@
+commit cbd00921737ccf6fd3c3ea0168649c558d0ba5f5
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 11 15:55:03 2009 -0700
+
+    Switch http client_test to use google.com/robots.txt to avoid redirect loop.
+    
+    www.google.com seems to be redirecting requests in an infinite loop. I haven't tracked down whether it's their code or this code that is causing it. This is just a quick fix so that this test passes.
+    
+    APPROVED=r
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=30178
+    CL=30210
+
+ src/pkg/http/client_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

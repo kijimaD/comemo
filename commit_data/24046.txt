@@ -1,0 +1,15 @@
+commit 9538e4e73b42c273be9c5e2bb7b356b454b10dbd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Aug 21 20:31:50 2015 +0200
+
+    cmd/trace: don't fail when no browser is available
+    
+    When there is no browser available on the system,
+    we should print the URL instead of failing.
+    
+    Change-Id: I4a2b099e17609394273eff150062c285d76bbac1
+    Reviewed-on: https://go-review.googlesource.com/13774
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

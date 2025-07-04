@@ -1,0 +1,12 @@
+commit 63a84348cc963d4e5d4b7f3e491863889d7b394c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 14:21:44 2008 -0800
+
+    look for .6 before .a; accept archives with 0 length __.SYMDEF
+    
+    TBR=r
+    OCL=19612
+    CL=19612
+
+ src/cmd/gc/lex.c | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

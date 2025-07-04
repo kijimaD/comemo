@@ -1,0 +1,29 @@
+commit 1e607f225eb2ecf819bed92201c21377a75ba48b
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Tue May 9 06:44:25 2017 +0100
+
+    cmd/internal/obj/x86: add ADDSUBPS/PD
+    
+    These are the last instructions missing to complete SSE3 support.
+    
+    For reference what was missing was found by a tool [1]:
+    
+    $ x86db-gogen list --extension SSE3 --not-known
+    ADDSUBPD xmmreg,xmmrm [rm: 66 0f d0 /r] PRESCOTT,SSE3,SO
+    ADDSUBPS xmmreg,xmmrm [rm: f2 0f d0 /r] PRESCOTT,SSE3,SO
+    
+    [1] https://github.com/dlespiau/x86db
+    
+    Fixes #20293
+    
+    Change-Id: Ib5a91bf64dcc5282cdb60eae740ae52b4db16ebd
+    Reviewed-on: https://go-review.googlesource.com/42990
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  2 ++
+ src/cmd/internal/obj/x86/anames.go           |  2 ++
+ src/cmd/internal/obj/x86/asm6.go             |  2 ++
+ 4 files changed, 22 insertions(+), 16 deletions(-)

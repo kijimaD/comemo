@@ -1,0 +1,18 @@
+commit cd162d27dcc5fb8e75ccec2b1015849399a626e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 4 12:37:52 2023 -0700
+
+    cmd/compile/internal/ir: remove unused Name.{Offset,SetOffset}
+    
+    These aren't used and don't do anything useful anyway.
+    
+    Change-Id: I2865f6bbb0409fa59b1fde32abb7c5f81a6bdb7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/name.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

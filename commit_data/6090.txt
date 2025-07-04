@@ -1,0 +1,16 @@
+commit e63086548bf35f9db6bb83522966c659c75a9ae8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 17:52:25 2010 -0400
+
+    codereview: really disable codereview when not available
+    
+    $ hg p
+    codereview disabled: cannot open /Users/rsc/g/go/src/pkg/goplan9.googlecode.com/hg/lib/codereview/codereview.cfg
+    $
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/1998046
+
+ lib/codereview/codereview.py | 71 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 50 insertions(+), 21 deletions(-)

@@ -1,0 +1,17 @@
+commit 5e5c5c2789cb585122ed5975dbe11d7bf761b7a0
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Nov 15 16:29:43 2011 -0800
+
+    exp/sql: NumInput() allow -1 to ignore checking.
+    Some database driver can't get number of parameters.
+    For example:
+            http://support.microsoft.com/kb/240205/en-us
+    So, added way to ignore checking number of parameters with return -1.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5376091
+
+ src/pkg/exp/sql/driver/driver.go |  3 +++
+ src/pkg/exp/sql/sql.go           | 11 +++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

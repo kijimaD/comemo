@@ -1,0 +1,22 @@
+commit d73b4322ed8105e8cad438868ec8ad7d635799eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 23:35:30 2023 -0500
+
+    net/netip: remove Prefix.Compare for Go 1.22
+    
+    API questions remain, so we decided to back it out for Go 1.22.
+    Code still lives in the repo, just unexported.
+    
+    For #61642.
+    
+    Change-Id: Iccd91b0da48ae72dec9f660476826a220c7ca4be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Anderson <dave@natulte.net>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/go1.22.txt               | 1 -
+ src/net/netip/export_test.go | 2 ++
+ src/net/netip/netip.go       | 7 +++++--
+ 3 files changed, 7 insertions(+), 3 deletions(-)

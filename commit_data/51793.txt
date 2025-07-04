@@ -1,0 +1,22 @@
+commit c611ef28606ddd7450cf03e070e51ac6082fdad7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 21:30:02 2022 -0500
+
+    cmd/dist: restore the original GOCACHE before building std and cmd
+    
+    The user is likely to run other commands that need these libraries
+    immediately after they are built.
+    
+    For #57734.
+    Updates #56889.
+    
+    Change-Id: I2a1a234e6031d85f017ee692ea1ace8c6e0e7355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452679
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 20 ++++++++++++++------
+ src/cmd/dist/test.go  | 11 -----------
+ 2 files changed, 14 insertions(+), 17 deletions(-)

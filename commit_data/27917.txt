@@ -1,0 +1,15 @@
+commit 55ea153b785249cfa9b15550d78eeb3df7d825d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 05:26:51 2016 +0000
+
+    os: reference LookupEnv from the Getenv docs
+    
+    Fixes #16782
+    
+    Change-Id: If54917bf5ca1588d8a6d443c3aa6e1d4ada6b620
+    Reviewed-on: https://go-review.googlesource.com/27322
+    Reviewed-by: anatoly techtonik <techtonik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env.go | 1 +
+ 1 file changed, 1 insertion(+)

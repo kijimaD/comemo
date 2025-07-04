@@ -1,0 +1,31 @@
+commit de74ea5d740ccc69dbb146578dc8a965351a3d6b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 17 20:03:19 2020 +0100
+
+    cmd/go: set TOOLEXEC_IMPORTPATH for -toolexec tools
+    
+    This way, a -toolexec tool can tell precisely what package is being
+    built when it's run. This was very hard to do before, because the tool
+    had to piece together that information given the build action's
+    arguments or flags.
+    
+    Since there wasn't a good set of tests for -toolexec, add one in the
+    form of a test script. It builds a simple set of packages with a variety
+    of build tools, to ensure that all the cases behave as expected.
+    
+    Like other recent master changes, include the changelog item for this
+    user-facing change too.
+    
+    Fixes #15677.
+    
+    Change-Id: I0a5a1d9485840323ec138b2e64b7e7dd803fdf90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/go1.16.html                         |  9 ++++
+ src/cmd/go/internal/work/exec.go        |  7 +++
+ src/cmd/go/testdata/script/toolexec.txt | 83 +++++++++++++++++++++++++++++++++
+ 3 files changed, 99 insertions(+)

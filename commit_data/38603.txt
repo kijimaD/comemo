@@ -1,0 +1,39 @@
+commit 6966b67510df9a96dd798e5f6e26c5ad6dd925a5
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Mar 7 13:18:38 2019 +0000
+
+    cmd/asm: add 'insert program mask' instruction for s390x
+    
+    This CL adds the 'insert program mask' (IPM) instruction to s390x.
+    IPM stores the current program mask (which contains the condition
+    code) into a general purpose register.
+    
+    This instruction will be useful when implementing intrinsics for
+    the arithmetic functions in the math/bits package. We can also
+    potentially use it to convert some condition codes into bool
+    values.
+    
+    The condition code can be saved and restored using an instruction
+    sequence such as:
+    
+      IPM  R4          // save condition code to R4
+      ...
+      TMLH R4, $0x3000 // restore condition code from R4
+    
+    We can also use IPM to save the carry bit to a register using an
+    instruction sequence such as:
+    
+      IPM     R4                   // save condition code to R4
+      RISBLGZ $31, $31, $3, R4, R4 // isolate carry bit in R4
+    
+    Change-Id: I169d450b6ea1a7ff8c0286115ddc42618da8a2f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165997
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
+ src/cmd/internal/obj/s390x/a.out.go       | 3 +++
+ src/cmd/internal/obj/s390x/anames.go      | 1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
+ 4 files changed, 13 insertions(+)

@@ -1,0 +1,14 @@
+commit 5483761c130dcd7e985c01dd82af93758732b3a7
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Mon Aug 31 09:40:25 2015 -0700
+
+    syscall: remove unused kernelVersion function from tests
+    
+    Change-Id: If0d00999c58f7421e4da06e1822ba5abccf72cac
+    Reviewed-on: https://go-review.googlesource.com/14111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

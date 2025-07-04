@@ -1,0 +1,13 @@
+commit b95048f38d2cd757de3bd762c8570aa43f4c17a3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 14:32:21 2009 -0700
+
+    some stuff about interfaces. not enough yet.
+    
+    R=rsc
+    DELTA=209  (129 added, 24 deleted, 56 changed)
+    OCL=35675
+    CL=35680
+
+ doc/effective_go.html | 253 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 179 insertions(+), 74 deletions(-)

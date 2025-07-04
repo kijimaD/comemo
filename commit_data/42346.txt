@@ -1,0 +1,17 @@
+commit 910fee4ed55f1e9fa1386377c40f0b1eac63ee3f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 11 11:01:16 2020 -0700
+
+    syscall: append to environment in tests, don't clobber it
+    
+    Fixes https://gcc.gnu.org/PR95061
+    
+    Change-Id: I3cddfe5920b6da572ddeafa201617003c25175e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233318
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux_test.go    | 6 +++---
+ src/syscall/syscall_linux_test.go | 9 ++++++---
+ 2 files changed, 9 insertions(+), 6 deletions(-)

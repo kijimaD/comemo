@@ -1,0 +1,22 @@
+commit 323a116fd041b93368fbc96de372127d2977e85c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 23:42:04 2010 -0400
+
+    libmach: fix new thread race with Linux
+    
+    If you look at the sequence of values returned
+    by waitpid, it simply tells us about the child of
+    clone before it tells us that the parent called clone.
+    There's nothing we can do but assume unexpected
+    tids are newly cloned children.
+    
+    Tested with 6prof on godoc.
+    
+    Fixes #251.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2167045
+
+ src/libmach/linux.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

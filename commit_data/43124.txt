@@ -1,0 +1,29 @@
+commit ad0ab812f8b80416c92ed227974e3194e98f4cdc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 28 12:19:56 2020 -0700
+
+    cmd/compile: fix type checking of "make" arguments
+    
+    As part of type checking make's arguments, we were converting untyped
+    float and complex constant arguments to integers. However, we were
+    doing this without concern for whether the argument was a declared
+    constant. Thus a call like "make([]T, n)" could change n from an
+    untyped float or untyped complex to an untyped integer.
+    
+    The fix here is to simply change checkmake to not call SetVal, which
+    will be handled by defaultlit anyway. However, we also need to
+    properly return the defaultlit result value to the caller, so
+    checkmake's *Node parameter is also changed to **Node.
+    
+    Fixes #41680.
+    
+    Change-Id: I858927a052f384ec38684570d37b10a6906961f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257966
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++++++++-------
+ test/fixedbugs/issue41680.go             | 21 +++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 7 deletions(-)

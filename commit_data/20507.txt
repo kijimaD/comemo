@@ -1,0 +1,13 @@
+commit dcb594ec30f428b4b116682a7536ed694526f0e5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 22 19:51:53 2014 -0700
+
+    runtime: remove unused function declaration
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145970043
+
+ src/runtime/mgc0.c | 1 -
+ 1 file changed, 1 deletion(-)

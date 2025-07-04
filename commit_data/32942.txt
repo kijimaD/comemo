@@ -1,0 +1,20 @@
+commit c80338accb7282295f8c607a9b47cf25904fbb19
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 30 16:50:00 2017 +0000
+
+    cmd/link: remove ctxt from objfile reader
+    
+    Preparation for moving the object file reader to its own package.
+    
+    For #22095
+    
+    Change-Id: I31fe4a10a2c465f8ea4bf548f40918807e4ec6b5
+    Reviewed-on: https://go-review.googlesource.com/67314
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go     |  3 ++-
+ src/cmd/link/internal/ld/link.go    | 30 +++++++++++++++++++++---------
+ src/cmd/link/internal/ld/objfile.go | 25 +++++++++++--------------
+ 3 files changed, 34 insertions(+), 24 deletions(-)

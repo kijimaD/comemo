@@ -1,0 +1,19 @@
+commit ab2ef4aaa77dff91cd98ded88aeba0bf5b5b2e80
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 18:06:26 2021 -0700
+
+    doc/go1.17: document reflect changes
+    
+    For #44513.
+    Fixes #46019.
+    
+    Change-Id: Ica84edd5703a4ccf343ff01e10483f8d51d1c79f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323069
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

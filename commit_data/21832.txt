@@ -1,0 +1,22 @@
+commit 5324cf2d45387b534068cf651e2d18e5df25d0b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 1 19:13:50 2015 -0800
+
+    runtime: change sigset_all and sigset_none into constants on OpenBSD
+    
+    OpenBSD's sigprocmask system call passes the signal mask by value
+    rather than reference, so vars are unnecessary.  Additionally,
+    declaring "var sigset_all = ^sigset_none" means sigset_all won't be
+    initialized until runtime_init is called, but the first call to
+    newosproc happens before then.
+    
+    I've witnessed Go processes on OpenBSD crash from receiving SIGWINCH
+    on the newly created OS thread before it finished initializing.
+    
+    Change-Id: I16995e7e466d5e7e50bcaa7d9490173789a0b4cc
+    Reviewed-on: https://go-review.googlesource.com/6440
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os1_openbsd.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

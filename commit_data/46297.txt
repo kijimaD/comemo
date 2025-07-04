@@ -1,0 +1,16 @@
+commit a8aa6cfa6d41a1be17bf8d35c490f693935f81ac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jul 30 13:12:27 2021 -0400
+
+    cmd/compile: correct a comment in uint64Tofloat
+    
+    We only do z>>1 once (as it should be). Remove the extra one
+    in the comment.
+    
+    Change-Id: I6fea05fe697de07e160bd686697377babcb3e4c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347400
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 1 -
+ 1 file changed, 1 deletion(-)

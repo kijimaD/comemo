@@ -1,0 +1,26 @@
+commit e323e7d973cbc0fb979bee35baa606b72f38b408
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 3 16:00:40 2023 -0400
+
+    cmd/compile: move FuncPC intrinsic handling to common helper
+    
+    CL 539699 will need to do the equivalent of
+    internal/abi.FuncPCABIInternal to get the PC of a function value for the
+    runtime devirtualization check.
+    
+    Move the FuncPC expression creation from the depths of walk to a
+    typecheck helper so it can be reused in both places.
+    
+    For #61577.
+    
+    Change-Id: I76f333157cf0e5fd867b41bfffcdaf6f45254707
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539698
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go    | 55 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go  | 27 +++--------------
+ src/cmd/compile/internal/walk/order.go |  7 +----
+ 3 files changed, 60 insertions(+), 29 deletions(-)

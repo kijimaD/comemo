@@ -1,0 +1,14 @@
+commit 3fa7226de79232fde2e48938caa31fbdc3e56668
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 2 10:07:47 2011 +1000
+
+    goinstall: better usage message
+    
+    Fixes #2185.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4967046
+
+ src/cmd/goinstall/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

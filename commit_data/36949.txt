@@ -1,0 +1,14 @@
+commit 1f95e0a9d99c8307b24e8bf542ae0e093ee95838
+Author: Mihai Todor <todormihai@gmail.com>
+Date:   Fri Oct 12 14:35:16 2018 +0000
+
+    encoding/base64: fix typo in decodeQuantum docs
+    
+    Change-Id: I643540bcea574d8a70b79237d97097dcc7368766
+    GitHub-Last-Rev: e2be58d1ab84f91dfbba1067aae7145f24fd650d
+    GitHub-Pull-Request: golang/go#28125
+    Reviewed-on: https://go-review.googlesource.com/c/141119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base64/base64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 95be9b7559e5df1b2cb6b18b517f4f20de5b99a4
+Author: two <oohcode@gmail.com>
+Date:   Thu Nov 21 06:05:37 2019 +0000
+
+    reflect: remove obsolete comment about gobitVector
+    
+    Change-Id: Ie3495a51ac2021a55e7c1ee43a66d07a5bf2757a
+    GitHub-Last-Rev: b6a6bab3ab840b361021b25cac37eb6891c0fe4b
+    GitHub-Pull-Request: golang/go#35709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207853
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 546a54bb2e96f9561e71acf5e70df466056aefaf
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Mar 24 11:18:46 2015 -0400
+
+    runtime: Remove write barrier on g
+    
+    There are calls to stdcall when the GC thinks the world is stopped
+    and stdcall write a *g for the CPU profiler. This produces a write
+    barrier but the GC is not prepared to deal with write barriers when
+    it thinks the world is stopped. Since the g is on allg it does not
+    need a write barrier to keep it alive so eliminate the write barrier.
+    
+    Change-Id: I937633409a66553d7d292d87d7d58caba1fad0b6
+    Reviewed-on: https://go-review.googlesource.com/7979
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Rick Hudson <rlh@golang.org>
+
+ src/runtime/os1_windows.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

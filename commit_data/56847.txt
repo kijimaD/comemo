@@ -1,0 +1,37 @@
+commit 90bcc552c0347948166817a602f612f219bc980c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 24 10:01:47 2024 -0700
+
+    crypto/tls: apply QUIC session event flag to QUICResumeSession events
+    
+    Go 1.23 adds two new events to QUICConns: QUICStoreSessionEvent and
+    QUICResumeSessionEvent. We added a QUICConfig.EnableStoreSessionEvent
+    flag to control whether the store-session event is provided or not,
+    because receiving this event requires additional action from the caller:
+    the session must be explicitly stored with QUICConn.StoreSession.
+    
+    We did not add a control for whether the resume-session event is
+    provided, because this event requires no action and the caller is
+    expected to ignore unknown events.
+    
+    However, we never documented the expectation that callers ignore
+    unknown events, and quic-go produces an error when receiving an
+    unexpected event. So change the EnableStoreSessionEvent flag to
+    apply to both new events.
+    
+    Fixes #68124
+    For #63691
+    
+    Change-Id: I84af487e52b3815f7b648e09884608f8915cd645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594475
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/go1.23.txt                           |   2 +-
+ src/crypto/tls/handshake_client.go       |   4 +-
+ src/crypto/tls/handshake_client_tls13.go |   2 +-
+ src/crypto/tls/handshake_server_tls13.go |   2 +-
+ src/crypto/tls/quic.go                   |  16 ++--
+ src/crypto/tls/quic_test.go              | 158 +++++++++++++++++--------------
+ 6 files changed, 100 insertions(+), 84 deletions(-)

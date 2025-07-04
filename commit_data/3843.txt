@@ -1,0 +1,12 @@
+commit 07b6becc8883b26ac379228c3c7bc470b1d610ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 22:05:43 2009 -0800
+
+    - fix elf.go manually so it is idempotent for gofmt
+    - with this change, `gofmt -l src/pkg | wc` is 0
+    
+    R=rsc
+    http://go/go-review/1025002
+
+ src/pkg/debug/elf/elf.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

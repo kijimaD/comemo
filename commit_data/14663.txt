@@ -1,0 +1,14 @@
+commit 39835b4aa0e3e8dbf90849812c8657d85a3b1a44
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Mon Dec 17 22:50:00 2012 +0800
+
+    syscall: document that documentation is platform specific
+    
+    Fixes #4051
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6943063
+
+ src/pkg/syscall/syscall.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

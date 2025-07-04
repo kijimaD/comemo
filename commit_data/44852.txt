@@ -1,0 +1,20 @@
+commit 1ef114d12c39e8467d3e905d0a050bd7ce03123a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 22 15:00:22 2021 -0400
+
+    runtime: abstract specials list iteration
+    
+    The specials processing loop in mspan.sweep is about to get more
+    complicated and I'm too allergic to list manipulation to open code
+    more of it there.
+    
+    Change-Id: I767a0889739da85fb2878fc06a5c55b73bf2ba7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305551
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcsweep.go | 25 ++++++++++---------------
+ src/runtime/mheap.go    | 34 +++++++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 18 deletions(-)

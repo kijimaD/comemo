@@ -1,0 +1,25 @@
+commit a731955f0f48b9d1e74ea3aa65f8485388a2849e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 14:29:26 2025 +0200
+
+    crypto/sha1: use cryptotest.TestAllImplementations and impl.Register
+    
+    Not running TryBots on s390x because the new LUCI builder is broken.
+    
+    Change-Id: I6a6a4656a8d52fa5ace9effa67a88fbfd7d19b04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674915
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/sha1/fallback_test.go   | 34 ----------------------------------
+ src/crypto/sha1/issue15617_test.go | 25 ++++++++++++++-----------
+ src/crypto/sha1/sha1_test.go       | 32 ++++++++++++--------------------
+ src/crypto/sha1/sha1block_amd64.go | 10 +++++++++-
+ src/crypto/sha1/sha1block_arm64.go | 17 +++++++++++++----
+ src/crypto/sha1/sha1block_decl.go  |  2 +-
+ src/crypto/sha1/sha1block_s390x.go | 24 ++++++++++++++++++++++--
+ src/crypto/sha1/sha1block_s390x.s  |  9 ++-------
+ 8 files changed, 73 insertions(+), 80 deletions(-)

@@ -1,0 +1,21 @@
+commit 6160fa59b6523e781db47eb1ee8f929398f2bb78
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 28 14:10:38 2025 -0400
+
+    runtime: rename updateGOMAXPROCS to updateMaxProcsG
+    
+    There are other parts to updating GOMAXPROCS than just the helper
+    goroutine, so make the naming more specific.
+    
+    For #73193.
+    
+    Change-Id: I6a6a636c31ac80c8d76afe90c0bfc29d3086af4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677035
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/lockrank.go   | 58 +++++++++++++++++++++++------------------------
+ src/runtime/mklockrank.go |  4 ++--
+ src/runtime/proc.go       | 40 ++++++++++++++++----------------
+ 3 files changed, 52 insertions(+), 50 deletions(-)

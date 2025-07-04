@@ -1,0 +1,18 @@
+commit edf60be15175ff2eb20fb66344d7487875546778
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 3 17:07:52 2020 +0000
+
+    doc/go1.16: document no language changes
+    
+    There are no language changes in Go 1.16, so document that.
+    
+    For #40700.
+    Fixes #42976.
+    
+    Change-Id: I80b0d2ce6cf550c00c0f026ee59ac9fbce6310be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275117
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 09bed2562190c69eb883b64d5a5d935c1d2ca581
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 23 16:40:12 2008 -0700
+
+    - snapshot of pretty printer status
+    - parts of AST built and printed
+    - no formatting yet
+    
+    R=r
+    OCL=15727
+    CL=15727
+
+ usr/gri/pretty/ast.go     | 175 ++++++++++++++++++++++++---
+ usr/gri/pretty/parser.go  | 294 +++++++++++++++++++++++++---------------------
+ usr/gri/pretty/pretty.go  |   7 +-
+ usr/gri/pretty/printer.go | 212 +++++++++++++++++++++++++++------
+ 4 files changed, 495 insertions(+), 193 deletions(-)

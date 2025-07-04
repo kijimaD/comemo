@@ -1,0 +1,20 @@
+commit 40e7f6493b95399c9e71482dba06b10ee2ead14a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 16 06:49:15 2014 +0900
+
+    syscall: regenerate z-files for openbsd
+    
+    This CL restores dropped constants not supported in OpenBSD 5.5
+    and tris to keep the promise of API compatibility.
+    
+    Update #7049
+    
+    LGTM=jsing, bradfitz, rsc
+    R=rsc, jsing, robert.hencke, minux.ma, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96970043
+
+ src/pkg/syscall/mkerrors.sh              | 13 +++++++++++++
+ src/pkg/syscall/zerrors_openbsd_386.go   |  9 +++++++++
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  9 +++++++++
+ 3 files changed, 31 insertions(+)

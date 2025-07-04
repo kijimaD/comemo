@@ -1,0 +1,15 @@
+commit 7b3771401c15837c9868742281a1e3ac43075e8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 3 23:06:00 2008 -0700
+
+    add nm
+    
+    R=r
+    DELTA=339  (339 added, 0 deleted, 0 changed)
+    OCL=13786
+    CL=13794
+
+ src/cmd/make.bash   |   5 +
+ src/cmd/nm/Makefile |  24 ++++
+ src/cmd/nm/nm.c     | 344 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 373 insertions(+)

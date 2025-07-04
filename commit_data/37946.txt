@@ -1,0 +1,15 @@
+commit aa161ad17e65df8f615f25c5dca84e505a8c8315
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Tue Feb 5 22:14:44 2019 -0800
+
+    test/chan: fix broken link to Squinting at Power Series
+    
+    Change-Id: Idee94a1d93555d53442098dd7479982e3f5afbba
+    Reviewed-on: https://go-review.googlesource.com/c/161339
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/chan/powser1.go | 2 +-
+ test/chan/powser2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 24baca49362dd842de299901ca3c4b685f6f9a89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 3 16:09:37 2010 -0700
+
+    http: handle status 304 correctly
+      - cannot send body
+      - should not send body-related headers
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1499041
+
+ src/pkg/http/server.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

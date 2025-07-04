@@ -1,0 +1,18 @@
+commit 827babf6aa602c76e45fabfdc2efe8d3f30edabd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 26 09:50:41 2022 -0500
+
+    cmd/go: add mv and support "! cmp" in script tests
+    
+    For #50183
+    
+    Change-Id: Ie384333fb7a69d0d2cfaba0cfc4eb7afba2fd745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380916
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/script_test.go         | 57 ++++++++++++++++++++++++++-------------
+ src/cmd/go/testdata/script/README | 13 ++++++---
+ 2 files changed, 47 insertions(+), 23 deletions(-)

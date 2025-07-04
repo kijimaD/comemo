@@ -1,0 +1,18 @@
+commit bb53047f5497f1a6e38f4784db58e94d7e69fc5c
+Author: flaxinger <70012548+flaxinger@users.noreply.github.com>
+Date:   Mon Oct 16 08:55:11 2023 +0000
+
+    internal/nettrace: fix comment typo
+    
+    Change-Id: I23e2bc67476ed1cedf61db9953683e57ab6bf522
+    GitHub-Last-Rev: 458581ec261eae790fc54537fcecb0fd5915af1e
+    GitHub-Pull-Request: golang/go#63530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Yohan Mok <yohan@ab180.co>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/nettrace/nettrace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

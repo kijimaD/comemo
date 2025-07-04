@@ -1,0 +1,15 @@
+commit c0927a6797e0b21775fcc5181698574da638a205
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 18 23:17:39 2012 +0800
+
+    cmd/5l, cmd/6l, cmd/8l: fix function symbol generation from gcc compiled source code
+    For CL 6853059.
+    
+    R=jsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6938076
+
+ src/cmd/5l/asm.c | 2 +-
+ src/cmd/6l/asm.c | 2 +-
+ src/cmd/8l/asm.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

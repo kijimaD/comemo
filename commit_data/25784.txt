@@ -1,0 +1,18 @@
+commit 0e34737c9aea6680b0a2a135cdf80557d61b83ce
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 19 09:58:22 2016 -0800
+
+    cmd/go: don't assume cc supports -gno-record-gcc-switches
+    
+    NetBSD's C compiler appears to support -fdebug-prefix-map but
+    not -gno-record-gcc-switches. Remove assumption that support
+    for the former implies the latter.
+    
+    Change-Id: Iecad9e4f497ea4edc1ce440010e6fe19dc3e0566
+    Reviewed-on: https://go-review.googlesource.com/19686
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

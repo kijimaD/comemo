@@ -1,0 +1,20 @@
+commit 29057b707d468bd690e6eadfebe89c4ff737867c
+Author: Jinzhu <wosmvp@gmail.com>
+Date:   Thu May 19 02:44:00 2022 +0000
+
+    database/sql: fix close rows error ignored in Next
+    
+    Change-Id: I19f0d764e2a6122307f3f26a6dd3be7b1155c73b
+    GitHub-Last-Rev: 9f1f883c452201679a2d2af2cc29de0f09a43f28
+    GitHub-Pull-Request: golang/go#52756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404794
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/database/sql/fakedb_test.go |  5 ++++-
+ src/database/sql/sql.go         |  2 ++
+ src/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

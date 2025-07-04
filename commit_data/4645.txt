@@ -1,0 +1,13 @@
+commit dfc0ed9559ebd732871d052992ee693c17d57734
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 19 19:59:57 2010 -0800
+
+    start of better addressing of
+    arrays/slices in structures
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/190077
+
+ src/cmd/6g/gsubr.c | 40 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)

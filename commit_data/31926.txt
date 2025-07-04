@@ -1,0 +1,18 @@
+commit 81ed9ca1d411f0bd8738ea60b3a8045446ad85fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 27 16:21:48 2017 +0000
+
+    cmd/go: skip broken TestExecutableGOROOT/RelocatedExe
+    
+    Test just doesn't work.
+    
+    Updates #20284
+    
+    Change-Id: I31c3f771e68dcdc471767594a1467e19fbf5fe88
+    Reviewed-on: https://go-review.googlesource.com/46830
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@google.com>
+
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,33 @@
+commit 157d8cfbc13fbc4c849075e905b0001fb248b5e6
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Jan 23 21:58:33 2018 +0100
+
+    os: homogenize error checks on Plan 9
+    
+    Remove leading space at the beginning of error strings,
+    so the strings are consistent between isExist, isNotExist
+    and isPermission functions.
+    
+    Here is a list of error strings returned on the most common
+    file servers on Plan 9:
+    
+         match                     cwfs                      fossil                   ramfs
+    
+    "exists"            "create/wstat -- file exists"  "file already exists"    "file exists"
+    "is a directory"                                   "is a directory"         "file is a directory"
+    
+    "does not exist"                                   "file does not exist"    "file does not exist"
+    "not found"         "directory entry not found"
+    "has been removed"                                 "file has been removed"
+    
+    "permission denied" "access permission denied"     "permission denied"      "permission denied"
+    
+    "no parent" is an error returned by lib9p when removing a file without parent.
+    
+    Change-Id: I2362ed4b6730b8bec7a707a1052bd1ad8921cd97
+    Reviewed-on: https://go-review.googlesource.com/89315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/error_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

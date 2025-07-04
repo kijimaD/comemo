@@ -1,0 +1,13 @@
+commit 02fa4a7e3eb3c74166ab4a886331786449c2933b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 3 16:41:53 2013 -0700
+
+    A+C: added Alexei Sholik (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8351043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

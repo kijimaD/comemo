@@ -1,0 +1,28 @@
+commit bdd9f29780f7045f6e4c3782f38386d869542eef
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 11 12:29:14 2013 +0800
+
+    cmd/5g: allow optimization of return registers.
+    Modeled after CL 7030046 by daniel.morsing.
+    
+    example program:
+    func f(x int) int { x -= 10; return x }
+    
+    5g -S difference:
+     --- prog list "f" ---
+     0011 (x.go:7) TEXT     add+0(SB),$0-8
+     0012 (x.go:7) MOVW     x+0(FP),R0
+    -0013 (x.go:7) SUB      $10,R0,R2
+    -0014 (x.go:7) MOVW     R2,R0
+    -0015 (x.go:7) MOVW     R2,.noname+4(FP)
+    -0016 (x.go:7) RET      ,
+    +0013 (x.go:7) SUB      $10,R0
+    +0014 (x.go:7) MOVW     R0,.noname+4(FP)
+    +0015 (x.go:7) RET      ,
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7030047
+
+ src/cmd/5g/peep.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

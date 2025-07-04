@@ -1,0 +1,14 @@
+commit d6ee49a119952ba42835c27e144762bcf5fd8f10
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 29 13:10:33 2010 -0800
+
+    fix bug in tick
+    
+    Fixes #576.
+    
+    R=rsc, rog
+    CC=golang-dev
+    https://golang.org/cl/196061
+
+ src/pkg/time/tick.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

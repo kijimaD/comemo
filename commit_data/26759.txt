@@ -1,0 +1,20 @@
+commit 0c81248bf46f611b56e3ab38b4d83e449b3c8636
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 18:43:23 2016 +1000
+
+    runtime: remove unused return value from lfstackUnpack
+    
+    None of the two places that call lfstackUnpack use the second argument.
+    This simplifies a followup CL that merges the lfstack{Pack,Unpack}
+    implementations.
+    
+    Change-Id: I3c93f6259da99e113d94f8c8027584da79c1ac2c
+    Reviewed-on: https://go-review.googlesource.com/21595
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/lfstack.go       | 4 ++--
+ src/runtime/lfstack_32bit.go | 6 ++----
+ src/runtime/lfstack_64bit.go | 6 ++----
+ src/runtime/lfstack_amd64.go | 6 ++----
+ 4 files changed, 8 insertions(+), 14 deletions(-)

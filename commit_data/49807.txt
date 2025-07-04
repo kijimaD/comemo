@@ -1,0 +1,17 @@
+commit beebd537ca1ae8ff29576477a88be7d8dff7d638
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 4 11:55:33 2022 +0100
+
+    encoding/xml: use bytes.Buffer.WriteString
+    
+    Change-Id: Icb0b917c48252ed8831e6c07109c1bc2d2438a42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421234
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+
+ src/encoding/xml/xml.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit c7bd61a2165f03c7ea7ec8a01b470afb94a0790c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 29 14:44:56 2009 -0800
+
+    Test case for issue 475 and related bug.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/183087
+
+ test/bugs/bug239.go | 21 +++++++++++++++++++++
+ test/bugs/bug240.go | 20 ++++++++++++++++++++
+ test/golden.out     |  8 ++++++++
+ 3 files changed, 49 insertions(+)

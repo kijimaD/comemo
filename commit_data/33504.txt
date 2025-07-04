@@ -1,0 +1,29 @@
+commit 3231d4e4ef37df9c4457c1ce1ae3f46cf4b994f7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Nov 9 23:10:43 2017 +0000
+
+    cmd/compile: replace opnames with stringer
+    
+    Now possible, since stringer just got the -trimprefix flag added.
+    
+    While at it, simplify a few Op stringifications since we can now use %v,
+    and no longer have to worry about o<len(opnames).
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Fixes #15462.
+    
+    Change-Id: Icdcde0b0a5eb165d18488918175024da274f782b
+    Reviewed-on: https://go-review.googlesource.com/76790
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/fmt_test.go              |   1 +
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  12 +--
+ src/cmd/compile/internal/gc/op_string.go |  16 ++++
+ src/cmd/compile/internal/gc/opnames.go   | 158 -------------------------------
+ src/cmd/compile/internal/gc/ssa.go       |   4 +-
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ 7 files changed, 25 insertions(+), 172 deletions(-)

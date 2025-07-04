@@ -1,0 +1,16 @@
+commit 61fac6845a6c35253397c66bcc71a309f59d8c70
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Apr 30 13:03:38 2014 -0400
+
+    cmd/go: test: clean up all temporary directories
+    
+    go test may call builder.init() multiple times which will create a new work directory.  The cleanup needs to hoist the current work directory.
+    Fixes #7904.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/95900044
+
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

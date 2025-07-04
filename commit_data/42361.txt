@@ -1,0 +1,19 @@
+commit f474e9e549b248653875c340b3c6d7ab495decfe
+Author: Dan Scales <danscales@google.com>
+Date:   Tue May 12 15:44:47 2020 -0700
+
+    runtime: add a lock partial order edge (assistQueue -> mspanSpecial)
+    
+    From interesting stack trace from GC assist through memory profiling to
+    addspecial().
+    
+    Fixes #39022
+    
+    Change-Id: Ia0506b820fe29ae91490b61c4e9c2fffcad9f7d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233599
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

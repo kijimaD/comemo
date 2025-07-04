@@ -1,0 +1,20 @@
+commit d4fb568e047a23a5ade5c3750da0de9fb54ff33a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 22:43:28 2012 -0500
+
+    cmd/gc: implement len(array) / cap(array) rule
+    
+    The spec is looser than the current implementation.
+    The spec edit was made in CL 4444050 (May 2011)
+    but I never implemented it.
+    
+    Fixes #3244.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5785049
+
+ src/cmd/gc/typecheck.c | 54 +++++++++++++++++++++++++++++++----
+ test/const4.go         | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/const5.go         | 33 ++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 6 deletions(-)

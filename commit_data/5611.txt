@@ -1,0 +1,35 @@
+commit 64784801cd08f1b3e74a12535a239097ac4f5ebe
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 4 17:47:22 2010 -0700
+
+    HTML5 parser test data from WebKit.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1559041
+
+ src/pkg/html/testdata/webkit/README           |   28 +
+ src/pkg/html/testdata/webkit/comments01.dat   |  126 ++
+ src/pkg/html/testdata/webkit/doctype01.dat    |  335 ++++
+ src/pkg/html/testdata/webkit/dom2string.js    |  135 ++
+ src/pkg/html/testdata/webkit/entities01.dat   |  612 +++++++
+ src/pkg/html/testdata/webkit/entities02.dat   |  129 ++
+ src/pkg/html/testdata/webkit/scriptdata01.dat |  308 ++++
+ src/pkg/html/testdata/webkit/tests1.dat       | 1949 +++++++++++++++++++++
+ src/pkg/html/testdata/webkit/tests10.dat      |  430 +++++
+ src/pkg/html/testdata/webkit/tests11.dat      |  482 ++++++
+ src/pkg/html/testdata/webkit/tests12.dat      |   62 +
+ src/pkg/html/testdata/webkit/tests13.dat      |    9 +
+ src/pkg/html/testdata/webkit/tests14.dat      |   74 +
+ src/pkg/html/testdata/webkit/tests15.dat      |  208 +++
+ src/pkg/html/testdata/webkit/tests16.dat      | 2277 +++++++++++++++++++++++++
+ src/pkg/html/testdata/webkit/tests2.dat       |  738 ++++++++
+ src/pkg/html/testdata/webkit/tests3.dat       |  293 ++++
+ src/pkg/html/testdata/webkit/tests4.dat       |   59 +
+ src/pkg/html/testdata/webkit/tests5.dat       |  191 +++
+ src/pkg/html/testdata/webkit/tests6.dat       |  653 +++++++
+ src/pkg/html/testdata/webkit/tests7.dat       |  390 +++++
+ src/pkg/html/testdata/webkit/tests8.dat       |  148 ++
+ src/pkg/html/testdata/webkit/tests9.dat       |  430 +++++
+ src/pkg/html/testdata/webkit/webkit01.dat     |  167 ++
+ 24 files changed, 10233 insertions(+)

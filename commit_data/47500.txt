@@ -1,0 +1,20 @@
+commit 29ec902efc0ae53c4435097efdb738667466756c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 16 11:46:42 2021 -0500
+
+    runtime: get tracking time only when needed
+    
+    casgstatus currently calls nanotime on every casgstatus when tracking,
+    even though the time is only used in some cases. For goroutines making
+    lots of transitions that aren't covered here, this can add a small
+    overhead. Switch to calling nanotime only when necessary.
+    
+    Change-Id: I2617869332e8289ef33dd674d786e44dea09aaba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364375
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit d98023ebb5c2db9a445699b690f2cf6fd77f4b7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 30 18:25:47 2020 -0700
+
+    runtime, internal/poll: name error codes
+    
+    Use explicit names for the error code returned by pollReset
+    and pollWait, rather than just 0, 1, 2, 3.
+    
+    Change-Id: I0ab12cae57693deab7cca9cdd2fadd597e23a956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/internal/poll/fd_poll_runtime.go | 17 +++++++++----
+ src/runtime/netpoll.go               | 46 ++++++++++++++++++++++++------------
+ 2 files changed, 44 insertions(+), 19 deletions(-)

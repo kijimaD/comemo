@@ -1,0 +1,14 @@
+commit cd4aab62e3f11e7872796b7f6c8f8700d7719a8e
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 6 09:23:41 2009 -0700
+
+    sudoaddable odot
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=7  (0 added, 1 deleted, 6 changed)
+    OCL=31189
+    CL=31191
+
+ src/cmd/5g/gsubr.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

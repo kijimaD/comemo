@@ -1,0 +1,14 @@
+commit 37dca9d41774a996f390af3e200f0384b7b3f53a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 4 11:16:55 2011 +1000
+
+    make.bash: remove old bash version of gotest on Windows
+    
+    The file is called gotest.exe now.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4444090
+
+ src/make.bash | 3 +++
+ 1 file changed, 3 insertions(+)

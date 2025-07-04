@@ -1,0 +1,47 @@
+commit 6a2602de918047d35f3390131dabf0243e425bbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 11:52:00 2009 -0700
+
+    cgo: can look up C identifier kind (type or value) and type
+    
+    gmp.go:197:4:  type mpz_t          C type  mpz_t
+    gmp.go:205:2:  call mpz_init       C value func(mpz_ptr) void
+    gmp.go:206:2:  call mpz_set        C value func(mpz_ptr, mpz_srcptr) void
+    gmp.go:221:2:  call mpz_init       C value func(mpz_ptr) void
+    gmp.go:227:7:  call size_t         C type  size_t
+    gmp.go:228:2:  call mpz_export     C value func(*void, *size_t, int, size_t, int, size_t, mpz_srcptr) *void
+    gmp.go:235:13: call mpz_sizeinbase C value func(mpz_srcptr, int) size_t
+    gmp.go:241:2:  call mpz_set        C value func(mpz_ptr, mpz_srcptr) void
+    gmp.go:252:3:  call mpz_import     C value func(mpz_ptr, size_t, int, size_t, int, size_t, *const void) void
+    gmp.go:261:2:  call mpz_set_si     C value func(mpz_ptr, long int) void
+    gmp.go:273:5:  call mpz_set_str    C value func(mpz_ptr, *const char, int) int
+    gmp.go:282:9:  call mpz_get_str    C value func(*char, int, mpz_srcptr) *char
+    gmp.go:287:3:  call mpz_clear      C value func(mpz_ptr) void
+    gmp.go:302:2:  call mpz_add        C value func(mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:311:2:  call mpz_sub        C value func(mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:320:2:  call mpz_mul        C value func(mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:329:2:  call mpz_tdiv_q     C value func(mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:339:2:  call mpz_tdiv_r     C value func(mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:348:2:  call mpz_mul_2exp   C value func(mpz_ptr, mpz_srcptr, long unsigned int) void
+    gmp.go:356:2:  call mpz_div_2exp   C value func(mpz_ptr, mpz_srcptr, long unsigned int) void
+    gmp.go:367:3:  call mpz_pow_ui     C value func(mpz_ptr, mpz_srcptr, long unsigned int) void
+    gmp.go:369:3:  call mpz_powm       C value func(mpz_ptr, mpz_srcptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:378:2:  call mpz_neg        C value func(mpz_ptr, mpz_srcptr) void
+    gmp.go:386:2:  call mpz_abs        C value func(mpz_ptr, mpz_srcptr) void
+    gmp.go:404:9:  call mpz_cmp        C value func(mpz_srcptr, mpz_srcptr) int
+    gmp.go:413:2:  call mpz_tdiv_qr    C value func(mpz_ptr, mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    gmp.go:426:2:  call mpz_gcdext     C value func(mpz_ptr, mpz_ptr, mpz_ptr, mpz_srcptr, mpz_srcptr) void
+    
+    R=r
+    DELTA=938  (628 added, 308 deleted, 2 changed)
+    OCL=34733
+    CL=34791
+
+ src/cmd/cgo/Makefile |   5 +-
+ src/cmd/cgo/ast.go   | 288 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/cgo.go   | 308 ---------------------------------------------------
+ src/cmd/cgo/gcc.go   | 203 +++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gmp.go   |   2 +-
+ src/cmd/cgo/main.go  |  46 ++++++++
+ src/cmd/cgo/util.go  |  96 ++++++++++++++++
+ 7 files changed, 638 insertions(+), 310 deletions(-)

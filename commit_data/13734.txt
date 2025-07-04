@@ -1,0 +1,13 @@
+commit 5fa8987fe33210aed95aabe86864cbf75eca3fa0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 1 19:55:03 2012 -0400
+
+    A+C: add Uriel Mangado (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6492070
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

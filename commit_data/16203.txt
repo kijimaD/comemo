@@ -1,0 +1,14 @@
+commit 41451dd92b03be8fe51db16903a634b9b224c20b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 20 09:04:20 2013 +0900
+
+    net: enable test for runtime.PollDesc leak
+    
+    Update #5219.
+    
+    R=golang-dev, dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/8602047
+
+ src/pkg/net/dial_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

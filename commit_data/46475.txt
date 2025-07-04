@@ -1,0 +1,19 @@
+commit 323c6f74d35ec29baac2a1aba4270f89b022815a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 9 14:49:41 2021 -0700
+
+    log: don't format if writing to io.Discard
+    
+    Fixes #47164
+    
+    Change-Id: Ied03842360be4c86f1d9ead816f12c057a1f8dad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348741
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Valentin Deleplace <deleplace@google.com>
+
+ src/log/log.go      | 53 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/log/log_test.go | 14 +++++++++++++-
+ 2 files changed, 55 insertions(+), 12 deletions(-)

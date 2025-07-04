@@ -1,0 +1,17 @@
+commit 0f7088ade502250a65402efde32c31f9c57f457b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 21 12:23:20 2020 -0800
+
+    cmd/compile: dump contents when rulegen generates invalid code
+    
+    It's much easier to debug when you can see
+    the contents in order to interpret the error message.
+    
+    Change-Id: I03bbb9dd3071aeca9577cc725a60d43f78118cf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215717
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

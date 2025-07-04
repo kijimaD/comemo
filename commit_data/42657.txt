@@ -1,0 +1,19 @@
+commit 50f63a7ae4b7f951fa894b96633b1716adca55fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 12 13:30:43 2020 -0400
+
+    doc/go1.15: clarify external linking can still be used for building PIE
+    
+    In Go 1.15 we switched the default linking mode for PIE on
+    Linux/AMD64 and Linux/ARM64 to internal linking. Clarify that
+    the previous behavior (external linking) can still be used with
+    a flag.
+    
+    Fixes #40719.
+    
+    Change-Id: Ib7042622bc91e1b1aa31f520990d03b5eb6c56bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

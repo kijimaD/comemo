@@ -1,0 +1,14 @@
+commit 37b84e2782e5c19c3053316853a6fba923b0f06b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 2 11:14:29 2019 -0800
+
+    os/exec: add BenchmarkExecEcho
+    
+    Change-Id: Ie955cdc505766447f70b8f262160fe05b60a5b0c
+    Reviewed-on: https://go-review.googlesource.com/c/164959
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/bench_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

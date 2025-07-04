@@ -1,0 +1,25 @@
+commit bb9a96d03a35ab56f3e1a3e6a6c835f7f2120d54
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Fri Nov 6 13:11:58 2020 -0800
+
+    os/exec: use "pfiles" for fd debugging on illumos
+    
+    On illumos (and Solaris) systems, the native "pfiles" tool provides the
+    best information about open file descriptors for a process:
+    
+        https://illumos.org/man/1/pfiles
+    
+    Use that instead of "lsof" when debugging file descriptor leaks.
+    
+    Updates #42431.
+    
+    Change-Id: If1250c4e6c9e8adbd076495a09fb1ce63abcc68b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268019
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/os/exec/read3.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

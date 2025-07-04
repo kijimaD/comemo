@@ -1,0 +1,16 @@
+commit 18ed7e690a63c181827978aa5ec41707553bb051
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 16:27:53 2009 -0800
+
+    - accept new composite literal syntax
+    - remove all parsing heuristics
+    - as a result, accept a wider syntax, but parser is simpler
+    
+    R=r
+    OCL=25029
+    CL=25029
+
+ usr/gri/pretty/ast.go     |   9 ---
+ usr/gri/pretty/parser.go  | 164 ++++++++++------------------------------------
+ usr/gri/pretty/printer.go |   8 ---
+ 3 files changed, 33 insertions(+), 148 deletions(-)

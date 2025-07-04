@@ -1,0 +1,18 @@
+commit 2c7043c273a04dc3ca081321484c8a30d4c2c23b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 00:02:53 2017 +0000
+
+    net: don't run TestDialListenerAddr in short mode on non-builders
+    
+    It listens on all addresses, which users might not want.
+    
+    Updates #18806 (follow-up to feedback from CL 45088)
+    
+    Change-Id: I51de2d3fc3cd88a61eb3c63018c47aea920c0549
+    Reviewed-on: https://go-review.googlesource.com/45157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/dial_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,19 @@
+commit 499fbb1a8ae20a69aa7f49287c65eec845963a30
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Sep 19 15:53:03 2018 +0300
+
+    cmd/compile/internal/gc: unify self-assignment checks in esc.go
+    
+    Move slice self-assign check into isSelfAssign function.
+    Make debug output consistent for all self-assignment cases.
+    
+    Change-Id: I0e4cc7b3c1fcaeace7226dd80a0dc1ea97347a55
+    Reviewed-on: https://go-review.googlesource.com/136276
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 11 ++++-------
+ test/escape2.go                    | 20 ++++++++++----------
+ test/escape2n.go                   | 20 ++++++++++----------
+ 3 files changed, 24 insertions(+), 27 deletions(-)

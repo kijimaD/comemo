@@ -1,0 +1,24 @@
+commit a295b3cec80b048048bf51a0462764dc337ca6ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 8 14:03:53 2021 -0700
+
+    test: re-enable AsmCheck tests for types2-based frontends
+    
+    run.go has logic for being able to run tests with various -G flags,
+    but not all test types (in particular, "asmcheck" tests) support
+    configuring non-default -G levels. The intention was that these tests
+    would continue running in the default mode (at the time -G=0), but at
+    some point it seems like we accidentally disabled them all
+    together (if it ever worked correctly in the first place).
+    
+    Fixes #48247.
+    
+    Change-Id: I13917cb0012cbe522d29b23b888de6136872ead4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348671
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+
+ test/run.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

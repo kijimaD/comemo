@@ -1,0 +1,13 @@
+commit 565793996c2b646dfa31c6660d79a57a7ae8312e
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Oct 18 14:51:40 2011 -0400
+
+    net: remove duplicate error information in Dial
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5293045
+
+ src/pkg/net/dial.go     | 4 ++--
+ src/pkg/net/net_test.go | 6 ++++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)

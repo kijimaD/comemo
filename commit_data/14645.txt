@@ -1,0 +1,17 @@
+commit cc5682dcc5aefca37974818b9695a424e8eea368
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 13 15:11:31 2012 -0800
+
+    test: s/float/float32/
+    
+    I just committed a patch to gccgo that notices that float was
+    never defined, causing an additional unmatched error message.
+    Rename the type to avoid that message.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6947049
+
+ test/fixedbugs/bug085.go | 2 +-
+ test/fixedbugs/bug228.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

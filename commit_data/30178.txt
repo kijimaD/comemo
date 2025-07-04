@@ -1,0 +1,14 @@
+commit 7853b090dd8e9f02147581c4e7bdbb45021e787c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:40:14 2017 -0800
+
+    crypto/x509: CreateCertificateRequest reads ExtraExtensions, not Extensions.
+    
+    Fixes #18899.
+    
+    Change-Id: I6a4bf0aad9cf1dbe6691ba4e4c478fcb33c44528
+    Reviewed-on: https://go-review.googlesource.com/36558
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

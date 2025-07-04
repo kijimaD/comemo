@@ -1,0 +1,31 @@
+commit 01df088f8d7812046f27eaa8e285ad28c0e10a0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 19 13:08:17 2010 -0400
+
+    5l, 6l, 8l: separate pass to fix addresses
+    Lay out code before data.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2490043
+
+ src/cmd/5l/asm.c    |  45 +++++++------------
+ src/cmd/5l/l.h      |   5 ++-
+ src/cmd/5l/list.c   |  30 +++++++++++++
+ src/cmd/5l/obj.c    |   3 +-
+ src/cmd/5l/span.c   |  85 +++++-------------------------------
+ src/cmd/6l/asm.c    |  65 ++++++++++++---------------
+ src/cmd/6l/l.h      |   4 +-
+ src/cmd/6l/list.c   |  27 ++++++++++++
+ src/cmd/6l/obj.c    |   3 +-
+ src/cmd/6l/span.c   |  64 +++------------------------
+ src/cmd/8l/asm.c    | 123 +++++++++++++++-------------------------------------
+ src/cmd/8l/l.h      |   3 +-
+ src/cmd/8l/list.c   |  27 ++++++++++++
+ src/cmd/8l/obj.c    |   3 +-
+ src/cmd/8l/span.c   |  62 ++------------------------
+ src/cmd/8l/symtab.c |   6 +--
+ src/cmd/ld/data.c   |  93 ++++++++++++++++++++++++++++++---------
+ src/cmd/ld/lib.h    |   8 ++++
+ src/cmd/ld/macho.c  |   8 ++--
+ 19 files changed, 284 insertions(+), 380 deletions(-)

@@ -1,0 +1,17 @@
+commit 4a4f752c3812d18ffcaa06624de1a29d4e9ab056
+Author: tnclong <long.asyn@gmail.com>
+Date:   Tue Jun 18 22:07:30 2019 +0800
+
+    text/template: avoid allocating a new common in copy
+    
+    Template.New calls t.init, which allocates several items that
+    are immediately rewritten by copy, so avoid the call to New
+    
+    Change-Id: I16c7cb001bbcd14cf547c1a2db2734a2f8214e7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182757
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/text/template/template.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

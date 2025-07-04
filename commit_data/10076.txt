@@ -1,0 +1,14 @@
+commit c1d0f0e76c4294abc1eb8464c06fb329717a7cdb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 24 09:11:01 2011 +1100
+
+    net: do not set SO_REUSEADDR for windows
+    
+    Fixes #2307.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5306049
+
+ src/pkg/net/sock_windows.go | 3 ---
+ 1 file changed, 3 deletions(-)

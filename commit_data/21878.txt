@@ -1,0 +1,24 @@
+commit d5f690609fd7ffd0d21b27f5a474052839beb0d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 2 17:07:11 2015 -0800
+
+    build: convert run.bash, run.bat, and run.rc into a Go program
+    
+    This will enable test sharding over multiple VMs, to speed trybot answers.
+    
+    Update #10029
+    
+    Change-Id: Ie277c6459bc38005e4d6af14d22effeaa0a4667e
+    Reviewed-on: https://go-review.googlesource.com/6531
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/errors/test.bash     |   2 +
+ misc/cgo/testgodefs/test.bash |   2 +
+ misc/cgo/testso/test.bat      |   2 +-
+ src/cmd/dist/main.go          |   1 +
+ src/cmd/dist/test.go          | 586 ++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash                  | 238 +----------------
+ src/run.bat                   | 101 +-------
+ src/run.rc                    |  58 +----
+ 8 files changed, 598 insertions(+), 392 deletions(-)

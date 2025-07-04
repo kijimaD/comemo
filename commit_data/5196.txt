@@ -1,0 +1,13 @@
+commit b6ad074efcdcfa0e545a806d6aa8f34896e38056
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 31 11:47:09 2010 -0700
+
+    test for panic and recover
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/869041
+
+ test/recover.go  | 246 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/recover1.go | 141 +++++++++++++++++++++++++++++++
+ 2 files changed, 387 insertions(+)

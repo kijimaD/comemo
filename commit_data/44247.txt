@@ -1,0 +1,24 @@
+commit 1004a7cb31ae31d2ca0b54b507b996c12403d54c
+Author: Branden J Brown <zephyrtronium@gmail.com>
+Date:   Mon Feb 15 23:12:15 2021 -0500
+
+    runtime/metrics: update documentation to current interface
+    
+    The package documentation referenced sample metadata that was removed in CL 282632. Update this documentation to be less specific
+    about what metadata is available.
+    
+    Additionally, the documentation on the Sample type referred to Descriptions instead of All as the source of metrics names.
+    
+    Fixes #44280.
+    
+    Change-Id: I24fc63a744bf498cb4cd5bda56c1599f6dd75929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292309
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/metrics/doc.go    | 4 +---
+ src/runtime/metrics/sample.go | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

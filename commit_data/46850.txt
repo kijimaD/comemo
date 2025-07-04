@@ -1,0 +1,19 @@
+commit 6372e7efbab5a613b73271938acbd1c6f558814e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 7 13:05:16 2021 -0700
+
+    cmd/api: support type parameters
+    
+    Fixes #48706
+    
+    Change-Id: If0f8d0b49300027e3b2b46f6870302acf2e00f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354612
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/api/goapi.go                       | 76 +++++++++++++++++++++++++++++-
+ src/cmd/api/testdata/src/pkg/p4/golden.txt |  4 ++
+ src/cmd/api/testdata/src/pkg/p4/p4.go      | 22 +++++++++
+ 3 files changed, 100 insertions(+), 2 deletions(-)

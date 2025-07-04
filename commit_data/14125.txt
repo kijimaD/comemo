@@ -1,0 +1,18 @@
+commit 4c473c02e13f2429c7776cc6585af420cd248502
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 11 23:33:57 2012 +0800
+
+    doc/contribute.html: assorted fixes
+    0. windows uses all.bat instead of ./all.bash
+    1. correct expected all.bash output
+    2. mention you need to use an application specific password
+    if you're using 2-step verification
+    3. note you can edit files included in CL by 'hg change NNNN'
+    or 'hg file'
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/6615060
+
+ doc/contribute.html | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

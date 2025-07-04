@@ -1,0 +1,13 @@
+commit 3f427bc9c8df78b52078f8a8bf08024f8922b087
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 17:54:57 2009 -0700
+
+    update Make.deps
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35808
+    CL=35808
+
+ src/pkg/Make.deps | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

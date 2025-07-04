@@ -1,0 +1,14 @@
+commit fca660892db526f86b9d113e58e292c27583b6a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 4 15:31:46 2013 -0700
+
+    compress/flate: use bytes.NewReader instead of NewBuffer in test
+    
+    Also, report allocations in benchmark.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13410044
+
+ src/pkg/compress/flate/reader_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit d8a764cc7eb4e1919c152a4a121bd0585d4428ac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 17:01:10 2009 -0800
+
+    - removed todo and restriction from spec (closures)
+    - fixed typos, added a reminder for a todo
+    
+    R=r
+    DELTA=23  (6 added, 4 deleted, 13 changed)
+    OCL=24611
+    CL=24615
+
+ doc/go_spec.txt | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

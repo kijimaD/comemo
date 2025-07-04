@@ -1,0 +1,20 @@
+commit 19532d04bfe4bfb2e4a2de239ac13f31b77080fc
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 22 01:34:13 2019 +0200
+
+    cmd/compile: add debugging mode for poset
+    
+    Add an internal mode to simplify debugging of posets
+    by checking the integrity after every mutation. Turn
+    it on within SSA checked builds.
+    
+    Change-Id: Idaa8277f58e5bce3753702e212cea4d698de30ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196780
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go |  2 ++
+ src/cmd/compile/internal/ssa/poset.go   | 34 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

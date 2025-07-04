@@ -1,0 +1,18 @@
+commit 0df08b955371b7953350a834fd27c594fc45fe73
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:53:41 2022 -0500
+
+    cmd/vet: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I973be280cd0a7f495b491bfb0e04771389562e04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450711
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/vet/vet_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

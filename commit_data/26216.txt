@@ -1,0 +1,16 @@
+commit f973e79d096be18ad4272ad97803b7c08fca4dd0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 00:44:39 2016 -0800
+
+    cmd/compile: move InitPlan and InitEntry into sinit.go
+    
+    I don't know what they're used for, but that's the only file they're
+    referenced in.
+    
+    Change-Id: Ie39d7d4621e2d5224408243b5789597ca0dc14be
+    Reviewed-on: https://go-review.googlesource.com/20593
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/go.go    | 12 ------------
+ src/cmd/compile/internal/gc/sinit.go | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 12 deletions(-)

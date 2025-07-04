@@ -1,0 +1,36 @@
+commit 22dfc77c99687c973b116f88e4295d88e6c11d7d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 16:14:01 2012 -0800
+
+    go/doc: first steps towards cleaning up go/doc
+    
+    - separated exported data structures from doc reader
+      by extracting all exported data structures into doc.go
+      and moving the implementation into reader.go
+    - added missing documentation comments
+    - no API or semantic changes (but moved positions of
+      PackageDoc.Doc and TypeDoc.Decl field up for consistency)
+    - runs all tests
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5527063
+
+ src/buildscript_darwin_386.sh    |   2 +-
+ src/buildscript_darwin_amd64.sh  |   2 +-
+ src/buildscript_freebsd_386.sh   |   2 +-
+ src/buildscript_freebsd_amd64.sh |   2 +-
+ src/buildscript_linux_386.sh     |   2 +-
+ src/buildscript_linux_amd64.sh   |   2 +-
+ src/buildscript_linux_arm.sh     |   2 +-
+ src/buildscript_netbsd_386.sh    |   2 +-
+ src/buildscript_netbsd_amd64.sh  |   2 +-
+ src/buildscript_openbsd_386.sh   |   2 +-
+ src/buildscript_openbsd_amd64.sh |   2 +-
+ src/buildscript_plan9_386.sh     |   2 +-
+ src/buildscript_windows_386.sh   |   2 +-
+ src/buildscript_windows_amd64.sh |   2 +-
+ src/pkg/go/doc/Makefile          |   1 +
+ src/pkg/go/doc/doc.go            | 684 +++------------------------------------
+ src/pkg/go/doc/reader.go         | 613 +++++++++++++++++++++++++++++++++++
+ 17 files changed, 666 insertions(+), 660 deletions(-)

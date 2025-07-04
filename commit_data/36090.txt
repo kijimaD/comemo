@@ -1,0 +1,22 @@
+commit ad705baafd52089cad35791755e4b80212727a82
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Jul 15 18:34:55 2018 +0300
+
+    cmd/go: skip vet when package cannot be build under "go test/vet"
+    
+    If the the package cannot be built,
+    "go test" and "go vet" should not run the "vet" tool.
+    In that case only errors from the compilers will be displayed.
+    
+    Fixes #26125
+    
+    Change-Id: I5da6ba64bae5f44feaf5bd4e765eea85533cddd4
+    Reviewed-on: https://go-review.googlesource.com/123938
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 15 +++++++++++++++
+ src/cmd/go/internal/work/exec.go | 12 ++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

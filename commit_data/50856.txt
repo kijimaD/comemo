@@ -1,0 +1,20 @@
+commit b6e7e16208be683dbf8039acc7d7dfd97888aba1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 11:21:13 2022 -0700
+
+    math/big: error on buffer length overflow in Rat.GobDecode
+    
+    Fixes #56156
+    
+    Change-Id: Ib85ff45f0b0d0eac83c39606ee20b3a312e6e919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442335
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/math/big/ratmarsh.go      | 9 +++++++--
+ src/math/big/ratmarsh_test.go | 1 +
+ 2 files changed, 8 insertions(+), 2 deletions(-)

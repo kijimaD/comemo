@@ -1,0 +1,17 @@
+commit 1a667f52d87a9fec1b3406bb2697b790dff64768
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 19 16:03:02 2010 -0700
+
+    go/ast Fprint: handle cycles in AST
+    
+    Augmented ASTs may contain cycles. Keep
+    track of already printed objects and refer
+    to them with a line number instead of
+    printing them again.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1998042
+
+ src/pkg/go/ast/print.go | 36 ++++++++++++++++++++++++++++--------
+ 1 file changed, 28 insertions(+), 8 deletions(-)

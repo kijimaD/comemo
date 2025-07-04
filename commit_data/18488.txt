@@ -1,0 +1,16 @@
+commit ca6186aa269eebf62d8a89d846a0eed4108e3b66
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 03:09:03 2014 -0500
+
+    cmd/6c, cmd/8c, cmd/8g: fix print of pc (which is vlong).
+    While we're at it, fix a wrong for statement in cmd/8g.
+    
+    LGTM=rsc
+    R=rsc, golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/62700044
+
+ src/cmd/6c/reg.c |  8 ++++----
+ src/cmd/8c/reg.c | 10 +++++-----
+ src/cmd/8g/reg.c |  2 +-
+ 3 files changed, 10 insertions(+), 10 deletions(-)

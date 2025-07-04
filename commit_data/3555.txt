@@ -1,0 +1,16 @@
+commit 18325313fb916bc697243edaccc5b1a90e2d9286
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 11:05:23 2009 -0700
+
+    add exp/eval to pkg list
+    update Make.deps.
+    
+    fixes build
+    
+    TBR=r
+    OCL=35777
+    CL=35777
+
+ src/pkg/Make.deps | 1 +
+ src/pkg/Makefile  | 1 +
+ 2 files changed, 2 insertions(+)

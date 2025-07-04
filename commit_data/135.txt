@@ -1,0 +1,11 @@
+commit f07d2eea52b135575ff77b5446e1f8fe93146e0b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 19:08:00 2008 -0700
+
+    fix string_lit test to be more thorough
+    
+    SVN=121623
+
+ test/golden.out    |  3 --
+ test/string_lit.go | 91 +++++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 70 insertions(+), 24 deletions(-)

@@ -1,0 +1,22 @@
+commit 8b92397bcdcd5d6de3f72951a5514933fee32eb2
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Sun Apr 24 21:21:07 2016 +0200
+
+    cmd/compile: introduce bool operations.
+    
+    Introduce OrB, EqB, NeqB, AndB to handle bool operations.
+    
+    Change-Id: I53e4d5125a8090d5eeb4576db619103f19fff58d
+    Reviewed-on: https://go-review.googlesource.com/22412
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   9 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  24 +++
+ src/cmd/compile/internal/ssa/phiopt.go         |   4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  76 +++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 218 +++++++++++++------------
+ test/phiopt.go                                 |  10 +-
+ 9 files changed, 243 insertions(+), 122 deletions(-)

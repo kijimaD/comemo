@@ -1,0 +1,14 @@
+commit 3526c409795d8f296cb3d4abcd1c301af3458dde
+Author: Paul PISCUC <paul.piscuc@gmail.com>
+Date:   Thu Jan 4 21:25:04 2018 +0100
+
+    math/rand: typo fixed in documentation of seedPos
+    
+    In the comment of seedPost, the word: condiiton was changed to: condition
+    
+    Change-Id: I8967cc0e9f5d37776bada96cc1443c8bf46e1117
+    Reviewed-on: https://go-review.googlesource.com/86156
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

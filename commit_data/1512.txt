@@ -1,0 +1,18 @@
+commit ec9f2b0cd46300b9da3a82aa3604c98fce017baa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 14:16:31 2009 -0800
+
+    casify linux syscall dependents, plus a few stragglers
+    
+    R=rsc
+    DELTA=97  (0 added, 0 deleted, 97 changed)
+    OCL=22971
+    CL=22973
+
+ src/lib/net/fd_linux.go       | 50 ++++++++++++++++++-------------------
+ src/lib/net/ip_test.go        | 24 +++++++++---------
+ src/lib/net/net_linux.go      | 30 +++++++++++-----------
+ src/lib/net/port_test.go      | 58 +++++++++++++++++++++----------------------
+ src/lib/net/tcpserver_test.go | 24 +++++++++---------
+ src/lib/sync/mutex_test.go    |  8 +++---
+ 6 files changed, 97 insertions(+), 97 deletions(-)

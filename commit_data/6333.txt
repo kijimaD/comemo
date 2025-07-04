@@ -1,0 +1,14 @@
+commit b11740fb6d2aa61b50a49144a0854ba84483c1f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 21 22:41:32 2010 -0400
+
+    build: fixes for native arm build
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/2254044
+
+ src/Make.inc | 2 +-
+ test/run     | 2 +-
+ test/run-arm | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

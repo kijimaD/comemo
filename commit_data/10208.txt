@@ -1,0 +1,15 @@
+commit 7df9ff55948aa20ca17a4448252dc826a0ded9fb
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 2 17:18:53 2011 +0100
+
+    gc: helpful message instead of internal error on method call on pointer to pointer.
+    
+    Fixes #2343.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5332048
+
+ src/cmd/gc/typecheck.c   | 17 ++++++++++++++++-
+ test/fixedbugs/bug371.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

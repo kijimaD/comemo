@@ -1,0 +1,17 @@
+commit 0d8c3637b1482402eb5328ca089862eb30fa636a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 27 13:49:17 2019 +0100
+
+    cmd/go: fix -Wl,--whole-archive for aix/ppc64
+    
+    --whole-archive doesn't exist on AIX. It was already removed most of
+    the time but was still added with c-archive or c-shared buildmodes.
+    
+    Change-Id: Ia7360638509d4a4d91674b0281ed4b112508a2c9
+    Reviewed-on: https://go-review.googlesource.com/c/164037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/gccgo.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

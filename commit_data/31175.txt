@@ -1,0 +1,66 @@
+commit da15fe687092fab29c0c2c77b76338ae618be787
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 14 06:35:53 2017 -0700
+
+    cmd/internal/obj: rework gclocals handling
+    
+    The compiler handled gcargs and gclocals LSyms unusually.
+    It generated placeholder symbols (makefuncdatasym),
+    filled them in, and then renamed them for content-addressability.
+    This is an important binary size optimization;
+    the same locals information occurs over and over.
+    
+    This CL continues to treat these LSyms unusually,
+    but in a slightly more explicit way,
+    and importantly for concurrent compilation,
+    in a way that does not require concurrent
+    modification of Ctxt.Hash.
+    
+    Instead of creating gcargs and gclocals in the usual way,
+    by creating a types.Sym and then an obj.LSym,
+    we add them directly to obj.FuncInfo,
+    initialize them in obj.InitTextSym,
+    and deduplicate and add them to ctxt.Data at the end.
+    Then the backend's job is simply to fill them in
+    and rename them appropriately.
+    
+    Updates #15756
+    
+    name       old alloc/op      new alloc/op      delta
+    Template        38.8MB ± 0%       38.7MB ± 0%  -0.22%  (p=0.016 n=5+5)
+    Unicode         29.8MB ± 0%       29.8MB ± 0%    ~     (p=0.690 n=5+5)
+    GoTypes          113MB ± 0%        113MB ± 0%  -0.24%  (p=0.008 n=5+5)
+    SSA             1.25GB ± 0%       1.24GB ± 0%  -0.39%  (p=0.008 n=5+5)
+    Flate           25.3MB ± 0%       25.2MB ± 0%  -0.43%  (p=0.008 n=5+5)
+    GoParser        31.7MB ± 0%       31.7MB ± 0%  -0.22%  (p=0.008 n=5+5)
+    Reflect         78.2MB ± 0%       77.6MB ± 0%  -0.80%  (p=0.008 n=5+5)
+    Tar             26.6MB ± 0%       26.3MB ± 0%  -0.85%  (p=0.008 n=5+5)
+    XML             42.4MB ± 0%       41.9MB ± 0%  -1.04%  (p=0.008 n=5+5)
+    
+    name       old allocs/op     new allocs/op     delta
+    Template          378k ± 0%         377k ± 1%    ~     (p=0.151 n=5+5)
+    Unicode           321k ± 1%         321k ± 0%    ~     (p=0.841 n=5+5)
+    GoTypes          1.14M ± 0%        1.14M ± 0%  -0.47%  (p=0.016 n=5+5)
+    SSA              9.71M ± 0%        9.67M ± 0%  -0.33%  (p=0.008 n=5+5)
+    Flate             233k ± 1%         232k ± 1%    ~     (p=0.151 n=5+5)
+    GoParser          316k ± 0%         315k ± 0%  -0.49%  (p=0.016 n=5+5)
+    Reflect           979k ± 0%         972k ± 0%  -0.75%  (p=0.008 n=5+5)
+    Tar               250k ± 0%         247k ± 1%  -0.92%  (p=0.008 n=5+5)
+    XML               392k ± 1%         389k ± 0%  -0.67%  (p=0.008 n=5+5)
+    
+    Change-Id: Idc36186ca9d2f8214b5f7720bbc27b6bb22fdc48
+    Reviewed-on: https://go-review.googlesource.com/40697
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go          |  1 -
+ src/cmd/compile/internal/gc/gsubr.go | 28 ++++++++++++++++++-----
+ src/cmd/compile/internal/gc/obj.go   | 35 ++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/pgen.go  | 44 +++++-------------------------------
+ src/cmd/compile/internal/gc/plive.go | 43 +++++++++++++++--------------------
+ src/cmd/compile/internal/gc/ssa.go   |  4 +---
+ src/cmd/internal/obj/link.go         |  2 ++
+ src/cmd/internal/obj/plist.go        |  9 ++++++++
+ src/cmd/link/internal/ld/objfile.go  |  2 +-
+ 9 files changed, 92 insertions(+), 76 deletions(-)

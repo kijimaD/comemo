@@ -1,0 +1,17 @@
+commit 5917692b98695b606744f638224a82a2472bfeaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 16:53:47 2014 -0400
+
+    debug/dwarf: correct name for clang-generated complex type
+    
+    Fixes #8694.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/143570043
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue8694.go | 32 ++++++++++++++++++++++++++++++++
+ src/debug/dwarf/type.go    | 11 +++++++++++
+ 3 files changed, 44 insertions(+)

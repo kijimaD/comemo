@@ -1,0 +1,14 @@
+commit a9345307a1c28315c340bbb8bbd2faa55b1b9d0a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 28 09:49:46 2017 -0700
+
+    doc: update GCC release info in gccgo_install
+    
+    Fixes #22077
+    
+    Change-Id: I8d1b18e78719514fa2a410e85c9d3934c47cd2fe
+    Reviewed-on: https://go-review.googlesource.com/66930
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ doc/gccgo_install.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

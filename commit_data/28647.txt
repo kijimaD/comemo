@@ -1,0 +1,18 @@
+commit ddb77100a670d491d7553cc1beed630fc994a7f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 12:13:22 2016 -0700
+
+    reflect: ignore struct tags when converting structs
+    
+    Implementation of spec change https://golang.org/cl/24190/.
+    
+    For #16085.
+    
+    Change-Id: Ib7cb513354269282dfad663c7d2c6e624149f3cd
+    Reviewed-on: https://go-review.googlesource.com/30191
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/all_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/reflect/type.go     | 46 +++++++++++++++++++++++++++++-----------------
+ src/reflect/value.go    |  4 ++--
+ 3 files changed, 63 insertions(+), 19 deletions(-)

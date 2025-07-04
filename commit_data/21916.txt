@@ -1,0 +1,12 @@
+commit 2897d6dea738832eb98e5c8049368603e9bb6161
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 17:36:50 2015 -0500
+
+    cmd/internal/gc: simplify some indexing
+    
+    Change-Id: I7d289c7f250e4db551192d52535a90974685f0b3
+    Reviewed-on: https://go-review.googlesource.com/6891
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/reg.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

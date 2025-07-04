@@ -1,0 +1,16 @@
+commit 1162aae0ad7d7fefeebd1c8537c457eae76d43ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 13 13:58:23 2021 -0700
+
+    time/tzdata: update links in comment
+    
+    Change-Id: I141d29bb4adc957de5de1f8ed8867980fd3c8386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342071
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/time/tzdata/generate_zipdata.go | 4 ++--
+ src/time/tzdata/zipdata.go          | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

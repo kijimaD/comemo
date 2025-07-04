@@ -1,0 +1,20 @@
+commit b6ea905ed9cb1f0db828c0d58609c853eb82b89d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Aug 1 00:45:26 2012 +0200
+
+    cmd/gc: fix inlining bug with receive operator.
+    
+    The receive operator was given incorrect precedence
+    resulting in incorrect deletion of parentheses.
+    
+    Fixes #3843.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6442049
+
+ src/cmd/gc/fmt.c                  |  2 +-
+ test/fixedbugs/bug448.dir/pkg1.go | 11 +++++++++++
+ test/fixedbugs/bug448.dir/pkg2.go | 14 ++++++++++++++
+ test/fixedbugs/bug448.go          |  7 +++++++
+ 4 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 3af4803704f33291846a31f91e95549ebee38f18
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 14 13:11:48 2010 -0700
+
+    go spec: added imaginary literal to semicolon rules (was missing)
+    
+    - also added links to the respective sections
+    - reformatted section for better (source html) readability
+    - added missing closing </li>'s in many places
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1220041
+
+ doc/go_spec.html | 46 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 12 deletions(-)

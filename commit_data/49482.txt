@@ -1,0 +1,28 @@
+commit b6c16068897c370661f03af91e8ba46860408e61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 8 16:33:45 2022 -0700
+
+    internal/goarch, internal/goos: update generators for syslist.go
+    
+    Update the generator programs for the changes to syslist.go in CL
+    390274 and the changes to the generated files in CL 344955.
+    
+    Tested by running the programs and verifying that the files did not
+    change.
+    
+    Fixes #53299
+    
+    Change-Id: I2b2c5769f7e9283aa05c803256d2ea1eb9ad1547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411334
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/syslist.go          |  4 ++++
+ src/internal/goarch/gengoarch.go | 19 +++++++++++--------
+ src/internal/goos/gengoos.go     | 19 +++++++++++--------
+ 3 files changed, 26 insertions(+), 16 deletions(-)

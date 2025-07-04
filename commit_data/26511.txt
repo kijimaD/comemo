@@ -1,0 +1,14 @@
+commit 44189299bfd98eff20d1d84c0c7ee2310124fe38
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Mar 25 11:14:29 2016 +0100
+
+    compress/gzip: skip mtime test when GOROOT doesn't exist
+    
+    Fixes the iOS builders
+    
+    Change-Id: I5097ca19048381ffb5a4c5ea038b7c4aa18ee4b7
+    Reviewed-on: https://go-review.googlesource.com/21132
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/issue14937_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,26 @@
+commit ed8079096fe2e78d6dcb8002758774dca6d24eee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 10 12:43:18 2021 -0500
+
+    cmd/compile: mark concrete call of reflect.(*rtype).Method as REFLECTMETHOD
+    
+    For functions that call reflect.Type.Method (or MethodByName), we
+    mark it as REFLECTMETHOD, which tells the linker that methods
+    can be retrieved via reflection and the linker keeps all exported
+    methods live. Currently, this marking expects exactly the
+    interface call reflect.Type.Method (or MethodByName). But now the
+    compiler can devirtualize that call to a concrete call
+    reflect.(*rtype).Method (or MethodByName), which is not handled
+    and causing the linker to discard methods too aggressively.
+    Handle the latter in this CL.
+    
+    Fixes #44207.
+    
+    Change-Id: Ia4060472dbff6ab6a83d2ca8e60a3e3f180ee832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290950
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 16 +++++++++++++++-
+ test/reflectmethod7.go              | 24 ++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

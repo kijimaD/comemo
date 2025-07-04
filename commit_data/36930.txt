@@ -1,0 +1,16 @@
+commit 5b2030cbcacf0c1b5ea46230323595ab20fa8099
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 10 16:37:01 2018 -0700
+
+    cmd/compile/internal/types: regen stringer file
+    
+    Forgot to do this for golang.org/cl/76312.
+    
+    Change-Id: Ic20fef3eeff14a805f608221aff1fa03934be3ca
+    Reviewed-on: https://go-review.googlesource.com/c/141357
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/etype_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

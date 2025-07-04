@@ -1,0 +1,12 @@
+commit d9b82baac1f25fce52d1a392fb39711fa9462f40
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 12 08:25:49 2012 +1100
+
+    doc: update "How to Write Go Code" to use the go tool
+    
+    R=golang-dev, r, kevlar, rsc
+    CC=golang-dev
+    https://golang.org/cl/5534045
+
+ doc/code.html | 289 ++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 131 insertions(+), 158 deletions(-)

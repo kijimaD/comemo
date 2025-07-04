@@ -1,0 +1,13 @@
+commit 8b8630c6cf95c44d59e415069e40c8845b6627c5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 14:17:13 2008 -0800
+
+    allow files to be named on the command line
+    
+    R=rsc
+    DELTA=3  (1 added, 1 deleted, 1 changed)
+    OCL=19485
+    CL=19485
+
+ src/cmd/gotest/gotest | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

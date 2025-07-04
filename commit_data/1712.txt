@@ -1,0 +1,16 @@
+commit 5af7de3fe37378cb61060e554b885b1f26a8f8f6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 15:17:59 2009 -0800
+
+    Updated the section on Types.
+    Moved assignment compatibility to its own small section. Although most rules are type-specific,
+    some are not and it reduces redundancy to combine them.
+    Also, more experimentally, wrote a section on comparison compatibility.
+    
+    R=gri
+    DELTA=382  (125 added, 122 deleted, 135 changed)
+    OCL=25355
+    CL=25382
+
+ doc/go_spec.html | 481 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 242 insertions(+), 239 deletions(-)

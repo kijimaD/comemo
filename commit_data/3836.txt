@@ -1,0 +1,18 @@
+commit 0ea9dd815ab6b95d751f0c241745acb0f45c5282
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 18:14:47 2009 -0800
+
+    gofmt the last outstanding files in src/pkg
+    - added a list of issues to printer/nodes.go
+    
+    R=rsc
+    http://go/go-review/1024002
+
+ src/pkg/debug/elf/elf.go            |   6 +-
+ src/pkg/exp/datafmt/datafmt.go      |  96 +++++------
+ src/pkg/exp/datafmt/datafmt_test.go |  73 ++++-----
+ src/pkg/go/parser/parser.go         | 164 ++++++++++---------
+ src/pkg/go/printer/nodes.go         |   9 ++
+ src/pkg/go/scanner/scanner_test.go  | 309 ++++++++++++++++++------------------
+ src/pkg/xml/xml_test.go             |  10 +-
+ 7 files changed, 342 insertions(+), 325 deletions(-)

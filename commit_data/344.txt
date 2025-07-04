@@ -1,0 +1,12 @@
+commit 97cab903afbc887c70d6efdd4d382ab0427267bd
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 13 16:20:27 2008 -0700
+
+    chan
+    
+    SVN=126959
+
+ src/cmd/gc/subr.c  |  1 +
+ src/cmd/gc/walk.c  | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/chan.c | 28 ++++++++++++++++++++++++
+ 3 files changed, 89 insertions(+), 4 deletions(-)

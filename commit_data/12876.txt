@@ -1,0 +1,20 @@
+commit 8cea1bf1022272ee12fc03ef939a2ea1201d34d1
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Apr 11 22:02:08 2012 +1000
+
+    runtime: update openbsd thread related syscalls to match kernel
+    
+    Update the threxit and thrsleep syscalls to match the ABI of the
+    OpenBSD 5.1 kernel. These changes are backwards compatible with
+    older kernels.
+    
+    Fixes #3311.
+    
+    R=golang-dev, rsc, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/5777079
+
+ src/pkg/runtime/sys_openbsd_386.s   | 24 +++++++++++++-----------
+ src/pkg/runtime/sys_openbsd_amd64.s | 31 +++++++++++++++++--------------
+ src/pkg/runtime/thread_openbsd.c    |  6 +++---
+ 3 files changed, 33 insertions(+), 28 deletions(-)

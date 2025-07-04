@@ -1,0 +1,15 @@
+commit e8766354a4666044d23027de177e57f2fc992802
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 10 14:54:10 2008 -0800
+
+    handle Inf, NaN in float print
+    
+    R=r
+    DELTA=48  (23 added, 14 deleted, 11 changed)
+    OCL=18707
+    CL=18922
+
+ src/runtime/print.c   | 53 +++++++++++++++++++++++++++++----------------------
+ src/runtime/runtime.c |  4 ++--
+ src/runtime/runtime.h |  2 ++
+ 3 files changed, 34 insertions(+), 25 deletions(-)

@@ -1,0 +1,20 @@
+commit 5d863f89fed8f0580294ada88f92f72f361c598f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 14:30:24 2021 -0700
+
+    cmd/compile: simplify bad conversion check
+    
+    Now that we're using OCONVIDATA(x) everywhere we formerly used
+    OIDATA(OCONVIFACE(x)), there should be no OCONVIFACE operations that
+    take a shape type.
+    
+    Change-Id: I4fb056456c60481c6dfe7bc111fca6223567e6a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344577
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

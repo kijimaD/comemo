@@ -1,0 +1,14 @@
+commit 796e4bdc6b3edef2d838ddc3c4d35aee3f8e89cc
+Author: Dylan Waits <dylan@waits.io>
+Date:   Thu Aug 30 13:04:09 2018 -0600
+
+    fmt: add example for Fprintln
+    
+    Change-Id: Idc4aa53e443b89eeba496d00f6b409268e29ec21
+    Reviewed-on: https://go-review.googlesource.com/132241
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

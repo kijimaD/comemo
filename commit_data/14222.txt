@@ -1,0 +1,25 @@
+commit 5611e8b59fe338ca8dcb6790d569e77c2a78785f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 26 10:31:03 2012 -0700
+
+    syscall: fix creds_test to reliably close os.File
+    
+    Before this patch the test would close the file descriptor but
+    not the os.File.  When the os.File was GC'ed, the finalizer
+    would close the file descriptor again.  That would cause
+    problems if the same file descriptor were returned by a later
+    call to open in another test.
+    
+    On my system:
+    
+    > GOGC=30 go test
+    --- FAIL: TestPassFD (0.04 seconds)
+    passfd_test.go:62:      FileConn: dup: bad file descriptor
+    FAIL
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6776053
+
+ src/pkg/syscall/creds_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

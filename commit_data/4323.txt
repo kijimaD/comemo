@@ -1,0 +1,12 @@
+commit 0b5cc3169361981e221bb9f9b42226352979444f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 4 11:46:56 2009 -0800
+
+    Add os.Rename.
+    
+    R=rsc
+    https://golang.org/cl/166058
+
+ src/pkg/os/file.go    | 11 ++++++++++-
+ src/pkg/os/os_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

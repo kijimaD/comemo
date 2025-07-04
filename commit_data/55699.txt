@@ -1,0 +1,18 @@
+commit 65172c2036d6b084f8a9cd3dcea926961070dcda
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 19:41:55 2023 +0800
+
+    regexp: add available godoc link
+    
+    Signed-off-by: cui fliter <imcusg@gmail.com>
+    Change-Id: I85339293d4cfb691125f991ec7162e9be186efdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539599
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/regexp/regexp.go      | 2 +-
+ src/regexp/syntax/prog.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

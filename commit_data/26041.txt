@@ -1,0 +1,20 @@
+commit bf3909824ccf0c03e372d1a341792a8f783f03f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 15:08:25 2016 -0800
+
+    cmd/compile: convert cgen/gen/pgen and friends to nodeListSeq
+    
+    Added Seq method to nodeListIterator. Added new functions nodeSeqLen,
+    nodeSeqFirst, nodeSeqSecond. Allow nil as source argument to setNodeSeq.
+    
+    Change-Id: Ifc1cd4d7207b7a125b3830c92c4d6d6f00eedd54
+    Reviewed-on: https://go-review.googlesource.com/20195
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go   | 32 ++++++++--------
+ src/cmd/compile/internal/gc/gen.go    | 40 +++++++++-----------
+ src/cmd/compile/internal/gc/pgen.go   |  4 +-
+ src/cmd/compile/internal/gc/syntax.go | 69 ++++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/walk.go   | 40 ++++++++++----------
+ 5 files changed, 124 insertions(+), 61 deletions(-)

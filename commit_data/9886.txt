@@ -1,0 +1,12 @@
+commit 417c42218f486b443099be2b283dc9cc56c8f858
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 6 10:41:52 2011 -0700
+
+    gotest: document -test.parallel
+    
+    R=golang-dev, bradfitz, dsymonds, gri
+    CC=golang-dev
+    https://golang.org/cl/5223043
+
+ src/cmd/gotest/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

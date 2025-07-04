@@ -1,0 +1,24 @@
+commit 0564e304a6ea394a42929060c588469dbd6f32af
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 28 16:25:56 2017 -0700
+
+    archive/tar: populate uname/gname/devmajor/devminor in FileInfoHeader
+    
+    We take a best-effort approach since information for these fields
+    are not well supported on all platforms.
+    
+    user.LookupId+user.LookupGroupId is currently 15x slower than os.Stat.
+    For performance reasons, we perpetually cache username and groupname
+    with a sync.Map. As a result, this function will not be updated whenever
+    the user or group names are renamed in the OS. However, this is a better
+    situation than before, where those fields were not populated at all.
+    
+    Change-Id: I3cec8291aed7675dea89ee1cbda92bd493c8831f
+    Reviewed-on: https://go-review.googlesource.com/59531
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/stat_unix.go | 45 ++++++++++++++++++++++++++++++++++++++++----
+ src/go/build/deps_test.go    |  2 +-
+ 2 files changed, 42 insertions(+), 5 deletions(-)

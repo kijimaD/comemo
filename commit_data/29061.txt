@@ -1,0 +1,19 @@
+commit e24ccfc6fc6289073cdbe6f47f8a915e798578e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 25 12:59:36 2016 -0700
+
+    misc/cgo/errors: fix malloc test for dragonfly
+    
+    The Dragonfly libc returns a non-zero value for malloc(-1).
+    
+    Fixes #17585.
+    
+    Change-Id: Icfe68011ccbc75c676273ee3c3efdf24a520a004
+    Reviewed-on: https://go-review.googlesource.com/32050
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/malloc.go | 13 ++++++++++++-
+ misc/cgo/errors/test.bash |  2 +-
+ 2 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 7adb42eee479382018621eb24c665cf83f3a73f7
+Author: Richard Eric Gavaletz <gavaletz@gmail.com>
+Date:   Mon Sep 9 15:41:36 2013 -0700
+
+    container/list: unexpected panic if Next/Prev called outside of list.
+    
+    Before CL 7065067 calling Next on an element returned either the
+    next/prev element or nil was returned.  After the CL if an element
+    was not part of a list e.Next() and e.Prev() will panic.  This CL
+    returns to the documented behavior, that Next/Prev returns the
+    next/prev list element or nil.
+    
+    Fixes #6349.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/13234051
+
+ src/pkg/container/list/list.go      |  4 ++--
+ src/pkg/container/list/list_test.go | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

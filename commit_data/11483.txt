@@ -1,0 +1,14 @@
+commit 9c3d876db17f34d74b5a4c0b526cb7b956f026ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 15:31:33 2012 -0800
+
+    go/spec: Update language on map types.
+    
+    Fixes #2803.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5601053
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit b6c7cc3241d898dd89c27cb82e0a3c827314e86c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 14 09:20:29 2013 +1100
+
+    encoding/gob: expose encode/decode example
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/26220045
+
+ src/pkg/encoding/gob/example_encdec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

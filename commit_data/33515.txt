@@ -1,0 +1,21 @@
+commit f01b928aad6a6f35b033a31f495e9a0c2d38770d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 10 21:46:41 2017 +0100
+
+    cmd/go: skip TestGoTestJSON on uniprocessor machines
+    
+    CL 76873 added TestGoTestJSON. However, this test
+    is only succeeding on SMP machines.
+    
+    This change skips TestGoTestJSON on uniprocessor machines.
+    
+    Fixes #22665.
+    
+    Change-Id: I3989d3331fb71193a25a3f0bbb84ff3e1b730890
+    Reviewed-on: https://go-review.googlesource.com/77130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

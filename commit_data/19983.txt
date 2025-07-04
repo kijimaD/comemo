@@ -1,0 +1,19 @@
+commit 11016f62d83435c352261fe250ae36660c50c17f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 12 12:55:12 2014 -0700
+
+    cmd/cgo: make C function pointers non-assignable
+    
+    Fixes #7757.
+    Fixes #8488.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/118690044
+
+ misc/cgo/errors/issue7757.go | 14 ++++++++++++++
+ misc/cgo/errors/test.bash    |  1 +
+ src/cmd/cgo/gcc.go           |  8 +++++++-
+ src/cmd/cgo/out.go           |  2 +-
+ 4 files changed, 23 insertions(+), 2 deletions(-)

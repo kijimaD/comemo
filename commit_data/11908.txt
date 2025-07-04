@@ -1,0 +1,12 @@
+commit a50315304d58ab73ea8267f940761f1372e21361
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 10:31:28 2012 +1100
+
+    doc: grey out line numbers
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5675049
+
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,22 @@
+commit 8eb9fdaa0123fc98cb70f58801eb74c8a6f92817
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 24 08:39:31 2016 +1000
+
+    cmd/compile: write type symbols referenced in ptabs
+    
+    The exported symbol for a plugin can be the only reference to a
+    type in a program. In particular, "var F func()" will have
+    the type *func(), which is uncommon.
+    
+    Fixes #17140
+    
+    Change-Id: Ide2104edbf087565f5377374057ae54e0c00c57e
+    Reviewed-on: https://go-review.googlesource.com/29692
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go           | 12 ++++++++++++
+ misc/cgo/testplugin/src/sub/plugin1/plugin1.go |  3 +++
+ src/cmd/compile/internal/gc/reflect.go         |  2 +-
+ src/cmd/link/internal/ld/deadcode.go           |  5 +++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 80b2ae5878c7b08b605128cc885305bf86bc5475
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 6 14:33:36 2017 -0500
+
+    crypto: simplify amd64 asm for sha{1,256,512} a bit
+    
+    Use constants directly, instead of loading address to e. g. AX
+    and using (AX). Shouldn't affect performance, but makes code a bit
+    nicer.
+    
+    Change-Id: Ifa138e54d3d2b2f4ad71e4ef4b9368ea79eb30f4
+    Reviewed-on: https://go-review.googlesource.com/62010
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/sha1/sha1block_amd64.s     |  4 +---
+ src/crypto/sha256/sha256block_amd64.s | 20 +++++---------------
+ src/crypto/sha512/sha512block_amd64.s | 16 +++++-----------
+ 3 files changed, 11 insertions(+), 29 deletions(-)

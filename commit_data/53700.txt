@@ -1,0 +1,20 @@
+commit 813aad51d947b207f5bed4511c479c0921870b3d
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Jul 18 17:08:00 2023 -0400
+
+    all: update go.mod go version to 1.22
+    
+    For #60558.
+    
+    Change-Id: I1a390f4619e181936d71964f5666052080689374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510836
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/go.mod    | 2 +-
+ src/cmd/go.mod | 2 +-
+ src/go.mod     | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

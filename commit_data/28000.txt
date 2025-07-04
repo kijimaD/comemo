@@ -1,0 +1,22 @@
+commit d92a3606f57d3a400eea6e98ddc8db7a09625f44
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 16 12:59:09 2016 -0700
+
+    cmd/go, cmd/link: build c-archive as position independent on ELF
+    
+    This permits people to use -buildmode=c-archive to produce an archive
+    file that can be included in a PIE or shared library.
+    
+    Change-Id: Ie340ee2f08bcff4f6fd1415f7d96d51ee3a7c9a1
+    Reviewed-on: https://go-review.googlesource.com/24180
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 78 +++++++++++++++++++++++++++++++++-
+ src/cmd/go/build.go                    |  7 +++
+ src/cmd/link/internal/ld/lib.go        |  4 +-
+ src/cmd/link/internal/ld/symtab.go     |  4 +-
+ src/cmd/link/internal/x86/asm.go       | 15 ++++++-
+ src/cmd/link/internal/x86/obj.go       |  2 +-
+ 6 files changed, 101 insertions(+), 9 deletions(-)

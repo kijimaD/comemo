@@ -1,0 +1,12 @@
+commit 1158c6b9c6facc396cfbcbd2fbedd860cb66fef7
+Author: Taj Khattra <taj.khattra@gmail.com>
+Date:   Sun Oct 28 21:16:50 2012 +1100
+
+    container/list: fix typo
+    
+    R=golang-dev, fullung, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6682046
+
+ src/pkg/container/list/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

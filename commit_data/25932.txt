@@ -1,0 +1,25 @@
+commit 3c0fae53062d80678d8f79877143b46ee787569c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 26 13:32:28 2016 -0800
+
+    cmd/compile: track pragmas in lexer rather than global variables
+    
+    By using a Pragma bit set (8 bits) rather than 8 booleans, also
+    reduce Func type size by 8 bytes (208B -> 200B on 64bit platforms,
+    116B -> 108B on 32bit platforms).
+    
+    Change-Id: Ibb7e1f8c418a0b5bc6ff813cbdde7bc6f0013b5a
+    Reviewed-on: https://go-review.googlesource.com/19966
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/bimport.go  |  3 +--
+ src/cmd/compile/internal/gc/cgen.go     |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go      |  2 +-
+ src/cmd/compile/internal/gc/go.go       | 13 ------------
+ src/cmd/compile/internal/gc/inl.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go      | 34 ++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/parser.go   | 37 +++++++++++----------------------
+ src/cmd/compile/internal/gc/pgen.go     |  4 ++--
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   | 16 +++++---------
+ 10 files changed, 50 insertions(+), 67 deletions(-)

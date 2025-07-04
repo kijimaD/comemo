@@ -1,0 +1,14 @@
+commit a46102d2094126c7e33cfd9b90e739e7ad1ab9b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 11:21:04 2011 -0500
+
+    crypto/cipher: make NewCBCEncrypter return BlockMode
+    
+    Fixes #1389.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/3827043
+
+ src/pkg/crypto/cipher/cbc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

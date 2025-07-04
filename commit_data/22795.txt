@@ -1,0 +1,20 @@
+commit ac6158828870abcbf7d9ef86c89569a2a7d7020c
+Author: Bryan Ford <brynosaurus@gmail.com>
+Date:   Fri Dec 19 14:28:44 2014 -0500
+
+    math/big: add modular square-root and Jacobi functions
+    
+    This change adds Int.ModSqrt to compute modular square-roots via the
+    standard Tonelli-Shanks algorithm, and the Jacobi function that this and
+    many other modular-arithmetic algorithms depend on.
+    
+    This is needed by change 1883 (https://golang.org/cl/1883), to add
+    support for ANSI-standard compressed encoding of elliptic curve points.
+    
+    Change-Id: Icc4805001bba0b3cb7200e0b0a7f87b14a9e9439
+    Reviewed-on: https://go-review.googlesource.com/1886
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/math/big/int.go      | 118 ++++++++++++++++++++++++++++++++++++++++
+ src/math/big/int_test.go | 137 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 255 insertions(+)

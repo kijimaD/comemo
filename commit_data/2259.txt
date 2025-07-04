@@ -1,0 +1,55 @@
+commit 2da5022bcf578545207ecc0ed0a8c7669e7f708f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 14:57:55 2009 -0700
+
+    change representation of interface values.
+    
+    this is not a user-visible change.
+    
+    before, all interface values were
+    
+            struct Itype {
+                    Sigt *type;
+                    Sigi *inter;
+                    void *method[n];
+            }
+    
+            struct Iface {
+                    void *addr;
+                    Itype *itype;
+            }
+    
+    the itype is basically a vtable, but it's unnecessary
+    if the static type is interface{ }.
+    for interface values with static type empty, the
+    new representation is
+    
+            struct Eface {
+                    void *addr;
+                    Sigt *type;
+            }
+    
+    this complicates the code somewhat, but
+    it reduces the number of Itypes that
+    have to be computed and cached,
+    it opens up opportunities to avoid function
+    calls in a few common cases,
+    and it will make it possible to lay out
+    interface{} values at compile time,
+    which i think i'll need for the new reflection.
+    
+    R=ken
+    OCL=28701
+    CL=29121
+
+ src/cmd/gc/builtin.c.boot |  11 +-
+ src/cmd/gc/go.h           |   1 +
+ src/cmd/gc/subr.c         |   8 +-
+ src/cmd/gc/swt.c          |   9 +-
+ src/cmd/gc/sys.go         |  11 +-
+ src/cmd/gc/walk.c         | 117 ++++++++++--
+ src/runtime/iface.c       | 441 ++++++++++++++++++++++++++++------------------
+ src/runtime/runtime.c     |  24 ++-
+ src/runtime/runtime.h     |  16 +-
+ test/golden.out           |   2 +-
+ 10 files changed, 440 insertions(+), 200 deletions(-)

@@ -1,0 +1,14 @@
+commit 2ae61d557aec846b9b7970022aaa0c28f17546de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 17 11:16:07 2012 -0800
+
+    spec: fix constant expression example
+    
+    Fixes #4400.
+    
+    R=r, mirtchovski
+    CC=golang-dev
+    https://golang.org/cl/6782084
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

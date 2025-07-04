@@ -1,0 +1,14 @@
+commit eb4408291597609c48bf3871a36dd4abdcd5c538
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 9 11:39:21 2015 +1000
+
+    image/jpeg: reject multiple Start-Of-Frame markers.
+    
+    Fixes #10389
+    
+    Change-Id: Id1c687122751f9317041d9e425d03b267a26c6de
+    Reviewed-on: https://go-review.googlesource.com/8681
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/jpeg/reader.go | 3 +++
+ 1 file changed, 3 insertions(+)

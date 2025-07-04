@@ -1,0 +1,19 @@
+commit a6e49b653afabb30fe502bb4cd91b092e1ce6f05
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Jul 22 10:43:45 2023 +0000
+
+    cmd/compile/internal/base: add comma in comment for consistency
+    
+    Change-Id: I9e2ca7eee50f1a642ae2c7468d0a4ea931cbd33e
+    GitHub-Last-Rev: 93fabec69c861bbecf29df8c2c71bc3286d50b32
+    GitHub-Pull-Request: golang/go#61523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512195
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/base.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

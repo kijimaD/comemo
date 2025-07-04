@@ -1,0 +1,14 @@
+commit 246e6ceb3bdbcfdb9f562c67622c3d67a45eb70d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 17 15:22:47 2019 -0800
+
+    net/http: clarify Transport connection reuse docs a bit
+    
+    Updates #26095 (or fixes it)
+    
+    Change-Id: I92488dabe823b82e1ba534648fe6d63d25d0ae9f
+    Reviewed-on: https://go-review.googlesource.com/c/158417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/client.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

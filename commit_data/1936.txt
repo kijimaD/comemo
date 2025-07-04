@@ -1,0 +1,13 @@
+commit a9c1a3b6206f47d031ef6d64f0281ec54c89ed18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 1 03:32:44 2009 -0700
+
+    change smoketest from parser.go to astprinter.go,
+    the largest remaining source file in this directory.
+    
+    TBR=gri
+    OCL=26984
+    CL=26984
+
+ usr/gri/pretty/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

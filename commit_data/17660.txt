@@ -1,0 +1,14 @@
+commit 8ce9a4fd26167c8abc912808bb632c357013573d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 20 15:25:59 2013 -0400
+
+    test/run: print command line for running an individual test
+    
+    Fixes #5087.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13812043
+
+ test/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

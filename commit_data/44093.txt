@@ -1,0 +1,22 @@
+commit 091414b5b7ced2f6ce1cc9d37e12f62c9a00ef0e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 16:25:48 2021 -0800
+
+    io/fs: correct WalkDirFunc documentation
+    
+    The documentation was copied from filepath.WalkFunc, and the copy was
+    not fully adjusted to the new circumstances.
+    
+    Fixes #43536
+    
+    Change-Id: I09687c7656e6938ebd9fc1e1643d34be88cf141d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282172
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Marco Gazerro <gazerro@open2b.com>
+
+ src/io/fs/walk.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

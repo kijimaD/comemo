@@ -1,0 +1,16 @@
+commit 78e442ea79294480c28e44b21702c6452e704110
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Dec 1 14:59:23 2020 -0800
+
+    doc/go1.16: add encoding/json note for tag change
+    
+    For #40700
+    Fixes #42898
+    
+    Change-Id: I652657ff8d6cce20bf868f0b1101d723d3f704d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274614
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

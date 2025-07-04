@@ -1,0 +1,15 @@
+commit 758b62bf6a4bf0ac2ad2b0e1f4a755be7e6d97be
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 14:09:53 2011 -0700
+
+    http: document that Response.Body is non-nil
+    
+    Fixes #2208
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5011051
+
+ src/pkg/http/client.go   | 7 ++++++-
+ src/pkg/http/response.go | 4 ++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

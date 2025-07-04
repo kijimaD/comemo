@@ -1,0 +1,17 @@
+commit 56deebb3e43b3ab6f18fdc62350cc2fc8d08cce7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 21:37:44 2018 -0400
+
+    cmd/go: add clean -modcache
+    
+    We need an easy way to remove $GOPATH/src/mod,
+    especially since all the directories are marked read-only.
+    
+    Change-Id: Ib9e8e47e50048f55ecc4de0229b06c4a416ac114
+    Reviewed-on: https://go-review.googlesource.com/124382
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/clean/clean.go | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/go/mod_test.go             |  5 +++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

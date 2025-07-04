@@ -1,0 +1,20 @@
+commit 1c55f579be28c2e959bdfbe7688cba06556dff4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 11:26:09 2017 -0500
+
+    cmd/go: apply same per-package flags to test and xtest builds
+    
+    If package strings has a particular set of gcflags, then the strings_test
+    pseudo-package built as part of the test binary should inherit the same flags.
+    
+    Fixes #22831.
+    
+    Change-Id: I0e896b6c0f1063454300b7323f577feffbd6650b
+    Reviewed-on: https://go-review.googlesource.com/81496
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 6 ++++++
+ src/cmd/go/internal/test/test.go | 5 +++++
+ 2 files changed, 11 insertions(+)

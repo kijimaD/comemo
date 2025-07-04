@@ -1,0 +1,15 @@
+commit 38801e55dbdd19d69935b92e38b1a4c9949316bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 21:51:47 2009 -0700
+
+    flate package
+    
+    R=dsymonds
+    DELTA=858  (858 added, 0 deleted, 0 changed)
+    OCL=29992
+    CL=30004
+
+ src/lib/compress/flate/Makefile      |  60 ++++
+ src/lib/compress/flate/flate_test.go | 131 +++++++
+ src/lib/compress/flate/inflate.go    | 673 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 864 insertions(+)

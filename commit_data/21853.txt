@@ -1,0 +1,18 @@
+commit 31336f9c11594915080776277496d5b26349754f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 02:34:02 2015 +0000
+
+    Revert "time: zoneinfo support on darwin/arm"
+    
+    This reverts commit 54efdc596f7b6c711e5d65d99f1c25a0ca3628f1.
+    
+    Broken on darwin.
+    
+    Change-Id: Ic74275f36d30975263340e2b4045226eae71b16a
+    Reviewed-on: https://go-review.googlesource.com/6514
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/time/sleep_test.go           |  4 ----
+ src/time/zoneinfo_darwin_armx.go | 51 ----------------------------------------
+ src/time/zoneinfo_unix.go        |  2 +-
+ 3 files changed, 1 insertion(+), 56 deletions(-)

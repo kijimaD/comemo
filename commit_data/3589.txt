@@ -1,0 +1,13 @@
+commit 4db52d4ff8685cf68a55c3d64cc56f309a9c59b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 18:46:46 2009 -0700
+
+    duplicate of bug190
+    
+    R=gri
+    DELTA=16  (0 added, 16 deleted, 0 changed)
+    OCL=35892
+    CL=35895
+
+ test/bugs/bug210.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

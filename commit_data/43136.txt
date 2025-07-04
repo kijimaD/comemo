@@ -1,0 +1,35 @@
+commit 39dde09126be02f5f8c38ddf7590ae8f9825fcaa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 21 20:44:53 2020 -0400
+
+    cmd/link: retain only used interface methods
+    
+    Currently, in the linker's deadcode pass, when an interface type
+    is live, the linker thinks all its methods are live, and uses
+    them to match methods on concrete types. The interface method may
+    never be used, though.
+    
+    This CL changes it to only keep used interface methods, for
+    matching concrete type methods. To do that, when an interface
+    method is used, the compiler generates a mark relocation. The
+    linker uses the marker relocations to mark used interface
+    methods, and only the used ones.
+    
+    binary size    before      after
+    cmd/compile   18887400   18812200
+    cmd/go        13470652   13470492
+    
+    Change-Id: I3cfd9df4a53783330ba87735853f2a0ec3c42802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256798
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go             | 19 +++++-
+ src/cmd/compile/internal/gc/walk.go                | 15 +++++
+ src/cmd/internal/objabi/reloctype.go               |  6 ++
+ src/cmd/internal/objabi/reloctype_string.go        | 67 +++++++++++-----------
+ src/cmd/link/internal/ld/deadcode.go               | 53 ++++++++---------
+ src/cmd/link/internal/ld/deadcode_test.go          |  1 +
+ .../internal/ld/testdata/deadcode/ifacemethod4.go  | 23 ++++++++
+ 7 files changed, 120 insertions(+), 64 deletions(-)

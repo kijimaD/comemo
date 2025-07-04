@@ -1,0 +1,19 @@
+commit bfe0cbdc50cbc6a632d1e5ebbdcc625d69451935
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 19 15:38:59 2016 -0700
+
+    cmd/compile,runtime: pass elem type to {make,grow}slice
+    
+    No point in passing the slice type to these functions.
+    All they need is the element type.  One less indirection,
+    maybe a few less []T type descriptors in the binary.
+    
+    Change-Id: Ib0b83b5f14ca21d995ecc199ce8ac00c4eb375e6
+    Reviewed-on: https://go-review.googlesource.com/22275
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/cgen.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go |  8 ++++----
+ src/runtime/slice.go                | 16 +++++++---------
+ 4 files changed, 13 insertions(+), 15 deletions(-)

@@ -1,0 +1,20 @@
+commit c5d7f2f1cbaca8938a31a022058b1a3300817e33
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 14 18:55:29 2020 -0400
+
+    cmd/link: skip TestOldLink if the old linker does not exist
+    
+    We don't ship the old linker in binary releases. Skip the test if
+    we cannot find the old linker.
+    
+    Fixes #39509.
+    
+    Change-Id: I1af5552bc56aff5314a384bcb5f3717b725d68e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242604
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/link/link_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

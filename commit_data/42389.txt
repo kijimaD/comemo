@@ -1,0 +1,55 @@
+commit ea2de3346ff8714c9fae95c2a3d686ec07d47ca8
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 14 16:55:39 2020 -0400
+
+    runtime: detect and report zombie slots during sweeping
+    
+    A zombie slot is a slot that is marked, but isn't allocated. This can
+    indicate a bug in the GC, or a bad use of unsafe.Pointer. Currently,
+    the sweeper has best-effort detection for zombie slots: if there are
+    more marked slots than allocated slots, then there must have been a
+    zombie slot. However, this is imprecise since it only compares totals
+    and it reports almost no information that may be helpful to debug the
+    issue.
+    
+    Add a precise check that compares the mark and allocation bitmaps and
+    reports detailed information if it detects a zombie slot.
+    
+    No appreciable effect on performance as measured by the sweet
+    benchmarks:
+    
+    name                                old time/op  new time/op  delta
+    BiogoIgor                            15.8s ± 2%   15.8s ± 2%    ~     (p=0.421 n=24+25)
+    BiogoKrishna                         15.6s ± 2%   15.8s ± 5%    ~     (p=0.082 n=22+23)
+    BleveIndexBatch100                   4.90s ± 3%   4.88s ± 2%    ~     (p=0.627 n=25+24)
+    CompileTemplate                      204ms ± 1%   205ms ± 0%  +0.22%  (p=0.010 n=24+23)
+    CompileUnicode                      77.8ms ± 2%  78.0ms ± 1%    ~     (p=0.236 n=25+24)
+    CompileGoTypes                       729ms ± 0%   731ms ± 0%  +0.26%  (p=0.000 n=24+24)
+    CompileCompiler                      3.52s ± 0%   3.52s ± 1%    ~     (p=0.152 n=25+25)
+    CompileSSA                           8.06s ± 1%   8.05s ± 0%    ~     (p=0.192 n=25+24)
+    CompileFlate                         132ms ± 1%   132ms ± 1%    ~     (p=0.373 n=24+24)
+    CompileGoParser                      163ms ± 1%   164ms ± 1%  +0.32%  (p=0.003 n=24+25)
+    CompileReflect                       453ms ± 1%   455ms ± 1%  +0.39%  (p=0.000 n=22+22)
+    CompileTar                           181ms ± 1%   181ms ± 1%  +0.20%  (p=0.029 n=24+21)
+    CompileXML                           244ms ± 1%   244ms ± 1%    ~     (p=0.065 n=24+24)
+    CompileStdCmd                        15.8s ± 2%   15.7s ± 2%    ~     (p=0.059 n=23+24)
+    FoglemanFauxGLRenderRotateBoat       13.4s ±11%   12.8s ± 0%    ~     (p=0.377 n=25+24)
+    FoglemanPathTraceRenderGopherIter1   18.6s ± 0%   18.6s ± 0%    ~     (p=0.696 n=23+24)
+    GopherLuaKNucleotide                 28.7s ± 4%   28.6s ± 5%    ~     (p=0.700 n=25+25)
+    MarkdownRenderXHTML                  250ms ± 1%   248ms ± 1%  -1.01%  (p=0.000 n=24+24)
+    [Geo mean]                           1.60s        1.60s       -0.11%
+    
+    (https://perf.golang.org/search?q=upload:20200517.6)
+    
+    For #38702.
+    
+    Change-Id: I8af1fefd5fbf7b9cb665b98f9c4b73d1d08eea81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234100
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/gc_test.go              | 10 ++++++
+ src/runtime/mgcsweep.go             | 72 +++++++++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/gc.go | 36 +++++++++++++++++++
+ 3 files changed, 118 insertions(+)

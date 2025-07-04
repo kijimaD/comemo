@@ -1,0 +1,21 @@
+commit d7384f36121d52191097af50d6dc12c0eb08fd75
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Aug 16 13:48:09 2020 +0200
+
+    os: implement File.Chmod on Windows
+    
+    Fixes: #39606
+    
+    Change-Id: I4def67ef18bd3ff866b140f6e76cdabe5d51a1c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250077
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_posix.go                    | 11 ----------
+ src/internal/poll/fd_unix.go                     | 11 ++++++++++
+ src/internal/poll/fd_windows.go                  | 27 ++++++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go  |  9 ++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++++++++
+ src/os/os_test.go                                | 27 ++++++++++++++----------
+ 6 files changed, 76 insertions(+), 22 deletions(-)

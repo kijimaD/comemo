@@ -1,0 +1,16 @@
+commit 8b27d28ed4e74498f04df56bfc25e9feb0422744
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 13 18:04:02 2015 -0500
+
+    cmd/5g, etc: remove outdated float type alias comment
+    
+    Change-Id: Ie5fe5cf3e2926ba4f91271bd47f3f998c26e003e
+    Reviewed-on: https://go-review.googlesource.com/8914
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/5g/galign.go | 3 +--
+ src/cmd/6g/galign.go | 2 +-
+ src/cmd/7g/galign.go | 2 +-
+ src/cmd/8g/galign.go | 3 +--
+ src/cmd/9g/galign.go | 3 +--
+ 5 files changed, 5 insertions(+), 8 deletions(-)

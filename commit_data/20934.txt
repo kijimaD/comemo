@@ -1,0 +1,13 @@
+commit 3aaef230face573c1eb94146370a72cbff2f0d58
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 15:59:37 2014 +1100
+
+    remove dev.cc file, left over from merge of the dev.cc branch.
+    
+    Change-Id: I6021f42ce4ac6a66632751b21ab13e9b22383af9
+    Reviewed-on: https://go-review.googlesource.com/1172
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ dev.cc | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

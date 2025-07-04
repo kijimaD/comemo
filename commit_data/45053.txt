@@ -1,0 +1,19 @@
+commit 6382ec1aba1b1c7380cb525217c1bd645c4fd41b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Apr 8 11:42:53 2021 +0800
+
+    internal/poll: fix the intermittent build failures with pipe pool
+    
+    Correlative CL 308089
+    
+    Fixes #45059
+    
+    Change-Id: I1ff9fbf64e6620d651f287ba2a28d40f964d78a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308329
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/internal/poll/splice_linux_test.go | 38 +++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 14 deletions(-)

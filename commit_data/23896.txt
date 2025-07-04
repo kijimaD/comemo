@@ -1,0 +1,12 @@
+commit f6dfe1679867e9d2ac1ca4975a15e320113e9ae5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 18:25:30 2015 -0400
+
+    runtime: fix darwin/amd64 assembly frame sizes
+    
+    Change-Id: I2f0ecdc02ce275feadf07e402b54f988513e9b49
+    Reviewed-on: https://go-review.googlesource.com/12855
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/sys_darwin_arm64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

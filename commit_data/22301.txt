@@ -1,0 +1,29 @@
+commit 90554be0302a62f1a2f0cbd6c6c269a3cdc747bc
+Author: Cristian Staretu <unclejacksons@gmail.com>
+Date:   Wed Apr 1 18:59:51 2015 +0300
+
+    bytes: export Cap method for buffer
+    
+    Obtaining the actual size of the underlying storage of the buffer can
+    be very useful in various scenarios. Long running programs which write
+    and read large amounts of data to buffers might have to recycle
+    buffers in order to avoid holding onto potentially huge buffers.
+    
+    For example, a piece of code which buffers a lot of data in a buffer
+    might need to release the big buffer and start again with a smaller
+    buffer after it finished processing the huge amount of data.
+    
+    In cases where pools of bytes.Buffer are used, being able to check the
+    size of the allocated data can be very useful.
+    
+    Instead of forking bytes.Buffer or writing new code, we can export the
+    Cap() method.
+    
+    Change-Id: I79d4f0a3cff53b9419d82c8122964761e9e38566
+    Reviewed-on: https://go-review.googlesource.com/8342
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/buffer.go      |  4 ++++
+ src/bytes/buffer_test.go | 17 +++++++++++++++++
+ src/bytes/export_test.go |  4 ----
+ 3 files changed, 21 insertions(+), 4 deletions(-)

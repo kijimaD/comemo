@@ -1,0 +1,19 @@
+commit 8d76a151221c91a20ab232ac1365b512c2a67861
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jul 30 10:37:51 2010 +0300
+
+    arm: bugfixes (stack clobbering, indices)
+    
+    also changed zerodivide to output "BUG"
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1871055
+
+ src/cmd/5g/cgen.c   | 114 ++++++++++++++++++++++++++++++----------------------
+ src/cmd/5g/gg.h     |   1 +
+ src/cmd/5g/gsubr.c  |  14 ++++---
+ test/arm-pass.txt   |  18 ++++-----
+ test/golden-arm.out |  24 -----------
+ test/zerodivide.go  |  12 ++++++
+ 6 files changed, 97 insertions(+), 86 deletions(-)

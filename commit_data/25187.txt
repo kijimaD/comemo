@@ -1,0 +1,22 @@
+commit b2492d16a01ff102b15dbe9cb1b20465e1cfeda0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Dec 6 07:51:30 2015 -0800
+
+    cmd/go: always show current value for GO15VENDOREXPERIMENT
+    
+    Prior behavior would show empty string when unset. In go1.5 this
+    would result in "off". In go1.6 this will result in "on". This
+    change will make empty or "0" off and "1" on for go1.5 and go1.6.
+    Vendor tools can then rely on this value.
+    
+    Discussion:
+    https://groups.google.com/forum/#!topic/golang-dev/oZzcXrlRrkA
+    
+    Change-Id: I7e145a32e813dfde02dc262a9186c7af28db7b92
+    Reviewed-on: https://go-review.googlesource.com/17487
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/env.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

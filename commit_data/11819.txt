@@ -1,0 +1,14 @@
+commit 80e2472f87a00c0278da3a94c610ed284a16f7bb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 13 14:34:30 2012 +1100
+
+    godoc: static ids should be #lowercase
+    so they don't collide with names like #Index.
+    Fixes #2970.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5655066
+
+ lib/godoc/package.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

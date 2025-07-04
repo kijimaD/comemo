@@ -1,0 +1,15 @@
+commit 1fd78e1f600d10475b85381427bda9f14f86e0f0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Sep 11 00:26:50 2015 -0400
+
+    cmd/go: provide full path as os.Args[0] when invoking tools
+    
+    cmd/dist needs to re-exec or open itself to detect GOARM (CL 3973) and
+    detect host machine endianness (CL 14460).
+    
+    Change-Id: If6438831ab0715ba8e236d64bb2c7c1bde1470aa
+    Reviewed-on: https://go-review.googlesource.com/14476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/tool.go | 1 +
+ 1 file changed, 1 insertion(+)

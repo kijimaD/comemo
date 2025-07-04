@@ -1,0 +1,15 @@
+commit c3344d61bd99eb00b61764e5500e7f37015e0864
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 07:52:07 2011 +1000
+
+    exp/template: allow niladic methods inside chained field references.
+    Also really fix the bug about dot vs. receivers.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4705047
+
+ src/pkg/exp/template/doc.go       | 13 ++++++-----
+ src/pkg/exp/template/exec.go      | 46 +++++++++++++++++++--------------------
+ src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 29 deletions(-)

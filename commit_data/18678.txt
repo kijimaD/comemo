@@ -1,0 +1,17 @@
+commit 08706f19b4ec98d91f08c331d43e8e8553bb30c3
+Author: William Orr <will@worrbase.com>
+Date:   Thu Feb 27 10:13:41 2014 -0800
+
+    syscall: add mlock, munlock, mlockall, munlockall and mprotect to OSX
+    
+    Fixes #7415
+    
+    LGTM=bradfitz
+    R=bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/68980043
+
+ src/pkg/syscall/syscall_darwin.go        |  5 +++
+ src/pkg/syscall/zsyscall_darwin_386.go   | 68 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 68 ++++++++++++++++++++++++++++++++
+ 3 files changed, 141 insertions(+)

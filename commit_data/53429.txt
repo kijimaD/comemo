@@ -1,0 +1,15 @@
+commit 73a29bad0bd24cdd70bbf468fa12fbe7760ef47d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 09:03:50 2023 -0700
+
+    doc/go1.21: correct links in go/build note
+    
+    Change-Id: Ie84cad994c1ffb2c91ce45b2dfb9257e6a7f309b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499957
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

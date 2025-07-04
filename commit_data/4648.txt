@@ -1,0 +1,35 @@
+commit a6736fa4ff27c079aaf5228d23f0b25d6ca423f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 21:34:44 2010 -0800
+
+    cleanup toward eliminating package global name space
+      * switch to real dot (.) instead of center dot (·) everywhere in object files.
+        before it was half and half depending on where in the name it appeared.
+      * in 6c/6a/etc identifiers, · can still be used but turns into . immediately.
+      * in export metadata, replace package identifiers with quoted strings
+        (still package names, not paths).
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/190076
+
+ src/cmd/5g/gobj.c         |   9 +--
+ src/cmd/5l/noop.c         |  10 +--
+ src/cmd/5l/obj.c          |   2 +-
+ src/cmd/6g/gobj.c         |   9 +--
+ src/cmd/6l/pass.c         |  22 +++---
+ src/cmd/8g/gobj.c         |   9 +--
+ src/cmd/8l/pass.c         |   4 +-
+ src/cmd/cc/lex.c          |  11 +++
+ src/cmd/cc/lexbody        |  11 +++
+ src/cmd/gc/builtin.c.boot | 168 +++++++++++++++++++++++-----------------------
+ src/cmd/gc/dcl.c          |   1 +
+ src/cmd/gc/export.c       |   2 +
+ src/cmd/gc/go.h           |   8 ++-
+ src/cmd/gc/go.y           |  22 ++++--
+ src/cmd/gc/mkbuiltin1.c   |  17 ++++-
+ src/cmd/gc/obj.c          |  10 +--
+ src/cmd/gc/subr.c         |  71 ++++++++++----------
+ src/cmd/gotest/gotest     |   6 +-
+ src/cmd/ld/go.c           |  28 ++++----
+ 19 files changed, 228 insertions(+), 192 deletions(-)

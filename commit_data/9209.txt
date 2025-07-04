@@ -1,0 +1,16 @@
+commit bf899befdbf923924139e655585c154c4935f2d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 00:52:02 2011 -0400
+
+    gc: disallow [...][...]int{{1,2,3}}
+    
+    Fixes #1600.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4819045
+
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/typecheck.c | 11 ++++-------
+ test/ddd1.go           |  2 ++
+ 3 files changed, 7 insertions(+), 7 deletions(-)

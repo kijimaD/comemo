@@ -1,0 +1,14 @@
+commit 9ad236ab7215b406e867028ef295445a2c4b8b5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 16 09:08:06 2013 -0700
+
+    runtime: if span was scavenged, mark it as needing to be zeroed
+    
+    Update #4979.
+    
+    R=dvyukov, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8697045
+
+ src/pkg/runtime/mheap.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

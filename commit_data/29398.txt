@@ -1,0 +1,12 @@
+commit c350c5cfdc5a6ed1a135c06517ef29cdd716a935
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sat Nov 5 00:57:45 2016 +0100
+
+    plugin: fix doc example fmt usage
+    
+    Change-Id: I0520a37a48a56d231a8ac2dc58b2bf1762282760
+    Reviewed-on: https://go-review.googlesource.com/32795
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

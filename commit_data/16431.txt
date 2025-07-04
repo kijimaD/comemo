@@ -1,0 +1,20 @@
+commit a3e0002e6a6d466a505d9d13c75880bf960df512
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed May 29 17:51:17 2013 +0200
+
+    runtime: remove all badcallback() functions
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/9738046
+
+ src/pkg/runtime/os_darwin.c         | 11 -----------
+ src/pkg/runtime/os_freebsd.c        | 11 -----------
+ src/pkg/runtime/os_linux.c          | 11 -----------
+ src/pkg/runtime/os_netbsd.c         | 11 -----------
+ src/pkg/runtime/os_openbsd.c        | 11 -----------
+ src/pkg/runtime/os_plan9.c          | 11 -----------
+ src/pkg/runtime/os_windows.c        |  4 ----
+ src/pkg/runtime/sys_windows_386.s   | 20 --------------------
+ src/pkg/runtime/sys_windows_amd64.s | 27 ---------------------------
+ 9 files changed, 117 deletions(-)

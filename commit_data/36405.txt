@@ -1,0 +1,33 @@
+commit 75e7e05aee4c0588a11f79bb5c46290ca753bf20
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jul 22 12:36:15 2018 +0100
+
+    encoding/json: inline fieldByIndex
+    
+    This function was only used in a single place - in the field encoding
+    loop within the struct encoder.
+    
+    Inlining the function call manually lets us get rid of the call
+    overhead. But most importantly, it lets us simplify the logic afterward.
+    We no longer need to use reflect.Value{} and !fv.IsValid(), as we can
+    skip the field immediately.
+    
+    The two factors combined (mostly just the latter) give a moderate speed
+    improvement to this hot loop.
+    
+    name           old time/op    new time/op    delta
+    CodeEncoder-4    6.01ms ± 1%    5.91ms ± 1%  -1.66%  (p=0.002 n=6+6)
+    
+    name           old speed      new speed      delta
+    CodeEncoder-4   323MB/s ± 1%   328MB/s ± 1%  +1.69%  (p=0.002 n=6+6)
+    
+    Updates #5683.
+    
+    Change-Id: I12757c325a68abb2856026cf719c122612a1f38e
+    Reviewed-on: https://go-review.googlesource.com/125417
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

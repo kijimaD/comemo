@@ -1,0 +1,21 @@
+commit 23bf408d41d1caad43b8c5e522647c30de1425fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 11:11:01 2010 -0700
+
+    syscall: fix arm build (fix bugs in generator, to add O_LARGEFILE)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1021043
+
+ src/pkg/syscall/mkall.sh                |   4 +-
+ src/pkg/syscall/mkerrors.sh             |   7 +-
+ src/pkg/syscall/syscall_linux.go        |   6 +-
+ src/pkg/syscall/syscall_linux_arm.go    |   9 +
+ src/pkg/syscall/zerrors_linux_386.go    |  12 +-
+ src/pkg/syscall/zerrors_linux_arm.go    | 885 ++++++++++++++++++++++----------
+ src/pkg/syscall/zsyscall_linux_386.go   |  14 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go |  14 +-
+ src/pkg/syscall/zsyscall_linux_arm.go   |  28 +-
+ src/pkg/syscall/ztypes_linux_arm.go     | 125 +----
+ 10 files changed, 662 insertions(+), 442 deletions(-)

@@ -1,0 +1,15 @@
+commit bd401baef2349e41d99280557bd5d709be78c894
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 27 16:01:43 2014 -0700
+
+    test: add test for fixed issue 7863
+    
+    Fixes #7863
+    
+    LGTM=rsc
+    R=rsc, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/98610045
+
+ test/fixedbugs/issue7863.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

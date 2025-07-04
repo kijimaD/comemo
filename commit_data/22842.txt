@@ -1,0 +1,14 @@
+commit 6f42b6166ae2c0cd775d24aa82548fb8637004b5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 1 09:36:18 2015 -0700
+
+    test: fix nosplit test for noopt build
+    
+    Noopt builds get a larger stack guard.  This test must take that into account.
+    
+    Change-Id: I1b5cbafdbbfee8c369ae1bebd0b900524ebf0d7d
+    Reviewed-on: https://go-review.googlesource.com/9610
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/nosplit.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

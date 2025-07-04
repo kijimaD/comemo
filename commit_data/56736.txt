@@ -1,0 +1,28 @@
+commit ad4d9b046482a3a3fef19388a0d692ff4ebbe730
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Tue May 28 13:26:31 2024 -0700
+
+    net/netip: check if address is v6 mapped in Is methods
+    
+    In all of the Is* methods, check if the address is a v6 mapped v4
+    address, and unmap it if so.
+    
+    Thanks to Enze Wang of Alioth (@zer0yu) and Jianjun Chen of Zhongguancun
+    Lab (@chenjj) for reporting this issue.
+    
+    Fixes #67680
+    Fixes CVE-2024-24790
+    
+    Change-Id: I6bd03ca1a5d93a0b59027d861c84060967b265b0
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1460
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590316
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/netip/inlining_test.go |  2 --
+ src/net/netip/netip.go         | 26 +++++++++++++++++++++-
+ src/net/netip/netip_test.go    | 50 ++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 71 insertions(+), 7 deletions(-)

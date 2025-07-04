@@ -1,0 +1,31 @@
+commit 2169deb35247a80794519589e7cd845c6ebf4e5a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 30 15:35:06 2021 +0700
+
+    cmd/compile: use t.AllMethods when sorting typesByString
+    
+    For interface types, t.Methods contains only unexpanded method set, i.e
+    exclusive of interface embedding. Thus, we can't use it to detect an
+    interface contains embedding empty interface, like in:
+    
+            type EI interface{}
+    
+            func f() interface{ EI } {
+                    return nil
+            }
+    
+    At the time we generate runtime types, we want to check against the full
+    method set of interface instead.
+    
+    Fixes #46386
+    
+    Change-Id: Idff53ad39276be6632eb5932b76e855c15cbdd2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323649
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 ++--
+ test/fixedbugs/issue46386.go                    | 32 +++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

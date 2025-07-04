@@ -1,0 +1,14 @@
+commit 8adff32bacdaae452c453ac7ffbf088778bd5417
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 1 23:12:18 2016 -0500
+
+    doc: document the mips port in install-source.html
+    
+    While we're at it, also mention OpenBSD/ARM support.
+    
+    Change-Id: I4df4a158b67d11720146d05a235099d452295170
+    Reviewed-on: https://go-review.googlesource.com/33854
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

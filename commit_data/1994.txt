@@ -1,0 +1,12 @@
+commit 9ddeb2105f6c6b87a15bc020684aa2b8f97678d4
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 12 16:13:34 2009 -0700
+
+    change replacement rune to its correct value, fffd
+    
+    R=ken
+    OCL=27342
+    CL=27342
+
+ src/runtime/string.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

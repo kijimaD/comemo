@@ -1,0 +1,13 @@
+commit 5b129cda5f53aa217203a24bd44936092668c154
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 17:20:29 2009 -0800
+
+    assignment count mismatch: 2 = 1.
+    
+    R=ken
+    OCL=23534
+    CL=23534
+
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/walk.c | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

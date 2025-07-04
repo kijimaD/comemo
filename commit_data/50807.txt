@@ -1,0 +1,34 @@
+commit 0bf7ee9977c0218562c50a0b0f0d9cbdf33f65e6
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 2 20:45:18 2022 -0700
+
+    archive/tar: limit size of headers
+    
+    Set a 1MiB limit on special file blocks (PAX headers, GNU long names,
+    GNU link names), to avoid reading arbitrarily large amounts of data
+    into memory.
+    
+    Thanks to Adam Korczynski (ADA Logics) and OSS-Fuzz for reporting
+    this issue.
+    
+    Fixes CVE-2022-2879
+    For #54853
+    
+    Change-Id: I85136d6ff1e0af101a112190e027987ab4335680
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1565555
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439355
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/archive/tar/format.go                          |   4 +++
+ src/archive/tar/reader.go                          |  14 +++++++++--
+ src/archive/tar/reader_test.go                     |  11 ++++++++-
+ src/archive/tar/testdata/pax-bad-hdr-large.tar.bz2 | Bin 0 -> 156 bytes
+ src/archive/tar/writer.go                          |   3 +++
+ src/archive/tar/writer_test.go                     |  27 +++++++++++++++++++++
+ 6 files changed, 56 insertions(+), 3 deletions(-)

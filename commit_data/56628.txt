@@ -1,0 +1,35 @@
+commit 2b8d9e3997df9835bc33522fab917ab701c174b6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 20 10:38:40 2024 -0400
+
+    cmd/go: add additional counters for mode and host/target OS and arch
+    
+    The following counters are added:
+    (* means we will record the actual value for the counter, but of course
+    the config will limit us to collecting preknown values)
+    
+        go/mode:{gopath,workspace,module}
+        go/platform/{host,target}/{goos,goarch}:*
+        go/platform/target/{
+            go386,goamd64,goarm,goarm64,gomips,goppc64,goriscv64,gowasm}:*
+        For windows and unix:
+            go/platform/host/*/version:*
+            go/platform/host/*/major-version:*-*
+        For windows:
+            go/platform/host/windows/build:*
+    
+    
+    Change-Id: I3c865afede2382bae103e5b4b9d1aa6b20c123df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../go/internal/telemetrystats/telemetrystats.go   | 51 ++++++++++++++++++++
+ .../telemetrystats/telemetrystats_bootstrap.go     |  9 ++++
+ .../go/internal/telemetrystats/version_other.go    | 13 +++++
+ src/cmd/go/internal/telemetrystats/version_unix.go | 55 ++++++++++++++++++++++
+ .../go/internal/telemetrystats/version_windows.go  | 22 +++++++++
+ src/cmd/go/main.go                                 |  2 +
+ 6 files changed, 152 insertions(+)

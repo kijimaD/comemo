@@ -1,0 +1,24 @@
+commit 8c92897e15d15fbc664cd5a05132ce800cf4017f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 16 22:36:57 2023 -0400
+
+    cmd/compile: rework TestPGOHash to not rebuild dependencies
+    
+    TestPGOHash may rebuild dependencies as we pass -trimpath to the
+    go command. This CL makes it pass -trimpath compiler flag to only
+    the current package instead, as we only need the current package
+    to have a stable source file path.
+    
+    Also refactor buildPGOInliningTest to only take compiler flags,
+    not go flags, to avoid accidental rebuild.
+    
+    Should fix #63733.
+    
+    Change-Id: Iec6c4e90cf659790e21083ee2e697f518234c5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/test/pgo_inl_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

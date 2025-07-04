@@ -1,0 +1,31 @@
+commit ee3a3717aa16dabede5dc0385b05423e8fbce985
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 5 19:24:55 2020 -0500
+
+    doc/go1.14: disable text/template processing in HTML page
+    
+    HTML pages served by the website have the option to opt-in to template
+    processing, by including "Template: true" in the page metadata.
+    This functionality is documented at
+    https://github.com/golang/tools/blob/403f1254bdfd3da27c92a0e9e37dd180a9a82b3c/godoc/template.go#L5-L30.
+    
+    Historically, the Go 1 release notes have used template processing
+    to a great extent, but release notes for all subsequent major Go
+    releases have not.
+    
+    Since this feature is generally not used and not very well known,
+    it tends to do more harm than good by making it possible for errors
+    in the template to prevent the release notes from showing up at all.
+    
+    Disable this feature for Go 1.14 release notes and onwards.
+    We can consider enabling it when there's a stronger need for it.
+    
+    Fixes #37072
+    Updates #37070
+    
+    Change-Id: If93553d52df12544b46c4edcf3aa5eddc2a155ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218058
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

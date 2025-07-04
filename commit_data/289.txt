@@ -1,0 +1,11 @@
+commit 65269ccd3d6d34b05d57d43df37b5a176aa39af8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 3 18:07:03 2008 -0700
+
+    - more work on Go scanner
+    
+    SVN=126004
+
+ usr/gri/src/scanner.go      | 85 +++++++++++++++++++++++++--------------------
+ usr/gri/src/test_scanner.go |  4 ++-
+ 2 files changed, 51 insertions(+), 38 deletions(-)

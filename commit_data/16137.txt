@@ -1,0 +1,17 @@
+commit bd1cd1ddeac67807bb84170bc79579f157898b91
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Apr 8 13:36:35 2013 -0700
+
+    runtime: poor man's heap type info checker
+    It's not trivial to make a comprehensive check
+    due to inferior pointers, reflect, gob, etc.
+    But this is essentially what I've used to debug
+    the GC issues.
+    Update #5193.
+    
+    R=golang-dev, iant, 0xe2.0x9a.0x9b, r
+    CC=golang-dev
+    https://golang.org/cl/8455043
+
+ src/pkg/runtime/mgc0.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

@@ -1,0 +1,24 @@
+commit 88ed322afcd8cddc0e1ae5d02fd4d86779a4a2a3
+Author: Kévin Dunglas <dunglas@gmail.com>
+Date:   Tue Jan 21 21:48:41 2020 +0000
+
+    net/http/httputil: add docs about X-Forwarded-For in ReverseProxy
+    
+    ReverseProxy automatically sets the X-Forwarded-For header, if the request
+    already contains a X-Forwarded-For header, the value of the client IP is
+    appended to the existing header value.
+    This behavior isn't documented anywhere, and can lead to IP spoofing
+    security issues is the client is untrusted (the most common situation).
+    This PR documents this behavior.
+    
+    For future versions, I proposed #36678 that implements a more secure
+    default behavior and adds support for other forwarded headers.
+    
+    Change-Id: Ief14f5063caebfccb87714f54cffa927c714e5fd
+    GitHub-Last-Rev: fd0bd29a181861ffdb1106b42f59f9489999ccb3
+    GitHub-Pull-Request: golang/go#36672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

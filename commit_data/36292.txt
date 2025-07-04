@@ -1,0 +1,23 @@
+commit dc79206aec20b92388e7050d0359dccccd31ef0b
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Sat Jun 9 20:43:54 2018 +0300
+
+    net: combine append calls in reverseaddr
+    
+    Combined appends lead to fewer machine code and faster performance.
+    Some may even say that it makes code more readable.
+    
+    Running revAddrTests over reverseaddr gives measurable improvements:
+    
+            name              old time/op  new time/op  delta
+            ReverseAddress-8  4.10µs ± 3%  3.94µs ± 1%  -3.81%  (p=0.000 n=10+9)
+    
+    Change-Id: I9bda7a20f802bcdffc6e948789765d04c6da04e7
+    Reviewed-on: https://go-review.googlesource.com/117615
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

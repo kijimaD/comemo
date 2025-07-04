@@ -1,0 +1,21 @@
+commit c742ff6adc1487fbdbeca7e71fa61d80bbb41624
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 18 21:17:07 2015 -0400
+
+    runtime: remove flaky TestInvalidptrCrash to fix build
+    
+    This test fails on arm64 and some amd64 OSs and fails on Linux/amd64
+    if you remove the first runtime.GC(), which should be unnecessary, and
+    run it in all.bash (but not if you run it in isolation). I don't
+    understand any of these failures, so for now just remove this test.
+    
+    TBR=rlh
+    
+    Change-Id: Ibed00671126000ed7dc5b5d4af1f86fe4a1e30e1
+    Reviewed-on: https://go-review.googlesource.com/14767
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_test.go | 37 -------------------------------------
+ 1 file changed, 37 deletions(-)

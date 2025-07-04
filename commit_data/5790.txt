@@ -1,0 +1,13 @@
+commit 18d78dd7b1f97e56521c8a37ec9f6996f346e7f5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 12 16:57:11 2010 -0700
+
+    tweak comment for %#X
+    Fixes #904.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1803043
+
+ src/pkg/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

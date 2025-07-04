@@ -1,0 +1,45 @@
+commit 26dde76cee3508fc666b15a94d8201e09d2fb805
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 11 22:17:20 2010 -0700
+
+    gopack: handle long lines in export data
+    Also, if the header is bad, exit with a non-zero status.
+    
+    Other calls to Brdline in the tree, by category:
+    
+    Reading symbol name from object file:
+    ./cmd/5l/obj.c:486:             name = Brdline(f, '\0');
+    ./cmd/6l/obj.c:535:             name = Brdline(f, '\0');
+    ./cmd/8l/obj.c:564:             name = Brdline(f, '\0');
+    ./libmach/sym.c:292:            cp = Brdline(bp, '\0');
+    
+    Reading archive header line (fixed, short):
+    ./cmd/gc/lex.c:287:     if((a = Brdline(b, '\n')) == nil)
+    ./cmd/gc/lex.c:303:     if((p = Brdline(b, '\n')) == nil)
+    
+    Reading object file header line (fixed, short):
+    ./cmd/ld/lib.c:421:     line = Brdline(f, '\n');
+    
+    Reading undefined symbol list (unused code):
+    ./cmd/ld/lib.c:773:     while((l = Brdline(b, '\n')) != nil){
+    
+    Implementing Brdstr:
+    ./libbio/brdstr.c:36:           p = Brdline(bp, delim);
+    
+    The symbol names ones will cause a problem loudly if they
+    fail: they'll error out with symbol name too long.  This means
+    that you can't define an enormous struct without giving the
+    type a name and then stick it in an interface, because the
+    type's symbol name will be too long for the object file.
+    Since this will be a loud failure instead of a silent one,
+    I'm willing to wait until it comes up in practice.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1982041
+
+ src/cmd/gopack/ar.c               | 19 +++++++++++++++----
+ test/fixedbugs/bug302.dir/main.go |  5 +++++
+ test/fixedbugs/bug302.go          |  2 +-
+ test/run                          |  2 +-
+ 4 files changed, 22 insertions(+), 6 deletions(-)

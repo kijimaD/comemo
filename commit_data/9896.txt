@@ -1,0 +1,17 @@
+commit 3e4669995888bcea2d45e847ec896742d4532b6c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 16:07:56 2011 -0700
+
+    go/ast: don't remove function bodies when filtering exports
+    
+    This is a semantic but no API change. It is a cleaner
+    implementation of pure filtering. Applications that
+    need function bodies stripped can easily do this them-
+    selves.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5206046
+
+ src/pkg/go/ast/filter.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

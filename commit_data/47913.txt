@@ -1,0 +1,27 @@
+commit 91edf2b7f2fe219f1af1df4031a210d8160da47c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jan 8 14:39:43 2022 -0800
+
+    go/types, types2: better error message for type parameter field access
+    
+    Fixes #50516.
+    
+    Also call DefPredeclaredTestFuncs in TestFixedbugs so it can be
+    run independently again.
+    
+    Change-Id: I78d4cc11790b1543a2545a7ab297a223b3d5e3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376954
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 43 ++++++++-------------
+ src/cmd/compile/internal/types2/check_test.go      | 11 ++++--
+ .../internal/types2/testdata/check/typeparams.go2  |  6 +--
+ .../types2/testdata/fixedbugs/issue50417.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue50516.go2       | 13 +++++++
+ src/go/types/call.go                               | 45 ++++++++--------------
+ src/go/types/check_test.go                         | 11 ++++--
+ src/go/types/testdata/check/typeparams.go2         |  6 +--
+ src/go/types/testdata/fixedbugs/issue50417.go2     |  2 +-
+ src/go/types/testdata/fixedbugs/issue50516.go2     | 13 +++++++
+ 10 files changed, 79 insertions(+), 73 deletions(-)

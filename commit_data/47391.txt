@@ -1,0 +1,20 @@
+commit 23dd389ac6ef59210580614c4a73e0d0a13c2911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 09:33:53 2021 -0800
+
+    cmd/compile/internal/types2: refer to structural rather than single underlying type in errors
+    
+    This brings the error messages in sync with the terminology that
+    will be used it the spec.
+    
+    Change-Id: Ia05993776c649be9eb2cdf948a583b9a49f9b192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362997
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go                  |  2 +-
+ src/cmd/compile/internal/types2/index.go                     |  2 +-
+ src/cmd/compile/internal/types2/stmt.go                      |  4 ++--
+ src/cmd/compile/internal/types2/testdata/check/builtins.go2  |  6 +++---
+ .../compile/internal/types2/testdata/check/typeparams.go2    | 12 ++++++------
+ 5 files changed, 13 insertions(+), 13 deletions(-)

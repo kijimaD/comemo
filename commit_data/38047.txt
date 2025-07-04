@@ -1,0 +1,20 @@
+commit 7be432e65979f88aceba000db37c325c81127c7d
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Feb 25 11:18:03 2019 +0100
+
+    misc/android: copy testdata directories to device before running
+    
+    We've got away with not copying the testdata directories for the
+    standard library because the exec wrapper also pushes almost the
+    entire $GOROOT tree to the device, including testdata directories.
+    
+    Similar to what the iOS exec wrapper does.
+    
+    Change-Id: I91ef63ef84a658fc8843002890132c64b7c1d20e
+    Reviewed-on: https://go-review.googlesource.com/c/163626
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

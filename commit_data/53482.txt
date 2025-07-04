@@ -1,0 +1,35 @@
+commit 6d8af00a630aa51134e54f0f321658621c6410f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 4 14:06:39 2023 -0700
+
+    cmd/go,cmd/cgo: in _cgo_flags use one line per flag
+    
+    The flags that we recorded in _cgo_flags did not use any quoting,
+    so a flag containing embedded spaces was mishandled.
+    Change the _cgo_flags format to put each flag on a separate line.
+    That is a simple format that does not require any quoting.
+    
+    As far as I can tell only cmd/go uses _cgo_flags, and it is only
+    used for gccgo. If this patch doesn't cause any trouble, then
+    in the next release we can change to only using _cgo_flags for gccgo.
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #60306
+    Fixes CVE-2023-29405
+    
+    Change-Id: I81fb5337db8a22e1f4daca22ceff4b79b96d0b4f
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1875094
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501224
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/out.go                                |  4 +++-
+ src/cmd/go/internal/work/gccgo.go                 | 14 ++++++--------
+ src/cmd/go/testdata/script/gccgo_link_ldflags.txt | 20 ++++++++++++++++++++
+ 3 files changed, 29 insertions(+), 9 deletions(-)

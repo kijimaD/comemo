@@ -1,0 +1,26 @@
+commit 2c7c98c3ad719aa9d6d2594827a6894ff9950042
+Author: Rongrong <rongrong@oss.cipunited.com>
+Date:   Mon Nov 21 14:05:40 2022 +0800
+
+    syscall, runtime/internal/syscall: zero r2 before mips linux syscalls
+    
+    All mips variant perform syscalls similarly. R2 (v0) holds r1 and R3
+    (v1) holds r2 of a syscall. The latter is only used by 2-ret syscalls.
+    A 1-ret syscall would not touch R3 but keeps it as is, making r2 be a
+    random value. Always reset it to 0 before SYSCALL to fix the issue.
+    
+    Fixes #56426
+    
+    Change-Id: Ie49965c0c3c224c4a895703ac659205cd040ff56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+
+ src/runtime/internal/syscall/asm_linux_mips64x.s | 1 +
+ src/runtime/internal/syscall/asm_linux_mipsx.s   | 1 +
+ src/syscall/asm_linux_mips64x.s                  | 5 +++--
+ src/syscall/asm_linux_mipsx.s                    | 2 ++
+ 4 files changed, 7 insertions(+), 2 deletions(-)

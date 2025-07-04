@@ -1,0 +1,18 @@
+commit 3ad350820df8217b4d05c56923e533a196bace27
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 3 11:48:34 2019 -0700
+
+    cmd/compile: change size diagnostic to use benchmark format
+    
+    Makes it easier to run
+    
+        go build -a -gcflags=-d=export std |& grep ^BenchmarkExportSize
+    
+    and get useful output for feeding into benchstat.
+    
+    Change-Id: I2b52e8f5ff33b7ccb6c25b18e464513344bd9ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198698
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

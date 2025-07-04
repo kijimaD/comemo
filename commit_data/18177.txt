@@ -1,0 +1,26 @@
+commit d227d680ece216603c31e36ee995b814259325dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 6 20:43:44 2014 -0500
+
+    cmd/gc: use 100x less memory for []byte("string")
+    
+    []byte("string") was simplifying to
+    []byte{0: 0x73, 1: 0x74, 2: 0x72, 3: 0x69, 4: 0x6e, 5: 0x67},
+    but that latter form takes up much more memory in the compiler.
+    Preserve the string form and recognize it to turn global variables
+    initialized this way into linker-initialized data.
+    
+    Reduces the compiler memory footprint for a large []byte initialized
+    this way from approximately 10 kB/B to under 100 B/B.
+    
+    See also issue 6643.
+    
+    R=golang-codereviews, r, iant, oleku.konko, dave, gobot, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/15930045
+
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/obj.c       | 28 ++++++++++++++++++++++++++++
+ src/cmd/gc/sinit.c     |  9 +++++++++
+ src/cmd/gc/typecheck.c |  3 +++
+ 4 files changed, 41 insertions(+)

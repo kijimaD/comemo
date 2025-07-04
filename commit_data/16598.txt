@@ -1,0 +1,16 @@
+commit cb2461ba46c3ef7e74e213b287ef09caaed64c3f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 19 09:44:40 2013 -0700
+
+    cmd/go: another attempt at flag handling for coverage
+    The -cover flag is now just enable/disable and is implied if
+    either of the other flags is set.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10420043
+
+ src/cmd/go/doc.go      |  8 ++++----
+ src/cmd/go/test.go     |  8 ++++----
+ src/cmd/go/testflag.go | 46 ++++++++++++++++++----------------------------
+ 3 files changed, 26 insertions(+), 36 deletions(-)

@@ -1,0 +1,22 @@
+commit c1828fbcbf8b8e18308e87bbac0d71244ec167f5
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 11 14:23:12 2023 -0800
+
+    crypto/x509: remove TestPlatformVerifierLegacy tests
+    
+    They are no longer necessary, woohoo!
+    
+    Updates #52108
+    Fixes #56791
+    
+    Change-Id: I11a4c17162da4295309f74f2f8362bab0f506f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548976
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/root_darwin_test.go  | 131 -----------------------------------
+ src/crypto/x509/root_windows_test.go | 127 ---------------------------------
+ 2 files changed, 258 deletions(-)

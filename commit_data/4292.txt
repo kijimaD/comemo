@@ -1,0 +1,15 @@
+commit 1eba218e4448a94d4319e73148d5c478a1e6685f
+Author: Peter Froehlich <peter.hans.froehlich@gmail.com>
+Date:   Wed Dec 2 20:47:38 2009 -0800
+
+    Runes: turn string into []int
+    Split: fixed typo in documentation
+    
+    R=rsc, r, r1
+    https://golang.org/cl/157170
+
+ src/pkg/bytes/bytes.go          | 13 ++++++++++++
+ src/pkg/bytes/bytes_test.go     | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go      | 13 +++++++++++-
+ src/pkg/strings/strings_test.go | 45 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 116 insertions(+), 1 deletion(-)

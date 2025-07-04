@@ -1,0 +1,15 @@
+commit e05b9746ddc6e53864d1ab26fc172b09ccbe321c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 21 20:58:35 2016 -0700
+
+    cmd/compile: map TSLICE to obj.KindSlice directly
+    
+    Change-Id: Idab5f603c1743895b8f4edbcc55f7be83419a099
+    Reviewed-on: https://go-review.googlesource.com/22383
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

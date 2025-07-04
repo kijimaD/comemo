@@ -1,0 +1,25 @@
+commit 1707a9977f2272333b86853c2ac09a3bdba9915e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 01:23:15 2012 -0500
+
+    runtime: on 386, fix FP control word on all threads, not just initial thread
+    
+    It is possible that Linux and Windows copy the FP control word
+    from the parent thread when creating a new thread.  Empirically,
+    Darwin does not.  Reset the FP control world in all cases.
+    
+    Enable the floating-point strconv test.
+    
+    Fixes #2917 (again).
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5660047
+
+ src/pkg/runtime/asm_386.s    | 18 ++++++++++--------
+ src/pkg/runtime/asm_amd64.s  |  4 ++++
+ src/pkg/runtime/asm_arm.s    |  4 ++++
+ src/pkg/runtime/proc.c       |  1 +
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/strconv/atof_test.go | 11 +++++------
+ 6 files changed, 25 insertions(+), 14 deletions(-)

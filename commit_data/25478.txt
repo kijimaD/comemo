@@ -1,0 +1,14 @@
+commit 73ba846c6a3f8c605682a5808065238a961add45
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:47:47 2016 -0500
+
+    doc: remove note about installing from source for ARM
+    
+    Now there are ARM downloads too.
+    
+    Change-Id: I236381508c69d56748e672d184b92caa715e81ae
+    Reviewed-on: https://go-review.googlesource.com/18342
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

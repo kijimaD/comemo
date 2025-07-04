@@ -1,0 +1,16 @@
+commit ca94064104fd5c3a30efeb0e3654b9089fef4754
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Jun 19 10:15:04 2014 +1000
+
+    image: add RGBAAt, Gray16At, etc.
+    
+    Fixes #7694.
+    
+    LGTM=nigeltao, rsc, r
+    R=golang-codereviews, nigeltao, rsc, r
+    CC=golang-codereviews
+    https://golang.org/cl/109000049
+
+ src/pkg/image/image.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/image/ycbcr.go |  4 ++++
+ 2 files changed, 36 insertions(+)

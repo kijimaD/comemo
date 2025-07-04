@@ -1,0 +1,16 @@
+commit 772cea817d075c496091f4c735800f14159c5051
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 24 16:20:59 2016 -0800
+
+    cmd/compile: fix off-by-1 in getr
+    
+    Introduced by (and missed during code review of) golang.org/cl/19847.
+    
+    Change-Id: I03b76f36e5da69c31730380592dfa1c32570e17f
+    Reviewed-on: https://go-review.googlesource.com/19912
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit d45f24c084ee7f70797ad645f922ea820db28776
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 13 14:45:23 2018 -0400
+
+    cmd/compile: use bounded shift information on ppc64x
+    
+    Makes use of bounded shift information to generate
+    more efficient shift instructions.
+    
+    Updates #25167 for ppc64x
+    
+    Change-Id: I7fc8d49a3fb3e0f273cc51bc767470b239cbdca7
+    Reviewed-on: https://go-review.googlesource.com/135380
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  14 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 798 ++++++++++++++++++++++++++-
+ 2 files changed, 803 insertions(+), 9 deletions(-)

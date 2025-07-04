@@ -1,0 +1,14 @@
+commit 0cd2bf4f988e115d9b93a75e6472663d88a85a4c
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu Dec 15 18:05:26 2016 +0100
+
+    test: add mipsx case to nosplit.go
+    
+    Change-Id: I496bceacb6b3f417e36dc725d988b12c59a200d5
+    Reviewed-on: https://go-review.googlesource.com/34412
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/nosplit.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,17 @@
+commit 2ade9856f17668b9d06d05e17e8f15701f8ac771
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jun 7 18:13:06 2024 -0400
+
+    doc/next: add release notes for telemetry and the godebug directive
+    
+    For #65614
+    
+    Change-Id: I6274bdaba970cfb085af500fdaf8ed078202bfdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591380
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md | 41 +++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)

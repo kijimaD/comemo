@@ -1,0 +1,26 @@
+commit b98ffdf859f0fec2acb1765bf5b62ce1e4587c2b
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Mar 25 16:58:27 2018 -0700
+
+    database/sql: check for nil connRequest.conn before use
+    
+    The connRequest may return a nil conn value. However in a rare
+    case that is difficult to test for it was being passed to
+    DB.putConn without a nil check. This was an error as this
+    made no sense if the driverConn is nil. This also caused
+    a panic in putConn.
+    
+    A test for this would be nice, but didn't find a sane
+    way to test for this condition.
+    
+    Fixes #24445
+    
+    Change-Id: I827316e856788a5a3ced913f129bb5869b7bcf68
+    Reviewed-on: https://go-review.googlesource.com/102477
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

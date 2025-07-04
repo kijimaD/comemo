@@ -1,0 +1,19 @@
+commit 7390aa01023659000ed2e8b838014bfb7c6d7154
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 01:10:40 2009 -0700
+
+    nacl:
+            add jmp to constant pc.
+            generate HLT for INT $3
+            do not insert NOPs between REP/REPN and subsequent instruction.
+            allow very long time for convergence.
+    
+    R=ken
+    OCL=34879
+    CL=34879
+
+ src/cmd/8l/l.h     |  1 +
+ src/cmd/8l/optab.c |  3 ++-
+ src/cmd/8l/pass.c  |  1 -
+ src/cmd/8l/span.c  | 35 ++++++++++++++++++++++++++++++++---
+ 4 files changed, 35 insertions(+), 5 deletions(-)

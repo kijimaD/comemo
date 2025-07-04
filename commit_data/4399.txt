@@ -1,0 +1,14 @@
+commit bedfc2c2f1ca8f933cb523397cbb76660f9bce61
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Dec 12 14:36:52 2009 -0800
+
+    more on the optimizer
+    trying to get alizses
+    to optimize
+    
+    R=rsc
+    https://golang.org/cl/176061
+
+ src/cmd/6g/reg.c |  37 +++++++++++-------
+ src/cmd/8g/reg.c | 114 +++++++++++++++++++++++++++++--------------------------
+ 2 files changed, 84 insertions(+), 67 deletions(-)

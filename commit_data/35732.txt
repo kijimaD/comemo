@@ -1,0 +1,26 @@
+commit 1a92cdbfc10e0c66f2e015264a39159c055a5c15
+Author: Misty De Meo <mistydemeo@gmail.com>
+Date:   Fri Jun 15 18:15:50 2018 +0000
+
+    ld/macho: add all missing load commands
+    
+    The ld/macho code currently understands a subset of the mach-o load
+    commands. I've encountered one of these in the wild in a Go-produced
+    binary, which tripped up the Go linker because its switch statement
+    expects its list of load commands to be exhaustive; the rest I've
+    added for the sake of completion.
+    
+    The ruby-macho library is a good non-Darwin header resource for these:
+    https://github.com/homebrew/ruby-macho
+    
+    Fixes #25908
+    
+    Change-Id: Ib54c065d27e87d8726a9870df05a2bae24828b98
+    GitHub-Last-Rev: 655e3f488a4c1a89896a40edb0e1f715a5d3f734
+    GitHub-Pull-Request: golang/go#25906
+    Reviewed-on: https://go-review.googlesource.com/119115
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/macho.go               | 77 ++++++++++++++++---------
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  2 +-
+ 2 files changed, 52 insertions(+), 27 deletions(-)

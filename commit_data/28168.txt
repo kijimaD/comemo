@@ -1,0 +1,12 @@
+commit 0f1a8d3c2ddce2d96d2b2bb81094ac3401aff03d
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Sep 1 02:49:27 2016 -0700
+
+    doc: fix stale gofrontend/gccgo contribution link
+    
+    Change-Id: I63af8f0a19ec91f4a2001aa7a2eadcd2232a47df
+    Reviewed-on: https://go-review.googlesource.com/28348
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/gccgo_contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

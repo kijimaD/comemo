@@ -1,0 +1,28 @@
+commit 2122fc6358c926846ea70c8497f94f9b8c8a49c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 07:44:33 2017 -0700
+
+    cmd/internal/obj/arm64: don't immediate dereference new prog
+    
+    Noticed by Cherry while reviewing CL 40252.
+    
+    The alternative to this is to place t on the stack, like
+    
+    t := obj.Prog{Ctxt: ctxt}
+    
+    However, there are only a couple of places where we
+    manually construct Progs, which is useful.
+    
+    This isn't hot enough code to warrant
+    breaking abstraction layers to avoid an allocation.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I46c79090b60641c90ee977b750ba5c708aca8ecf
+    Reviewed-on: https://go-review.googlesource.com/40373
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

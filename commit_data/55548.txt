@@ -1,0 +1,18 @@
+commit 151362cf7c94bab5baa33af47249c850fbb941b0
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Feb 8 05:39:07 2024 +0000
+
+    internal/pprof: remove unused code
+    
+    Change-Id: I47e98122668960321124e426b345d36f6916b738
+    GitHub-Last-Rev: b72c9ab33e1c9c49b3b44dc8782344d1ed481123
+    GitHub-Pull-Request: golang/go#65594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562324
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/profile/filter.go  | 104 ----------------------------------------
+ src/internal/profile/profile.go |   1 -
+ 2 files changed, 105 deletions(-)

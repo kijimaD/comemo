@@ -1,0 +1,15 @@
+commit 88a1aa8e1ab07144c546d6fd7fdfb0a156c0fcdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 10:30:22 2009 -0700
+
+    6g: error messages
+    
+    part 2; missing files
+    
+    R=ken
+    OCL=28408
+    CL=28410
+
+ src/cmd/gc/dcl.c | 19 ++++++++++++++-----
+ src/cmd/gc/go.h  |  1 +
+ 2 files changed, 15 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit 14a41387acb6389a8f2f97d337b68c4bc2730eb4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 19:45:46 2022 -0500
+
+    misc/cgo/testcshared: reapply CL 451816
+    
+    I accidentally reverted its edits with a bad cherry-pick in CL 452457.
+    
+    This should re-fix the windows-.*-newcc builders that regressed at
+    that change.
+    
+    Updates #47257.
+    Updates #35006.
+    Updates #53540.
+    
+    Change-Id: I5818416af7c4c8c1593c36aa0198331b42b6c7d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452675
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 60 +++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 22 deletions(-)

@@ -1,0 +1,38 @@
+commit 194b636f8f1ff7d6b709b5b9010d1d14b3919e66
+Author: Ivan Trubach <mr.trubach@icloud.com>
+Date:   Thu Feb 25 19:15:04 2021 +0000
+
+    database/sql: close driver.Connector if it implements io.Closer
+    
+    This change allows driver implementations to manage resources in
+    driver.Connector, e.g. to share the same underlying database handle
+    between multiple connections. That is, it allows embedded databases
+    with in-memory backends like SQLite and Genji to safely release the
+    resources once the sql.DB is closed.
+    
+    This makes it possible to address oddities with in-memory stores in
+    SQLite and Genji drivers without introducing too much complexity in
+    the driver implementations.
+    
+    See also:
+    - https://github.com/mattn/go-sqlite3/issues/204
+    - https://github.com/mattn/go-sqlite3/issues/511
+    - https://github.com/genjidb/genji/issues/210
+    
+    Fixes #41790
+    
+    Change-Id: Idbd19763134438ed38288b9d44f16608e4e97fd7
+    GitHub-Last-Rev: 962c785dfb3bb6ad98b2216bcedd84ba383fe872
+    GitHub-Pull-Request: golang/go#41710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258360
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go |  3 +++
+ src/database/sql/fakedb_test.go   |  9 +++++++++
+ src/database/sql/sql.go           |  6 ++++++
+ src/database/sql/sql_test.go      | 11 ++++++++++-
+ 4 files changed, 28 insertions(+), 1 deletion(-)

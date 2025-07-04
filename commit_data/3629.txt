@@ -1,0 +1,12 @@
+commit 439f9ca809615d6a80d5dfecf91f30bbe9374e2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 14:14:17 2009 -0700
+
+    add codereview-login command
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1012007
+
+ lib/codereview/codereview.py | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

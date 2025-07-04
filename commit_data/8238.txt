@@ -1,0 +1,14 @@
+commit c3e6e6ec09ac24c0194e99d5afee39bf7a1c3ead
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 26 21:39:22 2011 -0400
+
+    doc: mention make version in install.html
+    
+    Fixes #1531.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4442088
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

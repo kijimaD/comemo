@@ -1,0 +1,19 @@
+commit c9ffcca7848e2c59a75f97801617322bb054c3fd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 15 10:46:11 2021 -0500
+
+    net: increase timing slop in TimeoutFluctuation tests on NetBSD and OpenBSD
+    
+    Decrease the slop everywhere else, since NetBSD and OpenBSD seem to be
+    the only ones that miss by that much.
+    
+    For #50189
+    Updates #36108
+    
+    Change-Id: I22ac39cc7c254e40358fcd933b5a6016629602c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372215
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/timeout_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

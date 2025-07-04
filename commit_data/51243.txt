@@ -1,0 +1,16 @@
+commit 74b6a22057b393f198d2d86f4ea7504dacf390f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 09:04:38 2022 -0800
+
+    database/sql: add a missing period to end of sentence in Rows.Scan docs
+    
+    Change-Id: I331d4ff3e0f76a26c1c5ec41297117a5b1f16911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450295
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit a4bfe64f00f09b5d98cc7bb680b768af1bebebc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 13 14:20:07 2015 -0700
+
+    math/big: fix minor documentation issue
+    
+    Change-Id: Ib42f75c03573cec16801b79a6eb9b1b542028f4f
+    Reviewed-on: https://go-review.googlesource.com/7524
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 2 +-
+ src/math/big/float_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

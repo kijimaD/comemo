@@ -1,0 +1,12 @@
+commit 906aefb038b6baddc38f165bdfb6ecf624db398d
+Author: mattyw <gh@mattyw.net>
+Date:   Sat Feb 7 10:28:20 2015 +0800
+
+    gofmt/doc: gofmt -s output may not be backward compatible
+    
+    Change-Id: If697ab554e6cb5545d99c6b103ed8bc54f69ed48
+    Reviewed-on: https://go-review.googlesource.com/4161
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/gofmt/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

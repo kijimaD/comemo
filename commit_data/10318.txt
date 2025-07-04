@@ -1,0 +1,13 @@
+commit 5524b646e591b614391c1318e3eb9adc1d5af75b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 15:59:57 2011 -0500
+
+    A+C: Rémy Oudompheng (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5376045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit ef6978b218c45ba81f4f7fa9108c2a292030788d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 11 16:22:10 2017 -0400
+
+    cmd/link: implement R_X86_64_PC64 relocations
+    
+    Change-Id: I1d7bd5cff7350a4e0f78b8efc8406e79c74732d1
+    Reviewed-on: https://go-review.googlesource.com/55370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 11 +++++++++++
+ src/cmd/link/internal/ld/ldelf.go  |  1 +
+ 2 files changed, 12 insertions(+)

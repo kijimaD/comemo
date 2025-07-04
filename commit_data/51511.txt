@@ -1,0 +1,23 @@
+commit 0b323a3c1690050340fc8e39730a07bb01373f0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 5 14:09:09 2022 -0800
+
+    go/types, types2: better error message for failing constraint type inference
+    
+    We know the type argument against which constraint type inference fails:
+    print the type argument instead of the corresponding type parameter.
+    
+    Fixes #57096.
+    
+    Change-Id: Ia1da9c87fac6f8062e4d534b82e895fa4617fddc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455278
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go            | 2 +-
+ src/go/types/infer.go                               | 2 +-
+ src/internal/types/testdata/fixedbugs/issue45985.go | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

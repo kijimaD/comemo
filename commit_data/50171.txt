@@ -1,0 +1,16 @@
+commit 59bdbb3effe3e61f85e336a52323024bafaf44bd
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 27 02:51:11 2022 +0800
+
+    net: add the missing OS Darwin in the comment of sendFile
+    
+    Change-Id: Ice7e3762d4a1d71e23d619be699697f5c6523cc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425879
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/sendfile_unix_alt.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 3463852b7631adbdd65646539fc87d967dcd13e6
+Author: tkawakita <tommycsth61@gmail.com>
+Date:   Wed Jun 30 00:46:05 2021 +0900
+
+    math/big: fix typo of comment (`BytesScanner` to `ByteScanner`)
+    
+    Change-Id: I0c2d26d6ede1452008992efbea7392162da65014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331651
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

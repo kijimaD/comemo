@@ -1,0 +1,25 @@
+commit a93bc1d26e70cf471ad8f7580333213c67b85313
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 10:34:25 2017 -0400
+
+    cmd/dist: use latest heap, sort packages for compiler bootstrap
+    
+    The compiler depends on the way heap and sort break ties
+    in some cases. Instead of trying to find them all, bundle
+    those packages into the bootstrap compiler builds.
+    
+    The overall goal is that Go1.4 building cmd/compile during the
+    bootstrap process produces a semantically equivalent compiler
+    to cmd/compile compiling itself. After this CL, that property is true,
+    at least for the compiler compiling itself and the other tools.
+    
+    A test for this property will be in CL 73212.
+    
+    Change-Id: Icc1ba7cbe828f5673e8198ebacb18c7c01f3a735
+    Reviewed-on: https://go-review.googlesource.com/73952
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

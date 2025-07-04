@@ -1,0 +1,34 @@
+commit f09d0458d32a965602a346843354f7778b12a375
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 14 17:48:33 2016 +0000
+
+    regexp: don't run slow benchmarks on race builders
+    
+    Shave 6.5 minutes off the *-race build time.
+    
+    The *-race builders run:
+    
+        go test -short -race -run=^$ -benchtime=.1s -cpu=4 $PKG
+    
+    ... for each package with benchmarks.
+    
+    The point isn't to measure the speed of the packages, but rather to
+    see if there are any races. (which is why a benchtime of 0.1 seconds
+    is used)
+    
+    But running in race mode makes things slower and our benchmarks aren't
+    all very fast to begin with.
+    
+    The regexp benchmarks in race were taking over 6.5 minutes. With this
+    CL, it's now 8 seconds.
+    
+    Updates #17104
+    
+    Change-Id: I054528d09b1568d37aac9f9b515d6ed90a5cf5b0
+    Reviewed-on: https://go-review.googlesource.com/29156
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/regexp/exec_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

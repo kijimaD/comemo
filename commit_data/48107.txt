@@ -1,0 +1,27 @@
+commit 275aedccd4f2beae82dbf96c94a6c1c9b365a647
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 15:07:21 2022 -0500
+
+    runtime: skip TestGdbBacktrace flakes matching a known GDB internal error
+    
+    TestGdbBacktrace occasionally fails due to a GDB internal error.
+    We have observed the error on various linux builders since at least
+    October 2020, and it has been reported upstream at least twice.¹²
+    
+    Since the bug is external to the Go project and does not appear to be
+    fixed upstream, this failure mode can only add noise.
+    
+    ¹https://sourceware.org/bugzilla/show_bug.cgi?id=24628
+    ²https://sourceware.org/bugzilla/show_bug.cgi?id=28551
+    
+    Fixes #43068
+    
+    Change-Id: I6c92006a5d730f1c4df54b0307f080b3d643cc6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384234
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

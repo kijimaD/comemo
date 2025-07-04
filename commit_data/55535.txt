@@ -1,0 +1,23 @@
+commit 28b8851671a0254ed0e46ce8dbec43ebe73e7132
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 2 16:30:54 2024 +0100
+
+    os: support Stat and LStat for CON device on Windows
+    
+    \\.\con and CON need to be opened with GENERIC_READ access, else
+    CreateFile will fail with ERROR_INVALID_PARAMETER.
+    
+    Special-case ERROR_INVALID_PARAMETER in os.[L]Stat so it retries with
+    GENERIC_READ access.
+    
+    Fixes #34900.
+    
+    Change-Id: I5010e736d0189c8ada4fc0eca98d71a438c41426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/os/stat_test.go    | 75 +++++++++++++++++++++++++++++++++++++++-----------
+ src/os/stat_windows.go | 11 +++++++-
+ 2 files changed, 69 insertions(+), 17 deletions(-)

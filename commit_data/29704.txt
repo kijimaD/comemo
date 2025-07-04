@@ -1,0 +1,20 @@
+commit e5e05627745764fb9989bf3966919d6715f21abc
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 23 09:10:30 2016 -0800
+
+    database/sql: document expectations for named parameters
+    
+    Require parameter names to not begin with a symbol.
+    
+    Change-Id: I5dfe9d4e181f0daf71dad2f395aca41c68678cbe
+    Reviewed-on: https://go-review.googlesource.com/33493
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go       | 19 +++++++++++++++++++
+ src/database/sql/driver/driver.go | 15 ++++++++++-----
+ src/database/sql/fakedb_test.go   |  4 ++--
+ src/database/sql/sql.go           |  2 ++
+ src/database/sql/sql_test.go      |  4 ++--
+ 5 files changed, 35 insertions(+), 9 deletions(-)

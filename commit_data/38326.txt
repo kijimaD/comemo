@@ -1,0 +1,26 @@
+commit 83a33d3855e257b383b2a3a10dfd9748ad17cfb4
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Mar 8 15:01:32 2019 -0800
+
+    cmd/compile: reverse order of slice bounds checks
+    
+    Turns out this makes the fix for 28797 unnecessary, because this order
+    ensures that the RHS of IsSliceInBounds ops are always nonnegative.
+    
+    The real reason for this change is that it also makes dealing with
+    <0 values easier for reporting values in bounds check panics (issue #30116).
+    
+    Makes cmd/go negligibly smaller.
+    
+    Update #28797
+    
+    Change-Id: I1f25ba6d2b3b3d4a72df3105828aa0a4b629ce85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166377
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 33 ++++++++-------------------------
+ test/loopbce.go                    |  6 +++---
+ test/prove.go                      |  4 ++--
+ 3 files changed, 13 insertions(+), 30 deletions(-)

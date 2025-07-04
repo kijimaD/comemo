@@ -1,0 +1,12 @@
+commit f08ce1898086c604e3027489dd8fcbc06826c7c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 2 16:20:47 2010 -0700
+
+    debug/proc: fix typo in package documentation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/829044
+
+ src/pkg/debug/proc/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

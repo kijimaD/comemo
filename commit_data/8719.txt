@@ -1,0 +1,12 @@
+commit c195cc8d8293ea78b3babdf714e6a7203b3868a9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 14 11:46:05 2011 -0400
+
+    exec: make LookPath work even when PATHEXT env variable is not set on Windows
+    
+    R=golang-dev, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4559062
+
+ src/pkg/exec/lp_windows.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

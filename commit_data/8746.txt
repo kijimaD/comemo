@@ -1,0 +1,12 @@
+commit aaae15ef0f390cd4f780ed1a74a476707852efc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 01:46:14 2011 -0400
+
+    doc: document r57.2
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4627042
+
+ doc/devel/release.html | 1 +
+ 1 file changed, 1 insertion(+)

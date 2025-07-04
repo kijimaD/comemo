@@ -1,0 +1,27 @@
+commit c135dfbf1842993aa2fd4c293b2476ce4733daf7
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 18 15:16:11 2019 -0500
+
+    debug/dwarf: more graceful handling of unsupported types
+    
+    Enhance the type decoder to do a better job handling unknown type
+    tags. DWARF has a number of type DIEs that this package doesn't handle
+    (things like "pointer to member" types in C++); avoid crashing for
+    such types, but instead return a placeholder "UnsupportedType" object
+    (this idea suggested by Austin). This provides a compromise between
+    implementing the entire kitchen sink and simply returning an error
+    outright on any unknown type DIE.
+    
+    Fixes #29601.
+    
+    Change-Id: I2eeffa094c86ef3a2c358ee42e8e629d74cec2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/dwarf/testdata/cppunsuptypes.cc  |  34 ++++++++++++++++
+ src/debug/dwarf/testdata/cppunsuptypes.elf | Bin 0 -> 3920 bytes
+ src/debug/dwarf/type.go                    |  24 ++++++++++++
+ src/debug/dwarf/type_test.go               |  60 +++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+)

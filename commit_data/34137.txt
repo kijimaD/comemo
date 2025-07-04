@@ -1,0 +1,14 @@
+commit 0ed5bec951e3068df3201254f615b5ad1d429ee0
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Feb 13 09:06:59 2018 -0800
+
+    time: add example for FixedZone
+    
+    Change-Id: I8a6c3e225038cbeb315433fabf8835f582836d3e
+    Reviewed-on: https://go-review.googlesource.com/93657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

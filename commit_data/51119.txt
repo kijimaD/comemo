@@ -1,0 +1,20 @@
+commit f187c6b08eac9dddd161bb2e7537def3bbf8ec9a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 21:22:44 2022 -0400
+
+    cmd/compile/internal/pgo: check repeated edge only when node is seen
+    
+    When adding weights for a call stack, for recursive calls, to
+    avoid double counting we check if we already saw the node and the
+    edge. We check the node first. An edge can be repeated if the node
+    is repeated. Most stacks are not recursive, so check repeated edge
+    only conditionally.
+    
+    Change-Id: I4b8f039289dcd3383ca89593d6d16d903b94c3dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447804
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/graph.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

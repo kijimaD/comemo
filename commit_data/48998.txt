@@ -1,0 +1,19 @@
+commit b9dee7e59b43376938128e6a3dc26d77719d193c
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Feb 18 10:42:17 2022 -0800
+
+    runtime/pprof: stress test goroutine profiler
+    
+    For #33250
+    
+    Change-Id: Ic7aa74b1bb5da9c4319718bac96316b236cb40b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387414
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/pprof/pprof_test.go | 273 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go             |   2 +-
+ src/runtime/runtime_test.go     |  97 ++++++++++++++
+ 3 files changed, 371 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 947f8504d950648fc1a291925bce142ddfc3b4fa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 7 02:54:50 2019 +0000
+
+    runtime: map reserved memory as NORESERVE on solaris
+    
+    This changes makes it so that sysReserve, which creates a PROT_NONE
+    mapping, maps that memory as NORESERVE. Before this change, relatively
+    large PROT_NONE mappings could cause fork to fail with ENOMEM, reported
+    as "not enough space". Presumably this refers to swap space, since
+    adding this flag causes the failures to go away.
+    
+    This helps unblock page allocator work, since it allows us to make large
+    PROT_NONE mappings on solaris safely.
+    
+    Updates #35112.
+    
+    Change-Id: Ic3cba310c626e93d5db0f27269e2569bb7bc393e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205759
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mem_bsd.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

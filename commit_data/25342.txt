@@ -1,0 +1,18 @@
+commit c052222b3467ca031b267f25f3dcc4b871485793
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 19:25:51 2015 +0000
+
+    net/http: don't accept invalid bytes in server request headers
+    
+    Fixes #11207
+    
+    Change-Id: I7f00b638e749fbc7907dc1597347ea426367d13e
+    Reviewed-on: https://go-review.googlesource.com/17980
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/request.go    | 21 +++++++++++++++++++++
+ src/net/http/serve_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 10 ++++++++++
+ 3 files changed, 69 insertions(+)

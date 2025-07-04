@@ -1,0 +1,28 @@
+commit 0b632d26b99e3924aea14574e422065e13f2a1c5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jan 16 13:56:15 2025 -0500
+
+    cmd/internal/obj/wasm, runtime: detect wasmexport call before runtime initialization
+    
+    If a wasmexport function is called from the host before
+    initializing the Go Wasm module, currently it will likely fail
+    with a bounds error, because the uninitialized SP is 0, and any
+    SP decrement will make it out of bounds.
+    
+    As at least some Wasm runtime doesn't call _initialize by default,
+    This error can be common. And the bounds error looks confusing to
+    the users. Therefore, we detect this case and emit a clearer error.
+    
+    Fixes #71240.
+    Updates #65199.
+    
+    Change-Id: I107095f08c76cdceb7781ab0304218eab7029ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/wasm/wasmobj.go | 25 +++++++++++++++++++++++--
+ src/cmd/link/internal/wasm/asm.go    |  1 +
+ src/runtime/asm_wasm.s               | 10 ++++++++++
+ src/runtime/sys_wasm.go              | 14 ++++++++++++++
+ 4 files changed, 48 insertions(+), 2 deletions(-)

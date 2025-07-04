@@ -1,0 +1,20 @@
+commit 9191c0b3fdd7b129007fab66f9034d595abb3876
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 12 09:34:11 2017 -0400
+
+    cmd/go: generate correct vendor paths with -compiler gccgo option
+    
+    Curently the vendor paths are not always searched for imports if
+    the compiler is gccgo.  This change generates the vendor paths
+    and adds them with -I as arguments to the gccgo compile.
+    
+    Fixes #15628
+    
+    Change-Id: I318accbbbd8e6af45475eda399377455a3565880
+    Reviewed-on: https://go-review.googlesource.com/40432
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 51 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

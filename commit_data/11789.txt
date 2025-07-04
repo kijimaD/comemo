@@ -1,0 +1,12 @@
+commit 21a3aceb4a960cffdd0f1b85f2c3718635526108
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 17:26:40 2012 -0800
+
+    fix build: update image/png test
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5649062
+
+ src/pkg/image/png/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

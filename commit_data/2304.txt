@@ -1,0 +1,13 @@
+commit 802e1a610425f23199885362786d56437f65ca6f
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon May 25 19:40:41 2009 -0700
+
+    static init reenabled
+    
+    R=r
+    OCL=29358
+    CL=29358
+
+ src/cmd/gc/sinit.c | 305 +++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/gc/subr.c  |   1 +
+ 2 files changed, 224 insertions(+), 82 deletions(-)

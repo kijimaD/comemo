@@ -1,0 +1,12 @@
+commit f9810f1b12750e83d3b76f703b9956e390ee06e7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 1 21:44:24 2009 -0800
+
+    make io.ReadFile use Stat.Size as a hint for preallocation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/163069
+
+ src/pkg/io/utils.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

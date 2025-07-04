@@ -1,0 +1,21 @@
+commit 157fc454eccb850a0a74029a49f8d947ff1a3762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 17:11:29 2016 -0700
+
+    path/filepath: don't return SkipDir at top
+    
+    If the walker function called on a top-level file returns SkipDir,
+    then (before this change) Walk would return SkipDir, which the
+    documentation implies will not happen.
+    
+    Fixes #16280.
+    
+    Change-Id: I37d63bdcef7af4b56e342b624cf0d4b42e65c297
+    Reviewed-on: https://go-review.googlesource.com/24780
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path.go      |  9 +++++++--
+ src/path/filepath/path_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 25 insertions(+), 5 deletions(-)

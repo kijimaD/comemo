@@ -1,0 +1,20 @@
+commit 97bfc77f3897d6268cf4f9bb6756b97ff5e7cc03
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Jun 10 19:08:14 2022 +0800
+
+    syscall, runtime/internal/syscall: always zero the higher bits of return value on linux/loong64
+    
+    All loong64 syscalls return values only via R4/A0, and R5/A1 may contain unrelated
+    content. Always zero the second return value.
+    
+    Change-Id: I62af59369bece5bd8028b937c74f4694150f7a55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411615
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/syscall/asm_linux_loong64.s | 2 +-
+ src/syscall/asm_linux_loong64.s                  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 6b2c7ffbab47ea313032e428588fa44d6d1520df
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 30 13:43:09 2010 +1000
+
+    doc: add to and consolidate non-english doc references
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2315042
+
+ doc/docs.html | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

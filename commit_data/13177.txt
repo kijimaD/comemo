@@ -1,0 +1,22 @@
+commit 1e814df79bdacc618dfe9768dfdece16c7b0a499
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 28 11:07:24 2012 -0700
+
+    net/http: avoid a bunch of unnecessary CanonicalHeaderKey calls
+    
+    CanonicalHeaderKey didn't allocate, but it did use unnecessary
+    CPU in the hot path, deciding it didn't need to allocate.
+    
+    I considered using constants for all these common header keys
+    but I didn't think it would be prettier. "Content-Length" looks
+    better than contentLength or hdrContentLength, etc.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6255053
+
+ src/pkg/net/http/header.go   |  8 ++++++++
+ src/pkg/net/http/request.go  |  8 ++++----
+ src/pkg/net/http/server.go   | 18 +++++++++---------
+ src/pkg/net/http/transfer.go | 10 +++++-----
+ 4 files changed, 26 insertions(+), 18 deletions(-)

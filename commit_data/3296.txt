@@ -1,0 +1,27 @@
+commit 698c6c00a0bd9499a6ab07e383ba7ba7f2837ad1
+Author: Larry Hosken <lahosken@gmail.com>
+Date:   Thu Sep 17 08:05:12 2009 -0700
+
+    A step towards "externalizing" some Go docs.
+    + style sheet: like code.google.com but less feature-ful
+    + JS with table-of-contents generation
+    + tweaked go_spec.html and go_mem.html to use new style+JS
+    + static-HTML-ified a few other Go docs:
+      + static HTML versions of some wiki pages (which I'll turn
+        into links to these pages).
+    
+    A notable thing that is _not_ in this changelist: any change
+    to the godoc tool or whatever thing generates http://go/godoc
+    
+    R=r
+    APPROVED=r
+    DELTA=2472  (2307 added, 113 deleted, 52 changed)
+    OCL=34644
+    CL=34728
+
+ doc/go_for_cpp_programmers.html | 673 ++++++++++++++++++++++++++++++++++++++++
+ doc/go_mem.html                 |  63 +++-
+ doc/go_spec.html                |  83 +++--
+ doc/godocs.js                   | 160 ++++++++++
+ doc/style.css                   | 134 ++++++++
+ 5 files changed, 1093 insertions(+), 20 deletions(-)

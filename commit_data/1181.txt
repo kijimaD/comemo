@@ -1,0 +1,13 @@
+commit 60ee27d96cd314ed9be26a105132538f39656c4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 10:20:52 2008 -0800
+
+    saving 2 lines :-)
+    
+    R=rsc
+    DELTA=5  (0 added, 2 deleted, 3 changed)
+    OCL=19562
+    CL=19585
+
+ src/lib/io.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

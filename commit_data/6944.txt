@@ -1,0 +1,12 @@
+commit 52c9fb6f3dd0648c6ccb87ee20818b09ab43f9c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 13 17:08:01 2010 -0800
+
+    suffixarray: provide accessor to data
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3574044
+
+ src/pkg/index/suffixarray/suffixarray.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

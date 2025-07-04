@@ -1,0 +1,24 @@
+commit bc2dc2384619d871000f9627b5d4e2bdc1dd38dc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 3 11:02:51 2022 -0700
+
+    os/exec: allow NUL in environment variables on Plan 9
+    
+    Plan 9 uses NUL as os.PathListSeparator, so it's almost always going
+    to appear in the environment variable list. Exempt GOOS=plan9 from the
+    check for NUL in environment variables.
+    
+    For #56284.
+    Fixes #56544.
+    
+    Change-Id: I23df233cdf20c0a9a606fd9253e15a9b5482575a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447715
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/exec/env_test.go  |  9 ++++++++-
+ src/os/exec/exec.go      | 14 +++++++++-----
+ src/os/exec/exec_test.go |  3 +++
+ 3 files changed, 20 insertions(+), 6 deletions(-)

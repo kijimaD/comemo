@@ -1,0 +1,72 @@
+commit 067acd51b01f43681d9196c01a293ee5047b69a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 7 11:11:57 2015 -0800
+
+    math/big: faster "pure Go" addition/subtraction for long vectors
+              (platforms w/o corresponding assembly kernels)
+    
+    For short vector adds there's some erradic slow-down, but overall
+    these routines have become significantly faster. This only matters
+    for platforms w/o native (assembly) versions of these kernels, so
+    we are not concerned about the minor slow-down for short vectors.
+    
+    This code was already reviewed under Mercurial (golang.org/cl/172810043)
+    but wasn't submitted before the switch to git.
+    
+    Benchmarks run on 2.3GHz Intel Core i7, running OS X 10.9.5,
+    with the respective AddVV and AddVW assembly routines disabled.
+    
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkAddVV_1       6.59          7.09          +7.59%
+    BenchmarkAddVV_2       10.3          10.1          -1.94%
+    BenchmarkAddVV_3       10.9          12.6          +15.60%
+    BenchmarkAddVV_4       13.9          15.6          +12.23%
+    BenchmarkAddVV_5       16.8          17.3          +2.98%
+    BenchmarkAddVV_1e1     29.5          29.9          +1.36%
+    BenchmarkAddVV_1e2     246           232           -5.69%
+    BenchmarkAddVV_1e3     2374          2185          -7.96%
+    BenchmarkAddVV_1e4     58942         22292         -62.18%
+    BenchmarkAddVV_1e5     668622        225279        -66.31%
+    BenchmarkAddVW_1       6.81          5.58          -18.06%
+    BenchmarkAddVW_2       7.69          6.86          -10.79%
+    BenchmarkAddVW_3       9.56          8.32          -12.97%
+    BenchmarkAddVW_4       12.1          9.53          -21.24%
+    BenchmarkAddVW_5       13.2          10.9          -17.42%
+    BenchmarkAddVW_1e1     23.4          18.0          -23.08%
+    BenchmarkAddVW_1e2     175           141           -19.43%
+    BenchmarkAddVW_1e3     1568          1266          -19.26%
+    BenchmarkAddVW_1e4     15425         12596         -18.34%
+    BenchmarkAddVW_1e5     156737        133539        -14.80%
+    BenchmarkFibo          381678466     132958666     -65.16%
+    
+    benchmark              old MB/s     new MB/s     speedup
+    BenchmarkAddVV_1       9715.25      9028.30      0.93x
+    BenchmarkAddVV_2       12461.72     12622.60     1.01x
+    BenchmarkAddVV_3       17549.64     15243.82     0.87x
+    BenchmarkAddVV_4       18392.54     16398.29     0.89x
+    BenchmarkAddVV_5       18995.23     18496.57     0.97x
+    BenchmarkAddVV_1e1     21708.98     21438.28     0.99x
+    BenchmarkAddVV_1e2     25956.53     27506.88     1.06x
+    BenchmarkAddVV_1e3     26947.93     29286.66     1.09x
+    BenchmarkAddVV_1e4     10857.96     28709.46     2.64x
+    BenchmarkAddVV_1e5     9571.91      28409.21     2.97x
+    BenchmarkAddVW_1       1175.28      1433.98      1.22x
+    BenchmarkAddVW_2       2080.01      2332.54      1.12x
+    BenchmarkAddVW_3       2509.28      2883.97      1.15x
+    BenchmarkAddVW_4       2646.09      3356.83      1.27x
+    BenchmarkAddVW_5       3020.69      3671.07      1.22x
+    BenchmarkAddVW_1e1     3425.76      4441.40      1.30x
+    BenchmarkAddVW_1e2     4553.17      5642.96      1.24x
+    BenchmarkAddVW_1e3     5100.14      6318.72      1.24x
+    BenchmarkAddVW_1e4     5186.15      6350.96      1.22x
+    BenchmarkAddVW_1e5     5104.07      5990.74      1.17x
+    
+    Change-Id: I7a62023b1105248a0e85e5b9819d3fd4266123d4
+    Reviewed-on: https://go-review.googlesource.com/2480
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/arith.go      | 69 ++++++++++++++++++++++++++++++++++++++++------
+ src/math/big/arith_test.go |  2 +-
+ src/math/big/nat_test.go   | 52 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 113 insertions(+), 10 deletions(-)

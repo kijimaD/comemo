@@ -1,0 +1,12 @@
+commit 73f283f4c8ded504ca4839bd73b701e812cbeb3f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 16 15:20:34 2017 +0000
+
+    doc: dissuade people from using PGP for security reports
+    
+    Change-Id: I7e4f22a2b6c80dd0787c011703f3f8586ff55a50
+    Reviewed-on: https://go-review.googlesource.com/40860
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/security.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

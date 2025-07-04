@@ -1,0 +1,14 @@
+commit cf8b9ce5803bf8be8ff1a834682805e273c6c714
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 21:25:33 2009 -0700
+
+    test & fix template used twice
+    
+    R=r
+    DELTA=30  (30 added, 0 deleted, 0 changed)
+    OCL=27470
+    CL=27474
+
+ src/lib/template/template.go      |  1 +
+ src/lib/template/template_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

@@ -1,0 +1,15 @@
+commit d3204ef19f13edcff34c7f0a26bc8cf9d6066a81
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 14:39:47 2008 -0700
+
+    makes stack traces work for segmented stacks
+    
+    SVN=125371
+
+ src/runtime/rt0_amd64.s        |  9 +++++++++
+ src/runtime/rt1_amd64_darwin.c |  8 ++++----
+ src/runtime/rt1_amd64_linux.c  |  2 +-
+ src/runtime/rt2_amd64.c        | 46 +++++++++++++++++++++++++++++++++++++-----
+ src/runtime/runtime.c          |  2 +-
+ src/runtime/runtime.h          |  3 ++-
+ 6 files changed, 58 insertions(+), 12 deletions(-)

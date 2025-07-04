@@ -1,0 +1,17 @@
+commit a65bc048bf388e399af9bcfd726cd0f11bba7c8e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 2 16:17:30 2020 -0700
+
+    cmd/go: use cmd/internal/pkgpath for gccgo pkgpath symbol
+    
+    Fixes #37272
+    
+    Change-Id: I6554fd5e5400acb20c5a7e96b1d6cb1a1afb9871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259299
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/gccgo.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

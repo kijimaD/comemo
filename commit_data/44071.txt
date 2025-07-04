@@ -1,0 +1,16 @@
+commit 780b4de16b5ba03f2f2ebee35281217552578d50
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Dec 29 21:37:06 2020 +0000
+
+    misc/ios: fix wording for command line instructions
+    
+    A typo was made, which I noticed while looking through the recent master
+    commits.
+    
+    Change-Id: Ieed5d6664a1f3ff5892d59abf194963b44ef0e55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280454
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/ios/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

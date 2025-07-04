@@ -1,0 +1,17 @@
+commit 3822e161a30ff4c6e288e10dbf3345a61ce1c3ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 10:45:50 2023 -0800
+
+    doc: add release note for math/big.Rat.FloatPrec
+    
+    For #50489.
+    
+    Change-Id: I4544a24327196eb3ed62af64ae5ddb1f60441d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546357
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

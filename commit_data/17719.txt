@@ -1,0 +1,14 @@
+commit 57d37b55b8646b16ccdee6662933964f26176add
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 2 11:46:44 2013 +1000
+
+    doc: rename @go_nuts to @golang
+    
+    Yay!
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/14256043
+
+ doc/help.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

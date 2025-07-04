@@ -1,0 +1,12 @@
+commit 9bc8dd398548c76a15642026a60275145f926894
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 01:50:46 2012 +0800
+
+    doc/go_spec: fix a typo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5989065
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

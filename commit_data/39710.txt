@@ -1,0 +1,19 @@
+commit 777304a5d33390cd905765cb61fa6a16ac349d4e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 28 20:21:31 2019 +0000
+
+    Revert "cmd/compile: make isfat handle 1-element array, 1-field struct"
+    
+    This reverts commit 53227762153afb39c979810bd59ec139e3c8127d.
+    
+    Reason for revert: broke js-wasm builder.
+    
+    Change-Id: If22762317c4a9e00f5060eb84377a4a52d601fca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192157
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 14 +-------------
+ test/live.go                         |  2 +-
+ test/live2.go                        |  4 ++--
+ 3 files changed, 4 insertions(+), 16 deletions(-)

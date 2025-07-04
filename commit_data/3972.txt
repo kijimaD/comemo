@@ -1,0 +1,13 @@
+commit 4a29a733ec2e8bdb7c271d665c1d1dfce99916cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 19:34:31 2009 -0800
+
+    install.html: ed needs to be installed too
+    
+    Fixes #14.
+    
+    R=r
+    https://golang.org/cl/152052
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

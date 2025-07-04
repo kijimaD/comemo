@@ -1,0 +1,20 @@
+commit b411c4268ed6cfdd3ba955e6f119573127ab2534
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 14:23:15 2018 -0500
+
+    cmd/vendor: update to golang.org/x/tools@8e5aba0a
+    
+    - Adds 'go vet -json' and 'go vet -c=1' flags
+    - Removes the pkgfact analyzer, included by mistake.
+    
+    Change-Id: Id3f1879af479efc567ea0508a1de7a37db5bee89
+    Reviewed-on: https://go-review.googlesource.com/c/149961
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       |  15 ---
+ .../go/analysis/internal/analysisflags/flags.go    | 136 ++++++++++++++++-----
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  56 ++++++---
+ 3 files changed, 149 insertions(+), 58 deletions(-)

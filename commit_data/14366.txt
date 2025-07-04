@@ -1,0 +1,12 @@
+commit 5e57954f8c57233f1217b14c1f479a8571f8d10d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 23:48:13 2012 -0800
+
+    runtime/pprof: fix typo in comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6810102
+
+ src/pkg/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

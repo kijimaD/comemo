@@ -1,0 +1,14 @@
+commit 5f7f9062dbebd68978b449e241e66873320186ca
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Wed Oct 3 10:33:09 2012 +1000
+
+    os/user : use username as fullname if all else fails (on windows)
+    
+    Fixes #4113.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6545054
+
+ src/pkg/os/user/lookup_windows.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

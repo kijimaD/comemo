@@ -1,0 +1,34 @@
+commit e6f3aa6c36aecbe48f278829827a30763067ed28
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 13:22:34 2011 -0400
+
+    gc: include all dependencies in export metadata
+    
+    This change records more metadata about what
+    influenced the creation of the object file.
+    Specifically, if a package imports, say, "fmt" but does not
+    need to describe any fmt types in its own export data,
+    that package's object file did not mention the dependency
+    on "fmt" before.  Now it does.
+    
+    Listing the import is purely informational.
+    It has no effect on which files are opened or consulted
+    when importing a package.
+    
+    Import lines are marked indirect when they are needed
+    to explain the API but were not imported directly.
+    For example http imports crypto/tls and exports
+    a struct with a field of type tls.ConnectionState,
+    which contains an x509.Certificate.  Since http does
+    not import x509 but needs to explain the x509.Certificate
+    type in its export data, the import of x509 is marked
+    as indirect.  These import lines were always present;
+    marking them with the indirect comment makes clear
+    which were imported directly and which are incidental.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4295048
+
+ src/cmd/gc/export.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

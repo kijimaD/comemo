@@ -1,0 +1,22 @@
+commit 64c9c7f5de300b22d78342cffcdf43603045f698
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Aug 26 11:36:52 2011 +1000
+
+    image/tiff: decoder optimization.
+    
+    Write to image.*.Pix directly in the case of RGB, RGBA and NRGBA
+    images. For the latter two, the file format matches the memory layout
+    so a simple copy can be used.
+    
+    RGB image before/after:
+    tiff.BenchmarkDecoder   748137 ns/op (62.39 MB/s)       251256 ns/op (185.76 MB/s)      x3.0
+    
+    NRGBA image before/after:
+    tiff.BenchmarkDecoder   775540 ns/op (80.12 MB/s)       116721 ns/op (532.34 MB/s)      x6.6
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4929046
+
+ src/pkg/image/tiff/reader.go | 53 ++++++++++++++++++++++++--------------------
+ 1 file changed, 29 insertions(+), 24 deletions(-)

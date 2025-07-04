@@ -1,0 +1,18 @@
+commit 3a0453514a80b001e6135f98ec4e0da5a78ab267
+Author: John Bampton <jbampton@gmail.com>
+Date:   Fri May 7 10:47:28 2021 +0000
+
+    all: fix spelling
+    
+    Change-Id: Id991d8e81e04835cabfb02d07a2199bfb553726c
+    GitHub-Last-Rev: 5d0b55d49127a2e2ba3148d20a58c52debcae12b
+    GitHub-Pull-Request: golang/go#44802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299069
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ src/net/http/socks_bundle.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

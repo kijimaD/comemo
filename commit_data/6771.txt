@@ -1,0 +1,18 @@
+commit 285298b975fd0d7490ea7cb7c7b7bf3e687988c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 18 11:46:07 2010 -0500
+
+    sort: invert meaning of f in Search
+    
+    Backwards incompatible change, but makes
+    it easier to reason about non-idiomatic searches:
+    now f specifies what is sought.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3195042
+
+ src/pkg/go/token/position.go |  6 +++---
+ src/pkg/sort/search.go       | 38 +++++++++++++++++++-------------------
+ src/pkg/sort/search_test.go  | 36 ++++++++++++++++++++++++++----------
+ 3 files changed, 48 insertions(+), 32 deletions(-)

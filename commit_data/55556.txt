@@ -1,0 +1,16 @@
+commit 08370dcd9af8122956fc3ab024889c5357fffd5a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 7 17:25:48 2024 -0800
+
+    cmd/compile: accept -lang=go1 as -lang=go1.0
+    
+    Fixes #65528.
+    
+    Change-Id: I55fef8cf7be4654c7242462d45f12999e0c91c02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562322
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/types/goversion.go      | 6 +++++-
+ src/cmd/go/testdata/script/build_issue_65528.txt | 9 +++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

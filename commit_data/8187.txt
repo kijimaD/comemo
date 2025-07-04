@@ -1,0 +1,15 @@
+commit 8d6a12f57012abec3db7bd7a124ac7551faeef04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 21 19:57:19 2011 -0700
+
+    http: clarify docs on Request HTTP version
+    
+    Fixes #910
+    
+    R=adg, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4439062
+
+ src/pkg/http/dump.go    | 2 ++
+ src/pkg/http/request.go | 9 ++++++---
+ 2 files changed, 8 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit b1e64585b63536c783d04174431c017495a36884
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 23:04:27 2009 -0700
+
+    move dereference code out of the ops and into the interpreter loops.
+    
+    R=rsc
+    DELTA=574  (40 added, 149 deleted, 385 changed)
+    OCL=31017
+    CL=31019
+
+ src/pkg/gob/codec_test.go | 179 ++++++++++++++++++++++++----------------------
+ src/pkg/gob/decode.go     | 128 +++++++++++----------------------
+ src/pkg/gob/encode.go     | 132 ++++++++--------------------------
+ 3 files changed, 165 insertions(+), 274 deletions(-)

@@ -1,0 +1,16 @@
+commit 1e9ab9e7926ec655850379b0326b11f830a482e7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 25 11:29:06 2012 +1100
+
+    time: add Now()/UnixNano() malloc tests
+    
+    The fix for issue 4403 may include more calls to time.Now().UnixNano(). I was concerned that if this function allocated it would cause additional garbage on the heap. It turns out that it doesn't, which is a nice surprise.
+    
+    Also add benchmark for Now().UnixNano()
+    
+    R=bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6849097
+
+ src/pkg/time/time_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

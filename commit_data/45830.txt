@@ -1,0 +1,23 @@
+commit 97cee43c93cfccded197cd281f0a5885cdb605b4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 8 15:33:54 2021 +0200
+
+    testing: drop unusual characters from TempDir directory name
+    
+    Only use safe characters of the test name for the os.MkdirTemp pattern.
+    This currently includes the alphanumeric characters and ASCII
+    punctuation characters known not to interact with globs.
+    
+    Fixes #46624
+    
+    Change-Id: I402c34775b943fed9b97963c52f79245cc16dc1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326010
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go      | 34 ++++++++++++++++++++++------------
+ src/testing/testing_test.go | 10 +++++++++-
+ 2 files changed, 31 insertions(+), 13 deletions(-)

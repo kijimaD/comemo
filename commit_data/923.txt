@@ -1,0 +1,14 @@
+commit 1a149ca1be69b70f2989a13177ff55c38d31214d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 21 14:44:31 2008 -0700
+
+    stop looking for type names beginning with _.
+    they're gone.
+    
+    R=ken
+    OCL=17569
+    CL=17569
+
+ src/cmd/gc/export.c |  2 +-
+ src/cmd/gc/subr.c   | 13 +++++--------
+ 2 files changed, 6 insertions(+), 9 deletions(-)

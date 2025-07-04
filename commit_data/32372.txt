@@ -1,0 +1,17 @@
+commit e0b34e7be73ed192db8ab3fb83fcd44976d67075
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 10:37:17 2017 -0700
+
+    runtime: split advanceEvacuationMark from evacuate
+    
+    Minor refactoring. This is a step towards specializing evacuate
+    for mapfast key types.
+    
+    Change-Id: Icffe2759b7d38e5c008d03941918d5a912ce62f6
+    Reviewed-on: https://go-review.googlesource.com/56933
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 43 +++++++++++++++++++++++--------------------
+ 1 file changed, 23 insertions(+), 20 deletions(-)

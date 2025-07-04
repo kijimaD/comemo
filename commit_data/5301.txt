@@ -1,0 +1,12 @@
+commit ff922fe15a72c564747889b6d08670b9c9b84041
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 15 18:06:22 2010 -0700
+
+    go/ast: Update comment to mention imaginary literals
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/846050
+
+ src/pkg/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

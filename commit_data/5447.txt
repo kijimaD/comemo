@@ -1,0 +1,20 @@
+commit 7861da737ece3b57f20dbbb7eb9c7a487d1f8bde
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 5 16:46:39 2010 -0700
+
+    gob: add support for maps.
+    Because maps are mostly a hidden type, they must be
+    implemented using reflection values and will not be as
+    efficient as arrays and slices.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1127041
+
+ src/pkg/gob/codec_test.go |   6 ++
+ src/pkg/gob/decode.go     | 148 ++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/gob/encode.go     |  55 +++++++++++++++--
+ src/pkg/gob/encoder.go    |  10 ++--
+ src/pkg/gob/type.go       |  58 +++++++++++++++---
+ src/pkg/gob/type_test.go  |  20 +++++++
+ 6 files changed, 254 insertions(+), 43 deletions(-)

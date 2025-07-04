@@ -1,0 +1,16 @@
+commit 1daa2520bfc1b77a2d40c62133c9e4b666fcaee3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 4 08:15:27 2014 -0700
+
+    runtime: fix plan9 warning.
+    
+    I have no idea what this code is for, but it pretty
+    clearly needs to be uint64, not uint32.
+    
+    LGTM=aram
+    R=0intro, aram
+    CC=golang-codereviews
+    https://golang.org/cl/84410043
+
+ src/pkg/runtime/os_plan9_amd64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

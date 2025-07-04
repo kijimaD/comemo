@@ -1,0 +1,12 @@
+commit 9b49edef50a86ac06d956774bc03a2410f73920f
+Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
+Date:   Wed May 30 20:07:41 2018 +0100
+
+    net: fix leftover variable names from CL 115175
+    
+    Change-Id: I5f78fe3286bf4667b6922c57c5701c09bf56e182
+    Reviewed-on: https://go-review.googlesource.com/115355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/unixsock.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

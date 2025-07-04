@@ -1,0 +1,18 @@
+commit a6f564c8e97ddf9c523d363d4cd87db613f90029
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 28 12:51:35 2023 -0700
+
+    test: add test that caused a gofrontend crash
+    
+    For #55242
+    
+    Change-Id: I092b1881623ea997b178d038c0afd10cd5bca937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479898
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/fixedbugs/issue55242.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

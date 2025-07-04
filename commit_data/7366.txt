@@ -1,0 +1,15 @@
+commit 459da21603b965c7e2814d5012c361ce7c6e87c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 20:35:14 2011 -0800
+
+    issue 1402: added test case
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4079063
+
+ test/bugs/bug322.dir/lib.go  | 15 ++++++++++++++
+ test/bugs/bug322.dir/main.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ test/bugs/bug322.go          |  8 ++++++++
+ test/golden.out              |  6 ++++++
+ 4 files changed, 76 insertions(+)

@@ -1,0 +1,19 @@
+commit e0e0c8fe9881bbbfe689ad94ca5dddbb252e4233
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:10:07 2022 +0800
+
+    mime: use strings.Builder
+    
+    Change-Id: I2756fab046154a2df49435ba1978a32176de830a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428265
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/mime/multipart/formdata_test.go     |  3 +--
+ src/mime/multipart/multipart_test.go    | 10 +++++-----
+ src/mime/multipart/writer_test.go       |  4 ++--
+ src/mime/quotedprintable/reader_test.go |  5 ++---
+ src/mime/quotedprintable/writer_test.go |  2 +-
+ 5 files changed, 11 insertions(+), 13 deletions(-)

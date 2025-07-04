@@ -1,0 +1,34 @@
+commit 5a513061709dc7513a54635bd6bc04c483ceffea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 10 06:36:20 2014 +0200
+
+    runtime: fix semasleep on Plan 9
+    
+    If you pass ns = 100,000 to this function, timediv will
+    return ms = 0. tsemacquire in /sys/src/9/port/sysproc.c
+    will return immediately when ms == 0 and the semaphore
+    cannot be acquired immediately - it doesn't sleep - so
+    notetsleep will spin, chewing cpu and repeatedly reading
+    the time, until the 100us have passed.
+    
+    Thanks to the time reads it won't take too many iterations,
+    but whatever we are waiting for does not get a chance to
+    run. Eventually the notetsleep spin loop returns and we
+    end up in the stoptheworld spin loop - actually a sleep
+    loop but we're not doing a good job of sleeping.
+    
+    After 100ms or so of this, the kernel says enough and
+    schedules a different thread. That thread manages to do
+    whatever we're waiting for, and the spinning in the other
+    thread stops. If tsemacquire had actually slept, this
+    would have happened much quicker.
+    
+    Many thanks to Russ Cox for help debugging.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/86210043
+
+ src/pkg/runtime/os_plan9.c | 2 ++
+ 1 file changed, 2 insertions(+)

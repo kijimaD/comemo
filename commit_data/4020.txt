@@ -1,0 +1,15 @@
+commit 511772c888e4c9cb48cb1a289a752a41be13108e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 12 18:26:45 2009 -0800
+
+    Remove -align flag from gofmt.
+    (Making it work correctly with -spaces is a bit of work and the output
+    won't make much sense as it is intended as input to tabwriter.)
+    Fixes #100.
+    
+    R=rsc
+    https://golang.org/cl/154102
+
+ src/cmd/gofmt/doc.go   | 2 --
+ src/cmd/gofmt/gofmt.go | 4 ----
+ 2 files changed, 6 deletions(-)

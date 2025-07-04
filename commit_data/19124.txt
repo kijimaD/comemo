@@ -1,0 +1,13 @@
+commit 1e1506a2c1f12362ee5015ef23e9cf092ff284e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 14 09:36:47 2014 -0700
+
+    libbio: add casts to eliminate -Wconversion warning
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87140044
+
+ src/libbio/bgetc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

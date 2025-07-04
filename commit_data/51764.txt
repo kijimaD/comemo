@@ -1,0 +1,25 @@
+commit a896219b3828165b568a35d2b80c1151f639eef8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 17:32:47 2022 -0800
+
+    cmd/compile: revert package typecheck part of CL 422914
+    
+    This code path is unreachable anyway, and it adds new uses of
+    Type.Pkg, which shouldn't be used anymore.
+    
+    Mark Type.Pkg as deprecated while here.
+    
+    Updates #57410.
+    
+    Change-Id: I1eec1c8ed99207d58d0ba0c44822bbad29dc64f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458575
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go | 16 ++--------------
+ src/cmd/compile/internal/typecheck/stmt.go |  4 ++--
+ src/cmd/compile/internal/typecheck/subr.go |  3 ++-
+ src/cmd/compile/internal/types/type.go     |  3 +++
+ 4 files changed, 9 insertions(+), 17 deletions(-)

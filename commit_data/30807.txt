@@ -1,0 +1,26 @@
+commit d0ff9ece2b36bd4470b4388602a757d50c4c3607
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Mar 2 05:24:53 2017 +0000
+
+    cmd/internal/obj/arm: Fix wrong assembly in the arm assembler
+    
+    As #19357 reported,
+    
+    TST has 3 different sub forms
+    TST $imme, Rx
+    TST Ry << imme, Rx
+    TST Ry << Rz, Rx
+    
+    just like CMP/CMN/TEQ has. But current arm assembler assembles all TST
+    instructions wrongly. This patch fixes it and adds more tests.
+    
+    Fixes #19357
+    
+    Change-Id: Iafedccfaab2cbb2631e7acf259837a782e2e8e2f
+    Reviewed-on: https://go-review.googlesource.com/37662
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm.s | 664 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/asm5.go        |   7 +-
+ 2 files changed, 665 insertions(+), 6 deletions(-)

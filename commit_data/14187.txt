@@ -1,0 +1,15 @@
+commit d7a3407e3d6543f3884c181a6b1135fa0fcc882b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Oct 21 20:50:31 2012 +0200
+
+    cmd/gc: fix confusing error when using variable as type.
+    
+    Fixes #3783.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6737053
+
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue3783.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

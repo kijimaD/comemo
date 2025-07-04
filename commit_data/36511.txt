@@ -1,0 +1,17 @@
+commit 422151ad50d03e142dc298a83523d7d8e2d515c5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 27 11:49:38 2018 -0400
+
+    cmd/link: fix a few typos in comments
+    
+    Comment changes to fix typos, no code changes.
+    
+    Change-Id: I6c915f183025587fc479d14f5d2c885767348b1b
+    Reviewed-on: https://go-review.googlesource.com/131615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/ar.go    | 2 +-
+ src/cmd/link/internal/ld/data.go  | 2 +-
+ src/cmd/link/internal/ld/dwarf.go | 6 +++---
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

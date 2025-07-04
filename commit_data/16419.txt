@@ -1,0 +1,17 @@
+commit 2f5825d4273d910b0d3c9ee82336cf041e8f02d3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 28 19:17:47 2013 +0400
+
+    runtime: fix heap corruption during GC
+    The 'n' variable is used during rescan initiation in GC_END case,
+    but it's overwritten with chan capacity in GC_CHAN case.
+    As the result rescan is done with the wrong object size.
+    Fixes #5554.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/9831043
+
+ src/pkg/runtime/gc_test.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c     |  8 ++++----
+ 2 files changed, 32 insertions(+), 4 deletions(-)

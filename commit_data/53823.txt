@@ -1,0 +1,27 @@
+commit e417698e84bcb2b44b263773ff3d69af9354f577
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 14 17:09:30 2023 -0400
+
+    cmd/link: fix up more zero-sized local symbols on darwin dynamic linking
+    
+    When dynamic linking on darwin, the darwin linker doesn't link
+    relocations pointing to zero-sized local symbols, like our
+    start/end marker symbols, e.g. runtime.text and runtime.etext.
+    It will choose to resolve to another symbol on the same address
+    that may not be local, therefore that reference may point to a
+    different DSO, which is not what we want. We already fix up some
+    marker symbols, like text/etext, data/edata, bss/ebss. But we
+    currently don't fix up noptrdata and noptrbss. With the new
+    darwin linker ld-prime, this causes problems when building a
+    plugin. Fix up those symbols.
+    
+    For #61229.
+    
+    Change-Id: I2181bb9184b85af9a3c3f5dc6d78e4d5a1d56d53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503538
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

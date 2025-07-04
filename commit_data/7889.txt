@@ -1,0 +1,12 @@
+commit 732f2fa2c19394f938848c2b284e6b76c72a9e99
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 27 23:35:31 2011 -0400
+
+    http: avoid crash when asked for multiple file ranges
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4289076
+
+ src/pkg/http/fs.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

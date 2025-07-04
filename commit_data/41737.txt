@@ -1,0 +1,42 @@
+commit 825ae71e567593d3a28b7dddede8745701273c52
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Mar 20 09:31:20 2020 -0700
+
+    runtime: fix code so defer record is not added to g0 defer list during panic
+    
+    newdefer() actually adds the new defer to the current g's defer chain. That
+    happens even if we are on the system stack, in which case the g will be the g0
+    stack. For open-coded defers, we call newdefer() (only during panic processing)
+    while on the system stack, so the new defer is unintentionally added to the
+    g0._defer defer list. The code later correctly adds the defer to the user g's
+    defer list.
+    
+    The g0._defer list is never used. However, that pointer on the g0._defer list can
+    keep a defer struct alive that is intended to be garbage-collected (smaller defers
+    use a defer pool, but larger-sized defer records are just GC'ed). freedefer() does
+    not zero out pointers when it intends that a defer become garbage-collected. So,
+    we can have the pointers in a defer that is held alive by g0._defer become invalid
+    (in particular d.link). This is the cause of the bad pointer bug in this issue
+    
+    The fix is to change newdefer (only used in two places) to not add the new defer
+    to the gp._defer list. We just do it after the call with the correct gp pointer.
+    (As mentioned above, this code was already there after the newdefer in
+    addOneOpenDeferFrame.) That ensures that defers will be correctly
+    garbage-collected and eliminate the bad pointer.
+    
+    This fix definitely fixes the original repro. I added a test and tried hard to
+    reproduce the bug (based on the original repro code), but awasn't actually able to
+    cause the bug. However, the test is still an interesting mix of heap-allocated,
+    stack-allocated, and open-coded defers.
+    
+    Fixes #37688
+    
+    Change-Id: I1a481b9d9e9b9ba4e8726ef718a1f4512a2d6faf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224581
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/defer_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 10 ++++---
+ 2 files changed, 72 insertions(+), 4 deletions(-)

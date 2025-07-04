@@ -1,0 +1,15 @@
+commit 292bd04a434dcd294f243e247d6e3811a0921994
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 20:35:40 2012 -0800
+
+    test: change bug040 to use errorcheck
+    
+    Because bug040.go was ignoring all error messages, the fact
+    that it got an error about fuction main was being ignored.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5675085
+
+ test/fixedbugs/bug040.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

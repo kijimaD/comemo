@@ -1,0 +1,14 @@
+commit d5fe73393c40c7b4070aa73903671c8d1f23f2c2
+Author: peter zhang <i@ddatsh.com>
+Date:   Mon Sep 2 11:41:23 2019 +0000
+
+    math/big: fix a duplicate "the" in a comment
+    
+    Change-Id: Ib637381ab8a12aeb798576b781e1b3c458ba812d
+    GitHub-Last-Rev: 12994496b6b636d75564e5ae7e938b65bca526df
+    GitHub-Pull-Request: golang/go#34017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192877
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/math/big/ratconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

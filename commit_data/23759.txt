@@ -1,0 +1,12 @@
+commit e28ff1f3a154285607ddde23a61005b648dcd0eb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 20 12:30:06 2015 -0700
+
+    doc: document net/http.Request.Cancel in go1.5.html
+    
+    Change-Id: If1c12b43ef467c3ef2cbbaaba1bda4ea98032c7e
+    Reviewed-on: https://go-review.googlesource.com/12430
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

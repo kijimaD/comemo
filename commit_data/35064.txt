@@ -1,0 +1,24 @@
+commit be88d117bdf3e463397b45a022ca47fac6959d1c
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Apr 17 07:52:19 2018 +0000
+
+    cmd/internal/obj/arm64: optimize constant pool for 32-bit constants
+    
+    Current assembler encodes "ADD $0xaaaaaaaa, Rx" to "MOVD off(PC), Rtmp"
+     + "ADD Rtmp, Rx", and a 64-bit item is stored in the constant pool.
+    
+    This patch optimizes it to "MOVWU off(PC), Rtmp" + "ADD Rtmp, Rx",
+    and a 32-bit item is stored.
+    
+    The total size of the executable binary go and the library files in
+    pkg/linux_arm64 decreased about 3KB by this patch.
+    
+    Change-Id: Ieb1592f78ef9ed52f5d3ad232d6cdf87d0923de1
+    Reviewed-on: https://go-review.googlesource.com/107516
+    Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

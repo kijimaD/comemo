@@ -1,0 +1,18 @@
+commit b354f914174f971b26ac813236627b7cccaf3382
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 22:01:41 2016 -0800
+
+    runtime: limit TestCgoCCodeSIGPROF test to 1 second
+    
+    Still fails about 20% of the time on my laptop.
+    
+    Fixes #14766.
+    
+    Change-Id: I169ab728c6022dceeb91188f5ad466ed6413c062
+    Reviewed-on: https://go-review.googlesource.com/20590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprogcgo/aprof.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

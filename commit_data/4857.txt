@@ -1,0 +1,13 @@
+commit 760e9c2e90c3411525f5d568d599fed2b7fb36c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 11:32:25 2010 -0800
+
+    A+C: Giles Lean (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/206107
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

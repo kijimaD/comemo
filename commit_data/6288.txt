@@ -1,0 +1,37 @@
+commit 6ab8d24d728dff360c5a91f89ff2a2500bae362a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 16 14:01:02 2010 +1000
+
+    golang.org redesign
+    
+    R=r, rsc, gri
+    CC=golang-dev, iant, ken2, lvd, nigeltao_golang, stephenm
+    https://golang.org/cl/2182042
+
+ doc/all.css                         | 151 ++++++++++++++++++
+ doc/button_background.png           | Bin 0 -> 126 bytes
+ doc/community.html                  |  53 +++++++
+ doc/contrib.html                    |  45 ++++++
+ doc/contribute.html                 |   2 +-
+ doc/{go_learning.html => docs.html} | 130 ++++++---------
+ doc/frontpage.css                   | 125 +++++++++++++++
+ doc/go_faq.html                     |   4 +
+ doc/go_lang_faq.html                |   4 +
+ doc/go_programming_faq.html         |   4 +
+ doc/godocs.js                       |  23 ++-
+ doc/ie.css                          |   1 +
+ doc/install.html                    |  69 ++++++--
+ doc/logo.png                        | Bin 0 -> 1938 bytes
+ doc/play_overlay.png                | Bin 0 -> 1703 bytes
+ doc/playground.html                 |  27 ++++
+ doc/root.html                       | 202 ++++++++++-------------
+ doc/style.css                       | 308 ------------------------------------
+ doc/video-001.png                   | Bin 0 -> 29228 bytes
+ doc/video-002.png                   | Bin 0 -> 22027 bytes
+ doc/video-003.png                   | Bin 0 -> 11189 bytes
+ doc/video-snap-fastcompiles.jpg     | Bin 3604 -> 0 bytes
+ doc/video-snap-gocoding.jpg         | Bin 4303 -> 0 bytes
+ doc/video-snap-io.jpg               | Bin 6136 -> 0 bytes
+ doc/video-snap-oscon.jpg            | Bin 6268 -> 0 bytes
+ lib/godoc/godoc.html                | 173 +++++---------------
+ 26 files changed, 666 insertions(+), 655 deletions(-)

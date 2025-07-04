@@ -1,0 +1,20 @@
+commit 0a1a092c4b56a1d4033372fbd07924dad8cbb50b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 20 22:50:17 2022 +0000
+
+    Revert "cmd/cgo: use --no-gc-sections if available"
+    
+    This reverts CL 405414.
+    
+    Reason for revert: Breaks on AIX and iOS.
+    
+    Change-Id: I4681c6f2fd69616691660916ebf0853e3a6a67ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407634
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

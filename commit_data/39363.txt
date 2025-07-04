@@ -1,0 +1,12 @@
+commit 87367cf86a0a8390418a8e2431a11d5dcdddff72
+Author: Julie <julie@golang.org>
+Date:   Wed Jun 12 12:51:22 2019 -0400
+
+    doc: add release notes for database/sql
+    
+    Change-Id: I032a3342c3ac899a39d357420b981b6f281518f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181939
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

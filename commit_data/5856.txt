@@ -1,0 +1,12 @@
+commit 61fb9ccc8d97ccc79f5c218531cb37461aad9e2a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 21 17:11:28 2010 +1000
+
+    os: change comment on O_APPEND to be more accurate
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1870042
+
+ src/pkg/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

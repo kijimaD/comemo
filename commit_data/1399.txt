@@ -1,0 +1,14 @@
+commit 4991f20b3f9f59d3bb423a33c550a09d079d3856
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 30 14:03:54 2008 -0800
+
+    one bignum test fails
+    has to do with printing
+    patched it out
+    
+    R=r
+    OCL=21921
+    CL=21923
+
+ src/lib/bignum_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

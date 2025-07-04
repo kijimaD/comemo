@@ -1,0 +1,19 @@
+commit 9fed39d2814073a9389a614342f603bab9963bff
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 24 18:04:13 2020 +1000
+
+    runtime: factor out mStackIsSystemAllocated
+    
+    Rather than repeat long lists of GOOS values, factor out the code that checks
+    if a runtime starts on a system allocated stack. Note that this adds aix to
+    one case, which appears to have been previously missed.
+    
+    Change-Id: I5cecb0bb47dd79cde8d723e5a42ba541e43cbfff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250179
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

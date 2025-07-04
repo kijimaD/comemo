@@ -1,0 +1,23 @@
+commit e7f89fcb1cdd5fc41377108fcaad2363d4456b24
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 22 10:01:14 2012 +0200
+
+    cmd/gc: fix strict tree property for AST for OAS2RECV nodes.
+    
+    in typecheck and walk, conversion from OAS2RECV to OAS2
+    and to OSELRECV2 duplicated the ->rlist->n to ->right
+    thereby destroying the strict tree-ness of the AST (up to
+    ONAMES) of course.  Several recursions in esc.c and inl.c
+    and probably elsewhere assume nodes of the tree aren't duplicated.
+    rather than defensively code around this, i'd rather assert
+    these cases away and fix their cause.
+    
+    (this was tripped in 6741044)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6750043
+
+ src/cmd/gc/select.c    | 5 +++--
+ src/cmd/gc/typecheck.c | 1 -
+ 2 files changed, 3 insertions(+), 3 deletions(-)

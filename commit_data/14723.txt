@@ -1,0 +1,18 @@
+commit a6d986bd8a5db918a92456b4a4c44075c13a20da
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Sat Dec 22 13:34:48 2012 -0500
+
+    flag: add implicit boolFlag interface
+    
+    Any flag.Value that has an IsBoolFlag method that returns true
+    will be treated as a bool flag type during parsing.
+    
+    Fixes #4262.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6944064
+
+ src/pkg/flag/flag.go      | 15 ++++++++++++++-
+ src/pkg/flag/flag_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

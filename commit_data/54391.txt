@@ -1,0 +1,22 @@
+commit 5eb382fc08fb32592e9585f9cb99005696a38b49
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Sep 10 04:33:34 2023 +0000
+
+    cmd/compile/internal/typecheck: use constant.MakeUnknown()
+    
+    Complete a TODO.
+    
+    Change-Id: I1bd23f0be725c9dd81b8316a7abba1bceecc346f
+    
+    Change-Id: I1bd23f0be725c9dd81b8316a7abba1bceecc346f
+    GitHub-Last-Rev: 51523084a3675b91cdf49491bbaa9e78f78e3742
+    GitHub-Pull-Request: golang/go#62553
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527178
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/const.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

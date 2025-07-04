@@ -1,0 +1,18 @@
+commit 42d3cdc9090a307a24b2233dd0232e7eb1ebc6d8
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Sep 27 12:57:06 2023 +0000
+
+    sync/atomic: document that atomic types should not be copied
+    
+    Change-Id: I3c557d02cd676a389b5c5ea70ed92c8959041e3b
+    GitHub-Last-Rev: 8732da19a64853834ca155cafc1d7b2967290c31
+    GitHub-Pull-Request: golang/go#63256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531375
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+
+ src/sync/atomic/type.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

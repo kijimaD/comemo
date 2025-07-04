@@ -1,0 +1,13 @@
+commit a219ff25c6b1b8b57fc93947ebe691dc23a408f7
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Jul 29 17:56:28 2014 -0700
+
+    bufio: fix rot13Reader bug in test
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/118410043
+
+ src/pkg/bufio/bufio_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

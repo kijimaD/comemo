@@ -1,0 +1,17 @@
+commit 13f7fe00d42c121468af45999a235fd85adac8bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 12:07:26 2017 -0400
+
+    cmd/go: rename local variable ImportPaths to importPaths
+    
+    ImportPaths is also the name of a top-level function.
+    It is confusing to have a capitalized local variable.
+    
+    Change-Id: I1313e05ade4934d4ee250a67e5af6d1bd6229aca
+    Reviewed-on: https://go-review.googlesource.com/56275
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

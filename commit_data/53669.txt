@@ -1,0 +1,21 @@
+commit 4c58d6bf52b87628d0a73041af61e58eed84a310
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 10 18:40:47 2023 -0400
+
+    time: increase arbitrary upper bound in TestReset to 10s
+    
+    The previous upper bound was around 0.375 s, which is empirically
+    too short on a slow, heavily-loaded builder. Since the test doesn't
+    seem to depend on the actual duration in any meaningful way, let's
+    make it several orders of magnitude larger.
+    
+    Fixes #61266.
+    
+    Change-Id: I6dde5e174966ee385db67e3cb87334f463c7e597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/time/sleep_test.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

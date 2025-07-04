@@ -1,0 +1,18 @@
+commit eed061f89cad583c3dfa6b4e13c9a79f897920bf
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 13 16:51:42 2016 -0400
+
+    cmd/compile: enable SSA for PowerPC 64 Big-endian
+    
+    It passed tests once, if anything's wrong, better to fail
+    sooner than later.
+    
+    Change-Id: Ibb1c5db3f4c5535a4ff4681fd157db77082c5041
+    Reviewed-on: https://go-review.googlesource.com/28982
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go     | 2 +-
+ src/cmd/compile/internal/ssa/config.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

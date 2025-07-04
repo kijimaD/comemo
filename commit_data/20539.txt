@@ -1,0 +1,13 @@
+commit cfae41ff36d833719b073d1eec5f0fd535ca9e61
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 10:52:02 2014 -0700
+
+    time: make it clear that time.Time values do not compare with ==
+    
+    LGTM=bradfitz, josharian, adg, rsc
+    R=golang-codereviews, bradfitz, josharian, rsc, adg
+    CC=golang-codereviews
+    https://golang.org/cl/141340043
+
+ src/time/time.go | 5 +++++
+ 1 file changed, 5 insertions(+)

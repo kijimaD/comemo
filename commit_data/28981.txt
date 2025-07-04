@@ -1,0 +1,14 @@
+commit ece4e23d9aaed3e11f7a0b9a3f15c592c96b065d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 22 06:39:12 2016 -0700
+
+    net/http: document Transport.ExpectContinueTimeout a bit more
+    
+    Fixes #16003
+    
+    Change-Id: I76a8da24b9944647ec40ef2ca4fc93c175ff5a25
+    Reviewed-on: https://go-review.googlesource.com/31723
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

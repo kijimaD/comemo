@@ -1,0 +1,14 @@
+commit a9257b6b694c1eb743537e948e379ddda232a7a8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 14:35:46 2017 +1000
+
+    cmd/link: delete shNames
+    
+    Change-Id: Ie5d12ba4105fec17551637d066d0dffd508f74a4
+    Reviewed-on: https://go-review.googlesource.com/55261
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

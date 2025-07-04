@@ -1,0 +1,22 @@
+commit f4803ddc2c8d082e07227c72944ffd9d7c45ab64
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 15 09:36:06 2025 -0700
+
+    math/big: fix loong64 assembly for vet
+    
+    Vet is failing on this code because some arguments of mulAddVWW
+    got renamed in the go decl (CL 664895) but not the assembly accessors.
+    
+    Looks like the assembly got written before that CL but checked in
+    after that CL.
+    
+    Change-Id: I270e8db5f8327aa2029c21a126fab1231a3506a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665717
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/math/big/arith_loong64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,22 @@
+commit 01b44bbfc8ca90d9eb3418ad47d9d7a472bb4cde
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 20 17:39:41 2008 -0800
+
+    - move tabwriter into library
+    - added preliminary tests (more to do)
+    - renamed type from TabWriter -> Writer
+    - adjusted my code where necessary
+    
+    R=r
+    DELTA=825  (474 added, 346 deleted, 5 changed)
+    OCL=19744
+    CL=19753
+
+ src/lib/clean.bash                                 |  6 +-
+ src/lib/make.bash                                  |  3 +-
+ src/lib/tabwriter/Makefile                         | 55 +++++++++++++++
+ {usr/gri/pretty => src/lib/tabwriter}/tabwriter.go | 40 +++++------
+ src/lib/tabwriter/tabwriter_test.go                | 81 ++++++++++++++++++++++
+ usr/gri/pretty/Makefile                            |  4 +-
+ usr/gri/pretty/untab.go                            |  2 +-
+ 7 files changed, 162 insertions(+), 29 deletions(-)

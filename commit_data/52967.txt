@@ -1,0 +1,22 @@
+commit 6cf7602b716ef94f8edc0b21cf2f73d2aa82281c
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 20 17:13:11 2023 -0400
+
+    reflect: replacing almost all use of *rtype with *abi.Type
+    
+    Change-Id: I3601525b10237d828c449c62a3447f66cb6f025e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487557
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/abi/type.go   |   4 +-
+ src/reflect/abi.go         |  22 +-
+ src/reflect/deepequal.go   |   2 +-
+ src/reflect/export_test.go |  19 +-
+ src/reflect/makefunc.go    |   2 +-
+ src/reflect/swapper.go     |   7 +-
+ src/reflect/type.go        | 673 +++++++++++++++++++++++----------------------
+ src/reflect/value.go       | 253 +++++++++--------
+ 8 files changed, 495 insertions(+), 487 deletions(-)

@@ -1,0 +1,21 @@
+commit f0ee49b5bcde39ac6c36d3837666aa9a36383066
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 18:15:25 2020 +0000
+
+    mime: fix ExtensionsByType bug when there are duplicates
+    
+    Also, sort them so the results aren't random.
+    
+    Thanks to @junedev for the bug report & repro.
+    
+    Fixes #36524
+    
+    Change-Id: Ic9197ebeceddfb3d0aee895d8fc12ce4d205b164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214680
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/type.go      |  7 +++++--
+ src/mime/type_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

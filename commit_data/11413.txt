@@ -1,0 +1,14 @@
+commit 0a55958b52098c4de8fd99caae21e072cf5977e9
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Jan 26 15:10:24 2012 +0100
+
+    cmd/gc: forgotten recursion on ninit itself in order.c
+    
+    Fixes test/reorder2.go for all cases tripped up with -lll in 5555072
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5569069
+
+ src/cmd/gc/order.c | 24 ++++++------------------
+ 1 file changed, 6 insertions(+), 18 deletions(-)

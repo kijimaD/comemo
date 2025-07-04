@@ -1,0 +1,16 @@
+commit f2662f2c938f2f9fd21067169b2aaec89f8d0e9f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 13:05:25 2015 +1000
+
+    text/template: explain better the semantics of ParseFiles
+    
+    Documentation change only.
+    
+    Fixes #11247.
+    
+    Change-Id: Ib412de2d643292dbe42b56dee955bdb877aee81b
+    Reviewed-on: https://go-review.googlesource.com/11329
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/text/template/helper.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

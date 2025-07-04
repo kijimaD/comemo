@@ -1,0 +1,13 @@
+commit 4ed7c59a50706512d8d73a79a1c8dd06624d848b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 17:41:45 2011 -0800
+
+    fix build (this time for real): adjust typechecker test, ogle
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4006041
+
+ src/pkg/exp/ogle/cmd.go                    | 3 ++-
+ src/pkg/go/typechecker/typechecker_test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

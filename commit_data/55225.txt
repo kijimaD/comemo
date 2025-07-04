@@ -1,0 +1,17 @@
+commit 3b8b550a35965245657ea204865baa6ee727297d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:43:41 2023 -0500
+
+    doc: document runtimecontentionstacks
+    
+    For #57071.
+    
+    Change-Id: Ic1645af57aa589917c67154a5e4ad0b4edd7ba90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547058
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ doc/godebug.md | 7 +++++++
+ 1 file changed, 7 insertions(+)

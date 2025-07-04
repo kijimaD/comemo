@@ -1,0 +1,23 @@
+commit a9266eef9384090d748acf723351a282b71982a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 14:50:39 2016 -0700
+
+    cmd/compile: simplify constant switch case sorting
+    
+    This sort is now only reachable for constant clauses
+    for a non-interface switch expression value.
+    
+    Refactor a bit so that the few tests that remain
+    are concise and easy to read.
+    
+    Add a test that string length takes priority
+    over built-in string order.
+    
+    Change-Id: Iedaa11ff77049d5ad1bf14f54cbb8c3411d589a7
+    Reviewed-on: https://go-review.googlesource.com/26767
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go      |  84 +++++-------------
+ src/cmd/compile/internal/gc/swt_test.go | 150 ++++++--------------------------
+ 2 files changed, 50 insertions(+), 184 deletions(-)

@@ -1,0 +1,24 @@
+commit 93c5fbf3905920a8d0cb0618816165f368e9d965
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Thu Mar 24 17:50:21 2016 -0400
+
+    misc/cgo/testcarchive: split main.c into unix and non-unix
+    
+    This is in support of https://golang.org/cl/18057 which adds
+    support for c-archive to the Windows platform.
+    
+    The signal handling tests do not compile on Windows. This splits
+    them out into a separate main_unix.c file, and conditionally
+    includes them for non-Windows platforms.
+    
+    Change-Id: Ic79ce83da7656d6703505e514554748a482b81a1
+    Reviewed-on: https://go-review.googlesource.com/21086
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 33 ++++++++++++---------
+ misc/cgo/testcarchive/main.c           | 41 +++++---------------------
+ misc/cgo/testcarchive/main_unix.c      | 53 ++++++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/main_windows.c   | 17 +++++++++++
+ 4 files changed, 97 insertions(+), 47 deletions(-)

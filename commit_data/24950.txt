@@ -1,0 +1,12 @@
+commit 53c21df12153871bf3bfcc8de25ebab0ffc008c7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Nov 17 18:41:00 2015 -0800
+
+    strings: fix period placement in Search doc comment
+    
+    Change-Id: Ieba62c0cb668daeb343f72fdd568e46b0b21b7d6
+    Reviewed-on: https://go-review.googlesource.com/16998
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/sort/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

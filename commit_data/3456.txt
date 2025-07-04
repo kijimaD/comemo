@@ -1,0 +1,62 @@
+commit 22c98a3314b1795493ecc39180f6d655fbde1496
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 14:55:06 2009 -0700
+
+    gofmt on crypto, debug
+    
+    R=gri
+    DELTA=2560  (127 added, 177 deleted, 2256 changed)
+    OCL=35388
+    CL=35395
+
+ src/pkg/crypto/aes/aes_test.go        |   85 +-
+ src/pkg/crypto/aes/cipher.go          |   10 +-
+ src/pkg/crypto/aes/const.go           |   27 +-
+ src/pkg/crypto/block/cbc.go           |    9 +-
+ src/pkg/crypto/block/cbc_aes_test.go  |   24 +-
+ src/pkg/crypto/block/cfb.go           |   17 +-
+ src/pkg/crypto/block/cfb_aes_test.go  |   32 +-
+ src/pkg/crypto/block/cipher.go        |    3 +-
+ src/pkg/crypto/block/cmac.go          |   11 +-
+ src/pkg/crypto/block/cmac_aes_test.go |  130 +-
+ src/pkg/crypto/block/ctr.go           |    7 +-
+ src/pkg/crypto/block/ctr_aes_test.go  |   34 +-
+ src/pkg/crypto/block/eax.go           |   37 +-
+ src/pkg/crypto/block/eax_aes_test.go  |  231 +---
+ src/pkg/crypto/block/ecb.go           |   50 +-
+ src/pkg/crypto/block/ecb_aes_test.go  |   54 +-
+ src/pkg/crypto/block/ofb.go           |    5 +-
+ src/pkg/crypto/block/ofb_aes_test.go  |   30 +-
+ src/pkg/crypto/block/xor.go           |   21 +-
+ src/pkg/crypto/block/xor_test.go      |   27 +-
+ src/pkg/crypto/hmac/hmac.go           |   12 +-
+ src/pkg/crypto/hmac/hmac_test.go      |   26 +-
+ src/pkg/crypto/md5/md5.go             |   44 +-
+ src/pkg/crypto/md5/md5_test.go        |   69 +-
+ src/pkg/crypto/md5/md5block.go        |   30 +-
+ src/pkg/crypto/sha1/sha1.go           |   48 +-
+ src/pkg/crypto/sha1/sha1_test.go      |   69 +-
+ src/pkg/crypto/sha1/sha1block.go      |   27 +-
+ src/pkg/debug/binary/binary_test.go   |   25 +-
+ src/pkg/debug/dwarf/buf.go            |   39 +-
+ src/pkg/debug/dwarf/const.go          |  440 +++----
+ src/pkg/debug/dwarf/entry.go          |   47 +-
+ src/pkg/debug/dwarf/open.go           |   26 +-
+ src/pkg/debug/dwarf/type.go           |   68 +-
+ src/pkg/debug/dwarf/type_test.go      |   14 +-
+ src/pkg/debug/dwarf/unit.go           |   13 +-
+ src/pkg/debug/elf/elf.go              | 2231 +++++++++++++++++----------------
+ src/pkg/debug/elf/elf_test.go         |    6 +-
+ src/pkg/debug/elf/file.go             |   70 +-
+ src/pkg/debug/elf/file_test.go        |   34 +-
+ src/pkg/debug/gosym/pclntab.go        |   14 +-
+ src/pkg/debug/gosym/pclntab_test.go   |   24 +-
+ src/pkg/debug/macho/file_test.go      |   10 +-
+ src/pkg/debug/macho/macho.go          |  105 +-
+ src/pkg/debug/proc/proc.go            |   26 +-
+ src/pkg/debug/proc/proc_linux.go      |  161 ++-
+ src/pkg/debug/proc/proc_nacl.go       |    4 +-
+ src/pkg/debug/proc/regs_darwin_386.go |    1 -
+ src/pkg/debug/proc/regs_linux_386.go  |  102 +-
+ src/pkg/debug/proc/regs_nacl_386.go   |    1 -
+ 50 files changed, 2290 insertions(+), 2340 deletions(-)

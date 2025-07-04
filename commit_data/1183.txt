@@ -1,0 +1,22 @@
+commit cf9b7f75349699132332fa597cdbc555ad24ecf7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 12:50:34 2008 -0800
+
+    essentially 100% coverage of strconv in tests.
+    fix a few bugs.
+    
+    R=r
+    DELTA=294  (275 added, 9 deleted, 10 changed)
+    OCL=19595
+    CL=19595
+
+ src/lib/strconv/atof.go        |  25 ++++----
+ src/lib/strconv/decimal.go     |  10 +++-
+ src/lib/strconv/ftoa.go        |   6 ++
+ src/lib/strconv/itoa.go        |   6 +-
+ src/lib/strconv/testatof.go    |  38 +++++++++++-
+ src/lib/strconv/testatoi.go    |   5 ++
+ src/lib/strconv/testdecimal.go | 128 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/strconv/testftoa.go    |  22 ++++++-
+ src/lib/strconv/testitoa.go    |  80 ++++++++++++++++++++++++++
+ 9 files changed, 297 insertions(+), 23 deletions(-)

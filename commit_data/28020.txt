@@ -1,0 +1,13 @@
+commit 78fac02cfd6bca33e3b8a13a875c593bbbc353cc
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 11 14:26:18 2016 -0400
+
+    test: add test for gccgo issue #15722
+    
+    Change-Id: I4faf9a55414e217f0c48528efb13ab8fdcd9bb16
+    Reviewed-on: https://go-review.googlesource.com/24845
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue15722.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

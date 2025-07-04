@@ -1,0 +1,20 @@
+commit 1aa5730f4940b9e11c4461817493e47de1874d77
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 18 22:53:19 2022 +0700
+
+    runtime: remove p padding field for atomic fields alignment
+    
+    CL 424396 and CL 424397 changed timer0When/timerModifiedEarliest to
+    atomic.Uint64, just they're guaranted to have 64-bit alignment.
+    
+    Change-Id: Idaff1059da2aac84520b9b0e34f9721a74dbba5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424794
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/align_runtime_test.go | 2 --
+ src/runtime/runtime2.go           | 2 --
+ 2 files changed, 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 97576673bd22ab77e9ca9f9bea27f91a895ca4a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 1 13:10:01 2010 -0700
+
+    gmp: fix bug in SetString
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1004045
+
+ misc/cgo/gmp/gmp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

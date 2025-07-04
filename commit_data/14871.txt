@@ -1,0 +1,12 @@
+commit 39ffa83fdbbb21d59ecc07afb201b3839968587b
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jan 11 16:58:46 2013 -0800
+
+    build: add missing function declarations for Plan 9
+    
+    R=golang-dev, minux.ma, rsc, ality, seed
+    CC=golang-dev
+    https://golang.org/cl/7034052
+
+ include/plan9/libc.h | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

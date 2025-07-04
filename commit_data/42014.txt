@@ -1,0 +1,30 @@
+commit b2cff7e091ca1f59ceb77c4dd3acaf0c150b5440
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Jan 23 18:18:39 2020 -0800
+
+    database/sql: check conn expiry when returning to pool, not when handing it out
+    
+    With the original connection reuse strategy, it was possible that
+    when a new connection was requested, the pool would wait for an
+    an existing connection to return for re-use in a full connection
+    pool, and then it would check if the returned connection was expired.
+    If the returned connection expired while awaiting re-use, it would
+    return an error to the location requestiong the new connection.
+    The existing call sites requesting a new connection was often the last
+    attempt at returning a connection for a query. This would then
+    result in a failed query.
+    
+    This change ensures that we perform the expiry check right
+    before a connection is inserted back in to the connection pool
+    for while requesting a new connection. If requesting a new connection
+    it will no longer fail due to the connection expiring.
+    
+    Fixes #32530
+    
+    Change-Id: If16379befe0e14d90160219c0c9396243fe062f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216197
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/database/sql/sql.go      | 13 ++++++-
+ src/database/sql/sql_test.go | 89 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+), 1 deletion(-)

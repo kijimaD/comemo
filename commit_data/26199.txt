@@ -1,0 +1,35 @@
+commit 0b281872e6390eb93c8bb176a20c72fef3d726d3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 14:35:39 2016 -0800
+
+    cmd/compile: rename ssa.Type's Elem method to ElemType
+    
+    I would like to add a
+    
+        func (t *Type) Elem() *Type
+    
+    method to package gc, but that would collide with the existing
+    
+        func (t *Type) Elem() ssa.Type
+    
+    method needed to make *gc.Type implement ssa.Type.  Because the latter
+    is much less widely used right now than the former will be, this CL
+    renames it to ElemType.
+    
+    Longer term, hopefully gc and ssa will share a common Type interface,
+    and ElemType can go away.
+    
+    Change-Id: I270008515dc4c01ef531cf715637a924659c4735
+    Reviewed-on: https://go-review.googlesource.com/20546
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 2 +-
+ src/cmd/compile/internal/gc/type.go            | 8 ++++++--
+ src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 8 ++++----
+ src/cmd/compile/internal/ssa/type.go           | 6 +++---
+ src/cmd/compile/internal/ssa/type_test.go      | 2 +-
+ 7 files changed, 18 insertions(+), 14 deletions(-)

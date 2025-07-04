@@ -1,0 +1,35 @@
+commit 159797a5fc561b6881faf2656e330049fb11ef8c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 2 11:27:53 2018 -0400
+
+    go/importer: add ForCompiler, which accepts a token.FileSet
+    
+    The importer.For function logically requires a FileSet, but did not
+    when it was first created because export data did not then record
+    position information. This change adds a new function, ForCompiler,
+    that has an additional FileSet parameter, and deprecates the For
+    function.
+    
+    Before this change, cmd/vet would report confusing spurious
+    positions for token.Pos values produced by the importer.
+    The bug is essentially unfixable in cmd/vet.
+    
+    This CL includes a test that the FileSet is correctly populated.
+    
+    The changes to cmd/vendor will be applied upstream in a follow-up.
+    
+    Fixes #28995
+    
+    Change-Id: I9271bcb1f28e96845c913e15f0304bac93d4d4c4
+    Reviewed-on: https://go-review.googlesource.com/c/152258
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  7 +++++-
+ .../go/analysis/unitchecker/unitchecker112.go      |  9 ++++++++
+ src/go/importer/importer.go                        | 18 +++++++++++----
+ src/go/importer/importer_test.go                   | 26 +++++++++++++++++++---
+ src/go/internal/gcimporter/gcimporter.go           |  6 +----
+ src/go/internal/gcimporter/gcimporter_test.go      | 25 ++++++++++++++-------
+ 6 files changed, 70 insertions(+), 21 deletions(-)

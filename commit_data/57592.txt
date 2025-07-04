@@ -1,0 +1,16 @@
+commit 1e338a2fe3b1462e583d57ce8fa6c6cc36af0ac7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 2 12:34:45 2024 +0200
+
+    syscall: gofmt after CL 592078
+    
+    Change-Id: I328760f7752f1f5ec100f151c7e13e3f804c0e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617355
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

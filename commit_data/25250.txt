@@ -1,0 +1,14 @@
+commit 91c3cae83af4f56d0d38a61f020c2c6e09d6f4c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 10 19:38:14 2015 -0800
+
+    cmd/cgo: use standard C syntax for complex types
+    
+    (instead of using a GCC extension).
+    
+    Change-Id: I110dc45bfe5f1377fe3453070eccde283b5cc161
+    Reviewed-on: https://go-review.googlesource.com/17716
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/out.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

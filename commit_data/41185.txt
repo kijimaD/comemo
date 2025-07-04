@@ -1,0 +1,16 @@
+commit 566ebbc3ae97741e9419e2668833ac297d63ba54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 28 21:40:08 2020 +0000
+
+    doc/go1.14: document RISC-V support
+    
+    Fixes #36708
+    Updates #27532
+    
+    Change-Id: I9e3bb92d15825e2c4a505e1aea41b2897f18e0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216757
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

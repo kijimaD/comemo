@@ -1,0 +1,14 @@
+commit eacc3cc8a1ad28e58dd8d87a10d165c826ed285f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 23 09:31:24 2012 -0700
+
+    net/http: clarify ErrBodyNotAllowed error message
+    
+    It's usually due to writing on HEAD requests.
+    
+    R=golang-dev, rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/6206106
+
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

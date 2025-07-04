@@ -1,0 +1,12 @@
+commit e69d63e807b7322e3a7d6c8ad83c251c9f46c9ca
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Wed Sep 21 14:49:51 2016 +0100
+
+    net/http/cookiejar: fix typo
+    
+    Change-Id: I6ea8650927e7946c6fd4659f400fd91ddaae68af
+    Reviewed-on: https://go-review.googlesource.com/29510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookiejar/jar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

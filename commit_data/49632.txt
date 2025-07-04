@@ -1,0 +1,21 @@
+commit 923740a8cc82e0bd3cd6098f94130b1967c4b361
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Jul 10 11:11:05 2022 +0800
+
+    cmd/compile: fix type assert in dict pass
+    
+    For type assertions, if src type is empty interface, we should
+    use normal type assertions rather than dynamic type assertions.
+    
+    Fixes #53762
+    
+    Change-Id: I596b2e4ad647fe5e42ad884f7273c78f8f50dac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416736
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  2 +-
+ test/typeparam/issue53762.go              | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

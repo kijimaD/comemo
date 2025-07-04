@@ -1,0 +1,13 @@
+commit de7b8c50077ca0bfdcd59de488453df983f92ab3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 18:10:40 2012 -0400
+
+    A+C: 0/2 on spelling email addresses correctly
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/6497067
+
+ AUTHORS      | 4 ++--
+ CONTRIBUTORS | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

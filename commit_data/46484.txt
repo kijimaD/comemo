@@ -1,0 +1,22 @@
+commit 07b30a4f77cf89a283c45c338f0cfcb68e15aab1
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Sep 2 08:47:40 2021 -0700
+
+    cmd/compile: delay transformAssign if lhs/rhs have typeparam
+    
+    This also requires that we sometimes delay transformSelect(), if the
+    assignments in the Comm part of the select have not been transformed.
+    
+    Fixes #48137
+    
+    Change-Id: I163aa1f999d1e63616280dca807561b12b2aa779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347915
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ src/cmd/compile/internal/noder/stmt.go    | 20 ++++++++++++++++----
+ test/typeparam/issue48137.go              | 25 +++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 4 deletions(-)

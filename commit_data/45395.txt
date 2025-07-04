@@ -1,0 +1,22 @@
+commit 92c9f3a9b80eda50a55f8860587c2ed7734f4a29
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 17:32:02 2021 -0700
+
+    cmd/go: include C/C++/Fortran compiler version in build ID
+    
+    This will force a rebuild if the C/C++/Fortran compiler changes.
+    
+    No test because a real test requires installing two different compilers.
+    
+    Fixes #40042
+    
+    Change-Id: I83cc88ade90d665a6fce06435068f39c811e43af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314276
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/buildid.go |  2 +-
+ src/cmd/go/internal/work/exec.go    | 27 ++++++++++++++++++++-------
+ 2 files changed, 21 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit 21998413ad82655fef1f31316db31e23e0684b21
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 1 17:41:46 2022 -0800
+
+    cmd/compile: unified IR support for implicit interfaces
+    
+    Change-Id: Ibdaa0750f7bc47b513c047fdf4b7145ebba9e870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386001
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/reader.go  | 2 ++
+ src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
+ src/cmd/compile/internal/noder/writer.go  | 9 +++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

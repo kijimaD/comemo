@@ -1,0 +1,18 @@
+commit de2d1c3fe242aed10ad374abf784cca89fecac45
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Oct 27 14:04:10 2020 +0100
+
+    cmd/compile: replace int32(b2i(x)) with b2i32(x) in rules
+    
+    Change-Id: I7fbb0c1ead6e29a7445c8ab43f7050947597f3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265497
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules   | 2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules  | 2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go   | 4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 4 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  | 4 ++--
+ 6 files changed, 9 insertions(+), 9 deletions(-)

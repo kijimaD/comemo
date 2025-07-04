@@ -1,0 +1,27 @@
+commit bb929b7452b5b8a6a584a94a110c98b0c6543a6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 12 12:14:02 2020 -0700
+
+    cmd/compile: skip generating args_stackmap for "pulled" funcs
+    
+    In golang.org/cl/171464, we cleaned up generation of .stkobj linker
+    symbols, but we couldn't figure out why a similar cleanup to
+    .args_stackmap linker symbols caused problems.
+    
+    The issue is that we only need/want to generate .args_stackmap for
+    functions that are implemented in assembly in the same package. When
+    "pulling" a function from another package via //go:linkname, we can
+    safely skip emitting .args_stackmap, because compiling that package
+    will have generated it, if necessary.
+    
+    Fixes #31615.
+    
+    Change-Id: If8680aa7dd5b4e8f268b6b032d746f1b8536c867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223238
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

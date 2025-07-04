@@ -1,0 +1,15 @@
+commit 32b84d5a94219d912a4c2ffa0cad4baf72bf83b3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 16 16:38:33 2008 -0700
+
+    parsing of type strings.  still missing: func, struct, interface, chan
+    
+    R=rsc
+    DELTA=366  (337 added, 7 deleted, 22 changed)
+    OCL=17321
+    CL=17324
+
+ usr/r/reflect/main.go     |  60 ++++++---
+ usr/r/reflect/tostring.go |   5 +
+ usr/r/reflect/type.go     | 317 ++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 353 insertions(+), 29 deletions(-)

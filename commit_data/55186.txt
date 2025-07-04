@@ -1,0 +1,17 @@
+commit 3220bbe1fbbf3d1f46cea9dce5e012d3b54901ee
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 19:36:46 2023 +0000
+
+    doc: add release notes for allocation headers
+    
+    For #61422.
+    
+    Change-Id: Ia7cb2721e52d9ccd932a49e0c331868eb7749f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546027
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

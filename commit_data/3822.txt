@@ -1,0 +1,11 @@
+commit 441e775dad9761bde05695c5b652fcdafb1b477c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:35:53 2009 -0800
+
+    gofmt'ed godefs
+    
+    R=rsc
+    http://go/go-review/1020001
+
+ src/cmd/godefs/doc.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

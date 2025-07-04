@@ -1,0 +1,25 @@
+commit 7c2cd0bbe25a016659a0093c3fcce3b051adf340
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 12 15:36:37 2023 -0400
+
+    cmd/compile: replace -d=pgoinline with -d=pgodebug
+    
+    We will soon have PGO specialization. It doesn't make sense for the
+    debug flag to have inline in the name, so rename it to pgodebug.
+    
+    pgoinline is now a flag that can be used to disable PGO inlining.
+    Devirtualization will have a similar debug flag.
+    
+    For #59959.
+    
+    Change-Id: I9770ff1f0d132dfa3cd417018a887a1bd5555bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494716
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/debug.go |  3 ++-
+ src/cmd/compile/internal/base/flag.go  |  1 +
+ src/cmd/compile/internal/inline/inl.go | 16 ++++++++++------
+ 3 files changed, 13 insertions(+), 7 deletions(-)

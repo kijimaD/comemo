@@ -1,0 +1,27 @@
+commit ec7c49453516957280ab8756c5dcd45f7cc11efe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 19 17:02:01 2016 -0700
+
+    cmd/compile: remove typechecklist
+    
+    Convert remaining uses to typecheckslice.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I6ed0877386fb6c0b036e8ee5a228433343855abd
+    Reviewed-on: https://go-review.googlesource.com/20905
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  4 ++--
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  8 +++----
+ src/cmd/compile/internal/gc/select.go    |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++-------------------
+ src/cmd/compile/internal/gc/walk.go      | 10 ++++-----
+ 10 files changed, 35 insertions(+), 41 deletions(-)

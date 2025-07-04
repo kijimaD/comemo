@@ -1,0 +1,19 @@
+commit 859c13a5ad80308125c79521cfc047200fd5a512
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 15:36:39 2023 +0000
+
+    internal/trace/v2: halve the memory footprint of the gc-stress test
+    
+    An out-of-memory error in this test has been observed on 32-bit
+    platforms, so halve the memory footprint of the test. Also halve the
+    size of steady-state allocation rate in bytes. The end result should be
+    approximately the same GC CPU load but at half the memory usage.
+    
+    Change-Id: I2c2d335da7dc4c5c58cb9d92b6e5a4ece55d24a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542215
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

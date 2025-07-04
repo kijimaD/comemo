@@ -1,0 +1,15 @@
+commit 91f2db3c574887c47da795b06d9f8564d558f85a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 15:43:44 2015 -0700
+
+    math/big: test that subVW and addVW work with arbitrary y
+    
+    Fixes #10525.
+    
+    Change-Id: I92dc87f5d6db396d8dde2220fc37b7093b772d81
+    Reviewed-on: https://go-review.googlesource.com/9210
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith.go      | 1 -
+ src/math/big/arith_test.go | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

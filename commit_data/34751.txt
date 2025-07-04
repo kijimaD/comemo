@@ -1,0 +1,17 @@
+commit f961272e59ad8fc4ca9912325d2a9fa42b3779de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 28 14:12:36 2018 -0700
+
+    cmd/go: reject relative tmpdir
+    
+    Fixes #23264
+    
+    Change-Id: Ib6c343dc8e32949c6de72cb628cace2e8fabc302
+    Reviewed-on: https://go-review.googlesource.com/103236
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go              | 23 +++++++++++++++++++++++
+ src/cmd/go/internal/work/action.go |  4 ++++
+ 2 files changed, 27 insertions(+)

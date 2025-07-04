@@ -1,0 +1,16 @@
+commit 3f9521b2f00b2dba9781c52ed489372a8b5960fe
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 13 18:52:16 2023 -0500
+
+    internal/abi: common up some offset/size functions
+    
+    Change-Id: I92eeed20af35c7dec309457a80b8fd44eb70b57f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467876
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 15 ++++++++-------
+ src/cmd/link/internal/ld/decodesym.go           | 10 +++++-----
+ 2 files changed, 13 insertions(+), 12 deletions(-)

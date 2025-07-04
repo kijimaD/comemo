@@ -1,0 +1,16 @@
+commit d0c11d20b8eeebcdf2ab597c3b494e40287f9c9b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 5 09:38:15 2013 +0200
+
+    runtime: declare addtimer/deltimer in runtime.h
+    In preparation for integrated network poller
+    (https://golang.org/cl/7326051),
+    this is required to handle deadlines.
+    
+    R=golang-dev, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7446047
+
+ src/pkg/runtime/runtime.h |  2 ++
+ src/pkg/runtime/time.goc  | 19 ++++++++++++-------
+ 2 files changed, 14 insertions(+), 7 deletions(-)

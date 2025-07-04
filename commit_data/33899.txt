@@ -1,0 +1,20 @@
+commit 44213336f06755115e6b9a5407af7a2312c0d896
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 14 15:32:12 2017 -0500
+
+    runtime: symbolize morestack caller in throwsplit panic
+    
+    This attempts to symbolize the PC of morestack's caller when there's a
+    stack split at a bad time. The stack trace starts at the *caller* of
+    the function that attempted to grow the stack, so this is useful if it
+    isn't obvious what's being called at that point, such as in #21431.
+    
+    Change-Id: I5dee305d87c8069611de2d14e7a3083d76264f8f
+    Reviewed-on: https://go-review.googlesource.com/84115
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/stack.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

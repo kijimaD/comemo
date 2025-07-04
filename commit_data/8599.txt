@@ -1,0 +1,15 @@
+commit 31c79c4effb40ea938d2c740ad7149e4ac4a45a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 2 13:36:52 2011 -0700
+
+    http: ServeFile shouldn't send Content-Length when Content-Encoding is set
+    
+    Fixes #1905
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4538111
+
+ src/pkg/http/fs.go      |  4 +++-
+ src/pkg/http/fs_test.go | 17 ++++++++++++++++-
+ 2 files changed, 19 insertions(+), 2 deletions(-)

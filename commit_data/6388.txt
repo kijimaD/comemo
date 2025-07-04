@@ -1,0 +1,13 @@
+commit e4245f25027bfeb162d0aed6e3af5f805a5d33a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Sep 25 21:24:12 2010 +1000
+
+    syscall: add IPPROTO_IPV6 and IPV6_V6ONLY const to fix nacl and windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/2204050
+
+ src/pkg/syscall/syscall_nacl.go       | 2 ++
+ src/pkg/syscall/ztypes_windows_386.go | 3 +++
+ 2 files changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit 667303f158a80eb1297bad90cc65576e83260305
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 17 11:57:00 2013 -0700
+
+    runtime: correct parameter name in MCentral_AllocList comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/14792043
+
+ src/pkg/runtime/mcentral.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

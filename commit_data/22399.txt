@@ -1,0 +1,21 @@
+commit d1b1eee280cf21c3776fdcc50d7f7721465dea68
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 9 15:09:52 2015 -0400
+
+    runtime: add isarchive, set by the linker
+    
+    According to Go execution modes, a Go program compiled with
+    -buildmode=c-archive has a main function, but it is ignored on run.
+    This gives the runtime the information it needs not to run the main.
+    
+    I have this working with pending linker changes on darwin/amd64.
+    
+    Change-Id: I49bd7d65aa619ec847c464a872afa5deea7d4d30
+    Reviewed-on: https://go-review.googlesource.com/8701
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go     | 5 +++++
+ src/runtime/runtime2.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

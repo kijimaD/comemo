@@ -1,0 +1,16 @@
+commit 15e5e35be5894e059c343679d895abb258b967c2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 18 11:48:15 2023 -0400
+
+    os: in TestMkdirStickyUmask, create a non-sticky directory as a control
+    
+    Fixes #62684.
+    
+    Change-Id: If7afa811526973671d83e21440cbbc1a7b2120d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_unix_test.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 817da6657682a1bd8a50893466e92499bc4e5933
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Sep 12 16:18:48 2011 -0300
+
+    path/filepath: fix Visitor doc
+    
+    The path is not in fact relative to the root, but
+    joined to it.
+    
+    R=golang-dev, adg, rsc, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4977059
+
+ src/pkg/path/filepath/path.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 350a8e1a86d518e3e25761f0676243b47d2c54f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 17 10:01:26 2009 -0700
+
+    - rename files to match the data types they implement, adusted Makefile
+    - no other changes
+    
+    R=r
+    DELTA=1248  (623 added, 623 deleted, 2 changed)
+    OCL=33371
+    CL=33371
+
+ src/pkg/big/Makefile                      | 4 ++--
+ src/pkg/big/{bigZ.go => int.go}           | 0
+ src/pkg/big/{bigZ_test.go => int_test.go} | 0
+ src/pkg/big/{bigN.go => nat.go}           | 0
+ src/pkg/big/{bigN_test.go => nat_test.go} | 0
+ 5 files changed, 2 insertions(+), 2 deletions(-)

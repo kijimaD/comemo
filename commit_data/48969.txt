@@ -1,0 +1,20 @@
+commit d0cda4d95f4c889fdb4988750f704604553c35a4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Apr 28 23:20:53 2022 +0800
+
+    internal/bytealg: mask high bit for riscv64 regabi
+    
+    This CL masks byte params which high bits(~0xff) is unused for riscv64
+    regabi.
+    Currently the compiler only guarantees the low bits contains value.
+    
+    Change-Id: I6dd6c867e60d2143fefde92c866f78c4b007a2f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402894
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/internal/bytealg/count_riscv64.s     | 3 ++-
+ src/internal/bytealg/indexbyte_riscv64.s | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

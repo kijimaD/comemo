@@ -1,0 +1,41 @@
+commit 988a20c8c5e2c9eb49f8749e5ee94ce3c964fe59
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Jun 25 19:01:11 2025 -0400
+
+    cmd/compile/internal/escape: evaluate any side effects when rewriting with literals
+    
+    CL 649035 and CL 649079 updated escape analysis to rewrite
+    certain operands in OMAKE and OCONVIFACE nodes from non-constant
+    expressions to basic literals that evaluate to the same value.
+    
+    However, when doing that rewriting, we need to evaluate any
+    side effects prior to replacing the expression, which is what
+    this CL now does.
+    
+    Issue #74379 reported a problem with OCONVIFACE nodes due to CL 649079.
+    CL 649035 has essentially the same issue with OMAKE nodes. To illustrate
+    that, we add a test for the OMAKE case in fixedbugs/issue74379b.go,
+    which fails without this change. To avoid introducing an unnecessary
+    temporary for OMAKE nodes, we also conditionalize the main work of
+    CL 649035 on whether the OMAKE operand is already an OLITERAL.
+    
+    CL 649555 and CL 649078 were related changes that created read-only
+    global storage for composite literals used in an interface conversion.
+    This CL adds a test in fixedbugs/issue74379c.go to illustrate
+    that they do not have the same problem.
+    
+    Updates #71359
+    Fixes #74379
+    
+    Change-Id: I6645575ef34f1fe2b0241a22dc205875d66b7ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/escape/escape.go | 28 ++++++++++++----
+ test/fixedbugs/issue74379.go              | 30 +++++++++++++++++
+ test/fixedbugs/issue74379b.go             | 32 ++++++++++++++++++
+ test/fixedbugs/issue74379c.go             | 54 +++++++++++++++++++++++++++++++
+ 4 files changed, 137 insertions(+), 7 deletions(-)

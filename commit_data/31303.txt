@@ -1,0 +1,23 @@
+commit fe885fbdb0abc567c1a9856a01a03de823bb00ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 21 19:16:15 2017 -0700
+
+    cmd/compile: cleanup after IntSize->PtrSize conversion
+    
+    Also, replace "PtrSize == 4 && Arch != amd64p32" with "RegSize == 4".
+    
+    Passes toolstash-check -all.
+    
+    Updates #19954.
+    
+    Change-Id: I79b2ee9324f4fa53e34c9271d837ea288b5d7829
+    Reviewed-on: https://go-review.googlesource.com/41491
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go    |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go        | 21 +++++----------------
+ src/cmd/compile/internal/gc/universe.go   | 14 ++++----------
+ src/cmd/compile/internal/ssa/decompose.go | 16 ++++++----------
+ src/cmd/compile/internal/ssa/opt.go       |  2 +-
+ 5 files changed, 18 insertions(+), 39 deletions(-)

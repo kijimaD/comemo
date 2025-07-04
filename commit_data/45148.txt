@@ -1,0 +1,28 @@
+commit cbf9caaf22da04805f1e07277860324c7d9052b6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 12 10:41:56 2021 -0400
+
+    cmd/go: add a Go source file in TestScript/mod_sumdb
+    
+    This test expects 'go mod tidy' to fail if the existing module graph
+    has a bad checksum. However, there is no intrinsic reason why 'go mod
+    tidy' should fail in that case: the module contains no packages, and
+    thus no imports, so 'go mod tidy' can justifiably remove all
+    requirements without regard to any errors that may have already been
+    present in the module graph.
+    
+    Adding a source file that imports a package from the module with the
+    bad checksum should guarantee that 'go mod tidy' reports the checksum
+    eror.
+    
+    For #36460
+    
+    Change-Id: I59734ac524031288bc03a11f58eed5abe2db76b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309334
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_sumdb.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

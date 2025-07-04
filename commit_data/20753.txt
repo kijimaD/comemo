@@ -1,0 +1,16 @@
+commit 0f022fdd527db88419c1261b11e764a53ea41160
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 20 08:12:45 2014 -0700
+
+    regexp/syntax: fix validity testing of zero repeats
+    
+    This is already tested by TestRE2Exhaustive, but the build has
+    not broken because that test is not run when using -test.short.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/155580043
+
+ src/regexp/syntax/parse.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

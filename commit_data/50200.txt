@@ -1,0 +1,19 @@
+commit 5634629f0b3e59115f2a2158f228c292d484622e
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 25 21:08:02 2022 +0800
+
+    runtime: convert extram and extraMWaiters to internal atomic type
+    
+    Updates #53821
+    
+    Change-Id: Id579b2f8e48dfbe9f37e02d2fa8c94354f9887a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425480
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgocall.go |  3 +--
+ src/runtime/proc.go    | 14 +++++++-------
+ 2 files changed, 8 insertions(+), 9 deletions(-)

@@ -1,0 +1,29 @@
+commit dc28aca56830f8eca7005d045cbcc438cc1e8fe3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 19:25:37 2024 +0100
+
+    crypto/ed25519: fix GenerateKey with rand nil
+    
+    GenerateKey(nil) is documented to use crypto/rand.Reader, but we didn't
+    have a test.
+    
+    While at it, since it's documented to be equivalent to NewKeyFromSeed,
+    actually implement it that way. This has the probably good side effect
+    of making it deterministic in FIPS mode. The other GenerateKey use
+    MaybeReadByte, so can change, but this one is probably worth keeping
+    deterministic. It's just slightly less compliant, but ok as long as
+    crypto/rand.Reader is the default one.
+    
+    Intentionally leaving crypto/internal/fips/ed25519.GenerateKey in, in
+    case we need to switch to it during the life of the module.
+    
+    Change-Id: Ic203436ff452bb9740291b9ca17f85aa6ae20b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630099
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/ed25519/ed25519.go      | 17 +++++++------
+ src/crypto/ed25519/ed25519_test.go | 50 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 902a4d5f2913d1dafdd7277bdfd64e3316979ca6
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 11 18:15:36 2008 -0800
+
+    6c bug with large constants
+    
+    R=r
+    OCL=19056
+    CL=19056
+
+ src/cmd/6c/txt.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,16 @@
+commit 98b6febcef8f6d7411a77e9e828df681871a28ad
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 10:28:35 2016 -0700
+
+    runtime/internal/sys: better fallback algorithms for intrinsics
+    
+    Use deBruijn sequences to count low-order zeros.
+    Reorg bswap to not use &^, it takes another instruction on x86.
+    
+    Change-Id: I4a5ed9fd16ee6a279d88c067e8a2ba11de821156
+    Reviewed-on: https://go-review.googlesource.com/22084
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/internal/sys/intrinsics.go      | 135 +++++++++++++++-------------
+ src/runtime/internal/sys/intrinsics_test.go |  54 +++++++++++
+ 2 files changed, 126 insertions(+), 63 deletions(-)

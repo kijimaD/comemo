@@ -1,0 +1,13 @@
+commit be6556f787569c9ff8d8aa7aeee3611e2eee3421
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jun 26 18:05:02 2013 +0200
+
+    test: match gccgo error strings.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10468043
+
+ test/const6.go               | 12 ++++++------
+ test/fixedbugs/issue4085a.go | 10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)

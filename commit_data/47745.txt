@@ -1,0 +1,18 @@
+commit 6b609110fdfab4a496c246889f1e67fd7cba61df
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Dec 5 22:09:32 2021 -0500
+
+    cmd/compile/internal/types2: sort to reduce computational complexity of initOrder
+    
+    This is a clean port of CL 369434 to types2.
+    
+    Change-Id: I3f9f80757bfbefb7b0417eef9e7b7c74c4c100b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369474
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/initorder.go | 62 ++++++++++++++++++----------
+ src/cmd/compile/internal/types2/self_test.go |  1 +
+ 2 files changed, 42 insertions(+), 21 deletions(-)

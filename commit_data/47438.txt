@@ -1,0 +1,29 @@
+commit 76fbd6167364fb98e3ebe946cfc16b5b84d4240e
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 8 11:23:27 2021 -0800
+
+    net/http: do not cancel request context on response body read
+    
+    When sending a Request with a non-context deadline, we create a
+    context with a timeout. This context is canceled when closing the
+    response body, and also if a read from the response body returns
+    an error (including io.EOF).
+    
+    Cancelling the context in Response.Body.Read interferes with the
+    HTTP/2 client cleaning up after a request is completed, and is
+    unnecessary: The user should always close the body, the impact
+    from not canceling the context is minor (the context timer leaks
+    until it fires).
+    
+    Fixes #49366.
+    
+    Change-Id: Ieaed866116916261d9079f71d8fea7a7b303b8fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361919
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go      |  1 -
+ src/net/http/client_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

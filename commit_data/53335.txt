@@ -1,0 +1,25 @@
+commit 82d5ebce96761083f5313b180c6b368be1912d42
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 00:33:44 2023 -0400
+
+    cmd/go: rename gover.ToolchainVersion to gover.FromToolchain
+    
+    Suggested by bcmills in CL 497555 review but easier to do at the
+    top of the stack.
+    
+    For #57001.
+    
+    Change-Id: I6f2cc0f546e8d6b1e03c7335a89f07dcb45cf5b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498077
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/gotoolchain.go                 |  6 +++---
+ src/cmd/go/internal/gover/latest.go       |  2 +-
+ src/cmd/go/internal/gover/mod.go          |  2 +-
+ src/cmd/go/internal/gover/toolchain.go    | 16 ++++++++--------
+ src/cmd/go/internal/modfetch/toolchain.go |  2 +-
+ src/cmd/go/internal/modload/init.go       |  2 +-
+ 6 files changed, 15 insertions(+), 15 deletions(-)

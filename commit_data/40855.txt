@@ -1,0 +1,14 @@
+commit ee04dbf430de4343a3406253a132267bea38d3e6
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Nov 19 18:06:48 2019 -0500
+
+    crypto/x509: fix typo in godoc for ParseECPrivateKey
+    
+    Change-Id: Ia65bac00fe8600f50620ce0583455eb33f06ff95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207918
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/sec1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 4528854308cfe80fb840aa7a210495e31b16b000
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jul 8 17:19:17 2008 -0700
+
+    unique import/export names
+    more on go statement
+    
+    SVN=126421
+
+ src/cmd/6g/gen.c        | 38 +++++++++++++++++++++++++++++++++++---
+ src/cmd/gc/dcl.c        | 12 ++++++------
+ src/cmd/gc/export.c     |  2 +-
+ src/cmd/gc/go.h         |  2 ++
+ src/cmd/gc/lex.c        | 16 ++++++++++++++++
+ src/cmd/gc/walk.c       |  1 -
+ src/runtime/rt0_amd64.s | 40 +++++++++++++++++++++++++++++++++-------
+ src/runtime/rt2_amd64.c | 14 +++++++-------
+ src/runtime/runtime.c   | 13 +++++++++++++
+ src/runtime/runtime.h   | 23 +++++++++++++++++++++++
+ 10 files changed, 136 insertions(+), 25 deletions(-)

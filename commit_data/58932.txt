@@ -1,0 +1,24 @@
+commit ba3c57fc7ceb6c1158e81ccd8071cdeb7a6d6793
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 3 09:21:26 2025 -0800
+
+    os: guarantee min buffer size for ReadFile reads on /proc-like files
+    
+    For instance, this fixes os.ReadFile on plan9's /net/iproute file.
+    
+    But it's not necessarily plan9-specific; Linux /proc and /sys filesystems
+    can exhibit the same problems.
+    
+    Fixes #72080
+    
+    Change-Id: I60b035913f583a91c6d84df95a6ea7b7ec2b3c92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654315
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/export_test.go |  2 ++
+ src/os/file.go        | 53 +++++++++++++++++++---------
+ src/os/os_test.go     | 96 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/root.go        |  2 +-
+ 4 files changed, 135 insertions(+), 18 deletions(-)

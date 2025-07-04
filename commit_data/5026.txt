@@ -1,0 +1,25 @@
+commit e00795859b947d5e0319a20c04ed3ffd7a745ab5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 9 15:09:09 2010 -0800
+
+    syscall: minimal mingw version of syscall to call windows dlls
+    
+    lots of missing parts, but builds and can call dlls, see a sample code in syscall_mingw.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/218042
+
+ src/pkg/runtime/Makefile              |   3 +
+ src/pkg/runtime/mingw/os.h            |   3 +
+ src/pkg/runtime/mingw/syscall.cgo     |  37 ++++++++
+ src/pkg/runtime/mingw/thread.c        |   6 +-
+ src/pkg/syscall/asm_mingw_386.s       |   7 ++
+ src/pkg/syscall/mkall.sh              |   7 ++
+ src/pkg/syscall/syscall_mingw.go      | 163 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_mingw_386.go  |   5 ++
+ src/pkg/syscall/zerrors_mingw_386.go  |  15 ++++
+ src/pkg/syscall/zsyscall_mingw_386.go |  53 +++++++++++
+ src/pkg/syscall/zsysnum_mingw_386.go  |  15 ++++
+ src/pkg/syscall/ztypes_mingw_386.go   |  44 +++++++++
+ 12 files changed, 356 insertions(+), 2 deletions(-)

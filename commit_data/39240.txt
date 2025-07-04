@@ -1,0 +1,19 @@
+commit 3ce865d7a0b88714cc433454ae2370a105210c01
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Wed Jan 2 18:47:33 2019 -0800
+
+    crypto/sha*: replace putUint{32,64} helpers
+    
+    Replaces putUint{32,64} functions in crypto/sha* packages with the
+    equivalent functions encoding/binary.BigEndian.PutUint{32,64}.
+    
+    Change-Id: I9208d2125202ea9c97777560e6917d21893aced0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1.go     | 37 +++++++++----------------------------
+ src/crypto/sha256/sha256.go | 43 ++++++++++++-------------------------------
+ src/crypto/sha512/sha512.go | 35 ++++++++++++-----------------------
+ 3 files changed, 33 insertions(+), 82 deletions(-)

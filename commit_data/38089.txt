@@ -1,0 +1,20 @@
+commit e609bd373fc9909758b6f4d2403c155e6cf55e23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 15:00:49 2018 -0800
+
+    cmd/link: use SeekPC in testDWARF
+    
+    This makes the tests slightly faster, though the bulk of the time is
+    still spent building the test programs.
+    
+    Also run some tests in parallel.
+    
+    Updates #26470
+    
+    Change-Id: Ia5ec2b99831d69c426b43dbab80613aa03e705f5
+    Reviewed-on: https://go-review.googlesource.com/c/153258
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/dwarf_test.go | 53 +++++++++++++++-------------------------------
+ src/cmd/link/link_test.go  |  4 ++++
+ 2 files changed, 21 insertions(+), 36 deletions(-)

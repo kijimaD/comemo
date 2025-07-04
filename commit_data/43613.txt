@@ -1,0 +1,24 @@
+commit 152468070946c6b8688bff2c0cccd2bc72904722
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 14:20:31 2020 -0400
+
+    cmd/go: allow 'go get' to downgrade to replacement-only versions
+    
+    This fixes a case missed in CL 258220.
+    
+    For #36460
+    Updates #26241
+    Updates #37438
+    
+    Change-Id: I5e8c2ee1e08e41cc2eb34e54c617cb5e4bf69c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266018
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/mvs.go                |   6 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_lazy_downgrade.txt | 145 ++++++++++++++++++++++
+ 3 files changed, 152 insertions(+), 3 deletions(-)

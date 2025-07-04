@@ -1,0 +1,13 @@
+commit c736b6579fcf376de2cdecd67f619832f8882a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 16:01:32 2009 -0700
+
+    bug209
+    
+    R=ken
+    OCL=35546
+    CL=35546
+
+ src/cmd/gc/typecheck.c             | 2 +-
+ test/{bugs => fixedbugs}/bug209.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

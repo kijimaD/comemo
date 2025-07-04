@@ -1,0 +1,18 @@
+commit b2a363b7ea8b0f53d186c8396a87371425be6e7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 10:27:19 2017 -0700
+
+    cmd/compile: pass package name to types.NewPkg
+    
+    Change-Id: I08b43b08a8d2e9851f41401feee4b72287ced774
+    Reviewed-on: https://go-review.googlesource.com/41072
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go |  2 +-
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/export.go  |  2 +-
+ src/cmd/compile/internal/gc/main.go    | 35 +++++++++++++---------------------
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/cmd/compile/internal/types/pkg.go  | 13 +++++++++++--
+ 7 files changed, 29 insertions(+), 29 deletions(-)

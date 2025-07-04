@@ -1,0 +1,10 @@
+commit e9ecc41eb93292099c26d6d359f9bd47da31a9f4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 10:49:26 2008 -0700
+
+    update golden.out
+    
+    SVN=127240
+
+ test/golden.out | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 591c74ad20315d2886d2ff4c36efe47dda92e257
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 15:09:21 2011 -0500
+
+    runtime: split non-debugging malloc interface out of debug.go into mem.go
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4273045
+
+ src/pkg/runtime/Makefile |  1 +
+ src/pkg/runtime/debug.go | 64 --------------------------------------------
+ src/pkg/runtime/mem.go   | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 64 deletions(-)

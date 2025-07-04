@@ -1,0 +1,33 @@
+commit e1544d3bb68d56ebf43cc8828e3dce18fd5ef442
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 1 22:55:28 2015 -0500
+
+    dwbug/elf: support old-style compressed DWARF
+    
+    GCC and LLVM support zlib-compressing DWARF debug sections (and
+    there's some evidence that this may be happening by default in some
+    circumstances now).
+    
+    Add support for reading compressed DWARF sections. Since ELF
+    relocations apply to the decompressed data, decompression is done
+    before applying relocations. Since relcations are applied by
+    debug/elf, decompression must also be handled there.
+    
+    Note that this is different from compressed ELF sections, which is a
+    more general mechanism used by very recent versions of GCC.
+    
+    Updates #11773.
+    
+    Change-Id: I3f4bf1b04d0802cc1e8fcb7c2a5fcf6c467c5089
+    Reviewed-on: https://go-review.googlesource.com/17340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/deps.go                               |   7 +++--
+ src/debug/elf/file.go                              |  29 ++++++++++++++++++---
+ src/debug/elf/file_test.go                         |  28 ++++++++++++++++++++
+ .../elf/testdata/zdebug-test-gcc484-x86-64.obj     | Bin 0 -> 3216 bytes
+ src/go/build/deps_test.go                          |   2 +-
+ 5 files changed, 60 insertions(+), 6 deletions(-)

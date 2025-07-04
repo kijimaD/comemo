@@ -1,0 +1,21 @@
+commit 93fcebaf31965760c3bc8c087cb7e46127397994
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 25 12:09:42 2019 -0400
+
+    cmd/link: avoid writing to read-only memory in addstrdata
+    
+    When the linker's -X flag is used, it will overwrite the symbol's
+    content (sym.P) in addstrdata. The symbol's content may be in
+    read-only memory, in which case overwriting it will fault. Do
+    copy-on-write to fix this.
+    
+    Change-Id: I34d583f44c30d187042757e19a14c1ef7d3e613c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173937
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go |  4 ++++
+ src/cmd/link/link_test.go        | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

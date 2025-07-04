@@ -1,0 +1,14 @@
+commit 008e64da393f16044b3573cd971e1c2bef28e17f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 17 13:07:06 2012 +1100
+
+    net: package doc overview / examples
+    
+    Fixes #2774
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5673076
+
+ src/pkg/net/net.go | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)

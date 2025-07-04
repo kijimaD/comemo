@@ -1,0 +1,17 @@
+commit 4a4e3b0bc7e74aa45ac29bf1446e9af69ec13dcd
+Author: Keith Randall <khr@google.com>
+Date:   Mon Aug 6 10:42:28 2018 -0700
+
+    cmd/compile: remove vet-blocking hack
+    
+    ...and add the vet failures to the vet whitelist.
+    
+    Change-Id: Idcf4289f39dda561c85f3b0afe396e5299e6495f
+    Reviewed-on: https://go-review.googlesource.com/127995
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/testdata/novet.go |  9 ---------
+ src/cmd/vet/all/whitelist/all.txt             | 19 +++++++++++++++++++
+ 2 files changed, 19 insertions(+), 9 deletions(-)

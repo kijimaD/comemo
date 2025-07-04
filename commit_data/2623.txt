@@ -1,0 +1,13 @@
+commit 0d400a7dea3457ec4952e9a44816fb8ff50f537c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:03:31 2009 -0700
+
+    fmt: use new reflect interface (CL 31107)
+    
+    R=r
+    DELTA=208  (37 added, 63 deleted, 108 changed)
+    OCL=31111
+    CL=31281
+
+ src/pkg/fmt/print.go | 290 +++++++++++++++++++++++----------------------------
+ 1 file changed, 132 insertions(+), 158 deletions(-)

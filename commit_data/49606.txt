@@ -1,0 +1,22 @@
+commit 59ab6f351a370a27458755dc69f4a837e55a05a6
+Author: Mitar <mitar.git@tnode.com>
+Date:   Sun Jul 10 14:06:09 2022 +0000
+
+    net/http: remove Content-Encoding in writeNotModified
+    
+    Additional header to remove if set before calling http.ServeContent.
+    
+    The API of ServeContent is that one should set Content-Encoding before calling it, if the content is encoded (e.g., compressed). But then, if content has not been modified, that header should be removed, according to RFC 7232 section 4.1.
+    
+    Change-Id: If51b35b7811a4dbb19de2ddb73f40c5e68fcec7e
+    GitHub-Last-Rev: 53df6e73c44b63f351f7aeeb45cab82d706311eb
+    GitHub-Pull-Request: golang/go#50903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381955
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/net/http/fs.go      |  1 +
+ src/net/http/fs_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

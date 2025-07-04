@@ -1,0 +1,32 @@
+commit 553237aa67a3d0624715973a2dd3e4963e61995d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 14:07:36 2018 -0700
+
+    go/types: report error for invalid use of ... in parameter lists
+    
+    The parser accepts ...T types in parameter lists whereever a type
+    is permitted; this matches the syntax and allows for more tolerant
+    parsing and error recovery.
+    
+    go/types on the other hand assumed that the parser would report
+    those errors and assumed any outstanding such errors would be due
+    to otherwise manipulated ASTs leading to invalid ASTs.
+    
+    go/types further assumed that a parameter list (a, b, c ...int)
+    was permitted (a couple of tests used such parameter lists).
+    
+    With this CL, go/types now correctly refuses invalid parameter lists.
+    
+    Fixes #28281.
+    
+    Change-Id: Ib788255f7b7819fdb972c7801bb153a53ce2ddf7
+    Reviewed-on: https://go-review.googlesource.com/c/143857
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go         |  2 +-
+ src/go/types/testdata/issues.src | 11 +++++++++++
+ src/go/types/typestring_test.go  |  2 +-
+ src/go/types/typexpr.go          |  4 ++--
+ 4 files changed, 15 insertions(+), 4 deletions(-)

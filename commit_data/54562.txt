@@ -1,0 +1,20 @@
+commit 1a51b59c119034dfbcd98063bf775d92e6f76db4
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Sep 27 02:01:46 2023 +0000
+
+    internal/zstd: allow empty compressed blocks
+    
+    For #62513
+    
+    Change-Id: I295e72f71165665b8ea999e68a5586fa785b546d
+    GitHub-Last-Rev: 902e952d88dba505f87393fd3c97c433ae291709
+    GitHub-Pull-Request: golang/go#63252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531217
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/zstd/block.go     | 9 +++------
+ src/internal/zstd/zstd_test.go | 5 +++++
+ 2 files changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit eb9a157d0f6c71877ff6473072d7a8f1c34f4afc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 11:00:37 2023 -0400
+
+    cmd/go: accept non-standard versions like go1.21-20230523-foo in latest
+    
+    Some custom toolchain builds add extra suffixes to the version.
+    Strip those off (cutting at - or +) to find the underlying Go version.
+    
+    For #57001.
+    
+    Change-Id: I234fb2d069aaf0922c0a2c848e4a4c38e4adf9bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497415
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/gover/latest.go        |  9 +++++++-
+ src/cmd/go/testdata/script/gotoolchain.txt | 36 +++++++++++++++++++++++++++++-
+ 2 files changed, 43 insertions(+), 2 deletions(-)

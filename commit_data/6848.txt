@@ -1,0 +1,14 @@
+commit ed7c3f312711f0883532a806ce1ead0b2724a73b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 13:19:01 2010 -0500
+
+    flag: handle multiple calls to flag.Parse
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3071041
+
+ src/pkg/flag/export_test.go |  32 +++++++++++++
+ src/pkg/flag/flag.go        | 110 ++++++++++++++++++--------------------------
+ src/pkg/flag/flag_test.go   |  19 ++++++++
+ 3 files changed, 95 insertions(+), 66 deletions(-)

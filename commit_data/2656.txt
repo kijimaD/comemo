@@ -1,0 +1,13 @@
+commit ec9b0428f8a20fa2f3b15d0abf56f69583d0ab56
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 9 16:44:13 2009 -0700
+
+    various spec tunings
+    
+    R=gri
+    DELTA=6  (0 added, 1 deleted, 5 changed)
+    OCL=31415
+    CL=31419
+
+ doc/go_spec.html | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

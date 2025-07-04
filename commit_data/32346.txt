@@ -1,0 +1,14 @@
+commit b73d46de36e937819f34a37a46af73eb435246aa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 18 14:55:05 2017 +1000
+
+    misc/cgo/testcshared: fix syntax error in the test
+    
+    Another attempt to fix build
+    
+    Change-Id: I26137c115ad4b5f5a69801ed981c146adf6e824c
+    Reviewed-on: https://go-review.googlesource.com/56750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

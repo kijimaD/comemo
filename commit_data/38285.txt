@@ -1,0 +1,14 @@
+commit 9e72e604a647c5e782308a91fdc6a6fd099346c4
+Author: Andrei Matei <andrei@cockroachlabs.com>
+Date:   Mon Mar 4 00:44:58 2019 +0000
+
+    database/sql: fix comment grammar
+    
+    Change-Id: I92d8c93967c5ec57f07151affd0041f00e405057
+    GitHub-Last-Rev: 2dea977d938a504604aed6a9ae87986001f96acd
+    GitHub-Pull-Request: golang/go#30551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

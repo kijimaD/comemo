@@ -1,0 +1,38 @@
+commit 9dc22b6d6fbd62ce127dbad1bdbfbb073ad7c4af
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 3 11:58:52 2009 -0700
+
+    more 6g reorg; checkpoint.
+    typecheck.c is now responsible for all type checking
+    except for assignment and function argument "..."
+    
+    R=ken
+    OCL=32661
+    CL=32667
+
+ src/cmd/8g/gsubr.c        |    2 +
+ src/cmd/gc/const.c        |    8 +-
+ src/cmd/gc/dcl.c          |   28 +-
+ src/cmd/gc/go.h           |   34 +-
+ src/cmd/gc/go.y           |    7 +-
+ src/cmd/gc/print.c        |    3 +-
+ src/cmd/gc/sinit.c        |    4 +
+ src/cmd/gc/subr.c         |   30 +-
+ src/cmd/gc/typecheck.c    |  920 ++++++++++++++++++++++------
+ src/cmd/gc/walk.c         | 1468 +++++++++++----------------------------------
+ test/chan/perm.go         |    8 +-
+ test/const1.go            |   16 +-
+ test/convert3.go          |    2 +-
+ test/convlit.go           |   10 +-
+ test/convlit1.go          |    4 +-
+ test/fixedbugs/bug022.go  |    2 +-
+ test/fixedbugs/bug062.go  |    2 +-
+ test/fixedbugs/bug090.go  |    4 +-
+ test/fixedbugs/bug121.go  |   12 +-
+ test/fixedbugs/bug131.go  |    2 +-
+ test/fixedbugs/bug146.go  |    2 +-
+ test/fixedbugs/bug170.go  |    7 +-
+ test/func4.go             |    4 +-
+ test/golden.out           |    7 -
+ test/interface/pointer.go |    2 +-
+ 25 files changed, 1175 insertions(+), 1413 deletions(-)

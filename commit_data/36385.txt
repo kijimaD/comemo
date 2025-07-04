@@ -1,0 +1,15 @@
+commit 0829e1b757969cc5e22df6c5b5a45cff8f073a38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 24 15:46:40 2017 -0800
+
+    misc/cgo/testcarchive: make the tests work when using gccgo
+    
+    Change-Id: I62a7a8ebbbc1f1a266234b53680768da157b2df5
+    Reviewed-on: https://go-review.googlesource.com/130416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 71 +++++++++++++++++++++++++++++-----
+ misc/cgo/testcarchive/main_unix.c      |  8 +++-
+ 2 files changed, 69 insertions(+), 10 deletions(-)

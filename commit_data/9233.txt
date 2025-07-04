@@ -1,0 +1,14 @@
+commit 3041f2a37c27231b781a0c71b786afddde5afad9
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Jul 28 08:41:06 2011 -0700
+
+    exp/template: make Set.MustParse* methods return the set.
+    This brings them into line with the Template.MustParse* methods
+    and makes it possible to use them in global variable initializations.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4798059
+
+ src/pkg/exp/template/helper.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

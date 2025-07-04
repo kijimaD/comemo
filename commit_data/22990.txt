@@ -1,0 +1,16 @@
+commit 1828d03ad56e2e57ae1595728ec96c28b98dfd50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 12 14:24:26 2015 -0700
+
+    syscall: mksysnum_linux.pl: run syscall numbers through GCC
+    
+    This will skip system call numbers that are ifdef'ed out in unistd.h,
+    as occurs on PPC.
+    
+    Change-Id: I88e640e4621c7a8cc266433f34a7b4be71543ec9
+    Reviewed-on: https://go-review.googlesource.com/9966
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/mkall.sh          | 2 +-
+ src/syscall/mksysnum_linux.pl | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

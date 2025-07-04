@@ -1,0 +1,12 @@
+commit cb6c09a75adc4ad315d4ddf3db2582c3bfa3d226
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 1 14:54:35 2012 +0800
+
+    doc: update link to self-hosted "The Laws of Reflection" article
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5717046
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

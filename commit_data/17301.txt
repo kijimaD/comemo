@@ -1,0 +1,19 @@
+commit 665feeedcbef8a1c968d6da5be052e9fd9678380
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 16 22:25:26 2013 -0400
+
+    runtime: impose thread count limit
+    
+    Actually working to stay within the limit could cause subtle deadlocks.
+    Crashing avoids the subtlety.
+    
+    Fixes #4056.
+    
+    R=golang-dev, r, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13037043
+
+ src/pkg/runtime/crash_test.go    | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/debug/garbage.go | 19 +++++++++++++++++++
+ src/pkg/runtime/proc.c           | 26 +++++++++++++++++++++++++-
+ 3 files changed, 74 insertions(+), 1 deletion(-)

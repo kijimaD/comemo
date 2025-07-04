@@ -1,0 +1,14 @@
+commit 478f08a517f44936bea0dcb6277ac640a7444812
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 16:41:54 2011 -0800
+
+    io/ioutil: clean-up of ReadAll and ReadFile
+    
+    Make ReadAll use the same mechanism as ReadFile.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4279041
+
+ src/pkg/io/ioutil/ioutil.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

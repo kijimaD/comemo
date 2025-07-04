@@ -1,0 +1,22 @@
+commit ed15e82413c7b16e21a493f5a647f68b46e965ee
+Author: Keith Randall <khr@google.com>
+Date:   Fri Dec 28 14:34:48 2018 -0800
+
+    runtime: panic on uncomparable map key, even if map is empty
+    
+    Reorg map flags a bit so we don't need any extra space for the extra flag.
+    
+    Fixes #23734
+    
+    Change-Id: I436812156240ae90de53d0943fe1aabf3ea37417
+    Reviewed-on: https://go-review.googlesource.com/c/155918
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 44 ++++++++++++++++++++----
+ src/reflect/type.go                    | 58 +++++++++++++++++++++++---------
+ src/runtime/map.go                     | 61 +++++++++++++++++++---------------
+ src/runtime/type.go                    | 37 +++++++++++++++------
+ test/fixedbugs/issue23734.go           | 32 ++++++++++++++++++
+ 5 files changed, 172 insertions(+), 60 deletions(-)

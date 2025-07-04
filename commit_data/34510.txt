@@ -1,0 +1,16 @@
+commit d8c9ef9e5cb6d485d9e15a48884ffb1162c48fb3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 7 22:14:55 2018 +0000
+
+    cmd/dist: skip rebuild before running tests when on the build systems
+    
+    Updates #24300
+    
+    Change-Id: I7752dab67e15a6dfe5fffe5b5ccbf3373bbc2c13
+    Reviewed-on: https://go-review.googlesource.com/99296
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

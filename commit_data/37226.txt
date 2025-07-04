@@ -1,0 +1,14 @@
+commit f08352bd16e03555112154781afe84c3b5d6e0c8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 2 15:47:40 2018 +0000
+
+    runtime: look up runtime env variables case insensitively on Windows
+    
+    Fixes #28557
+    
+    Change-Id: Ifca958b78e8c62fbc66515e693f528d799e8e84b
+    Reviewed-on: https://go-review.googlesource.com/c/147039
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/env_posix.go | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

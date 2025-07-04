@@ -1,0 +1,27 @@
+commit 37e195cf727eb61d352f244230d988eb444a9b13
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 5 14:40:55 2014 -0500
+
+    cmd/ld: don't include padding length in size of the note section
+    Recently NetBSD starts to enforce this, and refuses to execute
+    the program if n is larger than the sum of entry sizes.
+    
+    Before:
+    $ readelf -n ../bin/go.old
+    Notes at offset 0x00000bd0 with length 0x00000019:
+      Owner         Data size       Description
+      NetBSD                0x00000004      NT_VERSION (version)
+    readelf: Warning: corrupt note found at offset 18 into core notes
+    readelf: Warning:  type: 0, namesize: 00000000, descsize: 00000000
+    $ readelf -n ../bin/go
+    Notes at offset 0x00000bd0 with length 0x00000018:
+    Owner         Data size       Description
+    NetBSD                0x00000004      NT_VERSION (version)
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/70710043
+
+ src/cmd/ld/elf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

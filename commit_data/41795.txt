@@ -1,0 +1,64 @@
+commit 71d477469c5529b56779cdb3bc235d0a87fe9877
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Dec 19 08:15:06 2019 +0000
+
+    cmd/asm: align an instruction or a function's address
+    
+    Recently, the gVisor project needs an instruction's address
+    with 128 bytes alignment and a function's start address with
+    2K bytes alignment to fit the architecture requirement for
+    interrupt table.
+    
+    This patch allows aligning the address of an instruction to be
+    aligned to a specific value (2^n and not higher than 2048) and
+    the address of a function to be 2048 bytes.
+    
+    The main changes include:
+    
+    1. Adds ALIGN2048 flag to align a function's address with
+    2048 bytes.
+    e.g. "TEXT ·Add(SB),NOSPLIT|ALIGN2048" indicates that the
+    address of Add function should be aligned to 2048 bytes.
+    
+    2. Adds a new element in the FuncInfo structure defined in
+    cmd/internal/obj/link.go file to record the alignment
+    information.
+    
+    3. Adds a new element in the Func structure defined in
+    cmd/internal/goobj/read.go file to read the alignment
+    information.
+    
+    4. Because go introduces a new object file format, also add
+    a new element in the FuncInfo structure defined in
+    cmd/internal/goobj2/funcinfo.go to record the alignment
+    information.
+    
+    5. Adds the assembler support to align an intruction's offset
+    with a specific value (2^n and not higher than 2048).
+    e.g. "PCALIGN $256" indicates that the next instruction should
+    be aligned to 256 bytes.
+    
+    This CL also adds a test.
+    
+    Change-Id: I31cfa6fb5bc35dee2c44bf65913e90cddfcb492a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212767
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/read.go           |   2 +
+ src/cmd/internal/goobj/readnew.go        |   1 +
+ src/cmd/internal/goobj2/funcinfo.go      |   3 +
+ src/cmd/internal/obj/arm64/asm7.go       |  33 ++++------
+ src/cmd/internal/obj/arm64/asm_test.go   |  27 ++++++++-
+ src/cmd/internal/obj/link.go             |   1 +
+ src/cmd/internal/obj/objfile.go          |   1 +
+ src/cmd/internal/obj/objfile2.go         |   1 +
+ src/cmd/internal/obj/plist.go            |   7 +++
+ src/cmd/internal/obj/textflag.go         |   5 ++
+ src/cmd/link/internal/ld/data.go         |   4 ++
+ src/cmd/link/internal/loader/loader.go   |   1 +
+ src/cmd/link/internal/objfile/objfile.go |   1 +
+ src/cmd/link/link_test.go                | 101 +++++++++++++++++++++++++++++++
+ src/runtime/textflag.h                   |   5 ++
+ 15 files changed, 168 insertions(+), 25 deletions(-)

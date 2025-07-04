@@ -1,0 +1,20 @@
+commit 48b7bdd0d74f6a06cd095cc8b15fe6ec5c4a2aee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 15 10:12:07 2019 -0400
+
+    cmd/go: always add 'go' directive to the go.mod file if missing
+    
+    Updates #30790
+    Fixes #31960
+    
+    Change-Id: Ib3ac074cf1f98fe69f53af82d2a0441582116570
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176925
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/tidy.go               | 1 -
+ src/cmd/go/internal/modload/init.go              | 9 +++++----
+ src/cmd/go/testdata/script/mod_file_proxy.txt    | 3 ++-
+ src/cmd/go/testdata/script/mod_init_empty.txt    | 2 ++
+ src/cmd/go/testdata/script/mod_load_badchain.txt | 2 ++
+ 5 files changed, 11 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 2072fc30611bb04206ec29889b29f2bcdb1eb44e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Jul 16 10:12:43 2015 +1000
+
+    A+C: Add missing entries, full names.
+    
+    Updates #10639
+    
+    Change-Id: Ifece75b8d1d822869df8abf654725a00bef4fc25
+    Reviewed-on: https://go-review.googlesource.com/12280
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      |  5 +++--
+ CONTRIBUTORS | 10 ++++++----
+ 2 files changed, 9 insertions(+), 6 deletions(-)

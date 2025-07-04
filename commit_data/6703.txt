@@ -1,0 +1,29 @@
+commit 9c6df3ca1398ef2d183418a75cd2e523f51b72bc
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Nov 3 17:31:07 2010 -0700
+
+    add hardware floating point.
+    currently, softfloat does not work and
+    there are some unsigned-to-float conversion errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2886041
+
+ src/cmd/5g/Makefile     |    1 +
+ src/cmd/5g/gg.h         |    5 +-
+ src/cmd/5g/ggen.c       |    5 +-
+ src/cmd/5g/list.c       |   14 +-
+ src/cmd/5g/opt.h        |    2 +-
+ src/cmd/5g/reg.c        | 1246 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/5.out.h      |    1 +
+ src/cmd/5l/asm.c        |  184 ++++---
+ src/cmd/5l/l.h          |    5 +-
+ src/cmd/5l/list.c       |    4 +-
+ src/cmd/5l/obj.c        |    6 +-
+ src/cmd/5l/optab.c      |   13 +-
+ src/cmd/5l/softfloat.c  |    5 +-
+ src/cmd/5l/span.c       |   10 +-
+ src/cmd/5l/thumb.c      |    2 +-
+ src/pkg/runtime/print.c |    2 +-
+ 16 files changed, 1416 insertions(+), 89 deletions(-)

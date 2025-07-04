@@ -1,0 +1,12 @@
+commit b2b4e7fa553d8617e8695fd0614545f9283b34ad
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 18 19:36:36 2008 -0800
+
+    need ./ on local files
+    
+    R=rsc
+    OCL=19567
+    CL=19567
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit b410ce750e08f3b62af3d3d277fa0793f11ed674
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 27 15:38:29 2018 -0700
+
+    cmd/compile: don't crash in untyped expr to interface conversion
+    
+    Fixes #24763.
+    
+    Change-Id: Ibe534271d75b6961d00ebfd7d42c43a3ac650d79
+    Reviewed-on: https://go-review.googlesource.com/121335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go | 18 +++++++++++-------
+ test/fixedbugs/issue24763.go         | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 7 deletions(-)

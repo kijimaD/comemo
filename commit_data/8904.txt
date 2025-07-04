@@ -1,0 +1,14 @@
+commit 7cc5d5db9df8680601ec5e22c5968ada2f867dbb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 30 09:44:16 2011 +1000
+
+    run.bash: small fix
+    
+    Fixes #2025.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4636075
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

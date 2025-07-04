@@ -1,0 +1,12 @@
+commit 965584ac07c87839cb28f28e40f2f9a74ebaff76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 16:41:46 2015 -0700
+
+    doc/go1.5.txt: mention GidMappingsEnableSetgroups in linux SysProcAttr
+    
+    Change-Id: I412621497902fa36f4939df392b10ca7040fc36e
+    Reviewed-on: https://go-review.googlesource.com/11003
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

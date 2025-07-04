@@ -1,0 +1,20 @@
+commit a7d3a0e971818c754217829c8bd10b1e167d3481
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 8 09:49:22 2021 -0700
+
+    cmd/compile/internal/types2: use an identifier map rather than isubst for recv type params
+    
+    This is a port of CL 354643 from go/types to types2 with adjustments:
+    - use of syntax rather than go/ast package as needed
+    - adjustments due to the different code for type parameter declarations
+    - rename of Checker.rparamMap to Checker.recvTParamMap, which seems clearer
+    
+    Change-Id: I5311a0c05a13c6b87ea1422b250b90c3d05c5dce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354693
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go     |   8 +-
+ src/cmd/compile/internal/types2/signature.go | 114 ++++++---------------------
+ src/cmd/compile/internal/types2/typexpr.go   |  10 ++-
+ 3 files changed, 36 insertions(+), 96 deletions(-)

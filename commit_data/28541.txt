@@ -1,0 +1,24 @@
+commit 2098e5d39afc3e6f687fcabd7704e8013f9c0dbd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 15 14:30:31 2016 -0400
+
+    runtime: eliminate memstats.heap_reachable
+    
+    We used to compute an estimate of the reachable heap size that was
+    different from the marked heap size. This ultimately caused more
+    problems than it solved, so we pulled it out, but memstats still has
+    both heap_reachable and heap_marked, and there are some leftover TODOs
+    about the problems with this estimate.
+    
+    Clean this up by eliminating heap_reachable in favor of heap_marked
+    and deleting the stale TODOs.
+    
+    Change-Id: I713bc20a7c90683d2b43ff63c0b21a440269cc4d
+    Reviewed-on: https://go-review.googlesource.com/29271
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go    | 23 ++++++++---------------
+ src/runtime/mstats.go |  4 ----
+ 2 files changed, 8 insertions(+), 19 deletions(-)

@@ -1,0 +1,14 @@
+commit 1d1a0277de8c90df72d038e3e2acf84796239bd3
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Aug 21 12:08:27 2018 +0100
+
+    go/build: format with latest gofmt
+    
+    Change-Id: I172af5c83a0d4d79ad627ba9dfe02dead23bf3a6
+    Reviewed-on: https://go-review.googlesource.com/130376
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/go/build/deps_test.go | 86 +++++++++++++++++++++++------------------------
+ 1 file changed, 43 insertions(+), 43 deletions(-)

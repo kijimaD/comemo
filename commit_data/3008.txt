@@ -1,0 +1,15 @@
+commit 5748c0868c7977fba85b7a85e669e3411c49223a
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 18 07:17:34 2009 -0700
+
+    simple arm continuous build target. will expand with time.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=61  (61 added, 0 deleted, 0 changed)
+    OCL=33438
+    CL=33454
+
+ src/all-arm.bash  | 13 +++++++++++++
+ src/make-arm.bash | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)

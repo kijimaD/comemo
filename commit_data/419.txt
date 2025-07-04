@@ -1,0 +1,14 @@
+commit f03deb339a577b86bafe192ff72d62ba7d158cc7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 24 17:00:58 2008 -0700
+
+    - fixed several parser issues
+    
+    R=r
+    OCL=13441
+    CL=13441
+
+ usr/gri/gosrc/globals.go |   7 +-
+ usr/gri/gosrc/object.go  |   4 +-
+ usr/gri/gosrc/parser.go  | 246 ++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 185 insertions(+), 72 deletions(-)

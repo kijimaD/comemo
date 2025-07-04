@@ -1,0 +1,18 @@
+commit 409434d62364cb362f0f17d0c7769dc680b2da99
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 2 11:23:20 2021 -0400
+
+    cmd/go/internal/modload: scan dependencies of root paths when raising version limits in editRequirements
+    
+    Fixes #47979
+    
+    Change-Id: I1d9d854cda1378e20c70e6c6789b77e42e467ca7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347290
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/edit.go               |  93 ++++++++++++++---
+ src/cmd/go/testdata/script/mod_get_issue47979.txt | 117 ++++++++++++++++++++++
+ 2 files changed, 195 insertions(+), 15 deletions(-)

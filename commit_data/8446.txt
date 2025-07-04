@@ -1,0 +1,12 @@
+commit 2fe4dd7ad34c35831fccaa82f4455122dc4ce897
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 20 15:32:01 2011 +1000
+
+    godoc: remove paragraph tags around navigation div
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4551051
+
+ lib/godoc/godoc.html | 2 --
+ 1 file changed, 2 deletions(-)

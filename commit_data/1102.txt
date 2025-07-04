@@ -1,0 +1,14 @@
+commit 07c54425c02c83daefedcc19137a3329cafac04a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 11 10:01:51 2008 -0800
+
+    Remove useless "Trace/breakpoint trap" lines using the format
+    that is generated on Goobuntu.
+    
+    R=r,rsc
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=18973
+    CL=18976
+
+ test/run | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

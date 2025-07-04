@@ -1,0 +1,17 @@
+commit ed832ed353f6386c4f1ce061d8048e31873e0439
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 21 10:31:34 2023 -0400
+
+    go/types: add test case for CL 486398
+    
+    Forgot to 'git add' this test case in the CL.
+    
+    Change-Id: Idde1d3d4525a99bdab0d3d69ac635a96a7cd5d73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487335
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/internal/types/testdata/check/go1_xx_19.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

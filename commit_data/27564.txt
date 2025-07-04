@@ -1,0 +1,19 @@
+commit 429bbf331247ef598802a94a23670bfe1cf61d6f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed May 25 16:33:19 2016 +0300
+
+    strings: fix and reenable amd64 Index for 17-31 byte strings
+    
+    Fixes #15689
+    
+    Change-Id: I56d0103738cc35cd5bc5e77a0e0341c0dd55530e
+    Reviewed-on: https://go-review.googlesource.com/23440
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/runtime/asm_amd64.s      |  3 +--
+ src/strings/strings_amd64.go |  2 +-
+ src/strings/strings_test.go  | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 3 deletions(-)

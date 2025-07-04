@@ -1,0 +1,24 @@
+commit e8aa9a533df0ba44857d57ba489b74424b270ac7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 5 12:11:32 2018 +0100
+
+    cmd/internal/obj: various code cleanups
+    
+    Mostly replacing C-Style loops with range expressions, but also other
+    simplifications like the introduction of writeBool and unindenting some
+    code.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I799bccd4e5d411428dcf122b8588a564a9217e7c
+    Reviewed-on: https://go-review.googlesource.com/104936
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/internal/obj/objfile.go | 58 ++++++++++++++++++++---------------------
+ src/cmd/internal/obj/pass.go    | 16 +++++-------
+ src/cmd/internal/obj/pcln.go    | 22 ++++++++--------
+ src/cmd/internal/obj/util.go    |  4 ---
+ 4 files changed, 45 insertions(+), 55 deletions(-)

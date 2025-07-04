@@ -1,0 +1,23 @@
+commit 7f50c23e2d18c445bfe790692e998ff91b37ddc2
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Mar 18 12:18:49 2013 +1100
+
+    runtime: correct mmap return value checking on netbsd/openbsd
+    
+    The current SysAlloc implementation suffers from a signed vs unsigned
+    comparision bug. Since the error code from mmap is negated, the
+    unsigned comparision of v < 4096 is always false on error. Fix this
+    by switching to the darwin/freebsd/linux mmap model and leave the mmap
+    return value unmodified.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7870044
+
+ src/pkg/runtime/mem_netbsd.c        | 9 ++++-----
+ src/pkg/runtime/mem_openbsd.c       | 9 ++++-----
+ src/pkg/runtime/sys_netbsd_386.s    | 2 --
+ src/pkg/runtime/sys_netbsd_amd64.s  | 2 --
+ src/pkg/runtime/sys_openbsd_386.s   | 2 --
+ src/pkg/runtime/sys_openbsd_amd64.s | 2 --
+ 6 files changed, 8 insertions(+), 18 deletions(-)

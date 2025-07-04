@@ -1,0 +1,14 @@
+commit 16e933c26697a884834f7f5f86c86f14e51e4fae
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 14:09:53 2015 -0800
+
+    cmd/dist: fix whitespace and comment typo in arm vfp detection
+    
+    Follow-up to cl 2682.
+    
+    Change-Id: I06a589e782af821e4fa46a7c34d9a549de47fa60
+    Reviewed-on: https://go-review.googlesource.com/3830
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/dist/vfp_arm.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

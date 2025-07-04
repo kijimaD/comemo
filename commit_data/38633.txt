@@ -1,0 +1,18 @@
+commit 94507d2213fbd0a5e3b5276904f41c6bc0e03aba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 2 22:38:39 2019 +0200
+
+    bytes: merge explodetests into splittests
+    
+    splittests already contains most of the tests that cover explode. Add
+    the missing ones and skip the append test for empty results which would
+    otherwise lead to an "index out of range" panic.
+    
+    Change-Id: I2cb922282d2676be9ef85f186513075ae17c0243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170126
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_test.go | 32 +++-----------------------------
+ 1 file changed, 3 insertions(+), 29 deletions(-)

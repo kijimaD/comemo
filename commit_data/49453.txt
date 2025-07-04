@@ -1,0 +1,20 @@
+commit 55590f3a2b89f001bcadf0df6eb2dde62618302b
+Author: Louis PORTAY <louisportay@gmail.com>
+Date:   Thu Jun 9 23:29:35 2022 +0000
+
+    net/http: doc: update RFC reference for appropriate HTTP codes
+    
+    This documentation commit points to the latest RFC documenting HTTP codes
+    
+    Change-Id: Ia7640664637f0c7846e2182353b787474bac7b4f
+    GitHub-Last-Rev: 5fb544ee32e1f16c871b08d9ff0a3cc6819418cd
+    GitHub-Pull-Request: golang/go#53318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411475
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/status.go | 92 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

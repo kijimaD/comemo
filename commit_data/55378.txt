@@ -1,0 +1,18 @@
+commit 73eff89d0766718c72eea7e54e49d65bd96edc59
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 23 10:56:57 2023 +0700
+
+    runtime: document GODEBUG panicnil values
+    
+    Updates #25448
+    
+    Change-Id: Ia1b7a376f5175f67e14ad4bd065d6e8ad5250d38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536955
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/runtime/extern.go | 3 +++
+ 1 file changed, 3 insertions(+)

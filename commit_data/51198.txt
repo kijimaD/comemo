@@ -1,0 +1,29 @@
+commit d33043d37dc8cc5d691ff590ebcd2fd42e356a66
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 7 11:02:08 2022 -0500
+
+    cmd/compile: add ability to hash-debug on file:line, including inlining
+    
+    Modified the fmahash gc debug flag to use this, and modified the
+    test to check for a hash match that includes inlining.  Also
+    made the test non-short to ensure portability.
+    
+    Note fma.go has been enhanced into an FMA test that requires
+    two separate FMAs in order to "fail"; if either one is 2-rounding,
+    then it "passes".  (It neither passes nor fails here; its role
+    is to demonstrate that the FMAs are correctly reported; the
+    enhanced failure mode was discovered while testing the search
+    tool.)
+    
+    Change-Id: I4e328e3654f442d498eac982135420abb59c5434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/hashdebug.go   | 84 ++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/fmahash_test.go | 15 ++---
+ src/cmd/compile/internal/ssa/func.go         |  5 +-
+ src/cmd/compile/internal/ssa/testdata/fma.go |  8 ++-
+ 4 files changed, 95 insertions(+), 17 deletions(-)

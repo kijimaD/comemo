@@ -1,0 +1,35 @@
+commit 42433e27b0467c862b97f3515185f8053807c648
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 15:12:49 2016 -0700
+
+    cmd/compile: add format verification test
+    
+    TestFormats finds potential (Printf, etc.) format strings.
+    If they are used in a call, the format verbs are verified
+    based on the matching argument type against a precomputed
+    table of valid formats (formatMapping, below). The table
+    can be used to automatically rewrite format strings with
+    the -u flag.
+    
+    Run as: go test -run Formats [-u]
+    
+    A formatMapping based on the existing formats is printed
+    when the test is run in verbose mode (-v flag). The table
+    needs to be updated whenever a new (type, format) combination
+    is found and the format verb is not 'v' (as in "%v").
+    
+    Known bugs:
+    - indexed format strings ("%[2]s", etc.) are not suported
+      (the test will fail)
+    - format strings that are not simple string literals cannot
+      be updated automatically
+      (the test will fail with respective warnings)
+    
+    Change-Id: I1ca5bb6421d57ac78a00f1a80b9547a72837adc9
+    Reviewed-on: https://go-review.googlesource.com/28419
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/fmt_test.go | 573 ++++++++++++++++++++++++++++++++
+ 1 file changed, 573 insertions(+)

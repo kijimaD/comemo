@@ -1,0 +1,11 @@
+commit 01764a30fe896850e03a704a876a95dc8e849e79
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 2 21:32:39 2008 -0700
+
+    make digits a string instead of an array of bytes.
+    use string* to pass it around.
+    
+    SVN=114795
+
+ src/lib/fmt.go | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)

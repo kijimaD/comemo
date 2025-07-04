@@ -1,0 +1,18 @@
+commit 4aea3e7135a1945dc183e3c0d9180cbed2ed6ba7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Nov 13 13:48:49 2017 -0800
+
+    hash: document that the encoded state may contain input in plaintext
+    
+    The cryptographic checksums operate in blocks of 64 or 128 bytes,
+    which means that the last 128 bytes or so of the input may be encoded
+    in its original (plaintext) form as part of the state.
+    Document this so users do not falsely assume that the encoded state
+    carries no reversible information about the input.
+    
+    Change-Id: I823dbb87867bf0a77aa20f6ed7a615dbedab3715
+    Reviewed-on: https://go-review.googlesource.com/77372
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/hash.go | 2 ++
+ 1 file changed, 2 insertions(+)

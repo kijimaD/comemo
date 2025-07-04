@@ -1,0 +1,25 @@
+commit 13eabea0f744e1d7c23459d3478158d7c4aa8b07
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jan 9 18:31:35 2016 -0800
+
+    crypto/cipher: always zero dst buffer on GCM authentication failure.
+    
+    The AESNI GCM code decrypts and authenticates concurrently and so
+    overwrites the destination buffer even in the case of an authentication
+    failure.
+    
+    This change updates the documentation to make that clear and also
+    mimics that behaviour in the generic code so that different platforms
+    act identically.
+    
+    Fixes #13886
+    
+    Change-Id: Idc54e51f01e27b0fc60c1745d50bb4c099d37e94
+    Reviewed-on: https://go-review.googlesource.com/18480
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/cipher/gcm.go      | 13 ++++++++++++-
+ src/crypto/cipher/gcm_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

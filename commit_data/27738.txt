@@ -1,0 +1,23 @@
+commit 8d966bad6e4e9e28295bccbd739bf5280f729a7b
+Author: Dmitri Popov <operator@cv.dp-net.com>
+Date:   Sun Jun 19 20:58:40 2016 -0700
+
+    math/rand: fix io.Reader implementation
+    
+    Do not throw away the rest of Int63 value used for
+    generation random bytes. Save it in Rand struct and
+    re-use during the next Read call.
+    
+    Fixes #16124
+    
+    Change-Id: Ic70bd80c3c3a6590e60ac615e8b3c2324589bea3
+    Reviewed-on: https://go-review.googlesource.com/24251
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rand.go         | 34 ++++++++++++++++++++++++++--------
+ src/math/rand/rand_test.go    | 40 +++++++++++++++++++++++++++++++++++++++-
+ src/math/rand/regress_test.go | 38 +++++++++++++++++++-------------------
+ 3 files changed, 84 insertions(+), 28 deletions(-)

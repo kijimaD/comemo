@@ -1,0 +1,13 @@
+commit ceb4377556c6a6dad87df17c73d86692d8d64ead
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 13 12:33:03 2011 -0700
+
+    A+C: Matthew Horsnell (individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4700044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

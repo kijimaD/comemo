@@ -1,0 +1,26 @@
+commit 5a9d5c37479231336efef0e0fa5b75645aa1c569
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jul 3 14:57:35 2016 -0700
+
+    encoding/gob: document Encode, EncodeValue nil pointer panics
+    
+    Fixes #16258.
+    
+    Docs for Encode and EncodeValue do not mention that
+    nil pointers are not permitted hence we panic,
+    because Gobs encode values yet nil pointers have no value
+    to encode. It moves a comment that was internal to EncodeValue
+    to the top level to make it clearer to users what to expect
+    when they pass in nil pointers.
+    Supplements test TestTopLevelNilPointer.
+    
+    Change-Id: Ie54f609fde4b791605960e088456047eb9aa8738
+    Reviewed-on: https://go-review.googlesource.com/24740
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/gob/doc.go          |  3 +-
+ src/encoding/gob/encoder.go      |  4 +--
+ src/encoding/gob/encoder_test.go | 72 ++++++++++++++++++++++++++++++++++------
+ 3 files changed, 66 insertions(+), 13 deletions(-)

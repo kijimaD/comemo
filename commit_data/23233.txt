@@ -1,0 +1,18 @@
+commit d15597e1b21a0324692e8664eb6b2f8158dafd10
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 2 13:08:59 2015 +1000
+
+    math/big: trim trailing zeros before hex printing
+    
+    m was being resliced as the result of looking for the first
+    non zero word of the mantissa, however m was not used later
+    in printing.
+    
+    Spotted by Gordon Klaus, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
+    
+    Change-Id: Ifbebb51ea5e0d86cb8e0422eb184b8634639a733
+    Reviewed-on: https://go-review.googlesource.com/10604
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/ftoa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

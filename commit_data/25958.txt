@@ -1,0 +1,17 @@
+commit 92408107dccbf4627ba8c88c62f84a7261c55ce3
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Sun Feb 28 17:48:49 2016 +0100
+
+    mime: Fix BenchmarkQDecodeHeader to call DecodeHeader
+    
+    Found this while reading through the code. The benchmark
+    accidently called the wrong function.
+    
+    Change-Id: Idb88aa71e7098a4e29e7f5f39e64f8c5f8936a2a
+    Reviewed-on: https://go-review.googlesource.com/19977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/encodedword_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

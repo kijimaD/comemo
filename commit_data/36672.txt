@@ -1,0 +1,17 @@
+commit adcecbe05ef812bc8ff477dec47720a2cfc273e3
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 16 11:14:19 2018 +1000
+
+    doc: add a go/golang entry to the FAQ
+    
+    It's worth clarifying that the language is called "Go".
+    
+    Fixes #27616.
+    
+    Change-Id: Ie4a9cb5e7e6afa437c60e06914125ef7490f27d0
+    Reviewed-on: https://go-review.googlesource.com/135517
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

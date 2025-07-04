@@ -1,0 +1,22 @@
+commit 0fc89a72edc2c73651f7f6841b1146af723f517f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 20 18:25:37 2019 -0500
+
+    cmd,std: add go.mod files
+    
+    Updates #30241
+    Updates #30228
+    
+    Change-Id: Ida0fe8263bf44e0498fed2048e22283ba5716835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164622
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go.mod                              | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_list_std.txt |  4 ++--
+ src/go.mod                                  |  3 +++
+ src/make.bash                               |  2 +-
+ src/make.bat                                |  1 +
+ src/make.rc                                 |  2 +-
+ 6 files changed, 20 insertions(+), 4 deletions(-)

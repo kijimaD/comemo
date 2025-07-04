@@ -1,0 +1,13 @@
+commit 0660d243b1cbd5716e23a6495f3637dfee2cb4f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 15 17:42:27 2009 -0800
+
+    Use ElementType consistently.
+    
+    Fixes #173.
+    
+    R=r, rsc, r1
+    https://golang.org/cl/154156
+
+ doc/go_spec.html | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit 1be2ddda9a372de052ba3428128085152b2e9044
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 14:09:59 2015 -0500
+
+    encoding/json: document Indent's preservation of trailing spaces
+    
+    Fixes #13520.
+    
+    Change-Id: Ia70cc44be3912167b369d7f74d3436331975c300
+    Reviewed-on: https://go-review.googlesource.com/17561
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/indent.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

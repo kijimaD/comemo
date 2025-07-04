@@ -1,0 +1,20 @@
+commit 038fbf9f285d09663670d7cbc9a0185e06bf5e2f
+Author: suntala <artichaut2023@gmail.com>
+Date:   Thu Feb 22 22:49:36 2024 +0000
+
+    cmd/go/internal/envcmd: show GODEBUG in 'go env' output
+    
+    Fixes #65777
+    
+    Change-Id: I62067d8212bfd9f9475ecad036a1218ffc5c2130
+    GitHub-Last-Rev: a395b0293a4796e4ac5db64c1521ade4ede0dfd8
+    GitHub-Pull-Request: golang/go#65888
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566097
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go        | 3 ++-
+ src/cmd/go/testdata/script/env_write.txt | 6 ++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

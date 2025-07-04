@@ -1,0 +1,19 @@
+commit d0851777daaec578ff94e9cbae0cedbff4ac625b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 14:22:42 2022 -0500
+
+    runtime/debug: expand fuzz corpus for FuzzParseBuildInfoRoundTrip
+    
+    Updates #51026
+    
+    Change-Id: Id7af2ffa8c99970274b2a2b12622d986ea105b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384161
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764    | 2 ++
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf    | 2 ++
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c    | 2 ++
+ 3 files changed, 6 insertions(+)

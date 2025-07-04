@@ -1,0 +1,18 @@
+commit 501b1fc3f211dafea8a3055fa1d575bf2698af33
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 18:23:03 2016 -0800
+
+    cmd/compile: cleanup unsafenmagic
+    
+    In particular, make Alignof work more like Sizeof. Other idiomatic
+    cleanups while here.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4def20894f3d95e49ab6a50ddba189be36fdd258
+    Reviewed-on: https://go-review.googlesource.com/20555
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/unsafe.go | 88 +++++++++++------------------------
+ 1 file changed, 27 insertions(+), 61 deletions(-)

@@ -1,0 +1,19 @@
+commit 9591515f515a76f627bc1cfc6d71f98f43526faf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 24 16:50:47 2020 -0700
+
+    runtime, sync: add copyright headers to new files
+    
+    For #38029
+    
+    Change-Id: I71de2b66c1de617d32c46d4f2c1866f9ff1756ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/lockrank_off.go   | 4 ++++
+ src/runtime/lockrank_on.go    | 4 ++++
+ src/sync/runtime2.go          | 4 ++++
+ src/sync/runtime2_lockrank.go | 4 ++++
+ 4 files changed, 16 insertions(+)

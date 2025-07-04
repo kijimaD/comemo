@@ -1,0 +1,22 @@
+commit ee0d03fab6e38dc3f8d10032e7c30c68ac7ec066
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 25 20:07:12 2025 +0000
+
+    sync: don't keep func alive after OnceFunc panics
+    
+    This moves the f = nil assignment to the defer statement,
+    so that in case the functions panics, the f func is not
+    referenced anymore.
+    
+    Change-Id: I3e53b90a10f21741e26602270822c8a75679f163
+    GitHub-Last-Rev: bda01100c6d48d1b0ca3e1baefef4d592cca1fee
+    GitHub-Pull-Request: golang/go#68636
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601240
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/sync/oncefunc.go      |  6 +++---
+ src/sync/oncefunc_test.go | 21 +++++++++++++++++++--
+ 2 files changed, 22 insertions(+), 5 deletions(-)

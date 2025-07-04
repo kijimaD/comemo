@@ -1,0 +1,16 @@
+commit b54d31320566ffc617b6c22f0ece7331b2d29c3c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Feb 25 16:11:53 2015 -0500
+
+    runtime/cgo: set the initial working directory
+    
+    Gives tests a way to find the bundle that contains their testdata, and
+    is generally useful for finding resources.
+    
+    Change-Id: Idfa03e8543af927c17bc8ec8aadc5014ec82df28
+    Reviewed-on: https://go-review.googlesource.com/6000
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/cgo/cgo.go           |  1 +
+ src/runtime/cgo/gcc_darwin_arm.c | 49 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 48 insertions(+), 2 deletions(-)

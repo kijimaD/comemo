@@ -1,0 +1,34 @@
+commit 3a778ff50f7091b8a64875c8ed95bfaacf3d334c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 22 09:47:59 2021 -0500
+
+    runtime: check for g0 stack last in signal handler
+    
+    In the signal handler, we adjust gsingal's stack to the stack
+    where the signal is delivered. TSAN may deliver signals to the
+    g0 stack, so we have a special case for the g0 stack. However,
+    we don't have very good accuracy in determining the g0 stack's
+    bounds, as it is system allocated and we don't know where it is
+    exactly. If g0.stack.lo is too low, the condition may be
+    triggered incorrectly, where we thought the signal is delivered to
+    the g0 stack but it is actually not. In this case, as the stack
+    bounds is actually wrong, when the stack grows, it may go below
+    the (inaccurate) lower bound, causing "morestack on gsignal"
+    crash.
+    
+    Check for g0 stack last to avoid this situation. There could still
+    be false positives, but for those cases we'll crash either way.
+    
+    (If we could in some way determine the g0 stack bounds accurately,
+    this would not matter (but probably doesn't hurt).)
+    
+    Fixes #43853.
+    
+    Change-Id: I759717c5aa2b0deb83ffb23e57b7625a6b249ee8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285772
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go        |  5 +++++
+ src/runtime/signal_unix.go | 30 +++++++++++++++++-------------
+ 2 files changed, 22 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit 8a9752dcfbecb1ef4fc6ab9e1f94cc84e7ccaba9
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 20 19:56:40 2008 -0700
+
+    another async select bug
+    
+    R=r
+    OCL=15599
+    CL=15599
+
+ src/cmd/gc/walk.c  |  12 +-
+ src/runtime/chan.c |   1 +
+ test/ken/chan.go   | 324 ++++++++++++++++++++++++++++++-----------------------
+ 3 files changed, 194 insertions(+), 143 deletions(-)

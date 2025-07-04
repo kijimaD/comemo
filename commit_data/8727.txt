@@ -1,0 +1,13 @@
+commit 812b2b6405643f1c8cec44d63e81e09e80d84a25
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 15 09:10:59 2011 +1000
+
+    mail: cosmetic fixes.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4602062
+
+ src/pkg/mail/message.go      | 6 +++---
+ src/pkg/mail/message_test.go | 3 +--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

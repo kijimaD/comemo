@@ -1,0 +1,31 @@
+commit 24158644dddc414243fc3c033f85f0565b7ebd3e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 22 10:33:13 2016 -0400
+
+    cmd/link/internal/ld: camelCase a buch of snake_case names
+    
+    I've also unexported a few symbols that weren't used outside the
+    package.
+    
+    Updates #16818
+    
+    Change-Id: I39d9d87b3eec30b88b4a17c1333cfbbfa6b3518f
+    Reviewed-on: https://go-review.googlesource.com/27468
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/data.go      |  26 +++---
+ src/cmd/link/internal/ld/deadcode.go  |   6 +-
+ src/cmd/link/internal/ld/decodesym.go | 168 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/dwarf.go     |  90 +++++++++---------
+ src/cmd/link/internal/ld/elf.go       |   8 +-
+ src/cmd/link/internal/ld/ldelf.go     |  22 ++---
+ src/cmd/link/internal/ld/ldmacho.go   |  74 +++++++--------
+ src/cmd/link/internal/ld/lib.go       |  28 +++---
+ src/cmd/link/internal/ld/link.go      |  10 +-
+ src/cmd/link/internal/ld/macho.go     |   8 +-
+ src/cmd/link/internal/ld/pcln.go      |  12 +--
+ src/cmd/link/internal/ld/pe.go        |  12 +--
+ src/cmd/link/internal/ld/symtab.go    |   2 +-
+ 13 files changed, 233 insertions(+), 233 deletions(-)

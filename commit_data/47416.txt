@@ -1,0 +1,18 @@
+commit d60a4e69f16f5bc958094af206ac7e47f6bc8b04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 08:36:15 2021 -0800
+
+    spec: fix a broken link
+    
+    Thanks for jtagcat@ for finding this.
+    
+    Change-Id: If7324808edbae19ec8bf503b04e0426f3fb3b47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363394
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17_spec.html | 2 +-
+ doc/go_spec.html     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 8e89f87158eb364330e4334d7084e290e07c66a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 2 14:36:25 2014 -0400
+
+    cmd/gc: fix runtime print(hex(x))
+    
+    The code I wrote originally works for trivial functions
+    that are inlined at a call site in another package,
+    because that was how I wrote my local test.
+    Make hex(x) work for non-inlinable functions too.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/140830043
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

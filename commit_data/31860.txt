@@ -1,0 +1,21 @@
+commit 8d75558b766db3ee320297e97f021fbb615b13aa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 16 20:37:21 2017 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 973f3f3 for:
+    
+       http2: make Transport treat http.NoBody like it were nil
+       https://golang.org/cl/45993
+    
+    Updates #18891
+    
+    Change-Id: I846ccf286992ed2c6249014e51fdeb40b35e50ed
+    Reviewed-on: https://go-review.googlesource.com/46000
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

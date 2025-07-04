@@ -1,0 +1,15 @@
+commit 600de1fb3db279be87f4b9fab0a09463fe1568e1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Nov 3 00:26:36 2012 +0400
+
+    net/http: fix data race in test
+    The issue is that server still sends body,
+    when client closes the fd.
+    Fixes #4329.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6822072
+
+ src/pkg/net/http/fs_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

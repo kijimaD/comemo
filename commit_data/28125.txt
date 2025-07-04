@@ -1,0 +1,24 @@
+commit f42f20ad391c510ef394bc66cf3cf5bedef48e1e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 04:08:10 2016 +0000
+
+    net/http: fix ordering & data race in TestTransportEventTrace_h2
+    
+    Ordering fix: this CL swaps the order of the log write and the channel close
+    in WroteRequest. I could reproduce the bug by putting a sleep between the two
+    when the channel close was first. It needs to happen after the log.
+    
+    Data race: use the log buffer's mutex when reading too. Not really
+    important once the ordering fix above is fixed (since nobody is
+    concurrently writing anymore), but for consistency.
+    
+    Fixes #16414
+    
+    Change-Id: If6657884e67be90b4455c8f5a6f7bc6981999ee4
+    Reviewed-on: https://go-review.googlesource.com/28078
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

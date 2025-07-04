@@ -1,0 +1,16 @@
+commit f9dbbdb1d330865b3a2a363badba280179cc0d53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 15 15:52:54 2013 +1100
+
+    mime: use .wav instead of .bmp during windows tests
+    
+    Some systems do not have .bmp mime.
+    
+    Update #4723.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7326047
+
+ src/pkg/mime/type_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

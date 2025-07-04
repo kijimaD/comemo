@@ -1,0 +1,14 @@
+commit cfff862862daa6fe88fca70c4167bafeb36b22c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 16:47:39 2010 -0800
+
+    gc: disallow NUL byte, catch more invalid UTF-8, test
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/209041
+
+ src/cmd/gc/lex.c  | 52 +++++++++++++++++++++----------------------------
+ src/cmd/gc/subr.c | 10 +++++++++-
+ test/nul.go       | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 89 insertions(+), 31 deletions(-)

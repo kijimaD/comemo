@@ -1,0 +1,12 @@
+commit dc04d096f018b8af49579f6d169ac3683021231b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 23 12:48:52 2008 -0700
+
+    fixed export sort for methods
+    
+    R=r
+    OCL=15699
+    CL=15699
+
+ src/cmd/gc/export.c | 43 +++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 35 insertions(+), 8 deletions(-)

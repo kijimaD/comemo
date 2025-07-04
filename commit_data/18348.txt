@@ -1,0 +1,55 @@
+commit 1fa702942582645efc71a44a4899f51af759694e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 24 22:35:11 2014 +0400
+
+    runtime: combine small NoScan allocations
+    Combine NoScan allocations < 16 bytes into a single memory block.
+    Reduces number of allocations on json/garbage benchmarks by 10+%.
+    
+    json-1
+    allocated                 8039872      7949194      -1.13%
+    allocs                     105774        93776     -11.34%
+    cputime                 156200000    100700000     -35.53%
+    gc-pause-one              4908873      3814853     -22.29%
+    gc-pause-total            2748969      2899288      +5.47%
+    rss                      52674560     43560960     -17.30%
+    sys-gc                    3796976      3256304     -14.24%
+    sys-heap                 43843584     35192832     -19.73%
+    sys-other                 5589312      5310784      -4.98%
+    sys-stack                  393216       393216      +0.00%
+    sys-total                53623088     44153136     -17.66%
+    time                    156193436    100886714     -35.41%
+    virtual-mem             256548864    256540672      -0.00%
+    
+    garbage-1
+    allocated                 2996885      2932982      -2.13%
+    allocs                      62904        55200     -12.25%
+    cputime                  17470000     17400000      -0.40%
+    gc-pause-one            932757485    925806143      -0.75%
+    gc-pause-total            4663787      4629030      -0.75%
+    rss                    1151074304   1133670400      -1.51%
+    sys-gc                   66068352     65085312      -1.49%
+    sys-heap               1039728640   1024065536      -1.51%
+    sys-other                38038208     37485248      -1.45%
+    sys-stack                 8650752      8781824      +1.52%
+    sys-total              1152485952   1135417920      -1.48%
+    time                     17478088     17418005      -0.34%
+    virtual-mem            1343709184   1324204032      -1.45%
+    
+    LGTM=iant, bradfitz
+    R=golang-codereviews, dave, iant, rsc, bradfitz
+    CC=golang-codereviews, khr
+    https://golang.org/cl/38750047
+
+ src/pkg/runtime/env_posix.c |  15 ++++-
+ src/pkg/runtime/malloc.goc  | 141 +++++++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/malloc.h    |   4 ++
+ src/pkg/runtime/mgc0.c      |  16 ++++-
+ src/pkg/runtime/mheap.c     |   6 +-
+ src/pkg/runtime/runtime.h   |   5 ++
+ src/pkg/sync/pool_test.go   |   4 +-
+ test/deferfin.go            |   8 +--
+ test/fixedbugs/issue4618.go |   2 +-
+ test/fixedbugs/issue4667.go |   4 +-
+ test/tinyfin.go             |  62 +++++++++++++++++++
+ 11 files changed, 230 insertions(+), 37 deletions(-)

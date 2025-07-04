@@ -1,0 +1,30 @@
+commit a80070e0cf0b65d619b6669a789d27746a5b2126
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Wed Nov 17 01:36:15 2021 +0700
+
+    math/big: call norm when returning success from Rat SetString
+    
+    After CL 24430, reflect.DeepEqual no longer returns true when comparing
+    a *Rat built with (*Rat).SetString("0") with one built with
+    (*Rat).SetInt64(0).
+    These should be equivalent, but because (*Rat).SetString does not call
+    norm() when returning the zero value, the result of reflect.DeepEqual
+    will be false.
+    
+    One could suggest that developers should use (*Rat).Cmp instead
+    of relying on reflect.DeepEqual, but if a (*Rat) is part of a
+    larger struct that is being compared, this can be cumbersome.
+    
+    This is fixed by calling z.norm() when returning zero in SetString.
+    
+    Fixes #50944
+    
+    Change-Id: Ib84ae975bf82fe02d1203aa9668a01960c0fd59d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364434
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/ratconv.go      | 2 +-
+ src/math/big/ratconv_test.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

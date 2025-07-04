@@ -1,0 +1,12 @@
+commit 0313ea80abaa4eb1c7ce6b70be64ba493d9ff50d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 8 09:58:46 2010 -0500
+
+    path: fix printf glitch in test
+    
+    R=rh, gri
+    CC=golang-dev
+    https://golang.org/cl/3514041
+
+ src/pkg/path/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 705b4544d61fb103a5900e6c099b3c7aafeb91f7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Feb 9 08:19:09 2013 +0800
+
+    log/syslog: remove socket files after tests
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7305065
+
+ src/pkg/log/syslog/syslog_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

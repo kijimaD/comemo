@@ -1,0 +1,20 @@
+commit a49952445f81cc9a6bd5158f00768fc1846460f4
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sat Mar 30 03:46:09 2024 +0000
+
+    cmd/compile: close files in the startProfile function
+    
+    Change-Id: I803d625249890c88fbf35394a85e0b2952123620
+    GitHub-Last-Rev: 239b28e85741db29d852975b0d6350f8a5d68193
+    GitHub-Pull-Request: golang/go#66532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574336
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/util.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

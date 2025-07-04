@@ -1,0 +1,17 @@
+commit 5aebeaaca2c8221cc9ad0a0c8d8af46cd453955b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 06:49:29 2017 -0700
+
+    cmd/compile: simplify sharedProgArray init
+    
+    Per code review feedback on CL 40693.
+    
+    Change-Id: I38c522022a3c2f3e61ea90181391edb5c178916e
+    Reviewed-on: https://go-review.googlesource.com/41300
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

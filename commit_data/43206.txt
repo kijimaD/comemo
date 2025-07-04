@@ -1,0 +1,25 @@
+commit db428ad7b61ed757671162054252b4326045e96c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 15:02:26 2020 -0400
+
+    all: enable more tests on macOS/ARM64
+    
+    Updates #38485.
+    
+    Change-Id: Iac96f5ffe88521fcb11eab306d0df6463bdce046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256920
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 2 +-
+ src/cmd/doc/doc_test.go                | 2 +-
+ src/cmd/go/internal/work/build_test.go | 6 ++----
+ src/go/build/build_test.go             | 4 ++--
+ src/log/syslog/syslog_test.go          | 7 +------
+ src/net/dial_test.go                   | 2 +-
+ src/net/platform_test.go               | 2 +-
+ src/path/filepath/path_test.go         | 4 ++--
+ src/runtime/debug/panic_test.go        | 4 ++--
+ src/syscall/syscall_unix_test.go       | 2 +-
+ 10 files changed, 14 insertions(+), 21 deletions(-)

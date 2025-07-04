@@ -1,0 +1,25 @@
+commit c0fd7f79fe445ad49e11bf42c8c785cb71b3bedf
+Author: Daniel Nephin <dnephin@gmail.com>
+Date:   Thu Mar 30 16:00:15 2023 +0000
+
+    errors: improve the godoc for Join and Unwrap
+    
+    Document that errors returned by Join always implement Unwrap []error.
+    
+    Explicitly state that Unwrap does not unwrap errors
+    with an Unwrap() []error method.
+    
+    Change-Id: Id610345dcf43ca54a9dde157e56c5815c5112073
+    GitHub-Last-Rev: 7a0ec450bd0b2b38eecb5b94eaec485f4a6debbd
+    GitHub-Pull-Request: golang/go#59301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480021
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/join.go | 2 ++
+ src/errors/wrap.go | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

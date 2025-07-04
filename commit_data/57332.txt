@@ -1,0 +1,19 @@
+commit 6450a988a7ed81e8637c106abb7fbe318011dda8
+Author: Wei Fu <fuweid89@gmail.com>
+Date:   Mon Sep 2 10:40:39 2024 +0800
+
+    runtime: update comment for golinkname
+    
+    containerd deleted unsafe, golinkname usage from whole project in
+    the https://github.com/containerd/containerd/pull/10611. This patch is
+    to delete contained name in the comment.
+    
+    Change-Id: Ide55ad9c65b3b622650a0b5813a7817306e87d3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609996
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/proc.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,66 @@
+commit a13691966ad571ed9e434d591a2d612c51349fd1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 20 20:58:45 2020 +0000
+
+    runtime: add new mcentral implementation
+    
+    Currently mcentral is implemented as a couple of linked lists of spans
+    protected by a lock. Unfortunately this design leads to significant lock
+    contention.
+    
+    The span ownership model is also confusing and complicated. In-use spans
+    jump between being owned by multiple sources, generally some combination
+    of a gcSweepBuf, a concurrent sweeper, an mcentral or an mcache.
+    
+    So first to address contention, this change replaces those linked lists
+    with gcSweepBufs which have an atomic fast path. Then, we change up the
+    ownership model: a span may be simultaneously owned only by an mcentral
+    and the page reclaimer. Otherwise, an mcentral (which now consists of
+    sweep bufs), a sweeper, or an mcache are the sole owners of a span at
+    any given time. This dramatically simplifies reasoning about span
+    ownership in the runtime.
+    
+    As a result of this new ownership model, sweeping is now driven by
+    walking over the mcentrals rather than having its own global list of
+    spans. Because we no longer have a global list and we traditionally
+    haven't used the mcentrals for large object spans, we no longer have
+    anywhere to put large objects. So, this change also makes it so that we
+    keep large object spans in the appropriate mcentral lists.
+    
+    In terms of the static lock ranking, we add the spanSet spine locks in
+    pretty much the same place as the mcentral locks, since they have the
+    potential to be manipulated both on the allocation and sweep paths, like
+    the mcentral locks.
+    
+    This new implementation is turned on by default via a feature flag
+    called go115NewMCentralImpl.
+    
+    Benchmark results for 1 KiB allocation throughput (5 runs each):
+    
+    name \ MiB/s  go113       go114       gotip       gotip+this-patch
+    AllocKiB-1    1.71k ± 1%  1.68k ± 1%  1.59k ± 2%      1.71k ± 1%
+    AllocKiB-2    2.46k ± 1%  2.51k ± 1%  2.54k ± 1%      2.93k ± 1%
+    AllocKiB-4    4.27k ± 1%  4.41k ± 2%  4.33k ± 1%      5.01k ± 2%
+    AllocKiB-8    4.38k ± 3%  5.24k ± 1%  5.46k ± 1%      8.23k ± 1%
+    AllocKiB-12   4.38k ± 3%  4.49k ± 1%  5.10k ± 1%     10.04k ± 0%
+    AllocKiB-16   4.31k ± 1%  4.14k ± 3%  4.22k ± 0%     10.42k ± 0%
+    AllocKiB-20   4.26k ± 1%  3.98k ± 1%  4.09k ± 1%     10.46k ± 3%
+    AllocKiB-24   4.20k ± 1%  3.97k ± 1%  4.06k ± 1%     10.74k ± 1%
+    AllocKiB-28   4.15k ± 0%  4.00k ± 0%  4.20k ± 0%     10.76k ± 1%
+    
+    Fixes #37487.
+    
+    Change-Id: I92d47355acacf9af2c41bf080c08a8c1638ba210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221182
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/lockrank.go |  27 ++--
+ src/runtime/malloc.go   |   8 +-
+ src/runtime/mcache.go   |   6 +-
+ src/runtime/mcentral.go | 243 ++++++++++++++++++++++++++++++++++-
+ src/runtime/mgc.go      |  10 +-
+ src/runtime/mgcsweep.go | 328 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/mheap.go    |  27 ++--
+ 7 files changed, 620 insertions(+), 29 deletions(-)

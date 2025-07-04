@@ -1,0 +1,16 @@
+commit 5aad5146742146a2b178edb7a14f8c5b0165f787
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 10:36:27 2011 +1000
+
+    syscall: correct Windows CreateProcess input parameters
+    
+    Fixes #1718.
+    
+    R=golang-dev, rsc, peterGo, r
+    CC=golang-dev
+    https://golang.org/cl/4435059
+
+ src/cmd/gotest/gotest.go        | 2 +-
+ src/pkg/exec/exec_test.go       | 7 +------
+ src/pkg/syscall/exec_windows.go | 3 ++-
+ 3 files changed, 4 insertions(+), 8 deletions(-)

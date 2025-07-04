@@ -1,0 +1,14 @@
+commit 47a89693e98dfe1e81be10fce769f992483746b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 8 11:45:33 2013 +1000
+
+    misc/dist: clean files from GOPATH after building tour
+    
+    Fixes #5503.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10989043
+
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

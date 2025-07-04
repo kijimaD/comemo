@@ -1,0 +1,13 @@
+commit e37495368c74c315efec888857b3ca4343745952
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 1 16:13:58 2010 -0800
+
+    don't report a couple of meaningless errors in command-line mode
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/199045
+
+ src/cmd/godoc/godoc.go | 11 ++++++-----
+ src/cmd/godoc/main.go  |  4 ++--
+ 2 files changed, 8 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit 5f0ac4a456e8be27562262ebb52cfb137dd48844
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 13 15:31:28 2015 -0700
+
+    compress/flate: reject invalid Huffman encoding sequences
+    
+    When decoding Huffman codes, if an invalid bit sequence is discovered,
+    reject the input instead of treating it as a 0-length code.
+    
+    Fixes #10426.
+    
+    Change-Id: Ie2f1a3a718afd7c6bee73a67480d4b84936c21c9
+    Reviewed-on: https://go-review.googlesource.com/8893
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/flate_test.go | 17 +++++++++++++++++
+ src/compress/flate/inflate.go    |  4 ++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

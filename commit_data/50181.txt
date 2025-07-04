@@ -1,0 +1,20 @@
+commit 65535581aaf5441b68d8d31d3f338df4042f1972
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 29 16:42:21 2022 -0400
+
+    cmd/go: skip gccgo cgo tests in TestScript/build_overlay
+    
+    cgo builds with -compiler=gccgo are broken as of CL 421879.
+    
+    For #54761.
+    Updates #46731.
+    
+    Change-Id: I0306b0bd96669f70279fc96814cc72d934a1ad6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/build_overlay.txt | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

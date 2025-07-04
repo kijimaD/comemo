@@ -1,0 +1,15 @@
+commit 25b4be5a55d504eff9fc14263fb1125458cdc9ad
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 15:09:43 2009 -0700
+
+    Support exponential notation in RatFromString.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=30  (25 added, 0 deleted, 5 changed)
+    OCL=31796
+    CL=31799
+
+ src/pkg/bignum/bignum.go      | 21 ++++++++++++++++++++-
+ src/pkg/bignum/bignum_test.go | 12 +++++++++---
+ 2 files changed, 29 insertions(+), 4 deletions(-)

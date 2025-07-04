@@ -1,0 +1,17 @@
+commit 40c953cd468dc00f79433202d5a0bb7a91058687
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 13:31:01 2025 -0500
+
+    runtime: remove nextSampleNoFP from plan9
+    
+    Plan 9 can use floating point now.
+    
+    Change-Id: If721b243daa31853609cb3d2c535d86c106a1ee1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655879
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go | 21 ---------------------
+ 1 file changed, 21 deletions(-)

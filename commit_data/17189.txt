@@ -1,0 +1,15 @@
+commit 469250fb772f4352f265c1d97a19f85b12024a05
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 12:35:37 2013 -0400
+
+    runtime/pprof: test netbsd and openbsd again
+    
+    Maybe these will work now.
+    
+    R=golang-dev, dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12787044
+
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,28 @@
+commit 249b5cc9452534d677499c7017b1081533ba56fe
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 19:57:46 2017 -0400
+
+    runtime: mark gcWork methods nowritebarrierrec
+    
+    Currently most of these are marked go:nowritebarrier as a hint, but
+    it's actually important that these not invoke write barriers
+    recursively. The danger is that some gcWork method would invoke the
+    write barrier while the gcWork is in an inconsistent state and that
+    the write barrier would in turn invoke some other gcWork method, which
+    would crash or permanently corrupt the gcWork. Simply marking the
+    write barrier itself as go:nowritebarrierrec isn't sufficient to
+    prevent this if the write barrier doesn't use the outer method.
+    
+    Thankfully, this doesn't cause any build failures, so we were getting
+    this right. :)
+    
+    For #22460.
+    
+    Change-Id: I35a7292a584200eb35a49507cd3fe359ba2206f6
+    Reviewed-on: https://go-review.googlesource.com/72554
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcwork.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

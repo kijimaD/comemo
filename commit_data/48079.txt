@@ -1,0 +1,18 @@
+commit 02224c8ce471b9618081c69d952fb8597f71b7e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 4 12:22:19 2022 -0800
+
+    cmd/go: accept "-F dir" in compiler flags
+    
+    Fixes #51008
+    
+    Change-Id: I5e47c7be59d4aae1d5059d99231422212cffa23a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383217
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/security.go      | 1 +
+ src/cmd/go/internal/work/security_test.go | 1 +
+ 2 files changed, 2 insertions(+)

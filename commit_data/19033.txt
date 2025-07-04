@@ -1,0 +1,73 @@
+commit 28f1868fed32a38ddd17f71efe4421a246c0b1f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 20:33:25 2014 -0400
+
+    cmd/gc, runtime: make GODEBUG=gcdead=1 mode work with liveness
+    
+    Trying to make GODEBUG=gcdead=1 work with liveness
+    and in particular ambiguously live variables.
+    
+    1. In the liveness computation, mark all ambiguously live
+    variables as live for the entire function, except the entry.
+    They are zeroed directly after entry, and we need them not
+    to be poisoned thereafter.
+    
+    2. In the liveness computation, compute liveness (and deadness)
+    for all parameters, not just pointer-containing parameters.
+    Otherwise gcdead poisons untracked scalar parameters and results.
+    
+    3. Fix liveness debugging print for -live=2 to use correct bitmaps.
+    (Was not updated for compaction during compaction CL.)
+    
+    4. Correct varkill during map literal initialization.
+    Was killing the map itself instead of the inserted value temp.
+    
+    5. Disable aggressive varkill cleanup for call arguments if
+    the call appears in a defer or go statement.
+    
+    6. In the garbage collector, avoid bug scanning empty
+    strings. An empty string is two zeros. The multiword
+    code only looked at the first zero and then interpreted
+    the next two bits in the bitmap as an ordinary word bitmap.
+    For a string the bits are 11 00, so if a live string was zero
+    length with a 0 base pointer, the poisoning code treated
+    the length as an ordinary word with code 00, meaning it
+    needed poisoning, turning the string into a poison-length
+    string with base pointer 0. By the same logic I believe that
+    a live nil slice (bits 11 01 00) will have its cap poisoned.
+    Always scan full multiword struct.
+    
+    7. In the runtime, treat both poison words (PoisonGC and
+    PoisonStack) as invalid pointers that warrant crashes.
+    
+    Manual testing as follows:
+    
+    - Create a script called gcdead on your PATH containing:
+    
+            #!/bin/bash
+            GODEBUG=gcdead=1 GOGC=10 GOTRACEBACK=2 exec "$@"
+    - Now you can build a test and then run 'gcdead ./foo.test'.
+    - More importantly, you can run 'go test -short -exec gcdead std'
+       to run all the tests.
+    
+    Fixes #7676.
+    
+    While here, enable the precise scanning of slices, since that was
+    disabled due to bugs like these. That now works, both with and
+    without gcdead.
+    
+    Fixes #7549.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83410044
+
+ src/cmd/gc/esc.c         | 38 ++++++++++++++--------------
+ src/cmd/gc/plive.c       | 65 ++++++++++++++++++++++++++++++++----------------
+ src/cmd/gc/sinit.c       |  2 +-
+ src/pkg/runtime/malloc.h |  3 ++-
+ src/pkg/runtime/mgc0.c   | 56 +++++++++++++++++++++++++----------------
+ src/pkg/runtime/stack.c  |  6 ++---
+ test/live.go             | 39 ++++++++++++++++++++++++-----
+ 7 files changed, 135 insertions(+), 74 deletions(-)

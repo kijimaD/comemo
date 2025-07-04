@@ -1,0 +1,23 @@
+commit 4826d20a0953b3682cf6eedd1e9becb68bbb25e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 21:12:19 2018 -0400
+
+    cmd/go/internal/work: cache cgo invocations for vet, build modes
+    
+    Even if we had an up-to-date package binary, we reran cgo anyway if
+    (1) we needed a header file for buildmode c-archive or c-shared, or
+    (2) we needed cgo-translated files source files for input to go vet.
+    
+    Cache those outputs too, so that we can avoid cgo if possible.
+    
+    Working toward exposing the cgo-generated files in go list.
+    
+    Change-Id: I339ecace925d2b0adc235a17977ecadb3d636c73
+    Reviewed-on: https://go-review.googlesource.com/108015
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go            |  25 ++++
+ src/cmd/go/internal/work/exec.go | 245 +++++++++++++++++++++++++++------------
+ 2 files changed, 197 insertions(+), 73 deletions(-)

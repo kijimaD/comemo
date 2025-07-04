@@ -1,0 +1,17 @@
+commit 28279238004da8e83e3d652b4bcd14d6795c6148
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 21 13:44:29 2016 -0700
+
+    cmd/compile: prevent ICE from misuse of [...]T arrays
+    
+    Fixes #16428.
+    
+    Change-Id: I78d37472e228402bb3c06d7ebd441952386fa38a
+    Reviewed-on: https://go-review.googlesource.com/31731
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++-----
+ test/fixedbugs/issue16428.go             | 12 ++++++++++++
+ 2 files changed, 20 insertions(+), 5 deletions(-)

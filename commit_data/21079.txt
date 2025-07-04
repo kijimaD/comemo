@@ -1,0 +1,15 @@
+commit a51b6ccfea67784164399d004c6bdcfed552b49c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Dec 22 22:33:39 2014 +0100
+
+    cmd/dist: fatal shouldn't print errstr on Plan 9
+    
+    During change 1864 discussion, Russ Cox pointed out
+    the fatal function shouldn't print errstr.
+    
+    Change-Id: Icd71ec04be9c944bc235b8b198158465172e4fde
+    Reviewed-on: https://go-review.googlesource.com/2030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/plan9.c | 6 ------
+ 1 file changed, 6 deletions(-)

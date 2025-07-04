@@ -1,0 +1,14 @@
+commit 0ce55b6372e98065e7c54c68e81613d08145fc98
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Sep 20 00:04:50 2017 +0900
+
+    internal/testenv: take testing.TB instead of *testing.T in MustHave* and SkipFlaky*
+    
+    Change-Id: I16475e9bb055b934302870ccb5136174dc3bc817
+    Reviewed-on: https://go-review.googlesource.com/64670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/testenv/testenv.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

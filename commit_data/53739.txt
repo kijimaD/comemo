@@ -1,0 +1,19 @@
+commit 1d04c42045df980fdcda87bb7a7a583b74d0fc63
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 27 09:50:57 2023 +0700
+
+    cmd/compile/internal/noder: remove un-used funcs/vars
+    
+    Change-Id: I755406e6c5b6a8cdaeeed8cd12d756e3847c8d4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506475
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/helpers.go | 103 ------------------------------
+ src/cmd/compile/internal/noder/stmt.go    |  30 ---------
+ src/cmd/compile/internal/noder/types.go   |   2 -
+ 3 files changed, 135 deletions(-)

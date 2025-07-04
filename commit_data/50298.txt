@@ -1,0 +1,27 @@
+commit 646c3eee06fa4b1b869e8183977aa46d4d4eb646
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 02:32:06 2022 +1000
+
+    cmd/compile: negate comparision with FNES/FNED on riscv64
+    
+    The FNES and FNED instructions are pseudo-instructions, which the
+    assembler expands to FEQS/NEG or FEQD/NEG - if we're comparing the
+    result via a branch instruction, we can avoid an instruction by
+    negating both the branch comparision and the floating point
+    comparision.
+    
+    This only removes a handful of instructions from the Go binary,
+    however, it will provide benefit to floating point intensive code.
+    
+    Change-Id: I4e3124440b7659acc4d9bc9948b755a4900a422f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426261
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 68 ++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

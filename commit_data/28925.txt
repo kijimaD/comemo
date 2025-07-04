@@ -1,0 +1,21 @@
+commit 6c295a9a71924478a344e7b447ff3b44b1e94511
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 22:56:14 2016 -0400
+
+    syscall: for ForkExec on Linux, always use 32-bit setgroups system call
+    
+    Fixes #17092.
+    
+    Change-Id: If203d802a919e00594ddc1282782fc59a083fd63
+    Reviewed-on: https://go-review.googlesource.com/31458
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux.go            | 2 +-
+ src/syscall/syscall_linux_386.go     | 5 +++--
+ src/syscall/syscall_linux_amd64.go   | 5 +++--
+ src/syscall/syscall_linux_arm.go     | 5 +++--
+ src/syscall/syscall_linux_arm64.go   | 5 +++--
+ src/syscall/syscall_linux_mips64x.go | 3 ++-
+ src/syscall/syscall_linux_ppc64x.go  | 5 +++--
+ src/syscall/syscall_linux_s390x.go   | 5 +++--
+ 8 files changed, 21 insertions(+), 14 deletions(-)

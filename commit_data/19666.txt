@@ -1,0 +1,23 @@
+commit 72faffbc704f08273b258d8ff868c61b2f1bef7c
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Thu Jul 3 21:04:48 2014 -0400
+
+    runtime/cgo: replace fprintf(stderr, ...) with fatalf(...) for linux/android
+    
+    Both stdout and stderr are sent to /dev/null in android
+    apps. Introducing fatalf allows android to implement its
+    own copy that sends fatal errors to __android_log_print.
+    
+    LGTM=minux, dave
+    R=minux, dave
+    CC=golang-codereviews
+    https://golang.org/cl/108400045
+
+ src/pkg/runtime/cgo/gcc_android.c     | 31 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/gcc_android_arm.c |  9 ++-------
+ src/pkg/runtime/cgo/gcc_fatalf.c      | 23 +++++++++++++++++++++++
+ src/pkg/runtime/cgo/gcc_linux_386.c   |  3 +--
+ src/pkg/runtime/cgo/gcc_linux_amd64.c |  3 +--
+ src/pkg/runtime/cgo/gcc_linux_arm.c   |  6 ++----
+ src/pkg/runtime/cgo/libcgo.h          |  5 +++++
+ 7 files changed, 65 insertions(+), 15 deletions(-)

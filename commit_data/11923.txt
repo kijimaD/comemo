@@ -1,0 +1,12 @@
+commit 6fae34db94fe02f60edb207c95037a9bf8611e71
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 15 14:25:27 2012 +1100
+
+    cmd/dist: xprintf() can't output whole of 'dist env'.
+    
+    R=golang-dev, mpimenov, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5667045
+
+ src/cmd/dist/windows.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit 8613ef81e676bda77f6413a587e68c3dcc5b03ae
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Jul 30 09:46:55 2023 +0100
+
+    .github: fix templates with multiple labels
+    
+    Also Go2 -> v2
+    
+    Change-Id: Icde8ffc4a1ee2e43241a3dcd00ff0c48992b1e25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514175
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ .github/ISSUE_TEMPLATE/03-gopls.md           | 4 +++-
+ .github/ISSUE_TEMPLATE/11-language-change.md | 5 ++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

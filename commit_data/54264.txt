@@ -1,0 +1,19 @@
+commit 22eba6a1f8421425c87fa82dcd526d39912f5af6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 29 12:50:40 2023 -0700
+
+    cmd/compile/internal/ir: remove old variable capture logic
+    
+    This logic is no longer used, since the removal of the non-unified
+    frontends.
+    
+    Change-Id: I7256d4eb06f0b4e5308bc7c7476e90af9e70b7d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524215
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/name.go        | 150 +----------------------------
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ 2 files changed, 5 insertions(+), 147 deletions(-)

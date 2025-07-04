@@ -1,0 +1,13 @@
+commit e041b9980c306eda2d26bfb55ac18aec7e54726c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 19 15:04:56 2011 -0800
+
+    spec: delete incorrect obsolete mention of selector working on
+    pointer to interface type.
+    
+    R=golang-dev, niemeyer, gri
+    CC=golang-dev
+    https://golang.org/cl/4173067
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

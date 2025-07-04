@@ -1,0 +1,15 @@
+commit 4dc2528afa1cd2699a41bb720487d9123667d16b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 9 10:37:19 2008 -0700
+
+    - added missing language to almost all types
+    - fixed several examples to use new function type syntax
+    - added list of open spec issues to todo.txt
+    
+    R=r
+    DELTA=143  (88 added, 8 deleted, 47 changed)
+    OCL=14974
+    CL=15007
+
+ doc/go_spec.txt | 150 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 98 insertions(+), 52 deletions(-)

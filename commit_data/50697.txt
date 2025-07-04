@@ -1,0 +1,26 @@
+commit 2ff5fbfbd4539d321043e6b84691ecb131402030
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 21:48:10 2022 -0400
+
+    cmd/compile: limit goroutine count to parallelism
+    
+    When the compiler crashes, it is not uncommon to see many hundreds
+    of goroutines all blocked waiting their turn to be one of the nWorkers
+    goroutines that is allowed to run. All these goroutine stacks are not a
+    terribly efficient use of memory, and they also make the crash dumps
+    hard to read.
+    
+    Introduce a manager goroutine to hand out work to at most nWorker
+    goroutines, maintaining pending work in a local slice, rather than
+    having all those blocked goroutines hanging around waiting to run.
+    
+    Change-Id: I46cb4e1afd6392805f359e14554ebc17d538bcba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431956
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/compile.go | 44 ++++++++++++++++++++++++----------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

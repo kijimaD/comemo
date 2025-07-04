@@ -1,0 +1,23 @@
+commit 267323ef2d22da4b2a5ed1ed6f220421aa580a6c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Sep 7 11:07:30 2023 +0000
+
+    all: calculate the median uniformly
+    
+    Like sort.Search, use "h := int(uint(i+j) >> 1)" style code to calculate
+    the median.
+    
+    Change-Id: Ifb1a19dde1c6ed6c1654bc642fc9565a8b6c5fc4
+    GitHub-Last-Rev: e2213b738832f1674948d6507f40e2c0b98cb972
+    GitHub-Pull-Request: golang/go#62503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/regexp/syntax/prog.go  | 2 +-
+ src/time/zoneinfo.go       | 2 +-
+ src/unicode/letter.go      | 8 ++++----
+ src/unicode/letter_test.go | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

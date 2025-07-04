@@ -1,0 +1,13 @@
+commit 63639dd237553ec0db95351eae79e2e75592532e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 10 08:47:27 2011 +1000
+
+    mail: decode RFC 2047-encoded words, not phrases.
+    
+    R=rsc, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4590047
+
+ src/pkg/mail/message.go      | 11 ++++++-----
+ src/pkg/mail/message_test.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 5 deletions(-)

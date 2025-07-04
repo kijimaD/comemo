@@ -1,0 +1,25 @@
+commit 00234b052e969a5c84e6ad9f07414beb3bfb6377
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 5 15:38:18 2022 +0200
+
+    internal/poll, internal/syscall/unix, net: enable writev on solaris
+    
+    The writev syscall is available since at least Solaris 11.3.
+    
+    Reuse the existing illumos writev wrapper on solaris to implement
+    internal/poll.writev for net.(*netFD).writeBuffers.
+    
+    Change-Id: I23adc3bb4637740c72bfb61bfa9697b432dfe3db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427714
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/poll/{fd_writev_illumos.go => fd_writev_solaris.go}   | 2 --
+ src/internal/poll/{iovec_illumos.go => iovec_solaris.go}           | 2 --
+ src/internal/poll/writev.go                                        | 7 ++++++-
+ src/internal/syscall/unix/{writev_illumos.go => writev_solaris.go} | 2 --
+ src/net/writev_test.go                                             | 2 +-
+ src/net/writev_unix.go                                             | 2 +-
+ 6 files changed, 8 insertions(+), 9 deletions(-)

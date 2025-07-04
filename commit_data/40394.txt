@@ -1,0 +1,43 @@
+commit 758eb020f72a70e3e42814492daac8719a3be538
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 23 11:42:23 2019 -0400
+
+    runtime: save/fetch g register during VDSO on ARM and ARM64
+    
+    On ARM and ARM64, during a VDSO call, the g register may be
+    temporarily clobbered by the VDSO code. If a signal is received
+    during the execution of VDSO code, we may not find a valid g
+    reading the g register. In CL 192937, we conservatively assume
+    g is nil. But this approach has a problem: we cannot handle
+    the signal in this case. Further, if the signal is not a
+    profiling signal, we'll call badsignal, which calls needm, which
+    wants to get an extra m, but we don't have one in a non-cgo
+    binary, which cuases the program to hang.
+    
+    This is even more of a problem with async preemption, where we
+    will receive more signals than before. I ran into this problem
+    while working on async preemption support on ARM64.
+    
+    In this CL, before making a VDSO call, we save the g on the
+    gsignal stack. When we receive a signal, we will be running on
+    the gsignal stack, so we can fetch the g from there and move on.
+    
+    We probably want to do the same for PPC64. Currently we rely on
+    that the VDSO code doesn't actually clobber the g register, but
+    this is not guaranteed and we don't have control with.
+    
+    Idea from discussion with Dan Cross and Austin.
+    
+    Should fix #34391.
+    
+    Change-Id: Idbefc5e4c2f4373192c2be797be0140ae08b26e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202759
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/os/signal/signal_test.go  | 49 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go           |  3 +++
+ src/runtime/signal_unix.go    | 10 +++++++++
+ src/runtime/sys_linux_arm.s   | 32 ++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm64.s | 28 +++++++++++++++++++++++++
+ 5 files changed, 122 insertions(+)

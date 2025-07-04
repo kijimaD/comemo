@@ -1,0 +1,21 @@
+commit c570f0eda2c6d250c58028eb9d1e45061f607b67
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue May 3 16:30:30 2022 -0500
+
+    cmd/compile: combine OR + NOT into ORN on PPC64
+    
+    This shows up in a few crypto functions, and other
+    assorted places.
+    
+    Change-Id: I5a7f4c25ddd4a6499dc295ef693b9fe43d2448ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404057
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
+ test/codegen/logic.go                        |  8 ++++++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 0dae2fd149537a0385b48bbd1564b3cfefa1c85b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 1 14:18:00 2016 -0700
+
+    cmd/objdump: fix disassembly suffixes
+    
+    MOVB $1, (AX) was being disassembled as MOVL $1, (AX).
+    
+    Use the memory size to override the standard size.
+    Fix the tests.
+    
+    Fixes #15922
+    
+    Change-Id: If92fe74c33a21e5427c8c5cc97dd15e087edb860
+    Reviewed-on: https://go-review.googlesource.com/23608
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   6 +-
+ .../x/arch/x86/x86asm/testdata/decode.txt          | 306 +++++++++++----------
+ 2 files changed, 159 insertions(+), 153 deletions(-)

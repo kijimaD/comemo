@@ -1,0 +1,12 @@
+commit 050905b985f69ec09b588a70668db574f0604a7a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 16 13:47:36 2010 -0700
+
+    Effective Go: add a section on defer.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1694044
+
+ doc/effective_go.html | 146 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 143 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 1b2ff1013678bca2181d046a91857e78f3981f9c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Oct 16 20:50:17 2019 +0100
+
+    testing: implement Cleanup method
+    
+    Fixes #32111
+    
+    Change-Id: I7078947889d1e126d9679fb28f27b3fa6ce133ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html         | 10 ++++++++
+ src/testing/sub_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  | 31 ++++++++++++++++++++++-
+ 3 files changed, 105 insertions(+), 1 deletion(-)

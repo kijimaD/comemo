@@ -1,0 +1,17 @@
+commit 68d52969ddbfc8f90900f781d35201bea7b7869c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 5 16:47:33 2018 +0200
+
+    runtime: remove unused armArch
+    
+    runtime.armArch is unused on linux/arm since CL 93637. The new code in
+    runtime/internal/atomic (added by CL 111315) only checks runtime.goarm.
+    
+    Change-Id: Ic097ee6750e39abb20f45770a1c7c2d925f02408
+    Reviewed-on: https://go-review.googlesource.com/c/140077
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_linux_arm.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

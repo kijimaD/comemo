@@ -1,0 +1,19 @@
+commit 95a5e20d8f7a6f7863eb3281e3a198a577e773fe
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 9 18:06:25 2022 +1000
+
+    internal/cpu: enable arm64 SHA512 detection for freebsd/openbsd
+    
+    Change-Id: I1f21654b50d7b0cd8e1f854efe2724b72f067449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422216
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/cpu/cpu_arm64_freebsd.go | 5 ++++-
+ src/internal/cpu/cpu_arm64_openbsd.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

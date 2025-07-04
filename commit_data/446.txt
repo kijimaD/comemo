@@ -1,0 +1,20 @@
+commit ebcd76d540322d25c649d6d23d05012fa4534526
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 29 14:44:48 2008 -0700
+
+    rewrite system call interface to use less assembler.
+    
+    R=gri
+    OCL=13546
+    CL=13546
+
+ src/syscall/Makefile               |   2 +-
+ src/syscall/errstr_darwin.go       |   2 +-
+ src/syscall/file_amd64_darwin.go   | 104 ++++++++++++++++++++++++++++++++
+ src/syscall/file_amd64_linux.go    | 102 +++++++++++++++++++++++++++++++
+ src/syscall/stat_amd64_darwin.go   |  50 ----------------
+ src/syscall/stat_amd64_linux.go    |  48 ---------------
+ src/syscall/syscall.go             |  13 ++--
+ src/syscall/syscall_amd64_darwin.s | 107 +++++++--------------------------
+ src/syscall/syscall_amd64_linux.s  | 119 +++++++------------------------------
+ 9 files changed, 257 insertions(+), 290 deletions(-)

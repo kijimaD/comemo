@@ -1,0 +1,20 @@
+commit de573f87484df3278d9b7412da1964313aaeb90a
+Author: Geert-Johan Riemer <gjr19912@gmail.com>
+Date:   Mon Jan 19 14:39:33 2015 +0100
+
+    archive/zip: add NewWriterWithOptions
+    
+    When appending zip data to existing data such as a binary file the
+    zip headers must use the correct offset. NewWriterWithOptions
+    allows creating a Writer that uses the provided offset in the zip
+    headers.
+    
+    Fixes #8669
+    
+    Change-Id: I6ec64f1e816cc57b6fc8bb9e8a0918e586fc56b0
+    Reviewed-on: https://go-review.googlesource.com/2978
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/zip/writer.go      | 22 +++++++++++++++++++++-
+ src/archive/zip/writer_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

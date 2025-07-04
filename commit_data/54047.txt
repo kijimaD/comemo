@@ -1,0 +1,21 @@
+commit 9f03e8367d85d75675b2f2e90873e3293799d8aa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 15 18:01:16 2023 -0400
+
+    os: skip Chown tests for auxiliary groups that fail due to permission errors
+    
+    This addresses the failure mode described in
+    https://git.alpinelinux.org/aports/commit/community/go/tests-filter-overflow-gid.patch?id=9851dde0f5d2a5a50f7f3b5323d1b2ff22e1d028,
+    but without special-casing an implementation-specific group ID.
+    
+    For #62053.
+    
+    Change-Id: I70b1046837b8146889fff7085497213349cd2bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520055
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/os_unix_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

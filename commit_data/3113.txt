@@ -1,0 +1,15 @@
+commit 8b6274eb9f54e2c631e6684f7dbd201bb30c1434
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 17:04:23 2009 -0700
+
+    add scripts tables to the unicode package
+    
+    R=rsc
+    DELTA=1479  (1422 added, 1 deleted, 56 changed)
+    OCL=33993
+    CL=33997
+
+ src/pkg/unicode/maketables.go  |  231 +++++++-
+ src/pkg/unicode/script_test.go |  175 +++++++
+ src/pkg/unicode/tables.go      | 1129 ++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 1478 insertions(+), 57 deletions(-)

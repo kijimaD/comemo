@@ -1,0 +1,20 @@
+commit a91e524bc1c9d3a8b00d479364518683159038ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 30 11:38:06 2010 -0800
+
+    Match gccgo error messages.
+    
+    bug238.go:11:7: error: invalid constant type
+    bug238.go:12:7: error: invalid constant type
+    bug238.go:13:7: error: invalid constant type
+    bug238.go:14:7: error: invalid constant type
+    bug238.go:15:7: error: invalid constant type
+    bug238.go:16:7: error: invalid constant type
+    bug238.go:17:7: error: invalid constant type
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194159
+
+ test/fixedbugs/bug238.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

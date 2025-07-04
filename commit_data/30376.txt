@@ -1,0 +1,21 @@
+commit abdb2c35b6a0684b3eabe9892ff9e3518d2f4e78
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 23 13:49:25 2017 -0500
+
+    cmd/compile: repaired loop-finder to handle trickier nesting
+    
+    The loop-A-encloses-loop-C code did not properly handle the
+    case where really C was already known to be enclosed by B,
+    and A was nearest-outer to B, not C.
+    
+    Fixes #19217.
+    
+    Change-Id: I755dd768e823cb707abdc5302fed39c11cdb34d4
+    Reviewed-on: https://go-review.googlesource.com/37340
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/likelyadjust.go | 23 +++++++++++-----
+ test/fixedbugs/issue19217.go                 | 39 ++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 6 deletions(-)

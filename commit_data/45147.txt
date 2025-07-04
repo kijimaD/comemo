@@ -1,0 +1,30 @@
+commit 23f8c203f026814ddc4ba4538f900d8151eb6840
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 11 12:42:49 2021 -0400
+
+    cmd/compile: rework/reduce partially lived argument spilling
+    
+    In CL 307909 we generate code that spills pointer-typed argument
+    registers if it is part of an SSA-able aggregate. The current
+    code spill the register unconditionally. Sometimes it is
+    unnecessary, because it is already spilled, or it is never live.
+    
+    This CL reworks the spill generation. We move it to the end of
+    compilation, after liveness analysis, so we have information about
+    if a spill is necessary, and only generate spills for the
+    necessary ones.
+    
+    Change-Id: I8d60be9b2c47651aeda14f5e2d1bbd207c134b26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309331
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/amd64/galign.go   |  1 +
+ src/cmd/compile/internal/amd64/ssa.go      |  8 ++++
+ src/cmd/compile/internal/liveness/plive.go | 20 ++++++++--
+ src/cmd/compile/internal/ssagen/arch.go    |  5 +++
+ src/cmd/compile/internal/ssagen/ssa.go     | 63 ++++++++++++++++++++++++++----
+ 5 files changed, 87 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit 8bf9f4bb66785bbb8ccfdfaafbc79b6b17f66743
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 26 06:38:55 2024 +0000
+
+    cmd/link: close memory profile
+    
+    Change-Id: If17e982dd0272e90972d2d4a94b1a744343ae2ec
+    GitHub-Last-Rev: c8d03566b3e66a6de58e778102fa60f5d46ab2d9
+    GitHub-Pull-Request: golang/go#66531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)

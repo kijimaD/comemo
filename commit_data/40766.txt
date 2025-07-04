@@ -1,0 +1,17 @@
+commit 99957b6930c76b683dbca1ff4bcdd56e59b1e035
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 7 21:08:48 2019 -0800
+
+    runtime: use pipe rather than note in TestSignalM
+    
+    At least on Darwin notewakeup is not async-signal-safe.
+    
+    Fixes #35276
+    
+    Change-Id: I1d7523715e8e77dbd7f21d9b1ed131e52d46cc41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206078
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_unix_test.go  | 30 ++++++++++++++++++++++++++++--
+ src/runtime/export_unix_test.go | 35 +++++++++++++++++++++++++----------
+ 2 files changed, 53 insertions(+), 12 deletions(-)

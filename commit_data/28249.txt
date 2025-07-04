@@ -1,0 +1,89 @@
+commit ed8f207940c8787d344664a43071b235e2ce5c68
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Jun 26 09:47:43 2016 -0700
+
+    encoding/json: Use a lookup table for safe characters
+    
+    The previous check for characters inside of a JSON string that needed
+    to be escaped performed seven different boolean comparisons before
+    determining that a ASCII character did not need to be escaped. Most
+    characters do not need to be escaped, so this check can be done in a
+    more performant way.
+    
+    Use the same strategy as the unicode package for precomputing a range
+    of characters that need to be escaped, then do a single lookup into a
+    character array to determine whether the character needs escaping.
+    
+    On an AWS c4.large node:
+    
+    $ benchstat benchmarks/master-bench benchmarks/json-table-bench
+    name                   old time/op    new time/op     delta
+    CodeEncoder-2            19.0ms ± 0%     15.5ms ± 1%  -18.16%        (p=0.000 n=19+20)
+    CodeMarshal-2            20.1ms ± 1%     16.8ms ± 2%  -16.35%        (p=0.000 n=20+21)
+    CodeDecoder-2            49.3ms ± 1%     49.5ms ± 2%     ~           (p=0.498 n=16+20)
+    DecoderStream-2           416ns ± 0%      416ns ± 1%     ~           (p=0.978 n=19+19)
+    CodeUnmarshal-2          51.0ms ± 1%     50.9ms ± 1%     ~           (p=0.490 n=19+17)
+    CodeUnmarshalReuse-2     48.5ms ± 2%     48.5ms ± 2%     ~           (p=0.989 n=20+19)
+    UnmarshalString-2         541ns ± 1%      532ns ± 1%   -1.75%        (p=0.000 n=20+21)
+    UnmarshalFloat64-2        485ns ± 1%      481ns ± 1%   -0.92%        (p=0.000 n=20+21)
+    UnmarshalInt64-2          429ns ± 1%      427ns ± 1%   -0.49%        (p=0.000 n=19+20)
+    Issue10335-2              631ns ± 1%      619ns ± 1%   -1.84%        (p=0.000 n=20+20)
+    NumberIsValid-2          19.1ns ± 0%     19.1ns ± 0%     ~     (all samples are equal)
+    NumberIsValidRegexp-2     689ns ± 1%      690ns ± 0%     ~           (p=0.150 n=20+20)
+    SkipValue-2              14.0ms ± 0%     14.0ms ± 0%   -0.05%        (p=0.000 n=18+18)
+    EncoderEncode-2           525ns ± 2%      512ns ± 1%   -2.33%        (p=0.000 n=20+18)
+    
+    name                   old speed      new speed       delta
+    CodeEncoder-2           102MB/s ± 0%    125MB/s ± 1%  +22.20%        (p=0.000 n=19+20)
+    CodeMarshal-2          96.6MB/s ± 1%  115.6MB/s ± 2%  +19.56%        (p=0.000 n=20+21)
+    CodeDecoder-2          39.3MB/s ± 1%   39.2MB/s ± 2%     ~           (p=0.464 n=16+20)
+    CodeUnmarshal-2        38.1MB/s ± 1%   38.1MB/s ± 1%     ~           (p=0.525 n=19+17)
+    SkipValue-2             143MB/s ± 0%    143MB/s ± 0%   +0.05%        (p=0.000 n=18+18)
+    
+    I also took the data set reported in #5683 (browser
+    telemetry data from Mozilla), added named structs for
+    the data set, and turned it into a proper benchmark:
+    https://github.com/kevinburke/jsonbench/blob/master/go/bench_test.go
+    
+    The results from that test are similarly encouraging. On a 64-bit
+    Mac:
+    
+    $ benchstat benchmarks/master-benchmark benchmarks/json-table-benchmark
+    name              old time/op    new time/op    delta
+    CodeMarshal-4       1.19ms ± 2%    1.08ms ± 2%   -9.33%  (p=0.000 n=21+17)
+    Unmarshal-4         3.09ms ± 3%    3.06ms ± 1%   -0.83%  (p=0.027 n=22+17)
+    UnmarshalReuse-4    3.04ms ± 1%    3.04ms ± 1%     ~     (p=0.169 n=20+15)
+    
+    name              old speed      new speed      delta
+    CodeMarshal-4     80.3MB/s ± 1%  88.5MB/s ± 1%  +10.29%  (p=0.000 n=21+17)
+    Unmarshal-4       31.0MB/s ± 2%  31.2MB/s ± 1%   +0.83%  (p=0.025 n=22+17)
+    
+    On the c4.large:
+    
+    $ benchstat benchmarks/master-bench benchmarks/json-table-bench
+    name              old time/op    new time/op    delta
+    CodeMarshal-2       1.10ms ± 1%    0.98ms ± 1%  -10.12%  (p=0.000 n=20+54)
+    Unmarshal-2         2.82ms ± 1%    2.79ms ± 0%   -1.09%  (p=0.000 n=20+51)
+    UnmarshalReuse-2    2.80ms ± 0%    2.77ms ± 0%   -1.03%  (p=0.000 n=20+52)
+    
+    name              old speed      new speed      delta
+    CodeMarshal-2     87.3MB/s ± 1%  97.1MB/s ± 1%  +11.27%  (p=0.000 n=20+54)
+    Unmarshal-2       33.9MB/s ± 1%  34.2MB/s ± 0%   +1.10%  (p=0.000 n=20+51)
+    
+    For what it's worth, I tried other heuristics - short circuiting the
+    conditional for common ASCII characters, for example:
+    
+    if (b >= 63 && b != 92) || (b >= 39 && b <= 59) || (rest of the conditional)
+    
+    This offered a speedup around 7-9%, not as large as the submitted
+    change.
+    
+    Change-Id: Idcf88f7b93bfcd1164cdd6a585160b7e407a0d9b
+    Reviewed-on: https://go-review.googlesource.com/24466
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go |   6 +-
+ src/encoding/json/tables.go | 218 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 220 insertions(+), 4 deletions(-)

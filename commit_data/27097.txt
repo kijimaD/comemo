@@ -1,0 +1,29 @@
+commit 687fe991e42f15fe1f491680c615ef96568f780a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 16:51:36 2016 +1000
+
+    debug/pe: introduce File.COFFSymbols and (*COFFSymbol).FullName
+    
+    Reloc.SymbolTableIndex is an index into symbol table. But
+    Reloc.SymbolTableIndex cannot be used as index into File.Symbols,
+    because File.Symbols slice has Aux lines removed as it is built.
+    
+    We cannot change the way File.Symbols works, so I propose we
+    introduce new File.COFFSymbols that does not have that limitation.
+    
+    Also unlike File.Symbols, File.COFFSymbols will consist of
+    COFFSymbol. COFFSymbol matches PE COFF specification exactly,
+    and it is simpler to use.
+    
+    Updates #15345
+    
+    Change-Id: Icbc265853a472529cd6d64a76427b27e5459e373
+    Reviewed-on: https://go-review.googlesource.com/22336
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go    | 53 +++++++-----------------------------
+ src/debug/pe/section.go |  2 ++
+ src/debug/pe/symbol.go  | 71 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 43 deletions(-)

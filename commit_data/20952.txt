@@ -1,0 +1,18 @@
+commit b796cbc40657e0891a43bffab0ffb92ce656d8f1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 8 20:04:56 2014 -0800
+
+    runtime: fix finalizer iterator
+    
+    It could only handle one finalizer before it raised an out-of-bounds error.
+    
+    Fixes issue #9172
+    
+    Change-Id: Ibb4d0c8aff2d78a1396e248c7129a631176ab427
+    Reviewed-on: https://go-review.googlesource.com/1201
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/debug/heapdump_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/runtime/malloc2.go             |  4 ++--
+ src/runtime/mgc.go                 |  5 ++---
+ 3 files changed, 41 insertions(+), 5 deletions(-)

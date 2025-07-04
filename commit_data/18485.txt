@@ -1,0 +1,18 @@
+commit 673917f87879e32e81e55b3cc5fa027a5c8fce0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 05:06:46 2014 +0000
+
+    codereview: warn about 'hg upload' not uploading
+    
+    This seems to be what causes the 'chunk mismatch' errors.
+    I don't know why the server tells us there's nothing to upload,
+    but at the least we can warn that it did, so that the user
+    will try again.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/62840043
+
+ lib/codereview/codereview.py | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 6b59d618226259801fea6eb820587a449690261a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Mar 9 16:16:05 2016 +0000
+
+    runtime: Plan 9 - prevent preemption by GC while exiting
+    
+    On Plan 9, there's no "kill all threads" system call, so exit is done
+    by sending a "go: exit" note to each OS process.  If concurrent GC
+    occurs during this loop, deadlock sometimes results.  Prevent this by
+    incrementing m.locks before sending notes.
+    
+    Change-Id: I31aa15134ff6e42d9a82f9f8a308620b3ad1b1b1
+    Reviewed-on: https://go-review.googlesource.com/20477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os1_plan9.go | 2 ++
+ 1 file changed, 2 insertions(+)

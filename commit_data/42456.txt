@@ -1,0 +1,19 @@
+commit 429d2c548d8fcceff95c29ea5074aab9498fa0c3
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 3 14:21:18 2020 -0400
+
+    runtime: make runtime-gdb.py tolerant of creatively-named gdb versions
+    
+    "Fedora" and "Red Hat" are not numbers, it turns out.
+    Don't rely on version numbers, instead use a regexp to
+    handle variation across the 2 patterns thus far observed
+    for gdb-generated Go type names.
+    
+    Change-Id: I18c81aa2848265a47daf1180d8f6678566ae3f19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236280
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb.py | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

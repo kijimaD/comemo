@@ -1,0 +1,96 @@
+commit 1f6463f823edd3b194a85d13e5eed068f4a129ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 20:52:37 2009 -0700
+
+    Convert go tree to hierarchical pkg directory:
+    
+            import (
+                    "vector" -> "container/vector"
+                    "ast" -> "go/ast"
+                    "sha1" -> "hash/sha1"
+                    etc.
+            )
+    
+    and update Makefiles.  Because I did the conversion
+    semi-automatically, I sorted all the import blocks
+    as a post-processing.  Some files have therefore
+    changed that didn't strictly need to.
+    
+    Rename local packages to lower case.
+    The upper/lower distinction doesn't work on OS X
+    and complicates the "single-package directories
+    with the same package name as directory name"
+    heuristic used by gobuild and godoc to create
+    the correlation between source and binary locations.
+    Now that we have a plan to avoid globally unique
+    names, the upper/lower is unnecessary.
+    
+    The renamings will cause trouble for a few users,
+    but so will the change in import paths.
+    This way, the two maintenance fixes are rolled into
+    one inconvenience.
+    
+    R=r
+    OCL=27573
+    CL=27575
+
+ src/lib/bufio.go                    |  2 +-
+ src/lib/container/Makefile          | 30 +++++++++++++----------
+ src/lib/container/intvector.go      |  2 +-
+ src/lib/container/iterable.go       |  2 +-
+ src/lib/container/iterable_test.go  |  2 +-
+ src/lib/container/vector_test.go    |  2 +-
+ src/lib/fmt/Makefile                | 22 ++++++++++-------
+ src/lib/fmt/print.go                |  2 +-
+ src/lib/go/Makefile                 | 44 ++++++++++++++++++----------------
+ src/lib/go/ast.go                   |  2 +-
+ src/lib/go/parser.go                | 38 ++++++++++++++---------------
+ src/lib/go/parser_test.go           |  4 ++--
+ src/lib/go/scanner.go               |  6 ++---
+ src/lib/go/scanner_test.go          |  4 ++--
+ src/lib/hash/Makefile               | 48 ++++++++++++++++++++-----------------
+ src/lib/hash/adler32_test.go        |  2 +-
+ src/lib/hash/crc32_test.go          |  2 +-
+ src/lib/hash/md5_test.go            |  2 +-
+ src/lib/hash/md5block.go            |  2 +-
+ src/lib/hash/sha1_test.go           |  2 +-
+ src/lib/hash/sha1block.go           |  2 +-
+ src/lib/http/Makefile               | 26 +++++++++++---------
+ src/lib/io/Makefile                 | 22 ++++++++++-------
+ src/lib/json/Makefile               | 22 ++++++++++-------
+ src/lib/json/generic.go             |  4 ++--
+ src/lib/math/Makefile               | 26 +++++++++++---------
+ src/lib/net/dialgoogle_test.go      |  2 +-
+ src/lib/net/net.go                  |  2 +-
+ src/lib/net/net_darwin.go           |  2 +-
+ src/lib/net/net_linux.go            |  2 +-
+ src/lib/net/tcpserver_test.go       |  2 +-
+ src/lib/net/timeout_test.go         |  2 +-
+ src/lib/os/Makefile                 | 26 +++++++++++---------
+ src/lib/os/dir_amd64_darwin.go      |  2 +-
+ src/lib/os/dir_amd64_linux.go       |  2 +-
+ src/lib/reflect/Makefile            | 24 +++++++++++--------
+ src/lib/reflect/type.go             |  2 +-
+ src/lib/regexp/Makefile             | 20 +++++++++-------
+ src/lib/regexp/regexp.go            |  2 +-
+ src/lib/strconv/Makefile            | 24 +++++++++++--------
+ src/lib/sync/Makefile               | 20 +++++++++-------
+ src/lib/syscall/Makefile            | 26 +++++++++++---------
+ src/lib/tabwriter/Makefile          | 20 +++++++++-------
+ src/lib/tabwriter/tabwriter.go      |  4 ++--
+ src/lib/tabwriter/tabwriter_test.go |  2 +-
+ src/lib/template/Makefile           | 22 ++++++++++-------
+ src/lib/testing.go                  |  2 +-
+ src/lib/time/Makefile               | 24 +++++++++++--------
+ src/lib/unicode/Makefile            | 22 ++++++++++-------
+ test/bigalg.go                      |  2 +-
+ test/vectors.go                     |  2 +-
+ usr/gri/pretty/astprinter.go        | 16 ++++++-------
+ usr/gri/pretty/compilation.go       | 20 ++++++++--------
+ usr/gri/pretty/docprinter.go        |  6 ++---
+ usr/gri/pretty/godoc.go             |  8 +++----
+ usr/gri/pretty/pretty.go            |  8 +++----
+ usr/gri/pretty/symboltable.go       |  4 ++--
+ usr/gri/pretty/typechecker.go       |  6 ++---
+ usr/gri/pretty/untab.go             |  4 ++--
+ 59 files changed, 363 insertions(+), 291 deletions(-)

@@ -1,0 +1,24 @@
+commit 2321895fe2a2def7b511453329f4cd8662230256
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Sep 7 08:59:00 2016 +0200
+
+    bytes: improve WriteRune performance
+    
+    Remove the runeBytes buffer and write the utf8 encoding directly
+    to the internal buf byte slice.
+    
+    name         old time/op   new time/op   delta
+    WriteRune-4   80.5µs ± 2%   57.1µs ± 2%  -29.06%  (p=0.000 n=20+20)
+    
+    name         old speed     new speed     delta
+    WriteRune-4  153MB/s ± 2%  215MB/s ± 2%  +40.96%  (p=0.000 n=20+20)
+    
+    Change-Id: Ic15f6e2d6e56a3d15c74f56159e2eae020ba73ba
+    Reviewed-on: https://go-review.googlesource.com/28816
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go      | 15 ++++++++-------
+ src/bytes/buffer_test.go | 13 +++++++++++++
+ 2 files changed, 21 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 6e87f8896106c9a673c3c049c83ef389178cef82
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 20 18:24:40 2016 +0100
+
+    doc: add mips, mips64 information to asm.html
+    
+    Fixes #18105
+    
+    Change-Id: Id56e8782ff618761ec44b6dc20891c8b48fea8df
+    Reviewed-on: https://go-review.googlesource.com/34632
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/asm.html | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

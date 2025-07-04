@@ -1,0 +1,28 @@
+commit bd49b3d580731d8f391e40fb9e2f17301651cede
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Thu Aug 30 06:55:05 2018 +0200
+
+    net: refactor readerAtEOF splice test
+    
+    Refactor TestSplice/readerAtEOF to handle cases where we disable
+    splice on older kernels better.
+    
+    If splice is disabled, net.splice and poll.Splice do not get to
+    observe EOF on the reader, because poll.Splice returns immediately
+    with EINVAL. The test fails unexpectedly, because the splice operation
+    is reported as not handled.
+    
+    This change refactors the test to handle the aforementioned case
+    correctly, by not calling net.splice directly, but using a higher
+    level check.
+    
+    Fixes #27355.
+    
+    Change-Id: I0d5606b4775213f2dbbb84ef82ddfc3bab662a31
+    Reviewed-on: https://go-review.googlesource.com/132096
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/splice_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 50 insertions(+), 7 deletions(-)

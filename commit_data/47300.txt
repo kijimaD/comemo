@@ -1,0 +1,21 @@
+commit 7aed6dd7e18e2ad3ac0f4eb692188ed7a90b778b
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Oct 28 17:08:22 2021 -0400
+
+    strings, bytes: deprecate Title
+    
+    Title doesn't handle Unicode punctuation and language-specific
+    capitalization rules. Replace the BUG comment with a Deprecated
+    one, suggesting a more robust alternative, and allowing Title
+    to be exposed to tooling.
+    
+    Fixes #48367.
+    
+    Change-Id: I952f1f37cd35b587a95893fb022827bdd9ec7de9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359485
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/bytes/bytes.go     | 3 ++-
+ src/strings/strings.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

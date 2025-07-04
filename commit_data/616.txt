@@ -1,0 +1,19 @@
+commit d6f15be61dfc494f1faf489b180869bc4b9f1161
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 11 15:48:42 2008 -0700
+
+    fixes for funcs without returns
+    
+    R=ken
+    OCL=15170
+    CL=15170
+
+ src/lib/flag.go                    | 4 +---
+ src/lib/math/hypot.go              | 1 +
+ src/lib/math/pow.go                | 1 +
+ src/lib/os/os_error.go             | 3 +--
+ test/chan/powser1.go               | 2 +-
+ test/fixedbugs/bug028.go           | 1 +
+ test/{bugs => fixedbugs}/bug086.go | 0
+ test/golden.out                    | 3 +++
+ 8 files changed, 9 insertions(+), 6 deletions(-)

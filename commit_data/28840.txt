@@ -1,0 +1,14 @@
+commit 1e775fe4a30c78cf6e8e995efe5a0f469b8d9a4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 16 10:27:29 2016 +0100
+
+    net/http: add more docs on ErrHijacked
+    
+    Updates #16456
+    
+    Change-Id: Ifea651ea3ece2267a6f0c1638181d6ddd9248a9f
+    Reviewed-on: https://go-review.googlesource.com/31181
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

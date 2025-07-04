@@ -1,0 +1,146 @@
+commit 5756895877492e3427c92e9ec8784eb1f4b01474
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 13:59:17 2018 -0400
+
+    cmd/go: add dark copy of golang.org/x/vgo
+    
+    This CL corresponds to golang.org/cl/118096 (7fbc8df48a7)
+    in the vgo repo.
+    
+    It copies the bulk of the code from vgo back into the main repo,
+    but completely disabled - vgo.Init is a no-op and vgo.Enabled
+    returns false unconditionally.
+    
+    The point of this CL is to make the two trees easier to diff and
+    to make future syncs smaller.
+    
+    Change-Id: Ic34fd5ddd8272a70c5a3b3437b5169e967d0ed03
+    Reviewed-on: https://go-review.googlesource.com/118095
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                              |    6 +-
+ src/cmd/go/internal/dirhash/hash.go                |  103 ++
+ src/cmd/go/internal/dirhash/hash_test.go           |  135 ++
+ src/cmd/go/internal/envcmd/env.go                  |    3 +
+ src/cmd/go/internal/fix/fix.go                     |   11 +
+ src/cmd/go/internal/fmtcmd/fmt.go                  |   10 +
+ src/cmd/go/internal/generate/generate.go           |   10 +
+ src/cmd/go/internal/get/get.go                     |   16 +-
+ src/cmd/go/internal/help/help.go                   |    4 +
+ src/cmd/go/internal/imports/build.go               |  211 +++
+ src/cmd/go/internal/imports/read.go                |  249 +++
+ src/cmd/go/internal/imports/read_test.go           |  228 +++
+ src/cmd/go/internal/imports/scan.go                |   82 +
+ src/cmd/go/internal/imports/scan_test.go           |   67 +
+ src/cmd/go/internal/imports/tags.go                |   35 +
+ src/cmd/go/internal/imports/testdata/import1/x.go  |    3 +
+ src/cmd/go/internal/imports/testdata/import1/x1.go |    9 +
+ .../internal/imports/testdata/import1/x_darwin.go  |    3 +
+ .../internal/imports/testdata/import1/x_windows.go |    3 +
+ src/cmd/go/internal/load/path.go                   |   16 -
+ src/cmd/go/internal/load/pkg.go                    |   98 +-
+ src/cmd/go/internal/load/search.go                 |  338 +----
+ src/cmd/go/internal/modconv/dep.go                 |   71 +
+ src/cmd/go/internal/modconv/glide.go               |   40 +
+ src/cmd/go/internal/modconv/glock.go               |   23 +
+ src/cmd/go/internal/modconv/godeps.go              |   29 +
+ src/cmd/go/internal/modconv/modconv.go             |   25 +
+ src/cmd/go/internal/modconv/modconv_test.go        |   69 +
+ .../go/internal/modconv/testdata/cockroach.glock   |   41 +
+ src/cmd/go/internal/modconv/testdata/cockroach.out |   31 +
+ .../internal/modconv/testdata/dockermachine.godeps |  159 ++
+ .../go/internal/modconv/testdata/dockermachine.out |   33 +
+ .../go/internal/modconv/testdata/dockerman.glide   |   52 +
+ src/cmd/go/internal/modconv/testdata/dockerman.out |   16 +
+ src/cmd/go/internal/modconv/testdata/govmomi.out   |    5 +
+ .../go/internal/modconv/testdata/govmomi.vmanifest |   46 +
+ src/cmd/go/internal/modconv/testdata/juju.out      |  106 ++
+ src/cmd/go/internal/modconv/testdata/juju.tsv      |  106 ++
+ src/cmd/go/internal/modconv/testdata/moby.out      |  105 ++
+ src/cmd/go/internal/modconv/testdata/moby.vconf    |  149 ++
+ .../go/internal/modconv/testdata/panicparse.out    |    8 +
+ .../go/internal/modconv/testdata/panicparse.vyml   |   17 +
+ .../go/internal/modconv/testdata/prometheus.out    |  258 ++++
+ .../go/internal/modconv/testdata/prometheus.vjson  | 1605 ++++++++++++++++++++
+ src/cmd/go/internal/modconv/testdata/upspin.dep    |   57 +
+ src/cmd/go/internal/modconv/testdata/upspin.out    |    8 +
+ src/cmd/go/internal/modconv/tsv.go                 |   23 +
+ src/cmd/go/internal/modconv/vconf.go               |   26 +
+ src/cmd/go/internal/modconv/vjson.go               |   28 +
+ src/cmd/go/internal/modconv/vmanifest.go           |   28 +
+ src/cmd/go/internal/modconv/vyml.go                |   40 +
+ src/cmd/go/internal/modfetch/bitbucket/fetch.go    |   22 +
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  187 +++
+ src/cmd/go/internal/modfetch/coderepo.go           |  576 +++++++
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  688 +++++++++
+ src/cmd/go/internal/modfetch/convert.go            |   78 +
+ src/cmd/go/internal/modfetch/convert_test.go       |  139 ++
+ src/cmd/go/internal/modfetch/domain.go             |  178 +++
+ src/cmd/go/internal/modfetch/github/fetch.go       |   24 +
+ src/cmd/go/internal/modfetch/gitrepo/fetch.go      |  445 ++++++
+ src/cmd/go/internal/modfetch/gitrepo/fetch_test.go |  500 ++++++
+ src/cmd/go/internal/modfetch/googlesource/fetch.go |   25 +
+ src/cmd/go/internal/modfetch/gopkgin.go            |   22 +
+ src/cmd/go/internal/modfetch/noweb.go              |   24 +
+ src/cmd/go/internal/modfetch/proxy.go              |  164 ++
+ src/cmd/go/internal/modfetch/query.go              |   84 +
+ src/cmd/go/internal/modfetch/repo.go               |  137 ++
+ src/cmd/go/internal/modfetch/unzip.go              |  100 ++
+ src/cmd/go/internal/modfetch/web.go                |   31 +
+ src/cmd/go/internal/modfile/gopkgin.go             |   47 +
+ src/cmd/go/internal/modfile/print.go               |  164 ++
+ src/cmd/go/internal/modfile/read.go                |  699 +++++++++
+ src/cmd/go/internal/modfile/read_test.go           |  306 ++++
+ src/cmd/go/internal/modfile/rule.go                |  507 +++++++
+ src/cmd/go/internal/modfile/testdata/block.golden  |   29 +
+ src/cmd/go/internal/modfile/testdata/block.in      |   29 +
+ .../go/internal/modfile/testdata/comment.golden    |   10 +
+ src/cmd/go/internal/modfile/testdata/comment.in    |    8 +
+ src/cmd/go/internal/modfile/testdata/empty.golden  |    0
+ src/cmd/go/internal/modfile/testdata/empty.in      |    0
+ .../go/internal/modfile/testdata/gopkg.in.golden   |    6 +
+ src/cmd/go/internal/modfile/testdata/module.golden |    1 +
+ src/cmd/go/internal/modfile/testdata/module.in     |    1 +
+ .../go/internal/modfile/testdata/replace.golden    |    5 +
+ src/cmd/go/internal/modfile/testdata/replace.in    |    5 +
+ .../go/internal/modfile/testdata/replace2.golden   |    8 +
+ src/cmd/go/internal/modfile/testdata/replace2.in   |    8 +
+ src/cmd/go/internal/modfile/testdata/rule1.golden  |    7 +
+ src/cmd/go/internal/modinfo/info.go                |   11 +
+ src/cmd/go/internal/module/module.go               |  195 +++
+ src/cmd/go/internal/module/module_test.go          |  184 +++
+ src/cmd/go/internal/mvs/mvs.go                     |  308 ++++
+ src/cmd/go/internal/mvs/mvs_test.go                |  377 +++++
+ src/cmd/go/internal/search/search.go               |  423 ++++++
+ .../{load/match_test.go => search/search_test.go}  |   10 +-
+ src/cmd/go/internal/semver/semver.go               |  351 +++++
+ src/cmd/go/internal/semver/semver_test.go          |  123 ++
+ src/cmd/go/internal/vgo/build.go                   |  115 ++
+ src/cmd/go/internal/vgo/fetch.go                   |  232 +++
+ src/cmd/go/internal/vgo/get.go                     |  152 ++
+ src/cmd/go/internal/vgo/init.go                    |  411 +++++
+ src/cmd/go/internal/vgo/list.go                    |  153 ++
+ src/cmd/go/internal/vgo/load.go                    |  575 +++++++
+ src/cmd/go/internal/vgo/search.go                  |  196 +++
+ src/cmd/go/internal/vgo/vendor.go                  |  156 ++
+ src/cmd/go/internal/vgo/verify.go                  |  104 ++
+ src/cmd/go/internal/web2/web.go                    |  297 ++++
+ src/cmd/go/internal/web2/web_test.go               |   35 +
+ src/cmd/go/internal/webtest/test.go                |  314 ++++
+ src/cmd/go/internal/work/build.go                  |    3 +-
+ src/cmd/go/internal/work/exec.go                   |   14 +
+ src/cmd/go/testdata/badmod/go.mod                  |    1 +
+ src/cmd/go/testdata/badmod/x.go                    |    4 +
+ src/cmd/go/testdata/vendormod/go.mod               |   16 +
+ src/cmd/go/testdata/vendormod/v1.go                |    3 +
+ src/cmd/go/testdata/vendormod/v2.go                |    5 +
+ src/cmd/go/testdata/vendormod/v3.go                |    5 +
+ src/cmd/go/testdata/vendormod/w/go.mod             |    1 +
+ src/cmd/go/testdata/vendormod/w/w.go               |    1 +
+ src/cmd/go/testdata/vendormod/x/go.mod             |    1 +
+ src/cmd/go/testdata/vendormod/x/x.go               |    1 +
+ src/cmd/go/testdata/vendormod/y/go.mod             |    1 +
+ src/cmd/go/testdata/vendormod/y/y.go               |    1 +
+ src/cmd/go/testdata/vendormod/z/go.mod             |    1 +
+ src/cmd/go/testdata/vendormod/z/z.go               |    1 +
+ 125 files changed, 14504 insertions(+), 385 deletions(-)

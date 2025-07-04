@@ -1,0 +1,16 @@
+commit 4787e70b7b112b067f2aede5d4c45f1928493292
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 12:53:32 2011 -0700
+
+    http: handler timeout support
+    
+    Fixes #213
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4432043
+
+ src/pkg/http/export_test.go |  7 ++++
+ src/pkg/http/serve_test.go  | 51 ++++++++++++++++++++++++++
+ src/pkg/http/server.go      | 87 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 145 insertions(+)

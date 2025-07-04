@@ -1,0 +1,17 @@
+commit 97b2295f06174f7cd3e8ad121f13110a4e866f77
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 2 15:49:55 2016 -0500
+
+    cmd/compile: trunc(and(x,K)) rewrite to trunc(x) for some K
+    
+    uint8(s.b & 0xff) ought to produce same code as uint8(s.b)
+    but it did not.  RLH found this one looking for moles to
+    whack in the GC code.
+    
+    Change-Id: I883d68ec7a5746d652712be84a274a11256b3b33
+    Reviewed-on: https://go-review.googlesource.com/20141
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   7 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+)

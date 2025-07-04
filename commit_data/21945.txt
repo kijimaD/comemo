@@ -1,0 +1,16 @@
+commit 665c3da33a7461ed1a32622f5a18fc27671972e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 6 11:42:53 2015 -0800
+
+    cmd/internal/ld: change string vars into constants where possible
+    
+    Change-Id: Ib3d7928bbdba9358e68a326a53effe483ec208ea
+    Reviewed-on: https://go-review.googlesource.com/7061
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/ld/ar.go      | 7 ++++---
+ src/cmd/internal/ld/lib.go     | 7 ++++---
+ src/cmd/internal/ld/objfile.go | 7 ++++---
+ src/cmd/internal/ld/pobj.go    | 2 +-
+ 4 files changed, 13 insertions(+), 10 deletions(-)

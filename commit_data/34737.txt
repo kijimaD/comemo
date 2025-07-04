@@ -1,0 +1,18 @@
+commit 89f4592d1e83b3235ab91477702642d899da8c31
+Author: Jakob Weisblat <jakobw@mit.edu>
+Date:   Fri Aug 18 18:24:54 2017 +0200
+
+    crypto/x509: improve error when parsing bad ECDSA cert
+    
+    When parsing an ECDSA certificate, improve the error message upon
+    failing to parse the curve as a named curve, rather than returning
+    the original ASN1 error.
+    
+    Fixes #21502
+    
+    Change-Id: I7ae7b3ea7a9dcbd78a9607f46f5883d3193b8367
+    Reviewed-on: https://go-review.googlesource.com/57050
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

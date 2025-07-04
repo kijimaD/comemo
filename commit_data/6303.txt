@@ -1,0 +1,12 @@
+commit 289432daffde1630f1363d7b50cae7132e3da6ce
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Sep 18 11:09:08 2010 +1000
+
+    pkg/Makefile: disable netchan test to fix windows build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2225042
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

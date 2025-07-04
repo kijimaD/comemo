@@ -1,0 +1,14 @@
+commit 91f74069ef442f8d963f43cc898af8af3e8b8d0e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 9 13:27:09 2018 +0100
+
+    runtime: fix comment for hwcap on linux/arm
+    
+    hwcap is set in archauxv, setup_auxv no longer exists.
+    
+    Change-Id: I0fc9393e0c1c45192e0eff4715e9bdd69fab2653
+    Reviewed-on: https://go-review.googlesource.com/99779
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux_arm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 3eb9adeeb8261662f87d8cb20f5e1c95a2506228
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 29 16:00:28 2013 -0700
+
+    go/parser: don't report name errors if DeclarationErrors is not set
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/12072043
+
+ src/pkg/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

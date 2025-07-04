@@ -1,0 +1,20 @@
+commit 8d31ca255bd6b00d04f1673d26110b702e96662b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 25 18:01:27 2020 +0000
+
+    Revert "net/http: fix data race due to writeLoop goroutine left running"
+    
+    This reverts CL 232799.
+    
+    Reason for revert: net/http test is failing on all longtest builders.
+    
+    Change-Id: I4694e34f35419bab2d0b45fa6d8c3ac2aa1f51a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250597
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 10 +----
+ src/net/http/transport_test.go | 92 ------------------------------------------
+ 2 files changed, 1 insertion(+), 101 deletions(-)

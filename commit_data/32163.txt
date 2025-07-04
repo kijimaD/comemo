@@ -1,0 +1,16 @@
+commit 1ee55c3ab6e4dff810a03bc1d788dd6106cdf691
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Mon Jul 31 10:30:16 2017 +0100
+
+    net/http: remove an unused variable in readCookies function
+    
+    Change-Id: I9d77655026f16a41a77bd0036d693a40cdd6d52f
+    Reviewed-on: https://go-review.googlesource.com/52090
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookie.go | 2 --
+ 1 file changed, 2 deletions(-)

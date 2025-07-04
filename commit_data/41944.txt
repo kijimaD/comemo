@@ -1,0 +1,18 @@
+commit f3424ceff2fa48615ed98580f337ab044925c940
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 13 21:57:41 2020 -0700
+
+    go/types: use same local variable consistently (minor cleanup)
+    
+    Currently this CL has no effect because V == x.typ in the affected
+    code. But if we should ever manipulate V (e.g., to support some form
+    of lazy evaluation of the type), not using V consistently would
+    lead to a subtle bug.
+    
+    Change-Id: I465e72d18bbd2b6cd8fcbd746e0d28d14f758c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228105
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/operand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

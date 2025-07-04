@@ -1,0 +1,50 @@
+commit 74dd0ab670751feca69ca1aaf4db9859c5e52b41
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 17 13:30:22 2009 -0700
+
+    fix up some irregular indentation
+    
+    R=rsc
+    OCL=33382
+    CL=33391
+
+ test/bugs/bug132.go               |   2 +-
+ test/bugs/bug187.go               |   6 +-
+ test/chan/select.go               |  65 ++++++++--------
+ test/char_lit.go                  |  64 +++++++--------
+ test/fixedbugs/bug024.go          |  10 +--
+ test/fixedbugs/bug030.go          |   4 +-
+ test/fixedbugs/bug039.go          |   2 +-
+ test/fixedbugs/bug051.go          |   4 +-
+ test/fixedbugs/bug052.go          |  20 ++---
+ test/fixedbugs/bug053.go          |   2 +-
+ test/fixedbugs/bug057.go          |  10 +--
+ test/fixedbugs/bug058.go          |   8 +-
+ test/fixedbugs/bug062.go          |   2 +-
+ test/fixedbugs/bug097.go          |   6 +-
+ test/fixedbugs/bug106.dir/bug0.go |   1 +
+ test/fixedbugs/bug106.dir/bug1.go |   1 +
+ test/fixedbugs/bug107.go          |   8 +-
+ test/fixedbugs/bug109.go          |  10 +--
+ test/fixedbugs/bug113.go          |  16 ++--
+ test/fixedbugs/bug117.go          |  18 ++---
+ test/fixedbugs/bug118.go          |  10 +--
+ test/fixedbugs/bug123.go          |   8 +-
+ test/fixedbugs/bug127.go          |   6 +-
+ test/fixedbugs/bug130.go          |  10 +--
+ test/fixedbugs/bug131.go          |   4 +-
+ test/fixedbugs/bug135.go          |   6 +-
+ test/golden.out                   |   4 +-
+ test/int_lit.go                   |  25 +++---
+ test/interface/struct.go          | 158 +++++++++++++++++++-------------------
+ test/ken/chan1.go                 |   4 +-
+ test/ken/divconst.go              |   1 -
+ test/ken/modconst.go              |   1 -
+ test/method1.go                   |   2 +-
+ test/run                          |   3 +-
+ test/sieve.go                     |   2 +-
+ test/string_lit.go                |  10 +--
+ test/stringrange.go               |   8 +-
+ test/test0.go                     |  92 +++++++++++-----------
+ test/varinit.go                   |  20 ++---
+ 39 files changed, 317 insertions(+), 316 deletions(-)

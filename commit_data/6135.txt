@@ -1,0 +1,12 @@
+commit 815a67850c6680e0df558caadcda270a24f05615
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Aug 30 21:13:01 2010 -0400
+
+    misc: add zsh completion (using compctl)
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/2061042
+
+ misc/zsh/go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

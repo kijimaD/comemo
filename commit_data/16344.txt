@@ -1,0 +1,23 @@
+commit c5732c8526fa4fef697730a739631fd69cf4f965
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 20 19:25:32 2013 +0900
+
+    runtime: integrated network poller for freebsd/amd64,386, openbsd/amd64,386
+    
+    Update #5199
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/8825043
+
+ src/pkg/runtime/defs_freebsd.go      | 16 ++++++++++++++--
+ src/pkg/runtime/defs_freebsd_386.h   | 29 +++++++++++++++++++++++++----
+ src/pkg/runtime/defs_freebsd_amd64.h | 27 ++++++++++++++++++++++++---
+ src/pkg/runtime/defs_openbsd.go      | 15 +++++++++++++--
+ src/pkg/runtime/defs_openbsd_386.h   | 22 ++++++++++++++++++++--
+ src/pkg/runtime/defs_openbsd_amd64.h | 22 ++++++++++++++++++++--
+ src/pkg/runtime/sys_freebsd_386.s    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_freebsd_amd64.s  | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_openbsd_386.s    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_openbsd_amd64.s  | 33 +++++++++++++++++++++++++++++++++
+ 10 files changed, 241 insertions(+), 15 deletions(-)

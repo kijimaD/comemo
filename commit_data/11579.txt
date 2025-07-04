@@ -1,0 +1,12 @@
+commit aa716e36a6c0656730eeab753eaba9d07aab72e0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 3 14:03:46 2012 +1100
+
+    dashboard: don't send failing Go commits as todos for subrepos
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5608044
+
+ misc/dashboard/app/build/handler.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

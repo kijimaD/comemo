@@ -1,0 +1,28 @@
+commit d37cc9a8cd4a33a78871b674a23bd3c1e39031e5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 18 11:35:52 2022 -0400
+
+    go/build, internal/dag: lift DAG parser into an internal package
+    
+    This lifts the DAG parser from the go/build dependencies test into its
+    own package that can be reused elsewhere.
+    
+    I tried to keep the code as close as possible. I changed some names to
+    reflect the more general purpose of internal/dag. Most of the changes
+    are related to error handling, since internal/dag doesn't take a
+    testing.T on which to report errors. Notably, parseRules now returns a
+    slice of parsed rules rather than calling a callback because this made
+    it easier to separate fatal parsing errors from non-fatal graph
+    checking errors.
+    
+    For #53789.
+    
+    Change-Id: I170b84fd85f971cfc1a50972156d48e78b45fce3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418592
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go | 220 ++------------------------------------
+ src/internal/dag/parse.go | 264 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 272 insertions(+), 212 deletions(-)

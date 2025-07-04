@@ -1,0 +1,13 @@
+commit da49bfe6649e126d3dc1d596083038c0aa48dc24
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue May 19 13:37:36 2009 -0700
+
+    static initialization of strings
+    
+    R=r
+    OCL=29036
+    CL=29036
+
+ src/cmd/6g/gen.c | 19 +++++++++++++++++++
+ src/cmd/6g/gg.h  |  5 +++++
+ 2 files changed, 24 insertions(+)

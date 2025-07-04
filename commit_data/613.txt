@@ -1,0 +1,13 @@
+commit d30c9a4be54a6eb5a979223a3e30a85c187e0a57
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 11 15:23:01 2008 -0700
+
+    implement discussed function wo return statement
+    
+    R=r
+    OCL=15166
+    CL=15166
+
+ src/cmd/6g/gen.c  |  6 ++++--
+ src/cmd/gc/walk.c | 41 ++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 42 insertions(+), 5 deletions(-)

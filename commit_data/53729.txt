@@ -1,0 +1,25 @@
+commit 7b625d1f65a6224968d8668c1ae1b0730dabb605
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 20 14:00:20 2023 -0700
+
+    go/types, types2: make sure info recording is executed in test runs
+    
+    Issue #61486 causes a compiler crash but is not detected when running
+    stand-alone type-checker tests because no types are recorded.
+    
+    Set up Config.Info map with all maps when when running local tests
+    so that type/object recording code is executed during local tests.
+    
+    For #61486.
+    
+    Change-Id: I8eb40c8525dac3da65db0dc7e0e654842713b9a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511657
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/check_test.go | 12 +++++++++++-
+ src/go/types/check_test.go                    | 12 +++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

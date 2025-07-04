@@ -1,0 +1,32 @@
+commit c8de7628cbbf5c3d35158cf92ae4314898930c47
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
+
+    runtime: implement syscalls for runtime bootstrap on linux/loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I848608267932717895d5cff9e33040029c3f3c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368080
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/syscall/asm_linux_loong64.s |  29 ++
+ src/runtime/sys_linux_loong64.s                  | 631 +++++++++++++++++++++++
+ 2 files changed, 660 insertions(+)

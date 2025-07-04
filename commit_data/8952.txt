@@ -1,0 +1,14 @@
+commit a8e5db9449e10d150c285a3949c990cfe82dd55f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 15:35:23 2011 +1000
+
+    maketables: update debugging data.
+    This is unused in the generation of the tables, but was incorrect if we ever needed it.
+    Also update the reference to the document.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4626097
+
+ src/pkg/unicode/maketables.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

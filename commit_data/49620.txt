@@ -1,0 +1,24 @@
+commit 08c46ed43d80bbb67cb904944ea3417989be4af3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 28 18:41:26 2022 -0700
+
+    encoding/xml: use iterative Skip, rather than recursive
+    
+    Prevents exhausting the stack limit in _incredibly_ deeply nested
+    structures.
+    
+    Fixes #53614
+    Fixes CVE-2022-28131
+    
+    Change-Id: I47db4595ce10cecc29fbd06afce7b299868599e6
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1419912
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417062
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/xml/read.go      | 15 ++++++++-------
+ src/encoding/xml/read_test.go | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

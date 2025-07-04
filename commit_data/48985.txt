@@ -1,0 +1,76 @@
+commit 91f863013e6b5ba870f6bfbfda0b735cf54fb3ca
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Apr 10 20:34:17 2022 +0000
+
+    runtime: redesign scavenging algorithm
+    
+    Currently the runtime's scavenging algorithm involves running from the
+    top of the heap address space to the bottom (or as far as it gets) once
+    per GC cycle. Once it treads some ground, it doesn't tread it again
+    until the next GC cycle.
+    
+    This works just fine for the background scavenger, for heap-growth
+    scavenging, and for debug.FreeOSMemory. However, it breaks down in the
+    face of a memory limit for small heaps in the tens of MiB. Basically,
+    because the scavenger never retreads old ground, it's completely
+    oblivious to new memory it could scavenge, and that it really *should*
+    in the face of a memory limit.
+    
+    Also, every time some thread goes to scavenge in the runtime, it
+    reserves what could be a considerable amount of address space, hiding it
+    from other scavengers.
+    
+    This change modifies and simplifies the implementation overall. It's
+    less code with complexities that are much better encapsulated. The
+    current implementation iterates optimistically over the address space
+    looking for memory to scavenge, keeping track of what it last saw. The
+    new implementation does the same, but instead of directly iterating over
+    pages, it iterates over chunks. It maintains an index of chunks (as a
+    bitmap over the address space) that indicate which chunks may contain
+    scavenge work. The page allocator populates this index, while scavengers
+    consume it and iterate over it optimistically.
+    
+    This has a two key benefits:
+    1. Scavenging is much simpler: find a candidate chunk, and check it,
+       essentially just using the scavengeOne fast path. There's no need for
+       the complexity of iterating beyond one chunk, because the index is
+       lock-free and already maintains that information.
+    2. If pages are freed to the page allocator (always guaranteed to be
+       unscavenged), the page allocator immediately notifies all scavengers
+       of the new source of work, avoiding the hiding issues of the old
+       implementation.
+    
+    One downside of the new implementation, however, is that it's
+    potentially more expensive to find pages to scavenge. In the past, if
+    a single page would become free high up in the address space, the
+    runtime's scavengers would ignore it. Now that scavengers won't, one or
+    more scavengers may need to iterate potentially across the whole heap to
+    find the next source of work. For the background scavenger, this just
+    means a potentially less reactive scavenger -- overall it should still
+    use the same amount of CPU. It means worse overheads for memory limit
+    scavenging, but that's not exactly something with a baseline yet.
+    
+    In practice, this shouldn't be too bad, hopefully since the chunk index
+    is extremely compact. For a 48-bit address space, the index is only 8
+    MiB in size at worst, but even just one physical page in the index is
+    able to support up to 128 GiB heaps, provided they aren't terribly
+    sparse. On 32-bit platforms, the index is only 128 bytes in size.
+    
+    For #48409.
+    
+    Change-Id: I72b7e74365046b18c64a6417224c5d85511194fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399474
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go      |  47 +++-
+ src/runtime/mgcscavenge.go      | 520 ++++++++++++++++------------------------
+ src/runtime/mgcscavenge_test.go | 146 +++++++++++
+ src/runtime/mgcsweep.go         |  14 +-
+ src/runtime/mheap.go            |  17 +-
+ src/runtime/mpagealloc.go       |  48 +---
+ src/runtime/mpagealloc_32bit.go |  12 +-
+ src/runtime/mpagealloc_64bit.go |  79 +++++-
+ src/runtime/mranges.go          |  64 +++++
+ 9 files changed, 565 insertions(+), 382 deletions(-)

@@ -1,0 +1,22 @@
+commit 07b2fee4607aa6c710411a7ac404f18be4dff6f7
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Apr 9 10:41:27 2021 -0500
+
+    cmd/link: fix TestLargeText
+    
+    This test is not run in short mode so it was getting
+    failures that didn't happen with default testing. See
+    the issue for details on the failures.
+    
+    Fixes #45406
+    
+    Change-Id: I51d97cc4c910fe3ba2bc0a12742023a57d101f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308935
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/linkbig_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

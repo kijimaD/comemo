@@ -1,0 +1,21 @@
+commit 120cf676caff29296de2dd16a2997463eb6e1579
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 17 16:39:11 2016 -0800
+
+    spec: clarify type elision rules for composite literals
+    
+    - organize examples better
+    - add an example illustrating behavior if element type is a named pointer type
+    - both compilers and go/types (per https://go-review.googlesource.com/33358)
+      follow this now
+    
+    See the issue for detailed discussion.
+    
+    Fixes #17954.
+    
+    Change-Id: I8d90507ff2347d9493813f75b73233819880d2b4
+    Reviewed-on: https://go-review.googlesource.com/33361
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

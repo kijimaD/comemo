@@ -1,0 +1,25 @@
+commit 6aa482681ca72aa3b18d4491e6db1694ef1be6bc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 5 09:13:15 2023 -0400
+
+    cmd/go/internal/vcweb: set GIT_PROTOCOL in the git CGI handler
+    
+    This works around a bug in 'git http-backend' that was fixed in
+    Git 2.34.0,¹ and will hopefully allow the tests in
+    cmd/go/internal/modfetch/codehost to pass reliably using older
+    Git releases (I tested with 2.30.2).
+    
+    ¹https://github.com/git/git/commit/ff6a37c99e3343633c53f56789afcc8f8165d276
+    
+    Fixes #56881.
+    
+    Change-Id: Icd2e4d252d5f712685d146f34e11922dd0c41ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549795
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git_test.go |  6 ----
+ src/cmd/go/internal/vcweb/git.go                  | 39 +++++++++++++++++------
+ 2 files changed, 29 insertions(+), 16 deletions(-)

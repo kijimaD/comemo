@@ -1,0 +1,27 @@
+commit 4f12cc08132f3e5d2ba4b756c91d88c2e58a73b1
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Thu Apr 7 18:00:57 2016 +0300
+
+    cmd/link: symbol generation optimizations
+    
+    After making dwarf generation backed by LSyms there was a performance regression
+    of about 10%. These changes make on the fly symbol generation faster and
+    are meant to help mitigate that.
+    
+    name       old secs    new secs    delta
+    LinkCmdGo   0.55 ± 9%   0.53 ± 8%  -4.42%   (p=0.000 n=100+99)
+    
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   152k ± 6%   149k ± 3%  -1.99%    (p=0.000 n=99+97)
+    
+    Change-Id: Iacca3ec924ce401aa83126bc0b10fe89bedf0ba6
+    Reviewed-on: https://go-review.googlesource.com/21733
+    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/data.go   | 32 ++++++++++++++++++--------------
+ src/cmd/link/internal/ld/dwarf.go  | 13 +++++++++----
+ src/cmd/link/internal/ld/pcln.go   |  3 +--
+ src/cmd/link/internal/ld/symtab.go | 10 ++--------
+ 4 files changed, 30 insertions(+), 28 deletions(-)

@@ -1,0 +1,38 @@
+commit dbe32284ff4fb96906cdb121508eba668dbc5bae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 4 00:29:16 2019 -0400
+
+    cmd/link: mmap object data
+    
+    This resurrects CL 121198, except that this time we map read-only.
+    
+    In case that we need to apply relocations to the symbol's
+    content that is backed by read-only memory, we do our own copy-
+    on-write. This can happen if we failed to mmap the output file,
+    or we build for Wasm.
+    
+    Memory profile for building k8s.io/kubernetes/cmd/kube-apiserver
+    on Linux/AMD64:
+    
+    Old (before this sequence of CLs):
+    inuse_space 1598.75MB total
+    669.87MB 41.90% 41.90%   669.87MB 41.90%  cmd/link/internal/objfile.(*objReader).readSlices
+    
+    New:
+    inuse_space 1280.45MB total
+    441.18MB 34.46% 34.46%   441.18MB 34.46%  cmd/link/internal/objfile.(*objReader).readSlices
+    
+    Change-Id: I6b4d29d6eee9828089ea3120eb38c212db21330b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170741
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/bio/buf.go              | 24 +++++++++++++
+ src/cmd/internal/bio/buf_mmap.go         | 62 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/bio/buf_nommap.go       | 11 ++++++
+ src/cmd/link/internal/ld/data.go         | 45 +++++++++++++++--------
+ src/cmd/link/internal/ld/outbuf.go       |  1 +
+ src/cmd/link/internal/objfile/objfile.go | 16 ++++++---
+ src/cmd/link/internal/sym/attribute.go   |  6 +++-
+ 7 files changed, 144 insertions(+), 21 deletions(-)

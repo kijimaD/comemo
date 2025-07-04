@@ -1,0 +1,27 @@
+commit dc4698f52b5ad3f0251e0cc25bc7ffbd10e23f2c
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Feb 23 13:29:40 2021 +0100
+
+    syscall: do not overflow key memory in GetQueuedCompletionStatus
+    
+    The third argument to GetQueuedCompletionStatus is a pointer to a
+    uintptr, not a uint32. Users of this functions have therefore been
+    corrupting their memory every time they used it. Either that memory
+    corruption was silent (dangerous), or their programs didn't work so they
+    chose a different API to use.
+    
+    Fixes #44538.
+    
+    RELNOTES=yes
+    
+    Change-Id: Idf48d4c712d13da29791e9a460159255f963105b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295371
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt                  | 6 ++++++
+ src/syscall/syscall_windows.go  | 6 +++---
+ src/syscall/zsyscall_windows.go | 6 +++---
+ 3 files changed, 12 insertions(+), 6 deletions(-)

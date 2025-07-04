@@ -1,0 +1,16 @@
+commit d4d50b5f01e65e664d63bd18a4e545465df03143
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 23 10:17:47 2014 -0400
+
+    lib9: format %#04x, 0 as 0x0000 not 000000.
+    
+    This matches Go's fmt.Printf instead of ANSI C's dumb rules.
+    It makes the -S output from C liblink match Go's liblink.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/112600043
+
+ src/lib9/fmt/dofmt.c | 6 ------
+ 1 file changed, 6 deletions(-)

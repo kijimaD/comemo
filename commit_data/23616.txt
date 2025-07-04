@@ -1,0 +1,12 @@
+commit e71276c7417fcaed566478b37b0f68031a7fc157
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 10:10:12 2015 +1000
+
+    doc: add -test.count and get -insecure to go1.5.html
+    
+    Change-Id: Ie3d603a95826b9b6a7acd4825991f24c3c61408b
+    Reviewed-on: https://go-review.googlesource.com/11956
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.html | 54 +++++++++++++++++++++++++-----------------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

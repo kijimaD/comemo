@@ -1,0 +1,27 @@
+commit 5203357ebacf9f41ca5e194d953c164049172e96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 7 22:51:29 2021 -0700
+
+    cmd/compile: make non-concurrent compiles deterministic again
+    
+    Spreading function compilation across multiple goroutines results in
+    non-deterministic output. This is how cmd/compile has historically
+    behaved for concurrent builds, but is troublesome for non-concurrent
+    builds, particularly because it interferes with "toolstash -cmp".
+    
+    I spent some time trying to think of a simple, unified algorithm that
+    can concurrently schedule work but gracefully degrades to a
+    deterministic build for single-worker builds, but I couldn't come up
+    with any. The simplest idea I found was to simply abstract away the
+    operation of scheduling work so that we can have alternative
+    deterministic vs concurrent modes.
+    
+    Change-Id: I08afa00527ce1844432412f4f8553781c4e323df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318229
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/compile.go | 59 +++++++++++++++++++++-------------
+ 1 file changed, 36 insertions(+), 23 deletions(-)

@@ -1,0 +1,24 @@
+commit a59f443897838c3d45f1f1df2d0fed9aa1aa232f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 16:09:36 2018 -0400
+
+    cmd/go: case-encode versions as well as module paths in files, URLs
+    
+    While writing the GOPROXY docs it occurred to me that versions
+    can contain upper-case letters as well. The docs therefore say
+    that versions are case-encoded the same as paths in the proxy
+    protocol (and therefore in the cache as well). Make it so.
+    
+    Change-Id: Ibc0c4af0192a4af251e5dd6f2d36cda7e529099a
+    Reviewed-on: https://go-review.googlesource.com/124795
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go              | 12 ++-
+ src/cmd/go/internal/modfetch/proxy.go              | 18 ++++-
+ src/cmd/go/internal/module/module.go               | 65 ++++++++++++----
+ src/cmd/go/proxy_test.go                           | 26 +++++--
+ .../go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt   |  2 +-
+ .../mod/rsc.io_!q!u!o!t!e_v1.5.3-!p!r!e.txt        | 88 ++++++++++++++++++++++
+ src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_case.txt            |  7 ++
+ 8 files changed, 192 insertions(+), 28 deletions(-)

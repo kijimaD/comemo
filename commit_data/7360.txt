@@ -1,0 +1,12 @@
+commit 838b5ad9d6ead0c4348197978fb85647a7019013
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 12:27:41 2011 -0800
+
+    go spec: move to Unicode 6.0
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4128055
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

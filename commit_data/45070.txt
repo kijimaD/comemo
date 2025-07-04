@@ -1,0 +1,30 @@
+commit 51a47b7ff2934b6c28ece51f6a37dc30bd37a02d
+Author: Julie Qiu <julie@golang.org>
+Date:   Wed Mar 24 16:24:38 2021 -0400
+
+    cmd/go: display helpful error when module cache can't be created
+    
+    Previously when the module cache specified by GOMODCACHE could not be
+    created an unhelpful message would be printed multiple times.
+    
+    This happened because we were fetching several things in parallel then
+    failing to write them because we can't create the module cache.
+    
+    We now check if the module cache can be created before fetching.
+    
+    If not, the following message is printed:
+    
+    go: could not create module cache
+    
+    Fixes #45113
+    
+    Change-Id: Ic9cec787411335edc7f4d0614fde7eaa8a957fb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304571
+    Trust: Julie Qiu <julie@golang.org>
+    Run-TryBot: Julie Qiu <julie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go         | 34 +++++++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_gomodcache.txt |  7 ++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit b4428325e266d8ffdd1131d71862f0767c616e27
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Mar 15 17:49:01 2022 +0000
+
+    Revert "os: raise open file rlimit at startup"
+    
+    This reverts CL 392415.
+    
+    Reason for revert: new test is failing on at least darwin-amd64-10_14, darwin-amd64-10_15, and openbsd-arm64-jsing.
+    
+    Updates #46279.
+    
+    Change-Id: I2890b72f8ee74f31000d65f7d47b5bb0ed5d6007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393016
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/rlimit.go      | 31 -------------------------------
+ src/os/rlimit_test.go | 32 --------------------------------
+ 2 files changed, 63 deletions(-)

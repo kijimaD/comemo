@@ -1,0 +1,12 @@
+commit 751d13cbce4b51f55121c7b1b738cf773402768e
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Feb 23 22:43:04 2009 -0800
+
+    bug 130 (go/defer) interface.method()
+    
+    R=r
+    OCL=25356
+    CL=25356
+
+ src/cmd/6g/gen.c | 1 +
+ 1 file changed, 1 insertion(+)

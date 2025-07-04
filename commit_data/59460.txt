@@ -1,0 +1,25 @@
+commit 00b63486583ef8055c821fa16a87017e04dc2920
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Tue Apr 29 17:39:08 2025 -0400
+
+    crypto/tls: err for unsupported point format configs
+    
+    If a client or server explicitly offers point formats, and the point
+    formats don't include the uncompressed format, then error. This matches
+    BoringSSL and Rustls behaviour and allows enabling the
+    PointFormat-Client-MissingUncompressed bogo test.
+    
+    Updates #72006
+    
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669157
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_config.json    |  1 -
+ src/crypto/tls/common.go           |  6 +++++-
+ src/crypto/tls/handshake_client.go | 13 +++++++++++++
+ src/crypto/tls/handshake_server.go | 16 ++++++++++++----
+ src/crypto/tls/tls_test.go         |  2 +-
+ 5 files changed, 31 insertions(+), 7 deletions(-)

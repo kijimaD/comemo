@@ -1,0 +1,18 @@
+commit aed1c119fdf92064a9e39bc67d46baa875a36c02
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 3 08:52:34 2017 -0700
+
+    cmd/compile: fix assembly test
+    
+    Bad merge, missed changing to keyed literal structs.
+    
+    Bug introduced in CL 56252
+    
+    Change-Id: I55cccff4990bd25e6387f6c90919ee5866900d7f
+    Reviewed-on: https://go-review.googlesource.com/61290
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

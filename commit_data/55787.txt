@@ -1,0 +1,22 @@
+commit 4e7bd20f8fdccdb2f0f30b051e3ea3fffb449367
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jan 5 16:10:33 2024 -0800
+
+    net/http: remove Content-Length header in http.Error
+    
+    Error replies to a request with an error message and HTTP code.
+    Delete any preexisting Content-Length header before writing the header;
+    if a Content-Length is present, it's probably for content that the
+    caller has given up on writing.
+    
+    For #50905
+    
+    Change-Id: Ia3d4ca008be46fa5d41afadf29ca5cacb1c47660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/serve_test.go | 21 +++++++++++++++++++++
+ src/net/http/server.go     |  1 +
+ 2 files changed, 22 insertions(+)

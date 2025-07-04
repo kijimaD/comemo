@@ -1,0 +1,29 @@
+commit ca3749230b5a7d43b3292226fdb2b6f3de5d653b
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 10:48:56 2018 -0800
+
+    cmd/compile: allow bodyless function if it is linkname'd
+    
+    In assembly free packages (aka "complete" or "pure go"), allow
+    bodyless functions if they are linkname'd to something else.
+    
+    Presumably the thing the function is linkname'd to has a definition.
+    If not, the linker will complain. And linkname is unsafe, so we expect
+    users to know what they are doing.
+    
+    Note this handles only one direction, where the linkname directive
+    is in the local package. If the linkname directive is in the remote
+    package, this CL won't help. (See os/signal/sig.s for an example.)
+    
+    Fixes #23311
+    
+    Change-Id: I824361b4b582ee05976d94812e5b0e8b0f7a18a6
+    Reviewed-on: https://go-review.googlesource.com/c/151318
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go                        | 13 ++++++++++++-
+ .../empty.s => test/fixedbugs/issue23311.dir/main.go        | 11 ++++++++++-
+ .../syscall/unix/empty.s => test/fixedbugs/issue23311.go    |  4 +++-
+ 3 files changed, 25 insertions(+), 3 deletions(-)

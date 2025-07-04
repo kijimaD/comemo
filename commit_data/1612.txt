@@ -1,0 +1,17 @@
+commit 360f0aacee0a519ca0e04592c94f463fdda7800a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 4 10:37:11 2009 -0800
+
+    fix interface not satisifed message:
+    
+    x.go:13: T is not I - missing M()
+    
+    NOT
+    x.go:13: T is not I - missing Mfunc()
+    
+    R=ken
+    OCL=24316
+    CL=24316
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

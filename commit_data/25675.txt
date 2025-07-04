@@ -1,0 +1,20 @@
+commit 4ec2fd3e6ac4f869d39348bf48016687b731d910
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 20:03:32 2016 -0500
+
+    cmd/go: disable broken test for code.google.com
+    
+    For Go 1.7 we can remove all the code.google.com code
+    (except maybe the shutdown warning).
+    
+    See #10193.
+    
+    Change-Id: I4b8182eb66494f0bf373b40ca5da6ae4738342be
+    Reviewed-on: https://go-review.googlesource.com/18974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go  | 1 +
+ src/cmd/go/vcs_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

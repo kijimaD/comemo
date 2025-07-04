@@ -1,0 +1,16 @@
+commit 791bb4f5aefdf3d7ae8aea7d360dec6cb238698a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 19 03:39:30 2015 -0400
+
+    cmd/internal/gc: handle 64-bit const i/j/k in cgen_slice on ARM
+    
+    386 is not affected because it doesn't use ginscmp.
+    
+    Fixes #10843.
+    
+    Change-Id: I1b3a133bd1e5fabc85236f15d060dbaa4c391cf3
+    Reviewed-on: https://go-review.googlesource.com/10116
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/cgen.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

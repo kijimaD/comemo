@@ -1,0 +1,13 @@
+commit 7171f533d0bc21c600ea070ed7d593f35f4a1d44
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Nov 23 19:58:46 2012 +0800
+
+    cmd/go: fix data race on cgoLibGccFile
+    Fixes #4426.
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6851099
+
+ src/cmd/go/build.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

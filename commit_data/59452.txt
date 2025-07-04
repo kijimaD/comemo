@@ -1,0 +1,52 @@
+commit 0c8615be08673838ed5c1c324dd138f73dfe0689
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Apr 29 21:04:11 2025 +0800
+
+    crypto/sha512: improve performance of loong64
+    
+    1. Replaced WORD with instruction REVBV.
+    2. Simplified the implementation of Ch and Maj by reducing instructions, refer to the implementation of riscv64.
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha512
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                      |  bench.old  |             bench.new              |
+                      |   sec/op    |   sec/op     vs base               |
+    Hash8Bytes/New      415.6n ± 0%   398.9n ± 0%  -4.01% (p=0.000 n=10)
+    Hash8Bytes/Sum384   427.6n ± 0%   409.7n ± 0%  -4.20% (p=0.000 n=10)
+    Hash8Bytes/Sum512   432.1n ± 0%   415.3n ± 0%  -3.89% (p=0.000 n=10)
+    Hash1K/New          3.087µ ± 0%   2.931µ ± 0%  -5.05% (p=0.000 n=10)
+    Hash1K/Sum384       3.094µ ± 0%   2.938µ ± 0%  -5.04% (p=0.000 n=10)
+    Hash1K/Sum512       3.102µ ± 0%   2.946µ ± 0%  -5.01% (p=0.000 n=10)
+    Hash8K/New          21.81µ ± 0%   20.67µ ± 0%  -5.25% (p=0.000 n=10)
+    Hash8K/Sum384       21.81µ ± 0%   20.66µ ± 0%  -5.26% (p=0.000 n=10)
+    Hash8K/Sum512       21.82µ ± 0%   20.69µ ± 0%  -5.21% (p=0.000 n=10)
+    geomean             3.061µ        2.915µ       -4.77%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha512
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                      |  bench.old  |             bench.new              |
+                      |   sec/op    |   sec/op     vs base               |
+    Hash8Bytes/New      509.4n ± 0%   484.9n ± 0%  -4.79% (p=0.000 n=10)
+    Hash8Bytes/Sum384   522.9n ± 0%   498.2n ± 0%  -4.71% (p=0.000 n=10)
+    Hash8Bytes/Sum512   529.0n ± 0%   504.5n ± 0%  -4.63% (p=0.000 n=10)
+    Hash1K/New          3.578µ ± 0%   3.364µ ± 0%  -5.98% (p=0.000 n=10)
+    Hash1K/Sum384       3.593µ ± 0%   3.382µ ± 0%  -5.87% (p=0.000 n=10)
+    Hash1K/Sum512       3.599µ ± 0%   3.386µ ± 0%  -5.93% (p=0.000 n=10)
+    Hash8K/New          25.10µ ± 0%   23.56µ ± 0%  -6.14% (p=0.000 n=10)
+    Hash8K/Sum384       25.12µ ± 0%   23.58µ ± 0%  -6.13% (p=0.000 n=10)
+    Hash8K/Sum512       25.12µ ± 0%   23.59µ ± 0%  -6.12% (p=0.000 n=10)
+    geomean             3.607µ        3.405µ       -5.59%
+    
+    Change-Id: I8307ea0fd2d474671f1eef2da2ba5fe899c645d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668835
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ .../internal/fips140/sha512/sha512block_loong64.s  | 31 +++++++++++-----------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

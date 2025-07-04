@@ -1,0 +1,16 @@
+commit f9f0184e13f7639824cce12bcc7bc80bc359549c
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Sun Nov 29 14:22:44 2009 -0800
+
+    Add WebSocket server framework hooked into http.
+    
+    R=r, rsc
+    https://golang.org/cl/156071
+
+ src/pkg/Makefile                    |   1 +
+ src/pkg/websocket/Makefile          |   9 +++
+ src/pkg/websocket/client.go         | 136 +++++++++++++++++++++++++++++++++++
+ src/pkg/websocket/server.go         |  73 +++++++++++++++++++
+ src/pkg/websocket/websocket.go      | 138 ++++++++++++++++++++++++++++++++++++
+ src/pkg/websocket/websocket_test.go |  61 ++++++++++++++++
+ 6 files changed, 418 insertions(+)

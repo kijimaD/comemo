@@ -1,0 +1,14 @@
+commit b7db4fef226632b7efc3fdc0417b25e71a70e2fb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 5 17:00:18 2011 +1000
+
+    godoc: ignore directories that begin with '.'
+    
+    Fixes #2017.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4675047
+
+ src/cmd/godoc/dirtrees.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

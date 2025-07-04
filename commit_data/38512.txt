@@ -1,0 +1,17 @@
+commit 08692bed1e796b5395b6e321c5adcd32f6fc43bf
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:48:31 2019 +0100
+
+    cmd/compile, misc/cgo: fix fortran tests on aix/ppc64
+    
+    Enable pattern lib.a/shared.so.X in cgo_import_dynamic as on AIX,
+    archive files (.a) often have shared objects (.so) inside them.
+    
+    Change-Id: I21096c75eb7fbcc7064b0b832bfa8ed862142051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/fortran/test.bash         | 7 ++++++-
+ src/cmd/compile/internal/gc/lex.go | 3 ++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

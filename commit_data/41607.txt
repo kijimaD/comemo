@@ -1,0 +1,28 @@
+commit 801a9d9a0c32f0a8db43f145e71b53f11a02b7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 13:31:15 2020 -0400
+
+    test/codegen: mention in README that tests only run on Linux without -all_codegen
+    
+    This took me a while to figure out. The relevant code is in
+    test/run.go (note the "linux" hard-coded strings):
+    
+            var arch, subarch, os string
+            switch {
+            case archspec[2] != "": // 3 components: "linux/386/sse2"
+                    os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
+            case archspec[1] != "": // 2 components: "386/sse2"
+                    os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+            default: // 1 component: "386"
+                    os, arch, subarch = "linux", archspec[0], ""
+                    if arch == "wasm" {
+                            os = "js"
+                    }
+            }
+    
+    Change-Id: I92ba280025d2072e17532a5e43cf1d676789c167
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222819
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/codegen/README | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

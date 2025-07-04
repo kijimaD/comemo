@@ -1,0 +1,15 @@
+commit c560c8a9c37f05933e6a593fadf5888f2a8ae53d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 20 20:49:47 2010 -0400
+
+    libmach: implement register fetch for 32-bit x86 kernel
+    Also use memmove to silence some gcc warnings.
+    
+    Fixes #1036.
+    
+    R=r, EtherealMachine
+    CC=golang-dev
+    https://golang.org/cl/1943049
+
+ src/libmach/linux.c | 40 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 31 insertions(+), 9 deletions(-)

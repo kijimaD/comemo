@@ -1,0 +1,18 @@
+commit fa18f224c378f5831210077944e5df718efb8df5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 05:42:20 2021 -0500
+
+    runtime/pprof: disable TestMorestack on macOS under race detector
+    
+    This is failing but only under the race detector.
+    It doesn't really seem fair to expect pprof to find
+    specific profile events with the race detector slowing
+    everything down anyway.
+    
+    Change-Id: I4b353d3d63944c87884d117e07d119b2c7bf4684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294071
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/pprof/pprof_test.go | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit 41eb5ca089be5495ab2299e2b6778fb8ceb8010a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Feb 17 09:41:12 2016 -0500
+
+    cmd/link: typo in error message
+    
+    Change-Id: Ideeef320d6a01a10c89524b6d895a64210a60f64
+    Reviewed-on: https://go-review.googlesource.com/19693
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

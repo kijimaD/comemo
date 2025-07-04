@@ -1,0 +1,17 @@
+commit a9216a0ade61ae3c3a45f9cd358a8a38c5d241a5
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Sun Jul 16 10:39:11 2017 +1000
+
+    net/url: make Parse+String round trip magnet URLs
+    
+    Fixes #20054
+    
+    Change-Id: I3c660ca0c56cdde2c2ac2f6a666d8531ab5588c5
+    Reviewed-on: https://go-review.googlesource.com/49050
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/net/url/url.go      |  4 +++-
+ src/net/url/url_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

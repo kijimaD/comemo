@@ -1,0 +1,23 @@
+commit 717266b4c2bd178dcbd49f31048f216d8799e697
+Author: Daniel Cormier <dcormier@users.noreply.github.com>
+Date:   Tue Sep 1 21:13:01 2020 +0000
+
+    net/smtp: adds support for the SMTPUTF8 extension
+    
+    If the SMTP server supports the SMTPUTF8 extension,
+    the SMTPUTF8 parameter is added to the MAIL FROM
+    command by the (*Client).Mail method.
+    
+    Fixes #19860
+    
+    Change-Id: I3287faf114ee514e5faa815a6bbc1bf04cf60b0f
+    GitHub-Last-Rev: d6338bb802da7537223f1ec6eda960606febefb8
+    GitHub-Pull-Request: golang/go#40627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/smtp/smtp.go      |   6 +-
+ src/net/smtp/smtp_test.go | 213 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 218 insertions(+), 1 deletion(-)

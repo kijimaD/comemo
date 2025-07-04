@@ -1,0 +1,13 @@
+commit 811e59f2fae3755555101e81952b4909b4c15dee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 15:16:28 2009 -0700
+
+    named string type bugs
+    
+    R=ken
+    OCL=32244
+    CL=32244
+
+ src/cmd/gc/walk.c        | 18 +++++++++++++-----
+ test/fixedbugs/bug173.go | 21 +++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit cfb0cc355233d4367b188b23a3bc143985a28b8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 10:00:23 2021 -0800
+
+    cmd/link: use SHT_INIT_ARRAY for .init_array section
+    
+    Fixes #50295
+    
+    Change-Id: If55ebcd5f2af724da7c9c744458a56d21a7ddde7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373734
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testcarchive/carchive_test.go | 178 +++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go        |   7 +-
+ 2 files changed, 184 insertions(+), 1 deletion(-)

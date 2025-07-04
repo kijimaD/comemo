@@ -1,0 +1,38 @@
+commit 6c6a8fb702fcf3c2d23dc68976a831b2bdcad03e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 18 16:10:27 2022 +0100
+
+    syscall: remove accept on Linux
+    
+    accept is no longer used on Linux since CL 346849 changed Accept to use
+    accept4 only.
+    
+    For #45964
+    
+    Change-Id: I72c13df1457016c4785ec13d356ab89cbca644b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386415
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_386.go       |  8 --------
+ src/syscall/syscall_linux_amd64.go     |  1 -
+ src/syscall/syscall_linux_arm.go       |  1 -
+ src/syscall/syscall_linux_arm64.go     |  1 -
+ src/syscall/syscall_linux_mips64x.go   |  1 -
+ src/syscall/syscall_linux_mipsx.go     |  1 -
+ src/syscall/syscall_linux_ppc64x.go    |  1 -
+ src/syscall/syscall_linux_riscv64.go   |  1 -
+ src/syscall/syscall_linux_s390x.go     |  8 --------
+ src/syscall/zsyscall_linux_amd64.go    | 11 -----------
+ src/syscall/zsyscall_linux_arm.go      | 11 -----------
+ src/syscall/zsyscall_linux_arm64.go    | 11 -----------
+ src/syscall/zsyscall_linux_mips.go     | 11 -----------
+ src/syscall/zsyscall_linux_mips64.go   | 11 -----------
+ src/syscall/zsyscall_linux_mips64le.go | 11 -----------
+ src/syscall/zsyscall_linux_mipsle.go   | 11 -----------
+ src/syscall/zsyscall_linux_ppc64.go    | 11 -----------
+ src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
+ src/syscall/zsyscall_linux_riscv64.go  | 11 -----------
+ 19 files changed, 133 deletions(-)

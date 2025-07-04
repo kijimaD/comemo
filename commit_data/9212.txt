@@ -1,0 +1,12 @@
+commit e21f69338b64f81d40af42dbb1ce1ee5e23309f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 26 11:30:11 2011 -0700
+
+    http: set content type for fileserver directory listings
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4815062
+
+ src/pkg/http/fs.go | 1 +
+ 1 file changed, 1 insertion(+)

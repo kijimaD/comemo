@@ -1,0 +1,13 @@
+commit 091cba8d03230545eaa53563d502d94af1f63808
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 19 08:39:40 2009 -0700
+
+    minor adjustments to switches text
+    
+    R=r
+    DELTA=16  (5 added, 1 deleted, 10 changed)
+    OCL=26530
+    CL=26543
+
+ doc/go_spec.html | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)

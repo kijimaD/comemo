@@ -1,0 +1,16 @@
+commit fe56e2cc3587a9e507b9d73ebe77eb9af5cb9c39
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 18:10:29 2010 -0800
+
+    http: most of a URL shouldn't use URL-escaping
+    
+    Fixes #502.
+    
+    R=r, hoisie
+    CC=golang-dev
+    https://golang.org/cl/181179
+
+ src/pkg/http/request.go  |  2 +-
+ src/pkg/http/url.go      | 38 +++++++++++++++++++++++++-------------
+ src/pkg/http/url_test.go | 19 +++++++++++++++----
+ 3 files changed, 41 insertions(+), 18 deletions(-)

@@ -1,0 +1,43 @@
+commit 1b072b3ed56c18619587354f499fcda5279718a2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Oct 14 18:18:49 2021 -0400
+
+    runtime: consistently access pollDesc r/w Gs with atomics
+    
+    Both netpollblock and netpollunblock read gpp using a non-atomic load.
+    When consuming a ready event, netpollblock clears gpp using a non-atomic
+    store, thus skipping a barrier.
+    
+    Thus on systems with weak memory ordering, a sequence like so this is
+    possible:
+    
+                 T1                                T2
+    
+    1. netpollblock: read gpp -> pdReady
+    2. netpollblock: store gpp -> 0
+    
+                                     3. netpollunblock: read gpp -> pdReady
+                                     4. netpollunblock: return
+    
+    i.e., without a happens-before edge between (2) and (3), netpollunblock
+    may read the stale value of gpp.
+    
+    Switch these access to use atomic loads and stores in order to create
+    these edges.
+    
+    For ease of future maintainance, I've simply changed rg and wg to always
+    be accessed atomically, though I don't believe pollOpen or pollClose
+    require atomics today.
+    
+    Fixes #48925
+    
+    Change-Id: I903ea667eea320277610b4f969129935731520c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355952
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/netpoll.go | 43 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 17 deletions(-)

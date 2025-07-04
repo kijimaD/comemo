@@ -1,0 +1,17 @@
+commit 78ecd61f6245197f701629f5f511be7f2bc1ff58
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:20:34 2016 -0400
+
+    runtime/cgo: add s390x support
+    
+    Change-Id: I64ada9fe34c3cfc4bd514ec5d8c8f4d4c99074fb
+    Reviewed-on: https://go-review.googlesource.com/20950
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/asm_s390x.s       | 44 +++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_s390x.c | 68 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_s390x.S       | 43 +++++++++++++++++++++++++
+ 3 files changed, 155 insertions(+)

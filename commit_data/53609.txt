@@ -1,0 +1,23 @@
+commit 51885c1fa2eff36c421d6669816f971b54b63a33
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 15 09:14:03 2023 -0400
+
+    cmd/{go,cover}: enable response file args for cmd/cover
+    
+    Change the cover command to accept arguments via response files, using
+    the same mechanism employed for the compiler and the assembler. This
+    is needed now that the cover tool accepts a list of all source files
+    in a package, as opposed to just a single source file, and as a result
+    can run into system-dependent command line length limits.
+    
+    Fixes #60785.
+    
+    Change-Id: I67dbc96ad9fc5c6f43d5c1e4e903e4b8589b154f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/cover/cover.go           | 2 +-
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

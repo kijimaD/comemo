@@ -1,0 +1,12 @@
+commit 25cf9bdea61b4e54d2f0c82855e2506a4befa03b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 21:47:22 2012 +0100
+
+    gc: test that asserts closures are not wrapped when they don't have closure vars.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5529060
+
+ test/closure.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

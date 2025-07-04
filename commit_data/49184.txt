@@ -1,0 +1,54 @@
+commit 5b4fafd5db1c13e5e2c9f836476015870b3ed30b
+Author: David Chase <drchase@google.com>
+Date:   Thu May 12 17:12:32 2022 -0400
+
+    cmd/compile: sort named types before unnamed in reflect
+    
+    When the local package has an explicit name instead of "",
+    this is necessary to get past a cgo plugin test that fails
+    because of a package signature mismatch.  There's something
+    questionable going on in the package hash generation, and
+    in particular it went wrong here.  Updating the sort order
+    helps.
+    
+    This CL is a prerequisite for a pending code cleanup,
+    https://go-review.googlesource.com/c/go/+/393715
+    
+    Updates #51734.
+    
+    The failure:
+    
+    GOROOT/misc/cgo/testplugin$ go test .
+    mkdir -p $TMPDIR/src/testplugin
+    rsync -a testdata/ $TMPDIR/src/testplugin
+    echo 'module testplugin' > $TMPDIR/src/testplugin/go.mod
+    mkdir -p $TMPDIR/alt/src/testplugin
+    rsync -a altpath/testdata/ $TMPDIR/alt/src/testplugin
+    echo 'module testplugin' > $TMPDIR/alt/src/testplugin/go.mod
+    cd $TMPDIR/alt/src/testplugin
+    ( PWD=$TMPDIR/alt/src/testplugin GOPATH=$TMPDIR/alt go build -gcflags '' -buildmode=plugin -o $TMPDIR/src/testplugin/plugin-mismatch.so ./plugin-mismatch )
+    cd $TMPDIR/src/testplugin
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin ./plugin1 )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin ./plugin2 )
+    cp plugin2.so plugin2-dup.so
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=sub/plugin1.so ./sub/plugin1 )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=unnamed1.so ./unnamed1/main.go )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=unnamed2.so ./unnamed2/main.go )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -o host.exe ./host )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go run -gcflags '' ./checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go run -gcflags '' ./checkdwarf/main.go ./host.exe main.main )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin ./host.exe )
+    --- FAIL: TestRunHost (0.02s)
+        plugin_test.go:187: ./host.exe: exit status 1
+            2022/05/13 11:26:37 plugin.Open failed: plugin.Open("plugin1"): plugin was built with a different version of package runtime
+    
+    and many more after that.
+    
+    Change-Id: I0780decc5bedeea640ed0b3710867aeda5b3f725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405995
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,15 @@
+commit 3811c4d84aabc544f3431bf7fb59e9c57b183628
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 11:10:00 2014 -0400
+
+    debug/pe: remove use of unsafe
+    
+    Helps in environments with restricted support for unsafe.
+    
+    LGTM=bradfitz
+    R=r, bradfitz
+    CC=dsymonds, golang-codereviews
+    https://golang.org/cl/156410044
+
+ src/debug/pe/file.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

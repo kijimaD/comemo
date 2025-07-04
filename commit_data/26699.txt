@@ -1,0 +1,26 @@
+commit 0c71e293b57b0b2fbfa63d0fbf364b1771b6ee6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 4 15:41:56 2016 -0700
+
+    cmd/compile: minor cleanup to import loading
+    
+    Briefly document what the importfoo functions do.
+    
+    Get rid of importsym's unused result parameter.
+    
+    Get rid of the redundant calls to importsym(s, OTYPE)
+    after we've already called pkgtype(s).
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4c057358144044f5356e4dec68907ec85f1fe806
+    Reviewed-on: https://go-review.googlesource.com/21498
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go |  1 -
+ src/cmd/compile/internal/gc/export.go  | 13 ++++++-------
+ src/cmd/compile/internal/gc/parser.go  |  7 +------
+ 3 files changed, 7 insertions(+), 14 deletions(-)

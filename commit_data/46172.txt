@@ -1,0 +1,18 @@
+commit 5e6a7e9b860d7c8f589eec3c123469ea8071689f
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Mon Aug 23 19:13:35 2021 +0930
+
+    embed: remove reference to global variables in docs
+    
+    Refering to variable is both redundant since package scope is used, and
+    incorrect since global variables are not described in the spec.
+    
+    Change-Id: Ib08a9f072fc800ee36549f758b68167d8f044878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344214
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/embed/embed.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

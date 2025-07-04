@@ -1,0 +1,21 @@
+commit cf241a34a2ee8b337e11731958d918cbfd338caf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 30 16:35:52 2021 -0700
+
+    net: consistently return DNSError on lookup failure
+    
+    Previously if we failed because the context timed out or was canceled,
+    we returned errCanceled or errTimeout.
+    
+    Fixes #39178
+    
+    Change-Id: I11bd7ebfaa7e5775fb05dfbb6b67f8307c8d8697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353400
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/lookup.go      | 27 ++++++++++++++++---
+ src/net/lookup_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 93 insertions(+), 4 deletions(-)

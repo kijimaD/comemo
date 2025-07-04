@@ -1,0 +1,14 @@
+commit 1da7f1e2ee6eea4ee22fc943e2aed41778ea6fbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 17:56:56 2018 +0000
+
+    net/http: comment handleReadError more, superficially use its argument
+    
+    Fixes #24201
+    
+    Change-Id: Ib970c4eeaa90489d014482276a7e5afa94a50741
+    Reviewed-on: https://go-review.googlesource.com/122675
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

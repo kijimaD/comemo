@@ -1,0 +1,18 @@
+commit a766d8e59c2c43b4c6795404d303b64b9fe69a0f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 16 00:06:45 2015 -0500
+
+    cmd/cgo: map C unsigned char back to _Ctype_uchar in error messages
+    
+    Fixes #13635.
+    
+    Change-Id: Icab4a45567f435f002a8f6c85db9538acf054a70
+    Reviewed-on: https://go-review.googlesource.com/17863
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/issue13635.go | 24 ++++++++++++++++++++++++
+ misc/cgo/errors/test.bash     | 15 +++++++++------
+ src/cmd/cgo/gcc.go            |  1 +
+ 3 files changed, 34 insertions(+), 6 deletions(-)

@@ -1,0 +1,35 @@
+commit 7987238d9cfcef5f79ccd9458e59e22d8a8b3cf2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 12 09:22:07 2019 -0400
+
+    cmd/asm,cmd/compile: clean up isel codegen on ppc64x
+    
+    This cleans up the isel code generation in ssa for ppc64x.
+    
+    Current there is no isel op and the isel code is only
+    generated from pseudo ops in ppc64/ssa.go, and only using
+    operands with values 0 or 1. When the isel is generated,
+    there is always a load of 1 into the temp register before it.
+    
+    This change implements the isel op so it can be used in PPC64.rules,
+    and can recognize operand values other than 0 or 1. This also
+    eliminates the forced load of 1, so it will be loaded only if
+    needed.
+    
+    This will make the isel code generation consistent with other ops,
+    and allow future rule changes that can take advantage of having
+    a more general purpose isel rule.
+    
+    Change-Id: I363e1dbd3f7f5dfecb53187ad51cce409a8d1f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195057
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/arch/ppc64.go           |    2 +-
+ src/cmd/compile/internal/ppc64/ssa.go        |   97 +--
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   56 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    8 +
+ src/cmd/compile/internal/ssa/opGen.go        |   31 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1183 ++++++++++++++++++++++++--
+ 6 files changed, 1222 insertions(+), 155 deletions(-)

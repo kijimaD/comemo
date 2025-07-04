@@ -1,0 +1,23 @@
+commit 0504cd68e6561b962354821bccf04f5cf080662e
+Author: elpinal <6elpinal@gmail.com>
+Date:   Sat Dec 16 15:04:05 2017 +0900
+
+    cmd/doc: suppress the error message for *package.ident embedded in struct type
+    
+    The current implementation prints a log, "invalid program: unexpected
+    type for embedded field", when the form *package.ident is embedded in
+    a struct declaration.
+    
+    Note that since valid qualified identifiers must be exported, the result
+    for a valid program does not change.
+    
+    Change-Id: If8b9d7056c56b6a6c5482eb749168a63c65ef685
+    Reviewed-on: https://go-review.googlesource.com/84436
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go     |  1 +
+ src/cmd/doc/pkg.go          | 17 +++++++++--------
+ src/cmd/doc/testdata/pkg.go | 17 +++++++++--------
+ 3 files changed, 19 insertions(+), 16 deletions(-)

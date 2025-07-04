@@ -1,0 +1,18 @@
+commit 1cc3c735802f93eaf74b21795b8027163318ace1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 6 15:25:01 2022 -0500
+
+    runtime: improve asanread/asanwrite nosplit comment
+    
+    Explain the conditions under which they are called on stacks that
+    cannot grow.
+    
+    Change-Id: I08ee5480face7fbedeccc09e55b8149c5a793c2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376036
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+
+ src/runtime/asan.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

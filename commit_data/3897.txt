@@ -1,0 +1,12 @@
+commit 5de21eb1e93393cb5f07f5f5f0c32ac76c33d135
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 00:49:56 2009 -0800
+
+    TBR
+    step 2: adding renamed dirlist.html again
+    
+    R=rsc
+    http://go/go-review/1024022
+
+ lib/godoc/dirlist.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

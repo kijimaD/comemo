@@ -1,0 +1,24 @@
+commit 5f04ef752bc9485821eae8a5b248b9d39d57989c
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Tue Sep 12 11:49:41 2023 +0000
+
+    io/fs, path/filepath, cmd/gofmt: replace statDirEntry with fs.FileInfoToDirEntry
+    
+    Change-Id: Ie914367314ca72fab34c4d4529755dea853cf325
+    GitHub-Last-Rev: bc61665d33d7f15da371dcfb90c132fab25fc233
+    GitHub-Pull-Request: golang/go#62342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523876
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/gofmt/long_test.go     | 15 +--------------
+ src/io/fs/walk.go              | 15 +--------------
+ src/path/filepath/path.go      | 15 +--------------
+ src/path/filepath/path_test.go | 15 +--------------
+ 4 files changed, 4 insertions(+), 56 deletions(-)

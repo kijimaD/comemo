@@ -1,0 +1,18 @@
+commit 93ea79ee7ed859287e6adc51ab04028e972403e1
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 11 12:47:12 2012 -0400
+
+    crypto/rsa: left-pad PKCS#1 v1.5 outputs.
+    
+    OpenSSL requires that RSA signatures be exactly the same byte-length
+    as the modulus. Currently it'll reject ~1/256 of our signatures: those
+    that end up a byte shorter.
+    
+    Fixes #3796.
+    
+    R=golang-dev, edsrzf, r
+    CC=golang-dev
+    https://golang.org/cl/6352093
+
+ src/pkg/crypto/rsa/pkcs1v15.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

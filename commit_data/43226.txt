@@ -1,0 +1,20 @@
+commit f3b58edd036e082c210b11bb3aee8a40aa8fbcf2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 8 19:51:57 2020 +0700
+
+    cmd/compile: use types.IdealFoo directly in predecl
+    
+    Instead of using untype(Ctype) to get corresponding untyped type.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I311fe6c94b1f8eb2e1615101a379cd06dcab835b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260698
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 38 +++++++---------------------------
+ src/cmd/compile/internal/gc/iexport.go |  4 ++--
+ 2 files changed, 9 insertions(+), 33 deletions(-)

@@ -1,0 +1,24 @@
+commit 680ed10c9127a28ed9510c40d59b1ff10e688bff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 24 15:17:16 2019 -0400
+
+    cmd/go/internal/modfetch/codehost: remove invariantly-empty return value from Repo.ReadZip
+    
+    Previously, codehost.Repo.ReadZip returned an 'actualSubdir' value
+    that was the empty string in all current implementations.
+    
+    Updates #26092
+    
+    Change-Id: I6708dd0f13ba88bcf1a1fb405e9d818fd6f9197e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203277
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  7 +++----
+ src/cmd/go/internal/modfetch/codehost/git.go      | 14 +++++++-------
+ src/cmd/go/internal/modfetch/codehost/git_test.go | 16 ++++++----------
+ src/cmd/go/internal/modfetch/codehost/shell.go    |  2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 12 ++++++------
+ src/cmd/go/internal/modfetch/coderepo.go          |  9 +++------
+ 6 files changed, 26 insertions(+), 34 deletions(-)

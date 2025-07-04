@@ -1,0 +1,14 @@
+commit c819a0c72fa4d87193564ff69dd420a8dc612ed1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 6 17:56:48 2010 -0700
+
+    arm: fix build, attempt #1
+    
+    TBR=kaib
+    CC=golang-dev
+    https://golang.org/cl/883046
+
+ test/arm-pass.txt   |  89 ++++++++++++++++++++++++++++++++--------
+ test/golden-arm.out | 116 ++++++++++++++++++++++++++--------------------------
+ test/run-arm        |   2 +-
+ 3 files changed, 133 insertions(+), 74 deletions(-)

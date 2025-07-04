@@ -1,0 +1,18 @@
+commit 1d09433ec072c2acff27335c2d05ce44bb501ecc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 15:36:28 2018 -0400
+
+    runtime: undo manual inlining of mbits.setMarked
+    
+    Since atomic.Or8 is now an intrinsic (and has been for some time),
+    markBits.setMarked is inlinable. Undo the manual inlining of it.
+    
+    Change-Id: I8e37ccf0851ad1d3088d9c8ae0f6f0c439d7eb2d
+    Reviewed-on: https://go-review.googlesource.com/c/138659
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mbitmap.go | 4 +---
+ src/runtime/mgcmark.go | 3 +--
+ 2 files changed, 2 insertions(+), 5 deletions(-)

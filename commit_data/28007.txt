@@ -1,0 +1,18 @@
+commit a7ed9ff754dd66a75070a376382ca0fa520deefd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 22 05:52:15 2016 +0900
+
+    net: document unimplemented methods and functions
+    
+    Fixes #16802.
+    
+    Change-Id: I41be7bb4e21e3beaa2136ee69771b0f455b2a7c6
+    Reviewed-on: https://go-review.googlesource.com/27417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/file.go      | 3 +++
+ src/net/interface.go | 6 ++++++
+ src/net/iprawsock.go | 6 ++++++
+ src/net/tcpsock.go   | 3 +++
+ src/net/udpsock.go   | 9 +++++++++
+ 5 files changed, 27 insertions(+)

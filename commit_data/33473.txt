@@ -1,0 +1,16 @@
+commit e4a380868d6b430283721995374487632e2e0762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 7 13:56:05 2017 -0800
+
+    cmd/dist: correct default C++ compiler when using gcc
+    
+    Fixes #22609
+    
+    Change-Id: Ic948345e7d1623a7defee6a6493eb81fe7393111
+    Reviewed-on: https://go-review.googlesource.com/76396
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

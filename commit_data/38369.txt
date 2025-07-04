@@ -1,0 +1,19 @@
+commit 334e7509179ba5ca2271ee028052dc1d34b21bcf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 14:43:22 2019 -0400
+
+    cmd: ensure that GOPATH is always valid in subprocesses that execute 'go build'
+    
+    GOPATH/pkg contains, among other things, the module cache (and associated lockfiles).
+    
+    Fixes #30776
+    
+    Change-Id: I305cb3c0daab8cedd2e6ad235d4733f66af18723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167082
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/cover/cover_test.go                 | 1 +
+ src/cmd/internal/obj/x86/issue19518_test.go | 3 ++-
+ src/cmd/internal/obj/x86/obj6_test.go       | 3 ++-
+ src/cmd/link/link_test.go                   | 3 ++-
+ 4 files changed, 7 insertions(+), 3 deletions(-)

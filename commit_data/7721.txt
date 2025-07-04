@@ -1,0 +1,16 @@
+commit f8f3145a080b18b35c2fa7f245a4a474cc3043d4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 9 17:30:27 2011 -0800
+
+    gob: turn two panics into errors because they can be triggered
+    by bogus data, or are in any case recoverable.
+    
+    Fixes #1598.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4240101
+
+ src/pkg/gob/decode.go | 6 +++---
+ src/pkg/gob/encode.go | 5 +++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

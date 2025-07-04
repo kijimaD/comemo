@@ -1,0 +1,21 @@
+commit 74c296b69ffe07322b4bb42d7d2afe5f76ccf6ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 13 14:48:35 2023 +0000
+
+    path/filepath: add test cases for walking a symlink-to-symlink-to-dir
+    
+    The "double link with slash" test is skipped on darwin due to an
+    apparent kernel / libc bug. If the bug is present on other platforms
+    too, I'd like to know about it.
+    
+    For #59586.
+    
+    Change-Id: I4bdd6a80a3ed7b0960ea6da30f91a655f317d512
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/path/filepath/path_test.go | 46 ++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 42 insertions(+), 4 deletions(-)

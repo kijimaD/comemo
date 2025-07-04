@@ -1,0 +1,28 @@
+commit 6a1a2170bcd1fbbe7210d90939a485dadf5075fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 12:19:01 2013 -0800
+
+    os, path/filepath: don't ignore Lstat errors in Readdir
+    
+    os: don't ignore LStat errors in Readdir. If it's ENOENT,
+    on the second pass, just treat it as missing. If it's another
+    error, it's real.
+    
+    path/filepath: use ReaddirNames instead of Readdir in Walk,
+    in order to obey the documented WalkFunc contract of returning
+    each walked item's LStat error, if any.
+    
+    Fixes #6656
+    Fixes #6680
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/43530043
+
+ src/pkg/os/file_unix.go              | 14 ++++---
+ src/pkg/os/os_test.go                | 80 ++++++++++++++++++++++++++++++++++++
+ src/pkg/os/os_unix_test.go           | 38 -----------------
+ src/pkg/path/filepath/export_test.go |  7 ++++
+ src/pkg/path/filepath/path.go        | 36 ++++++++--------
+ src/pkg/path/filepath/path_test.go   | 58 ++++++++++++++++++++++++++
+ 6 files changed, 173 insertions(+), 60 deletions(-)

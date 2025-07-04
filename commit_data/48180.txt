@@ -1,0 +1,36 @@
+commit c016133c50512e9a83e7442bd7ac614fe7ca62de
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 12:33:17 2022 -0500
+
+    cmd/go/internal/modload: set errors for packages with invalid import paths
+    
+    Prior to CL 339170, relative errors in module mode resulted in a
+    base.Fatalf from the module loader, which caused unrecoverable errors
+    from 'go list -e' but successfully rejected relative imports (which
+    were never intended to work in module mode in the first place).
+    
+    After that CL, the base.Fatalf is no longer present, but some errors
+    that had triggered that base.Fatalf were no longer diagnosed at all:
+    the module loader left them for the package loader to report, and the
+    package loader assumed that the module loader would report them.
+    
+    Since the module loader already knows that the paths are invalid,
+    it now reports those errors itself.
+    
+    Fixes #51125
+    
+    Change-Id: I70e5818cfcfeea0ac70e17274427b08a74fd7c13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386176
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/test/testdata/ptrsort.go  |  2 +-
+ src/cmd/go/internal/load/pkg.go                    |  7 +--
+ src/cmd/go/internal/modload/import.go              | 18 +++++++-
+ src/cmd/go/internal/modload/load.go                | 18 --------
+ src/cmd/go/testdata/script/build_internal.txt      |  2 +
+ src/cmd/go/testdata/script/run_issue51125.txt      | 54 ++++++++++++++++++++++
+ .../go/testdata/script/test_relative_cmdline.txt   |  4 +-
+ 7 files changed, 80 insertions(+), 25 deletions(-)

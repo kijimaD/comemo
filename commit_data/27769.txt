@@ -1,0 +1,18 @@
+commit afccfb829f17f85a8d4aa74f1a11a27422437405
+Author: Monty Taylor <mordred@inaugust.com>
+Date:   Fri Jul 1 08:47:41 2016 -0500
+
+    cmd/go: remove noVCSSuffix check for OpenStack
+    
+    The original intent of the code was to allow both with and without .git
+    suffix for now to allow a transition period. The noVCSSuffix check was a
+    copy pasta error.
+    
+    Fixes #15979.
+    
+    Change-Id: I3d39aba8d026b40fc445244d6d01d8bc1979d1e4
+    Reviewed-on: https://go-review.googlesource.com/24645
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/vcs.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 347cf67a8534b301588822489590b1f4667e4aed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 3 14:04:28 2008 -0700
+
+    - precise scope rules
+    - clarified naming of invisible fields
+    - fixed syntax of expression statements
+    
+    R=r
+    DELTA=70  (33 added, 4 deleted, 33 changed)
+    OCL=16424
+    CL=16439
+
+ doc/go_spec.txt | 99 +++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 64 insertions(+), 35 deletions(-)

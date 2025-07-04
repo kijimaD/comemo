@@ -1,0 +1,18 @@
+commit a1eb658d18b1f594e133aa71d3e29d33ed523106
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 01:51:53 2023 +1000
+
+    cmd/go/testdata/mod: add golang toolchain test data for openbsd/riscv64
+    
+    Updates #55999
+    
+    Change-Id: I65e3bfb08ed2dd1602531902c7df8232e5151aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518628
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ ...org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

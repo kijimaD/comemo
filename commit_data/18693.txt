@@ -1,0 +1,18 @@
+commit 07e2b4049be2f99ff3dca57b942769c017b12360
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 28 08:31:12 2014 -0800
+
+    os: don't allow Process.Kill after Process.Release
+    
+    This is a user error, but killing -1 kills everything, which
+    is a pretty bad failure mode.
+    
+    Fixes #7434
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/70140043
+
+ src/pkg/os/exec_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit e0efdac65a9c06f87c49ef0818bd883c1fb6f35e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Apr 8 12:13:39 2017 +0200
+
+    net: fix typo in ParseCIDR doc
+    
+    Fixes #19891
+    
+    Change-Id: I2f2684dd5fbfcf93fca0f2c3caf678f44605687f
+    Reviewed-on: https://go-review.googlesource.com/40090
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit e19d8a47d1803a19446c658712c4bdff84d0da31
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 14:49:32 2014 -0400
+
+    runtime: account for tiny allocs, for testing.AllocsPerRun
+    
+    Fixes #8734.
+    
+    LGTM=r, bradfitz, dvyukov
+    R=bradfitz, r, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/143150043
+
+ src/runtime/malloc.c       |  5 ++++-
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/malloc.h       |  3 +++
+ src/runtime/mem.go         |  2 +-
+ src/runtime/mgc0.c         |  1 +
+ src/runtime/mheap.c        |  4 ++++
+ src/testing/allocs_test.go | 29 +++++++++++++++++++++++++++++
+ 7 files changed, 43 insertions(+), 3 deletions(-)

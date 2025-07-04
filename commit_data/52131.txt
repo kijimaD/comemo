@@ -1,0 +1,23 @@
+commit 9b221f9350b555a1e8c01c08a88ed6590ca11a17
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 16 14:35:25 2023 +0700
+
+    hash/maphash: add purego implementation
+    
+    Fixes #47342
+    
+    Change-Id: I9c3b36de3e7c85d3e7aff2f84abc78a1b382008c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468795
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/test.go                |   6 +++
+ src/go/build/deps_test.go           |   5 +-
+ src/hash/maphash/maphash.go         |  51 ++++--------------
+ src/hash/maphash/maphash_purego.go  | 104 ++++++++++++++++++++++++++++++++++++
+ src/hash/maphash/maphash_runtime.go |  43 +++++++++++++++
+ 5 files changed, 167 insertions(+), 42 deletions(-)

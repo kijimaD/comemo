@@ -1,0 +1,18 @@
+commit 66bb399fddbddd8c2a12510ea5ddff987cc3eb54
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:18:19 2009 -0700
+
+    whole-package compilation
+    
+    R=ken
+    OCL=33063
+    CL=33095
+
+ src/cmd/gc/dcl.c    |  13 ++----
+ src/cmd/gc/export.c |  12 +++++-
+ src/cmd/gc/go.h     |   2 +
+ src/cmd/gc/go.y     |  44 ++++++-------------
+ src/cmd/gc/init.c   |  20 +++++----
+ src/cmd/gc/lex.c    | 122 +++++++++++++++++++++++++++++++++++++++-------------
+ src/cmd/gc/sinit.c  |  74 ++++++++++++++++++++++++++++++-
+ 7 files changed, 204 insertions(+), 83 deletions(-)

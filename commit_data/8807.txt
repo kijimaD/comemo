@@ -1,0 +1,12 @@
+commit 6be0bdf7bc64037ef45b622123ec3276f6c0618e
+Author: Ben Lynn <benlynn@gmail.com>
+Date:   Tue Jun 21 10:55:07 2011 +1000
+
+    Effective Go: supplied missing type in variadic function example.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4595055
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

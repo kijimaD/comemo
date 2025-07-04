@@ -1,0 +1,15 @@
+commit 6f22d2c682d5fb7e8c4e9d2ab3e6a762756c1e30
+Author: Nick Miyake <nmiyake@users.noreply.github.com>
+Date:   Fri Jun 18 00:19:10 2021 +0000
+
+    doc/go1.17: fix typo
+    
+    Change-Id: Ie8629e0f710d3eb95b4bbcc9c680ffc5004c2f15
+    GitHub-Last-Rev: 52f48f429cdd65692b88f724f757efed1fa39cd2
+    GitHub-Pull-Request: golang/go#46812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329289
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

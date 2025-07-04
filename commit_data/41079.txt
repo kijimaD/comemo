@@ -1,0 +1,22 @@
+commit b8e2ffcb901038db838544bdd5339d51f20e6aa4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 2 15:47:45 2020 -0500
+
+    cmd/go: convert tests using testdata/src/testrace to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Id4c2c58167d5cfc80b0d81ca9ce3db678242c06c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213128
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 42 ---------------------
+ .../testrace/race_test.go => script/test_race.txt} | 16 ++++++++
+ .../script/test_race_cover_mode_issue20435.txt     | 44 ++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 42 deletions(-)

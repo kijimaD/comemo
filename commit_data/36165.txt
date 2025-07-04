@@ -1,0 +1,25 @@
+commit 344d0e0bf78ce479310496e8c767fc5e7410b527
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 26 16:33:27 2018 -0700
+
+    cmd/cgo: make sure we FinishType everything
+    
+    Ensure that we call FinishType on all the types added to the ptrs map.
+    We only add a key to ptrKeys once. Once we FinishType for that key,
+    we'll never look at that key again. But we can add a new type under that
+    key later, and we'll never finish it.
+    
+    Make sure we add the key to the ptrKeys list every time we make the list
+    of types for that key non-empty.
+    
+    This makes sure we FinishType each pointer type exactly once.
+    
+    Fixes #26517
+    
+    Change-Id: Iad86150d516fcfac167591daf5a26c38bec7d143
+    Reviewed-on: https://go-review.googlesource.com/126275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue26517.go | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  6 ++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

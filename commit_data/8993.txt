@@ -1,0 +1,16 @@
+commit 4d47600f467da4852119298ac90ca3dabee614c3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jul 10 11:30:16 2011 +1000
+
+    archive/zip: add Writer
+    
+    R=bradfitz, dchest, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4523077
+
+ src/pkg/archive/zip/Makefile       |   1 +
+ src/pkg/archive/zip/reader.go      |  61 +++-------
+ src/pkg/archive/zip/struct.go      |  29 +++++
+ src/pkg/archive/zip/writer.go      | 244 +++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/zip/writer_test.go |  73 +++++++++++
+ 5 files changed, 365 insertions(+), 43 deletions(-)

@@ -1,0 +1,16 @@
+commit 829425d3ce34615726de2c91725c891393370879
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 26 11:45:50 2015 -0500
+
+    bufio: clarify Read docs
+    
+    Or at least make them true.
+    
+    Fixes #12237.
+    
+    Change-Id: I3c92a07233b2174c5731d6fa7fbb9ca3a97beb6b
+    Reviewed-on: https://go-review.googlesource.com/17237
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

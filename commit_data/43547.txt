@@ -1,0 +1,20 @@
+commit ece7a33386a4fbd2ff9859902f780ed82120b985
+Author: Andy Williams <andy@andy.xyz>
+Date:   Fri Jun 5 10:18:47 2020 +0000
+
+    mime: look up mime types on Arch Linux
+    
+    Some systems use "httpd" directory structure instead of "apache"
+    
+    Change-Id: I77600baf356f0c0c3359b331505b0426112daebb
+    GitHub-Last-Rev: c64766f88cc28899d3d387e3eebfa4fcc3eef808
+    GitHub-Pull-Request: golang/go#39416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236677
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,19 @@
+commit 6a208efbdfa939dc236a63383df19c7ab44aa50a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 8 23:23:36 2016 +0000
+
+    net/http: make ListenAndServeTLS treat GetCertificate as a set cert too
+    
+    ListenAndServeTLS doesn't require cert and key file names if the
+    server's TLSConfig has a cert configured. This code was never updated
+    when the GetCertificate hook was added to *tls.Config, however.
+    
+    Fixes #14268
+    
+    Change-Id: Ib282ebb05697edd37ed8ff105972cbd1176d900b
+    Reviewed-on: https://go-review.googlesource.com/19381
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/serve_test.go | 28 ++++++++++++++++++++++------
+ src/net/http/server.go     | 12 +++++++-----
+ 2 files changed, 29 insertions(+), 11 deletions(-)

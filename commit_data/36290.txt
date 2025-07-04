@@ -1,0 +1,12 @@
+commit edf81050a8cfdcdaff47664f51c52441b754480e
+Author: Austin Clements <austin@google.com>
+Date:   Sat Aug 18 14:50:50 2018 -0400
+
+    doc/go1.11: Delve 1.1.0 added support for method calls
+    
+    Change-Id: I5f887f9831378cf76f5a9f447f481ea24c63f390
+    Reviewed-on: https://go-review.googlesource.com/129803
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

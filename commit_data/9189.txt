@@ -1,0 +1,30 @@
+commit ba134539c58d8b157a9d5646de91dbd0616b33c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 23 12:22:55 2011 -0400
+
+    runtime: faster entersyscall/exitsyscall
+    
+    Replace cas with xadd in scheduler.
+    Suggested by Dmitriy in last code review.
+    Verified with Promela model.
+    
+    When there's actual contention for the atomic word,
+    this avoids the looping that compare-and-swap requires.
+    
+    benchmark                            old ns/op    new ns/op    delta
+    runtime_test.BenchmarkSyscall               32           26  -17.08%
+    runtime_test.BenchmarkSyscall-2            155           59  -61.81%
+    runtime_test.BenchmarkSyscall-3            112           52  -52.95%
+    runtime_test.BenchmarkSyscall-4             94           48  -48.57%
+    runtime_test.BenchmarkSyscallWork          871          872   +0.11%
+    runtime_test.BenchmarkSyscallWork-2        481          477   -0.83%
+    runtime_test.BenchmarkSyscallWork-3        338          335   -0.89%
+    runtime_test.BenchmarkSyscallWork-4        263          256   -2.66%
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4800047
+
+ src/pkg/runtime/proc.c | 57 ++++++++++++++------------------------------------
+ src/pkg/runtime/proc.p | 42 +++++++++++++++++++++++++++----------
+ 2 files changed, 47 insertions(+), 52 deletions(-)

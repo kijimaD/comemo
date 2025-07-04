@@ -1,0 +1,20 @@
+commit 92b4741728faca77329b204340b02e8df4f4d097
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 14 11:06:53 2014 -0800
+
+    runtime: if traceback sees a breakpoint, don't change the PC
+    
+    Changing the PC confuses gdb, because execution does not
+    continue where gdb expects it.  Not changing the PC has the
+    potential to confuse a stack dump, but when running under gdb
+    it seems better to confuse a stack dump than to confuse gdb.
+    
+    Fixes #6776.
+    
+    LGTM=rsc
+    R=golang-codereviews, dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/49580044
+
+ src/pkg/runtime/sys_x86.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

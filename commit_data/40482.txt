@@ -1,0 +1,24 @@
+commit ec10e6f364dddef88223eb9ddda1ee900b1551cb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 29 00:16:28 2019 -0400
+
+    cmd/compile: fix missing lowering of atomic {Load,Store}8
+    
+    CL 203284 added a compiler intrinsics from atomic Load8 and Store8 on
+    several architectures, but missed the lowering on MIPS. This CL fixes
+    that.
+    
+    Updates #10958, #24543.
+    
+    Change-Id: I82e88971554fe8c33ad2bf195a633c44b9ac4cf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203977
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/mips/ssa.go        | 24 ++++++++++---
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 10 +++---
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go | 10 +++---
+ src/cmd/compile/internal/ssa/opGen.go       | 35 ++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 54 ++++++++++++++++++++++-------
+ 5 files changed, 104 insertions(+), 29 deletions(-)

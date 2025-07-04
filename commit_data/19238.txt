@@ -1,0 +1,19 @@
+commit 8cb916f71d7d397905b9d8a5a0ea5c22871ac867
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Sat Apr 26 22:16:38 2014 -0700
+
+    cmd/cgo: fix C.CString for strings containing null terminators under gccgo
+    
+    Previously we used strndup(3) to implement C.CString for gccgo. This
+    is wrong because strndup assumes the string to be null terminated,
+    and stops at the first null terminator. Instead, use malloc
+    and memmove to create a copy of the string, as we do in the
+    gc implementation.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/96790047
+
+ src/cmd/cgo/out.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

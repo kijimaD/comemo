@@ -1,0 +1,17 @@
+commit 87103a1ab75036530bf0757397a212ee1a9822f5
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Mar 9 15:53:03 2016 +0000
+
+    syscall: add NO_LOCAL_POINTERS to syscall.exit in plan9_arm
+    
+    This prevents a fatal "missing stackmap" error if garbage collection
+    occurs during exit.
+    
+    Also annotate argument sizes for "go vet".
+    
+    Change-Id: I2473e0ef6aef8f26d0bbeaee9bd8f8a52eaaf941
+    Reviewed-on: https://go-review.googlesource.com/20476
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/asm_plan9_arm.s | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

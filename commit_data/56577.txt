@@ -1,0 +1,21 @@
+commit 3bcefa5276c4ec5475df62cfd1fde9315b121d1c
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 20 14:52:57 2024 +0000
+
+    cmd/link/internal/ld: rewrite LC_UUID for darwin external links
+    
+    When building Go binaries using external linking, rewrite the LC_UUID
+    Macho load command to replace the content placed there by the external
+    linker, so as to ensure that we get reproducible builds.
+    
+    Updates #64947.
+    
+    Change-Id: I263a89d1a067807404febbc801d4dade33bc3288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586079
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go                 |  55 ++++++++-----
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  15 +++-
+ src/cmd/link/internal/ld/macho_update_uuid.go   | 103 ++++++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 19 deletions(-)

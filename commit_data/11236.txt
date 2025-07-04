@@ -1,0 +1,13 @@
+commit 0203fbee6439b12c48096482638fecfde7573a52
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:35:23 2012 -0800
+
+    doc/go1.*: documented changes to go/* package tree
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5557053
+
+ doc/go1.html | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+)

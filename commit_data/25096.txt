@@ -1,0 +1,24 @@
+commit 46300a058dfb078164f29fa1a86a2dbdad55e503
+Author: Colin Cross <ccross@android.com>
+Date:   Thu Nov 5 15:47:20 2015 -0800
+
+    archive/zip: enable overriding (de)compressors per file
+    
+    Implement setting the compression level for a zip archive by registering
+    a per-Writer compressor through Writer.RegisterCompressor.  If no
+    compressors are registered, fall back to the ones registered at the
+    package level.  Also implements per-Reader decompressors.
+    
+    Fixes #8359
+    
+    Change-Id: I93b27c81947b0f817b42e0067aa610ff267fdb21
+    Reviewed-on: https://go-review.googlesource.com/16669
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/example_test.go | 29 +++++++++++++++++++++++++++++
+ src/archive/zip/reader.go       | 32 +++++++++++++++++++++++++++-----
+ src/archive/zip/writer.go       | 30 ++++++++++++++++++++++++------
+ 3 files changed, 80 insertions(+), 11 deletions(-)

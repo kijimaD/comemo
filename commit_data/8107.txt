@@ -1,0 +1,12 @@
+commit 9fba2a17c2daa877ba3fc0df24ac531c842ce632
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 15 11:56:56 2011 +1000
+
+    gobuilder: permit builders of the form goos-goarch-foo
+    
+    R=dfc
+    CC=golang-dev
+    https://golang.org/cl/4416044
+
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

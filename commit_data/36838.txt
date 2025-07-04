@@ -1,0 +1,18 @@
+commit f6fea0f31de094f43a4e7f659342de02585964ac
+Author: Austin Clements <austin@google.com>
+Date:   Sun Aug 26 21:30:19 2018 -0400
+
+    runtime: skip debug call injection tests under a debugger
+    
+    The debug call injection tests will freeze when run under a debugger
+    because they depend on catching SIGTRAP, which is usually swallowed by
+    a debugger.
+    
+    Change-Id: If6b86ca279b0489182990dd513444ca3062973f1
+    Reviewed-on: https://go-review.googlesource.com/c/139437
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/debug_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

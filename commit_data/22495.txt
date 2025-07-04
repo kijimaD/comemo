@@ -1,0 +1,17 @@
+commit a23a341e10132532b3922ad7a77508df24db75f2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 23 13:27:24 2015 -0400
+
+    runtime: make time slice a const
+    
+    A G will be preempted if it runs for 10ms without blocking. Currently
+    this constant is hard-coded in retake. Move it to a global const.
+    We'll use the time slice length in scheduling background GC.
+    
+    Change-Id: I79a979948af2fad3afe5df9d4af4062f166554b7
+    Reviewed-on: https://go-review.googlesource.com/8838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc1.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

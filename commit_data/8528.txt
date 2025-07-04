@@ -1,0 +1,14 @@
+commit 505f0bb3ce55871b7c79cfcd34fa468f5cee73ef
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun May 29 11:59:35 2011 +1000
+
+    os: fix windows version of Readdir(0)
+    
+    Fixes #1893.
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/4528106
+
+ src/pkg/os/file_windows.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

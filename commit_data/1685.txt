@@ -1,0 +1,15 @@
+commit dfad8ea6474b41f37e3dcd9e04dfb18b9e3ffeb1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 16:37:49 2009 -0800
+
+    use embedded interface types
+    
+    R=r
+    DELTA=205  (1 added, 157 deleted, 47 changed)
+    OCL=25071
+    CL=25073
+
+ src/lib/io/io.go         |  18 ++---
+ src/lib/reflect/type.go  |  62 ++++-------------
+ src/lib/reflect/value.go | 172 +++++++----------------------------------------
+ 3 files changed, 48 insertions(+), 204 deletions(-)

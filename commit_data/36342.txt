@@ -1,0 +1,14 @@
+commit 0b30cf534a03618162d3015c8705dd2231e34703
+Author: Santhosh Kumar Tekuri <santhosh.tekuri@gmail.com>
+Date:   Fri Jun 22 16:50:31 2018 +0530
+
+    archive/zip: makes receiver name consistent
+    
+    Change-Id: I4d6f7440747d4f935acddc9a5c5928ed911a2fb0
+    Reviewed-on: https://go-review.googlesource.com/120515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/struct.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

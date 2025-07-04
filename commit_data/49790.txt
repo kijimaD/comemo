@@ -1,0 +1,20 @@
+commit ffe5f085cd8b289a7853fcdb3c26adbebda09fd6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Jul 25 12:32:24 2022 +0800
+
+    runtime: refine code reducing indents in netpollBreak()
+    
+    Change-Id: I2d1528910cb3660344c7a664d6f32306defe75d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419321
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/netpoll_aix.go     |  9 ++++++---
+ src/runtime/netpoll_epoll.go   | 33 ++++++++++++++++++---------------
+ src/runtime/netpoll_kqueue.go  | 27 +++++++++++++++------------
+ src/runtime/netpoll_solaris.go | 25 ++++++++++++++-----------
+ src/runtime/netpoll_windows.go | 13 ++++++++-----
+ 5 files changed, 61 insertions(+), 46 deletions(-)

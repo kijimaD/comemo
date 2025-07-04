@@ -1,0 +1,26 @@
+commit cf3f771203c46d73a84d86e5ef7865d19e983150
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 9 11:31:20 2017 -0700
+
+    runtime: unify amd64 -buildmode=exe entry point code
+    
+    All of the amd64 entry point code is the same except for Plan 9.
+    Unify it all into asm_amd64.s.
+    
+    Change-Id: Id47ce3a7bb2bb0fd48f326a2d88ed18b17dee456
+    Reviewed-on: https://go-review.googlesource.com/69292
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_amd64.s           | 15 +++++++++++++++
+ src/runtime/rt0_android_amd64.s   |  5 +----
+ src/runtime/rt0_darwin_amd64.s    |  9 +--------
+ src/runtime/rt0_dragonfly_amd64.s |  9 +--------
+ src/runtime/rt0_freebsd_amd64.s   |  8 ++------
+ src/runtime/rt0_linux_amd64.s     |  9 +--------
+ src/runtime/rt0_netbsd_amd64.s    |  9 +--------
+ src/runtime/rt0_openbsd_amd64.s   |  9 +--------
+ src/runtime/rt0_solaris_amd64.s   |  9 +--------
+ src/runtime/rt0_windows_amd64.s   |  9 +--------
+ 10 files changed, 25 insertions(+), 66 deletions(-)

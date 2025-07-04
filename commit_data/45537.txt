@@ -1,0 +1,17 @@
+commit d19e5493bd764e26a0662c06c858033a24eaa415
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 4 12:53:52 2021 -0400
+
+    doc/go1.17: require macOS 10.13 or later
+    
+    For #44513.
+    For #23011.
+    
+    Change-Id: Ic092e38da3601a43d7e2110f500db4a6a6f845f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316889
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.17.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

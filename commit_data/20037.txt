@@ -1,0 +1,15 @@
+commit e4f3db3852e9178ac4c764fe753301d07a3269c8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 19 14:41:52 2014 +1000
+
+    runtime: apply KindMask before comparison
+    
+    Fixes windows build.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/127510043
+
+ src/pkg/runtime/callback_windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

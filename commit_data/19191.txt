@@ -1,0 +1,28 @@
+commit dc370995a87a37b43546a9ac3413d533d24e0665
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 23:06:37 2014 -0400
+
+    test: demo for issue 7695
+    
+    Cgo writes C function declarations pretending every arg is a pointer.
+    If the C function is deferred, it does not inhibit stack copying on split.
+    The stack copying code believes the C declaration, possibly misinterpreting
+    integers as pointers.
+    
+    Probably the right fix for Go 1.3 is to make deferred C functions inhibit
+    stack copying.
+    
+    For Go 1.4 and beyond we probably need to make cgo generate Go code
+    for 6g here, not C code for 6c.
+    
+    Update #7695
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83820043
+
+ misc/cgo/test/backdoor/backdoor.go |  1 +
+ misc/cgo/test/backdoor/runtime.c   |  7 +++++++
+ misc/cgo/test/issue7695_test.go    | 27 +++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)

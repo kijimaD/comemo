@@ -1,0 +1,25 @@
+commit 53a529ab2b8ef0616b5baf5f04e673e046e8e36c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 12 10:48:04 2010 -0700
+
+    runtime: fix 386 signal handler bug
+    
+    Cannot assume that g == m->curg at time of signal.
+    Must save actual g and restore.
+    
+    Fixes flaky crashes with messages like
+    
+    throw: malloc mlookup
+    throw: malloc/free - deadlock
+    throw: unwindstack on self
+    throw: free mlookup
+    
+    (and probably others) when running cgo.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1648043
+
+ src/pkg/runtime/darwin/386/sys.s | 12 ++++++++----
+ src/pkg/runtime/linux/386/sys.s  | 38 +++++++++++++++++++++++++++-----------
+ 2 files changed, 35 insertions(+), 15 deletions(-)

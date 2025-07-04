@@ -1,0 +1,12 @@
+commit 657675792767779084ab45fbbe966e07ab357420
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Mon Jan 6 10:34:24 2014 -0800
+
+    hash/fnv: fix overview link currently returning 404.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/47570043
+
+ src/pkg/hash/fnv/fnv.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

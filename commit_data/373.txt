@@ -1,0 +1,10 @@
+commit f6c13bb2b739d6bd3f58bc9ec754286c9beb7bb7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 16 14:41:27 2008 -0700
+
+    add test for non-blocking channel ops
+    
+    SVN=127595
+
+ test/chan/nonblock.go | 107 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 107 insertions(+)

@@ -1,0 +1,30 @@
+commit 6180c4f5ebae4635377dfa778e05097cf8fc69a8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 23 17:02:10 2021 -0500
+
+    log/syslog: create unix sockets in unique directories
+    
+    startServer was invoking os.Remove on the temporary file for a unix
+    socket after creating it. Since the files were created in the global
+    temp directory, that could cause two tests to arrive at colliding
+    names.
+    
+    (Noticed while looking into the failure at
+    https://storage.googleapis.com/go-build-log/af2c83b1/solaris-amd64-oraclerel_3e01fda8.log,
+    but I would be surprised if this solves that failure.)
+    
+    This change uses unique temporary directories, and attempts to keep
+    name lengths minimal to avoid accidentally running into socket-name
+    length limitations.
+    
+    Updates #34611
+    
+    Change-Id: I21743f245e5c14645e03f09795013e058b984471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366774
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/syslog/syslog_test.go | 94 +++++++++++++++++++++++++------------------
+ 1 file changed, 55 insertions(+), 39 deletions(-)

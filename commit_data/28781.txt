@@ -1,0 +1,12 @@
+commit 8d1d9292ff024f6c7586d27edd2c84c1ca8d9bf5
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Sep 13 23:31:07 2016 -0700
+
+    syscall: document that Exec wraps execve(2)
+    
+    Change-Id: I611511434f37c75f77c22f61f469108243bc0101
+    Reviewed-on: https://go-review.googlesource.com/29121
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/exec_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

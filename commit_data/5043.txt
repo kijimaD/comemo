@@ -1,0 +1,22 @@
+commit 67f1becad6bae8be8d304eca660a13ed3d67a3c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 12 14:54:06 2010 -0800
+
+    gofmt: make sure there is a newline after
+    a /*-style comment at the end of a file
+    
+    Some minor cleanups/typo fixes along the way.
+    
+    Fixes an issue where that newline was removed
+    after applying gofmt.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/476043
+
+ src/pkg/go/printer/printer.go                 | 41 ++++++++++++++++-----------
+ src/pkg/go/printer/testdata/comments.golden   |  2 +-
+ src/pkg/go/printer/testdata/comments.input    |  2 +-
+ src/pkg/go/printer/testdata/linebreaks.golden |  2 ++
+ src/pkg/go/printer/testdata/linebreaks.input  |  2 ++
+ 5 files changed, 30 insertions(+), 19 deletions(-)

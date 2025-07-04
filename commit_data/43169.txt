@@ -1,0 +1,54 @@
+commit fe2cfb74ba6352990f5b41260b99e80f78e4a90a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 1 14:49:33 2020 -0700
+
+    all: drop 387 support
+    
+    My last 387 CL. So sad ... ... ... ... not!
+    
+    Fixes #40255
+    
+    Change-Id: I8d4ddb744b234b8adc735db2f7c3c7b6d8bbdfa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258957
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go  |   7 +-
+ src/cmd/compile/internal/gc/float_test.go  |  19 --
+ src/cmd/compile/internal/gc/go.go          |   5 -
+ src/cmd/compile/internal/gc/ssa.go         |  15 +-
+ src/cmd/compile/internal/ssa/config.go     |   6 -
+ src/cmd/compile/internal/ssa/gen/386.rules |  10 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  14 -
+ src/cmd/compile/internal/ssa/opGen.go      |  13 -
+ src/cmd/compile/internal/ssa/regalloc.go   |  14 -
+ src/cmd/compile/internal/ssa/rewrite386.go |  84 ++----
+ src/cmd/compile/internal/x86/387.go        | 403 -----------------------------
+ src/cmd/compile/internal/x86/galign.go     |  17 +-
+ src/cmd/compile/internal/x86/ssa.go        |   2 -
+ src/cmd/dist/build.go                      |  15 --
+ src/cmd/dist/buildruntime.go               |   2 -
+ src/cmd/dist/cpuid_386.s                   |  16 --
+ src/cmd/dist/cpuid_amd64.s                 |  16 --
+ src/cmd/dist/cpuid_default.s               |  10 -
+ src/cmd/dist/util_gc.go                    |  12 -
+ src/cmd/dist/util_gccgo.go                 |  13 -
+ src/cmd/go/alldocs.go                      |   3 -
+ src/cmd/go/internal/cfg/cfg.go             |   3 -
+ src/cmd/go/internal/envcmd/env.go          |   5 +-
+ src/cmd/go/internal/help/helpdoc.go        |   3 -
+ src/cmd/go/internal/work/exec.go           |   4 +-
+ src/cmd/internal/objabi/util.go            |   9 +-
+ src/internal/cfg/cfg.go                    |   1 -
+ src/reflect/all_test.go                    |  18 --
+ src/runtime/mkpreempt.go                   |  33 +--
+ src/runtime/preempt_386.s                  |  45 ++--
+ src/runtime/vlrt.go                        |   5 +-
+ test/codegen/arithmetic.go                 |   6 +-
+ test/codegen/floats.go                     |  19 +-
+ test/codegen/math.go                       |   2 +-
+ test/codegen/memops.go                     |  32 +--
+ test/run.go                                |  12 +-
+ 36 files changed, 97 insertions(+), 796 deletions(-)

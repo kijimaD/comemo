@@ -1,0 +1,25 @@
+commit 9242a90ab597a12c3adb7e13fd151498bce4f9ab
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed May 16 23:21:31 2012 -0300
+
+    encoding/xml: handle anonymous pointer fields
+    
+    This CL makes
+    
+        type T struct { *U }
+    
+    behave in a similar way to:
+    
+        type T struct { U }
+    
+    Fixes #3108.
+    
+    R=golang-dev, rsc, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5694044
+
+ src/pkg/encoding/xml/marshal.go      | 10 +++++-----
+ src/pkg/encoding/xml/marshal_test.go |  4 ++--
+ src/pkg/encoding/xml/read.go         | 18 +++++++++---------
+ src/pkg/encoding/xml/typeinfo.go     | 27 +++++++++++++++++++++++++--
+ 4 files changed, 41 insertions(+), 18 deletions(-)

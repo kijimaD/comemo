@@ -1,0 +1,15 @@
+commit 207511a0d4a7cc68ccad89f0a00ab51d6fc4ee08
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Mar 14 13:03:00 2024 +0800
+
+    os: use ignoringEINTR in openFileNolog and openDirNolog
+    
+    Change-Id: Ie8fa25d5e326efd7d3c9b72203783110d9e22ce8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572215
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/file_unix.go | 44 +++++++++++++++++++-------------------------
+ 1 file changed, 19 insertions(+), 25 deletions(-)

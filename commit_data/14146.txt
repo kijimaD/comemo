@@ -1,0 +1,14 @@
+commit 15970c8d6d42d0c076585bbccc16a407b8710bec
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 16 11:27:20 2012 +1100
+
+    spec: more clarification about deferred functions
+    Proposed new text to make matters clearer. The existing text was
+    unclear about the state of result parameters when panicking.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6653047
+
+ doc/go_spec.html | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

@@ -1,0 +1,32 @@
+commit 2ab6d0172eb9112eba8c6e05a813e260985d20cf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 17 20:05:20 2019 +0000
+
+    runtime: throw if scavenge necessary during coalescing
+    
+    Currently when coalescing if two adjacent spans are scavenged, we
+    subtract their sizes from memstats and re-scavenge the new combined
+    span. This is wasteful however, since the realignment semantics make
+    this case of having to re-scavenge impossible.
+    
+    In realign() inside of coalesce(), there was also a bug: on systems
+    where physPageSize > pageSize, we wouldn't realign because a condition
+    had the wrong sign. This wasteful re-scavenging has been masking this
+    bug this whole time. So, this change fixes that first.
+    
+    Then this change gets rid of the needsScavenge logic and instead checks
+    explicitly for the possibility of unscavenged pages near the physical
+    page boundary. If the possibility exists, it throws. The intent of
+    throwing here is to catch changes to the runtime which cause this
+    invariant to no longer hold, at which point it would likely be
+    appropriate to scavenge the additional pages (and only the additional
+    pages) at that point.
+    
+    Change-Id: I185e3d7b53e36e90cf9ace5fa297a9e8008d75f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158377
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 61 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 29 insertions(+), 32 deletions(-)

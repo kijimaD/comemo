@@ -1,0 +1,21 @@
+commit 0387bedadf8ec0ec4139af7c1361abaa47a6c03a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 17:05:32 2020 -0500
+
+    cmd/compile: remove racefuncenterfp when it is not needed
+    
+    We already remove racefuncenter and racefuncexit if they are not
+    needed (i.e. the function doesn't have any other race  calls).
+    racefuncenterfp is like racefuncenter but used on LR machines.
+    Remove unnecessary racefuncenterfp as well.
+    
+    Change-Id: I65edb00e19c6d9ab55a204cbbb93e9fb710559f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267099
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 6 +++---
+ test/codegen/race.go                    | 2 ++
+ 2 files changed, 5 insertions(+), 3 deletions(-)

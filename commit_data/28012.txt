@@ -1,0 +1,19 @@
+commit 5e66ac9ac61efb045f8ae28ff0fc019a4a98b473
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 14 20:39:30 2016 -0700
+
+    flag: document that Value.String must work on the zero value
+    
+    Otherwise flag.PrintDefaults will fail when it tries to determine
+    whether the default is the zero value.
+    
+    Fixes #16694.
+    
+    Change-Id: I253fbf11ffc0a9069fd48c2c3cf3074df53e3a03
+    Reviewed-on: https://go-review.googlesource.com/27003
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

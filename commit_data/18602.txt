@@ -1,0 +1,15 @@
+commit 699aa37d033b6f94f106152aaf17d05849fed2dd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 24 20:35:01 2014 +0900
+
+    syscall: add fcntl test
+    
+    Also updates documentation.
+    
+    LGTM=minux.ma
+    R=iant, bradfitz, nightlyone, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/58660044
+
+ src/pkg/syscall/syscall_unix_test.go | 51 ++++++++++++++++++++++++++----------
+ 1 file changed, 37 insertions(+), 14 deletions(-)

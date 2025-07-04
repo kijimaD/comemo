@@ -1,0 +1,32 @@
+commit 264753c0432c728989970786398c2bcf241a43dd
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Wed Oct 26 11:41:27 2022 +0000
+
+    debug/elf: guard access to File.gnuVersym
+    
+    The size of gnuVersym should be multiples of 2. If not, the input is
+    invalid. No Library and Version information is added to sym in this
+    case. The current implementation of gnuVersion does not report errors
+    for invalid input.
+    
+    While at here, bring back the comment that states that the undef entry
+    at the beginning is skipped. This is not an off-by-one error.
+    
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
+    
+    Fixes #56429.
+    
+    Change-Id: Ia39ad8bd509088a81cc77f7a76e23185d40a5765
+    GitHub-Last-Rev: 3be0cc1b1522874cf5dc509678aa6a5658b6bad5
+    GitHub-Pull-Request: golang/go#56431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/elf/file.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 13de5e7f7f664011b2c8ecf9b97956a6023e2a4e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Aug 14 16:39:13 2018 -0600
+
+    math/bits: add extended precision Add, Sub, Mul, Div
+    
+    Port math/big pure go versions of add-with-carry, subtract-with-borrow,
+    full-width multiply, and full-width divide.
+    
+    Updates #24813
+    
+    Change-Id: Ifae5d2f6ee4237137c9dcba931f69c91b80a4b1c
+    Reviewed-on: https://go-review.googlesource.com/123157
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/bits.go      | 194 +++++++++++++++++++++++++++++++++
+ src/math/bits/bits_test.go | 266 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 460 insertions(+)

@@ -1,0 +1,13 @@
+commit ce46cbe89e14ec4c7f8d63054d3b285c8d4e2a3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 22:45:19 2009 -0700
+
+    test of named operations
+    
+    R=r
+    DELTA=305  (305 added, 0 deleted, 0 changed)
+    OCL=34848
+    CL=34875
+
+ test/named.go | 305 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 305 insertions(+)

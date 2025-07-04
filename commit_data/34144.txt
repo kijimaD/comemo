@@ -1,0 +1,18 @@
+commit 32a0a1d37c87bbbc5f9650da9a4b7262f3162ae4
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jan 11 22:19:01 2018 +0530
+
+    doc/articles/wiki: highlight the use of _ warning
+    
+    This moves the paragraph mentioning the use of _ higher up
+    to emphasize the warning and thereby reducing chances of getting
+    stuck.
+    
+    Fixes #22617
+    
+    Change-Id: I64352a3e966a22d86fc9d381332bade49d74714a
+    Reviewed-on: https://go-review.googlesource.com/87375
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/articles/wiki/index.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

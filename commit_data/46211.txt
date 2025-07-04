@@ -1,0 +1,14 @@
+commit 7b38dd8e255710721b7d843cddbbb46f50267aa5
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Thu Jul 29 04:22:47 2021 +0900
+
+    runtime: remove unnecesarry newline on freeStackSpans
+    
+    Change-Id: I16a3241d8818c67922ddbf7830b8c2c5f317e1a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338209
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/stack.go | 1 -
+ 1 file changed, 1 deletion(-)

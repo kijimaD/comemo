@@ -1,0 +1,19 @@
+commit 842e4b5207003db692d72a1aeba4f164bbeb1c13
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 4 10:33:38 2025 -0800
+
+    net/rpc: move frozen notice to the start of the package doc
+    
+    For #71559
+    
+    Change-Id: I68b9518a26cab75789d596839267abab7997bc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646575
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/net/rpc/server.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit e4389c1d3058b90fac40bb5bc7578f7e7d580899
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Apr 12 22:16:31 2012 -0300
+
+    time: panic if UnixNano is out of range
+    
+    R=golang-dev, remyoudompheng, dsymonds, gustavo, dchest, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5985059
+
+ src/pkg/time/time.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

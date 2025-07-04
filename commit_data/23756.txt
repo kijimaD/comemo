@@ -1,0 +1,19 @@
+commit 1a0818a40de3c2e7daa9d22591fb961602c7323b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 20 10:18:26 2015 -0700
+
+    cmd/dist: increase timeout for standard tests
+    
+    The cmd/go tests run too long on a Raspberry Pi.  I've cut times as
+    much as I can see without more serious steps like not running tests.
+    
+    Fixes #11779.
+    
+    Change-Id: Ice5da052902decea2e6ac32d0f2ce084c39ea1ab
+    Reviewed-on: https://go-review.googlesource.com/12368
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

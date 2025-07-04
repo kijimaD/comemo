@@ -1,0 +1,41 @@
+commit 3675bff55d7c8ed0110423b0ca8ed8f529c58def
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 8 17:12:41 2017 -0500
+
+    runtime: mark heapBits.bits nosplit
+    
+    heapBits.bits is used during bulkBarrierPreWrite via
+    heapBits.isPointer, which means it must not be preempted. If it is
+    preempted, several bad things can happen:
+    
+    1. This could allow a GC phase change, and the resulting shear between
+    the barriers and the memory writes could result in a lost pointer.
+    
+    2. Since bulkBarrierPreWrite uses the P's local write barrier buffer,
+    if it also migrates to a different P, it could try to append to the
+    write barrier buffer concurrently with another write barrier. This can
+    result in the buffer's next pointer skipping over its end pointer,
+    which results in a buffer overflow that can corrupt arbitrary other
+    fields in the Ps (or anything in the heap, really, but it'll probably
+    crash from the corrupted P quickly).
+    
+    Fix this by marking heapBits.bits go:nosplit. This would be the
+    perfect use for a recursive no-preempt annotation (#21314).
+    
+    This doesn't actually affect any binaries because this function was
+    always inlined anyway. (I discovered it when I was modifying heapBits
+    and make h.bits() no longer inline, which led to rampant crashes from
+    problem 2 above.)
+    
+    Updates #22987 and #22988 (but doesn't fix because it doesn't actually
+    change the generated code).
+    
+    Change-Id: I60ebb928b1233b0613361ac3d0558d7b1cb65610
+    Reviewed-on: https://go-review.googlesource.com/83015
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 3 +++
+ 1 file changed, 3 insertions(+)

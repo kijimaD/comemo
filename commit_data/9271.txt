@@ -1,0 +1,12 @@
+commit 317911c9ff9df6339dc9822f0074b5a14898dd26
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jul 31 19:54:47 2011 -0700
+
+    5g: fix set but not used error
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4816061
+
+ src/cmd/5g/ggen.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

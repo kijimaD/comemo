@@ -1,0 +1,22 @@
+commit dfaaa91f0537f806a02ff2dd71b79844cd16cc4e
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Thu Mar 28 20:35:28 2019 +0000
+
+    os: clarify that IsNotExist, IsExist, IsPermission and IsTimeout work with nil errors
+    
+    Referring to these functions' parameter as "*the* error" could be taken
+    to imply that a non-nil error from elsewhere is expected; referring to
+    it as "its argument" avoids that ambiguity.
+    
+    Fixes #31065
+    
+    Change-Id: I117892dd53fff6f92d11a416e4abedee5d2f9337
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170077
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/os/error.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

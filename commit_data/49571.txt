@@ -1,0 +1,25 @@
+commit 84db00ffd1c0e11180fc433df1ef7521de37a49b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 30 13:30:48 2022 -0400
+
+    cmd/go: add a 'sleep' command for script tests
+    
+    Due to mtime skew we don't index mutable packages with an mtime
+    younger than 2 seconds. In order to test indexed packages reliably, we
+    want to be able to sleep long enough for the files in the package to be cached.
+    
+    (As an alternative we could instead use os.Chtimes to fake old enough
+    timestamps, but sleeping keeps the tests more realistic.)
+    
+    For #53586.
+    
+    Change-Id: I1873f47c55a72d928451593b8c989f0092a557db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415474
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/script_test.go         | 16 ++++++++++++++++
+ src/cmd/go/testdata/script/README |  5 +++++
+ 2 files changed, 21 insertions(+)

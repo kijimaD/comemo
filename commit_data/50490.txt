@@ -1,0 +1,22 @@
+commit 95ec579eb68fcc01975462a74676e3bacd9814b0
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Sep 12 09:27:11 2022 +0000
+
+    strconv: add a test case when base is illegal
+    
+    Increase unit test coverage of strconv/itoa.go from 83.8% to 85%
+    
+    Change-Id: I0abdfc70a3f06251106f229c12ffb105eeb43fc8
+    GitHub-Last-Rev: da9755368b5db41123c8f945fecedd135e9f894a
+    GitHub-Pull-Request: golang/go#55014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430137
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/strconv/itoa_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

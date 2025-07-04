@@ -1,0 +1,25 @@
+commit 449e2f0bdf6f4880c15465fe18dc21cd8ab939df
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Oct 10 15:52:03 2018 +0530
+
+    go/doc: tune factory method association logic
+    
+    Ignore predeclared types (such as error) in result parameter lists when determining
+    with which result type a method should be associated with. This change will again
+    associate common factory functions with the first result type even if there are more
+    than one result, as long as the others are predeclared types.
+    
+    Fixes #27928
+    
+    Change-Id: Ia2aeaed15fc4c8debdeeaf729cc7fbba1612cafb
+    Reviewed-on: https://go-review.googlesource.com/c/141617
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/reader.go                    | 34 +++++++++++++++++++++++----------
+ src/go/doc/testdata/issue12839.0.golden | 18 +++++++++++++++++
+ src/go/doc/testdata/issue12839.1.golden | 18 +++++++++++++++++
+ src/go/doc/testdata/issue12839.2.golden | 18 +++++++++++++++++
+ src/go/doc/testdata/issue12839.go       | 31 ++++++++++++++++++++++++++++++
+ 5 files changed, 109 insertions(+), 10 deletions(-)

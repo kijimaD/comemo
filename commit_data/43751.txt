@@ -1,0 +1,18 @@
+commit cfea52b04c18761f9cc3168eff00690155aa6d17
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Nov 10 03:42:18 2020 +1100
+
+    runtime: disable TestCrashDumpsAllThreads on openbsd/mips64
+    
+    This test fails consistently on openbsd/mips64 - disable it until we can investigate
+    and resolve the issue.
+    
+    Updates #42464
+    
+    Change-Id: Ie640f776823137a967a12817ff18953207f558a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268438
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/crash_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

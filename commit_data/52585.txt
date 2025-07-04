@@ -1,0 +1,25 @@
+commit 63a08e61bd5ac5132ed160351933622443c16b58
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 10 11:08:25 2023 +0700
+
+    cmd/compile: teach prove about bitwise OR operation
+    
+    For now, only apply the rule if either of arguments are constants. That
+    would catch a lot of real user code, without slowing down the compiler
+    with code generated for string comparison (experience in CL 410336).
+    
+    Updates #57959
+    Fixes #45928
+    
+    Change-Id: Ie2e830d6d0d71cda3947818b22c2775bd94f7971
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483359
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 8 ++++++++
+ test/prove.go                         | 5 +++++
+ 2 files changed, 13 insertions(+)

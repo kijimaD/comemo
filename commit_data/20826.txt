@@ -1,0 +1,29 @@
+commit 3eadbb02afa1494821de000ee280e00c3c398f1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 18:07:24 2014 -0400
+
+    cmd/objdump: use cmd/internal/objfile
+    
+    This removes a bunch of ugly duplicate code.
+    The end goal is to factor the disassembly code
+    into cmd/internal/objfile too, so that pprof can use it,
+    but one step at a time.
+    
+    LGTM=r, iant
+    R=r, alex.brainman, iant
+    CC=golang-codereviews
+    https://golang.org/cl/149400043
+
+ src/cmd/internal/objfile/elf.go      |  25 ++++
+ src/cmd/internal/objfile/goobj.go    |  12 ++
+ src/cmd/internal/objfile/macho.go    |  24 +++
+ src/cmd/internal/objfile/objfile.go  |  10 ++
+ src/cmd/internal/objfile/pe.go       |  31 ++++
+ src/cmd/internal/objfile/plan9obj.go |  22 +++
+ src/cmd/objdump/Makefile             |  10 --
+ src/cmd/objdump/elf.go               |  65 --------
+ src/cmd/objdump/macho.go             |  77 ----------
+ src/cmd/objdump/main.go              | 277 ++++-------------------------------
+ src/cmd/objdump/pe.go                |  99 -------------
+ src/cmd/objdump/plan9obj.go          |  70 ---------
+ 12 files changed, 154 insertions(+), 568 deletions(-)

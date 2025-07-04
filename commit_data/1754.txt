@@ -1,0 +1,21 @@
+commit 5b814d02f2e4ea8336e1555474724c84e9022de1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 13:31:03 2009 -0800
+
+    delete deprecated files.
+    deletion beats documentation for deprecation.
+    
+    R=rsc,gri
+    DELTA=509  (2 added, 490 deleted, 17 changed)
+    OCL=25737
+    CL=25768
+
+ src/lib/Makefile                      |   8 +-
+ src/lib/container/array/Makefile      |  63 ------------
+ src/lib/container/array/array.go      | 186 ----------------------------------
+ src/lib/container/array/array_test.go | 172 -------------------------------
+ src/lib/container/array/intarray.go   |  68 -------------
+ src/lib/json/generic.go               |   8 +-
+ src/lib/json/parse.go                 |   1 -
+ src/lib/regexp/regexp.go              |  12 +--
+ 8 files changed, 12 insertions(+), 506 deletions(-)

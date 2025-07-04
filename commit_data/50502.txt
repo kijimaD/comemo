@@ -1,0 +1,42 @@
+commit 819e3394c90e27483f1f6eabfb02d22c927a139d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 31 14:37:11 2022 -0400
+
+    cmd/internal/objabi: record GO$GOARCH setting in object header
+    
+    The object header string is meant to record the relevant toolchain
+    configuration, so that we don't import or link object files that are
+    incompatible with each other. One important part of compatibility
+    is the sub-architecture version (GOARM for GOARCH=arm, and so on).
+    
+    Add the sub-architecture info to the object header line so that
+    binaries cannot be built that have inconsistent sub-architecture
+    configurations across the build.
+    
+    This check is only important when the build system makes a mistake.
+    Builds using the go command don't make this kind of mistake anymore,
+    but we just debugged a difficult problem inside Google where a custom
+    build system had built part of a program with GOARM=5 and part of
+    a program with GOARM=7, resulting in corrupted execution when
+    signal-based preemption was attempted. Updating the check will avoid
+    this kind of problem in the future, in any custom build system, or if the
+    go command makes a mistake.
+    
+    After this change:
+    
+    % sed 3q pkg/darwin_amd64/runtime.a
+    !<arch>
+    __.PKGDEF       0           0     0     644     30525     `
+    go object darwin amd64 devel go1.20-102ebe10b7 Wed Aug 17 14:31:01 2022 -0400 GOAMD64=v1 X:regabiwrappers,regabiargs
+    %
+    
+    Change-Id: I901e0758f1002dd2c58292dc65e2d06da86e4495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427174
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/objabi/util.go |  9 ++++++++-
+ src/internal/buildcfg/cfg.go    | 22 ++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

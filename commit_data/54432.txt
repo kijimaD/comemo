@@ -1,0 +1,20 @@
+commit a843991fdd079c931d4e98c0a17c9ac6dc254fe8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 15:33:29 2023 -0400
+
+    runtime: set _XOPEN_SORUCE_EXTENDED to 1 for aix
+    
+    aix requires that _XOPEN_SOURCE_EXTENDED is set to a number, not simply
+    defined.
+    
+    For #62440.
+    
+    Change-Id: Iee221d558b5ad5b8dcb874d4d9fdf94593f7d0a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527797
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/testdata/testprogcgo/stackswitch.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

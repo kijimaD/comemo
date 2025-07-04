@@ -1,0 +1,13 @@
+commit f81abb9dd84f6ad21c4eaf9908779a7ea2d10b26
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 5 12:06:18 2010 -0700
+
+    tutorial: fix one-word mistake in echo example
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1567041
+
+ doc/go_tutorial.html | 2 +-
+ doc/go_tutorial.txt  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

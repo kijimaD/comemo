@@ -1,0 +1,14 @@
+commit 761c38677021c438b965762bf52ab814c46c871c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 01:12:18 2013 -0400
+
+    build: enable host linking test for all BSDs
+    
+    Let's just see what breaks.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/7693043
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

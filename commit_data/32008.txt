@@ -1,0 +1,28 @@
+commit 5bcfd8847207ad8399265bc7efd49c50b286223b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 13 08:10:43 2017 -0700
+
+    testing: roll back CL 44352 (show in-progress tests upon SIGINT)
+    
+    CL 44352 changed the behavior of SIGINT, which can break tests that
+    themselves use SIGINT.  I think we can only implement this if the
+    testing package has a way to know whether the code under test is using
+    SIGINT, but os/signal does not provide an API for that.  Roll back for
+    1.9 and think about this again for 1.10.
+    
+    Updates #19397
+    
+    Change-Id: I021c314db2b9d0a80d0088b120a6ade685459990
+    Reviewed-on: https://go-review.googlesource.com/48370
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go                            | 11 ----
+ src/cmd/go/testdata/inprogress_interrupt_test.go | 40 --------------
+ src/go/build/deps_test.go                        |  2 +-
+ src/os/signal/signal_plan9_test.go               |  3 +-
+ src/os/signal/signal_test.go                     |  3 +-
+ src/os/signal/signal_windows_test.go             |  2 +-
+ src/testing/testing.go                           | 66 ------------------------
+ 7 files changed, 4 insertions(+), 123 deletions(-)

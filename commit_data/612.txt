@@ -1,0 +1,15 @@
+commit 5ea7649b43be370da0daebb9677a83d9ece19e72
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 11 15:09:10 2008 -0700
+
+    pull O_RDONLY etc. up to os library
+    
+    R=rsc
+    DELTA=16  (14 added, 0 deleted, 2 changed)
+    OCL=15156
+    CL=15163
+
+ src/lib/os/os_file.go            | 14 ++++++++++++++
+ src/syscall/file_amd64_darwin.go |  2 +-
+ src/syscall/file_amd64_linux.go  |  2 +-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

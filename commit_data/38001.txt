@@ -1,0 +1,16 @@
+commit b88462ef8b9b0d8613c13deb27ef5f8b72eeab6e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 17:58:21 2019 -0500
+
+    cmd/cover: fix TestHtmlUnformatted in module mode
+    
+    Updates #30228
+    
+    Change-Id: Id9dffa6c805ac630945bac8febe342ce633626c6
+    Reviewed-on: https://go-review.googlesource.com/c/162830
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/cover/cover_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

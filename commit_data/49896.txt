@@ -1,0 +1,32 @@
+commit e99f285d52627aa415f9c1766cbffe375b2f67d9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 19:30:47 2022 +0700
+
+    cmd/compile: fix ICE when checking implicit dot for method call
+    
+    CL 414836 limited the check for implicit dot for method call enabled by
+    a type bound. However, the checking condition for ODOTMETH only is not
+    right. For example, for promoted method, we have a OXDOT node instead,
+    and we still have to check for implicit dot in this case.
+    
+    However, if the base type and embedded types have the same method name,
+    e.g in issue #53419, typecheck.AddImplicitDots will be confused and
+    result in an ambigus selector.
+    
+    To fix this, we ensure methods for the base type are computed, then only
+    do the implicit dot check if we can find a matched method.
+    
+    Fixes #54348
+    
+    Change-Id: Iefe84ff330830afe35c5daffd499824db108da23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422274
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |  6 ++++--
+ test/fixedbugs/issue54348.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

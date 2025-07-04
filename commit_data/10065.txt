@@ -1,0 +1,13 @@
+commit 22dd0ba90dfd832e5a60ec8ef5b986611e0e8fe9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 20 10:30:01 2011 -0700
+
+    go/ast, go/token: actually run tests; fix go/ast test
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5292048
+
+ src/pkg/Makefile             | 2 --
+ src/pkg/go/ast/print_test.go | 8 ++++----
+ 2 files changed, 4 insertions(+), 6 deletions(-)

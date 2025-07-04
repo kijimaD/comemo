@@ -1,0 +1,13 @@
+commit f7e43ffa9dc955e6b506f912a57d832113662a6c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 10:34:44 2009 -0700
+
+    nacl syscall: write return values to correct stack location
+    
+    R=r
+    DELTA=18  (0 added, 0 deleted, 18 changed)
+    OCL=34894
+    CL=34894
+
+ src/pkg/syscall/asm_nacl_386.s | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

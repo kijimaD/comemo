@@ -1,0 +1,25 @@
+commit cded21a337daada5cad779ea8720efb72c00d407
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 18 14:36:22 2011 -0400
+
+    changes for more restricted reflect.SetValue
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4423043
+
+ src/cmd/gofmt/rewrite.go       |  6 +++---
+ src/pkg/asn1/asn1_test.go      | 14 +++++---------
+ src/pkg/gob/codec_test.go      |  1 -
+ src/pkg/gob/decode.go          | 39 +++++++++++++++++++++++++++++++--------
+ src/pkg/gob/decoder.go         | 20 +++++++++++++-------
+ src/pkg/gob/encode.go          |  6 +++---
+ src/pkg/gob/encoder_test.go    |  2 +-
+ src/pkg/json/decode.go         | 19 +++++++++++++------
+ src/pkg/json/decode_test.go    |  3 +--
+ src/pkg/netchan/export.go      |  2 +-
+ src/pkg/netchan/import.go      |  2 +-
+ src/pkg/rpc/server.go          | 10 ++--------
+ src/pkg/testing/quick/quick.go |  6 +++---
+ src/pkg/xml/read_test.go       |  4 +---
+ 14 files changed, 78 insertions(+), 56 deletions(-)

@@ -1,0 +1,28 @@
+commit bf1f4ec7fa3938e1ce1297b367c16aea30280697
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 31 17:22:13 2019 -0400
+
+    cmd/go/internal/renameio: add a ReadFile function
+    
+    ReadFile is a drop-in replacement for ioutil.ReadFile that works
+    around Windows filesystem flakiness under load.
+    
+    A followup CL will replace uses of ioutil.ReadFile in cmd/go with this
+    function.
+    
+    Updates #32188
+    
+    Change-Id: I232ba893b132bdc84cd7b0edde436165a69e1aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180219
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/renameio/error.go          |  12 ---
+ src/cmd/go/internal/renameio/error_windows.go  |  23 -----
+ src/cmd/go/internal/renameio/rename.go         |  24 +++++
+ src/cmd/go/internal/renameio/rename_windows.go | 101 ++++++++++++++++++
+ src/cmd/go/internal/renameio/renameio.go       |  30 +++---
+ src/cmd/go/internal/renameio/renameio_test.go  | 135 +++++++++++++++++++++----
+ src/cmd/go/internal/renameio/umask_test.go     |  42 ++++++++
+ 7 files changed, 297 insertions(+), 70 deletions(-)

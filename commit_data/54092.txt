@@ -1,0 +1,19 @@
+commit 2a0b8cfd801077359d4483801bd5ae3b3572b314
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:16:07 2023 -0700
+
+    cmd/compile/internal/reflectdata: remove special case for init
+    
+    Now that package initialization ordering is handled by types2 instead
+    of pkginit, we can get rid of this special case.
+    
+    Change-Id: I4b94df02813b662498ae7d2e829119e3bb932d6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520604
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/reflectdata/helpers.go | 10 ----------
+ 1 file changed, 10 deletions(-)

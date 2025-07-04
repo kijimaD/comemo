@@ -1,0 +1,15 @@
+commit d71d08af5ab15c7b166d92a31219c4c218438841
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Jan 5 13:09:38 2011 -0500
+
+    http: permit empty Reason-Phrase in response Status-Line
+    
+    Fixes #1388.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3749043
+
+ src/pkg/http/response.go      |  8 ++++++--
+ src/pkg/http/response_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 7c167f270826039590af43360b9fb9b2890fe13d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 30 13:33:28 2015 -0700
+
+    test: disable flaky heapsampling test for now
+    
+    Flaky tests do more harm than good.
+    
+    Updates #13098
+    
+    Change-Id: I179ed810b49bbb96c8df462bfa20b70231b26772
+    Reviewed-on: https://go-review.googlesource.com/16521
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/heapsampling.go | 2 ++
+ 1 file changed, 2 insertions(+)

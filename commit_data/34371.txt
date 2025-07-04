@@ -1,0 +1,15 @@
+commit 098208a0d92ecfcc6e03048d3f731153963f1f0d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 12:58:11 2018 +0100
+
+    cmd/compile: fold bit masking on bits that have been shifted away
+    
+    Spotted while working on #18943, it triggers once during bootstrap.
+    
+    Change-Id: Ia4330ccc6395627c233a8eb4dcc0e3e2a770bea7
+    Reviewed-on: https://go-review.googlesource.com/94764
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  12 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 503 +++++++++++++++++++++++--
+ 2 files changed, 487 insertions(+), 28 deletions(-)

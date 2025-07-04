@@ -1,0 +1,15 @@
+commit a1ceacedd8efb49c66ef9d0ec60ca2c9ee726f07
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 19 10:00:18 2022 +0200
+
+    net/netip: fix receiver name in Addr.{has,without}Zone comments
+    
+    Change-Id: I851900cb52abfe75224a9dd9b9760eafd2cfc85f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/netip/netip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

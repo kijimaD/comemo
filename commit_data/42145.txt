@@ -1,0 +1,44 @@
+commit 5029c3671dec0e086fdefbd5a5bb43afa9711905
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 09:54:13 2020 -0700
+
+    cmd/compile: improve generated eq algs for structs containing strings
+    
+    type T struct {
+        s string
+        i int
+    }
+    
+    Prior to this change, we generated this equality algorithm for T:
+    
+    func eqT(p, q *T) bool {
+        return len(p.s) == len(q.s) &&
+          runtime.memequal(p.s.ptr, q.s.ptr, len(p.s)) &&
+          p.i == q.i
+    }
+    
+    This change splits the two halves of the string equality,
+    so that we can do the cheap (length) half early and the expensive
+    (contents) half late. We now generate:
+    
+    func eqT(p, q *T) bool {
+        return len(p.s) == len(q.s) &&
+          p.i == q.i &&
+          runtime.memequal(p.s.ptr, q.s.ptr, len(p.s))
+    }
+    
+    The generated code for these functions tends to be a bit shorter. Examples:
+    
+    runtime
+    .eq."".Frame 274 -> 272  (-0.73%)
+    .eq."".funcinl 249 -> 247  (-0.80%)
+    .eq."".modulehash 207 -> 205  (-0.97%)
+    
+    Change-Id: I4efac9f7d410f0a11a94dcee2bf9c0b49b60e301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230205
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

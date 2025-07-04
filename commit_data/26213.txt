@@ -1,0 +1,13 @@
+commit def9c0b06d4796364cda3c1e40d75bb0fa0ecddf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 20:35:27 2016 -0800
+
+    cmd/compile: remove Label.Link field and lastlabel global var
+    
+    Change-Id: If2a174f482ecd56dee43f921d13fef98439872fc
+    Reviewed-on: https://go-review.googlesource.com/20559
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gen.go | 24 ++++++++----------------
+ src/cmd/compile/internal/gc/go.go  |  7 +++----
+ 2 files changed, 11 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit ec80beb9f032d3368f723dd9ef3fd5f942b18dd2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 19 07:38:32 2011 -0700
+
+    syscall: update ztypes_linux_arm for terminal changes
+    
+    regenerated on a debian sid arm5 host.
+    
+    R=bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/5298046
+
+ src/pkg/syscall/ztypes_linux_arm.go | 111 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 111 insertions(+)

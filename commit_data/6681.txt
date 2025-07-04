@@ -1,0 +1,14 @@
+commit 0e816f5972b2bebe62960e6066cb87c75bb009dd
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Nov 1 16:37:17 2010 -0400
+
+    codereview: fix 'hg sync' and 'hg download' in Python 2.7
+    
+    Fixes #1218.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2664041
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

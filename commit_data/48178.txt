@@ -1,0 +1,26 @@
+commit f985833dec19b0147db3c5c33d3bf0181891d458
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 10:52:01 2022 -0500
+
+    testing: panic in Fuzz if the function returns a value
+    
+    Otherwise, the behavior of a fuzz target that returns an error could
+    be confusing.
+    
+    Fuzz is already documented to require a function “with no return
+    value”, so this fixes the implementation to match the existing
+    documentation.
+    
+    Fixes #51222
+    
+    Change-Id: I44ca7ee10960214c92f5ac066ac8484c8bb9cd6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386175
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Nooras Saba‎ <saba@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_return.txt | 19 +++++++++++++++++++
+ src/testing/fuzz.go                             |  3 +++
+ 2 files changed, 22 insertions(+)

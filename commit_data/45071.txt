@@ -1,0 +1,19 @@
+commit 9ed0e320599bcd559565207bb6a9b0c49a5b36ee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 11 13:26:44 2021 -0400
+
+    test: consider default GOEXPERIMENT when matching build tags
+    
+    If GOEXPERIMENT environment variable is unset, use the default
+    value that is baked into the toolchain (instead of no
+    experiments).
+    
+    Change-Id: I41f863e6f7439f2d53e3ebd25a7d9cf4a176e32e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309333
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/run.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

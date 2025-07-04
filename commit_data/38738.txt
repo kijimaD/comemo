@@ -1,0 +1,17 @@
+commit c40bffd90535bd9d5bf6a398f5227ff2c9aaed52
+Author: Romain Baugue <romain.baugue@elwinar.com>
+Date:   Wed Apr 10 16:20:43 2019 +0200
+
+    reflect: add Value.IsZero
+    
+    Fixes #7501
+    
+    Change-Id: Iac7c79cd4b30a90b14ed84bf1eba758972232a6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171337
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 107 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  40 ++++++++++++++++++
+ 2 files changed, 147 insertions(+)

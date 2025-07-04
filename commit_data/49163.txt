@@ -1,0 +1,22 @@
+commit 0d8345df6637b0fbd595eb8f7cb61be5ebeee314
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 12 09:30:54 2022 +0200
+
+    net/netip: skip some TestAddrStringAllocs tests on noopt builders
+    
+    CL 403914 introduced TestAddrStringAllocs which checks that there is
+    only 1 alloc in Addr.String for v4-in-v6 addresses. This requires
+    optimizations to be enabled, otherwise there are 2 allocs. Skip the
+    ipv4-in-ipv6 sub-tests on noopt builders to fix failing
+    TestAddrStringAllocs on the noopt builders.
+    
+    Change-Id: I0285264260b264b53cf822dc7cec4829e9854531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405834
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/netip/netip_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

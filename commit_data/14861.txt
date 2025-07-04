@@ -1,0 +1,16 @@
+commit ab1385ec95fe5eec367b8c40196a8962c1ca8ee5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 11 22:05:46 2013 +0100
+
+    test: adapt old-style tests to new flag parsing.
+    
+    The -I. syntax now needs a space to be recognized in the
+    compiler.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7098046
+
+ test/safe/nousesafe.go | 2 +-
+ test/safe/usesafe.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

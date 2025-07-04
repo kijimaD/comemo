@@ -1,0 +1,18 @@
+commit f6c67813025305c1dfab61b43e416474ca56a45b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Feb 22 14:32:57 2018 +0100
+
+    cmd/compile: use | in the last repetitive generic rules
+    
+    This change or-ifies the last low-hanging rules in generic. Again,
+    this is limited at short and repetitive rules, where the use or ors
+    does not impact readability.
+    
+    Ran rulegen, no change in the actual compiler code.
+    
+    Change-Id: I972b523bc08532f173a3645b47d6936b6e1218c8
+    Reviewed-on: https://go-review.googlesource.com/96335
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 62 +++++++++-----------------
+ 1 file changed, 20 insertions(+), 42 deletions(-)

@@ -1,0 +1,27 @@
+commit ae7340ab68bf57c5d1485bee2c6725a780212a9a
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jul 18 12:42:25 2022 -0400
+
+    CONTRIBUTORS: update for the Go 1.19 release
+    
+    This update was created using the updatecontrib command:
+    
+            go install golang.org/x/build/cmd/updatecontrib@latest
+            cd gotip
+            updatecontrib
+    
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    For #12042.
+    
+    Change-Id: I5e648b99004026513c5772b579a72b7add970db4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418016
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ CONTRIBUTORS | 103 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 101 insertions(+), 2 deletions(-)

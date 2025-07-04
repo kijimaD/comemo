@@ -1,0 +1,12 @@
+commit 853c84631f1afda1672930e8e509beeb0e9d44f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 21:17:47 2011 -0700
+
+    template: do not use error as stringer
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5305069
+
+ src/pkg/template/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

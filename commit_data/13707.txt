@@ -1,0 +1,13 @@
+commit b7627d3d1f238e484d08bb8abb770cbe91482bc4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 30 11:16:41 2012 -0700
+
+    path: improve documentation for Dir
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6495059
+
+ src/pkg/path/path.go      | 3 ++-
+ src/pkg/path/path_test.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

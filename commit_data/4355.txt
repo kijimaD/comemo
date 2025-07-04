@@ -1,0 +1,12 @@
+commit 7d7d95a160160cf77217886c54d06236532b07ea
+Author: Ross Light <rlight2@gmail.com>
+Date:   Wed Dec 9 10:35:48 2009 -0800
+
+    Added my name to the AUTHORS and CONTRIBUTORS list
+    
+    R=rsc
+    https://golang.org/cl/165101
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

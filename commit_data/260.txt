@@ -1,0 +1,10 @@
+commit 282356bf4fc9686dbabc804be584757112adb37b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 17:58:13 2008 -0700
+
+    update: hashmap compiles now
+    
+    SVN=125233
+
+ test/golden.out | 13 -------------
+ 1 file changed, 13 deletions(-)

@@ -1,0 +1,21 @@
+commit 8dcc071063c0a9f020f0aafd51b7e0a17f0a0746
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 13 16:33:42 2021 -0700
+
+    cmd/compile/internal/types2: use a global atomic counter for type parameter ids
+    
+    This avoids a dependency on a *Checker when we create type parameters
+    outside the type checker proper, e.g. in an importer. There may be
+    better solutions but this does the trick for now.
+    
+    Change-Id: Icf22c934970cb04c88c2729555ae6a79ef5a2245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309830
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go   |  1 +
+ src/cmd/compile/internal/types2/check.go      |  2 --
+ src/cmd/compile/internal/types2/type.go       | 13 +++++++++++--
+ src/cmd/compile/internal/types2/types_test.go |  8 ++++++++
+ 4 files changed, 20 insertions(+), 4 deletions(-)

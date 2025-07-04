@@ -1,0 +1,21 @@
+commit 43afb1a22016ec537915ed8ade0039ad8c6559ce
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Sun Mar 28 23:04:33 2021 +0700
+
+    cmd/go: fix documentation on how to create new go.mod file
+    
+    The correct command to create new go.mod file should be 'go mod init',
+    not 'go help init'.
+    
+    Change-Id: I1150621987d989997f8b75e6a13fe96423a11cf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305289
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 49fdfe21dd5d1a08b1edaac5c0caeedf492d32e2
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Nov 8 17:33:53 2010 -0800
+
+    bytes: SSE for bytes.IndexByte on amd64
+    
+    Performance on 2.8 GHz Intel Core i7:
+    
+    Before:
+    BenchmarkIndexByte4K  1000000              2997 ns/op        1366.70 MB/s
+    BenchmarkIndexByte4M      500           3049772 ns/op        1375.28 MB/s
+    BenchmarkIndexByte64M      50          49582280 ns/op        1353.48 MB/s
+    
+    After:
+    BenchmarkIndexByte4K 10000000               298 ns/op       13744.97 MB/s
+    BenchmarkIndexByte4M    10000            285993 ns/op       14665.76 MB/s
+    BenchmarkIndexByte64M     500           4618172 ns/op       14531.48 MB/s
+    
+    R=rsc, PeterGo, r2, r
+    CC=golang-dev
+    https://golang.org/cl/2888041
+
+ src/pkg/bytes/asm_amd64.s   | 93 ++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/bytes/bytes_test.go | 53 ++++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit bf833ead6250290dce039ffeee88f20a086b5dbe
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 28 14:32:15 2020 -0400
+
+    cmd/compile: ensure that ssa.Func constant cache is consistent
+    
+    It was not necessarily consistent before, we were just lucky.
+    
+    Change-Id: I3a92dc724e0af7b4d810a6a0b7b1d58844eb8f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251440
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/func.go      | 59 ++++++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/softfloat.go |  1 +
+ src/cmd/compile/internal/ssa/value.go     |  9 +++++
+ 3 files changed, 56 insertions(+), 13 deletions(-)

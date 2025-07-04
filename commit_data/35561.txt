@@ -1,0 +1,15 @@
+commit 33cd4fba38b82693d7ffc62f50ea763694d4c8c3
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 17:33:23 2018 -0400
+
+    Revert "cmd/compile: ignore g register in liveness analysis"
+    
+    This reverts commit ea200340702cf3ccfac7c5db1f11bb65c80971c7 now
+    that CL 114695 fixed the root cause of #25504.
+    
+    Change-Id: If437fc832983bd8793bde28ce0e2e64436a0596c
+    Reviewed-on: https://go-review.googlesource.com/114087
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 11 -----------
+ 1 file changed, 11 deletions(-)

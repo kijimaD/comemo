@@ -1,0 +1,15 @@
+commit 20a5de9eb6e363d22a7594146cf9b2d634ff24a0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:46:51 2014 -0400
+
+    liblink: warn about TLS base MRC instruction that does not write into R0.
+    
+    While we're here, make it lookup the tlsfallback symbol only once.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw, dave
+    CC=golang-codereviews
+    https://golang.org/cl/107430044
+
+ src/liblink/obj5.c | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

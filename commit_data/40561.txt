@@ -1,0 +1,28 @@
+commit bf7e55b618ff4ec8e823b77c3c775d0fb4dba1ba
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 28 11:51:13 2019 -0400
+
+    cmd/link: directly exec archive command if external tmpdir
+    
+    When linking a Go archive, if the archiver invocation is the very last
+    thing that needs to happen in the link (no "atexit" cleanups required
+    remove the locally created tmpdir) then call syscall.Exec to invoke
+    the archiver command instead of the usual exec.Command. This has the
+    effect of reducing peak memory use for the linker overall, since we
+    don't be holding onto all of the linker's live memory while the
+    archiver is running.
+    
+    Change-Id: Ibbe22d8d67a70cc2a4f91c68aab56d19fb77c393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203821
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/execarchive.go        | 37 ++++++++++++++
+ src/cmd/link/internal/ld/execarchive_noexec.go | 13 +++++
+ src/cmd/link/internal/ld/ld_test.go            | 70 ++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                | 28 +++++++++--
+ src/cmd/link/internal/ld/main.go               |  4 +-
+ src/cmd/link/internal/ld/util.go               | 10 +++-
+ 6 files changed, 153 insertions(+), 9 deletions(-)

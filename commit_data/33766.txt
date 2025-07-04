@@ -1,0 +1,19 @@
+commit 2e5011d8029e29f37bae359f2b1d398212a961ee
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 1 15:15:42 2017 -0500
+
+    runtime: even more TestStackGrowth timeout debugging
+    
+    This adds logging for the expected duration of a growStack, plus
+    progress information on the growStack that timed out.
+    
+    Updates #19381.
+    
+    Change-Id: Ic358f8350f499ff22dd213b658aece7d1aa62675
+    Reviewed-on: https://go-review.googlesource.com/81556
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack_test.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 946e2543f878929752da9d16575dd5e96ac78532
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jul 6 07:17:07 2021 +0000
+
+    runtime: use RDCYCLE for cputicks on riscv64
+    
+    Use RDCYCLE instruction instead of RDTIME emulation
+    
+    Change-Id: Id7b3de42a36d2d1b163c39cc79870eee7c840ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332954
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

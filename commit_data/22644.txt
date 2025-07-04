@@ -1,0 +1,15 @@
+commit 72e867ed8ef16dfefbd83d948ce34f19489eb976
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 17 16:48:55 2015 +1000
+
+    image/jpeg: ensure that we can't unread a byte if we didn't read a byte.
+    
+    Fixes #10413
+    
+    Change-Id: I7a4ecd042c40f786ea7406c670d561b1c1179bf0
+    Reviewed-on: https://go-review.googlesource.com/8998
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/jpeg/reader.go      |  5 ++--
+ src/image/jpeg/reader_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)

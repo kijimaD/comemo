@@ -1,0 +1,15 @@
+commit cb284313f7e24319e7d22a551bd04ad9632db659
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 20:01:50 2016 +0000
+
+    net/http, net/http/httputil: start with capitals in deprecation sentences
+    
+    Fixes #15139
+    
+    Change-Id: I73111137907e612af871b77ccf166572bf78c840
+    Reviewed-on: https://go-review.googlesource.com/21544
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/httputil/persist.go | 10 +++++-----
+ src/net/http/request.go          |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

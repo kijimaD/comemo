@@ -1,0 +1,21 @@
+commit 75032ad8cfac4aefbacd17b47346ac8c1b5ff33f
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Thu Oct 8 02:12:43 2020 +0000
+
+    cmd/go: break after terminal loop condition
+    
+    After the first time needCostly is set to true, there is no need to
+    continue checking the remaining args.
+    
+    Change-Id: I07171ce50d20e2a917117a0f84c442fe978cb274
+    GitHub-Last-Rev: 6d0c19341b7a85d507c3ec4967bab5f83b0fad8d
+    GitHub-Pull-Request: golang/go#41859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260638
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go | 2 ++
+ 1 file changed, 2 insertions(+)

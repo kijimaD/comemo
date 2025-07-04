@@ -1,0 +1,14 @@
+commit 12cf1699e7ff6d7fc9f62e52f9ee065cdfa23f00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 14:22:40 2011 -0700
+
+    net: default to 127.0.0.1, not localhost, in TestICMP
+    
+    If localhost resolves to ::1, the IPv4-only test fails.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4444084
+
+ src/pkg/net/ipraw_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

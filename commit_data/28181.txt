@@ -1,0 +1,19 @@
+commit cd285f1c6fc613fa0f097443ae1d21d6c4491386
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Aug 8 16:17:14 2016 +0200
+
+    runtime: fix global buffer reset in StopTrace
+    
+    We reset global buffer only if its pos != 0.
+    We ought to do it always, but queue it only if pos != 0.
+    This is a latent bug. Currently it does not fire because
+    whenever we create a global buffer, we increment pos.
+    
+    Change-Id: I01e28ae88ce9a5412497c524391b8b7cb443ffd9
+    Reviewed-on: https://go-review.googlesource.com/25574
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/trace.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

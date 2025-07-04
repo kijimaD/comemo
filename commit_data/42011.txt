@@ -1,0 +1,17 @@
+commit e8518731be26f92f4f94c383b5cd7e02b47fcdb1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 19 15:34:32 2020 -0700
+
+    cmd/compile: use dereference boundedness hint during ssa conversion
+    
+    This has a minor positive effect on generated code,
+    particularly code using type switches.
+    
+    Change-Id: I7269769ab0d861ef6fc9e6d7809ffc3573c68340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228885
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

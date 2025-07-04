@@ -1,0 +1,39 @@
+commit 468851f1d57eb5cd3ec0ec6d3ce306ea5749090b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 3 10:31:12 2013 -0700
+
+    net/http: don't allocate 0-byte io.LimitedReaders for GET requests
+    
+    Save an allocation per GET request and don't call io.LimitedReader(r, 0)
+    just to read 0 bytes.  There's already an eofReader global variable
+    for when we just want a non-nil io.Reader to immediately EOF.
+    
+    (Sorry, I know Rob told me to stop, but I was bored on the plane and
+    wrote this before I received the recent "please, really stop" email.)
+    
+    benchmark                         old ns/op    new ns/op    delta
+    BenchmarkServerHandlerTypeLen         13888        13279   -4.39%
+    BenchmarkServerHandlerNoLen           12912        12229   -5.29%
+    BenchmarkServerHandlerNoType          13348        12632   -5.36%
+    BenchmarkServerHandlerNoHeader        10911        10261   -5.96%
+    
+    benchmark                        old allocs   new allocs    delta
+    BenchmarkServerHandlerTypeLen            20           19   -5.00%
+    BenchmarkServerHandlerNoLen              18           17   -5.56%
+    BenchmarkServerHandlerNoType             18           17   -5.56%
+    BenchmarkServerHandlerNoHeader           13           12   -7.69%
+    
+    benchmark                         old bytes    new bytes    delta
+    BenchmarkServerHandlerTypeLen          1913         1878   -1.83%
+    BenchmarkServerHandlerNoLen            1878         1843   -1.86%
+    BenchmarkServerHandlerNoType           1878         1844   -1.81%
+    BenchmarkServerHandlerNoHeader         1085         1051   -3.13%
+    
+    Fixes #5188
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/8297044
+
+ src/pkg/net/http/transfer.go | 47 +++++++++++++++++++++-----------------------
+ 1 file changed, 22 insertions(+), 25 deletions(-)

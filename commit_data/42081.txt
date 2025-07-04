@@ -1,0 +1,18 @@
+commit e7c187369149741f96c445c153be4fc6475bc365
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 00:21:59 2020 -0700
+
+    cmd/compile: optimize x & 1 != 0 to x & 1 on amd64
+    
+    Triggers a handful of times in std+cmd.
+    
+    Change-Id: I9bb8ce9a5f8bae2547cb61157cd8f256e1b63e76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229602
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
+ test/codegen/bool.go                         | 33 +++++++++++++++++++
+ 3 files changed, 85 insertions(+)

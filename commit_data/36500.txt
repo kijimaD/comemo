@@ -1,0 +1,30 @@
+commit 42cc4ca30a7729a4c6d1bb0bbbc3e4a736ef91c8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 22 14:01:22 2018 +0200
+
+    cmd/compile: prevent overflow in walkinrange
+    
+    In the compiler frontend, walkinrange indiscriminately calls Int64()
+    on const CTINT nodes, even though Int64's return value is undefined
+    for anything over 2⁶³ (in practise, it'll return a negative number).
+    
+    This causes the introduction of bad constants during rewrites of
+    unsigned expressions, which make the compiler reject valid Go
+    programs.
+    
+    This change introduces a preliminary check that Int64() is safe to
+    call on the consts on hand. If it isn't, walkinrange exits without
+    doing any rewrite.
+    
+    Fixes #27143
+    
+    Change-Id: I2017073cae65468a521ff3262d4ea8ab0d7098d9
+    Reviewed-on: https://go-review.googlesource.com/130735
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/const.go | 11 +++++++++++
+ src/cmd/compile/internal/gc/walk.go  |  6 ++++++
+ test/fixedbugs/issue27143.go         | 17 +++++++++++++++++
+ 3 files changed, 34 insertions(+)

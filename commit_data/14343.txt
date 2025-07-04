@@ -1,0 +1,12 @@
+commit f59a605645def8e5afd5052e0e47836921c59c05
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Nov 7 21:35:21 2012 +0100
+
+    runtime: use runtime·callers when racefuncenter's pc is on the heap.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6821069
+
+ src/pkg/runtime/race.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

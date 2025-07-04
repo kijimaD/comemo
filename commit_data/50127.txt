@@ -1,0 +1,21 @@
+commit 27006657fad10d195dd0f5d5719e49a4e5811f4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 14:30:15 2022 -0700
+
+    go/types: avoid declared but not used error for a couple of cases
+    
+    The change in typexpr.go matches types2 behavior.
+    
+    For #54511.
+    
+    Change-Id: I79c922a94f2ee0440c1814140935c321439c7d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425714
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/testdata/check/builtins0.go | 4 ++--
+ src/go/types/typexpr.go                  | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,31 @@
+commit a1f57598cc00644dc1d32ce54a7b5a2be68bcfb1
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 7 12:55:02 2015 +1200
+
+    runtime, cmd/internal/ld: rename themoduledata to firstmoduledata
+    
+    'themoduledata' doesn't really make sense now we support multiple moduledata
+    objects.
+    
+    Change-Id: I8263045d8f62a42cb523502b37289b0fba054f62
+    Reviewed-on: https://go-review.googlesource.com/8521
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/ld/pcln.go   |  2 +-
+ src/cmd/internal/ld/symtab.go |  2 +-
+ src/runtime/heapdump.go       | 16 ++++++++--------
+ src/runtime/malloc.go         |  2 +-
+ src/runtime/mbarrier.go       |  4 ++--
+ src/runtime/mbitmap.go        |  2 +-
+ src/runtime/mem_plan9.go      |  2 +-
+ src/runtime/mfinal.go         |  2 +-
+ src/runtime/mgc.go            |  2 +-
+ src/runtime/mgcmark.go        |  4 ++--
+ src/runtime/proc1.go          |  2 +-
+ src/runtime/race1.go          | 32 ++++++++++++++++----------------
+ src/runtime/runtime1.go       |  4 ++--
+ src/runtime/signal_windows.go |  2 +-
+ src/runtime/symtab.go         | 24 ++++++++++++------------
+ 15 files changed, 51 insertions(+), 51 deletions(-)

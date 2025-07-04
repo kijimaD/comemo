@@ -1,0 +1,16 @@
+commit c21b343438dfd26a56e89278522b03ac6417926c
+Author: James P. Cooper <jamespcooper@gmail.com>
+Date:   Wed Jan 25 17:47:32 2012 -0800
+
+    database/sql: add NullInt64, NullFloat64, NullBool
+    
+    Fixes #2699
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5557063
+
+ src/pkg/database/sql/fakedb_test.go |  14 ++++
+ src/pkg/database/sql/sql.go         |  79 ++++++++++++++++++++++-
+ src/pkg/database/sql/sql_test.go    | 125 +++++++++++++++++++++++++-----------
+ 3 files changed, 181 insertions(+), 37 deletions(-)

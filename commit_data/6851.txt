@@ -1,0 +1,12 @@
+commit 802360edb40d75c15d2d6ce49861d73fd98e3d88
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Tue Dec 7 15:28:21 2010 -0500
+
+    errchk: accept multiple source files
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/3217042
+
+ test/errchk | 100 +++++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 59 insertions(+), 41 deletions(-)

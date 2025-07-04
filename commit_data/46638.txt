@@ -1,0 +1,25 @@
+commit 02d56a1584f968b86b669b3b943dc2ffad30e087
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Sep 27 19:49:38 2021 -0400
+
+    go/types: add the Interface.IsMethodSet method
+    
+    As pointed out in #47916, the IsConstraint method becomes ambiguously
+    named if ever we allow interfaces with structural restrictions outside
+    of constraint position.
+    
+    Add instead an IsMethodSet method, which has the opposite sense and
+    avoids this ambiguity. In a subsequent CL the IsConstraint method will
+    be removed, once x/tools has been updated to use the IsMethodSet API.
+    
+    Updates #47916
+    
+    Change-Id: I82ad16b111464b0cd2f354b8ecdd4b3f14796cd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352616
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/interface.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

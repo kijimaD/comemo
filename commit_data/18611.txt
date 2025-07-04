@@ -1,0 +1,13 @@
+commit b5705ed9ab26d69cb32d484289efc5f1cbc50144
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:23:35 2014 +0400
+
+    net/rpc: use RunParallel in benchmarks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68040044
+
+ src/pkg/net/rpc/server_test.go | 38 ++++++++++++++------------------------
+ 1 file changed, 14 insertions(+), 24 deletions(-)

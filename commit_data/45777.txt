@@ -1,0 +1,19 @@
+commit 63dcab2e91cfa40ae6dc1f0455b1f3c2801a00ec
+Author: Tim King <taking@google.com>
+Date:   Tue May 25 19:23:02 2021 -0700
+
+    doc/go1.17: mention new vet checks sigchanyzer and stdmethods.
+    
+    These vet checks were added in CL 299532 and CL 321389.
+    
+    Also adds a TODO for buildtags.
+    
+    Change-Id: I516dc77729f6d2dc147318260fe452831b115dfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322769
+    Trust: Tim King <taking@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)

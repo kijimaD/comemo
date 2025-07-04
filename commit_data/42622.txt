@@ -1,0 +1,17 @@
+commit 11f92e9dae96939c2d784ae963fa7763c300660b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 20 18:32:53 2020 +0200
+
+    cmd/compile: add test for fixed ICE on untyped conversion
+    
+    The ICE reported as #33308 was fixed by a related CL; this change adds
+    a regression test with the crasher.
+    
+    Fixes #33308
+    
+    Change-Id: I3260075dbe3823b56b8825e6269e57a0fad185a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243458
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue33308.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

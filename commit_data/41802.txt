@@ -1,0 +1,14 @@
+commit 2cb80bdee0dcb4ff55f46ab7025a37546aef6b7a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue Mar 31 19:44:19 2020 +0100
+
+    runtime: skip gdb tests on Plan 9
+    
+    There's no gdb on Plan 9.
+    
+    Change-Id: Ibeb0fbd3c096a69181c19b1fb2bc6291612b6da3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226657
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/runtime-gdb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

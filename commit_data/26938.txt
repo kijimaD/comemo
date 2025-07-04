@@ -1,0 +1,26 @@
+commit e5463f5055d590046a451a115ceac7b58b3f825f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Jan 21 14:53:55 2016 +1300
+
+    cmd/go: fix "#cgo pkg-config:" comments with gccgo
+    
+    The unique difficulty of #cgo pkg-config is that the linker flags are recorded
+    when the package is compiled but (obviously) must be used when the package is
+    linked into an executable -- so the flags need to be stored on disk somewhere.
+    As it happens cgo already writes out a _cgo_flags file: nothing uses it
+    currently, but this change adds it to the lib$pkg.a file when compiling a
+    package, reads it out when linking (and passes a version of the .a file with
+    _cgo_flags stripped out of it to the linker). It's all fairly ugly but it works
+    and I can't really think of any way of reducing the essential level of
+    ugliness.
+    
+    Fixes #11739
+    
+    Change-Id: I35621878014e1e107eda77a5b0b23d0240ec5750
+    Reviewed-on: https://go-review.googlesource.com/18790
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 88 insertions(+), 3 deletions(-)

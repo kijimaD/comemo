@@ -1,0 +1,15 @@
+commit 28b40f3528bf1f45e68da85b1d338a89e61f91b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 2 11:16:47 2018 -0700
+
+    go/types: add doc strings to various undocumented exported objects
+    
+    Fixes #22747.
+    
+    Change-Id: I498cb29f18bd9b59b13dc2ddc3a613cc12ac2a14
+    Reviewed-on: https://go-review.googlesource.com/110975
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/object.go   | 38 +++++++++++++++++++++++++++++---------
+ src/go/types/universe.go | 10 ++++++++--
+ 2 files changed, 37 insertions(+), 11 deletions(-)

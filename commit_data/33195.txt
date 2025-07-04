@@ -1,0 +1,21 @@
+commit 7092a312e5651c31e4a075503b0f5799371ceef9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 20 15:20:56 2017 -0700
+
+    cmd/compile: replace -l=2 with -d typecheckinl
+    
+    Currently, benchmarking compile performance under -l=4 is confounded
+    by -l=2 enabling eager typechecking of unused inline function bodies
+    for debugging. This isn't logically an "inlining aggressiveness"
+    level, so instead move this logic under the -d umbrella flag.
+    
+    Change-Id: I713f68952efbe25b6941d3ebc2f3707ccbbd6240
+    Reviewed-on: https://go-review.googlesource.com/72253
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go     | 19 +++++++++++--------
+ src/cmd/compile/internal/gc/main.go    |  4 +++-
+ 3 files changed, 15 insertions(+), 10 deletions(-)

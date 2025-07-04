@@ -1,0 +1,16 @@
+commit 948d324f7d8641a042da46c25417ebabd84e5e78
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 12 23:12:57 2020 +0700
+
+    cmd/compile: add failing test case for #24305
+    
+    Updates #24305
+    
+    Change-Id: Ib0b093e33004a978467cdd1e77186798392d4eca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248217
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/escape5.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

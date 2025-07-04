@@ -1,0 +1,12 @@
+commit 5641a09171ce220b6eb28631dce6a1243dc78e12
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 14:38:49 2013 -0500
+
+    lib9: fix windows build (don't use runesmprint)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7575046
+
+ src/lib9/tempdir_windows.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

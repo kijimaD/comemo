@@ -1,0 +1,13 @@
+commit 57d9de3ac88feba88c51922154edc1a9da71ee48
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 21 16:27:18 2010 -0700
+
+    utf16: add DecodeRune, EncodeRune
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/970041
+
+ src/pkg/utf16/utf16.go      | 35 +++++++++++++++++++++++++++++++----
+ src/pkg/utf16/utf16_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 4 deletions(-)

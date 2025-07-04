@@ -1,0 +1,14 @@
+commit dd6753a6f28ade7b7d24d082b438de3c7dd48557
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 12:23:44 2016 -0500
+
+    runtime: allow for C pointers between arena_start and arena_used in cgo check
+    
+    Fixes #13928.
+    
+    Change-Id: Ia04c6bdef5ae6924d03982682ee195048f8f387f
+    Reviewed-on: https://go-review.googlesource.com/18611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgocall.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

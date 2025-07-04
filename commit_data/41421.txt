@@ -1,0 +1,25 @@
+commit 0fb1a49c1ae0e9e587c74947d6d6c3fe92c161df
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 24 16:24:29 2020 -0500
+
+    cmd/link: improve gap detection in TestPIESize
+    
+    In CL 210180 we detect gaps between PT_LOAD segments and subtract
+    them from size calculation. The code there only works when
+    PT_LOAD segments are next to each other. But it is possible that
+    there are other segments in between (e.g. a GNU_RELRO segment).
+    Relax the gap detection to count gaps between PT_LOAD segments
+    regardless of whether they are next to each other.
+    
+    Updates #36023.
+    Updates #35545.
+    
+    Change-Id: I8b94506359fa649a4478acc742d86d4b16022dbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220654
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/elf_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

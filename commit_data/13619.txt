@@ -1,0 +1,21 @@
+commit aa9a81b1b098f3482bd648fbb634756cfa403fd5
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Mon Aug 13 12:07:44 2012 +1000
+
+    exp/html: discard tags that are terminated by EOF instead of by '>'
+    
+    If a tag doesn't have a closing '>', it isn't considered a tag;
+    it is just ignored and EOF is returned instead.
+    
+    Pass one additional test in the test suite.
+    
+    Change tokenizer tests to match correct behavior.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6454131
+
+ src/pkg/exp/html/testlogs/webkit02.dat.log |  2 +-
+ src/pkg/exp/html/token.go                  |  8 ++++++--
+ src/pkg/exp/html/token_test.go             | 17 +++++++++++------
+ 3 files changed, 18 insertions(+), 9 deletions(-)

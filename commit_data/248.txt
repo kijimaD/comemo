@@ -1,0 +1,12 @@
+commit 1f672596c5103e769a803afa01e1eb3ccb1e7edc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 10:29:02 2008 -0700
+
+    fix a few spelling mistakes in messages
+    
+    SVN=125108
+
+ src/cmd/gc/dcl.c | 8 ++++----
+ src/cmd/gc/go.h  | 2 +-
+ src/cmd/gc/go.y  | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

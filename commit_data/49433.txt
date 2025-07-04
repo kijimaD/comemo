@@ -1,0 +1,23 @@
+commit 3426b7201da8140bb0fb433facd9e1fd3f267dfb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 8 10:46:42 2022 -0400
+
+    runtime: gofmt
+    
+    libfuzzerHookStrCmp is manually reformatted into a proper go doc list.
+    
+    We don't always format testdata, but these test programs are standard Go
+    programs that can be formatted.
+    
+    Change-Id: I4dde398bca225ae8c72e787e4d43fd0ccfd0a90b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411114
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/libfuzzer.go                           | 20 ++++++++++----------
+ src/runtime/testdata/testprog/crash.go             |  6 +++---
+ src/runtime/testdata/testprogcgo/pprof_callback.go |  2 +-
+ src/runtime/testdata/testwinlib/main.go            |  2 ++
+ 4 files changed, 16 insertions(+), 14 deletions(-)

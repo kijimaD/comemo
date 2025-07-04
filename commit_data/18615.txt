@@ -1,0 +1,13 @@
+commit 44cc8e5cc968348f418b57bcf42c692274b1c06c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:46:25 2014 +0400
+
+    fmt: use RunParallel in benchmarks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/67910046
+
+ src/pkg/fmt/fmt_test.go | 67 ++++++++++++++++++++++---------------------------
+ 1 file changed, 30 insertions(+), 37 deletions(-)

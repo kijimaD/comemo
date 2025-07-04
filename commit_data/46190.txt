@@ -1,0 +1,30 @@
+commit 4f0dedca7141afafbc01be96097570de2da2bdcc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 14:50:05 2021 -0700
+
+    cmd/compile: fix parameterized interfaces
+    
+    type I[T any] interface{}
+    
+    This is an interface, but it has a type parameter.
+    We need to distinguish that from an interface that is not parameterized.
+    
+    That means when doing type substitution on an interface with
+    parameters, we need to make a new one.
+    
+    Same for non-empty interfaces. Even if the type parameter is not
+    used in any method, we sill need to make a new type.
+    
+    Similar case to tstruct, above.
+    
+    Change-Id: I23ad9f21d2c4ef675bf3f7d84899d9e4919d05e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344578
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 15 +++++--
+ test/typeparam/eface.go                    | 71 ++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 3 deletions(-)

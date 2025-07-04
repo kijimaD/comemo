@@ -1,0 +1,31 @@
+commit 437362ccec8aeab03aaac63db188f7e8f9eed699
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 27 20:50:31 2021 -0700
+
+    cmd/compile/internal/types2: generalize instanceHash to accept any type, rename to typeHash
+    
+    Rename instanceHashing accordingly.
+    
+    Eventually, this will make it possible to use typeHash to detect
+    multiple identical types in type switch cases and other places.
+    
+    Also fix some bugs: When creating a type hash, the name of function
+    parameters must be ignored because they don't matter for type
+    identity. And when printing a type name, don't assume its type
+    is a *Named type; it could be a *Basic type as well.
+    
+    Finally, use a correctly qualified type string when reporting
+    a duplicate type error in a type switch case rather than the
+    (debugging) type string.
+    
+    Change-Id: Ida3873f6259b51847843b0e2d7e3aa2fcdc3a0c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345791
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        | 43 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/types2/subst.go       | 28 ++++++++++++-----
+ src/cmd/compile/internal/types2/typestring.go  | 28 +++++++++--------
+ 5 files changed, 79 insertions(+), 24 deletions(-)

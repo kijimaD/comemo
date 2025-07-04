@@ -1,0 +1,19 @@
+commit 2dbc5d26c773e4400c0adfc25d9160eeaf6530b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 15:46:07 2014 -0700
+
+    bytes, strings: add Reader.ReadAt race tests
+    
+    Tests for the race detector to catch anybody
+    trying to mutate Reader in ReadAt.
+    
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/86700043
+
+ src/pkg/bytes/reader.go        |  1 +
+ src/pkg/bytes/reader_test.go   | 17 +++++++++++++++++
+ src/pkg/strings/reader.go      |  1 +
+ src/pkg/strings/reader_test.go | 17 +++++++++++++++++
+ 4 files changed, 36 insertions(+)

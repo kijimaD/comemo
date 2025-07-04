@@ -1,0 +1,16 @@
+commit 849ad2d0cac9b3ee97b3d331ca6e556a6073d94d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 12:44:17 2012 +1100
+
+    cmd/godoc: canonicalize custom path redirects
+    
+    For example, /ref and /doc/reference.html now both redirect to /ref/.
+    
+    Fixes #3401.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5916044
+
+ src/cmd/godoc/godoc.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

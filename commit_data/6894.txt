@@ -1,0 +1,14 @@
+commit 70113b436e18fe641fa7ca8f9584fbdce0f339f6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 8 16:25:14 2010 -0500
+
+    a few more errors caught by the print checker
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3431046
+
+ src/pkg/archive/tar/reader_test.go | 2 +-
+ src/pkg/archive/tar/writer_test.go | 2 +-
+ src/pkg/flag/flag_test.go          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

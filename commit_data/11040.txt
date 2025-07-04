@@ -1,0 +1,12 @@
+commit e36acdfb56474be234b9c2cd4b88b7af30d1b99f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 5 18:40:17 2012 -0800
+
+    sort: eliminate extra Len() call
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5521052
+
+ src/pkg/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

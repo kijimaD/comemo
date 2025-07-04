@@ -1,0 +1,26 @@
+commit eaa8419a72215b53576ab5d2def399f9503d1f58
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 17:41:19 2023 -0700
+
+    runtime: decrement netpollWaiters in netpollunblock
+    
+    We used to decrement it in netpollgoready, but that missed
+    the common case of a descriptor becoming ready due to I/O.
+    All calls to netpollgoready go through netpollunblock,
+    so this shouldn't miss any decrements we missed before.
+    
+    Fixes #60782
+    
+    Change-Id: Ideefefa1ac96ca38e09fe2dd5d595c5dd7883237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503923
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/crash_test.go                   |  9 ++++
+ src/runtime/netpoll.go                      |  5 ++-
+ src/runtime/testdata/testprognet/waiters.go | 68 +++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 2 deletions(-)

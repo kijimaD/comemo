@@ -1,0 +1,28 @@
+commit fb432782f0017f59f6f2c5f620dfd8c67b5e35e3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 18:59:09 2024 +0100
+
+    crypto/ecdh: revamp FIPS ECDH API
+    
+    This makes it more similar to the ECDSA API, introducing proper key
+    types that can correctly "cache" the key check.
+    
+    The new API also has a better compliance profile. Note how the old
+    ECDHPnnn functions were not doing the PCT, instead delegating to the
+    caller an invocation of ImportKeyPnnn.
+    
+    Change-Id: Ic6cf834427fd790324919b4d92bdaa2aac840016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630098
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/ecdh/ecdh.go                        |   3 +
+ src/crypto/ecdh/nist.go                        |  91 +++++---
+ src/crypto/internal/fips140/ecdh/cast.go       |   5 +-
+ src/crypto/internal/fips140/ecdh/ecdh.go       | 298 ++++++++++++-------------
+ src/crypto/internal/fips140/ecdh/order_test.go |   8 +-
+ src/crypto/internal/fips140test/cast_test.go   |  10 +-
+ 6 files changed, 221 insertions(+), 194 deletions(-)

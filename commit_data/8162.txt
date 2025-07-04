@@ -1,0 +1,29 @@
+commit e1ee3b5db64dab637eab9eeca61ff55edee7f06f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 16:24:45 2011 -0400
+
+    reflect: add Type.Implements, Type.AssignableTo, Value.CallSlice; make Set match Go
+    
+    This CL makes reflect require that values be assignable to the target type
+    in exactly the same places where that is the rule in Go.  It also adds
+    the Implements and AssignableTo methods so that callers can check
+    the types themselves so as to avoid a panic.
+    
+    Before this CL, reflect required strict type identity.
+    
+    This CL expands Call to accept and correctly marshal arbitrary
+    argument lists for variadic functions; it introduces CallSlice for use
+    in the case where the slice for the variadic argument is already known.
+    
+    Fixes #327.
+    Fixes #1212.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4439058
+
+ src/pkg/reflect/all_test.go |  18 ++++
+ src/pkg/reflect/set_test.go | 211 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/type.go     | 171 +++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 242 ++++++++++++++++++++++++++++++++------------
+ 4 files changed, 575 insertions(+), 67 deletions(-)

@@ -1,0 +1,13 @@
+commit f3a97293b17133cd5529b3510bc9301798bf2167
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 14:55:26 2009 -0800
+
+    test/run: unset GREP_OPTIONS
+    
+    Fixes #116.
+    
+    R=r
+    https://golang.org/cl/152106
+
+ test/run | 1 +
+ 1 file changed, 1 insertion(+)

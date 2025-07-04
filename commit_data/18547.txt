@@ -1,0 +1,18 @@
+commit be1c71ecb5b02220b282884317908b4da89ef37a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 17 20:11:53 2014 -0500
+
+    runtime: clear f, arg to avoid leak in timerproc
+    
+    I have seen this cause leaks where not all objects in a sync.Pool
+    would be reclaimed during the sync package tests.
+    I found it while debugging the '0 of 100 finalized' failure we are
+    seeing on arm, but it seems not to be the root cause for that one.
+    
+    LGTM=dave, dvyukov
+    R=golang-codereviews, dave, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/64920044
+
+ src/pkg/runtime/time.goc | 8 ++++++++
+ 1 file changed, 8 insertions(+)

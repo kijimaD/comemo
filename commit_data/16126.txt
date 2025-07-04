@@ -1,0 +1,12 @@
+commit f4de042e2c22dcd64c667e3196d27a8b551410a4
+Author: Alexei Sholik <alcosholik@gmail.com>
+Date:   Sun Apr 7 16:50:23 2013 -0700
+
+    go/ast: fix typo in Fprint documentation
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8499043
+
+ src/pkg/go/ast/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

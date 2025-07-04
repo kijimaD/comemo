@@ -1,0 +1,33 @@
+commit 9da7058466c8c9f32e1481f28d57732832ee3b30
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 15:31:21 2016 -0400
+
+    cmd/link, plugin: use full plugin path for symbols
+    
+    Plumb the import path of a plugin package through to the linker, and
+    use it as the prefix on the exported symbol names.
+    
+    Before this we used the basename of the plugin file as the prefix,
+    which could conflict and result in multiple loaded plugins sharing
+    symbols that are distinct.
+    
+    Fixes #17155
+    Fixes #17579
+    
+    Change-Id: I7ce966ca82d04e8507c0bcb8ea4ad946809b1ef5
+    Reviewed-on: https://go-review.googlesource.com/32355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go           | 43 ++++++++++++++++++++++++--
+ misc/cgo/testplugin/src/plugin1/plugin1.go     |  2 ++
+ misc/cgo/testplugin/src/sub/plugin1/plugin1.go | 20 ++++++++++++
+ misc/cgo/testplugin/test.bash                  |  6 ++--
+ src/cmd/go/build.go                            |  3 ++
+ src/cmd/link/doc.go                            |  2 ++
+ src/cmd/link/internal/ld/main.go               |  5 ++-
+ src/cmd/link/internal/ld/symtab.go             |  6 ++++
+ src/plugin/plugin.go                           |  6 ++--
+ src/plugin/plugin_dlopen.go                    | 24 +++++++-------
+ src/runtime/plugin.go                          | 41 ++++++++++++++----------
+ src/runtime/symtab.go                          |  1 +
+ 12 files changed, 119 insertions(+), 40 deletions(-)

@@ -1,0 +1,21 @@
+commit 98130b39f50f51ac966201461b96a20f923c7d64
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 9 18:37:41 2016 -0500
+
+    runtime: remove noescape hacks from gcWork
+    
+    When gcWork was first introduced, the compiler's escape analysis
+    wasn't good enough to detect that that method receiver didn't escape,
+    so we had to hack around this.
+    
+    Now that the compiler can figure out this for itself, remove these
+    hacks.
+    
+    Change-Id: I9f73fab721e272410b8b6905b564e7abc03c0dfe
+    Reviewed-on: https://go-review.googlesource.com/19634
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcwork.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

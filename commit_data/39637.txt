@@ -1,0 +1,25 @@
+commit 8057c0887f89701b3091755d986b534fd8a50fc7
+Author: Sergei Zagurskii <gvozdoder@gmail.com>
+Date:   Wed May 22 17:00:34 2019 +0300
+
+    reflect: optimize directlyAssignable to avoid rtype.Name call
+    
+    directlyAssignable invoked rtype.Name() just to compare its result
+    to empty string. We really only need to check whether rtype has
+    name. It can be done much cheaper, by checking tflagNamed.
+    
+    Benchmark: https://play.golang.org/p/V2BzESPuf2w
+    name                   old time/op  new time/op  delta
+    DirectlyAssignable-12  32.7ns ± 6%   6.6ns ± 6%  -79.80%  (p=0.008 n=5+5)
+    
+    Fixes #32186
+    
+    Change-Id: I1a2a167dbfddf319fba3015cb6a011bf010f99a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178518
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/reflectlite/type.go | 8 ++++++--
+ src/reflect/type.go              | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

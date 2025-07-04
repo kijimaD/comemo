@@ -1,0 +1,17 @@
+commit a218365faeed6d62d3becabf0c8700f0e0b3a734
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Nov 17 13:03:13 2021 -0800
+
+    cmd/go: skip broken fuzz test
+    
+    For #49047
+    
+    Change-Id: If06ce033f7bfd23d640311f1be261afab8332028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364758
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt | 2 ++
+ 1 file changed, 2 insertions(+)

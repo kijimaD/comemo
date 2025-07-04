@@ -1,0 +1,23 @@
+commit 5b6d3dea8744311825fd544a73edb8d26d9c7e98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 16 22:19:37 2023 +0700
+
+    cmd/compile: use internal/buildcfg for checking newinliner enable
+    
+    internal/goexperiment reports what GOEXPERIMENT the compiler itself was
+    compiled with, not what experiment to use for the object code that the
+    compiler is compiling.
+    
+    Fixes #64189
+    
+    Change-Id: I892d78611f8c76376032fd7459e755380afafac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542995
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 4 ++--
+ src/cmd/compile/internal/noder/linker.go           | 3 +--
+ src/cmd/compile/internal/noder/reader.go           | 3 +--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 1911087dee1a6544067e94cbf430f1fd6e20cf23
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 20:28:12 2017 -0700
+
+    cmd/compile: eliminate all references to Curfn in liveness
+    
+    Updates #15756
+    
+    Change-Id: I5ad87ef44b8ee48e1294820e0b1ab0ec07c480eb
+    Reviewed-on: https://go-review.googlesource.com/38590
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

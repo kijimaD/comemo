@@ -1,0 +1,22 @@
+commit d2fd503f687ca686cb8fbee0b29e64ba529038fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 5 21:13:24 2021 -0400
+
+    text/template: fix type bug in eq
+    
+    {{eq .x 0}} where .x is a nil interface{} should be false, not a type error.
+    
+    Similarly, {{eq .x .x}} should succeed, not panic in reflect.
+    
+    Fixes #45982.
+    
+    Change-Id: I90aba82bb2f1a9e162bde1290c94f5028f56f412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317470
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec_test.go | 19 +++++++++++--------
+ src/text/template/funcs.go     |  6 ++++--
+ 2 files changed, 15 insertions(+), 10 deletions(-)

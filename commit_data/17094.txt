@@ -1,0 +1,13 @@
+commit 9f46efce528eccde8f1d15756bfb8d7088da1dc6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 21:55:04 2013 +0400
+
+    runtime: print scavenger details when forced with debug.FreeOSMemory
+    Fixes #5900.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12669043
+
+ src/pkg/runtime/mheap.c | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

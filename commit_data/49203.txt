@@ -1,0 +1,17 @@
+commit 53db708a1d7639f15256df14b04cf68de42803c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 10 16:26:58 2022 -0700
+
+    cmd/compile/internal/types: change structuraltype_test.go to external test
+    
+    This test can run against package types's exported API just fine.
+    
+    Change-Id: I74184eedc9ca9159b05d893c5f7c615c3dd1884d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405655
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ .../compile/internal/types/structuraltype_test.go  | 49 ++++++++++++----------
+ 1 file changed, 26 insertions(+), 23 deletions(-)

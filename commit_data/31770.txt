@@ -1,0 +1,13 @@
+commit 385ea724102f989e675ff210f360fbee085044e7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 8 10:17:48 2017 -0400
+
+    doc/go1.9: GC performance release notes
+    
+    Change-Id: I361587ba0ddffb5ee4a3d1bdb6219710a30da197
+    Reviewed-on: https://go-review.googlesource.com/45132
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ doc/go1.9.html | 51 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 29 insertions(+), 22 deletions(-)

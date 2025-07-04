@@ -1,0 +1,35 @@
+commit b384ee7cebe1b386e324dcca2c93beb96ea31c9e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 25 11:53:45 2024 -0700
+
+    net, os, internal/poll: test for use of sendfile
+    
+    The net package's sendfile tests exercise various paths where
+    we expect sendfile to be used, but don't verify that sendfile
+    was in fact used.
+    
+    Add a hook to internal/poll.SendFile to let us verify that
+    sendfile was called when expected. Update os package tests
+    (which use their own hook mechanism) to use this hook as well.
+    
+    For #66988
+    
+    Change-Id: I7afb130dcfe0063d60c6ea0f8560cf8665ad5a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581778
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/sendfile.go         |  7 ++++
+ src/internal/poll/sendfile_bsd.go     |  3 ++
+ src/internal/poll/sendfile_linux.go   |  3 ++
+ src/internal/poll/sendfile_solaris.go |  3 ++
+ src/internal/poll/sendfile_windows.go |  3 ++
+ src/net/sendfile_linux.go             |  2 +
+ src/net/sendfile_stub.go              |  4 +-
+ src/net/sendfile_test.go              | 71 +++++++++++++++++++++++++++++++++--
+ src/net/sendfile_unix_alt.go          |  4 ++
+ src/net/sendfile_windows.go           |  2 +
+ src/os/export_linux_test.go           |  1 -
+ src/os/writeto_linux_test.go          | 33 ++++++----------
+ src/os/zero_copy_linux.go             |  3 +-
+ 13 files changed, 111 insertions(+), 28 deletions(-)

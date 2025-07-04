@@ -1,0 +1,18 @@
+commit f0f62fcc46a714cf0f3305b7c02af885953fdae7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 30 02:26:51 2017 +0000
+
+    build: add alternate output format for bootstrap.bash, as used by builders
+    
+    I've been doing these tweaks by hand. I was going to write a tool in
+    Go for it, but it's not much additional shell here.
+    
+    Fixes #22912
+    Updates #9797 (already closed)
+    
+    Change-Id: Ia15bd9b6876e6f6a76aa9ca86b10f113095e96a3
+    Reviewed-on: https://go-review.googlesource.com/80895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bootstrap.bash | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

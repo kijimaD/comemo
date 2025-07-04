@@ -1,0 +1,12 @@
+commit 592037f38188a7357f2103c8ddf1bd62206c778f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Mar 29 15:18:54 2017 -0700
+
+    runtime: fix for implementation notes appearing in godoc
+    
+    Change-Id: I31cfae1e98313b68e3bc8f49079491d2725a662b
+    Reviewed-on: https://go-review.googlesource.com/38850
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgclarge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

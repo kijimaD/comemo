@@ -1,0 +1,14 @@
+commit ff7343f8d0d8eccaced4c9dac91d45ab31ee4d99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 20 09:49:35 2010 -0800
+
+    codereview: accommodate recent change to ui.prompt
+    
+    Fixes #525.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/190044
+
+ lib/codereview/codereview.py | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

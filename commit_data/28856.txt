@@ -1,0 +1,31 @@
+commit 77b6a08e0d3061cbf505394f1d0c5bc9d16fa6cb
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 12 10:18:37 2016 -0700
+
+    vendor: add golang.org/x/crypto/{chacha20poly1305,poly1305}
+    
+    This change imports the chacha20poly1305 and poly1305 packages from
+    x/crypto at 5f4e837b98443e9e7a65072235205993af565d85. These packages
+    will be used to support the ChaCha20-Poly1305 AEAD in crypto/tls.
+    
+    Change-Id: I1a38d671ef9aeff3bc41e3924655883d465a5617
+    Reviewed-on: https://go-review.googlesource.com/30956
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |   83 +
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |   80 +
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 2707 ++++++++++++++++++++
+ .../chacha20poly1305/chacha20poly1305_generic.go   |   70 +
+ .../chacha20poly1305/chacha20poly1305_noasm.go     |   15 +
+ .../chacha20poly1305/chacha20poly1305_test.go      |  182 ++
+ .../chacha20poly1305_test_vectors.go               |  332 +++
+ .../internal/chacha20/chacha_generic.go            |  199 ++
+ .../internal/chacha20/chacha_test.go               |   29 +
+ .../golang_org/x/crypto/poly1305/poly1305.go       |   32 +
+ .../golang_org/x/crypto/poly1305/poly1305_test.go  |   92 +
+ .../golang_org/x/crypto/poly1305/sum_amd64.go      |   22 +
+ .../golang_org/x/crypto/poly1305/sum_amd64.s       |  125 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_arm.go |   22 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_arm.s  |  394 +++
+ src/vendor/golang_org/x/crypto/poly1305/sum_ref.go | 1531 +++++++++++
+ 16 files changed, 5915 insertions(+)

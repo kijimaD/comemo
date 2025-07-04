@@ -1,0 +1,24 @@
+commit 21bf37b5a2052e5aaedbd17abeca7eb263cba706
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Aug 22 12:18:28 2019 -0400
+
+    cmd/compile: update object file format for DWARF file table
+    
+    In CL 188317, we generate the debug_lines in the compiler, and created a
+    new symbol to hold the line table. Here we modify the object file format
+    to output the file table.
+    
+    Change-Id: Ibee192e80b86ff6af36467a0b1c26ee747dfee37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191167
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/read.go                | 25 +++++++++++++++---------
+ src/cmd/internal/obj/dwarf.go                 | 12 ------------
+ src/cmd/internal/obj/objfile.go               | 28 +++++++++------------------
+ src/cmd/internal/objabi/doc.go                |  6 ++++--
+ src/cmd/link/internal/objfile/objfile.go      | 12 ++++++++++--
+ src/cmd/link/internal/sym/compilation_unit.go | 19 +++++++++---------
+ 6 files changed, 49 insertions(+), 53 deletions(-)

@@ -1,0 +1,19 @@
+commit 0af8e1045c1df5f298f31692e5a75f4a1f3c14f0
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 23 10:59:31 2009 -0700
+
+    fix off by 4 bug in morestack (lr again). remove storing of r0
+    now that all arguments are passed on the stack.
+    
+    go/test: passes 89% (310/345)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=33  (13 added, 14 deleted, 6 changed)
+    OCL=36009
+    CL=36022
+
+ src/cmd/5l/noop.c         | 23 +++++++++++++++++------
+ src/pkg/runtime/arm/asm.s | 15 ++-------------
+ src/pkg/runtime/runtime.h |  1 -
+ 3 files changed, 19 insertions(+), 20 deletions(-)

@@ -1,0 +1,43 @@
+commit a5a5e2c968eb14335f4e46606d8edfbdbdcea728
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jan 25 17:51:03 2021 -0800
+
+    runtime: make sure to remove open-coded defer entries in all cases after a recover
+    
+    We add entries to the defer list at panic/goexit time on-the-fly for
+    frames with open-coded defers. We do this so that we can correctly
+    process open-coded defers and non-open-coded defers in the correct order
+    during panics/goexits. But we need to remove entries for open-coded
+    defers from the defer list when there is a recover, since those entries
+    may never get removed otherwise and will get stale, since their
+    corresponding defers may now be processed normally (inline).
+    
+    This bug here is that we were only removing higher-up stale entries
+    during a recover if all defers in the current frame were done. But we
+    could have more defers in the current frame (as the new test case
+    shows). In this case, we need to leave the current defer entry around
+    for use by deferreturn, but still remove any stale entries further along
+    the chain.
+    
+    For bug 43921, simple change that we should abort the removal loop for
+    any defer entry that is started (i.e. in process by a still
+    not-recovered outer panic), even if it is not an open-coded defer.
+    
+    This change does not fix bug 43920, which looks to be a more complex fix.
+    
+    Fixes #43882
+    Fixes #43921
+    
+    Change-Id: Ie05b2fa26973aa26b25c8899a2abc916090ee4f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286712
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/runtime/crash_test.go                 | 12 ++++++
+ src/runtime/defer_test.go                 | 28 ++++++++++++++
+ src/runtime/panic.go                      | 63 +++++++++++++++++--------------
+ src/runtime/testdata/testprog/deadlock.go | 39 +++++++++++++++++++
+ 4 files changed, 113 insertions(+), 29 deletions(-)

@@ -1,0 +1,41 @@
+commit d5d24dbe419c429b43046049d57b97b0abd42a87
+Author: Ruslan Andreev <ruslan.andreev@huawei.com>
+Date:   Wed Mar 10 19:31:59 2021 +0800
+
+    sync: improve sync.Pool object stealing
+    
+    This CL provide abilty to randomly select P to steal object from its
+    shared queue. In order to provide such ability randomOrder structure
+    was copied from runtime/proc.go.
+    It should reduce contention in firsts Ps and improve balance of object
+    stealing across all Ps. Also, the patch provides new benchmark
+    PoolStarvation which force Ps to steal objects.
+    Benchmarks:
+    name                old time/op     new time/op     delta
+    Pool-8                 2.16ns ±14%     2.14ns ±16%    ~     (p=0.425 n=10+10)
+    PoolOverflow-8          489ns ± 0%      489ns ± 0%    ~     (p=0.719 n=9+10)
+    PoolStarvation-8       7.00µs ± 4%     6.59µs ± 2%  -5.86%  (p=0.000 n=10+10)
+    PoolSTW-8              15.1µs ± 1%     15.2µs ± 1%  +0.99%  (p=0.001 n=10+10)
+    PoolExpensiveNew-8     1.25ms ±10%     1.31ms ± 9%    ~     (p=0.143 n=10+10)
+    [Geo mean]             2.68µs          2.68µs       -0.28%
+    
+    name                old p50-ns/STW  new p50-ns/STW  delta
+    PoolSTW-8               15.0k ± 1%      15.1k ± 1%  +0.92%  (p=0.000 n=10+10)
+    
+    name                old p95-ns/STW  new p95-ns/STW  delta
+    PoolSTW-8               16.2k ± 3%      16.4k ± 2%    ~     (p=0.143 n=10+10)
+    
+    name                old GCs/op      new GCs/op      delta
+    PoolExpensiveNew-8       0.29 ± 2%       0.30 ± 1%  +2.84%  (p=0.000 n=8+10)
+    
+    name                old New/op      new New/op      delta
+    PoolExpensiveNew-8       8.07 ±11%       8.49 ±10%    ~     (p=0.123 n=10+10)
+    
+    Change-Id: I3ca1d0bf1f358b1148c58e64740fb2d5bfc0bc02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303949
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/sync/pool.go      | 103 +++++++++++++++++++++++++++++++++++++++++++++-----
+ src/sync/pool_test.go |  18 +++++++++
+ 2 files changed, 111 insertions(+), 10 deletions(-)

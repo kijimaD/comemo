@@ -1,0 +1,13 @@
+commit 3f99d2738d214fdc9aeaaa9ced26431ec1f8166d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 18 21:15:19 2018 -0700
+
+    cmd/compiler/internal/gc: remove flag from bconv (cleanup)
+    
+    Change-Id: I863eb8ef491e1d51b83d8dd3061bf11cbdc74a3e
+    Reviewed-on: https://go-review.googlesource.com/136196
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go   | 4 ++--
+ src/cmd/compile/internal/gc/mpint.go | 9 +++------
+ 2 files changed, 5 insertions(+), 8 deletions(-)

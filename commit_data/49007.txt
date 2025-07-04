@@ -1,0 +1,40 @@
+commit 7cf32686667fe2de869ddab3ede647e34be9209e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 3 10:49:56 2022 -0700
+
+    go/parser: parser to accept ~x as unary expression
+    
+    This is a port of CL 402255 from the syntax package to go/parser
+    with adjustments because of the different AST structure.
+    
+    Accept ~x as ordinary unary expression in the parser but recognize
+    such expressions as invalid in the type checker.
+    
+    This change opens the door to recognizing complex type constraint
+    literals such as `*E|~int` in `[P *E|~int]` and parse them correctly
+    instead of reporting a parse error because `P*E|~int` syntactically
+    looks like an incorrect array length expression (binary expression
+    where the RHS of | is an invalid unary expression ~int).
+    
+    As a result, the parser is more forgiving with expressions but the
+    type checker will reject invalid uses as before.
+    
+    We could pass extra information into the binary/unary expression
+    parse functions to prevent the use of ~ in invalid situations but
+    it doesn't seem worth the trouble. In fact it may be advantageous
+    to allow a more liberal expression syntax especially in the presence
+    of errors (better parser synchronization after an error).
+    
+    Preparation for fixing #52559.
+    
+    Change-Id: I48562cf40ccf5f14c20fcd92c40a0303b2d8b2b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403696
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/go/parser/parser.go                       |  2 +-
+ src/go/parser/testdata/typeset.go2            | 27 ++++++++++++---------------
+ src/go/types/expr.go                          |  6 ++++++
+ src/go/types/testdata/check/expr0.go          |  7 +++++++
+ src/go/types/testdata/fixedbugs/issue49482.go |  5 +----
+ 5 files changed, 27 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit 194dde22c39bef4db8db580a1de7c67b6f67103f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 13:19:28 2010 -0800
+
+    sort: binary search for sorted slices
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2997041
+
+ src/pkg/sort/Makefile       |   1 +
+ src/pkg/sort/search.go      | 102 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sort/search_test.go |  83 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 186 insertions(+)

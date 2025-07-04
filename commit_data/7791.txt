@@ -1,0 +1,17 @@
+commit 3d1afb76807fa11e56c16cb5008bc64ae5bb84c7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Mar 17 10:41:23 2011 +1100
+
+    path: work for windows.
+    
+    R=brainman, rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4249064
+
+ src/pkg/path/filepath/Makefile        |  2 +-
+ src/pkg/path/filepath/match_test.go   | 10 +++++++++
+ src/pkg/path/filepath/path.go         | 41 +++++++++++++++++++----------------
+ src/pkg/path/filepath/path_test.go    | 36 +++++++++++++++++++++++++-----
+ src/pkg/path/filepath/path_unix.go    | 18 +++++++++++++++
+ src/pkg/path/filepath/path_windows.go | 37 +++++++++++++++++++++++++++++++
+ 6 files changed, 118 insertions(+), 26 deletions(-)

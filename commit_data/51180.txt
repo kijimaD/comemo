@@ -1,0 +1,20 @@
+commit d02fceb95e185478ba04bad3a2f9bd8f1d427e1e
+Author: rleungx <rleungx@gmail.com>
+Date:   Sun Jan 6 14:23:36 2019 +0800
+
+    cmd/go: mod vendor: emit error if any replacement in vendor directory
+    
+    Fixes #29169
+    
+    Change-Id: I3a0fd506c45ad999a2fc6f75f9b3e8a5118ad91b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156400
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go              |  3 +++
+ src/cmd/go/testdata/script/mod_vendor_replace.txt | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

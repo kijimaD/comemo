@@ -1,0 +1,20 @@
+commit a174a3aea9dae930b51ebbbdfc1484d4a05939c1
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 14 11:10:47 2019 -0500
+
+    test: new test for gollvm compiler crash bug
+    
+    Reduced test case for gollvm compiler crash building docker-ce.
+    
+    Updates #35586.
+    
+    Change-Id: Ib805dc9ab7b63cc61f207f1f000bef9809cfd428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207258
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue35586.dir/a.go |  9 +++++++++
+ test/fixedbugs/issue35586.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue35586.go       | 11 +++++++++++
+ 3 files changed, 31 insertions(+)

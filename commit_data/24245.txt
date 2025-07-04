@@ -1,0 +1,23 @@
+commit 2b50e6b4583ee72254ca61a689ae63f9189543f7
+Author: alexander demakin <alexander.demakin@gmail.com>
+Date:   Thu Sep 10 19:43:20 2015 +0300
+
+    archive/zip: fixes unexpected EOF when reading archive
+    
+    If comment of the archive contains data which looks like
+    a zip64 directory, the comment is parsed as an
+    actual directory header.
+    Commit adds some additional checks similar to the checks
+    in minizip library.
+    
+    Fixes #12449
+    
+    Change-Id: Ia0fc950e47b9c39f77d88401b9ca30100ca7c808
+    Reviewed-on: https://go-review.googlesource.com/14433
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/zip/reader.go      | 25 ++++++++++++++++---------
+ src/archive/zip/reader_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 9 deletions(-)

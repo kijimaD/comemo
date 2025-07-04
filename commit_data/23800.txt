@@ -1,0 +1,16 @@
+commit 0908fad5d509220a80b919a38feb8b388d005b10
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 22 11:24:27 2015 +1000
+
+    doc: mention the ppc64(le) ports in release notes
+    
+    Also make the spelling consistent in asm.html
+    
+    Change-Id: Ifa751eee288fe0634cd317eb827f3e408b199620
+    Reviewed-on: https://go-review.googlesource.com/12501
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/asm.html   | 2 +-
+ doc/go1.5.html | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

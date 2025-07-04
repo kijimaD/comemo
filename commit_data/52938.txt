@@ -1,0 +1,17 @@
+commit fffddce55c8acdf8a834f064f7e8fab9880ecf08
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 9 13:02:26 2023 +0200
+
+    cmd/go: fix cgo prefix mapping for non-vendored modules
+    
+    Regression introduced in CL 478455.
+    
+    Change-Id: I8083a0accb047188dde1a3d408df2aafaf4a5356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

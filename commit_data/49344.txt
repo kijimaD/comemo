@@ -1,0 +1,20 @@
+commit f5b5273190d2c38544298038c4fcc581dab3ae58
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu May 26 17:51:42 2022 -0700
+
+    doc/go1.19: don't mention golang.org/x/crypto/ssh
+    
+    CL 392134 appears to have been marked for the release notes by accident.
+    Remove mention of this package.
+    
+    Change-Id: I62ae30512512ef8e20e9040b71e613be5ee5ee26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408819
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Alex Rakoczy <alex@golang.org>
+
+ doc/go1.19.html | 8 --------
+ 1 file changed, 8 deletions(-)

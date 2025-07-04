@@ -1,0 +1,25 @@
+commit 8937780c8a48ca3bc3cfa83e0353117c320e7a96
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 10:37:26 2015 +1000
+
+    cmd/compile/internal/gc: convert Type.Broke into a bool
+    
+    Convert Type.Broke from a uint8 to a boolean
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I44e7548c71b00467e36576bdf62933c42555a21a
+    Reviewed-on: https://go-review.googlesource.com/14307
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Håvard Haugen <havard.haugen@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     | 12 +++++------
+ src/cmd/compile/internal/gc/const.go     |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 34 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/go.go        |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  6 +++---
+ src/cmd/compile/internal/gc/swt.go       |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++++++-------
+ 7 files changed, 38 insertions(+), 38 deletions(-)

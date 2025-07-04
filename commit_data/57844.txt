@@ -1,0 +1,16 @@
+commit d6df73ce406669b75ef9957160dd8fd4070354f4
+Author: Sean Liao <sean@liao.dev>
+Date:   Thu Oct 31 00:21:38 2024 +0000
+
+    net/http: clarify ServeMux path sanitization
+    
+    For #70130
+    
+    Change-Id: Idd7ca3d11b78887709b83dd5c868de9cc506ecff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623835
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

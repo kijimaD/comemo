@@ -1,0 +1,17 @@
+commit b9fc8d8cbde61d18997886602e975ff04f2547e1
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 13 20:39:46 2014 +0200
+
+    os: handle 'no parent' error as IsNotExist on Plan 9
+    
+    This error is returned by lib9p when removing a file
+    without parent. It should fix TestRemoveAllRace
+    when running on ramfs.
+    
+    LGTM=bradfitz, aram
+    R=rsc, bradfitz, aram
+    CC=golang-codereviews, mischief
+    https://golang.org/cl/153410044
+
+ src/os/error_plan9.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

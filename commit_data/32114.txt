@@ -1,0 +1,20 @@
+commit 380525598ca917fe3226842f91695f4851b34e89
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 6 06:17:42 2017 -0700
+
+    all: remove some manual hyphenation
+    
+    Manual hyphenation doesn't work well when text gets reflown,
+    for example by godoc.
+    
+    There are a few other manual hyphenations in the tree,
+    but they are in local comments or comments for unexported functions.
+    
+    Change-Id: I17c9b1fee1def650da48903b3aae2fa1e1119a65
+    Reviewed-on: https://go-review.googlesource.com/53510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/ast/ast.go       | 8 ++++----
+ src/go/parser/parser.go | 4 ++--
+ src/math/big/ratconv.go | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

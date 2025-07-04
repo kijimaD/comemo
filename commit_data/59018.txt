@@ -1,0 +1,15 @@
+commit 4acc5b4da659732293dc025881d3982bf116b2fb
+Author: cuishuang <imcusg@gmail.com>
+Date:   Tue Mar 11 18:27:50 2025 +0800
+
+    cmp: add examples for Compare and Less
+    
+    Change-Id: I6900f52736d5316ca523a213c65896861d855433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656635
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmp/cmp_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

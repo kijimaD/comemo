@@ -1,0 +1,17 @@
+commit dba19c65a78c017e4f3fab94c8288bb120203078
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 21 14:10:35 2019 -0700
+
+    bytes/hash: initialize all 64 bits of hash seed
+    
+    Fixes #34925
+    
+    Change-Id: Iadf12ca47a69b62c3f48d732b430cc85cf62a91c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202577
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html             | 13 +++++++++++++
+ src/bytes/hash/hash.go      |  4 +++-
+ src/bytes/hash/hash_test.go | 14 ++++++++++++++
+ 3 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 9c258c6aa6880268a0be9f2e90ea11f9e4ded150
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Oct 3 15:50:45 2015 +0000
+
+    cmd/cgo: fix panic on references to non-existing C types
+    
+    cgo panics in Package.rewriteRef for:
+    
+    var a = C.enum_test(1)
+    or
+    p := new(C.enum_test)
+    
+    when the corresponding enum type is not defined.
+    
+    Check nil values for Type fields and issue a proper
+    error instead.
+    
+    Fixes #11097
+    Updates #12160
+    
+    Change-Id: I5821d29097ef0a36076ec5273125b09846c7d832
+    Reviewed-on: https://go-review.googlesource.com/15264
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/issue11097a.go | 15 +++++++++++++++
+ misc/cgo/errors/issue11097b.go | 15 +++++++++++++++
+ misc/cgo/errors/test.bash      |  2 ++
+ src/cmd/cgo/gcc.go             |  8 ++++++++
+ 4 files changed, 40 insertions(+)

@@ -1,0 +1,19 @@
+commit 32acceb359717e434ceb48681426b377b722d11e
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Dec 20 14:02:00 2021 +0800
+
+    internal/poll: clear completed Buffers to permit earlier collection
+    
+    Updates #45163
+    
+    Change-Id: I73a6f22715550e0e8b83fbd3ebec72ef019f153f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373374
+    Run-TryBot: Lee Baokun <bk@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd.go | 1 +
+ 1 file changed, 1 insertion(+)

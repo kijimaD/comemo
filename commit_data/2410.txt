@@ -1,0 +1,22 @@
+commit 8f4af6d205bf3d6d83e729bf5b16f8bb8fe08716
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 12:46:38 2009 -0700
+
+    gc: grammar cleanup:
+      * no longer distinguishes const, var, type, package names.
+      * all the predefined names are not tokens anymore.
+    
+    R=ken
+    OCL=29326
+    CL=29985
+
+ src/cmd/gc/align.c  |   7 +-
+ src/cmd/gc/dcl.c    | 215 +++++++++-----
+ src/cmd/gc/export.c | 176 +++++------
+ src/cmd/gc/go.h     |  34 +--
+ src/cmd/gc/go.y     | 838 +++++++++++++++++++++-------------------------------
+ src/cmd/gc/lex.c    | 255 +++++++++-------
+ src/cmd/gc/obj.c    |  13 +-
+ src/cmd/gc/subr.c   |  47 ++-
+ src/cmd/gc/walk.c   | 100 ++++---
+ 9 files changed, 827 insertions(+), 858 deletions(-)

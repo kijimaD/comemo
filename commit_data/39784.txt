@@ -1,0 +1,25 @@
+commit 380ef6b75905400855a170de4f159faec587015e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 30 14:54:21 2019 -0700
+
+    cmd/compile: simplify {defer,resume}checkwidth logic
+    
+    This CL extends {defer,resume}checkwidth to support nesting, which
+    simplifies usage.
+    
+    Updates #33658.
+    
+    Change-Id: Ib3ffb8a7cabfae2cbeba74e21748c228436f4726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192721
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     | 32 +++++++++++---------------------
+ src/cmd/compile/internal/gc/iimport.go   | 15 ++-------------
+ src/cmd/compile/internal/gc/main.go      |  4 ----
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++------
+ test/fixedbugs/bug195.go                 |  4 ++--
+ test/fixedbugs/issue23823.go             |  4 ++--
+ 6 files changed, 19 insertions(+), 48 deletions(-)

@@ -1,0 +1,14 @@
+commit f7832df7695c1e5930b2c8ed5e02d529d00f21a4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 8 12:48:34 2014 +0400
+
+    encoding/gob: fix data races in benchmarks
+    All goroutines decode into the same value.
+    
+    LGTM=r
+    R=r, abursavich
+    CC=golang-codereviews
+    https://golang.org/cl/123930043
+
+ src/pkg/encoding/gob/timing_test.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

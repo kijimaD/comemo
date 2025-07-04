@@ -1,0 +1,16 @@
+commit 709317138fb75724ff229f4a61a5c76a9003fdf0
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Tue Feb 20 17:26:57 2018 -0800
+
+    cmd/go: briefly document test caching in go test -h output
+    
+    Fixes #23971
+    
+    Change-Id: I073f278cc058aa15a23c0ea06292c02d50a3df21
+    Reviewed-on: https://go-review.googlesource.com/95582
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go            | 6 ++++++
+ src/cmd/go/internal/test/test.go | 6 ++++++
+ 2 files changed, 12 insertions(+)

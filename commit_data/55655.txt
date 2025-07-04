@@ -1,0 +1,30 @@
+commit c07b9b00361b9a99fc64ffe36f897d24954f99cf
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 21 17:18:43 2024 +0000
+
+    net: support context cancellation in acquireThread
+    
+    acquireThread is already waiting on a channel, so
+    it can be easily wired up to support context cancellation.
+    This change will make sure that contexts that are
+    cancelled at the acquireThread stage (when the limit of
+    threads is reached) do not queue unnecessarily and cause
+    an unnecessary cgo call that will be soon aborted by
+    the doBlockingWithCtx function.
+    
+    Updates #63978
+    
+    Change-Id: I8ae4debd51995637567d8f51c6f1ed60f23d6c0c
+    GitHub-Last-Rev: 4189b9faf07c073a2ca440becee07b6aa9c4e795
+    GitHub-Pull-Request: golang/go#63985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539360
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/cgo_unix.go       | 38 +++++++++++++---------
+ src/net/lookup_windows.go | 83 ++++++++++++++++++++++++++++++++++++++---------
+ src/net/net.go            |  9 +++--
+ 3 files changed, 97 insertions(+), 33 deletions(-)

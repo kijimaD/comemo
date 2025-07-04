@@ -1,0 +1,22 @@
+commit 0d7afc2ebff781c2f3100177d26ed0c3b56247c7
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Tue Mar 12 15:41:01 2024 +0000
+
+    net/http: fix request canceler leak on connection close
+    
+    writeLoop goroutine closes persistConn closech in case of request body
+    write error which in turn finishes readLoop without removing request canceler.
+    
+    Fixes #61708
+    
+    Change-Id: Ib7c832a91b49bc7888a35a4fd2bd692236c04f86
+    GitHub-Last-Rev: b74b9055e87121d4dc5d97a3f3ef1afe545bc92d
+    GitHub-Pull-Request: golang/go#62305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523296
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)

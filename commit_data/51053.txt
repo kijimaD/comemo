@@ -1,0 +1,59 @@
+commit 99dc2a1859f15fafc5950ad7ef6026dfbde826c6
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 26 16:56:48 2022 -0400
+
+    cmd/go: revamp and simplify logic in PrepareForCoverageBuild
+    
+    Change the 'PrepareForCoverageBuild' helper function to provide more
+    sensible defaults in the case where Go packages are listed on the
+    command line (e.g. cases such as "go run -cover mumble.go").
+    
+    With the old implementation, if module mode was enabled, we would only
+    instrument packages in the main module, meaning that if you did
+    something like this:
+    
+      $ ls go.mod
+      go.mod
+      $ GOCOVERDATA=/tmp/cov go run -cover testdata/somefile.go
+      $
+    
+    no coverage profiles would be generated at all. This is due to the
+    fact that the pseudo-package created by the Go command internally when
+    building "somefile.go" is not considered part of the main module.
+    
+    This patch moves the default to "packages explicitly mentioned on the
+    command line, plus packages in the main module", which will make more
+    sense to users passing specific packages and *.go files on the command
+    line. Examples:
+    
+      // Here cmd/compile is part the Go standard library + commands
+      // (which we exclude from instrumentation by default), but since
+      // 'cmd/compile' is mentioned on the command line, we will instrument
+      // just that single package (not any of its deps).
+      $ cd $GOROOT/src
+      $ go build -o gc.exe -cover cmd/compile
+      $ GOCOVERDATA=/tmp/cov ./gc.exe ...
+      ...
+      $
+    
+      // Here we're running a Go file named on the command line, where
+      // the pseudo-package for the command line is not part of the
+      // main module, but it makes sense to instrument it anyhow.
+      $ cd ~/go/k8s.io/kubernetes
+      $ GOCOVERDATA=/tmp/cov go run -cover test/typecheck/testdata/bad/bad.go
+      ...
+      $
+    
+    This patch also simplifies the logic and improves flow/comments in
+    in the helper function PrepareForCoverageBuild.
+    
+    Change-Id: Id8fc8571157dac8c09e44cc73baa05aeba1640ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445918
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 58 +++++++----------
+ .../testdata/script/cover_build_cmdline_pkgs.txt   | 72 ++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 37 deletions(-)

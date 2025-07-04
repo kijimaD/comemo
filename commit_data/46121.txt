@@ -1,0 +1,19 @@
+commit baf2866956c2e03952383e19287a1e562cf09170
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Aug 18 13:22:38 2021 -0400
+
+    go/types: move to an opaque environment for Instantiate
+    
+    To match the API proposal, switch the first argument to Instantiate to
+    an opaque Environment handle, though for now this handle is
+    unimplemented.
+    
+    Change-Id: I6207f0beafdf8497587abdad37db92f927db29b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343930
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

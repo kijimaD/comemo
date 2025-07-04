@@ -1,0 +1,33 @@
+commit a2838ec5f20b56e94a18c873ab4b68397355e214
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 24 15:45:33 2023 -0400
+
+    runtime: redefine _type to abi.Type; add rtype for methods.
+    
+    Change-Id: I1c478b704d84811caa209006c657dda82d9c4cf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488435
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go |  2 +-
+ src/reflect/type.go                    |  3 +-
+ src/runtime/alg.go                     | 12 ++++----
+ src/runtime/cgocall.go                 |  4 +--
+ src/runtime/cgocheck.go                |  2 +-
+ src/runtime/chan.go                    |  4 +--
+ src/runtime/error.go                   | 10 +++----
+ src/runtime/heapdump.go                |  9 +++---
+ src/runtime/iface.go                   | 17 ++++++-----
+ src/runtime/mbarrier.go                |  2 +-
+ src/runtime/mbitmap.go                 |  4 +--
+ src/runtime/mfinal.go                  | 12 ++++----
+ src/runtime/mprof.go                   |  2 +-
+ src/runtime/panic.go                   |  2 +-
+ src/runtime/plugin.go                  |  2 +-
+ src/runtime/runtime1.go                |  6 ++--
+ src/runtime/syscall_windows.go         |  2 +-
+ src/runtime/type.go                    | 54 +++++++++++++++++-----------------
+ 19 files changed, 76 insertions(+), 75 deletions(-)

@@ -1,0 +1,19 @@
+commit d3f5cf9d285d39258b2e6f9002c44aaab3e77c42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 15:17:46 2022 -0800
+
+    cmd/go: update go work edit -json types to final version
+    
+    For #45713
+    
+    Change-Id: Ia55a96702b99cccaf5d96c2125ee513700658444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go               | 18 +++++++++---------
+ src/cmd/go/internal/workcmd/edit.go | 18 +++++++++---------
+ 2 files changed, 18 insertions(+), 18 deletions(-)

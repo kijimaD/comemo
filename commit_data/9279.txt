@@ -1,0 +1,16 @@
+commit b32e2105866c3d43c522123ef6d63da7578fb3da
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Aug 3 16:46:35 2011 +1000
+
+    misc/vim: Godoc command.
+    vim command 'Godoc' to see godoc.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4815071
+
+ misc/vim/ftplugin/go/godoc.vim |  13 +++++
+ misc/vim/plugin/godoc.vim      | 123 +++++++++++++++++++++++++++++++++++++++++
+ misc/vim/readme.txt            |  11 ++++
+ misc/vim/syntax/godoc.vim      |  20 +++++++
+ 4 files changed, 167 insertions(+)

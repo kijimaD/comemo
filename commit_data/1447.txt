@@ -1,0 +1,22 @@
+commit e512481b17d240d20f2800189ca5f22ea012906b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 8 18:06:06 2009 -0800
+
+    second pass on interface fixes and tests.
+    
+    R=ken
+    OCL=22370
+    CL=22372
+
+ src/cmd/gc/dcl.c    |  18 ++---
+ src/cmd/gc/go.h     |   9 ++-
+ src/cmd/gc/go.y     |   6 +-
+ src/cmd/gc/lex.c    |   1 +
+ src/cmd/gc/subr.c   | 229 +++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/gc/walk.c   | 110 ++++++++++++-------------
+ test/bugs/bug046.go |   2 +-
+ test/interface2.go  |   4 +-
+ test/interface4.go  |  75 +++++++++++++++++
+ test/interface5.go  |  21 +++++
+ test/method3.go     |  25 ++++++
+ 11 files changed, 359 insertions(+), 141 deletions(-)

@@ -1,0 +1,18 @@
+commit caba0bd18912109f4d9fa2f4807d6ee4ddd5ffab
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 28 10:26:44 2016 +1100
+
+    image/png: implement grayscale transparency.
+    
+    Change-Id: Ib9309ee499fc51be2662d778430ee30089822e57
+    Reviewed-on: https://go-review.googlesource.com/32143
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go                       | 136 +++++++++++++++++++++-----
+ src/image/png/reader_test.go                  |  70 ++++++++++---
+ src/image/png/testdata/pngsuite/README        |   8 +-
+ src/image/png/testdata/pngsuite/ftbbn0g01.sng |  44 +++++++++
+ src/image/png/testdata/pngsuite/ftbbn0g02.sng |  45 +++++++++
+ src/image/png/testdata/pngsuite/ftbbn0g04.sng |  45 +++++++++
+ src/image/png/testdata/pngsuite/ftbwn0g16.sng |  45 +++++++++
+ 7 files changed, 350 insertions(+), 43 deletions(-)

@@ -1,0 +1,26 @@
+commit 64236820193864cdb6ad28dc475626337cf18a23
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jun 7 10:23:45 2012 +1000
+
+    test/bench/go1: add go/parser benchmark
+    
+    As discussed in
+    
+    https://groups.google.com/d/msg/golang-dev/Na9XE6mcQyY/zbeBI7R-vnoJ
+    
+    Here is a static copy of the go/parser benchmark. I ended up using
+    fancy encodings because the original parser.go had a number of `s
+    scattered throughout which made it hard to embed the source directly.
+    
+    Curiously on my laptop this benchmark always scores roughly 10% higher
+    than the standalone benchmark. This may be down to the generation of
+    the fasta data set triggering the cpu governor to raise the cpu speed.
+    However the benchmark is consistent with itself across multiple runs.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6305055
+
+ test/bench/go1/parser_test.go     |  43 +++++++
+ test/bench/go1/parserdata_test.go | 245 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 288 insertions(+)

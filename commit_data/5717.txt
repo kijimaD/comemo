@@ -1,0 +1,18 @@
+commit ea88de805e7137dd6ff692517be91322694d948e
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Jun 29 09:11:02 2010 +1000
+
+    syscall: Add syscall_bsd.go to zsycall_freebsd_386.go
+    
+    Revision: 5885c9d10f created syscall_bsd.go for code used
+    by Darwin and other *BSDs, which should have included
+    FreeBSD. mksyscall.sh to generate new zsyscall_freebsd_386.go.
+    
+    Fixes #862.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1701048
+
+ src/pkg/syscall/zsyscall_freebsd_386.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

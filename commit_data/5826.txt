@@ -1,0 +1,15 @@
+commit 4c0de303ceb049b171f3cc43a4651a3f5a91b1da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 16:42:32 2010 -0700
+
+    gc: bug294
+    
+    Fixes #800.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1855043
+
+ src/cmd/gc/walk.c        | 41 ++++++++++++++-----------
+ test/fixedbugs/bug294.go | 79 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+), 18 deletions(-)

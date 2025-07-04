@@ -1,0 +1,15 @@
+commit 940932056ecd61d6da7e5babb439c0ac6bf1d296
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 8 13:59:34 2011 -0400
+
+    syscall: add route flags for linux
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4956069
+
+ src/pkg/syscall/mkerrors.sh            |  3 ++-
+ src/pkg/syscall/zerrors_linux_386.go   | 41 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 41 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go   | 41 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 125 insertions(+), 1 deletion(-)

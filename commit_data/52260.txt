@@ -1,0 +1,18 @@
+commit 50ba90bce575f94ccf9a64357e9b0ababa3c9d2f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Mar 11 10:33:57 2023 +0800
+
+    all: fix some problematic comments
+    
+    Change-Id: Ia110d19fe5ff3adc8bbf86dd2112f9702164d495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475515
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/hmac/hmac.go  | 2 +-
+ src/runtime/mfixalloc.go | 2 +-
+ src/runtime/mspanset.go  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

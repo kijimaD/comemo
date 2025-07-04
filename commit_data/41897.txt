@@ -1,0 +1,18 @@
+commit b191c6095ececd77881be0644b333fc44e35774c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 11:35:24 2020 -0400
+
+    cmd/oldlink: delete darwin/386 host object loading support
+    
+    In Go 1.15, the darwin/386 port is gone.
+    
+    Updates #37610.
+    
+    Change-Id: I11627c03403d4d4a3e0950fdedd0d850ae24b439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227766
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/oldlink/internal/loadmacho/ldmacho.go | 103 +-------------------------
+ 1 file changed, 3 insertions(+), 100 deletions(-)

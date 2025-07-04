@@ -1,0 +1,24 @@
+commit 249f5d2af4e14a087c462596f142064529609c3b
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Tue Feb 26 23:21:59 2019 +0000
+
+    cmd/go: refer to testflag help in go test -help output
+    
+    The change makes it easier for a user to get to the page where
+    she can check supported test flags, by adding 'go test testflag'
+    reference to the 'go test -help' output.
+    
+    Fix #30365
+    
+    Change-Id: I5b3db7853021ef68d096dcb467d7957d7e1bf623
+    GitHub-Last-Rev: ce3dec59fcae0cca232372f01cdda98773c290c0
+    GitHub-Pull-Request: golang/go#30420
+    Reviewed-on: https://go-review.googlesource.com/c/163858
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/base/base.go    | 2 +-
+ src/cmd/go/internal/test/test.go    | 8 +++++++-
+ src/cmd/go/testdata/script/help.txt | 2 +-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

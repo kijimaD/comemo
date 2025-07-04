@@ -1,0 +1,19 @@
+commit 7bfe32f39c59056c49f5776b104beaf09b010088
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:54:59 2021 -0600
+
+    cmd/internal/obj: reorder ppc64 MOV* optab entries
+    
+    These are always sorted and grouped during initialization of the
+    actual opcode -> optab map generation. Thus, their initial location
+    in optab is mostly aimed at readability. This cleanup is intends to
+    ease reviewing of future patches which simplify, combine, or remove
+    MOV* optab entries.
+    
+    Change-Id: I87583ed34fab79e0f625880f419d499939e2a9e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300612
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 304 ++++++++++++++++++-------------------
+ 1 file changed, 148 insertions(+), 156 deletions(-)

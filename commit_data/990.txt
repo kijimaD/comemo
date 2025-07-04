@@ -1,0 +1,15 @@
+commit c5e7e1960498be0b3e75b3d8f072f5a043050142
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 15:23:36 2008 -0700
+
+    update linux for int/int32
+    
+    R=r
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=18050
+    CL=18069
+
+ src/lib/net/fd_linux.go         | 6 +++---
+ src/lib/syscall/file_linux.go   | 2 +-
+ src/lib/syscall/socket_linux.go | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

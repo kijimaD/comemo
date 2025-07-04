@@ -1,0 +1,17 @@
+commit 3baceaa1519baada9f040c14b7f36e89a6c83144
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Feb 4 09:41:48 2014 +0400
+
+    runtime: add more chan benchmarks
+    Add benchmarks for:
+    1. non-blocking failing receive (polling of "stop" chan)
+    2. channel-based semaphore (gate pattern)
+    3. select-based producer/consumer (pass data through a channel, but also wait on "stop" and "timeout" channels)
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/59040043
+
+ src/pkg/runtime/chan_test.go | 104 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 101 insertions(+), 3 deletions(-)

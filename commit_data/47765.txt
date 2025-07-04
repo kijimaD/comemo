@@ -1,0 +1,21 @@
+commit 9c6e8f63c0e4f24ccf4326164ddbc0f0607343a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 11 19:35:08 2021 -0800
+
+    net/netip: make AddrPort.MarshalText format 4-in-6 IPs consistently
+    
+    Thanks again to @capnspacehook.
+    
+    Fixes #50110
+    
+    Change-Id: I1973bdea68eac9842b45f9524f62152e4f5342cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371114
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/netip/netip.go      | 13 +++++++++++--
+ src/net/netip/netip_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

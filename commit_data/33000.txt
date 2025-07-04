@@ -1,0 +1,42 @@
+commit ca360c39924bc1a4658c14ff023c4628c11f13a3
+Author: David Chase <drchase@google.com>
+Date:   Fri Jul 21 12:00:38 2017 -0400
+
+    cmd/compile: better XPos for rematerialized values and JMPs
+    
+    This attempts to choose better values for values that are
+    rematerialized (uses the XPos of the consumer, not the
+    original) and for unconditional branches (uses the last
+    assigned XPos in the block).
+    
+    The JMP branches seem to sometimes end up with a PC in the
+    destination block, I think because of register movement
+    or rematerialization that gets placed in predecessor blocks.
+    This may be acceptable because (eyeball-empirically) that is
+    often the line number of the target block, so the line number
+    flow is correct.
+    
+    Added proper test, that checks both -N -l and regular compilation.
+    The test is also capable (for gdb, delve soon) of tracking
+    variable printing based on comments in the source code.
+    
+    There's substantial room for improvement in debugger behavior.
+    
+    Updates #21098.
+    
+    Change-Id: I13abd48a39141583b85576a015f561065819afd0
+    Reviewed-on: https://go-review.googlesource.com/50610
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go                 |  60 +-
+ src/cmd/compile/internal/ssa/debug_test.go         | 786 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go           |   4 +-
+ .../internal/ssa/testdata/hist-dbg.delve-nexts     | 383 ++++++++++
+ .../internal/ssa/testdata/hist-dbg.gdb-nexts       | 409 +++++++++++
+ .../internal/ssa/testdata/hist-opt.delve-nexts     | 248 +++++++
+ .../internal/ssa/testdata/hist-opt.gdb-nexts       | 215 ++++++
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  68 ++
+ src/cmd/compile/internal/ssa/value.go              |   8 +-
+ 9 files changed, 2175 insertions(+), 6 deletions(-)

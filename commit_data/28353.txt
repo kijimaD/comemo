@@ -1,0 +1,18 @@
+commit 2b5c18c99e1be7c779706e23f99717a84d7d882b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 13 14:05:14 2016 -0700
+
+    cmd/compile/internal/gc: eliminate bstdout
+    
+    Just use Ctxt.Bso instead.
+    
+    Change-Id: I68f1639f0b4c238ae5499ef49e78a5d734417979
+    Reviewed-on: https://go-review.googlesource.com/29114
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   | 3 ---
+ src/cmd/compile/internal/gc/main.go | 3 +--
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ 3 files changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,25 @@
+commit 0b2daa56504e0f2ff6f724eb5bb71caed0011006
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Dec 1 09:31:08 2016 +0000
+
+    Revert "runtime: handle SIGPIPE in c-archive and c-shared programs"
+    
+    This reverts commit d24b57a6a1a3530e590b7c0a72dc78043e198630.
+    
+    Reason for revert: Further complications arised (issue 18100). We'll try again in Go 1.9.
+    
+    Change-Id: I5ca93d2643a4be877dd9c2d8df3359718440f02f
+    Reviewed-on: https://go-review.googlesource.com/33770
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go     | 19 ----------------
+ misc/cgo/testcarchive/main2.c              | 36 +-----------------------------
+ misc/cgo/testcarchive/main3.c              |  7 ------
+ misc/cgo/testcarchive/main5.c              | 18 ---------------
+ misc/cgo/testcarchive/src/libgo2/libgo2.go | 30 -------------------------
+ misc/cgo/testcarchive/src/libgo3/libgo3.go | 12 ----------
+ src/os/signal/doc.go                       |  9 ++++----
+ src/runtime/signal_unix.go                 | 14 ++++--------
+ 8 files changed, 9 insertions(+), 136 deletions(-)

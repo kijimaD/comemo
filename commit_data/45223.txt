@@ -1,0 +1,18 @@
+commit 88655480f349ca07f523191112e52a49629cca8b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
+
+    internal/buildcfg: enable regabireflect by default
+    
+    For #40724.
+    
+    Change-Id: Ib3e4a67c3826176f0d51619754270022344ee194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310174
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

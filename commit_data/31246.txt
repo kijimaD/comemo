@@ -1,0 +1,27 @@
+commit 8aa31d5dae9644b3e8f6950af58c0cb83e8fc062
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Apr 18 13:12:58 2017 +0300
+
+    sync: align poolLocal to CPU cache line size
+    
+    Make poolLocal size multiple of 128, so it aligns to CPU cache line
+    on the most common architectures.
+    
+    This also has the following benefits:
+    
+    - It may help compiler substituting integer multiplication
+      by bit shift inside indexLocal.
+    - It shrinks poolLocal size from 176 bytes to 128 bytes on amd64,
+      so now it fits two cache lines (or a single cache line on certain
+      Intel CPUs - see https://software.intel.com/en-us/articles/optimizing-application-performance-on-intel-coret-microarchitecture-using-hardware-implemented-prefetchers).
+    
+    No measurable performance changes on linux/amd64 and linux/386.
+    
+    Change-Id: I11df0f064718a662e77a85d88b8a15a8919f25e9
+    Reviewed-on: https://go-review.googlesource.com/40918
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/pool.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

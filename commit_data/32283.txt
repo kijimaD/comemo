@@ -1,0 +1,20 @@
+commit b3465646ff15e2226a451c8183d8e6b8fef4b479
+Author: Filippo Valsorda <filippo@cloudflare.com>
+Date:   Fri Jun 2 12:33:50 2017 -0700
+
+    crypto/tls: add BenchmarkHandshakeServer
+    
+    name                                       time/op
+    HandshakeServer/RSA-4                      1.10ms ± 0%
+    HandshakeServer/ECDHE-P256-RSA-4           1.23ms ± 1%
+    HandshakeServer/ECDHE-P256-ECDSA-P256-4     178µs ± 1%
+    HandshakeServer/ECDHE-X25519-ECDSA-P256-4   180µs ± 2%
+    HandshakeServer/ECDHE-P521-ECDSA-P521-4    19.8ms ± 1%
+    
+    Change-Id: I6b2c79392995d259cfdfc5199be44cc7cc40e155
+    Reviewed-on: https://go-review.googlesource.com/44730
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/handshake_server_test.go | 87 +++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

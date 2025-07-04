@@ -1,0 +1,50 @@
+commit 7cb21a79a40250bb989a2dc086ae30a60783afdd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 11:24:54 2012 +1100
+
+    godoc: specify HTML page metadata with a JSON blob
+    
+    This allows HTML pages to specify arbitrary data in a header:
+    
+    <!--{
+            "Title": "The page title",
+            ...
+    }-->
+    
+    replacing the old style comments:
+    
+    <!-- title The page title -->
+    
+    R=gri, rsc, r, bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5532093
+
+ doc/articles/defer_panic_recover.html        |  4 ++-
+ doc/articles/defer_panic_recover.tmpl        |  4 ++-
+ doc/articles/error_handling.html             |  4 ++-
+ doc/articles/error_handling.tmpl             |  4 ++-
+ doc/articles/slices_usage_and_internals.html |  4 ++-
+ doc/articles/slices_usage_and_internals.tmpl |  4 ++-
+ doc/code.html                                |  4 ++-
+ doc/codereview_with_mq.html                  |  4 ++-
+ doc/community.html                           |  4 ++-
+ doc/contrib.html                             |  4 ++-
+ doc/contribute.html                          |  4 ++-
+ doc/debugging_with_gdb.html                  |  4 ++-
+ doc/docs.html                                |  4 ++-
+ doc/effective_go.html                        |  4 ++-
+ doc/effective_go.tmpl                        |  4 ++-
+ doc/gccgo_contribute.html                    |  4 ++-
+ doc/gccgo_install.html                       |  4 ++-
+ doc/go1.html                                 |  4 ++-
+ doc/go1.tmpl                                 |  4 ++-
+ doc/go_faq.html                              |  4 ++-
+ doc/go_for_cpp_programmers.html              |  4 ++-
+ doc/go_mem.html                              |  6 +++--
+ doc/go_spec.html                             |  6 +++--
+ doc/go_tutorial.html                         |  4 ++-
+ doc/go_tutorial.tmpl                         |  4 ++-
+ doc/install.html                             |  4 ++-
+ doc/playground.html                          |  4 ++-
+ src/cmd/godoc/godoc.go                       | 40 +++++++++++++++-------------
+ 28 files changed, 104 insertions(+), 48 deletions(-)

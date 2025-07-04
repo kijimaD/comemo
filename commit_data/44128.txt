@@ -1,0 +1,21 @@
+commit e125ccd10ea191101dbc31f0dd39a98f9d3ab929
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 14 13:28:37 2021 -0500
+
+    cmd/go: in 'go mod edit', validate versions given to -retract and -exclude
+    
+    Fixes #43280
+    
+    Change-Id: Icb6c6807fe32a89202a2709d4a1c8d8af967628f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283853
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 ++--
+ src/cmd/go/testdata/script/mod_edit.txt         |  6 +++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 30 +++++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 5 files changed, 40 insertions(+), 4 deletions(-)

@@ -1,0 +1,31 @@
+commit 1a27f048ad25f151d2a17ce7f2d73d0d2dbe94cf
+Author: David Chase <drchase@google.com>
+Date:   Thu Jun 28 16:22:21 2018 -0400
+
+    cmd/compile: make OpAddr depend on VarDef in storeOrder
+    
+    Given a carefully constructed input, writebarrier would
+    split a block with the OpAddr in the first half and the
+    VarDef in the second half which ultimately leads to a
+    compiler crash because the scheduler is no longer able
+    to put them in the proper order.
+    
+    To fix, recognize the implicit dependence of OpAddr on
+    the VarDef of the same symbol if any exists.
+    
+    This fix was chosen over making OpAddr take a memory
+    operand to make the dependence explicit, because this
+    change is less invasive at this late part of the 1.11
+    release cycle.
+    
+    Fixes #26105.
+    
+    Change-Id: I9b65460673af3af41740ef877d2fca91acd336bc
+    Reviewed-on: https://go-review.googlesource.com/121436
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/schedule.go | 22 +++++++++++++++++++++-
+ test/fixedbugs/issue26105.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

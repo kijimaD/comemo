@@ -1,0 +1,64 @@
+commit 8e25d4ccef45860186187d4ca7428052028abbb0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 2 11:09:20 2016 -0400
+
+    runtime: eliminate heapBitsSetTypeNoScan
+    
+    It's no longer necessary to maintain the bitmap of noscan objects
+    since we now use the span metadata to determine that they're noscan
+    instead of the bitmap.
+    
+    The combined effect of segregating noscan spans and the follow-on
+    optimizations is roughly a 1% improvement in performance across the
+    go1 benchmarks and the x/benchmarks, with no increase in heap size.
+    
+    Benchmark details: https://perf.golang.org/search?q=upload:20170420.1
+    
+    name                       old time/op    new time/op    delta
+    Garbage/benchmem-MB=64-12    2.27ms ± 0%    2.25ms ± 1%  -0.96% (p=0.000 n=15+18)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.53s ± 2%     2.55s ± 1%  +0.68%        (p=0.001 n=17+16)
+    Fannkuch11-12                3.02s ± 0%     3.01s ± 0%  -0.15%        (p=0.000 n=16+16)
+    FmtFprintfEmpty-12          47.1ns ± 7%    47.0ns ± 5%    ~           (p=0.886 n=20+17)
+    FmtFprintfString-12         73.6ns ± 3%    73.8ns ± 1%  +0.30%        (p=0.026 n=19+17)
+    FmtFprintfInt-12            80.3ns ± 2%    80.2ns ± 1%    ~           (p=0.994 n=20+18)
+    FmtFprintfIntInt-12          124ns ± 0%     124ns ± 0%    ~     (all samples are equal)
+    FmtFprintfPrefixedInt-12     172ns ± 1%     171ns ± 1%  -0.72%        (p=0.003 n=20+18)
+    FmtFprintfFloat-12           217ns ± 1%     216ns ± 1%  -0.27%        (p=0.019 n=18+19)
+    FmtManyArgs-12               490ns ± 1%     488ns ± 0%  -0.36%        (p=0.014 n=18+18)
+    GobDecode-12                6.71ms ± 1%    6.73ms ± 1%  +0.42%        (p=0.000 n=20+20)
+    GobEncode-12                5.25ms ± 0%    5.24ms ± 0%  -0.20%        (p=0.001 n=18+20)
+    Gzip-12                      227ms ± 0%     226ms ± 1%    ~           (p=0.107 n=20+19)
+    Gunzip-12                   38.8ms ± 0%    38.8ms ± 0%    ~           (p=0.221 n=19+18)
+    HTTPClientServer-12         75.4µs ± 1%    76.3µs ± 1%  +1.26%        (p=0.000 n=20+19)
+    JSONEncode-12               14.7ms ± 0%    14.7ms ± 1%  -0.14%        (p=0.002 n=18+17)
+    JSONDecode-12               57.6ms ± 0%    55.2ms ± 0%  -4.13%        (p=0.000 n=19+19)
+    Mandelbrot200-12            3.73ms ± 0%    3.73ms ± 0%  -0.09%        (p=0.000 n=19+17)
+    GoParse-12                  3.18ms ± 1%    3.15ms ± 1%  -0.90%        (p=0.000 n=18+20)
+    RegexpMatchEasy0_32-12      73.3ns ± 2%    73.2ns ± 1%    ~           (p=0.994 n=20+18)
+    RegexpMatchEasy0_1K-12       236ns ± 2%     234ns ± 1%  -0.70%        (p=0.002 n=19+17)
+    RegexpMatchEasy1_32-12      69.7ns ± 2%    69.9ns ± 2%    ~           (p=0.416 n=20+20)
+    RegexpMatchEasy1_1K-12       366ns ± 1%     365ns ± 1%    ~           (p=0.376 n=19+17)
+    RegexpMatchMedium_32-12      109ns ± 1%     108ns ± 1%    ~           (p=0.461 n=17+18)
+    RegexpMatchMedium_1K-12     35.2µs ± 1%    35.2µs ± 3%    ~           (p=0.238 n=19+20)
+    RegexpMatchHard_32-12       1.77µs ± 1%    1.77µs ± 1%  +0.33%        (p=0.007 n=17+16)
+    RegexpMatchHard_1K-12       53.2µs ± 0%    53.3µs ± 0%  +0.26%        (p=0.001 n=17+17)
+    Revcomp-12                  1.13s ±117%    0.87s ±184%    ~           (p=0.813 n=20+19)
+    Template-12                 63.9ms ± 1%    64.6ms ± 1%  +1.18%        (p=0.000 n=19+20)
+    TimeParse-12                 313ns ± 5%     312ns ± 0%    ~           (p=0.114 n=20+19)
+    TimeFormat-12                336ns ± 0%     333ns ± 0%  -0.97%        (p=0.000 n=18+16)
+    [Geo mean]                  50.6µs         50.1µs       -1.04%
+    
+    This is a cherry-pick of dev.garbage commit edb54c300f, with updated
+    benchmark results.
+    
+    Change-Id: Ic77faaa15cdac3bfbbb0032dde5c204e05a0fd8e
+    Reviewed-on: https://go-review.googlesource.com/41253
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go  |  4 +---
+ src/runtime/mbitmap.go | 12 +++++-------
+ 2 files changed, 6 insertions(+), 10 deletions(-)

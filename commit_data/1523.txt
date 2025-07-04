@@ -1,0 +1,13 @@
+commit b74e3b95cffe71cb6fd3c9f4209860f559af9d3c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 20 12:57:25 2009 -0800
+
+    add a couple of helper methods to io.ByteBuffer
+    
+    R=rsc
+    DELTA=456  (9 added, 2 deleted, 445 changed)
+    OCL=23107
+    CL=23107
+
+ src/lib/io/bytebuffer.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

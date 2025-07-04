@@ -1,0 +1,18 @@
+commit 778f27105773ae48b2ec87126cf811c19f012700
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 15:15:04 2023 +0100
+
+    syscall: handle errors.ErrUnsupported in isNotSupported
+    
+    Updates #41198
+    
+    Change-Id: Ifed913f6088b77abc7a21d2a79168a20799f9d0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475857
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_linux_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

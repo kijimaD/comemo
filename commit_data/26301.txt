@@ -1,0 +1,15 @@
+commit 8edb72587f500a1afcd0209a3c18310eafe95e08
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Mar 14 21:59:20 2016 -0500
+
+    cmd/compile: add logging to critical and phielim
+    
+    Change-Id: Ieefeceea40bd29657fd519368b0920dad8443844
+    Reviewed-on: https://go-review.googlesource.com/20712
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/critical.go | 3 +++
+ src/cmd/compile/internal/ssa/phielim.go  | 4 ++++
+ 2 files changed, 7 insertions(+)

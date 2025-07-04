@@ -1,0 +1,17 @@
+commit ede863c6734a3789dea0eda2ed169af76b63e6a7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 6 18:43:25 2015 -0400
+
+    runtime: add _rt0_arm_android_lib
+    
+    At the moment this function does nothing, runtime initialization is
+    still done in android.c:init_go_runtime.
+    
+    Fixes #10358
+    
+    Change-Id: I1d762383ba61efcbcf0bbc7c77895f5c1dbf8968
+    Reviewed-on: https://go-review.googlesource.com/8510
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/rt0_android_arm.s | 6 ++++++
+ 1 file changed, 6 insertions(+)

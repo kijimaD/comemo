@@ -1,0 +1,23 @@
+commit 9f5298ca6e7fc9c46c0a82bd7be39450ec48dcb5
+Author: David Chase <drchase@google.com>
+Date:   Sat Mar 6 20:59:40 2021 -0500
+
+    cmd/compile: fix confusion in generating SelectN index
+    
+    Old: return the ABI register index of the result (wrong!)
+    New: return the index w/in sequence of result registers (right!)
+    
+    Fixed bug:
+    genCaller0/genCaller0.go:43:9: internal compiler error: 'Caller0':
+       panic during schedule while compiling Caller0:
+    runtime error: index out of range [10] with length 9
+    
+    Updates #44816.
+    
+    Change-Id: I1111e283658a2d6422986ae3d61bd95d1b9bde5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299549
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

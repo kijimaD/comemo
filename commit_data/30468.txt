@@ -1,0 +1,21 @@
+commit ffe923f6f427f5ab47f4e1f4584369212add07e2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 1 17:44:11 2017 +0000
+
+    net/http: deflake TestClientRedirect308NoGetBody
+    
+    In an unrelated CL I found a way to increase the likelihood of latent
+    flaky tests and found this one.
+    
+    This is just like yesterday's https://golang.org/cl/37624 and dozens
+    before it (all remnants from the great net/http test parallelization
+    of Nov 2016 in https://golang.org/cl/32684).
+    
+    Change-Id: I3fe61d1645062e5109206ff27d74f573ef6ebb2e
+    Reviewed-on: https://go-review.googlesource.com/37627
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/client_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

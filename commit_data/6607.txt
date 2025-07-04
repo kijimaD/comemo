@@ -1,0 +1,13 @@
+commit 1dd0319be36ae0b00d14caeb13912c1cc2f13d1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 22 17:04:32 2010 -0400
+
+    runtime: print unknown types in panic
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2683041
+
+ src/pkg/runtime/error.go | 4 +++-
+ src/pkg/runtime/print.c  | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit f251708a733bfca46899d57baab7d2601f6d7057
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 18:42:01 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates bundled x/net/http2 to git rev 8dab9293 for:
+    
+        http2: make Transport retry on server's GOAWAY graceful shutdown
+        https://golang.org/cl/33971
+    
+    Fixes #18083
+    
+    Change-Id: I676f5eb4b490a4d86356778bb17296c451f16d90
+    Reviewed-on: https://go-review.googlesource.com/34011
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/h2_bundle.go | 87 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 78 insertions(+), 9 deletions(-)

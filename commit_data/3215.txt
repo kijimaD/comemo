@@ -1,0 +1,14 @@
+commit 55ba20ec2d50f52ae593b93dce58de5cef20629c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 16:37:02 2009 -0700
+
+    parse expression statements beginning with
+    arithmetic unary operators + - ^
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=34338
+    CL=34350
+
+ src/pkg/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

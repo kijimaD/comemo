@@ -1,0 +1,19 @@
+commit ed86d0e70ac29e751123832cd98b6f6a99572691
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 12:54:52 2009 -0800
+
+    roll back 3985: build is broken
+    
+    TBR=agl1
+    CC=golang-dev
+    https://golang.org/cl/154065
+
+ src/pkg/Make.deps              |   8 +-
+ src/pkg/big/int.go             | 107 ++++++++++----
+ src/pkg/big/int_test.go        | 113 ++-------------
+ src/pkg/big/nat.go             | 311 ++---------------------------------------
+ src/pkg/big/nat_test.go        |  96 +------------
+ src/pkg/bignum/bignum.go       |   4 -
+ src/pkg/crypto/rsa/rsa.go      |  64 +++++----
+ src/pkg/crypto/rsa/rsa_test.go |  22 +--
+ 8 files changed, 162 insertions(+), 563 deletions(-)

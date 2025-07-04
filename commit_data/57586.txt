@@ -1,0 +1,22 @@
+commit 8c52cd3da550f5315c32bdcb9442ac50e3e4ec96
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 6 07:19:18 2024 -0400
+
+    cmd/internal/obj: make asmidx error less cryptic
+    
+    It's still pretty cryptic, but at least now instead of printing
+    
+        asm: asmidx: bad address 0/2067/2068
+    
+    it will print
+    
+        asm: asmidx: bad address 0/BX/SP
+    
+    Change-Id: I1c73c439c94c5b9d3039728db85102a818739db9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

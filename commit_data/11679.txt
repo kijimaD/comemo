@@ -1,0 +1,16 @@
+commit 5e381d3a9a5cda59b7ec6482e4285b286dcb850c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 8 11:41:47 2012 +1100
+
+    image: delete the image.Repeated type.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5636045
+
+ doc/go1.html                   |  5 +----
+ doc/go1.tmpl                   |  5 +----
+ src/cmd/fix/imagetiled.go      | 40 ----------------------------------------
+ src/cmd/fix/imagetiled_test.go | 41 -----------------------------------------
+ src/pkg/image/names.go         | 27 ---------------------------
+ 5 files changed, 2 insertions(+), 116 deletions(-)

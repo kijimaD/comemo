@@ -1,0 +1,13 @@
+commit f627215bab022893466788417c6f70d0b496d77b
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Mon Aug 29 10:40:28 2011 +1000
+
+    runtime: go interface to cdecl calbacks
+    cdecl calbacks have been implemented in C/ASM code, just Go function is missing
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4969047
+
+ src/pkg/runtime/windows/syscall.goc | 4 ++++
+ 1 file changed, 4 insertions(+)

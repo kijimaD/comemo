@@ -1,0 +1,22 @@
+commit 676d427f77ea255fa6e4cdebf0fb348a27575855
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 27 11:03:58 2024 -0700
+
+    go/types, types2: remove Checker.pos from types2 code - not needed anymore
+    
+    In go/types, move field down in environment struct, rename it to
+    exprPos, and document use.
+    
+    Updates #69673.
+    
+    Change-Id: I355af1237f8cd731ad9706e6a5fce34b314978cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616316
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check.go | 3 +--
+ src/go/types/check.go                    | 6 ++++--
+ src/go/types/eval.go                     | 2 +-
+ 3 files changed, 6 insertions(+), 5 deletions(-)

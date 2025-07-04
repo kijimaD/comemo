@@ -1,0 +1,16 @@
+commit 3a3b53da8837563e7315785919b43943c3a6d5c3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 25 15:29:02 2013 +1000
+
+    libmach: trivial: resolve unused parameter warnings
+    
+    Fix a bunch of warnings detected by https://golang.org/cl/8090044.
+    
+    Same as CL 10483044, but for FreeBSD.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10498044
+
+ src/libmach/freebsd.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

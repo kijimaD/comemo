@@ -1,0 +1,14 @@
+commit d4baf3ccb7f7b6dd5476b82c480f30d3a2953399
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 23:28:12 2010 -0400
+
+    runtime: better panic for send to nil channel
+    
+    *Much* better on NaCl, where memory faults are deadly.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2249041
+
+ src/pkg/runtime/chan.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

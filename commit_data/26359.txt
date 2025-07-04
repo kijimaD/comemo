@@ -1,0 +1,15 @@
+commit d44761387516ceaac00f00bc19417495d23cf7e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 01:39:59 2016 -0700
+
+    cmd/compile: simplify typehash
+    
+    We never need a type hash for a method type, so skip trying to
+    overwrite Thistuple.
+    
+    Change-Id: I8de6480ba5fd321dfa134facf7661461d298840e
+    Reviewed-on: https://go-review.googlesource.com/20795
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

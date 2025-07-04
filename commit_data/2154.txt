@@ -1,0 +1,16 @@
+commit a6ba5ec535126b2a75bffc47cdfced1009fcf679
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 17:05:35 2009 -0700
+
+    6g: new interface rules (code got simpler!)
+    
+    R=ken
+    OCL=28374
+    CL=28378
+
+ src/cmd/gc/dcl.c  |   3 +-
+ src/cmd/gc/go.h   |   7 +-
+ src/cmd/gc/obj.c  |  81 +++++++++++------------
+ src/cmd/gc/subr.c | 192 +++++++++++++++++++++---------------------------------
+ src/cmd/gc/walk.c |  16 ++---
+ 5 files changed, 121 insertions(+), 178 deletions(-)

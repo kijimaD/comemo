@@ -1,0 +1,13 @@
+commit cfed26c7ceeaf093d975e0a748d270cd1b716816
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 7 11:50:27 2014 +1000
+
+    misc/nacl: wrap lines in README file
+    
+    LGTM=dan.kortschak, dave
+    R=dave, dan.kortschak
+    CC=golang-codereviews
+    https://golang.org/cl/121350043
+
+ misc/nacl/README | 57 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 42 insertions(+), 15 deletions(-)

@@ -1,0 +1,77 @@
+commit 4649a439035a0634109f11f7ac25e4e7184b5598
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 15 02:48:18 2022 +0000
+
+    runtime: track how much memory is mapped in the Ready state
+    
+    This change adds a field to memstats called mappedReady that tracks how
+    much memory is in the Ready state at any given time. In essence, it's
+    the total memory usage by the Go runtime (with one exception which is
+    documented). Essentially, all memory mapped read/write that has either
+    been paged in or will soon.
+    
+    To make tracking this not involve the many different stats that track
+    mapped memory, we track this statistic at a very low level. The downside
+    of tracking this statistic at such a low level is that it managed to
+    catch lots of situations where the runtime wasn't fully accounting for
+    memory. This change rectifies these situations by always accounting for
+    memory that's mapped in some way (i.e. always passing a sysMemStat to a
+    mem.go function), with *two* exceptions.
+    
+    Rectifying these situations means also having the memory mapped during
+    testing being accounted for, so that tests (i.e. ReadMemStats) that
+    ultimately check mappedReady continue to work correctly without special
+    exceptions. We choose to simply account for this memory in other_sys.
+    
+    Let's talk about the exceptions. The first is the arenas array for
+    finding heap arena metadata from an address is mapped as read/write in
+    one large chunk. It's tens of MiB in size. On systems with demand
+    paging, we assume that the whole thing isn't paged in at once (after
+    all, it maps to the whole address space, and it's exceedingly difficult
+    with today's technology to even broach having as much physical memory as
+    the total address space). On systems where we have to commit memory
+    manually, we use a two-level structure.
+    
+    Now, the reason why this is an exception is because we have no mechanism
+    to track what memory is paged in, and we can't just account for the
+    entire thing, because that would *look* like an enormous overhead.
+    Furthermore, this structure is on a few really, really critical paths in
+    the runtime, so doing more explicit tracking isn't really an option. So,
+    we explicitly don't and call sysAllocOS to map this memory.
+    
+    The second exception is that we call sysFree with no accounting to clean
+    up address space reservations, or otherwise to throw out mappings we
+    don't care about. In this case, also drop down to a lower level and call
+    sysFreeOS to explicitly avoid accounting.
+    
+    The third exception is debuglog allocations. That is purely a debugging
+    facility and ideally we want it to have as small an impact on the
+    runtime as possible. If we include it in mappedReady calculations, it
+    could cause GC pacing shifts in future CLs, especailly if one increases
+    the debuglog buffer sizes as a one-off.
+    
+    As of this CL, these are the only three places in the runtime that would
+    pass nil for a stat to any of the functions in mem.go. As a result, this
+    CL makes sysMemStats mandatory to facilitate better accounting in the
+    future. It's now much easier to grep and find out where accounting is
+    explicitly elided, because one doesn't have to follow the trail of
+    sysMemStat nil pointer values, and can just look at the function name.
+    
+    For #48409.
+    
+    Change-Id: I274eb467fc2603881717482214fddc47c9eaf218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393402
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/debuglog.go         |  8 ++++++--
+ src/runtime/export_test.go      | 24 ++++++++++++++++++------
+ src/runtime/malloc.go           | 25 +++++++++++++++++--------
+ src/runtime/mem.go              | 26 ++++++++++++++++++++++++--
+ src/runtime/mheap.go            |  4 ++--
+ src/runtime/mpagealloc.go       |  9 +++++++++
+ src/runtime/mpagealloc_32bit.go |  3 ++-
+ src/runtime/mpagealloc_64bit.go |  3 ++-
+ src/runtime/mstats.go           | 24 ++++++++++++++++++------
+ 9 files changed, 98 insertions(+), 28 deletions(-)

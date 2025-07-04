@@ -1,0 +1,15 @@
+commit 9ad41f6243e7947ce1569140382f8847cc2a80dd
+Author: Suharsh Sivakumar <suharshs@google.com>
+Date:   Wed Feb 3 13:22:40 2016 -0800
+
+    net: ensure lookupStatic* returns copy of slice to disallow cache corruption.
+    
+    Fixes #14212
+    
+    Change-Id: I74325dfaa1fb48f4b281c2d42157b563f1e42a94
+    Reviewed-on: https://go-review.googlesource.com/19201
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/hosts.go      |  8 +++++--
+ src/net/hosts_test.go | 62 +++++++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 54 insertions(+), 16 deletions(-)

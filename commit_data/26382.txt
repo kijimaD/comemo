@@ -1,0 +1,13 @@
+commit 3e2e80599e112c6cb6ad3fb82aa15660603c4571
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:41:38 2016 +0100
+
+    net/url: don't assume b.N > 0
+    
+    Change-Id: Ie79c16d6e61b3baa274069528cf883b22fd255fe
+    Reviewed-on: https://go-review.googlesource.com/20855
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/url/url_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

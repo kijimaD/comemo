@@ -1,0 +1,15 @@
+commit 655a3b5a55a641962f4ff875490f90af8a2d7ea0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 18:13:54 2016 +0000
+
+    strings: ignore allocation test in cover mode
+    
+    Fixes #17699
+    
+    Change-Id: I7ea29a3fc2ca13d9d7e3044cbb8ea22e3435d423
+    Reviewed-on: https://go-review.googlesource.com/32484
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strings/strings_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

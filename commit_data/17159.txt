@@ -1,0 +1,14 @@
+commit 92254d4463efb5c3a91ccd6d62abe3f7587a145a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 12 21:36:33 2013 +0400
+
+    runtime: fix ARM assembly formatting
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12702048
+
+ src/pkg/runtime/asm_arm.s           | 24 ++++++++++++------------
+ src/pkg/runtime/sys_linux_arm.s     |  6 +++---
+ src/pkg/sync/atomic/asm_linux_arm.s |  8 ++++----
+ 3 files changed, 19 insertions(+), 19 deletions(-)

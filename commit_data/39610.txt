@@ -1,0 +1,23 @@
+commit e764432605cb26478067890b49f4f16019c9a9b9
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Aug 20 23:09:31 2019 -0600
+
+    doc/go1.13: document _ between digits for math/big, strconv
+    
+    Document that:
+    * math/big.Float.Parse
+    * math/big.Int.SetString
+    * strconv.ParseFloat
+    * strconv.ParseInt
+    * strconv.ParseUint
+    now accept underscores to group digits only if base = 0,
+    as per the Go 2 language changes.
+    
+    Updates #32815
+    
+    Change-Id: Id45bd803a18442436419739297e8aed0d32ca56c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191077
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.13.html | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

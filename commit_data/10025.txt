@@ -1,0 +1,20 @@
+commit 4e7aac54137bb77a0b821b1cf24dcc3f42588a7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:03:37 2011 -0400
+
+    reflect: make unsafe use of SliceHeader gc-friendly
+    
+    Revert workaround in compiler and
+    revert test for compiler workaround.
+    
+    Tested that the 386 build continues to fail if
+    the gc change is made without the reflect change.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5312041
+
+ src/cmd/gc/reflect.c       |  2 +-
+ src/pkg/reflect/value.go   | 29 +++++++++++++------
+ src/pkg/runtime/gc_test.go | 71 ----------------------------------------------
+ 3 files changed, 21 insertions(+), 81 deletions(-)

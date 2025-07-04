@@ -1,0 +1,15 @@
+commit f80f6e4580b63fd837a5f9c0e9538b97d7520a7b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 21 16:35:05 2015 +0900
+
+    net/internal/socktest: simplify log message format
+    
+    This change replaces the existing log format separated by commas and
+    spaces with space-separated one.
+    
+    Change-Id: I9a4b38669025430190c9a1a6b5c82b862866559d
+    Reviewed-on: https://go-review.googlesource.com/17999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/internal/socktest/switch.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

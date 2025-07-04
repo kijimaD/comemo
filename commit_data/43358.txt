@@ -1,0 +1,20 @@
+commit 58eadc232e4fd2633761ffdeeaa922216beee74e
+Author: avivklas <avivklas@gmail.com>
+Date:   Tue Sep 15 08:48:44 2020 +0300
+
+    net/http: test that ParseMultipartForm returns an error for int overflow
+    
+    ParseMultipartForm has been changed to return an error if maxMemory
+    parameter + 10MB causes int overflows. This adds a test for the new
+    behaviour.
+    
+    For #40430
+    
+    Change-Id: I4f66ce8a9382940182011d22a84ee52b1d1364cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

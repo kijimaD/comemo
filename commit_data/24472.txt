@@ -1,0 +1,14 @@
+commit ae315999c2d5514cec17adbd37cf2438e20cbd12
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 8 13:37:39 2015 -0700
+
+    net/http/httputil: clarify NewSingleHostReverseProxy's Host header behavior
+    
+    Fixes #10342
+    
+    Change-Id: I69c69352016a8fd0b62541128c2e86b242ebbe26
+    Reviewed-on: https://go-review.googlesource.com/15630
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

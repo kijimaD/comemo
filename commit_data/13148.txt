@@ -1,0 +1,28 @@
+commit 82e22725666f0ee41c2ea67065ae8ea0792ab400
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu May 24 13:46:41 2012 +1000
+
+    exp/html: detect "integration points" in SVG and MathML content
+    
+    Detect HTML integration points and MathML text integration points.
+    At these points, process tokens as HTML, not as foreign content.
+    
+    Pass 33 more tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6249044
+
+ src/pkg/exp/html/foreign.go                        | 23 ++++++++++++++++++++--
+ src/pkg/exp/html/parse.go                          | 19 ++++++++++++++++--
+ .../exp/html/testlogs/pending-spec-changes.dat.log |  2 +-
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    | 16 +++++++--------
+ src/pkg/exp/html/testlogs/tables01.dat.log         |  2 +-
+ src/pkg/exp/html/testlogs/tests10.dat.log          | 10 +++++-----
+ src/pkg/exp/html/testlogs/tests12.dat.log          |  4 ++--
+ src/pkg/exp/html/testlogs/tests19.dat.log          | 12 +++++------
+ src/pkg/exp/html/testlogs/tests20.dat.log          |  8 ++++----
+ src/pkg/exp/html/testlogs/tests26.dat.log          |  8 ++++----
+ src/pkg/exp/html/testlogs/tests9.dat.log           |  2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log         |  2 +-
+ 12 files changed, 71 insertions(+), 37 deletions(-)

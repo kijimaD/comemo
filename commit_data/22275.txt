@@ -1,0 +1,31 @@
+commit 398bf9d5a09fdcc14088dc42f953d6e3142fd343
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 9 17:40:23 2015 -0700
+
+    cmd/internal/gc, cmd/yacc: restore custom syntax error messages
+    
+    This restores go.errors from before 3af0d79 along with a fixed up
+    version of the bisonerrors AWK script, translated to Go.
+    
+    However, this means Yyerror needs access to the yacc parser's state,
+    which is currently private.  To workaround that, add a "state"
+    accessor method like the Lookahead method added in c7fa3c6.
+    
+    Update issue #9968.
+    
+    Change-Id: Ib868789e92fdb7d135442120a392457923e50121
+    Reviewed-on: https://go-review.googlesource.com/7270
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/go.errors     |  81 ++++++++++++++++
+ src/cmd/internal/gc/lex.go        |   6 +-
+ src/cmd/internal/gc/subr.go       |  13 ++-
+ src/cmd/internal/gc/y.go          |   4 +
+ src/cmd/internal/gc/yaccerrors.go | 194 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/yymsg.go      |  83 ++++++++++++++++
+ src/cmd/yacc/yacc.go              |   4 +
+ test/fixedbugs/bug121.go          |   4 -
+ test/fixedbugs/issue4468.go       |   3 -
+ 9 files changed, 373 insertions(+), 19 deletions(-)

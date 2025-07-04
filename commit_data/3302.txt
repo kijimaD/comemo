@@ -1,0 +1,15 @@
+commit 73e52ae971c646c390c1b8a5d249f51b2cdeb0a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 17 16:42:10 2009 -0700
+
+    check for unused imports
+    
+    R=ken
+    OCL=34732
+    CL=34756
+
+ src/cmd/gc/go.h   |  8 +++++---
+ src/cmd/gc/go.y   | 34 +++++++++++++++++++++++++++-------
+ src/cmd/gc/lex.c  | 35 ++++++++++++++++++++++-------------
+ src/cmd/gc/subr.c | 12 ++++++++++--
+ 4 files changed, 64 insertions(+), 25 deletions(-)

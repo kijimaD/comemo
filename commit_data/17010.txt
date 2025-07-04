@@ -1,0 +1,12 @@
+commit a039bf20be6f5a90f0a29dd7530ea589fd7438b8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 3 18:32:14 2013 +1000
+
+    cmd/dist: generate cmd/cgo/zdefaultcc.go on windows (fixes windows build)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12404043
+
+ src/cmd/dist/buildgo.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit aac1eabcee45a338f5b2e493cb2e3a0f153cb931
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 4 19:50:49 2014 -0700
+
+    test: add test for function type in function literal
+    
+    The gccgo compiler used to fail this test.  This was the root
+    cause of http://gcc.gnu.org/PR61308 .  The fix for the gccgo
+    compiler is https://golang.org/cl/122020043 .
+    
+    LGTM=dave, bradfitz
+    R=golang-codereviews, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/121200043
+
+ test/fixedbugs/bug489.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

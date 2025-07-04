@@ -1,0 +1,23 @@
+commit 34b10d7482b4a83cf066c313a201503126393293
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Fri Jul 6 15:00:18 2012 +1000
+
+    cmd/dist: Make verbose messages print to stderr
+    
+    Made the following changes:
+     - Export errprintf() from all three OS-specific modules
+     - Added errprintf() to a.h
+     - Moved errprintf() in windows.c under xprintf(), since they are so similar
+     - Replaced all instances of xprintf() with errprintf() where a vflag check is done
+    Fixes #3788.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6346056
+
+ src/cmd/dist/a.h       |  1 +
+ src/cmd/dist/build.c   | 14 +++++++-------
+ src/cmd/dist/plan9.c   | 17 ++++++++++++++---
+ src/cmd/dist/unix.c    | 19 +++++++++++++++----
+ src/cmd/dist/windows.c | 38 +++++++++++++++++++-------------------
+ 5 files changed, 56 insertions(+), 33 deletions(-)

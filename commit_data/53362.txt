@@ -1,0 +1,23 @@
+commit 6e248b8ff2f387b5e4dd16a5b57f7487a2e18c94
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 16:03:32 2023 -0700
+
+    doc/go1.21: mention os package changes
+    
+    Also mention WTF-8 support in the syscall package.
+    
+    For #32558
+    For #58977
+    For #59971
+    
+    Change-Id: Id1627889b5e498add498748d9bfc69fb58030b35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498600
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

@@ -1,0 +1,19 @@
+commit e9e0d1ef704c4bba3927522be86937164a61100c
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 16 06:41:15 2021 +0000
+
+    cmd/asm/internal/arch: adds the missing type check for arm64 SXTB extension
+    
+    Operands of memory type do not support SXTB extension. This CL adds this
+    missing check.
+    
+    Change-Id: I1fa438dd314fc8aeb889637079cc67b538e83a89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342769
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go | 31 +++++--------------------------
+ 1 file changed, 5 insertions(+), 26 deletions(-)

@@ -1,0 +1,14 @@
+commit 031bf2c88bb3736abd28490f99825cb3b881aabf
+Author: Steve Newman <devnull@localhost>
+Date:   Fri Jun 5 13:09:03 2009 -0700
+
+    Add Upper, Lower, Trim methods to strings package.
+    
+    APPROVED=rsc
+    DELTA=110  (110 added, 0 deleted, 0 changed)
+    OCL=29766
+    CL=29951
+
+ src/lib/strings/strings.go      | 58 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/strings/strings_test.go | 52 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+)

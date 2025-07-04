@@ -1,0 +1,15 @@
+commit 343f5aa7b4e11a8c0cb987fd7f7e9cbd66127c04
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 12 21:48:56 2008 -0700
+
+    better import/export
+    
+    SVN=122584
+
+ src/cmd/gc/export.c | 20 +++++++++++++++++---
+ src/cmd/gc/go.h     |  2 ++
+ src/cmd/gc/go.y     | 17 +++++++++++++++--
+ src/cmd/gc/lex.c    |  1 +
+ src/cmd/gc/subr.c   |  2 +-
+ test/float_lit.go   | 11 +++--------
+ 6 files changed, 39 insertions(+), 14 deletions(-)

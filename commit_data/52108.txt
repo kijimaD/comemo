@@ -1,0 +1,27 @@
+commit 1a5cf03b1bbf2f8a28a6c369871e1a61d74f1fb6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 16:42:45 2023 +0100
+
+    runtime: use explicit NOFRAME on solaris/amd64
+    
+    This CL marks some solaris assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    While here, I've reduced the stack usage of runtime·sigtramp by
+    16 bytes to compensate the additional 8 bytes from the stack-allocated
+    frame pointer. There were two unused 8-byte slots on the stack, one
+    at 24(SP) and the other at 80(SP).
+    
+    Updates #58378
+    
+    Change-Id: If9230e71a8b3c72681ffc82030ade6ceccf824db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466456
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/internal/obj/x86/obj6.go |  2 +-
+ src/runtime/sys_solaris_amd64.s  | 94 +++++++++++++++++++---------------------
+ 2 files changed, 46 insertions(+), 50 deletions(-)

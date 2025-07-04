@@ -1,0 +1,22 @@
+commit 3c55aea67aa65c62016020d5907b481da010f7e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 21:33:02 2020 -0400
+
+    cmd/go/internal/fsys: add Glob
+    
+    Glob is needed for //go:embed processing.
+    
+    Also change TestReadDir to be deterministic
+    and print more output about failures.
+    
+    Change-Id: Ie22a9c5b32bda753579ff98cec1d28e3244c4e06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264538
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go      | 163 +++++++++++++++++++++
+ src/cmd/go/internal/fsys/fsys_test.go | 258 +++++++++++++++++++++++++---------
+ 2 files changed, 353 insertions(+), 68 deletions(-)

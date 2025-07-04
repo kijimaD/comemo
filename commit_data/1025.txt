@@ -1,0 +1,15 @@
+commit 59f029cbf241b5f29e183320c417ce5059464ccd
+Author: Rob Pike <r@golang.org>
+Date:   Sat Nov 1 16:37:53 2008 -0700
+
+    a couple of bugs in print.
+    1) bool wasn't handled (added '%t' for 'truth').
+    2) float64 had a typo.
+    
+    TBR=rsc
+    DELTA=11  (10 added, 0 deleted, 1 changed)
+    OCL=18314
+    CL=18318
+
+ src/lib/fmt/print.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

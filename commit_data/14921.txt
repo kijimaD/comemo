@@ -1,0 +1,21 @@
+commit 47568c747d3a407f390045310c3e843b439904f0
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Jan 18 13:39:53 2013 -0800
+
+    cmd/5a, cmd/5c, cmd/6a, cmd/6c, cmd/8a, cmd/8c, cmd/ld: update reference
+    
+    Reference the 80386 compiler documentation now that the
+    documentation for the 68020 is offline.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7127053
+
+ src/cmd/5a/doc.go | 2 +-
+ src/cmd/5c/doc.go | 2 +-
+ src/cmd/6a/doc.go | 2 +-
+ src/cmd/6c/doc.go | 2 +-
+ src/cmd/8a/doc.go | 2 +-
+ src/cmd/8c/doc.go | 2 +-
+ src/cmd/ld/doc.go | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

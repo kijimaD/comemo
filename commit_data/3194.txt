@@ -1,0 +1,14 @@
+commit 8aec612a80bfb2b935c3e228f6e9ea88758bdc70
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 16:41:41 2009 -0700
+
+    for loops
+    comment out incomplete stuff
+    
+    R=rsc
+    DELTA=61  (58 added, 0 deleted, 3 changed)
+    OCL=34278
+    CL=34281
+
+ doc/effective_go.html | 62 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 60 insertions(+), 2 deletions(-)

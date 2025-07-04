@@ -1,0 +1,12 @@
+commit a2f03971214a1c090bcdb3a1dff673776bfcc7fc
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Mar 7 18:31:46 2012 -0600
+
+    windows: make background of gopher icon transparent
+    
+    R=golang-dev, r, jdpoirier
+    CC=golang-dev
+    https://golang.org/cl/5762045
+
+ misc/dist/windows/images/gopher.ico | Bin 22486 -> 30166 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,14 @@
+commit 1e1aea6821fa598d1510f55d5b9592dccc924d2b
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Jan 7 09:10:09 2013 +1100
+
+    doc: Updated links for sub-repository documentation.
+    
+    Use godoc.org instead of gopkgdoc.appspot.com.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7036051
+
+ doc/reference.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

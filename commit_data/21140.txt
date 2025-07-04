@@ -1,0 +1,12 @@
+commit 1ebfb082a7a5cc31efd572fd88549048a82a5c1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 4 11:36:54 2015 -0800
+
+    runtime: remove unnecessary GOOS switch
+    
+    Change-Id: I8f518e273c02110042b08f7c50c3d38a648c8b6e
+    Reviewed-on: https://go-review.googlesource.com/2281
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/sigqueue.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

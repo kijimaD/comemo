@@ -1,0 +1,15 @@
+commit 817c5c4517855314dd67fb48041c9a570538fbc2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 17:06:31 2020 -0800
+
+    doc/go1.14: mention go/doc.NewFromFiles and associated new data fields
+    
+    Updates #23864
+    Updates #36878
+    
+    Change-Id: I6efdaafbe5207c625643f201a5931ad735941365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217125
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

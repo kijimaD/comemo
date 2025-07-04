@@ -1,0 +1,18 @@
+commit f72693d3e9fffa72c44dce846bd7409e331f42a2
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 19 19:27:43 2023 +0800
+
+    log/slog: generate valid JSON string with empty attributes in Groups
+    
+    Fixes #62152
+    
+    Change-Id: I1f76ab26eae3a44292ebe6003006258d5e31d50f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521135
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/handler.go      | 12 +++++++---
+ src/log/slog/handler_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 3 deletions(-)

@@ -1,0 +1,27 @@
+commit 0ce57a73c55c0729e003065dd6b656cb6b1cdca0
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Tue Jun 14 12:56:46 2011 -0400
+
+    syscall: add ptrace on darwin
+    
+    The ptrace syscall remains gutted on darwin, but usable.  This
+    also makes the syscall addition process reproducible on darwin
+    instead of relying on a file path in rsc's home directory.
+    I've also removed an override of $PATH in env.bash that made
+    tooling harder.
+    
+    R=rsc, dave, r
+    CC=golang-dev
+    https://golang.org/cl/4517147
+
+ src/pkg/syscall/mkall.sh                 |   5 +-
+ src/pkg/syscall/mkerrors.sh              |   3 +-
+ src/pkg/syscall/mksysnum_darwin.pl       |  18 +-
+ src/pkg/syscall/syscall_darwin.go        |   4 +
+ src/pkg/syscall/zerrors_darwin_386.go    |  18 +
+ src/pkg/syscall/zerrors_darwin_amd64.go  |  22 +-
+ src/pkg/syscall/zsyscall_darwin_386.go   |   8 +
+ src/pkg/syscall/zsyscall_darwin_amd64.go |   8 +
+ src/pkg/syscall/zsysnum_darwin_386.go    | 828 +++++++++++++------------------
+ src/pkg/syscall/zsysnum_darwin_amd64.go  | 828 +++++++++++++------------------
+ 10 files changed, 765 insertions(+), 977 deletions(-)

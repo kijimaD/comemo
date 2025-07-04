@@ -1,0 +1,32 @@
+commit 6ecd5f750454665f789e3d557548bb5a65ad5c3a
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Sep 9 13:41:35 2023 +0000
+
+    runtime/internal/atomic: add wasm And/Or operators
+    
+    In the WebAssembly version of these operators we avoid using
+    a CAS loop since the Go wasm implementation is single-threaded.
+    
+    A new test file has been added that has build tags in order to
+    only test this feature on implemented architectures.
+    
+    This is part of a series of CLs aimed to add the primitives
+    for And/Or atomic operations that will be used by the public
+    sync/atomic apis.
+    
+    For #61395
+    
+    Change-Id: Ic67ffefc9cfb626915ea86b6b21b500117710327
+    GitHub-Last-Rev: bbec3a5f356c55185af0357b929e76a9dfac230e
+    GitHub-Pull-Request: golang/go#62517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526656
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/runtime/internal/atomic/atomic_andor_test.go | 169 +++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_wasm.go       |  48 +++++++
+ 2 files changed, 217 insertions(+)

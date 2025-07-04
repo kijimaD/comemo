@@ -1,0 +1,17 @@
+commit 386245b68ef4a24450a12d4f85d1835779dfef86
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Thu Jun 9 07:29:14 2022 +0000
+
+    runtime: fix stack split at bad time when fuzzing
+    
+    Fix #53190
+    
+    Change-Id: I6c1f9c3ab58818d3a9f05ddaa02fc247e53677d3
+    GitHub-Last-Rev: 13b0749c135598c97063b07e2b0266125f5da83e
+    GitHub-Pull-Request: golang/go#53191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410034
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/libfuzzer.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

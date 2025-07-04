@@ -1,0 +1,13 @@
+commit 39f64bed527a05cc66241db879b2c14c38ed0019
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:57:39 2009 -0800
+
+    godefs: avoid gcc 4'isms in command line.
+    
+    Fixes #97.
+    
+    R=r
+    https://golang.org/cl/155054
+
+ src/cmd/godefs/main.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

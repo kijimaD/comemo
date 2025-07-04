@@ -1,0 +1,23 @@
+commit 3259bc441957bf74f069cf7df961367a3472afb2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Oct 13 22:40:23 2018 +0200
+
+    strings, bytes: add ToValidUTF8
+    
+    The newly added functions create a copy of their input with all bytes in
+    invalid UTF-8 byte sequences mapped to the UTF-8 byte sequence
+    given as replacement parameter.
+    
+    Fixes #25805
+    
+    Change-Id: Iaf65f65b40c0581c6bb000f1590408d6628321d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/142003
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go          | 29 ++++++++++++++++++++++++++
+ src/bytes/bytes_test.go     | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 179 insertions(+)

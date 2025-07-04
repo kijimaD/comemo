@@ -1,0 +1,16 @@
+commit ef3571bf076f4255579bedb3409bdccc91555b86
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 20 20:12:38 2019 -0500
+
+    cmd/internal/obj/mips: mark restartable sequences
+    
+    Following CL 208126, do the same for MIPS.
+    
+    Change-Id: I95f8fc99a234524119a4d29c7695676dc0ea1025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208217
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/mips/asm0.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

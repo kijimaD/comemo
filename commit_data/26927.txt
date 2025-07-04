@@ -1,0 +1,21 @@
+commit 045411e6f28c64e6448a2432fa652cc80ca18f31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 17:58:46 2016 -0700
+
+    cmd/internal/obj: remove use of package bio
+    
+    Also add MustClose and MustWriter to cmd/internal/bio, and use them in
+    cmd/asm.
+    
+    Change-Id: I07f5df3b66c17bc5b2e6ec9c4357d9b653e354e0
+    Reviewed-on: https://go-review.googlesource.com/21938
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/main.go                | 13 +++++++-----
+ src/cmd/compile/internal/gc/obj.go |  2 +-
+ src/cmd/internal/bio/buf.go        |  2 +-
+ src/cmd/internal/bio/must.go       | 43 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/objfile.go    |  9 ++++----
+ 5 files changed, 57 insertions(+), 12 deletions(-)

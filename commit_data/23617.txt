@@ -1,0 +1,16 @@
+commit 2e6ed613dc023d7c9e5cdfd6b3877069918bcae3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 15:06:15 2015 +1000
+
+    doc: R13 is stack pointer on ARM, not 386
+    
+    Fix typo.
+    
+    TBR=rsc
+    
+    Change-Id: I85d1b46744a9a4524e7949e452cdebb53afe0740
+    Reviewed-on: https://go-review.googlesource.com/11959
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

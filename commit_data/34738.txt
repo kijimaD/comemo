@@ -1,0 +1,17 @@
+commit 7e34ac1f4c6e940dd73756c10fce078804a20a05
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 27 17:06:53 2018 -0700
+
+    cmd/go: add more C compiler/linker options to whitelist
+    
+    Fixes #23937
+    
+    Change-Id: Ie63d91355d1a724d0012d99d457d939deeeb8d3e
+    Reviewed-on: https://go-review.googlesource.com/102818
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 48 +++++++++++++++++++++++++++++--
+ src/cmd/go/internal/work/security_test.go |  4 ---
+ 2 files changed, 46 insertions(+), 6 deletions(-)

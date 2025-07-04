@@ -1,0 +1,25 @@
+commit 0fc582e87942b2e52bed751b6c56660ba99e9a7d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 19 20:54:01 2015 +0900
+
+    net: fix inconsistent error values on Lookup
+    
+    This change fixes inconsistent error values on
+    Lookup{Addr,CNAME,Host,IP.MX,NS,Port,SRV,TXT}.
+    
+    Updates #4856.
+    
+    Change-Id: I059bc8ffb96ee74dff8a8c4e8e6ae3e4a462a7ef
+    Reviewed-on: https://go-review.googlesource.com/9108
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_unix.go       |  14 +++---
+ src/net/dnsclient.go      |  52 +++-----------------
+ src/net/dnsclient_unix.go |  10 ++--
+ src/net/lookup.go         |   8 ++--
+ src/net/lookup_unix.go    | 120 ++++++++++++++++++++++------------------------
+ src/net/lookup_windows.go | 112 +++++++++++++++++++++++--------------------
+ src/net/net.go            |  49 ++++++++++++++-----
+ src/net/port.go           |   2 +-
+ src/net/port_unix.go      |   2 +-
+ 9 files changed, 177 insertions(+), 192 deletions(-)

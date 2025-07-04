@@ -1,0 +1,12 @@
+commit 16eb2c0b7ae66dae708b4ca59f68a13652a95d6a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 26 09:59:17 2013 -0800
+
+    runtime: fix stack cache typos
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7370050
+
+ src/pkg/runtime/stack.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

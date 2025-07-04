@@ -1,0 +1,20 @@
+commit 1023b016d51ee0e6b7245482b9d8715170d785ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 1 09:20:26 2018 +0100
+
+    syscall: fix nil pointer dereference in Select on linux/{arm64,mips64x}
+    
+    The timeout parameter might be nil, don't dereference it
+    unconditionally.
+    
+    Fixes #24189
+    
+    Change-Id: I03e6a1ab74fe30322ce6bcfd3d6c42130b6d61be
+    Reviewed-on: https://go-review.googlesource.com/97819
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux_arm64.go   | 7 +++++--
+ src/syscall/syscall_linux_mips64x.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

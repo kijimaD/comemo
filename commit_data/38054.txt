@@ -1,0 +1,22 @@
+commit c6e47069af1a4e93547450e34253da2b22b9c23d
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Wed Feb 13 19:19:33 2019 +0000
+
+    net/textproto: prevent test from failing with nil pointer dereference
+    
+    The variable err could have nil value when we call err.Error(),
+    because after we check it for nil above we continue the test
+    (t.Errorf doesn't stop the test execution).
+    
+    Updates #30208
+    
+    Change-Id: Ibcf38698326c69c06068989510311e37806995c6
+    GitHub-Last-Rev: 3ab20f6d7fe34ed9b777e0894b57166d173de8ca
+    GitHub-Pull-Request: golang/go#30214
+    Reviewed-on: https://go-review.googlesource.com/c/162457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/textproto/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

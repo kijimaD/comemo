@@ -1,0 +1,14 @@
+commit cca4ddb497a2d56654b38991566e45be1ef18f4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 5 12:48:49 2016 -0700
+
+    cmd/compile: add comments explaining how declarations/scopes work
+    
+    Change-Id: I301760b015eb69ff12eee53473fdbf5e9f168413
+    Reviewed-on: https://go-review.googlesource.com/21542
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 43 +++++++++++++++++++++++++++-----------
+ src/cmd/compile/internal/gc/go.go  | 10 +++++++--
+ 2 files changed, 39 insertions(+), 14 deletions(-)

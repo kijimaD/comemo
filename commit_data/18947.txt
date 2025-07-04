@@ -1,0 +1,21 @@
+commit d1e3ad8bc1be60638c10d3b0962035bebf8b4275
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 25 02:56:10 2014 +0900
+
+    net: avoid multiple calling of syscall connect on Unix variants
+    
+    The previous fix CL 69340044 still leaves a possibility of it.
+    This CL prevents the kernel, especially DragonFly BSD, from
+    performing unpredictable asynchronous connection establishment
+    on stream-based transport layer protocol sockets.
+    
+    Update #7541
+    Update #7474
+    
+    LGTM=jsing
+    R=jsing
+    CC=golang-codereviews
+    https://golang.org/cl/75930043
+
+ src/pkg/net/fd_unix.go | 62 +++++++++++++++++++++++---------------------------
+ 1 file changed, 29 insertions(+), 33 deletions(-)

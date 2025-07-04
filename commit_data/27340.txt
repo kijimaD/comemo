@@ -1,0 +1,12 @@
+commit 256a9670cc9a0acd1fd70ad53ba7ab032d5b2933
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 9 15:03:15 2016 -0400
+
+    runtime: fix some out of date comments in bitmap code
+    
+    Change-Id: I4613aa6d62baba01686bbab10738a7de23daae30
+    Reviewed-on: https://go-review.googlesource.com/22971
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

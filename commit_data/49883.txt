@@ -1,0 +1,32 @@
+commit ea9c3fd42d94182ce6f87104b68a51ea92f1a571
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Fri Aug 12 02:28:43 2022 +0000
+
+    runtime/trace: add missing events for the locked g in extra M.
+    
+    Extra Ms may lead to the "no consistent ordering of events possible" error when parsing trace file with cgo enabled, since:
+    1. The gs in the extra Ms may be in `_Gdead` status while starting trace by invoking `runtime.StartTrace`,
+    2. and these gs will trigger `traceEvGoSysExit` events in `runtime.exitsyscall` when invoking go functions from c,
+    3. then, the events of those gs are under non-consistent ordering, due to missing the previous events.
+    
+    Add two events, `traceEvGoCreate` and `traceEvGoInSyscall`, in `runtime.StartTrace`, will make the trace parser happy.
+    
+    Fixes #29707
+    
+    Change-Id: I7cc4b80822d2c46591304a59c9da2c9fc470f1d0
+    GitHub-Last-Rev: 445de8eaf3fb54e12795ac31e26650f821c5efbc
+    GitHub-Pull-Request: golang/go#53284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411034
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/goroutines.go               |  5 ++-
+ src/runtime/crash_cgo_test.go                  | 13 ++++++
+ src/runtime/proc.go                            |  9 ++++
+ src/runtime/runtime2.go                        |  1 +
+ src/runtime/testdata/testprogcgo/issue29707.go | 58 ++++++++++++++++++++++++++
+ src/runtime/trace.go                           | 13 +++++-
+ 6 files changed, 96 insertions(+), 3 deletions(-)

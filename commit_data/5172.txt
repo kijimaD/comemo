@@ -1,0 +1,21 @@
+commit 83727ccf7c3b90b540d8683240e9fb3032d31890
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 21:48:22 2010 -0700
+
+    runtime: run deferred calls at Goexit
+    
+    baby step toward panic+recover.
+    
+    Fixes #349.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/825043
+
+ src/pkg/runtime/386/asm.s   |  12 ++---
+ src/pkg/runtime/amd64/asm.s |  12 ++---
+ src/pkg/runtime/arm/asm.s   |  12 ++---
+ src/pkg/runtime/extern.go   |   1 +
+ src/pkg/runtime/proc.c      | 124 ++++++++++++++++++++++++++++++++------------
+ src/pkg/runtime/runtime.h   |   1 +
+ 6 files changed, 110 insertions(+), 52 deletions(-)

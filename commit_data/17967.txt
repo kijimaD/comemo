@@ -1,0 +1,14 @@
+commit e5902fc70f1a50920ce0ac95ffbed3a9af2b80b5
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Dec 12 11:24:27 2013 -0800
+
+    image: add RGB and RGB48
+    
+    R=golang-dev, r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/13239051
+
+ src/pkg/image/color/color.go |  45 ++++++++++++
+ src/pkg/image/image.go       | 170 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/image_test.go  |   3 +
+ 3 files changed, 218 insertions(+)

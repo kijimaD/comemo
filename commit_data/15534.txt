@@ -1,0 +1,14 @@
+commit 83f59d0a4f5a52a1390e9eb6550532a0eddcd338
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 12:00:24 2013 -0500
+
+    net/http/cgi: disable TestCopyError to try to fix darwin/386 on builder
+    
+    Update #4958.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7434047
+
+ src/pkg/net/http/cgi/host_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

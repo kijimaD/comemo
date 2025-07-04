@@ -1,0 +1,29 @@
+commit f0c9ae5452832f0f9e4dfa38f756ae9137577482
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Oct 22 19:25:56 2020 -0300
+
+    net/http: use exponential backoff for polling in Server.Shutdown
+    
+    Instead of always polling 500ms, start with an interval of 1ms and
+    exponentially back off to at most 500ms. 10% jitter is added to each
+    interval.
+    
+    This makes Shutdown more responsive when connections and listeners
+    close quickly.
+    
+    Also removes the need for the polling interval to be changed in tests
+    since if tests' connections and listeners close quickly Shutdown will
+    also return quickly.
+    
+    Fixes #42156
+    
+    Change-Id: I5e59844a2980c09adebff57ae8b58817965e6db4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264479
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/http_test.go |  5 -----
+ src/net/http/server.go    | 28 +++++++++++++++++++++-------
+ 2 files changed, 21 insertions(+), 12 deletions(-)

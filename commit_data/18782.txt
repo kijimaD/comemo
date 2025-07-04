@@ -1,0 +1,16 @@
+commit fb5e1e1fa181f658431ef2c12fa2ccef5f728bdf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Mar 6 20:56:22 2014 +0100
+
+    runtime: fix warnings on Plan 9
+    
+    warning: pkg/runtime/mgc0.c:2352 format mismatch p UVLONG, arg 2
+    warning: pkg/runtime/mgc0.c:2352 format mismatch p UVLONG, arg 3
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71950044
+
+ src/pkg/runtime/mgc0.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

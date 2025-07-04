@@ -1,0 +1,21 @@
+commit 2c39ca08cd6bb94b31ac6e15b0da33b345b62170
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 10 11:59:50 2011 -0800
+
+    testing: add file:line stamps to messages.
+    
+    A single-line error looks like this:
+    --- FAIL: foo_test.TestFoo (0.00 seconds)
+            foo_test.go:123: Foo(8) = "10" want "100"
+    
+    A multi-line error looks like this:
+    --- FAIL: foo_test.TestFoo (0.00 seconds)
+            foo_test.go:456: Foo(88) = "100"
+                    want "1000"
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5376057
+
+ src/pkg/testing/testing.go | 41 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)

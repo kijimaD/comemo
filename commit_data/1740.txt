@@ -1,0 +1,22 @@
+commit b4802dd568c7ab79c8cd4da75528a153706014ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 17:13:12 2009 -0800
+
+    Created new directory lib/lang:
+    - move scanner to into lib/lang
+    - added test
+    - adjusted various make and build files
+    
+    R=r
+    DELTA=1731  (973 added, 753 deleted, 5 changed)
+    OCL=25668
+    CL=25713
+
+ src/lib/Makefile                            |   2 +
+ {usr/gri/pretty => src/lib/lang}/scanner.go | 126 ++++++------
+ src/lib/lang/scanner_test.go                | 202 +++++++++++++++++++
+ src/lib/lang/token.go                       | 296 ++++++++++++++++++++++++++++
+ src/run.bash                                |   1 +
+ usr/gri/pretty/Makefile                     |  12 +-
+ usr/gri/pretty/token.go                     | 286 ---------------------------
+ 7 files changed, 573 insertions(+), 352 deletions(-)

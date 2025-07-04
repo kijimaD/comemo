@@ -1,0 +1,12 @@
+commit 9ed2960de8a9eb833f2b265e39c911db4939bf9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:36:39 2009 -0800
+
+    in hash implementation, if data >= 8, align to 8.
+    
+    R=ken
+    OCL=23519
+    CL=23521
+
+ src/runtime/hashmap.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit 5a4cc600b79075d8ad6304809c70a7d94da628cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 01:16:47 2015 -0400
+
+    cmd/go: fix nocgo builder
+    
+    Change-Id: I0f167d9769d9b6b9888c13fcb48e538fc87aa1b7
+    Reviewed-on: https://go-review.googlesource.com/12240
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

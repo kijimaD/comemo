@@ -1,0 +1,22 @@
+commit be012e1e2e5fb24c765157fd2ca7e05675d6a1c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 19 12:56:29 2018 -0700
+
+    cmd/cgo: don't use absolute paths in the export header file
+    
+    We were using absolute paths in the #line directives in the export
+    header file. This makes the header file change if you move GOPATH.
+    The absolute paths aren't helpful for the final user, which is some C
+    program elsewhere.
+    
+    Fixes #24945
+    
+    Change-Id: I2da32c9b477df578bd5087435a03fe97abe462e3
+    Reviewed-on: https://go-review.googlesource.com/108315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                     | 10 +++++++++-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit b8732215c3fb3ae468e19871a126217615cecc68
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 15:35:58 2009 -0700
+
+    fix build
+    
+    R=gri,rsc
+    OCL=32748
+    CL=32748
+
+ src/cmd/gobuild/util.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit 316e3036a7dda449ed9e64b3ab86ef686080a343
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 16:34:33 2017 -0400
+
+    cmd/compile: make HasHeapPointer recursive
+    
+    Currently (*Type).HasHeapPointer only ignores pointers go:notinheap
+    types if the type itself is a pointer to a go:notinheap type. However,
+    if it's some other type that contains pointers where all of those
+    pointers are go:notinheap, it will conservatively return true. As a
+    result, we'll use write barriers where they aren't needed, for example
+    calling typedmemmove instead of just memmove on structs that contain
+    only go:notinheap pointers.
+    
+    Fix this by making HasHeapPointer walk the whole type looking for
+    pointers that aren't marked go:notinheap.
+    
+    Change-Id: Ib8c6abf6f7a20f34969d1d402c5498e0b990be59
+    Reviewed-on: https://go-review.googlesource.com/73412
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/type.go | 21 ++++++++++------
+ test/notinheap3.go                     | 45 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 7 deletions(-)

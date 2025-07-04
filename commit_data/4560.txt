@@ -1,0 +1,14 @@
+commit f3e7ddc2fbb2da8a6deeefbb446980f2b4d7c42e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 8 17:49:55 2010 +1100
+
+    Rewrite tokenizer to clean up and fix a bug with spaces before delimited block.
+    Fixes #501.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181183
+
+ src/pkg/template/template.go      | 94 +++++++++++++++++++++------------------
+ src/pkg/template/template_test.go | 24 +++++++++-
+ 2 files changed, 73 insertions(+), 45 deletions(-)

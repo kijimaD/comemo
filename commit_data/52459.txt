@@ -1,0 +1,21 @@
+commit b431277da850b47cd05c5e7697303c0d6fbe2cea
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Tue Mar 28 01:56:29 2023 +0900
+
+    internal/singleflight: move Done call in TestForgetUnshared
+    
+    Prior to this change, there was a possibility that the call of ForgetUnshared at line 134 could acquire the lock first.
+    Then, after ForgetUnshared released the lock, the doCall function could acquire it and complete its call.
+    This change prevents this situation by ensuring that ForgetUnshared at line 134 only executes after doCall has finished executing and released the lock.
+    
+    Change-Id: I45cd4040e40ed52ca8e1b3863092886668dfd521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479499
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/singleflight/singleflight_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

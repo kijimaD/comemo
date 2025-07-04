@@ -1,0 +1,31 @@
+commit 5a40b568d023922e735ddc21f3b4a30d52197b7a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 18 17:27:26 2014 -0700
+
+    lib9, cmd/ld: fixes for cross-linking on a Windows host
+    
+    This fixes a couple of problems that occur when the linker
+    removes its temporary directory on Windows.  The linker only
+    creates and removes a temporary directory when doing external
+    linking.  Windows does not yet support external linking.
+    Therefore, these problems are only seen when using a
+    cross-compiler hosted on Windows.
+    
+    In lib9, FindFirstFileW returns just the file name, not the
+    full path name.  Don't assume that we will find a slash.
+    Changed the code to work either way just in case.
+    
+    In ld, Windows requires that files be closed before they are
+    removed, so close the output file before we might try to
+    remove it.
+    
+    Fixes #8723.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/141690043
+
+ src/cmd/ld/lib.c           |  4 ++++
+ src/lib9/tempdir_windows.c | 19 +++++++++++--------
+ 2 files changed, 15 insertions(+), 8 deletions(-)

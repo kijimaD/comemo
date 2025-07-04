@@ -1,0 +1,16 @@
+commit b3a4b2df09be4e0a85f4204e71a4c1c8e542f4f8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 7 11:20:05 2021 -0400
+
+    misc/cgo/testshared: pass the testing.T to goCmd when available
+    
+    Noticed while investigating the test failure in
+    https://build.golang.org/log/4fc4aa11087c74bb8f66c81a8b212f41fb495be4.
+    
+    Change-Id: I0ed80dad99d6920a187af4339e437a08fbe91ade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354572
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 047c6ec6dabdc646b3e98531d6c8f0905aebc4a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 8 09:46:20 2008 -0700
+
+    check $GOROOT before diving into build
+    
+    R=r
+    DELTA=6  (6 added, 0 deleted, 0 changed)
+    OCL=16726
+    CL=16726
+
+ src/make.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

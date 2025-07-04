@@ -1,0 +1,17 @@
+commit 76ec47eeec0e61bd5c679412ec847cdfaf1a95bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 18:08:57 2022 -0500
+
+    doc/go1.20: complete, add more library TODOs
+    
+    Finish all standard library TODOs, including additions
+    flagged by another run of relnote.
+    
+    Change-Id: Ib9d22672b13b9775a98262d645aaf1d54e7494df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453295
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ doc/go1.20.html | 267 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 171 insertions(+), 96 deletions(-)

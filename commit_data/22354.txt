@@ -1,0 +1,21 @@
+commit f55b2a11f488630af08a285eed1ec2f78b0d218b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:11 2015 -0400
+
+    cmd/internal/ld, cmd/7l: external linking support for linux/arm64
+    
+    Based on Michael Hudson-Doyle's patch:
+    https://github.com/4ad/go/commit/b735215ee41b4237ec393d4669f6f55d4b27babc
+    
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f0
+    Reviewed-on: https://go-review.googlesource.com/8437
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/7l/asm.go             | 45 ++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/7l/obj.go             |  2 ++
+ src/cmd/internal/ld/dwarf.go  | 10 ++++++----
+ src/cmd/internal/ld/elf.go    | 25 ++++++++++++++----------
+ src/cmd/internal/ld/lib.go    |  3 +++
+ src/cmd/internal/ld/symtab.go |  6 ++----
+ 6 files changed, 68 insertions(+), 23 deletions(-)

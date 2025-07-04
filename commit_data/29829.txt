@@ -1,0 +1,12 @@
+commit 94e0f06fbcd5b39840bf0d8fa4519ac818ca2c3e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 12 19:32:58 2016 -0800
+
+    doc/help: tweak descriptions, make official channels clearer
+    
+    Change-Id: I5c8df05a25421489ec5122de85dbda756483c536
+    Reviewed-on: https://go-review.googlesource.com/34289
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/help.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit 71bac7efe45b18894415a169b669cb1df95d8079
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 9 15:22:01 2018 -0700
+
+    cmd/compile: rename gc.exportname to types.IsExported
+    
+    gofmt -r 'exportname(s) -> types.IsExported(s)'
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6b428bd039c135be66d8b81c325d4e08bae69f24
+    Reviewed-on: https://go-review.googlesource.com/105938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/bimport.go   |  8 ++++----
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    | 12 +-----------
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/obj.go       |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 18 +++++++++---------
+ src/cmd/compile/internal/gc/subr.go      |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/types/sym.go    | 12 ++++++++++++
+ 11 files changed, 44 insertions(+), 42 deletions(-)

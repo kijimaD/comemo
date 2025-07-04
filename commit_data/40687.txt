@@ -1,0 +1,30 @@
+commit a762221bea7c02a17cffc6937d8af33a027a32e5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:44:11 2019 +0000
+
+    runtime: rearrange mheap_.alloc* into allocSpan
+    
+    This change combines the functionality of allocSpanLocked, allocManual,
+    and alloc_m into a new method called allocSpan. While these methods'
+    abstraction boundaries are OK when the heap lock is held throughout,
+    they start to break down when we want finer-grained locking in the page
+    allocator.
+    
+    allocSpan does just that, and only locks the heap when it absolutely has
+    to. Piggy-backing off of work in previous CLs to make more of span
+    initialization lockless, this change makes span initialization entirely
+    lockless as part of the reorganization.
+    
+    Ultimately this change will enable us to add a lockless fast path to
+    allocSpan.
+    
+    Updates #35112.
+    
+    Change-Id: I99875939d75fb4e958a67ac99e4a7cda44f06864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196641
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 325 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 165 insertions(+), 160 deletions(-)

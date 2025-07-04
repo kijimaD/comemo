@@ -1,0 +1,16 @@
+commit 669d3da000cb9ed40bb6108f24f4ecf8d31d3189
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 24 15:37:53 2015 +0200
+
+    archive/tar: fix error message
+    
+    Write should return ErrWriteAfterClose instead
+    of ErrWriteTooLong when called after Close.
+    
+    Change-Id: If5ec4ef924e4c56489e0d426976f7e5fad79be9b
+    Reviewed-on: https://go-review.googlesource.com/9259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/writer.go      |  2 +-
+ src/archive/tar/writer_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

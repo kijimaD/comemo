@@ -1,0 +1,19 @@
+commit ebcb9cdf67e53d2ad50da1910d6c5f944c32b163
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 11:16:23 2017 -0700
+
+    cmd/compile: cull unused ssa construction Error function
+    
+    The preceding passes have caught any errors
+    that could occur during SSA construction.
+    
+    Updates #19250
+    
+    Change-Id: I736edb2017da3f111fb9f74be12d437b5a24d2b4
+    Reviewed-on: https://go-review.googlesource.com/38971
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ----
+ 1 file changed, 4 deletions(-)

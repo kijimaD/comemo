@@ -1,0 +1,19 @@
+commit 054710ce46d5613db8e861eff49cd9cb3e3d0589
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 7 15:13:24 2021 -0700
+
+    cmd/compile/internal/types2: reduce number of delayed functions (optimization)
+    
+    Rather than create and delay execution of a closure for each type parameter
+    in a type parameter list, just create one per type parameter list.
+    
+    While at it, inline the small amount of code for getting the type constraint
+    and remove the respective function.
+    
+    Change-Id: I49a00ff0a7b7e43eb53992dd7dbfac25ff23b42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348018
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go | 36 +++++++++++++++------------------
+ 1 file changed, 16 insertions(+), 20 deletions(-)

@@ -1,0 +1,16 @@
+commit 966baedfea6b09fa203b0cf0e6388830cc9f9fa7
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 26 11:05:01 2016 -0400
+
+    runtime: record Python stack on TestGdbPython failure
+    
+    For #15599.
+    
+    Change-Id: Icc2e58a3f314b7a098d78fe164ba36f5b2897de6
+    Reviewed-on: https://go-review.googlesource.com/23481
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

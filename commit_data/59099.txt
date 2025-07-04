@@ -1,0 +1,17 @@
+commit bfb27fb36f2f651eb52e3f2ff20542f4302359ce
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 15:21:39 2025 +0000
+
+    bytes,strings: document Fields trimming of leading and trailing characters
+    
+    Fixes #72841
+    
+    Change-Id: I46875c61e3147c69da759bf4bf4f0539cbd4f437
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658218
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes.go     | 8 ++++++--
+ src/strings/strings.go | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

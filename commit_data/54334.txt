@@ -1,0 +1,24 @@
+commit ae09ca6c0fd212a19096a1c9c504fe59fc7471bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 14:43:22 2023 -0700
+
+    cmd/compile/internal/ir: simplify printing of OLITERALs
+    
+    This formatting used to be relevant to user error diagnostics and
+    (much earlier) even to the old textual export data format, but now
+    it's only relevant to backend debugging. So we can simplify a lot,
+    adjusting a few test expectations accordingly.
+    
+    Change-Id: Ibe8e029284ce6150bfa24ef794d8d9eff66dbdea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526375
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/expr.go    |  6 ++++-
+ src/cmd/compile/internal/ir/fmt.go     | 45 +++++++++++-----------------------
+ src/cmd/compile/internal/ir/val.go     | 17 -------------
+ src/cmd/compile/internal/types/fmt.go  | 36 ---------------------------
+ src/cmd/compile/internal/types/type.go | 20 +++++++++++++++
+ 5 files changed, 39 insertions(+), 85 deletions(-)

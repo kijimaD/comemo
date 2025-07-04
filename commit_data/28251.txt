@@ -1,0 +1,25 @@
+commit 4354ffd38b7ebdf7b4ee9ff614939ed77f872acd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Aug 29 16:26:57 2016 -0400
+
+    cmd/compile: intrinsify Ctz, Bswap, and some atomics on ARM64
+    
+    Change-Id: Ia5bf72b70e6f6522d6fb8cd050e78f862d37b5ae
+    Reviewed-on: https://go-review.googlesource.com/27936
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/arm64/prog.go       |  30 ++-
+ src/cmd/compile/internal/arm64/ssa.go        | 144 ++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go           |  84 ++++----
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  25 +++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  68 +++++--
+ src/cmd/compile/internal/ssa/gen/main.go     |   4 +
+ src/cmd/compile/internal/ssa/op.go           |   3 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 202 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go     |  12 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 292 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go           |   6 +-
+ test/intrinsic.go                            |   2 +-
+ 12 files changed, 801 insertions(+), 71 deletions(-)

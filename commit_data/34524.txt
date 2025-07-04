@@ -1,0 +1,20 @@
+commit 6a5cfa8b63fcea71da941a60036ce3c6f22d8764
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 02:22:26 2018 -0800
+
+    cmd/compile: remove two out-of-phase calls to walk
+    
+    All calls to walkstmt/walkexpr/etc should be rooted from funccompile,
+    whereas transformclosure and fninit are called by main.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic880e2d2d83af09618ce4daa8e7716f6b389e53e
+    Reviewed-on: https://go-review.googlesource.com/99418
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 1 -
+ src/cmd/compile/internal/gc/init.go    | 1 -
+ 2 files changed, 2 deletions(-)

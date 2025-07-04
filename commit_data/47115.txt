@@ -1,0 +1,23 @@
+commit 8e112a7c2a814de9156f68dc8b167e4ef8c98c52
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Apr 11 18:29:03 2021 +0000
+
+    runtime: move heapLive and heapScan updates into a method
+    
+    This change moves heapLive and heapScan updates on gcController into a
+    method for better testability. It's also less error-prone because code
+    that updates these fields needs to remember to emit traces and/or call
+    gcController.revise; this method now handles those cases.
+    
+    For #44167.
+    
+    Change-Id: I3d6f2e7abb22def27c93feacff50162b0b074da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309275
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mcache.go   | 39 ++++++++++-----------------------------
+ src/runtime/mgcpacer.go | 17 +++++++++++++++++
+ 2 files changed, 27 insertions(+), 29 deletions(-)

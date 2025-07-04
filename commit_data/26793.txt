@@ -1,0 +1,19 @@
+commit 01360a64c5895a9ec8b8c34140415fe34c3de201
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 6 20:19:47 2016 -0700
+
+    io: change the name of ReadAtSizer to SizedReaderAt
+    
+    This is a proposal. The old name is pretty poor. The new one describes
+    it better and may be easier to remember. It does not start with Read,
+    though I think that inconsistency is worthwhile.
+    
+    Reworded the comment a bit for clarity.
+    
+    Change-Id: Icb4f9c663cc68958e0363d7ff78a0b29cc521f98
+    Reviewed-on: https://go-review.googlesource.com/21629
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/io.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

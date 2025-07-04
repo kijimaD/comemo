@@ -1,0 +1,14 @@
+commit 75fe1303c1368deb092c6a109331bf0211263ccb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 3 09:44:59 2009 -0700
+
+    maps have == so maps are okay as map keys.
+    alignment issue is fixed.
+    
+    R=ken
+    OCL=31124
+    CL=31144
+
+ src/cmd/gc/subr.c |  2 +-
+ src/cmd/gc/walk.c | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

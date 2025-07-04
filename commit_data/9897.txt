@@ -1,0 +1,16 @@
+commit ec9ea9a5cbfa0749d2461e44532ce2eafaf20334
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 17:36:00 2011 -0700
+
+    godoc: use a bufio.Buffer to read search index
+    
+    Also: Minor refactoring for cleanliness and symmetry.
+    
+    Fixes #2286.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5232041
+
+ src/cmd/godoc/index.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

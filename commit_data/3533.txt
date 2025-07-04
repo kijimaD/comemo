@@ -1,0 +1,17 @@
+commit a68592a4dd93e8202801ff3b9f25b617fde4462f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 13:02:05 2009 -0700
+
+    excise some internal references.
+    
+    R=r
+    DELTA=209  (65 added, 114 deleted, 30 changed)
+    OCL=35718
+    CL=35721
+
+ doc/effective_go.html     |   4 +++-
+ doc/go_tutorial.html      |   2 +-
+ doc/progs/echo.go         |   2 +-
+ doc/sieve.gif             | Bin 0 -> 11567 bytes
+ src/pkg/runtime/runtime.h |   3 +--
+ 5 files changed, 6 insertions(+), 5 deletions(-)

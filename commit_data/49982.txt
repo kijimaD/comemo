@@ -1,0 +1,105 @@
+commit 330cffb86951414da5ef2fde912167f6b4d1d91e
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Fri Apr 1 20:37:30 2022 +0300
+
+    runtime: remove dead code and unnecessary checks for amd64
+    
+    Use amd64 assembly header to remove unnecessary cpu flags checks
+    and dead code that is guaranteed to not be executed when compiling
+    for specific microarchitectures.
+    
+    name                  old time/op  new time/op  delta
+    BytesCompare/1-12     3.88ns ± 1%  3.18ns ± 1%  -18.15%  (p=0.008 n=5+5)
+    BytesCompare/2-12     3.89ns ± 1%  3.21ns ± 2%  -17.66%  (p=0.008 n=5+5)
+    BytesCompare/4-12     3.89ns ± 0%  3.17ns ± 0%  -18.62%  (p=0.008 n=5+5)
+    BytesCompare/8-12     3.44ns ± 2%  3.39ns ± 1%   -1.36%  (p=0.008 n=5+5)
+    BytesCompare/16-12    3.40ns ± 1%  3.14ns ± 0%   -7.77%  (p=0.008 n=5+5)
+    BytesCompare/32-12    3.90ns ± 1%  3.65ns ± 0%   -6.19%  (p=0.008 n=5+5)
+    BytesCompare/64-12    4.96ns ± 1%  4.71ns ± 2%   -4.98%  (p=0.008 n=5+5)
+    BytesCompare/128-12   6.42ns ± 0%  5.99ns ± 4%   -6.75%  (p=0.008 n=5+5)
+    BytesCompare/256-12   9.36ns ± 0%  7.40ns ± 0%  -20.97%  (p=0.008 n=5+5)
+    BytesCompare/512-12   15.9ns ± 1%  11.4ns ± 1%  -28.36%  (p=0.008 n=5+5)
+    BytesCompare/1024-12  27.0ns ± 0%  19.3ns ± 0%  -28.36%  (p=0.008 n=5+5)
+    BytesCompare/2048-12  50.2ns ± 0%  43.3ns ± 0%  -13.71%  (p=0.008 n=5+5)
+    [Geo mean]            7.13ns       6.07ns       -14.86%
+    
+    name                old speed      new speed      delta
+    Count/10-12          723MB/s ± 0%   704MB/s ± 1%  -2.73%  (p=0.008 n=5+5)
+    Count/32-12         2.21GB/s ± 0%  2.12GB/s ± 2%  -4.21%  (p=0.008 n=5+5)
+    Count/4K-12         1.03GB/s ± 0%  1.03GB/s ± 1%    ~     (p=1.000 n=5+5)
+    Count/4M-12         1.04GB/s ± 0%  1.02GB/s ± 2%    ~     (p=0.310 n=5+5)
+    Count/64M-12        1.02GB/s ± 0%  1.01GB/s ± 1%  -1.00%  (p=0.016 n=5+5)
+    CountEasy/10-12      779MB/s ± 0%   768MB/s ± 1%  -1.48%  (p=0.008 n=5+5)
+    CountEasy/32-12     2.15GB/s ± 0%  2.09GB/s ± 1%  -2.71%  (p=0.008 n=5+5)
+    CountEasy/4K-12     45.1GB/s ± 1%  45.2GB/s ± 1%    ~     (p=0.421 n=5+5)
+    CountEasy/4M-12     36.4GB/s ± 1%  36.5GB/s ± 1%    ~     (p=0.690 n=5+5)
+    CountEasy/64M-12    16.1GB/s ± 2%  16.4GB/s ± 1%    ~     (p=0.056 n=5+5)
+    CountSingle/10-12   2.15GB/s ± 2%  2.22GB/s ± 1%  +3.37%  (p=0.008 n=5+5)
+    CountSingle/32-12   5.86GB/s ± 1%  5.76GB/s ± 1%  -1.55%  (p=0.008 n=5+5)
+    CountSingle/4K-12   54.6GB/s ± 1%  55.0GB/s ± 1%    ~     (p=0.548 n=5+5)
+    CountSingle/4M-12   45.9GB/s ± 4%  46.4GB/s ± 2%    ~     (p=0.548 n=5+5)
+    CountSingle/64M-12  17.3GB/s ± 1%  17.2GB/s ± 2%    ~     (p=1.000 n=5+5)
+    [Geo mean]          5.11GB/s       5.08GB/s       -0.53%
+    
+    name          old speed      new speed      delta
+    Equal/1-12     200MB/s ± 0%   188MB/s ± 1%   -6.11%  (p=0.008 n=5+5)
+    Equal/6-12    1.20GB/s ± 0%  1.13GB/s ± 1%   -6.38%  (p=0.008 n=5+5)
+    Equal/9-12    1.67GB/s ± 3%  1.74GB/s ± 1%   +3.83%  (p=0.008 n=5+5)
+    Equal/15-12   2.82GB/s ± 1%  2.89GB/s ± 1%   +2.63%  (p=0.008 n=5+5)
+    Equal/16-12   2.96GB/s ± 1%  3.08GB/s ± 1%   +3.95%  (p=0.008 n=5+5)
+    Equal/20-12   3.33GB/s ± 1%  3.54GB/s ± 1%   +6.36%  (p=0.008 n=5+5)
+    Equal/32-12   4.57GB/s ± 0%  5.26GB/s ± 1%  +15.09%  (p=0.008 n=5+5)
+    Equal/4K-12   62.0GB/s ± 1%  65.9GB/s ± 2%   +6.29%  (p=0.008 n=5+5)
+    Equal/4M-12   23.6GB/s ± 2%  24.8GB/s ± 4%   +5.43%  (p=0.008 n=5+5)
+    Equal/64M-12  11.1GB/s ± 2%  11.3GB/s ± 1%   +1.69%  (p=0.008 n=5+5)
+    [Geo mean]    3.91GB/s       4.03GB/s        +3.11%
+    
+    name                              old speed      new speed      delta
+    IndexByte/10-12                   2.64GB/s ± 0%  2.69GB/s ± 0%   +1.67%  (p=0.008 n=5+5)
+    IndexByte/32-12                   6.79GB/s ± 0%  6.27GB/s ± 0%   -7.57%  (p=0.008 n=5+5)
+    IndexByte/4K-12                   56.2GB/s ± 0%  56.9GB/s ± 0%   +1.27%  (p=0.008 n=5+5)
+    IndexByte/4M-12                   40.1GB/s ± 1%  41.7GB/s ± 1%   +4.05%  (p=0.008 n=5+5)
+    IndexByte/64M-12                  17.5GB/s ± 0%  17.7GB/s ± 1%     ~     (p=0.095 n=5+5)
+    IndexBytePortable/10-12           2.06GB/s ± 1%  2.16GB/s ± 1%   +5.08%  (p=0.008 n=5+5)
+    IndexBytePortable/32-12           1.40GB/s ± 1%  1.54GB/s ± 1%  +10.05%  (p=0.008 n=5+5)
+    IndexBytePortable/4K-12           3.99GB/s ± 0%  4.08GB/s ± 0%   +2.16%  (p=0.008 n=5+5)
+    IndexBytePortable/4M-12           4.05GB/s ± 1%  4.08GB/s ± 2%     ~     (p=0.095 n=5+5)
+    IndexBytePortable/64M-12          3.80GB/s ± 1%  3.81GB/s ± 0%     ~     (p=0.421 n=5+5)
+    IndexRune/10-12                    746MB/s ± 1%   752MB/s ± 0%   +0.85%  (p=0.008 n=5+5)
+    IndexRune/32-12                   2.33GB/s ± 0%  2.42GB/s ± 0%   +3.66%  (p=0.008 n=5+5)
+    IndexRune/4K-12                   44.4GB/s ± 0%  44.2GB/s ± 0%     ~     (p=0.095 n=5+5)
+    IndexRune/4M-12                   36.2GB/s ± 1%  36.3GB/s ± 2%     ~     (p=0.841 n=5+5)
+    IndexRune/64M-12                  16.2GB/s ± 2%  16.3GB/s ± 2%     ~     (p=0.548 n=5+5)
+    IndexRuneASCII/10-12              2.57GB/s ± 0%  2.58GB/s ± 0%   +0.63%  (p=0.008 n=5+5)
+    IndexRuneASCII/32-12              6.00GB/s ± 0%  6.30GB/s ± 1%   +4.98%  (p=0.008 n=5+5)
+    IndexRuneASCII/4K-12              56.7GB/s ± 0%  56.8GB/s ± 1%     ~     (p=0.151 n=5+5)
+    IndexRuneASCII/4M-12              41.6GB/s ± 1%  41.7GB/s ± 2%     ~     (p=0.151 n=5+5)
+    IndexRuneASCII/64M-12             17.7GB/s ± 1%  17.6GB/s ± 1%     ~     (p=0.222 n=5+5)
+    Index/10-12                       1.06GB/s ± 1%  1.06GB/s ± 0%     ~     (p=0.310 n=5+5)
+    Index/32-12                       3.57GB/s ± 0%  3.56GB/s ± 1%     ~     (p=0.056 n=5+5)
+    Index/4K-12                       1.02GB/s ± 2%  1.03GB/s ± 0%     ~     (p=0.690 n=5+5)
+    Index/4M-12                       1.04GB/s ± 0%  1.03GB/s ± 1%     ~     (p=1.000 n=4+5)
+    Index/64M-12                      1.02GB/s ± 0%  1.02GB/s ± 0%     ~     (p=0.905 n=5+4)
+    IndexEasy/10-12                   1.12GB/s ± 2%  1.15GB/s ± 1%   +3.10%  (p=0.008 n=5+5)
+    IndexEasy/32-12                   3.14GB/s ± 2%  3.13GB/s ± 1%     ~     (p=0.310 n=5+5)
+    IndexEasy/4K-12                   47.6GB/s ± 1%  47.7GB/s ± 2%     ~     (p=0.310 n=5+5)
+    IndexEasy/4M-12                   36.4GB/s ± 1%  36.3GB/s ± 2%     ~     (p=0.690 n=5+5)
+    IndexEasy/64M-12                  16.1GB/s ± 1%  16.4GB/s ± 5%     ~     (p=0.151 n=5+5)
+    [Geo mean]                        6.39GB/s       6.46GB/s        +1.11%
+    
+    Change-Id: Ic1ca62f5cc719d87e2c4aeff25ad73507facff82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397576
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/bytealg/compare_amd64.s   |  7 +++++++
+ src/internal/bytealg/count_amd64.s     |  7 +++++++
+ src/internal/bytealg/equal_amd64.s     |  3 +++
+ src/internal/bytealg/index_amd64.s     |  2 ++
+ src/internal/bytealg/indexbyte_amd64.s |  2 ++
+ src/runtime/asm_amd64.h                | 11 +++++++++++
+ src/runtime/mkpreempt.go               |  5 +++++
+ src/runtime/preempt_amd64.s            |  3 +++
+ 8 files changed, 40 insertions(+)

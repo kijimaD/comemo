@@ -1,0 +1,27 @@
+commit d8723745bacd1960139ea866e61377a0a75aec2f
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Apr 30 10:52:13 2022 +0000
+
+    vendor, net/http: update golang.org/x/net to tip
+    
+    Needed for CL 400236.
+    
+    Change-Id: Ia0b4a5963724ed92be27f557ad141335b389e97f
+    GitHub-Last-Rev: b0e72cb26de251865ef865bf92a6b8ff9dbf7b04
+    GitHub-Pull-Request: golang/go#52621
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403136
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 45 ++++++++++++------
+ .../golang.org/x/net/dns/dnsmessage/message.go     |  1 +
+ .../golang.org/x/net/http/httpguts/httplex.go      | 54 ++++++++++++----------
+ .../golang.org/x/net/http/httpproxy/proxy.go       |  3 ++
+ src/vendor/golang.org/x/net/idna/trieval.go        | 34 +++++++-------
+ src/vendor/modules.txt                             |  2 +-
+ 8 files changed, 84 insertions(+), 61 deletions(-)

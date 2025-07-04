@@ -1,0 +1,10 @@
+commit 28429aaaa6f0177a49e8d8c149be5dc36ae226fa
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 5 16:55:06 2008 -0700
+
+    goos and goarch
+    
+    SVN=121346
+
+ src/runtime/rt0_amd64_darwin.s | 86 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 86 insertions(+)

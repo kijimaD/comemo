@@ -1,0 +1,12 @@
+commit 122ed3e9888e70218235a0f6c7a2b40f12d2bd0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 14:54:49 2009 -0800
+
+    print format bug
+    
+    R=ken
+    OCL=23965
+    CL=23965
+
+ src/cmd/6g/list.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

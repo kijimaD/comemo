@@ -1,0 +1,48 @@
+commit 0b7878a96ef3b4c8866401d5a94bc74caaeed370
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 16 18:14:18 2009 -0700
+
+    first step toward cgo tool.
+    can extract import "C" doc comment
+    and all references to C package.
+    
+    ; cgo gmp.go | sort
+    #include <gmp.h>
+    gmp.go:197:4: mpz_t as type
+    gmp.go:205:2: mpz_init as call
+    gmp.go:206:2: mpz_set as call
+    gmp.go:221:2: mpz_init as call
+    gmp.go:227:7: size_t as call
+    gmp.go:228:2: mpz_export as call
+    gmp.go:235:13: mpz_sizeinbase as call
+    gmp.go:241:2: mpz_set as call
+    gmp.go:252:3: mpz_import as call
+    gmp.go:261:2: mpz_set_si as call
+    gmp.go:273:5: mpz_set_str as call
+    gmp.go:282:9: mpz_get_str as call
+    gmp.go:287:3: mpz_clear as call
+    gmp.go:302:2: mpz_add as call
+    gmp.go:311:2: mpz_sub as call
+    gmp.go:320:2: mpz_mul as call
+    gmp.go:329:2: mpz_tdiv_q as call
+    gmp.go:339:2: mpz_tdiv_r as call
+    gmp.go:348:2: mpz_mul_2exp as call
+    gmp.go:356:2: mpz_div_2exp as call
+    gmp.go:367:3: mpz_pow as call
+    gmp.go:369:3: mpz_powm as call
+    gmp.go:378:2: mpz_neg as call
+    gmp.go:386:2: mpz_abs as call
+    gmp.go:404:9: mpz_cmp as call
+    gmp.go:413:2: mpz_tdiv_qr as call
+    gmp.go:426:2: mpz_gcdext as call
+    ;
+    
+    R=r
+    DELTA=746  (746 added, 0 deleted, 0 changed)
+    OCL=34710
+    CL=34714
+
+ src/cmd/cgo/Makefile |  11 ++
+ src/cmd/cgo/cgo.go   | 308 +++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gmp.go   | 427 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 746 insertions(+)

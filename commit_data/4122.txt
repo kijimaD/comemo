@@ -1,0 +1,13 @@
+commit 1ef0e0ed2c0402fb5b1f5122bfa4f9e77c0a91ce
+Author: Eden Li <eden.li@gmail.com>
+Date:   Tue Nov 17 23:42:15 2009 -0800
+
+            Updated AUTHORS/CONTRIBUTORS files according to
+            http://golang.org/doc/contribute.html#copyright
+    
+    R=rsc
+    https://golang.org/cl/156066
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

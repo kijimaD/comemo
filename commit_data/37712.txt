@@ -1,0 +1,29 @@
+commit 281ce28c5048416dce9379405cc061b2f3662c84
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 13 23:55:22 2018 -0500
+
+    cmd/link: fix in-package syso linking
+    
+    CL 146297 ignored archive members with short names that don't have
+    the .o suffix, however, it also ignored .syso files as well.
+    This change restores the original .syso behavior and adds a test.
+    
+    As the test is basically following a shell script, we make use of
+    the existing cmd/go/testdata/script framework. To support running
+    C compiler in the script, we added a `cc` command, which runs the
+    C compiler along with correct platform specific arguments.
+    
+    Fixes #29253.
+    
+    Change-Id: If8520151c4d6a74ab9fe84d34bff9a4480688815
+    Reviewed-on: https://go-review.googlesource.com/c/154109
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/script_test.go                          | 13 ++++++++++
+ src/cmd/go/testdata/script/README                  |  4 ++++
+ src/cmd/go/testdata/script/cgo_syso_issue29253.txt | 28 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    |  6 +++--
+ 4 files changed, 49 insertions(+), 2 deletions(-)

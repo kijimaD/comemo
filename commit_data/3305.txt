@@ -1,0 +1,20 @@
+commit cb49a999d14a536ad567f3b4395d27e41e9237a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 17 19:15:54 2009 -0700
+
+    move static init code from 6g into gc.
+    hook up to 8g and 5g too.
+    
+    R=ken
+    OCL=34768
+    CL=34768
+
+ src/cmd/5g/ggen.c  |  50 ----------------
+ src/cmd/5g/gobj.c  |  38 ++++++++++++
+ src/cmd/6g/ggen.c  | 168 -----------------------------------------------------
+ src/cmd/6g/gobj.c  |  29 +++++++++
+ src/cmd/8g/ggen.c  |  49 ----------------
+ src/cmd/8g/gobj.c  |  38 ++++++++++++
+ src/cmd/gc/go.h    |   3 +
+ src/cmd/gc/sinit.c | 153 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 261 insertions(+), 267 deletions(-)

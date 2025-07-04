@@ -1,0 +1,15 @@
+commit 976a84b1ff14ca3bcd6b31001c25d0c552dd50d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 2 17:03:55 2023 -0700
+
+    spec: remove unnecessary sentence
+    
+    Change-Id: I06345199ff16c80be83c345d734caef1714ec089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515338
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

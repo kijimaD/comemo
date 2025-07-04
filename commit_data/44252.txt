@@ -1,0 +1,17 @@
+commit 70c37ee7d0eb68777bd81a1acc06d85ee3da4052
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 16 17:55:27 2021 -0500
+
+    cmd/compile/internal/test: gofmt abiutils_test.go
+    
+    Turns out that file is not formatted properly in the dev.regabi
+    branch.
+    
+    Change-Id: I93125e65d5d3e8448c6ec1f077332c9bf7f0dd26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292594
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/compile/internal/test/abiutils_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 9b7a8aaaf3adbc330ef724fb581b3bfa72ab2a49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 8 16:42:33 2018 -0700
+
+    runtime: only run TestMemStats sanity tests once
+    
+    Fixes #22696
+    
+    Change-Id: Ibe4628f71d64a2b36b655ea69710a925924b12a3
+    Reviewed-on: https://go-review.googlesource.com/122586
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

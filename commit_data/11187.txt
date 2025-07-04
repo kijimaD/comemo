@@ -1,0 +1,13 @@
+commit f53cc8e6ffd20e8bc433a3b449f667d4d44585a9
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Jan 16 10:09:36 2012 -0500
+
+    exp/ssh: rename (some) fields
+    
+    R=dave, agl, agl
+    CC=golang-dev
+    https://golang.org/cl/5494057
+
+ src/pkg/exp/ssh/client.go  | 5 ++---
+ src/pkg/exp/ssh/session.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 7 deletions(-)

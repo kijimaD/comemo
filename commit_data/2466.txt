@@ -1,0 +1,14 @@
+commit fe537dc8d5bbf8d553469d3cf310d13f2c311b51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 17 11:44:51 2009 -0700
+
+    `` strings should not accept newlines as characters
+    
+    R=r
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=30417
+    CL=30422
+
+ test/bugs/bug164.go | 18 ++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 21 insertions(+)

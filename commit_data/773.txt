@@ -1,0 +1,14 @@
+commit c59b2a3db18a19ea8c980da2ef88bb8a0e1174e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 30 10:57:59 2008 -0700
+
+    - type of array literals is always fixed array
+    - changed terminology from "embedded type" to "anonymous field"
+    
+    R=r
+    DELTA=38  (7 added, 2 deleted, 29 changed)
+    OCL=16193
+    CL=16196
+
+ doc/go_spec.txt | 61 +++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 33 insertions(+), 28 deletions(-)

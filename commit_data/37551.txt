@@ -1,0 +1,47 @@
+commit e985ba80233ea5d222548f0a85370e98aaf8fa5d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Nov 30 12:25:18 2018 +0100
+
+    syscall: avoid "64"-postfixed libSystem syscalls on iOS
+    
+    The stat(2) man page contain this comment about the 64-bit versions
+    of the system file functions:
+    
+    "Platforms that were released after these updates only have the
+    newer variants available to them.  These platforms have the macro
+    _DARWIN_FEATURE_ONLY_64_BIT_INODE defined."
+    
+    It turns out that on iOS the _DARWIN_FEATURE_ONLY_64_BIT_INODE is
+    defined and that even though the "64"-postfixed versions are
+    accessible they are deemed private. Apps that refer to private
+    API are not admissible on App Store, and after the Go runtime
+    started using libSystem instead of direct syscalls, the App Store
+    submission checks reject apps built with Go tip.
+    
+    The fix is simple: use the non-postfixed versions on iOS.
+    
+    getdirentries(2) is not changed; it is not available at all on iOS
+    and needs replacement.
+    
+    Updates #28984
+    
+    Change-Id: Icb8d44e271456acaa1913ba486fcf5b569722fa9
+    Reviewed-on: https://go-review.googlesource.com/c/151938
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/syscall/syscall_darwin.go        |   6 --
+ src/syscall/syscall_darwin_386.go    |   6 ++
+ src/syscall/syscall_darwin_amd64.go  |   6 ++
+ src/syscall/syscall_darwin_arm.go    |   6 ++
+ src/syscall/syscall_darwin_arm64.go  |   6 ++
+ src/syscall/zsyscall_darwin_386.go   | 188 +++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_386.s    |  24 ++---
+ src/syscall/zsyscall_darwin_amd64.go | 188 +++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_amd64.s  |  24 ++---
+ src/syscall/zsyscall_darwin_arm.go   | 188 +++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_arm.s    |  24 ++---
+ src/syscall/zsyscall_darwin_arm64.go | 188 +++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_arm64.s  |  24 ++---
+ 13 files changed, 448 insertions(+), 430 deletions(-)

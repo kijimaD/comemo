@@ -1,0 +1,12 @@
+commit 7478bb981a7f7fb1d9796a23a560c00013b9a7c1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 9 12:48:42 2012 +1100
+
+    doc: float -> float64 in Effective Go template
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5530047
+
+ doc/effective_go.tmpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

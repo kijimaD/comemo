@@ -1,0 +1,13 @@
+commit 5766553380e958f867a2ea4d75ecfa4514714b6e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 15:20:40 2009 -0700
+
+    fix io.Bytebuffer.Read for new EOF semantics
+    
+    R=rsc
+    DELTA=7  (5 added, 0 deleted, 2 changed)
+    OCL=30657
+    CL=30659
+
+ src/pkg/io/bytebuffer.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

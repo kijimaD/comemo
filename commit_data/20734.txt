@@ -1,0 +1,15 @@
+commit 58e357ef160da1d89c68130c83e7a383d8480b16
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 11:03:55 2014 -0400
+
+    runtime: remove comment that leaked into CL 153710043
+    
+    This doesn't actually do anything. Maybe it will some day,
+    but maybe not.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/155490043
+
+ src/runtime/malloc.go | 2 --
+ 1 file changed, 2 deletions(-)

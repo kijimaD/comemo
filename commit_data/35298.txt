@@ -1,0 +1,26 @@
+commit 3fbfc83db298c55669b6165eca1b8a56b04c895c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 4 14:39:00 2018 +0700
+
+    cmd/vet: recognise func type conversions
+    
+    In hasSideEffects, vet has to be taught whether or not a CallExpr is an
+    actual function call, or just a type conversion.
+    
+    The previous code knew how to differentiate fn(arg) from int(arg), but
+    it incorrectly saw (func(T))(fn) as a func call. This edge case is
+    slightly tricky, since the CallExpr.Fun has a func signature type, just
+    like in func calls.
+    
+    However, the difference is that in this case the Fun is a type, not a
+    value. This information is in types.TypeAndValue, so use it.
+    
+    Change-Id: I18bb8b23abbe7decc558b726ff2dc31fae2f13d6
+    Reviewed-on: https://go-review.googlesource.com/111416
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/bool.go          | 15 ++++++++-------
+ src/cmd/vet/testdata/bool.go |  3 +--
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit d5ba1d8d6fe1d36294fa639f2d4936b331a543ea
+Author: ezz-no <115773618+ezz-no@users.noreply.github.com>
+Date:   Mon Oct 17 11:28:52 2022 +0000
+
+    cmd/compile: fix a typo in comment
+    
+    Change-Id: I9b18b29e14a47765dc09ac401989e0439fbf7d03
+    GitHub-Last-Rev: 7d9792ccb97f8e20bc5300cb4fa29a0c49d9934b
+    GitHub-Pull-Request: golang/go#56267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443296
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

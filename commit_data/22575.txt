@@ -1,0 +1,14 @@
+commit 9c1868d06dc76cc8c0832fbf2cf6391955e68eac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 17 11:38:58 2015 -0700
+
+    runtime: add -buildmode=c-archive/c-shared support for linux/386
+    
+    Change-Id: I87147ca6bb53e3121cc4245449c519509f107638
+    Reviewed-on: https://go-review.googlesource.com/9009
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go        |  2 +-
+ src/runtime/rt0_linux_386.s | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

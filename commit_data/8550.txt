@@ -1,0 +1,19 @@
+commit 219805066e284eee0c15500f01180f874e240219
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 31 08:47:03 2011 -0700
+
+    http: have client set Content-Length when possible
+    
+    Also some cleanup, removing redundant code. Make more
+    things use NewRequest. Add some tests, docs.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4561047
+
+ src/pkg/http/client.go            | 39 +++------------------------
+ src/pkg/http/client_test.go       | 55 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/request.go           | 17 +++++++++++-
+ src/pkg/http/requestwrite_test.go | 29 +++++++++++++++++++++
+ src/pkg/strings/reader.go         |  6 +++++
+ 5 files changed, 110 insertions(+), 36 deletions(-)

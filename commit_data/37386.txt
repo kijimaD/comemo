@@ -1,0 +1,26 @@
+commit 62b850f1c50aa2532512085feb86cbe5d9c99581
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Aug 25 11:33:12 2018 +0100
+
+    cmd/vet: rewrite method check to use go/types
+    
+    Now that vet can rely on go/types, there's no reason to do extra work to
+    avoid using it. The rewrite lets us get rid of the field list flattening
+    code, as well as the slight verbosity that comes with go/printer.
+    
+    While at it, make the testdata/method.go expected errors be more
+    specific, to make sure that we're not breaking the warnings that are
+    printed.
+    
+    Finally, update whitelist/all.txt, since the reported errors now include
+    qualified types.
+    
+    Change-Id: I760a1b3b1f60e4a478c9dc43bd7f584a8459593e
+    Reviewed-on: https://go-review.googlesource.com/c/148919
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/all/whitelist/all.txt | 10 +++----
+ src/cmd/vet/method.go             | 57 ++++++++++-----------------------------
+ src/cmd/vet/testdata/method.go    |  4 +--
+ 3 files changed, 21 insertions(+), 50 deletions(-)

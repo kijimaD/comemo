@@ -1,0 +1,18 @@
+commit 33ce9c19d7e2e7b7e38231e96b3378870c3f2069
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 11:11:51 2015 -0400
+
+    text/template: make zero Template work again
+    
+    Fixes #11379.
+    
+    Change-Id: Idbb5c3faad472b77e9867dd2d4551fef5e4ac5f1
+    Reviewed-on: https://go-review.googlesource.com/11421
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      |  8 +++++++-
+ src/text/template/exec_test.go |  8 +++++++-
+ src/text/template/helper.go    |  2 ++
+ src/text/template/option.go    |  1 +
+ src/text/template/template.go  | 14 ++++++++++++++
+ 5 files changed, 31 insertions(+), 2 deletions(-)

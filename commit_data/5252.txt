@@ -1,0 +1,12 @@
+commit a17544f2832fe00e8d32d45215b37bc8ee6c10a5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 8 21:16:05 2010 -0700
+
+    fix bug in os_test.go checkMode
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/872043
+
+ src/pkg/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

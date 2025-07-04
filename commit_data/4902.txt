@@ -1,0 +1,26 @@
+commit 1480ce373e38b1dc6b4c54c083c609ec519acc54
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Feb 19 08:38:40 2010 -0800
+
+    http: unified body transfer (read & write) logic in http.Request/Response.
+    
+    Compliance issue addressed here: POST requests carrying form data are required
+    to use "identity" transfer encoding by common nginx and apache server configurations,
+    e.g. wordpress.com (and many others). So, Request needed to be able to send
+    non-chunked encodings.
+    
+    Thus, Request is extended to support identity and chunked encodings, like
+    Response.  Since the Read() and Write() logic are shared by both (and are
+    quite long), it is exported in a separate file transfer.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217048
+
+ src/pkg/http/Makefile             |   1 +
+ src/pkg/http/readrequest_test.go  |   1 +
+ src/pkg/http/request.go           |  94 ++++-----
+ src/pkg/http/requestwrite_test.go |   6 +-
+ src/pkg/http/response.go          | 309 ++--------------------------
+ src/pkg/http/transfer.go          | 419 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 482 insertions(+), 348 deletions(-)

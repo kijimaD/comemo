@@ -1,0 +1,16 @@
+commit 0434ca9ce87eb06c6b8ba42fa09eaee0dda8d381
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 16 01:01:58 2023 -0500
+
+    reflect: uncomment allocation test
+    
+    We no longer force Value content to escape and the compiler's
+    escape analysis can handle it now.
+    
+    Change-Id: I0628f3241e6ef37dce710c2394725e280790479a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/reflect/all_test.go | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)

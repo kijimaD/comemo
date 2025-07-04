@@ -1,0 +1,24 @@
+commit 7f26e9e5fb6502e72546908eb4035d00f4e99f02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:39:21 2023 +0000
+
+    Revert "internal/poll: remove fallback path in accept"
+    
+    This reverts CL 422375.
+    
+    Reason for revert: We still need the fallback path on Solaris.
+    
+    For #45964
+    For #59359
+    
+    Change-Id: Ie598b9ef180708fb157080015aee44f67f6737c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/sock_cloexec.go | 30 +++++++++++++++++++++++++++++-
+ 1 file changed, 29 insertions(+), 1 deletion(-)

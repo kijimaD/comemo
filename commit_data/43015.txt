@@ -1,0 +1,26 @@
+commit 07d5eb075b6f270ae4443e9689821d2e403b72b5
+Author: Sam Xie <xsambundy@gmail.com>
+Date:   Thu Sep 17 02:59:28 2020 +0000
+
+    cmd/go: allow output in non-existent directory
+    
+    When 'go build' is given an output path with -o, if the output path
+    ends with a path separator, always treat it as a directory.
+    
+    Fixes #41313
+    
+    Change-Id: I9a9c25448abfcd6297ad973f5ed2025b2568a4a7
+    GitHub-Last-Rev: 20a19bd63a2779a2c94b0efdf86146ffd551293c
+    GitHub-Pull-Request: golang/go#41314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253821
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                       |  5 +++--
+ src/cmd/go/internal/work/build.go           | 12 ++++++++----
+ src/cmd/go/testdata/script/build_output.txt | 26 ++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 6 deletions(-)

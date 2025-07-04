@@ -1,0 +1,12 @@
+commit d21b1922c61b875bb9c1ee8be39f05ffe65c8571
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 26 22:51:47 2013 -0500
+
+    libmach: fix build (set and not used)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7401053
+
+ src/libmach/sym.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

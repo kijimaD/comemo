@@ -1,0 +1,15 @@
+commit 490bc6097abda7dc769635f1a7ef8557b8f6ba93
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 24 17:10:50 2020 -0500
+
+    cmd/link: stop requiring the math package on ARM
+    
+    It was needed for the old softfloat implementation, which has
+    long gone.
+    
+    Change-Id: Ib8d53689209a3b003d62f84c7c6047d8ec5df859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220719
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 38f8e4407c3626a9509760089b82eecb4d0f2d48
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 28 13:49:35 2015 -0700
+
+    archive/tar: move parse/format methods to standalone receiver
+    
+    Motivations for this change:
+    * It allows these functions to be used outside of Reader/Writer.
+    * It allows these functions to be more easily unit tested.
+    
+    Change-Id: Iebe2b70bdb8744371c9ffa87c24316cbbf025b59
+    Reviewed-on: https://go-review.googlesource.com/15113
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader.go      | 156 +++++++++++++++++++++++++----------------
+ src/archive/tar/reader_test.go |  57 +++++++++++++--
+ src/archive/tar/writer.go      | 133 +++++++++++++++++++----------------
+ src/archive/tar/writer_test.go |  48 ++++++++-----
+ 4 files changed, 252 insertions(+), 142 deletions(-)

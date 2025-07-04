@@ -1,0 +1,16 @@
+commit a8a7f18aeaf66e74f4f89b95d6cd43bab6cbf59d
+Author: Chris Manghane <cmang@golang.org>
+Date:   Thu Feb 20 11:32:55 2014 -0800
+
+    cmd/gc: make embedded, unexported fields read-only.
+    
+    Fixes #7363.
+    
+    LGTM=gri
+    R=gri, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/66510044
+
+ src/cmd/gc/reflect.c        |  3 ++-
+ test/fixedbugs/issue7363.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

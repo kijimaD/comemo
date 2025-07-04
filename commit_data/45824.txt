@@ -1,0 +1,26 @@
+commit a6a853f94cf00d8f581d0e6fbcc28898e39557b2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 15 12:47:57 2021 -0400
+
+    cmd/asm: restore supporting of *1 scaling on ARM64
+    
+    On ARM64, instruction like "MOVD (R1)(R2*1), R3" is accepted and
+    assembles correctly with Go 1.16, but errors out on tip with
+    "arm64 doesn't support scaled register format", since CL 289589.
+    
+    "MOVD (R1)(R2), R3" is the preferred form. But the *1 form works
+    before and assembles correctly. Keep supporting it.
+    
+    Fixes #46766.
+    
+    Change-Id: I0f7fd71fa87ea698919a936b6c68aa5a91afd486
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328229
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+
+ src/cmd/asm/internal/asm/parse.go         | 3 ++-
+ src/cmd/asm/internal/asm/testdata/arm64.s | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 580ea8b5fdea04f0bcfc809a6545a7ebced8c358
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Oct 22 12:35:04 2013 -0400
+
+    misc/emacs: handle empty "import ()" in go-goto-imports
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/14454058
+
+ misc/emacs/go-mode.el | 5 +++++
+ 1 file changed, 5 insertions(+)

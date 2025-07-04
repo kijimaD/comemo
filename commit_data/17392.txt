@@ -1,0 +1,18 @@
+commit 1f661fc205440ccfb46b76a964f50a1259c928d8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 27 13:29:07 2013 +1000
+
+    text/template: make the escapers for HTML etc. handle pointers correctly
+    Apply the same rules for argument evaluation and indirection that are
+    used by the regular evaluator.
+    
+    Fixes #5802
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13257043
+
+ src/pkg/text/template/exec.go      | 17 ++++++++++++----
+ src/pkg/text/template/exec_test.go | 12 ++++++++---
+ src/pkg/text/template/funcs.go     | 41 +++++++++++++++++++-------------------
+ 3 files changed, 43 insertions(+), 27 deletions(-)

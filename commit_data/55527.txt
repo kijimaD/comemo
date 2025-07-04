@@ -1,0 +1,14 @@
+commit c18ddc84e1ec6406b26f7e9d0e1ee3d1908d7c27
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 6 15:37:51 2024 -0500
+
+    cmd/compile: add missing colon in debug log
+    
+    Change-Id: Id76f4688a2ac45c1616d5c03274eec5d2108e555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562156
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

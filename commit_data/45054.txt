@@ -1,0 +1,22 @@
+commit 11f159456b1dba3ec499da916852dd188d1e04a7
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Apr 7 16:48:41 2021 +0200
+
+    path/filepath: replace os.MkdirTemp with T.TempDir
+    
+    Add the tempDirCanonical function, for tests that need a temporary
+    directory that does not contain symlinks.
+    
+    Updates #45402
+    
+    Change-Id: I3d08ef32ef911331544acce3d7d013b4c3382960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308011
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/path/filepath/match_test.go        | 29 +++----------
+ src/path/filepath/path_test.go         | 13 ++++++
+ src/path/filepath/path_windows_test.go | 74 +++++-----------------------------
+ 3 files changed, 28 insertions(+), 88 deletions(-)

@@ -1,0 +1,37 @@
+commit 4dee747fb949b44262af5b7b3161e64fa720578a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 09:41:38 2009 -0800
+
+    8a, 8c, and 8l from inferno distribution
+    
+    R=r
+    DELTA=19539  (19539 added, 0 deleted, 0 changed)
+    OCL=22109
+    CL=22109
+
+ src/cmd/8a/a.h       |  224 +++++
+ src/cmd/8a/a.y       |  550 ++++++++++
+ src/cmd/8a/l.s       |  734 ++++++++++++++
+ src/cmd/8a/lex.c     |  925 +++++++++++++++++
+ src/cmd/8c/8.out.h   |  475 +++++++++
+ src/cmd/8c/cgen.c    | 1851 ++++++++++++++++++++++++++++++++++
+ src/cmd/8c/cgen64.c  | 2741 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8c/div.c     |  236 +++++
+ src/cmd/8c/gc.h      |  404 ++++++++
+ src/cmd/8c/list.c    |  312 ++++++
+ src/cmd/8c/machcap.c |  116 +++
+ src/cmd/8c/mkenam    |   45 +
+ src/cmd/8c/mul.c     |  458 +++++++++
+ src/cmd/8c/peep.c    |  787 +++++++++++++++
+ src/cmd/8c/reg.c     | 1285 +++++++++++++++++++++++
+ src/cmd/8c/sgen.c    |  872 ++++++++++++++++
+ src/cmd/8c/swt.c     |  677 +++++++++++++
+ src/cmd/8c/txt.c     | 1440 ++++++++++++++++++++++++++
+ src/cmd/8l/asm.c     |  532 ++++++++++
+ src/cmd/8l/l.h       |  379 +++++++
+ src/cmd/8l/list.c    |  322 ++++++
+ src/cmd/8l/obj.c     | 1522 ++++++++++++++++++++++++++++
+ src/cmd/8l/optab.c   |  684 +++++++++++++
+ src/cmd/8l/pass.c    |  793 +++++++++++++++
+ src/cmd/8l/span.c    | 1417 ++++++++++++++++++++++++++
+ 25 files changed, 19781 insertions(+)

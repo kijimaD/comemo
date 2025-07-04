@@ -1,0 +1,31 @@
+commit 6d64dd731b55de5c018552d8e62cc75da5d05331
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 12 13:06:52 2019 -0700
+
+    cmd/link: make Pciter more idiomatic
+    
+    Rename it to PCIter and convert it to use methods.
+    
+    Set pcscale once, during construction, to make call sites clearer.
+    
+    Change some ints to bools.
+    
+    Use a simple iteration termination condition,
+    instead of the cap comparison from the c2go translation.
+    
+    Instead of requiring a Pcdata, which requires one caller
+    to synthesize a fake Pcdata, just ask for a byte slice.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I811da0e929cf4a806bd6d70357ccf2911cd0c737
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171770
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 30 ++++++++++-----------
+ src/cmd/link/internal/ld/lib.go   |  4 +--
+ src/cmd/link/internal/ld/link.go  | 11 --------
+ src/cmd/link/internal/ld/pcln.go  | 55 +++++++++++++++++++++++++--------------
+ 4 files changed, 53 insertions(+), 47 deletions(-)

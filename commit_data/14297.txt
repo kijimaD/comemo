@@ -1,0 +1,12 @@
+commit 048323aa1289a4e59f11ada50d95da61aa978b91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 16:27:43 2012 -0700
+
+    go/ast: document use of Data field for method objects
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6775093
+
+ src/pkg/go/ast/scope.go | 1 +
+ 1 file changed, 1 insertion(+)

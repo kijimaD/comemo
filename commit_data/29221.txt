@@ -1,0 +1,15 @@
+commit a1b6e1692b063488cfcc51c258b159ccce4f7d23
+Author: Peter Weinberger <pjw@google.com>
+Date:   Fri Oct 28 15:12:18 2016 -0400
+
+    runtime: ensure elapsed cycles are not negative
+    
+    On solaris/amd64 sometimes the reported cycle count is negative. Replace
+    with 0.
+    
+    Change-Id: I364eea5ca072281245c7ab3afb0bf69adc3a8eae
+    Reviewed-on: https://go-review.googlesource.com/32258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

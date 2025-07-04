@@ -1,0 +1,15 @@
+commit 2b5aa28383b78c33e5d6a3e2a8994a6c7a9dee0f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 13:59:31 2011 -0700
+
+    http: add package comment
+    
+    Fixes #2378
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5312052
+
+ src/pkg/http/doc.go     | 79 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/request.go |  2 --
+ 2 files changed, 79 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 515040548c1ca97fb4c2208d3c602aa65d1ed941
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 10 22:13:23 2022 +0700
+
+    cmd/compile/internal/amd64: more robust detection of GOAMD64=v1
+    
+    Using build tool tags instead of relying on GOAMD64 env, which can be
+    overriden at make.bash time.
+    
+    Change-Id: I96bb4b7416ea0bd1ab552feec9ede45b89a584c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422614
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 4783ad82dac77de7bcb49d6addefdf758412bfe5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 30 12:46:50 2012 -0700
+
+    regexp: fix glitch in doc for FindReaderIndex
+    Fixes #3878.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6457054
+
+ src/pkg/regexp/regexp.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

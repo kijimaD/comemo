@@ -1,0 +1,24 @@
+commit 05cc9e55876874462a4726ca0101c970838c80e5
+Author: miller <millerresearch@gmail.com>
+Date:   Mon May 8 16:56:21 2023 +0100
+
+    cmd/go: quote entries in list-valued variables for go env in plan9
+    
+    When 'go env' without an argument prints environment variables as
+    a script which can be executed by the shell, variables with a
+    list value in Plan 9 (such as GOPATH) need to be printed with each
+    element enclosed in single quotes in case it contains characters
+    significant to the Plan 9 shell (such as ' ' or '=').
+    
+    For #58508
+    
+    Change-Id: Ia30f51307cc6d07a7e3ada6bf9d60bf9951982ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493535
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

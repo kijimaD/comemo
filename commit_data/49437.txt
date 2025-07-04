@@ -1,0 +1,22 @@
+commit 899f0a29c7be2bba3f8f0bc2987f7c2d70a6c4ec
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 7 13:53:40 2022 -0400
+
+    cmd/go: enable module index by default
+    
+    This changes the module index to be enabled by default, rather than
+    disabled by default. The index can still be disabled by setting
+    GODEBUG=index=0.
+    
+    Fixes #53290.
+    
+    Change-Id: Ic3728fc69d96bb6ef56b56e8c9f2dce35f2923cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410821
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/modindex/read.go | 13 ++++++++++---
+ src/cmd/go/script_test.go            |  1 -
+ 2 files changed, 10 insertions(+), 4 deletions(-)

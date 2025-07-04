@@ -1,0 +1,16 @@
+commit 932733d4212a7aa651f5060dff489f0819d928bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 10:31:42 2020 -0500
+
+    doc/go1.16: document embed, io/fs, runtime/metrics
+    
+    Fixes #42915.
+    
+    Change-Id: Ia6e205aaac3cbf4ba7340deafad444ac3e573559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275114
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 68 insertions(+), 4 deletions(-)

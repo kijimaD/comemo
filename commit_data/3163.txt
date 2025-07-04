@@ -1,0 +1,13 @@
+commit fe8ff955e9844128c53ec3620355dcbb1f478000
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 18:10:11 2009 -0700
+
+    add newprocreadylocked for debugger
+    
+    R=austin
+    DELTA=10  (9 added, 0 deleted, 1 changed)
+    OCL=34163
+    CL=34166
+
+ src/pkg/runtime/proc.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

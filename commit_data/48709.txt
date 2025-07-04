@@ -1,0 +1,20 @@
+commit 063f4032f5ea8820d265ee1196ef9b8eba02c63f
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Mar 29 12:51:31 2022 -0700
+
+    sort: add Find function
+    
+    For golang/go#50340
+    
+    Change-Id: I3b4d278affc8e7ec706db8c9777f7a8c8ce7441d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/50340.txt      |   1 +
+ src/sort/search.go      |  41 +++++++++++++++++++
+ src/sort/search_test.go | 106 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 148 insertions(+)

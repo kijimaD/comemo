@@ -1,0 +1,12 @@
+commit 5dc1e0f245193eed6e2967ac4eaeb794172ad69b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 14:42:37 2013 -0700
+
+    api/next.txt: remove references to go/types, now in separate repo
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7663045
+
+ api/next.txt | 188 -----------------------------------------------------------
+ 1 file changed, 188 deletions(-)

@@ -1,0 +1,12 @@
+commit 5f1a3be9dd1f6c0bda0993351effffaec0ce49ad
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 10 14:17:24 2008 -0800
+
+    bug120
+    
+    R=r
+    OCL=20921
+    CL=20921
+
+ src/cmd/gc/mparith3.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

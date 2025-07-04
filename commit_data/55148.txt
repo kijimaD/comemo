@@ -1,0 +1,30 @@
+commit 3e67f46d4f7d661504d281bdedbd1432c09bd751
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 22 14:31:37 2023 -0500
+
+    .github: try "import/path: issue title" instead of "affected/package: "
+    
+    The multiple issue templates pre-populate the issue title with a prefix
+    that Go issues customarily have. The "affected/package" phrase is short
+    for "the import path of the affected package". Let's try simplifying it
+    to just "import/path", and also include "issue title" to make the title
+    a more representative template of what the final title should look like.
+    
+    Updates #29839.
+    
+    Change-Id: I9736d24cf3d0a51536ac13dd07dd189fb51da021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544556
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+
+ .github/ISSUE_TEMPLATE/00-bug.yml             | 2 +-
+ .github/ISSUE_TEMPLATE/01-pkgsite.yml         | 2 +-
+ .github/ISSUE_TEMPLATE/03-gopls.yml           | 2 +-
+ .github/ISSUE_TEMPLATE/04-vuln.yml            | 2 +-
+ .github/ISSUE_TEMPLATE/10-proposal.yml        | 2 +-
+ .github/ISSUE_TEMPLATE/11-language-change.yml | 2 +-
+ .github/ISSUE_TEMPLATE/12-telemetry.yml       | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

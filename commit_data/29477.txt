@@ -1,0 +1,16 @@
+commit 7bdb77af5fea5b94cf3d5d7840ca9162e76b3e9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 15:19:11 2016 -0800
+
+    cmd/cgo: don't depend on runtime/cgo if !CgoEnabled
+    
+    Fixes the build when CGO_ENABLED=0.
+    
+    Change-Id: I7f3c67d61e156e69536558fda0a0a4b429b82bbd
+    Reviewed-on: https://go-review.googlesource.com/33104
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/pkg.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

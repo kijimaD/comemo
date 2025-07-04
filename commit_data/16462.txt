@@ -1,0 +1,43 @@
+commit 5a810f7c0a53c11a135fb527f18c31372c552011
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 15:40:32 2013 +0200
+
+    cmd/fix: remove obsolete testdata.
+    
+    The corresponding rules have been removed for Go 1.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9940044
+
+ src/cmd/fix/testdata/reflect.asn1.go.in      |  814 -------------------
+ src/cmd/fix/testdata/reflect.asn1.go.out     |  814 -------------------
+ src/cmd/fix/testdata/reflect.datafmt.go.in   |  710 -----------------
+ src/cmd/fix/testdata/reflect.datafmt.go.out  |  710 -----------------
+ src/cmd/fix/testdata/reflect.decode.go.in    |  905 ---------------------
+ src/cmd/fix/testdata/reflect.decode.go.out   |  908 ---------------------
+ src/cmd/fix/testdata/reflect.decoder.go.in   |  196 -----
+ src/cmd/fix/testdata/reflect.decoder.go.out  |  196 -----
+ src/cmd/fix/testdata/reflect.dnsmsg.go.in    |  777 ------------------
+ src/cmd/fix/testdata/reflect.dnsmsg.go.out   |  777 ------------------
+ src/cmd/fix/testdata/reflect.encode.go.in    |  367 ---------
+ src/cmd/fix/testdata/reflect.encode.go.out   |  367 ---------
+ src/cmd/fix/testdata/reflect.encoder.go.in   |  240 ------
+ src/cmd/fix/testdata/reflect.encoder.go.out  |  240 ------
+ src/cmd/fix/testdata/reflect.export.go.in    |  400 ----------
+ src/cmd/fix/testdata/reflect.export.go.out   |  400 ----------
+ src/cmd/fix/testdata/reflect.print.go.in     |  944 ----------------------
+ src/cmd/fix/testdata/reflect.print.go.out    |  944 ----------------------
+ src/cmd/fix/testdata/reflect.quick.go.in     |  364 ---------
+ src/cmd/fix/testdata/reflect.quick.go.out    |  365 ---------
+ src/cmd/fix/testdata/reflect.read.go.in      |  620 ---------------
+ src/cmd/fix/testdata/reflect.read.go.out     |  620 ---------------
+ src/cmd/fix/testdata/reflect.scan.go.in      | 1082 --------------------------
+ src/cmd/fix/testdata/reflect.scan.go.out     | 1082 --------------------------
+ src/cmd/fix/testdata/reflect.script.go.in    |  359 ---------
+ src/cmd/fix/testdata/reflect.script.go.out   |  359 ---------
+ src/cmd/fix/testdata/reflect.template.go.in  | 1043 -------------------------
+ src/cmd/fix/testdata/reflect.template.go.out | 1044 -------------------------
+ src/cmd/fix/testdata/reflect.type.go.in      |  790 -------------------
+ src/cmd/fix/testdata/reflect.type.go.out     |  790 -------------------
+ 30 files changed, 19227 deletions(-)

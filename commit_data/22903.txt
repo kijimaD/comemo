@@ -1,0 +1,29 @@
+commit 9de28cf5472724b113ed02f03fa7222be4ca0b46
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 4 10:11:27 2015 -0700
+
+    cmd/doc: if no top-level symbols match, look for methods
+    
+    Improving the usability further.
+    
+    Before:
+    
+    $ go doc bytes.Read
+    doc: symbol Read not present in package bytes installed in "bytes"
+    $
+    
+    After:
+    $ go doc bytes.Read
+    func (b *Buffer) Read(p []byte) (n int, err error)
+        Read reads the next len(p) bytes from the buffer or until the buffer is drained.
+        The return value n is the number of bytes read. If the buffer has no data to
+        return, err is io.EOF (unless len(p) is zero); otherwise it is nil.
+    func (r *Reader) Read(b []byte) (n int, err error)
+    $
+    
+    Change-Id: I646511fada138bd09e9b39820da01a5ccef4a90f
+    Reviewed-on: https://go-review.googlesource.com/9656
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/pkg.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

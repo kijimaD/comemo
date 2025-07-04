@@ -1,0 +1,16 @@
+commit 187c3536a894b7d50db2133f3c8da1a6f6f1af9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 11 17:52:37 2011 -0700
+
+    exp/datafmt: delete per Go 1 plan
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5249055
+
+ src/pkg/Makefile                    |   1 -
+ src/pkg/exp/datafmt/Makefile        |  12 -
+ src/pkg/exp/datafmt/datafmt.go      | 710 ------------------------------------
+ src/pkg/exp/datafmt/datafmt_test.go | 330 -----------------
+ src/pkg/exp/datafmt/parser.go       | 368 -------------------
+ 5 files changed, 1421 deletions(-)

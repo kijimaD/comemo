@@ -1,0 +1,14 @@
+commit b4c9829c2299772eb0aaffcd437085f9f43e7166
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:08:21 2016 -0400
+
+    runtime: check plugin-loaded moduledata addresses
+    
+    Inspired by difficulties with plugin support on darwin.
+    
+    Change-Id: I2cef8410837946454e75d00e94e46791f03f2267
+    Reviewed-on: https://go-review.googlesource.com/29391
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/plugin.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

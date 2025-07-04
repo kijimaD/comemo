@@ -1,0 +1,16 @@
+commit b84e0bc61a1742309f57deace17e5b8748c33fd7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 23 14:01:16 2019 +0000
+
+    SECURITY.md: add security file
+    
+    This is now recognized and recommended by GitHub.
+    
+    Fixes #32201
+    
+    Change-Id: Iafb5ef1b2bee5f021a711b0b758aaf6a74758c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178697
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ SECURITY.md | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

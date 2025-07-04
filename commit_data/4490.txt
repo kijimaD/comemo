@@ -1,0 +1,28 @@
+commit c1045db1d891ffe9492d57672d64076b869d6027
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 13:48:44 2009 -0800
+
+    go_spec: use PrimaryExpr as type switch expression
+    
+    Without this change, the spec parses <-c.(type) as (<-c).(type)
+    but parses <-c.(int) as <-(c.(int)).
+    
+    With this change, the former parses as <-(c.(type)).
+    
+    All three parsers already implement this rule, because
+    they look for the "type" word during parsing of a standard
+    type assertion.  This change merely brings the
+    spec in line with the implementations.
+    
+    http://code.google.com/p/go/source/browse/src/cmd/gc/go.y#801
+    http://code.google.com/p/go/source/browse/src/pkg/go/parser/parser.go#900
+    http://gcc.gnu.org/viewcvs/branches/gccgo/gcc/go/parse.cc?revision=155389&view=markup#l2469
+    
+    Pointed out by Brett Kail on golang-nuts.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/182044
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

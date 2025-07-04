@@ -1,0 +1,30 @@
+commit 6b420169d798c7ebe733487b56ea5c3fa4aab5ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 18 16:46:24 2020 -0700
+
+    os, internal/poll: loop on EINTR for all file syscalls
+    
+    When using a FUSE file system, any system call that touches the file
+    system can return EINTR.
+    
+    Fixes #40846
+    
+    Change-Id: I25d32da22cec08dea81ab297291a85ad72db2df7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249178
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/internal/poll/fd_fsync_posix.go    |  4 +++-
+ src/internal/poll/fd_opendir_darwin.go |  8 ++++++-
+ src/internal/poll/fd_posix.go          | 28 +++++++++++++++++++++---
+ src/internal/poll/fd_unix.go           | 22 ++++++++-----------
+ src/os/dir_darwin.go                   |  3 +++
+ src/os/file.go                         |  5 ++++-
+ src/os/file_plan9.go                   |  4 ++++
+ src/os/file_posix.go                   | 32 ++++++++++++++++++++++++---
+ src/os/file_unix.go                    | 40 +++++++++++++++++++++++++++-------
+ src/os/getwd.go                        | 11 +++++++++-
+ src/os/stat_unix.go                    |  8 +++++--
+ src/runtime/trace/trace_stack_test.go  |  2 +-
+ 12 files changed, 133 insertions(+), 34 deletions(-)

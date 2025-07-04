@@ -1,0 +1,19 @@
+commit 8a525b8e7f37ea5d2386af6b5f3758c721849ffe
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Mar 31 10:07:03 2018 +0800
+
+    internal/cpu: update arm64 cpu features
+    
+    Follow the Linux Kernel 4.15
+    Add Arm64 minimalFeatures test
+    
+    Change-Id: I1c092521ba59b1e4096c27786fa0464f9ef7d311
+    Reviewed-on: https://go-review.googlesource.com/103636
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu.go       | 37 +++++++++++++++++++++++----------
+ src/internal/cpu/cpu_arm64.go | 48 +++++++++++++++++++++++++++++++++++--------
+ src/internal/cpu/cpu_test.go  | 11 ++++++++++
+ 3 files changed, 76 insertions(+), 20 deletions(-)

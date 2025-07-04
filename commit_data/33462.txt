@@ -1,0 +1,23 @@
+commit 36323e4313f281ef209055b279f449feb5fcfa39
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 6 15:43:47 2017 -0500
+
+    cmd/go: accept relative -pkgdir argument
+    
+    Fixes #21309.
+    
+    Change-Id: I8ff1b0f37e34a3a4e9f8448d66a64fe3863d081f
+    Reviewed-on: https://go-review.googlesource.com/76250
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go             |  10 ++
+ src/cmd/go/internal/get/get.go    |   3 +-
+ src/cmd/go/internal/list/list.go  |   2 +-
+ src/cmd/go/internal/run/run.go    |   3 +-
+ src/cmd/go/internal/test/test.go  |   3 +-
+ src/cmd/go/internal/vet/vet.go    |   3 +-
+ src/cmd/go/internal/work/build.go | 193 +--------------------------------
+ src/cmd/go/internal/work/init.go  | 218 ++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 235 insertions(+), 200 deletions(-)

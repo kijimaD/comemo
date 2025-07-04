@@ -1,0 +1,25 @@
+commit 4dbd0dbf1542274c298f78e969badf8a73e1e53e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 28 14:23:25 2014 -0700
+
+    runtime: fix openbsd/386
+    
+    In revision 05c3fee13eb3, openbsd/386's tfork implementation was
+    accidentally changed in one instruction from using the "params"
+    parameter to using the "psize" parameter.
+    
+    While here, OpenBSD's __tfork system call returns a pid_t which is an
+    int32 on all OpenBSD architectures, so change runtime.tfork's return
+    type from int64 to int32 and update the assembly implementations
+    accordingly.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews, jsing
+    https://golang.org/cl/133190043
+
+ src/pkg/runtime/os_openbsd.c        |  2 +-
+ src/pkg/runtime/os_openbsd.go       |  2 +-
+ src/pkg/runtime/sys_openbsd_386.s   | 12 +++++-------
+ src/pkg/runtime/sys_openbsd_amd64.s |  6 +++---
+ 4 files changed, 10 insertions(+), 12 deletions(-)

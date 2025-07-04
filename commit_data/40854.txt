@@ -1,0 +1,16 @@
+commit 8c51b665f0cac0875f440774cbc8229362ab83bf
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Nov 20 10:45:02 2019 +0800
+
+    cmd/go: skip mod_convert_tsv_insecure test when no network is avaliable
+    
+    Fixes #35703
+    
+    Change-Id: I476efad38897cae93f298af86784bbc2cc2449a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208037
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,30 @@
+commit 45d74aad539c645d4e50a405f55ca46811dd70d6
+Author: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
+Date:   Sun Mar 10 21:43:45 2019 +0000
+
+    text/template: fix truth handling of typed interface nils in if and with
+    
+    Before this commit, the two logically equivalent conditionals below would
+    produce different output:
+    
+        {{ if not .NonEmptyInterfaceTypedNil }}OK{{ else }}{{ end }}
+        {{ if .NonEmptyInterfaceTypedNil }}{{ else }}OK{{ end }}
+    
+    The functions `not`, `or`, and `and` all use the same `truth` function, which
+    unwraps any concrete interface value before passing it to `isTrue`.
+    
+    `if` and `with` also use `isTrue` to establish truth, but was missing the
+    interface indirect call.
+    
+    Fixes #30501
+    
+    Change-Id: I9c49eed41e737d8f162e39bef1c3b82fd5518fed
+    GitHub-Last-Rev: 95fc2c82f26d24a457de4deaa7e5756718fbf07c
+    GitHub-Pull-Request: golang/go#30534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164958
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

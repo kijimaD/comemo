@@ -1,0 +1,46 @@
+commit 6c7cbf086c34ebb88311ba12d3a75adcbdce8ac8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 1 12:51:02 2014 -0700
+
+    runtime: get rid of most uses of REP for copying/zeroing.
+    
+    REP MOVSQ and REP STOSQ have a really high startup overhead.
+    Use a Duff's device to do the repetition instead.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkClearFat32       7.20          1.60          -77.78%
+    BenchmarkCopyFat32        6.88          2.38          -65.41%
+    BenchmarkClearFat64       7.15          3.20          -55.24%
+    BenchmarkCopyFat64        6.88          3.44          -50.00%
+    BenchmarkClearFat128      9.53          5.34          -43.97%
+    BenchmarkCopyFat128       9.27          5.56          -40.02%
+    BenchmarkClearFat256      13.8          9.53          -30.94%
+    BenchmarkCopyFat256       13.5          10.3          -23.70%
+    BenchmarkClearFat512      22.3          18.0          -19.28%
+    BenchmarkCopyFat512       22.0          19.7          -10.45%
+    BenchmarkCopyFat1024      36.5          38.4          +5.21%
+    BenchmarkClearFat1024     35.1          35.0          -0.28%
+    
+    TODO: use for stack frame zeroing
+    TODO: REP prefixes are still used for "reverse" copying when src/dst
+    regions overlap.  Might be worth fixing.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, r
+    https://golang.org/cl/81370046
+
+ src/cmd/6g/cgen.c               |   9 +-
+ src/cmd/6g/ggen.c               |   8 +-
+ src/cmd/6g/prog.c               |   2 +
+ src/cmd/6l/6.out.h              |   2 +
+ src/cmd/8g/cgen.c               |   9 +-
+ src/cmd/8g/ggen.c               |   9 +-
+ src/cmd/8g/prog.c               |   2 +
+ src/cmd/8l/8.out.h              |   2 +
+ src/liblink/asm6.c              |   9 +
+ src/liblink/asm8.c              |   9 +
+ src/pkg/runtime/asm_386.s       | 794 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s     | 795 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_test.go |  80 ++++
+ 13 files changed, 1726 insertions(+), 4 deletions(-)

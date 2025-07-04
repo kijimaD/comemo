@@ -1,0 +1,18 @@
+commit 52fdd624a4087342f529cd7e52c92f44adf2e2bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 17 14:31:48 2019 -0400
+
+    cmd/go/internal/mvs: in Req, omit versions implied by older-than-selected versions already in the graph
+    
+    Fixes #31248
+    
+    Change-Id: Ia54f2098c3b85549681198a487a31e8ce8fc59eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186557
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go                   |  8 ++--
+ src/cmd/go/internal/mvs/mvs_test.go              |  8 ++++
+ src/cmd/go/testdata/script/mod_indirect_tidy.txt | 60 ++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 6e5f4bab90456e845d2e4a436718d4ab4cfee238
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Aug 8 15:54:26 2013 -0700
+
+    misc/emacs: Add support for code coverage output of go test
+    
+    Renders code coverage as an overlay, replicating the look of the
+    HTML that go tool cover produces.
+    
+    Also some cleanups.
+    
+    R=adonovan, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12684043
+
+ misc/emacs/go-mode.el | 112 +++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 97 insertions(+), 15 deletions(-)

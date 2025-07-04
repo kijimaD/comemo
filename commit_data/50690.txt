@@ -1,0 +1,18 @@
+commit 8d3631fcef414a2fae9177c9916977490252a86e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:38:31 2022 +0800
+
+    cmd/nm: use print-style not printf-style
+    
+    Change-Id: Ic977026a99a825954117902051e59928de9ccbdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435947
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/nm/nm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

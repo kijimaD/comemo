@@ -1,0 +1,13 @@
+commit f4f6b647500438eaff21e36f48ea4399727c41bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 2 20:34:29 2016 -0700
+
+    cmd/compile: update/remove outdated comments
+    
+    Change-Id: I5a74be1593dca8ba5e0829f0bae35dc9ce702671
+    Reviewed-on: https://go-review.googlesource.com/32672
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go |  6 +++---
+ src/cmd/compile/internal/gc/bimport.go | 12 ------------
+ 2 files changed, 3 insertions(+), 15 deletions(-)

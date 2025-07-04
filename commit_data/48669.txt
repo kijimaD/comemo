@@ -1,0 +1,19 @@
+commit ac313524fe4997b80a4221647f0da79d0e07b88e
+Author: zlasd <zlasd@hotmail.com>
+Date:   Sun Mar 27 21:17:53 2022 +0800
+
+    reflect: fix Value.NumMethod docs
+    
+    NumMethod counts unexported methods for interface types. This
+    behavior is documented in Type.NumMethod
+    
+    Fixes #42123
+    
+    Change-Id: Ia5aba353a8cc64190c701d1521972d57e8903564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396075
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/type.go  | 4 +++-
+ src/reflect/value.go | 6 +++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

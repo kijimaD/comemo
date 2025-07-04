@@ -1,0 +1,14 @@
+commit 97a55a7485dd13c6520f881b48b9410d83a812c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 8 21:00:45 2009 -0800
+
+    Minor cleanups.
+    These are all fairly trivial and may be ignored.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1024025
+
+ doc/go_tutorial.html | 52 +++++++++++++++++++++++++++++-----------------------
+ doc/go_tutorial.txt  | 52 +++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 58 insertions(+), 46 deletions(-)

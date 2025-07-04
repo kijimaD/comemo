@@ -1,0 +1,19 @@
+commit c80a9f172bbab2b19fa3680c7928fcedf3088e4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 20:19:46 2023 -0700
+
+    cmd/compile/internal/types: add Type.Registers
+    
+    To be used by package abi in the following CL.
+    
+    Change-Id: Ic2470069e65f8d9b01ec161c28e5b86dca2ec141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527338
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types/size.go        | 69 +++++++++++++++++++++++----
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 16 +++++++
+ 3 files changed, 77 insertions(+), 10 deletions(-)

@@ -1,0 +1,14 @@
+commit 3d437ac6bc655c7c1a3e2811a9d73fb64e342de1
+Author: Utkarsh Dixit <utkarsh.extc@gmail.com>
+Date:   Wed Oct 2 05:49:50 2019 +0000
+
+    C: update email address for utkarsh-extc
+    
+    Change-Id: If657dab2df19d3b0c2ff9869a64e3a97446646ac
+    GitHub-Last-Rev: b921b01cf4e5bcbbc65fb1fb0b5cd836bda73596
+    GitHub-Pull-Request: golang/go#34637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198041
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

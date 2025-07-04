@@ -1,0 +1,60 @@
+commit 235aff0a40337217cb685b4d6093cadd0e73d85c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 17 19:34:18 2017 +0000
+
+    A+C: final updates for Go 1.9
+    
+    Add Adam Kisala (individual CLA)
+    Add Aditya Mukerjee (individual CLA)
+    Add Akhil Indurti (individual CLA)
+    Add André Carvalho (individual CLA)
+    Add Andy Walker (individual CLA)
+    Add Awn Umar (individual CLA)
+    Add Bastian Ike (individual CLA)
+    Add Brian Downs (individual CLA)
+    Add Cody Oss (individual CLA)
+    Add Costin Chirvasuta (corporate CLA for Google Inc.)
+    Add Dan Ballard (individual CLA)
+    Add Dong-hee Na (individual CLA)
+    Add Dylan Waits (individual CLA)
+    Add Evan Hicks (individual CLA)
+    Add Fannie Zhang (corporate CLA for ARM Ltd.)
+    Add Francisco Rojas (individual CLA)
+    Add Gabriel Nicolas Avellaneda (individual CLA)
+    Add Gabríel Arthúr Pétursson (individual CLA)
+    Add Greg Poirier (individual CLA)
+    Add Iccha Sethi (individual CLA)
+    Add Ivan Moscoso (individual CLA)
+    Add Jamie Kerr (individual CLA)
+    Add Joe Kyo (individual CLA)
+    Add Joey Geiger (individual CLA)
+    Add John R. Lenton (individual CLA)
+    Add Johnny Luo (individual CLA)
+    Add Josh Roppo (individual CLA)
+    Add Kate Manson (individual CLA)
+    Add Leo Rudberg (corporate CLA for Google Inc.)
+    Add Ma Peiqi (individual CLA)
+    Add Martynas Budriūnas (corporate CLA for Google Inc.)
+    Add Maryan Hratson (individual CLA)
+    Add Michael Edwards (individual CLA)
+    Add Michael Hendricks (individual CLA)
+    Add Pablo Santiago Blum de Aguiar (individual CLA)
+    Add Pat Moroney (individual CLA)
+    Add Shi Han Ng (individual CLA)
+    Add Steven Buss (corporate CLA for Google Inc.)
+    Add Suzy Mueller (corporate CLA for Google Inc.)
+    Add Taro Aoki (individual CLA)
+    Add Tim Heckman (individual CLA)
+    Add Tony Walker (individual CLA)
+    Add Yasha Bubnov (individual CLA)
+    
+    Updates #12042
+    
+    Change-Id: Iee063dd6c5a39de16907acfb5af87e81a05ab417
+    Reviewed-on: https://go-review.googlesource.com/49351
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 37 +++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

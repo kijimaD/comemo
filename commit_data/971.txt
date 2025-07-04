@@ -1,0 +1,21 @@
+commit eba73552d2316f602f61d9151fa4a601bbce9bd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 26 21:32:30 2008 -0700
+
+    - added simple facility to print Makefile dependency rules given a Go source file
+      (e.g.: pretty -d pretty.go will print the Makefile dep. rules of the involved
+      Go files that are not part of the installed library)
+    - minor fix in pretty printer (tested against ken's test files)
+    
+    R=r
+    OCL=17872
+    CL=17872
+
+ usr/gri/pretty/Makefile       | 14 ++++---
+ usr/gri/pretty/Makefile.iant  | 14 ++++---
+ usr/gri/pretty/ast.go         | 19 ++++++++-
+ usr/gri/pretty/compilation.go | 93 +++++++++++++++++++++++++++++++++++++------
+ usr/gri/pretty/parser.go      | 24 ++++++-----
+ usr/gri/pretty/platform.go    |  2 +-
+ usr/gri/pretty/pretty.go      | 31 +++++----------
+ 7 files changed, 142 insertions(+), 55 deletions(-)

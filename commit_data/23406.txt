@@ -1,0 +1,30 @@
+commit 2858b7384351129ee502da8c51e9625e55d88367
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jun 17 16:48:02 2015 +1000
+
+    runtime: remove cgocall and asmcgocall
+    
+    In preparation for rename of cgocall_errno into cgocall and
+    asmcgocall_errno into asmcgocall in the fllowinng CL.
+    rsc requested CL 9387 to be split into two parts. This is first part.
+    
+    Change-Id: I7434f0e4b44dd37017540695834bfcb1eebf0b2f
+    Reviewed-on: https://go-review.googlesource.com/11166
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s          |  6 ------
+ src/runtime/asm_amd64.s        |  6 ------
+ src/runtime/asm_amd64p32.s     |  6 ------
+ src/runtime/asm_arm.s          |  6 ------
+ src/runtime/asm_arm64.s        |  6 ------
+ src/runtime/asm_ppc64x.s       |  6 ------
+ src/runtime/cgocall.go         |  9 ++-------
+ src/runtime/env_posix.go       |  4 ++--
+ src/runtime/os1_windows.go     |  2 +-
+ src/runtime/os3_solaris.go     |  8 ++++----
+ src/runtime/os_solaris.go      | 14 +++++++-------
+ src/runtime/proc.go            |  2 +-
+ src/runtime/proc1.go           |  2 +-
+ src/runtime/stubs.go           |  3 ---
+ src/runtime/syscall_solaris.go | 40 ++++++++++++++++++++--------------------
+ 15 files changed, 38 insertions(+), 82 deletions(-)

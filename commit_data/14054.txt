@@ -1,0 +1,17 @@
+commit 13576e3b6587dcde0f5df3d04449ca16c88dcda2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 7 09:48:14 2012 -0700
+
+    net/http/httptest: mimic the normal HTTP server's ResponseWriter more closely
+    
+    Also adds tests, which didn't exist before.
+    
+    Fixes #4188
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6613062
+
+ src/pkg/net/http/httptest/recorder.go      | 24 ++++++--
+ src/pkg/net/http/httptest/recorder_test.go | 90 ++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 5 deletions(-)

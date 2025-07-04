@@ -1,0 +1,18 @@
+commit 743f03eeb0bdcb596b46fae51d23c0fcf0db0474
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 1 16:52:59 2021 -0700
+
+    spec, unsafe: clarify unsafe.Slice docs
+    
+    For #19367
+    
+    Change-Id: If0ff8ddba3b6b48e2e198cf3653e73284c7572a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332409
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go_spec.html     | 8 +++++---
+ src/unsafe/unsafe.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

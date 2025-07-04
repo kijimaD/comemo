@@ -1,0 +1,15 @@
+commit 110964ac81193dac22c56456026bc5b687a72bc1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jan 23 19:36:52 2012 +0100
+
+    exp/norm: fixes a subtle bug introduced by change 10087: random offset
+    for map iteration.  New code makes table output predictable and fixes
+    bug.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5573044
+
+ src/pkg/exp/norm/tables.go  | 109 +++++++++++++++++++++-----------------------
+ src/pkg/exp/norm/triegen.go |   4 +-
+ 2 files changed, 55 insertions(+), 58 deletions(-)

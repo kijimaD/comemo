@@ -1,0 +1,89 @@
+commit bc43889566d442b2596b1e6d8d3fce61b4aa3bec
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 18 08:34:38 2018 -0800
+
+    cmd/compile: bulk rename
+    
+    This change does a bulk rename of several identifiers in the compiler.
+    See #27167 and https://docs.google.com/document/d/19_ExiylD9MRfeAjKIfEsMU1_RGhuxB9sA0b5Zv7byVI/
+    for context and for discussion of these particular renames.
+    
+    Commands run to generate this change:
+    
+    gorename -from '"cmd/compile/internal/gc".OPROC' -to OGO
+    gorename -from '"cmd/compile/internal/gc".OCOM' -to OBITNOT
+    gorename -from '"cmd/compile/internal/gc".OMINUS' -to ONEG
+    gorename -from '"cmd/compile/internal/gc".OIND' -to ODEREF
+    gorename -from '"cmd/compile/internal/gc".OARRAYBYTESTR' -to OBYTES2STR
+    gorename -from '"cmd/compile/internal/gc".OARRAYBYTESTRTMP' -to OBYTES2STRTMP
+    gorename -from '"cmd/compile/internal/gc".OARRAYRUNESTR' -to ORUNES2STR
+    gorename -from '"cmd/compile/internal/gc".OSTRARRAYBYTE' -to OSTR2BYTES
+    gorename -from '"cmd/compile/internal/gc".OSTRARRAYBYTETMP' -to OSTR2BYTESTMP
+    gorename -from '"cmd/compile/internal/gc".OSTRARRAYRUNE' -to OSTR2RUNES
+    
+    gorename -from '"cmd/compile/internal/gc".Etop' -to ctxStmt
+    gorename -from '"cmd/compile/internal/gc".Erv' -to ctxExpr
+    gorename -from '"cmd/compile/internal/gc".Ecall' -to ctxCallee
+    gorename -from '"cmd/compile/internal/gc".Efnstruct' -to ctxMultiOK
+    gorename -from '"cmd/compile/internal/gc".Easgn' -to ctxAssign
+    gorename -from '"cmd/compile/internal/gc".Ecomplit' -to ctxCompLit
+    
+    Not altered: parameters and local variables (mostly in typecheck.go) named top,
+    which should probably now be called ctx (and which should probably have a named type).
+    Also not altered: Field called Top in gc.Func.
+    
+    gorename -from '"cmd/compile/internal/gc".Node.Isddd' -to IsDDD
+    gorename -from '"cmd/compile/internal/gc".Node.SetIsddd' -to SetIsDDD
+    gorename -from '"cmd/compile/internal/gc".nodeIsddd' -to nodeIsDDD
+    gorename -from '"cmd/compile/internal/types".Field.Isddd' -to IsDDD
+    gorename -from '"cmd/compile/internal/types".Field.SetIsddd' -to SetIsDDD
+    gorename -from '"cmd/compile/internal/types".fieldIsddd' -to fieldIsDDD
+    
+    Not altered: function gc.hasddd, params and local variables called isddd
+    Also not altered: fmt.go prints nodes using "isddd(%v)".
+    
+    cd cmd/compile/internal/gc; go generate
+    
+    I then manually found impacted comments using exact string match
+    and fixed them up by hand. The comment changes were trivial.
+    
+    Passes toolstash-check.
+    
+    Fixes #27167. If this experiment is deemed a success,
+    we will open a new tracking issue for renames to do
+    at the end of the 1.13 cycles.
+    
+    Change-Id: I2dc541533d2ab0d06cb3d31d65df205ecfb151e8
+    Reviewed-on: https://go-review.googlesource.com/c/150140
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go         |  16 +-
+ src/cmd/compile/internal/gc/closure.go     |  18 +-
+ src/cmd/compile/internal/gc/const.go       |  16 +-
+ src/cmd/compile/internal/gc/dcl.go         |   8 +-
+ src/cmd/compile/internal/gc/esc.go         |  66 ++---
+ src/cmd/compile/internal/gc/fmt.go         | 204 +++++++--------
+ src/cmd/compile/internal/gc/iexport.go     |  18 +-
+ src/cmd/compile/internal/gc/iimport.go     |  14 +-
+ src/cmd/compile/internal/gc/init.go        |   8 +-
+ src/cmd/compile/internal/gc/inl.go         |  42 ++--
+ src/cmd/compile/internal/gc/main.go        |   8 +-
+ src/cmd/compile/internal/gc/noder.go       |  18 +-
+ src/cmd/compile/internal/gc/op_string.go   |   4 +-
+ src/cmd/compile/internal/gc/order.go       |  80 +++---
+ src/cmd/compile/internal/gc/range.go       |  34 +--
+ src/cmd/compile/internal/gc/reflect.go     |   4 +-
+ src/cmd/compile/internal/gc/select.go      |  32 +--
+ src/cmd/compile/internal/gc/sinit.go       |  46 ++--
+ src/cmd/compile/internal/gc/ssa.go         |  56 ++---
+ src/cmd/compile/internal/gc/subr.go        |  32 +--
+ src/cmd/compile/internal/gc/swt.go         |  52 ++--
+ src/cmd/compile/internal/gc/syntax.go      |  60 ++---
+ src/cmd/compile/internal/gc/typecheck.go   | 390 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/universe.go    |   4 +-
+ src/cmd/compile/internal/gc/unsafe.go      |   6 +-
+ src/cmd/compile/internal/gc/walk.go        | 168 ++++++-------
+ src/cmd/compile/internal/types/identity.go |   2 +-
+ src/cmd/compile/internal/types/type.go     |  12 +-
+ 28 files changed, 709 insertions(+), 709 deletions(-)

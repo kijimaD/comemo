@@ -1,0 +1,35 @@
+commit 302a400316319501748c0f034464fa70e7815272
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 3 16:30:22 2021 -0500
+
+    cmd/go/internal/modfetch: detect and recover from missing ziphash file
+    
+    Previously, if an extracted module directory existed in the module
+    cache, but the corresponding ziphash file did not, if the sum was
+    missing from go.sum, we would not verify the sum. This caused 'go get'
+    not to write missing sums. 'go build' in readonly mode (now the
+    default) checks for missing sums and doesn't attempt to fetch modules
+    that can't be verified against go.sum.
+    
+    With this change, when requesting the module directory with
+    modfetch.DownloadDir, if the ziphash file is missing, the go command
+    will re-hash the zip without downloading or re-extracting it again.
+    
+    Note that the go command creates the ziphash file before the module
+    directory, but another program could remove it separately, and it
+    might not be present after a crash.
+    
+    Fixes #44749
+    
+    Change-Id: I64551e048a3ba17d069de1ec123d5b8b2757543c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298352
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go              | 17 +++++
+ src/cmd/go/internal/modfetch/fetch.go              | 77 ++++++++++++++--------
+ .../go/testdata/script/mod_get_missing_ziphash.txt | 55 ++++++++++++++++
+ src/cmd/go/testdata/script/mod_verify.txt          |  7 +-
+ 4 files changed, 125 insertions(+), 31 deletions(-)

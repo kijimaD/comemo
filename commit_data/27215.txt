@@ -1,0 +1,18 @@
+commit a5d3f7ece9033393166d0c74cd1121c15032ba4d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 15:17:34 2016 -0400
+
+    runtime: avoid conditional execution in morePointers and isPointer
+    
+    heapBits.bits is carefully written to produce good machine code. Use
+    it in heapBits.morePointers and heapBits.isPointer to get good machine
+    code there, too.
+    
+    Change-Id: I208c7d0d38697e7a22cad67f692162589b75f1e2
+    Reviewed-on: https://go-review.googlesource.com/22630
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

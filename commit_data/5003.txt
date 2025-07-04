@@ -1,0 +1,29 @@
+commit 426099f42e7d97504705daa1f291403a87437b61
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Mar 5 20:16:04 2010 -0800
+
+    6g complex type usable
+    8g and 5g have stubs to ignore complex
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/257042
+
+ src/cmd/5g/cgen.c        |  18 +++++
+ src/cmd/6g/cgen.c        |  63 +++++++++--------
+ src/cmd/6g/cplx.c        | 176 ++++++++++++++++++++++++++++++++++-------------
+ src/cmd/6g/gg.h          |   1 -
+ src/cmd/8g/cgen.c        |  18 +++++
+ src/cmd/gc/go.h          |   2 +
+ src/cmd/gc/lex.c         |   3 +
+ src/cmd/gc/subr.c        |  18 +++++
+ src/cmd/gc/typecheck.c   |  93 ++++++++++++++++++++++++-
+ src/cmd/gc/walk.c        |   3 +
+ src/pkg/fmt/print.go     | 120 ++++++++++++++++++++++++++++++++
+ src/pkg/reflect/type.go  |   2 +-
+ src/pkg/reflect/value.go | 124 ++++++++++++++++-----------------
+ src/pkg/runtime/print.c  |   5 +-
+ test/ken/cplx0.go        |   4 +-
+ test/ken/cplx3.go        |  42 +++++++++++
+ test/ken/cplx4.go        |  40 +++++++++++
+ 17 files changed, 590 insertions(+), 142 deletions(-)

@@ -1,0 +1,12 @@
+commit 36c009d4659b2f30429d2729530770ace447ee4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 4 15:47:32 2011 -0400
+
+    codereview: only retry on HTTP 500 error
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4353047
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

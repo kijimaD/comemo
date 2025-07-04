@@ -1,0 +1,16 @@
+commit acce4558a0168e625e9c70f20018dad6225adc0e
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Aug 29 12:58:35 2024 +0800
+
+    os: update the linux minimal version and fix a typo for zero-copy
+    
+    Change-Id: Ia6a2768be0e044112831c278d88ff31ba3caa9f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609298
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/zero_copy_freebsd.go | 2 +-
+ src/os/zero_copy_linux.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

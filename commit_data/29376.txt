@@ -1,0 +1,16 @@
+commit fa770016484165d65200243811f177f1332a9e94
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:25 2016 +0200
+
+    runtime/internal/sys: add arch defs for GOARCH=mips{,le}
+    
+    Change-Id: I6288f1fca1ae4c64b3907af700811ee842053020
+    Reviewed-on: https://go-review.googlesource.com/31472
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/sys/arch.go           |  1 +
+ src/runtime/internal/sys/arch_mips.go      | 18 ++++++++++++++++++
+ src/runtime/internal/sys/arch_mipsle.go    | 18 ++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips.go   | 26 ++++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mipsle.go | 26 ++++++++++++++++++++++++++
+ 5 files changed, 89 insertions(+)

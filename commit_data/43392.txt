@@ -1,0 +1,22 @@
+commit 10a1a1a37c007adef8425d273e6b276547982889
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:26:45 2020 -0400
+
+    io/fs: add Stat and StatFS
+    
+    Add Stat helper function, StatFS interface, and test.
+    Add Stat method to fstest.MapFS.
+    Add testing of Stat method to fstest.TestFS.
+    
+    For #41190.
+    
+    Change-Id: Icf8b6eb1c3fa6f93a9be8405ec5a9468fb1da97b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243913
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/fs/stat.go            | 31 +++++++++++++++++++++++++++++++
+ src/io/fs/stat_test.go       | 36 ++++++++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  |  4 ++++
+ src/testing/fstest/testfs.go | 25 ++++++++++++++++++++++++-
+ 4 files changed, 95 insertions(+), 1 deletion(-)

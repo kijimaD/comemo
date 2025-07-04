@@ -1,0 +1,14 @@
+commit 92b2643c92f88f802e7556a733aa7b7c727efdbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 17:30:34 2013 -0500
+
+    math/big: fix typo
+    
+    Fixes #4678.
+    
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/7135059
+
+ src/pkg/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

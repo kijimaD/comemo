@@ -1,0 +1,15 @@
+commit 98945a2bad1e2f816d1f8ebc71f7a4aaabfb357b
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 28 13:30:53 2011 -0700
+
+    cgi: export RequestFromMap
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4452056
+
+ src/pkg/http/cgi/child.go      | 52 ++++++++++++++++----------------
+ src/pkg/http/cgi/child_test.go | 18 ++++++-----
+ src/pkg/http/cgi/host.go       |  1 +
+ src/pkg/http/fcgi/child.go     | 68 ++----------------------------------------
+ 4 files changed, 40 insertions(+), 99 deletions(-)

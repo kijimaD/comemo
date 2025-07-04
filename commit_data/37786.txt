@@ -1,0 +1,66 @@
+commit 55e3aced9e7581549286a9ee5710e9c193baf0a7
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Dec 21 18:23:31 2018 -0800
+
+    cmd: vendor x/sys/unix into the stdlib
+    
+    Last of the Macos libSystem changes, hopefully.
+    
+    Fixes #17490
+    
+    Change-Id: I88b303bafd92494cc4ddde712213d2ef976ce4e2
+    Reviewed-on: https://go-review.googlesource.com/c/155737
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vendor/golang.org/x/sys/unix/README.md     |    4 +-
+ .../vendor/golang.org/x/sys/unix/darwin_test.go    |  210 +
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |   23 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   18 +-
+ .../vendor/golang.org/x/sys/unix/sendfile_test.go  |   98 +
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |    7 +
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   62 +-
+ .../golang.org/x/sys/unix/syscall_darwin_386.go    |   23 +-
+ .../golang.org/x/sys/unix/syscall_darwin_amd64.go  |   23 +-
+ .../golang.org/x/sys/unix/syscall_darwin_arm.go    |   26 +-
+ .../golang.org/x/sys/unix/syscall_darwin_arm64.go  |   26 +-
+ .../x/sys/unix/syscall_darwin_libSystem.go         |   31 +
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |    7 +
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |    7 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |    7 +
+ .../vendor/golang.org/x/sys/unix/syscall_netbsd.go |    7 +
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |    7 +
+ .../golang.org/x/sys/unix/syscall_solaris.go       |    7 +
+ .../vendor/golang.org/x/sys/unix/syscall_unix.go   |    7 -
+ .../golang.org/x/sys/unix/syscall_unix_test.go     |    6 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go | 4196 +++++++++++---------
+ .../x/sys/unix/zsyscall_darwin_386.1_11.go         | 1810 +++++++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.go   | 1174 +++++-
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.s    |  284 ++
+ .../x/sys/unix/zsyscall_darwin_amd64.1_11.go       | 1810 +++++++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go | 1174 +++++-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |  284 ++
+ .../x/sys/unix/zsyscall_darwin_arm.1_11.go         | 1793 +++++++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.go   | 1152 +++++-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.s    |  282 ++
+ .../x/sys/unix/zsyscall_darwin_arm64.1_11.go       | 1793 +++++++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go | 1152 +++++-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |  282 ++
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |    6 +-
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |    9 +-
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |   10 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |    7 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |    7 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   16 -
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |   21 +-
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  | 1487 ++++++-
+ src/cmd/vendor/vendor.json                         |    6 +-
+ 48 files changed, 16425 insertions(+), 3032 deletions(-)

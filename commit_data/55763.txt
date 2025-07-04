@@ -1,0 +1,20 @@
+commit 370c8e983b49168b670ea4df76293738a833459b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:05 2024 -0500
+
+    runtime: use methods for timer
+    
+    Continuing conversion from C to Go, change timer API to use methods.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I4cb88a366993a77aa4fad739793a7db7213cc38c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564131
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/netpoll.go | 16 ++++++++--------
+ src/runtime/time.go    | 28 ++++++++++++++--------------
+ 2 files changed, 22 insertions(+), 22 deletions(-)

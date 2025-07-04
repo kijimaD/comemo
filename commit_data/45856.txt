@@ -1,0 +1,15 @@
+commit 666315b4d38b99931bb9fd158a76e59928fd2852
+Author: Xing Gao <18340825824@163.com>
+Date:   Tue Jun 22 02:12:29 2021 +0000
+
+    runtime/internal/atomic: remove incorrect pointer indirection in comment
+    
+    Change-Id: I9d743b7f6b001158299bea4af4aede678654bc8e
+    GitHub-Last-Rev: 7e07834abc861e21030fe4a8eb323bac01e18f7a
+    GitHub-Pull-Request: golang/go#46851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+
+ src/runtime/internal/atomic/atomic_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

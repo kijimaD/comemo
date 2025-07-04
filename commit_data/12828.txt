@@ -1,0 +1,17 @@
+commit ac51c1384ab1a9a46247428d1d5d158d4cbc40b0
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Wed Apr 4 09:52:42 2012 -0400
+
+    encoding/ascii85: fix panic caused by special case
+    
+    Special case for encoding 4 zeros as 'z' didn't
+    update source slice, causing 'index out of bounds'
+    panic in destination slice.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5970078
+
+ src/pkg/encoding/ascii85/ascii85.go      | 1 +
+ src/pkg/encoding/ascii85/ascii85_test.go | 5 +++++
+ 2 files changed, 6 insertions(+)

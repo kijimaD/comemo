@@ -1,0 +1,12 @@
+commit f0ecf34f2940b3eedbc89c25aa85b77be589dd4c
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Apr 23 00:43:59 2010 +1000
+
+    vector: Don't always regenerate {int,string}vector.go
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/917042
+
+ src/pkg/container/vector/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

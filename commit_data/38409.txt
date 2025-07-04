@@ -1,0 +1,27 @@
+commit 5402854c3557f87fa2741a52ffc15dfb1ef333cc
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 13 12:24:54 2019 +0100
+
+    errors: record only single frame
+    
+    See Issue #29382 and Issue #30468.
+    
+    3 frames are no longer needed as of
+    https://go-review.googlesource.com/c/go/+/152537/
+    
+    name                     old time/op  new time/op  delta
+    New-8                     475ns ± 3%   352ns ± 2%  -25.87%  (p=0.008 n=5+5)
+    Errorf/no_format-8        661ns ± 4%   558ns ± 2%  -15.63%  (p=0.008 n=5+5)
+    Errorf/with_format-8      729ns ± 6%   626ns ± 2%  -14.23%  (p=0.008 n=5+5)
+    Errorf/method:_mytype-8  1.00µs ± 9%  0.84µs ± 2%  -15.94%  (p=0.008 n=5+5)
+    Errorf/method:_number-8  1.25µs ± 7%  1.04µs ± 2%  -16.38%  (p=0.008 n=5+5)
+    
+    Change-Id: I30377e769b3b3be623f63ecbe365f8950ca08dda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167400
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/frame.go      | 15 +++------------
+ src/errors/frame_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 30 insertions(+), 16 deletions(-)

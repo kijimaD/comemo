@@ -1,0 +1,14 @@
+commit c2bc727f944fe41e1567b8ac1cf306809801bec9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 7 08:05:01 2017 +1100
+
+    doc: remove inactive members of the CoC working group
+    
+    Dave and Jason have moved on to other things.
+    
+    Change-Id: I702d11bedfab1f47a33679a48c2309f49021229e
+    Reviewed-on: https://go-review.googlesource.com/36450
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ doc/conduct.html | 2 --
+ 1 file changed, 2 deletions(-)

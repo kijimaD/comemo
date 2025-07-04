@@ -1,0 +1,22 @@
+commit e0181ff52a17eeddd20b8560ce4abaa615388dd0
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Tue Mar 19 18:32:11 2019 +0900
+
+    runtime: disable event scanning error reporting on solaris
+    
+    It seems like we need to pay special attention to capturing error
+    condition on the event port of SmartOS. The previous attempt CL 167777
+    works on Oracle Solaris but doesn't work on SmartOS for the uncertain
+    reason. It's better to disable the reporting for now.
+    
+    Updates #30624.
+    Fixes #30840.
+    
+    Change-Id: Ieca5dac4fceb7e8c9cb4db149bb4c2e79691588c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167782
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll_solaris.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

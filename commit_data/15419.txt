@@ -1,0 +1,12 @@
+commit 052d845c5c79d716148fe88265bde33b3be9ebd3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 26 08:31:47 2013 +1100
+
+    doc: fix wiki codelab description of template parsing
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7372048
+
+ doc/articles/wiki/index.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

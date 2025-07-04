@@ -1,0 +1,87 @@
+commit c8bd293e56d17c5599ec62aee63fe819366adcab
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 30 17:15:15 2016 -0400
+
+    runtime: eliminate floating garbage estimate
+    
+    Currently when we compute the trigger for the next GC, we do it based
+    on an estimate of the reachable heap size at the start of the GC
+    cycle, which is itself based on an estimate of the floating garbage.
+    This was introduced by 4655aad to fix a bad feedback loop that allowed
+    the heap to grow to many times the true reachable size.
+    
+    However, this estimate gets easily confused by rapidly allocating
+    applications, and, worse it's different than the heap size the trigger
+    controller uses to compute the trigger itself. This results in the
+    trigger controller often thinking that GC finished before it started.
+    Since this would be a pretty great outcome from it's perspective, it
+    sets the trigger for the next cycle as close to the next goal as
+    possible (which is limited to 95% of the goal).
+    
+    Furthermore, the bad feedback loop this estimate originally fixed
+    seems not to happen any more, suggesting it was fixed more correctly
+    by some other change in the mean time. Finally, with the change to
+    allocate black, it shouldn't even be theoretically possible for this
+    bad feedback loop to occur.
+    
+    Hence, eliminate the floating garbage estimate and simply consider the
+    reachable heap to be the marked heap. This harms overall throughput
+    slightly for allocation-heavy benchmarks, but significantly improves
+    mutator availability.
+    
+    Fixes #12204. This brings the average trigger in this benchmark from
+    0.95 (the cap) to 0.7 and the active GC utilization from ~90% to ~45%.
+    
+    Updates #14951. This makes the trigger controller much better behaved,
+    so it pulls the trigger lower if assists are consuming a lot of CPU
+    like it's supposed to, increasing mutator availability.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.21ms ± 1%  2.28ms ± 3%  +3.29%  (p=0.000 n=17+17)
+    
+    Some of this slow down we paid for in earlier commits. Relative to the
+    start of the series to switch to allocate-black (the parent of "count
+    black allocations toward scan work"), the garbage benchmark is 2.62%
+    slower.
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.53s ± 3%     2.53s ± 3%    ~     (p=0.708 n=20+19)
+    Fannkuch11-12                2.08s ± 0%     2.08s ± 0%  -0.22%  (p=0.002 n=19+18)
+    FmtFprintfEmpty-12          45.3ns ± 2%    45.2ns ± 3%    ~     (p=0.505 n=20+20)
+    FmtFprintfString-12          129ns ± 0%     131ns ± 2%  +1.80%  (p=0.000 n=16+19)
+    FmtFprintfInt-12             121ns ± 2%     121ns ± 2%    ~     (p=0.768 n=19+19)
+    FmtFprintfIntInt-12          186ns ± 1%     188ns ± 3%  +0.99%  (p=0.000 n=19+19)
+    FmtFprintfPrefixedInt-12     188ns ± 1%     188ns ± 1%    ~     (p=0.947 n=18+16)
+    FmtFprintfFloat-12           254ns ± 1%     255ns ± 1%  +0.30%  (p=0.002 n=19+17)
+    FmtManyArgs-12               763ns ± 0%     770ns ± 0%  +0.92%  (p=0.000 n=18+18)
+    GobDecode-12                7.00ms ± 1%    7.04ms ± 1%  +0.61%  (p=0.049 n=20+20)
+    GobEncode-12                5.88ms ± 1%    5.88ms ± 0%    ~     (p=0.641 n=18+19)
+    Gzip-12                      214ms ± 1%     215ms ± 1%  +0.43%  (p=0.002 n=18+19)
+    Gunzip-12                   37.6ms ± 0%    37.6ms ± 0%  +0.11%  (p=0.015 n=17+18)
+    HTTPClientServer-12         76.9µs ± 2%    78.1µs ± 2%  +1.44%  (p=0.000 n=20+18)
+    JSONEncode-12               15.2ms ± 2%    15.1ms ± 1%    ~     (p=0.271 n=19+18)
+    JSONDecode-12               53.1ms ± 1%    53.3ms ± 0%  +0.49%  (p=0.000 n=18+19)
+    Mandelbrot200-12            4.04ms ± 1%    4.03ms ± 0%  -0.33%  (p=0.005 n=18+18)
+    GoParse-12                  3.29ms ± 1%    3.28ms ± 1%    ~     (p=0.146 n=16+17)
+    RegexpMatchEasy0_32-12      69.9ns ± 3%    69.5ns ± 1%    ~     (p=0.785 n=20+19)
+    RegexpMatchEasy0_1K-12       237ns ± 0%     237ns ± 0%    ~     (p=1.000 n=18+18)
+    RegexpMatchEasy1_32-12      69.5ns ± 1%    69.2ns ± 1%  -0.44%  (p=0.020 n=16+19)
+    RegexpMatchEasy1_1K-12       372ns ± 1%     371ns ± 2%    ~     (p=0.086 n=20+19)
+    RegexpMatchMedium_32-12      108ns ± 3%     107ns ± 1%  -1.00%  (p=0.004 n=19+14)
+    RegexpMatchMedium_1K-12     34.2µs ± 4%    34.0µs ± 2%    ~     (p=0.380 n=19+20)
+    RegexpMatchHard_32-12       1.77µs ± 4%    1.76µs ± 3%    ~     (p=0.558 n=18+20)
+    RegexpMatchHard_1K-12       53.4µs ± 4%    52.8µs ± 2%  -1.10%  (p=0.020 n=18+20)
+    Revcomp-12                   359ms ± 4%     377ms ± 0%  +5.19%  (p=0.000 n=20+18)
+    Template-12                 63.7ms ± 2%    62.9ms ± 2%  -1.27%  (p=0.005 n=18+20)
+    TimeParse-12                 316ns ± 2%     313ns ± 1%    ~     (p=0.059 n=20+16)
+    TimeFormat-12                329ns ± 0%     331ns ± 0%  +0.39%  (p=0.000 n=16+18)
+    [Geo mean]                  51.6µs         51.7µs       +0.18%
+    
+    Change-Id: I1dce4640c8205d41717943b021039fffea863c57
+    Reviewed-on: https://go-review.googlesource.com/21324
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)

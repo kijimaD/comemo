@@ -1,0 +1,13 @@
+commit cdc93d24165af721030f05c9aa6c79605011ec1b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 13 19:03:41 2014 +0400
+
+    doc: update go1.3.txt for some performance changes
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/75350043
+
+ doc/go1.3.txt | 3 +++
+ 1 file changed, 3 insertions(+)

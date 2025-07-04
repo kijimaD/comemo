@@ -1,0 +1,15 @@
+commit 082f116b2debca75bc4553255842cec93a46bd96
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 16 11:19:48 2008 -0700
+
+    Change file name from "print" to "tostring" and update the rest.
+    
+    R=rsc
+    DELTA=225  (109 added, 107 deleted, 9 changed)
+    OCL=17294
+    CL=17294
+
+ usr/r/reflect/Makefile                  |  4 ++--
+ usr/r/reflect/main.go                   | 38 +++++++++++++++++----------------
+ usr/r/reflect/{print.go => tostring.go} |  0
+ 3 files changed, 22 insertions(+), 20 deletions(-)

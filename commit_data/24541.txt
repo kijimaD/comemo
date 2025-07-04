@@ -1,0 +1,15 @@
+commit 5d88323fa6c2c39891bf59d8674c338b0ed3902e
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Mon Oct 19 20:52:55 2015 +1100
+
+    runtime: remove a redundant nil pointer check.
+    
+    It appears this was made possible by commit 89f185f; before that, g was
+    not dereferenced above.
+    
+    Change-Id: I70bc571d924b36351392fd4c13d681e938cfb573
+    Reviewed-on: https://go-review.googlesource.com/16033
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/runtime/panic.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 1f0f459a163eb3a1f15b2ad50a6a80c49e8f87e0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Mar 1 15:57:54 2012 +1100
+
+    encoding/gob: more hardening for lengths of input strings.
+    
+    Fixes #3160.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5716046
+
+ src/pkg/encoding/gob/codec_test.go |  5 ++++-
+ src/pkg/encoding/gob/decode.go     | 23 +++++++++++++++++------
+ 2 files changed, 21 insertions(+), 7 deletions(-)

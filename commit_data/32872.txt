@@ -1,0 +1,22 @@
+commit ee55000f6c45d2f5c38d91679def933fdf27c029
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 11:33:57 2017 -0400
+
+    runtime: eliminate GOMAXPROCS limit
+    
+    Now that allp is dynamically allocated, there's no need for a hard cap
+    on GOMAXPROCS.
+    
+    Fixes #15131.
+    
+    Change-Id: I53eee8e228a711a818f7ebce8d9fd915b3865eed
+    Reviewed-on: https://go-review.googlesource.com/45574
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/debug.go    | 3 ---
+ src/runtime/proc.go     | 5 +----
+ src/runtime/runtime2.go | 6 ------
+ 3 files changed, 1 insertion(+), 13 deletions(-)

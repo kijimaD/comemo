@@ -1,0 +1,16 @@
+commit 9e96ad851d9fb3feb7ee3f7b72213c5b7a9977aa
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 10 09:10:43 2016 -0700
+
+    test: add test for unlowered ITab
+    
+    See #15604.  This was a bug in a CL that has since been
+    rolled back.  Adding a test to challenge the next attempter.
+    
+    Change-Id: Ic43be254ea6eaab0071018cdc61d9b1c21f19cbf
+    Reviewed-on: https://go-review.googlesource.com/23000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue15604.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

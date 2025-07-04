@@ -1,0 +1,14 @@
+commit 78c27ed650b00177c90c25882576044bbaf73495
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 25 12:47:43 2010 -0700
+
+    gc: more syntax errors
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/731041
+
+ src/cmd/gc/go.errors  | 26 ++++++++++++++++----------
+ test/syntax/vareq.go  | 10 ++++++++++
+ test/syntax/vareq1.go | 10 ++++++++++
+ 3 files changed, 36 insertions(+), 10 deletions(-)

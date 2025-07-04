@@ -1,0 +1,27 @@
+commit 326ea438bb579a2010e38e00f515a04344ff96b0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 13 22:28:44 2021 +0700
+
+    cmd/compile: rewrite a, b = f() to use temporaries when type not identical
+    
+    If any of the LHS expressions of an OAS2FUNC are not identical to the
+    respective function call results, escape analysis mishandles the
+    implicit conversion, causes memory corruption.
+    
+    Instead, we should insert autotmps like we already do for f(g()) calls
+    and return g() statements.
+    
+    Fixes #46725
+    
+    Change-Id: I71a08da0bf1a03d09a023da5b6f78fb37a4a4690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327651
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/stmt.go      | 14 +++++++-
+ src/cmd/compile/internal/typecheck/typecheck.go | 10 ++++++
+ test/declbad.go                                 |  4 +--
+ test/fixedbugs/issue46725.go                    | 48 +++++++++++++++++++++++++
+ 4 files changed, 73 insertions(+), 3 deletions(-)

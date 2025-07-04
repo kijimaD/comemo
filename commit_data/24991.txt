@@ -1,0 +1,18 @@
+commit cbc55971e2aa75a417d4f51b8aa30591bd9b410c
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Nov 19 18:18:03 2015 -0500
+
+    cmd/go, cmd/link: enable -buildmode=c-shared on linux/386
+    
+    All the heavy lifting was done by Michael Hudson-Doyle.
+    
+    Change-Id: I176f15581055078854c2ad9a5807c4dcf0f8d8c5
+    Reviewed-on: https://go-review.googlesource.com/17074
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go              | 2 +-
+ src/cmd/link/internal/ld/lib.go  | 7 +++++--
+ src/cmd/link/internal/x86/asm.go | 2 +-
+ 3 files changed, 7 insertions(+), 4 deletions(-)

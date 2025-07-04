@@ -1,0 +1,12 @@
+commit c633f85f65ece7bb063bd5dd7b06aff167ba5f59
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 30 17:47:56 2012 +0200
+
+    exp/locale/collate: avoid double building in maketables.go.  Also added check.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6202063
+
+ src/pkg/exp/locale/collate/build/builder.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

@@ -1,0 +1,11 @@
+commit 5facb847703522e2d0716bf32500974aaf20fc20
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 14:39:41 2009 -0800
+
+    doc/contribute: try to make it clearer that you send a review with hg mail, not hg submit.
+    
+    R=r
+    https://golang.org/cl/171046
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

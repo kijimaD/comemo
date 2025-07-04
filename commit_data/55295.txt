@@ -1,0 +1,17 @@
+commit 2f706871b95ceedecb0d0cf62b83e4f0f9a403b7
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Dec 14 13:12:45 2023 +0000
+
+    runtime: delete todo of the list field for mspan
+    
+    Change-Id: I10a3308c19da08d2ff0c8077bb74ad888ee04fea
+    GitHub-Last-Rev: 3e95b71384a25e0b29029731b72cf2c7f6a96055
+    GitHub-Pull-Request: golang/go#64077
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

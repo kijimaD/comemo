@@ -1,0 +1,31 @@
+commit b2389ad3ce7254784db5f4005805714e87ffab85
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 5 16:50:38 2021 -0400
+
+    cmd/compile: fix for zerorange on plan9-amd64
+    
+    In CL 305829 a problematic change was made to the compiler's
+    amd64-specific "zerorange" function. In zerorange the compiler uses
+    different sets of strategies depending on the size of the stack frame
+    it needs to zero; turns out that only on plan9-amd64 was it hitting
+    the final fallback strategy, which is a REPSTOSQ instruction. REPSTOSQ
+    takes RAX as an input, hence the changes made in CL 305829 (switching
+    to R13) were incorrect.
+    
+    This patch restores the zerorange REPSTOSQ sequence (back to use RAX).
+    This is going to be an interim solution, since long term we need to
+    avoid touching RAX in the function prolog (since if the new register
+    ABI is in effect, it will hold a live value).
+    
+    Fixes #45372.
+    
+    Change-Id: Ic89a6a2a76d6e03b9fbda99275101e96b70fdf5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307469
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ggen.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

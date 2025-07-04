@@ -1,0 +1,35 @@
+commit bfbb288574841f2db2499a580d7bf985a5df4556
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 25 16:26:13 2021 -0700
+
+    runtime: remove adjustTimers counter
+    
+    In CL 336432 we changed adjusttimers so that it no longer cleared
+    timerModifiedEarliest if there were no timersModifiedEarlier timers.
+    This caused some Google internal tests to time out, presumably due
+    to the increased contention on timersLock.  We can avoid that by
+    simply not skipping the loop in adjusttimers, which lets us safely
+    clear timerModifiedEarliest.  And if we don't skip the loop, then there
+    isn't much reason to keep the count of timerModifiedEarlier timers at all.
+    So remove it.
+    
+    The effect will be that for programs that create some timerModifiedEarlier
+    timers and then remove them all, the program will do an occasional
+    additional loop over all the timers.  And, programs that have some
+    timerModifiedEarlier timers will always loop over all the timers,
+    without the quicker exit when they have all been seen.  But the loops
+    should not occur all that often, due to timerModifiedEarliest.
+    
+    For #47329
+    
+    Change-Id: I7b244c1244d97b169a3c7fbc8f8a8b115731ddee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337309
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     |  1 -
+ src/runtime/runtime2.go |  6 ------
+ src/runtime/time.go     | 53 ++++++++-----------------------------------------
+ 3 files changed, 8 insertions(+), 52 deletions(-)

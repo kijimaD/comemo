@@ -1,0 +1,21 @@
+commit a2cc8b20fd6576b1db729159c096aadfb91fbb9e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 1 17:31:06 2017 -0800
+
+    cmd/go: fix TestFFLAGS for Fortran compilers that accept unknown options
+    
+    The test assumed that passing an unknown option to the Fortran
+    compiler would cause the compiler to fail. Unfortunately it appears
+    that some succeed. It's irrelevant to the actual test, which is
+    verifying that the flag was indeed passed.
+    
+    Fixes #19080.
+    
+    Change-Id: Ib9e89447a2104e4742f4b98938373fc2522772aa
+    Reviewed-on: https://go-review.googlesource.com/37658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/go/go_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

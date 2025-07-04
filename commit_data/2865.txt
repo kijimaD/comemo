@@ -1,0 +1,14 @@
+commit 2495c14d5c477b869ed0fbc3e59da423e3d48316
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 18:28:05 2009 -0700
+
+    WriteString
+    
+    R=rsc
+    DELTA=41  (41 added, 0 deleted, 0 changed)
+    OCL=32692
+    CL=32697
+
+ src/pkg/bufio/bufio.go      | 19 +++++++++++++++++++
+ src/pkg/bufio/bufio_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

@@ -1,0 +1,17 @@
+commit 644c16c76cc11034b124763a039a7164cb3e1abc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 6 08:48:14 2016 -0400
+
+    cmd/compile: fix intrinsifying sync/atomic.Swap* on AMD64
+    
+    It should alias to Xchg instead of Swap. Found when testing #16985.
+    
+    Change-Id: If9fd734a1f89b8b2656f421eb31b9d1b0d95a49f
+    Reviewed-on: https://go-review.googlesource.com/28512
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 12 ++++++------
+ test/intrinsic.dir/atomic.go       | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)

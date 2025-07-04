@@ -1,0 +1,32 @@
+commit ddc6b64444c3914621b3b1ff019e02b5aabdc20c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 9 19:27:57 2016 -0800
+
+    cmd/compile: fix defer/deferreturn
+    
+    Make sure we do any just-before-return cleanup on all paths out of a
+    function, including when recovering.  Each exit path should include
+    deferreturn (if there are any defers) and then the exit
+    code (e.g. copying heap-escaping return values back to the stack).
+    
+    Introduce a Defer SSA block type which has two outgoing edges - one the
+    fallthrough edge (the defer was queued successfully) and one which
+    immediately returns (the defer had a successful recover() call and
+    normal execution should resume at the return point).
+    
+    Fixes #14725
+    
+    Change-Id: Iad035c9fd25ef8b7a74dafbd7461cf04833d981f
+    Reviewed-on: https://go-review.googlesource.com/20486
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go             | 96 ++++++++++++--------------
+ src/cmd/compile/internal/ssa/check.go          | 10 +++
+ src/cmd/compile/internal/ssa/flagalloc.go      |  4 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/likelyadjust.go   |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  2 +
+ src/cmd/compile/internal/ssa/phiopt.go         |  4 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  6 +-
+ test/fixedbugs/issue14725.go                   | 57 +++++++++++++++
+ 9 files changed, 124 insertions(+), 58 deletions(-)

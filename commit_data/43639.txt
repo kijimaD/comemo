@@ -1,0 +1,25 @@
+commit 676ad56095c819751ae9f61354cf0fa356e71cb6
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Oct 30 11:35:48 2020 -0400
+
+    go/types: reorganize error codes into categories
+    
+    In CL 264179, some reorganization of error codes was deferred in order
+    to minimize diffs between patch-sets.
+    
+    This CL reorganizes the error codes as discussed. It is a pure
+    reordering, with no material changes other than the changing of internal
+    const values.
+    
+    For #42290
+    
+    Change-Id: I0e9b421a92e96b19e53039652f8de898c5255290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266637
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/errorcodes.go | 1504 ++++++++++++++++++++++----------------------
+ 1 file changed, 748 insertions(+), 756 deletions(-)

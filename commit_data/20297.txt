@@ -1,0 +1,37 @@
+commit f545b05aaec2d13e664ce48ce2c258bcfce307c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 15:53:45 2014 -0400
+
+    runtime: make more functions safe for Go
+    
+    Convert no-op race functions.
+    Everything else is tiny and gets NOSPLITs.
+    
+    After this, all that is left on darwin is sysAlloc, panic, and gothrow (all pending).
+    There may be system-specific calls in other builds.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/140240044
+
+ src/pkg/runtime/cgocall.go     |   4 +-
+ src/pkg/runtime/os_darwin.c    |   1 +
+ src/pkg/runtime/os_dragonfly.c |  24 +++++++-
+ src/pkg/runtime/os_freebsd.c   |  24 +++++++-
+ src/pkg/runtime/os_linux.c     |  25 ++++++++-
+ src/pkg/runtime/os_nacl.c      |  72 ++++++++++++++++++++----
+ src/pkg/runtime/os_netbsd.c    |   1 +
+ src/pkg/runtime/os_openbsd.c   |   1 +
+ src/pkg/runtime/os_plan9.c     |   1 +
+ src/pkg/runtime/os_solaris.c   |   1 +
+ src/pkg/runtime/os_windows.c   |   1 +
+ src/pkg/runtime/proc.c         |  20 ++++++-
+ src/pkg/runtime/race.c         |  56 ++++++++-----------
+ src/pkg/runtime/race.go        |  69 ++++++++++++++++++++++-
+ src/pkg/runtime/race0.c        | 124 -----------------------------------------
+ src/pkg/runtime/race0.go       |  25 +++++++--
+ src/pkg/runtime/slice.go       |   8 +--
+ src/pkg/runtime/string.go      |   6 +-
+ src/pkg/runtime/stubs.go       |  31 -----------
+ 19 files changed, 274 insertions(+), 220 deletions(-)

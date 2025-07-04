@@ -1,0 +1,23 @@
+commit ad03af66ebfb368fe0f87262092094e1793a9ef5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 21 12:50:35 2016 -0800
+
+    runtime, runtime/pprof: add Frames to get file/line for Callers
+    
+    This indirectly implements a small fix for runtime/pprof: it used to
+    look for runtime.gopanic when it should have been looking for
+    runtime.sigpanic.
+    
+    Update #11432.
+    
+    Change-Id: I5e3f5203b2ac5463efd85adf6636e64174aacb1d
+    Reviewed-on: https://go-review.googlesource.com/19869
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/callers_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/extern.go       |  7 ++--
+ src/runtime/pprof/pprof.go  | 29 ++++++----------
+ src/runtime/symtab.go       | 78 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 173 insertions(+), 24 deletions(-)

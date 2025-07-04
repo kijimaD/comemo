@@ -1,0 +1,12 @@
+commit d4a020dec1396ec162f95dd834b358da4a519355
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Mon Mar 4 10:25:21 2013 -0500
+
+    container/heap: fix int overflow bug
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7450052
+
+ src/pkg/container/heap/heap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

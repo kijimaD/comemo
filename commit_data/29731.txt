@@ -1,0 +1,16 @@
+commit 93726522ef2c403b7df8945892b641098ef9f803
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 23:27:02 2016 +0000
+
+    runtime: skip GDB tests on mips64
+    
+    Updates #18173
+    
+    Change-Id: I4c667c89ba3bf16433a4cef7cb01054f1798667d
+    Reviewed-on: https://go-review.googlesource.com/33892
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

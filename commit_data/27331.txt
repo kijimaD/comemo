@@ -1,0 +1,19 @@
+commit 55546efeee9fb6104d3dfd76351e7765df0bdd71
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun May 8 12:54:31 2016 -0700
+
+    Revert "cmd/compile: properly handle map assignments for OAS2DOTTYPE"
+    
+    This reverts commit 9d7c9b4384db01afd2acb27d3a4636b60e957f08.
+    
+    For #15602.
+    
+    Change-Id: I464184b05babe4cb8dedab6161efa730cea6ee2d
+    Reviewed-on: https://go-review.googlesource.com/22930
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 26 ++++++++++----------------
+ test/fixedbugs/issue14678.go         | 27 ---------------------------
+ 2 files changed, 10 insertions(+), 43 deletions(-)

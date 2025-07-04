@@ -1,0 +1,26 @@
+commit 53827ba49eb6afae541579c96c6f6b3df3605694
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Oct 3 10:33:48 2023 +0000
+
+    cmd/compile,runtime: remove runtime.mulUintptr
+    
+    For #48798
+    
+    Change-Id: I3e928d3921cfd5a7bf35b23d0ae6442aa6d2d482
+    GitHub-Last-Rev: b101a8a54f2cc9ea917f879a545f30c702508743
+    GitHub-Pull-Request: golang/go#63349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go             |   1 -
+ .../compile/internal/typecheck/_builtin/runtime.go |   2 -
+ src/cmd/compile/internal/typecheck/builtin.go      | 204 ++++++++++-----------
+ src/cmd/compile/internal/walk/builtin.go           |  20 +-
+ src/runtime/slice.go                               |   6 -
+ 5 files changed, 118 insertions(+), 115 deletions(-)

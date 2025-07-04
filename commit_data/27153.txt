@@ -1,0 +1,22 @@
+commit 9629f55fbbfb4052ea24c247cbd5db49ba2f389e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 26 15:17:56 2016 -0400
+
+    cmd/link: remove absolute address for c-archive on darwin/arm
+    
+    Now it is possible to build a c-archive as PIC on darwin/arm (this is
+    now the default). Then the system linker can link the binary using
+    the archive as PIE.
+    
+    Fixes #12896.
+    
+    Change-Id: Iad84131572422190f5fa036e7d71910dc155f155
+    Reviewed-on: https://go-review.googlesource.com/22461
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/build.go                   |  5 +++++
+ src/cmd/link/internal/arm/asm.go      | 30 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go      |  3 +++
+ src/cmd/link/internal/ld/macho.go     |  7 +++++--
+ src/runtime/cgo/signal_darwin_armx.go |  6 +++++-
+ 5 files changed, 48 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 687f387c0b0018ce775421bfaf3db7d460404c80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 5 18:52:37 2008 -0700
+
+    - added more semantic checks - more to come
+    - distinguish float/int literals syntactically
+    - fixed a tracing bug
+    
+    R=r
+    OCL=13906
+    CL=13906
+
+ usr/gri/gosrc/ast.go          |  67 +++++++++++-
+ usr/gri/gosrc/globals.go      |  30 +++---
+ usr/gri/gosrc/parser.go       | 235 ++++++++++++++++++++++++++----------------
+ usr/gri/gosrc/scanner.go      |  21 ++--
+ usr/gri/gosrc/test_scanner.go |   2 +-
+ usr/gri/gosrc/type.go         | 117 ++++++++++++++++++++-
+ usr/gri/gosrc/universe.go     |   2 +
+ 7 files changed, 362 insertions(+), 112 deletions(-)

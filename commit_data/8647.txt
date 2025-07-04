@@ -1,0 +1,16 @@
+commit be48115f48b4a8e827502771599ee274aaba3117
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 7 11:53:47 2011 -0700
+
+    gofix: fix diff regression from exec change
+    
+    Also pass -u to diff to be consistent with gofmt.
+    
+    Fixes #1619
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4591041
+
+ src/cmd/gofix/main.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

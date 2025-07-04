@@ -1,0 +1,25 @@
+commit 6fe976545d646a3f076a84a7ca22be63df8da718
+Author: root <vishwanatha.hd@ibm.com>
+Date:   Wed May 31 12:06:02 2023 +0000
+
+    runtime: handle SIGPE exception for p256 crypto package on s390x
+    
+    Older s390x before z13 did not have support to carry out floating point operations i.e. they didn't have the support for vector instructions like VX/VL, etc.
+    
+    Starting with Go1.19, z13 is the minimum hardware level for running Go on LoZ (s390x). The main cause of this issue was the refactoring of elliptic curve to internal/nistec. The new code structures made it difficult to dynamically switch implementations at runtime, so it became necessary (in order machines to continue to use the accelerated implementation) to require z13 as the minimum hardware.
+    
+    Hence, Go programs, when run on unsupported hardware, should crash on startup instead of crashing out in crypto code.
+    
+    Fixes: #58465
+    
+    Change-Id: I7c1a816205d19b5ddd2f1464839d16fa96815384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499495
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_s390x.s       |  1 +
+ src/runtime/os_linux_s390x.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

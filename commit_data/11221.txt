@@ -1,0 +1,13 @@
+commit 436b37d885d6bf552d16f81a6b75a96aa44b6248
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 18 16:59:40 2012 +1100
+
+    os: remove old note about NewSyscallError being special
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5556044
+
+ src/pkg/os/error_plan9.go | 4 ----
+ src/pkg/os/error_posix.go | 4 ----
+ 2 files changed, 8 deletions(-)

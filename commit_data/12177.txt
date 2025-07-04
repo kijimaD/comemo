@@ -1,0 +1,14 @@
+commit c1139549bc51ebb429f5322699c267f440b3f82b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 12:44:11 2012 -0800
+
+    godoc: consistent placement of documentation sections
+    
+    Fixes #1226.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694052
+
+ lib/godoc/package.html | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

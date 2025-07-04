@@ -1,0 +1,31 @@
+commit e07b02ff87af594a68484dcb1e3a78d1c39abc56
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 23 10:27:30 2021 -0500
+
+    net: in (*netFD).dial, use the passed in local address if getsockname fails
+    
+    'man getsockname' lists a number of possible failure modes, including
+    ENOBUFS (for resource exhaustion) and EBADF (which we could possibly
+    see in the event of a bug or race condition elsewhere in the program).
+    
+    If getsockname fails for an explicit user-provided local address, the
+    user is probably not expecting LocalAddr on the returned net.Conn to
+    return nil. This may or may not fix #34611, but should at least help
+    us diagnose it more clearly.
+    
+    While we're add it, also add more nil-checking logic in the test based
+    on the stack traces posted to
+    https://golang.org/issue/34611#issuecomment-975923748.
+    
+    For #34611
+    
+    Change-Id: Iba870b96787811e4b9959b74ef648afce9316602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366536
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/server_test.go | 10 +++++++++-
+ src/net/sock_posix.go  | 16 +++++++++++-----
+ 2 files changed, 20 insertions(+), 6 deletions(-)

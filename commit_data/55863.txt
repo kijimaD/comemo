@@ -1,0 +1,25 @@
+commit c8c46e746b778c39727c588adf79aff34ab6f151
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Mar 8 10:12:41 2024 +0000
+
+    runtime: use built-in clear to simplify code
+    
+    Change-Id: Icb6d9ca996b4119d8636d9f7f6a56e510d74d059
+    GitHub-Last-Rev: 08178e8ff798f4a51860573788c9347a0fb6bc40
+    GitHub-Pull-Request: golang/go#66188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569979
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/heapdump.go    |  4 +---
+ src/runtime/mcheckmark.go  |  4 +---
+ src/runtime/mgc.go         |  4 +---
+ src/runtime/mpagealloc.go  |  5 +----
+ src/runtime/mpallocbits.go |  8 ++------
+ src/runtime/mprof.go       | 12 +++---------
+ src/runtime/profbuf.go     | 10 +++-------
+ 7 files changed, 12 insertions(+), 35 deletions(-)

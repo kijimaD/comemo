@@ -1,0 +1,16 @@
+commit 9b65dac494903780ef2134eb4fd6a8ee97cd7f4e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 20 17:02:42 2013 +0900
+
+    net: enable runtime-integrated network pollster on freebsd/arm
+    
+    Fixes #6146.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12927048
+
+ src/pkg/net/fd_bsd.go          | 2 +-
+ src/pkg/net/fd_poll_runtime.go | 2 +-
+ src/pkg/net/fd_poll_unix.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

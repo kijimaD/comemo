@@ -1,0 +1,16 @@
+commit 2a63f5df987625fbcc69d0447efef0c49fd41941
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 01:08:26 2009 -0800
+
+    go for c++ programmers; fixes.
+    
+    the most substantial are the wording around semicolons
+    and around the channel manager nits.  both were subtly
+    incorrect.
+    
+    R=iant, r
+    CC=go-dev
+    http://go/go-review/1025018
+
+ doc/go_for_cpp_programmers.html | 137 ++++++++++++++++++++++++----------------
+ 1 file changed, 82 insertions(+), 55 deletions(-)

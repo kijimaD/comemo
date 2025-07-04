@@ -1,0 +1,25 @@
+commit 7b45edb45016307151266731ccd158e14504598f
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Sun Oct 31 10:04:03 2021 +0100
+
+    bytes: add Clone function
+    
+    The new Clone function returns a copy of b[:len(b)]
+    for the input byte slice b.
+    The result may have additional unused capacity.
+    Clone(nil) returns nil.
+    
+    Fixes #45038
+    
+    Change-Id: I0469a202d77a7b491f1341c08915d07ddd1f0300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359675
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/45038.txt      |  1 +
+ src/bytes/bytes.go      | 10 ++++++++++
+ src/bytes/bytes_test.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+)

@@ -1,0 +1,25 @@
+commit ad119b9c4dcae8389a3700c245a923b0ebe449cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 6 12:04:08 2013 -0700
+
+    os: fix plan9 build
+    
+    I broke it with the darwin getwd attrlist stuff (0583e9d36dd).
+    plan9 doesn't have syscall.ENOTSUP.
+    
+    It's in api/go1.txt as a symbol always available (not context-specific):
+    
+    pkg syscall, const ENOTSUP Errno
+    
+    ... but plan9 isn't considered by cmd/api, so it only looks
+    universally available.  Alternatively, we could add a fake ENOTSUP
+    to plan9, but they were making efforts earlier to clean their
+    syscall package, so I'd prefer not to dump more in it.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12509044
+
+ src/pkg/os/getwd.go        |  6 +++++-
+ src/pkg/os/getwd_darwin.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

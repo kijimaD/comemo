@@ -1,0 +1,27 @@
+commit 7ff0c8267f25a628dc4c8b5fa356b26cbb72530d
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Oct 22 15:43:23 2016 +0200
+
+    cmd/compile: replace ANDL with MOV?ZX
+    
+    According to "Intel 64 and IA-32 Architectures Optimization Reference
+    Manual" Section: "3.5.1.13 Zero-Latency MOV Instructions"
+    MOV?ZX instructions have zero latency on newer processors.
+    
+    during make.bash:
+    (ANDLconst [0xFF] x) -> (MOVBQZX x)
+    applies 422 times
+    (ANDLconst [0xFFFF] x) -> (MOVWQZX x)
+    applies 114 times
+    
+    Updates #15105
+    
+    Change-Id: I10933af599de3c26449c52f4b5cd859331028f39
+    Reviewed-on: https://go-review.googlesource.com/31639
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

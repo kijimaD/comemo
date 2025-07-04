@@ -1,0 +1,25 @@
+commit 43cd90701725278ff403c03e9304bbfc76f8bc0c
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 1 15:07:51 2018 +0000
+
+    Revert "compress: move benchmark text from src/testdata to src/compress/testdata"
+    
+    This reverts commit 067bb443af6b44cb026ab182a26d157dbd1b2dd6.
+    
+    Reason for revert:
+    Failing Darwin-arm builds because that testing environment does not access testdata
+    from sibling directories. A future change will likely be made to move this testdata
+    out of src/testdata to create a solution that doesn't require the single-file directory.
+    
+    Updates #27151
+    
+    Change-Id: I8dbf5dd9512c94a605ee749ff4655cb00b0de686
+    Reviewed-on: https://go-review.googlesource.com/138737
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/nacl/testzip.proto                              | 2 ++
+ src/compress/flate/deflate_test.go                   | 4 ++--
+ src/compress/flate/reader_test.go                    | 2 +-
+ src/net/sendfile_test.go                             | 2 +-
+ src/{compress => }/testdata/Isaac.Newton-Opticks.txt | 0
+ 5 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit c57054f7b49539ca4ed6533267c1c20c39aaaaa5
+Author: Kevin Ballard <kevin@sb.org>
+Date:   Tue Nov 10 20:05:24 2009 -0800
+
+    Implement new emacs command M-x gofmt
+    
+    Define a new interactive function in go-mode.el called gofmt.
+    This function passes the current buffer through the external `gofmt`
+    tool and replaces the buffer with the result.
+    
+    R=agl, rsc
+    https://golang.org/cl/154044
+
+ misc/emacs/go-mode.el | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,17 @@
+commit 314b358ab70cbc31b81182ecc97c94809b3edacf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 23:20:49 2009 -0800
+
+    gofmt-ify strconv
+    (and remove an empty line at the end of a file)
+    
+    R=rsc
+    http://go/go-review/1017046
+
+ src/pkg/strconv/atof_test.go  |   8 +--
+ src/pkg/strconv/atoi_test.go  |   8 +--
+ src/pkg/strconv/decimal.go    | 119 +++++++++++++++++++++---------------------
+ src/pkg/strconv/ftoa_test.go  |   6 +--
+ src/pkg/strconv/itoa_test.go  |   4 +-
+ src/pkg/strconv/quote_test.go |   6 +--
+ 6 files changed, 75 insertions(+), 76 deletions(-)

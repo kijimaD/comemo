@@ -1,0 +1,15 @@
+commit e5ae12ab82e09539b77cfba3fa1c4c31f5b948db
+Author: alirezaarzehgar <alirezaarzehgar82@gmail.com>
+Date:   Tue Jan 21 00:24:28 2025 +0330
+
+    net/url: add panic to unhex for imposible error case
+    
+    Change-Id: I9f39b3d2a1a0a3e510afc874dd071302b2b0c89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643555
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/url/url.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

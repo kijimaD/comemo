@@ -1,0 +1,22 @@
+commit 4c565a5561e33e1d488116ea45c35d3ce408cf93
+Author: rlanhellas <ronaldo.lanhellas@gmail.com>
+Date:   Mon Jan 31 22:47:42 2022 +0000
+
+    time: return ENOENT instead of ERROR_PATH_NOT_FOUND in windows
+    
+    When using windows some users got a weird error (File not found) when the timezone database is not found. It happens because some methods in the time package don't treat ERROR_PATH_NOT_FOUND and ENOTDIR. To solve it was added a conversion to ENOTENT error.
+    
+    Fixes #50248
+    
+    Change-Id: I11c84cf409e01eafb932aea43c7293c8218259b8
+    GitHub-Last-Rev: fe7fff90cbea06c4af41e5b2ecadea0d409e2c05
+    GitHub-Pull-Request: golang/go#50906
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381957
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/time/sys_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

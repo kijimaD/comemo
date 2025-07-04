@@ -1,0 +1,12 @@
+commit 18b829b472852a43479da1f37f1055e842ed4238
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 11 17:07:25 2008 -0700
+
+    - go.atg now produces a compileable C++ parser when running through coco
+    - added a first test case
+    - running make produces a runnable go parser 'go'
+    
+    SVN=112127
+
+ tests/test0.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

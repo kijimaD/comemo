@@ -1,0 +1,26 @@
+commit fc6b74ce39748efc360afea4164c92a710ad6e77
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 20:11:55 2017 +0200
+
+    strconv: fix ParseUint return value on range overflow
+    
+    If the value corresponding to the input string cannot be
+    represented by an unsigned integer of the given size,
+    err.Err = ErrRange and the returned value is the maximum
+    magnitude unsigned integer of the appropriate bitSize.
+    This is consistent with ParseInt's behavior and the documentation.
+    
+    Expand tests to test 32 bit test value tables with bitsize 32 set.
+    These tests fail without the fix in this CL.
+    
+    Fixes #21278
+    
+    Change-Id: I8aab39279ec3e31905fcbf582a916cbf6d9b95da
+    Reviewed-on: https://go-review.googlesource.com/55134
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/strconv/atoi.go      |  4 ++--
+ src/strconv/atoi_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

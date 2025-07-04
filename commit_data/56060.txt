@@ -1,0 +1,49 @@
+commit 1e12eab8705d1d8d7472be9147a39caa1c8380db
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Mar 22 23:31:44 2024 +0800
+
+    all: fix a large number of comments
+    
+    Partial typo corrections, following https://go.dev/wiki/Spelling
+    
+    Change-Id: I2357906ff2ea04305c6357418e4e9556e20375d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 2 +-
+ src/cmd/compile/internal/ssa/dom_test.go           | 2 +-
+ src/cmd/compile/internal/ssa/passbm_test.go        | 2 +-
+ src/cmd/compile/internal/test/pgo_inl_test.go      | 4 ++--
+ src/cmd/dist/supported_test.go                     | 2 +-
+ src/cmd/dist/test.go                               | 2 +-
+ src/cmd/go/internal/modindex/scan.go               | 4 ++--
+ src/cmd/go/internal/modinfo/info.go                | 2 +-
+ src/cmd/go/internal/script/cmds.go                 | 2 +-
+ src/cmd/go/script_test.go                          | 2 +-
+ src/context/context.go                             | 2 +-
+ src/context/x_test.go                              | 2 +-
+ src/crypto/tls/conn.go                             | 2 +-
+ src/crypto/tls/handshake_server_test.go            | 2 +-
+ src/crypto/x509/x509.go                            | 2 +-
+ src/encoding/xml/read_test.go                      | 2 +-
+ src/encoding/xml/xml_test.go                       | 6 +++---
+ src/go/doc/comment/testdata/README.md              | 2 +-
+ src/go/doc/comment/testdata_test.go                | 2 +-
+ src/html/template/js.go                            | 2 +-
+ src/internal/fuzz/fuzz.go                          | 8 ++++----
+ src/internal/fuzz/worker.go                        | 8 ++++----
+ src/net/cgo_unix.go                                | 2 +-
+ src/net/http/transport_test.go                     | 2 +-
+ src/os/exec/exec.go                                | 2 +-
+ src/os/exec/exec_test.go                           | 4 ++--
+ src/runtime/coverage/testsupport.go                | 2 +-
+ src/runtime/netpoll_windows.go                     | 4 ++--
+ src/testing/testing.go                             | 2 +-
+ test/typeparam/graph.go                            | 5 +++--
+ test/typeparam/list2.go                            | 2 +-
+ 31 files changed, 45 insertions(+), 44 deletions(-)

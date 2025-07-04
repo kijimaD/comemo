@@ -1,0 +1,18 @@
+commit 67cdec00c256d817fc3d2c099fa1830c8f446923
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 14 09:39:40 2016 -0700
+
+    cmd/vet: teach asm checker about PEXTRD’s op size
+    
+    Fixes #15271
+    
+    Change-Id: I28e3fb5bde1e6fd5b263b1434873b8ce051aee97
+    Reviewed-on: https://go-review.googlesource.com/22083
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/asmdecl.go      |  5 +++++
+ src/cmd/vet/testdata/asm.go |  2 ++
+ src/cmd/vet/testdata/asm1.s | 11 +++++++++++
+ 3 files changed, 18 insertions(+)

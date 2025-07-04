@@ -1,0 +1,19 @@
+commit e9c96835971044aa4ace37c7787de231bbde05d9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 4 15:26:52 2021 -0500
+
+    cmd/go: suppress errors from 'go get -d' for packages that only conditionally exist
+    
+    Fixes #44106
+    Fixes #29268
+    
+    Change-Id: Id113f2ced274d43fbf66cb804581448218996f81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289769
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go              |  20 +++--
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt | 116 +++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 5 deletions(-)

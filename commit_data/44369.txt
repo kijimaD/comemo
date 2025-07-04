@@ -1,0 +1,22 @@
+commit 080119799bb9cbace0d20bcc671497a53e3ec14e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 23 11:38:24 2021 -0500
+
+    runtime: fix usleep on windows/arm
+    
+    Changed calling convention to pre-multiply the argument by -100,
+    and then deleted the * 100 but not the negation in the windows/arm assembly.
+    Delete the negation.
+    
+    Fixes the current all.bash breakage on windows/arm builder.
+    (Maybe that will uncover more.)
+    
+    Change-Id: I13006a44866ecc007586deb180a49c038d70aa99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295529
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_windows_arm.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit 5c7a005266f84ecea26859619630a862eccc0d48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 3 13:21:55 2016 -0700
+
+    spec: ignore struct tags when converting structs
+    
+    This is a backwards-compatible language change.
+    
+    Per the proposal (#16085), the rules for conversions are relaxed
+    such that struct tags in any of the structs involved in the conversion
+    are ignored (recursively).
+    
+    Because this is loosening the existing rules, code that compiled so
+    far will continue to compile.
+    
+    For #16085.
+    Fixes #6858.
+    
+    Change-Id: I0feef651582db5f23046a2331fc3f179ae577c45
+    Reviewed-on: https://go-review.googlesource.com/24190
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

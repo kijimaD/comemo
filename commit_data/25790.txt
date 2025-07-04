@@ -1,0 +1,14 @@
+commit 0d5e6a3f07414ecf6a14bc601532aa305296f562
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 19 11:42:34 2016 -0800
+
+    cmd/api: fix benchmark to ignore internal packages
+    
+    Change-Id: I8ee46287ae0744efa83ad343997ad6835520fa5c
+    Reviewed-on: https://go-review.googlesource.com/19688
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/api/goapi_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

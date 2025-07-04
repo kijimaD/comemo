@@ -1,0 +1,15 @@
+commit 824b332652b94fea18d1e6cc42e75870b0185f5e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 20:52:30 2012 +0100
+
+    net: fix race in TestReadWriteDeadline.
+    
+    Discovered by adding OBLOCK support to race
+    instrumentation.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6819067
+
+ src/pkg/net/timeout_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,71 @@
+commit 8bbfc51d9ac9ce9472e126cc3654c9a45eceb236
+Author: Andrew <andybons@golang.org>
+Date:   Wed Nov 20 12:06:51 2019 -0500
+
+    all: base64-encode binaries that will cause Apple notarization to fail
+    
+    Starting with macOS 10.15 (Catalina), Apple now requires all software
+    distributed outside of the App Store to be notarized. Any binaries we
+    distribute must abide by a strict set of requirements like code-signing
+    and having a minimum target SDK of 10.9 (amongst others).
+    
+    Apple’s notarization service will recursively inspect archives looking to
+    find notarization candidate binaries. If it finds a binary that does not
+    meet the requirements or is unable to decompress an archive, it will
+    reject the entire distribution. From cursory testing, it seems that the
+    service uses content sniffing to determine file types, so changing
+    the file extension will not work.
+    
+    There are some binaries and archives included in our distribution that
+    are being detected by Apple’s service as potential candidates for
+    notarization or decompression. As these are files used by tests and some
+    are intentionally invalid, we don’t intend to ever make them compliant.
+    
+    As a workaround for this, we base64-encode any binaries or archives that
+    Apple’s notarization service issues a warning for, as these warnings will
+    become errors in January 2020.
+    
+    Updates #34986
+    
+    Change-Id: I106fbb6227b61eb221755568f047ee11103c1680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208118
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader_test.go                     |  34 +++++++++---
+ src/archive/zip/testdata/go-no-datadesc-sig.zip    | Bin 330 -> 0 bytes
+ .../zip/testdata/go-no-datadesc-sig.zip.base64     |   1 +
+ src/cmd/internal/buildid/buildid_test.go           |  41 +++++++++-----
+ src/cmd/internal/buildid/testdata/a.elf            | Bin 12768 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.elf.base64     |   1 +
+ src/cmd/internal/buildid/testdata/a.macho          | Bin 13472 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.macho.base64   |   1 +
+ src/cmd/internal/buildid/testdata/a.pe             | Bin 3584 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.pe.base64      |   1 +
+ src/cmd/internal/buildid/testdata/p.a              | Bin 682 -> 0 bytes
+ src/cmd/internal/buildid/testdata/p.a.base64       |   1 +
+ src/cmd/nm/nm_test.go                              |  15 ++++-
+ src/compress/gzip/gunzip_test.go                   |  10 +++-
+ src/compress/gzip/testdata/issue6550.gz            | Bin 65536 -> 0 bytes
+ src/compress/gzip/testdata/issue6550.gz.base64     |   1 +
+ src/debug/macho/file_test.go                       |  61 +++++++++++++++++----
+ .../testdata/clang-386-darwin-exec-with-rpath      | Bin 8416 -> 0 bytes
+ .../clang-386-darwin-exec-with-rpath.base64        |   1 +
+ src/debug/macho/testdata/clang-386-darwin.obj      | Bin 464 -> 0 bytes
+ .../macho/testdata/clang-386-darwin.obj.base64     |   1 +
+ .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 8432 -> 0 bytes
+ .../clang-amd64-darwin-exec-with-rpath.base64      |   1 +
+ src/debug/macho/testdata/clang-amd64-darwin.obj    | Bin 768 -> 0 bytes
+ .../macho/testdata/clang-amd64-darwin.obj.base64   |   1 +
+ .../macho/testdata/fat-gcc-386-amd64-darwin-exec   | Bin 28992 -> 0 bytes
+ .../testdata/fat-gcc-386-amd64-darwin-exec.base64  |   1 +
+ src/debug/macho/testdata/gcc-386-darwin-exec       | Bin 12588 -> 0 bytes
+ .../macho/testdata/gcc-386-darwin-exec.base64      |   1 +
+ src/debug/macho/testdata/gcc-amd64-darwin-exec     | Bin 8512 -> 0 bytes
+ .../macho/testdata/gcc-amd64-darwin-exec-debug     | Bin 4540 -> 0 bytes
+ .../testdata/gcc-amd64-darwin-exec-debug.base64    |   1 +
+ .../macho/testdata/gcc-amd64-darwin-exec.base64    |   1 +
+ src/go/build/deps_test.go                          |  13 +++--
+ src/internal/obscuretestdata/obscuretestdata.go    |  51 +++++++++++++++++
+ 35 files changed, 194 insertions(+), 45 deletions(-)

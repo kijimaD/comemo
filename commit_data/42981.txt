@@ -1,0 +1,17 @@
+commit bae9cf651796db898b1e4bd77a1a47c5f2d7b04d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 14 19:24:55 2020 -0700
+
+    test: fix inline.go to pass linux-amd64-noopt
+    
+    Updates #33485.
+    
+    Change-Id: I3330860cdff1e9797466a7630bcdb7792c465b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254938
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ test/inline.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

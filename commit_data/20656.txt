@@ -1,0 +1,33 @@
+commit 11e53e46a64102554197d987a364a60236f4326b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 11:07:18 2014 -0400
+
+    runtime: crash if we see an invalid pointer into GC arena
+    
+    This will help find bugs during the release freeze.
+    It's not clear it should be kept for the release itself.
+    That's issue 8861.
+    
+    The most likely thing that would trigger this is stale
+    pointers that previously were ignored or caused memory
+    leaks. These were allowed due to the use of conservative
+    collection. Now that everything is precise, we should not
+    see them anymore.
+    
+    The small number check reinforces what the stack copier
+    is already doing, catching the storage of integers in pointers.
+    It caught issue 8864.
+    
+    The check is disabled if _cgo_allocate is linked into the binary,
+    which is to say if the binary is using SWIG to allocate untyped
+    Go memory. In that case, there are invalid pointers and there's
+    nothing we can do about it.
+    
+    LGTM=rlh
+    R=golang-codereviews, dvyukov, rlh
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/148470043
+
+ src/cmd/cc/godefs.c |  6 ++--
+ src/runtime/mgc0.c  | 99 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 98 insertions(+), 7 deletions(-)

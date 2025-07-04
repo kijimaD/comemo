@@ -1,0 +1,19 @@
+commit 86043a87c95ca3a5c5aa37b9844be1e5d5d0f19c
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 17:24:01 2009 -0700
+
+    mv container/vector down one level for new rules.
+    simplify run.bash now that lib has make test that recurs.
+    
+    R=rsc
+    DELTA=1179  (578 added, 596 deleted, 5 changed)
+    OCL=28313
+    CL=28313
+
+ src/lib/Makefile                              |  8 ++++----
+ src/lib/container/{ => vector}/Makefile       |  0
+ src/lib/container/{ => vector}/intvector.go   |  0
+ src/lib/container/{ => vector}/vector.go      |  0
+ src/lib/container/{ => vector}/vector_test.go |  0
+ src/run.bash                                  | 18 +-----------------
+ 6 files changed, 5 insertions(+), 21 deletions(-)

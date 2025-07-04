@@ -1,0 +1,42 @@
+commit a22e77e6aefeaaa3302d995c647e76e04297e8c3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 17 14:55:57 2011 +1000
+
+    template: move exp/template into template.
+    (Leave exp/template/html where it is for now.)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4899048
+
+ misc/goplay/goplay.go                             |  2 +-
+ src/cmd/godoc/codewalk.go                         |  2 +-
+ src/cmd/godoc/format.go                           |  2 +-
+ src/cmd/godoc/godoc.go                            |  2 +-
+ src/cmd/goinstall/make.go                         |  2 +-
+ src/pkg/Makefile                                  |  4 ++--
+ src/pkg/exp/template/html/reverse.go              |  4 ++--
+ src/pkg/exp/template/html/reverse_test.go         |  2 +-
+ src/pkg/go/doc/comment.go                         |  2 +-
+ src/pkg/rpc/debug.go                              |  2 +-
+ src/pkg/{exp/template/parse => template}/Makefile | 11 ++++++-----
+ src/pkg/{exp => }/template/doc.go                 |  0
+ src/pkg/{exp => }/template/exec.go                |  2 +-
+ src/pkg/{exp => }/template/exec_test.go           |  0
+ src/pkg/{exp => }/template/funcs.go               |  0
+ src/pkg/{exp => }/template/helper.go              |  0
+ src/pkg/{exp => }/template/parse.go               |  2 +-
+ src/pkg/{exp/template => template/parse}/Makefile |  7 +++----
+ src/pkg/{exp => }/template/parse/lex.go           |  0
+ src/pkg/{exp => }/template/parse/lex_test.go      |  0
+ src/pkg/{exp => }/template/parse/node.go          |  0
+ src/pkg/{exp => }/template/parse/parse.go         |  2 +-
+ src/pkg/{exp => }/template/parse/parse_test.go    |  0
+ src/pkg/{exp => }/template/parse/set.go           |  0
+ src/pkg/{exp => }/template/set.go                 |  2 +-
+ src/pkg/{exp => }/template/set_test.go            |  0
+ src/pkg/{exp => }/template/testdata/file1.tmpl    |  0
+ src/pkg/{exp => }/template/testdata/file2.tmpl    |  0
+ src/pkg/{exp => }/template/testdata/tmpl1.tmpl    |  0
+ src/pkg/{exp => }/template/testdata/tmpl2.tmpl    |  0
+ 30 files changed, 25 insertions(+), 25 deletions(-)

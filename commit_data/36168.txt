@@ -1,0 +1,27 @@
+commit 740e589bd00e330ac38e5aa146961f0d49ff1871
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 31 21:37:35 2018 +0000
+
+    html: lazily populate Unescape tables
+    
+    Saves ~105KB of heap for callers who don't use html.UnescapeString.
+    (EscapeString is much more common).
+    
+    Also saves 70KB of binary size, because now the linker can do dead
+    code elimination. (because #2559 is still open and global maps always
+    generate init code)
+    
+    Fixes #26727
+    Updates #6853
+    
+    Change-Id: I18fe9a273097e2c7e0cb7f88205cae1bb60fa89b
+    Reviewed-on: https://go-review.googlesource.com/127075
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/entity.go      | 4482 ++++++++++++++++++++++++-----------------------
+ src/html/entity_test.go |    8 +
+ src/html/escape.go      |    1 +
+ 3 files changed, 2256 insertions(+), 2235 deletions(-)

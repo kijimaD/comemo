@@ -1,0 +1,13 @@
+commit bef036e3d16695d51dd338f329e1a8afba667bbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 10 11:32:07 2012 -0500
+
+    syscall: add type for struct tcp_info
+    
+    R=mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/6900050
+
+ src/pkg/syscall/types_linux.go        |  3 +++
+ src/pkg/syscall/ztypes_linux_amd64.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

@@ -1,0 +1,62 @@
+commit add3ff549a97adbd7715b5609deb4dcbf5e7624c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 12 15:48:18 2016 -0700
+
+    cmd/compile: add OSTRUCTKEY for keyed struct literals
+    
+    Previously, we used OKEY nodes to represent keyed struct literal
+    elements. The field names were represented by an ONAME node, but this
+    is clumsy because it's the only remaining case where ONAME was used to
+    represent a bare identifier and not a variable.
+    
+    This CL introduces a new OSTRUCTKEY node op for use in struct
+    literals. These ops instead store the field name in the node's own Sym
+    field. This is similar in spirit to golang.org/cl/20890.
+    
+    Significant reduction in allocations for struct literal heavy code
+    like package unicode:
+    
+    name       old time/op     new time/op     delta
+    Template       345ms ± 6%      341ms ± 6%     ~           (p=0.141 n=29+28)
+    Unicode        200ms ± 9%      184ms ± 7%   -7.77%        (p=0.000 n=29+30)
+    GoTypes        1.04s ± 3%      1.05s ± 3%     ~           (p=0.096 n=30+30)
+    Compiler       4.47s ± 9%      4.49s ± 6%     ~           (p=0.890 n=29+29)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        523M ±13%       516M ±17%     ~           (p=0.400 n=29+30)
+    Unicode         334M ±27%       314M ±30%     ~           (p=0.093 n=30+30)
+    GoTypes        1.53G ±10%      1.52G ±10%     ~           (p=0.572 n=30+30)
+    Compiler       6.28G ± 7%      6.34G ±11%     ~           (p=0.300 n=30+30)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      44.5MB ± 0%     44.4MB ± 0%   -0.35%        (p=0.000 n=27+30)
+    Unicode       39.2MB ± 0%     34.5MB ± 0%  -11.79%        (p=0.000 n=26+30)
+    GoTypes        125MB ± 0%      125MB ± 0%   -0.12%        (p=0.000 n=29+30)
+    Compiler       515MB ± 0%      515MB ± 0%   -0.10%        (p=0.000 n=29+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        426k ± 0%       424k ± 0%   -0.39%        (p=0.000 n=29+30)
+    Unicode         374k ± 0%       323k ± 0%  -13.67%        (p=0.000 n=29+30)
+    GoTypes        1.21M ± 0%      1.21M ± 0%   -0.14%        (p=0.000 n=29+29)
+    Compiler       4.40M ± 0%      4.39M ± 0%   -0.13%        (p=0.000 n=29+30)
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: Iba4ee765dd1748f67e52fcade1cd75c9f6e13fa9
+    Reviewed-on: https://go-review.googlesource.com/30974
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |  7 ++-
+ src/cmd/compile/internal/gc/bimport.go   |  6 ++-
+ src/cmd/compile/internal/gc/esc.go       |  8 +--
+ src/cmd/compile/internal/gc/fmt.go       |  3 ++
+ src/cmd/compile/internal/gc/inl.go       |  4 ++
+ src/cmd/compile/internal/gc/opnames.go   |  1 +
+ src/cmd/compile/internal/gc/racewalk.go  |  5 --
+ src/cmd/compile/internal/gc/sinit.go     | 60 ++++++++++++++-------
+ src/cmd/compile/internal/gc/syntax.go    | 14 ++---
+ src/cmd/compile/internal/gc/typecheck.go | 93 +++++++++++++++-----------------
+ src/cmd/compile/internal/gc/walk.go      |  8 +--
+ 11 files changed, 110 insertions(+), 99 deletions(-)

@@ -1,0 +1,76 @@
+commit b0449c50f7e931d8b11831989c9ae883d91712d3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jul 1 09:50:24 2011 -0400
+
+    8c: fixes for Plan 9 build
+    
+    8c/gc.h:
+    . Added <u.h> header.
+    . Added "lD" pragma for "*Adr" to supplement "D".
+    
+    8c/swt.c:
+    . Removed unreferenced "thestring" arguments in Bprint() calls.
+    
+    cc/acid.c:
+    cc/com.c:
+    cc/com64.c:
+    cc/dcl.c:
+    cc/scon.c:
+    . Added <u.h>, required by "cc.h".
+    
+    cc/bits.c:
+    . Added <u.h>, required by "cc.h".
+    
+    cc/cc.h:
+    . Removed <u.h> and <ctype.h>.
+    . Added "O" pragma to accept "uint" as well as "int".
+    . Added new "U" pragma (char *).
+    
+    cc/cc.y:
+    . Added <u.h> before <stdio.h> (and "cc.h").
+    
+    cc/dpchk.c:
+    cc/mac.c:
+    . Added <u.h> and <ctype.h>.
+    
+    cc/funct.c:
+    . Added <u.h>, required by "cc.h".
+    
+    cc/godefs.c
+    . Added <u.h>, required by "cc.h".
+    . Dropped unused "t" argument in Bprint().
+    
+    cc/lex.c:
+    . Added <u.h> and <ctype.h>.
+    . Removed unnecessary incrementation.
+    . Changed exit() invocations with exits().
+    
+    cc/omachcap.c:
+    . Added <u.h>, required by "cc.h".
+    . USED(n) for unused argument to machcap().
+    
+    cc/sub.c:
+    . Added <u.h> and <ctype.h>.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4629070
+
+ src/cmd/8c/gc.h       | 2 ++
+ src/cmd/8c/swt.c      | 4 ++--
+ src/cmd/cc/acid.c     | 1 +
+ src/cmd/cc/bits.c     | 1 +
+ src/cmd/cc/cc.h       | 4 ++--
+ src/cmd/cc/cc.y       | 1 +
+ src/cmd/cc/com.c      | 1 +
+ src/cmd/cc/com64.c    | 1 +
+ src/cmd/cc/dcl.c      | 1 +
+ src/cmd/cc/dpchk.c    | 2 ++
+ src/cmd/cc/funct.c    | 1 +
+ src/cmd/cc/godefs.c   | 3 ++-
+ src/cmd/cc/lex.c      | 8 +++++---
+ src/cmd/cc/mac.c      | 2 ++
+ src/cmd/cc/omachcap.c | 2 ++
+ src/cmd/cc/scon.c     | 1 +
+ src/cmd/cc/sub.c      | 1 +
+ 17 files changed, 28 insertions(+), 8 deletions(-)

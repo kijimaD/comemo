@@ -1,0 +1,13 @@
+commit 9b0f4be2fbab4b428f435287e73a4c2709ae5dc4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 30 17:24:01 2012 -0700
+
+    A+C: add Peter Waller (individual CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6775083
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

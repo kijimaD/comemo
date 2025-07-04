@@ -1,0 +1,15 @@
+commit 7b409b30f207085b6d221d8479693617f84873a6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 23 17:13:33 2008 -0700
+
+    update some tests
+    
+    SVN=124196
+
+ test/{bugs => fixedbugs}/bug014.go |  0
+ test/{bugs => fixedbugs}/bug030.go |  0
+ test/{bugs => fixedbugs}/bug036.go |  0
+ test/{bugs => fixedbugs}/bug038.go |  0
+ test/{bugs => fixedbugs}/bug040.go |  0
+ test/golden.out                    | 40 ++++++++++++++++----------------------
+ 6 files changed, 17 insertions(+), 23 deletions(-)

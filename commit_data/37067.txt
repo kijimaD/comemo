@@ -1,0 +1,30 @@
+commit 05166bf54d053fcc833cf862b7cfb1fbf05b42ba
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 16 00:27:42 2018 +0200
+
+    runtime: use multiplication with overflow check for makeslice
+    
+    This improves performance for slices with an element size larger
+    than 32 bytes and removes loading a value from the maxElems
+    array for smaller element sizes.
+    
+    name                 old time/op  new time/op  delta
+    MakeSlice/Byte       18.0ns ± 4%  18.0ns ± 2%     ~     (p=0.575 n=20+17)
+    MakeSlice/Int16      21.8ns ± 2%  21.6ns ± 1%   -0.63%  (p=0.035 n=20+19)
+    MakeSlice/Int        42.0ns ± 2%  41.6ns ± 1%     ~     (p=0.121 n=20+18)
+    MakeSlice/Ptr        62.6ns ± 2%  62.4ns ± 2%     ~     (p=0.491 n=20+18)
+    MakeSlice/Struct/24  57.4ns ± 3%  56.0ns ± 2%   -2.40%  (p=0.000 n=19+19)
+    MakeSlice/Struct/32  62.1ns ± 2%  60.6ns ± 3%   -2.43%  (p=0.000 n=20+20)
+    MakeSlice/Struct/40  77.3ns ± 3%  68.9ns ± 3%  -10.91%  (p=0.000 n=20+20)
+    
+    Updates #21588
+    
+    Change-Id: Ie12807bf8f77c0e15453413f47e3d7de771b798f
+    Reviewed-on: https://go-review.googlesource.com/c/142377
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/slice.go      | 24 +++++++++---------
+ src/runtime/slice_test.go | 64 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 68 insertions(+), 20 deletions(-)

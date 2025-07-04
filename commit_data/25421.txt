@@ -1,0 +1,26 @@
+commit 81b35117d9e0b99a5894d65c8c419541a48c87dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 31 12:06:31 2015 -0800
+
+    runtime: set SIGCONT to _SigNotify + _SigDefault
+    
+    Use the current ability to say that we don't do anything with SIGCONT by
+    default, but programs can catch it using signal.Notify if they want.
+    
+    Fixes #8953.
+    
+    Change-Id: I67d40ce36a029cbc58a235cbe957335f4a58e1c5
+    Reviewed-on: https://go-review.googlesource.com/18185
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/signal_test.go        | 9 +++++++++
+ src/runtime/signal_darwin.go        | 2 +-
+ src/runtime/signal_dragonfly.go     | 2 +-
+ src/runtime/signal_freebsd.go       | 2 +-
+ src/runtime/signal_nacl.go          | 2 +-
+ src/runtime/signal_netbsd.go        | 2 +-
+ src/runtime/signal_openbsd.go       | 2 +-
+ src/runtime/signal_solaris.go       | 2 +-
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 10 files changed, 18 insertions(+), 9 deletions(-)

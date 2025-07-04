@@ -1,0 +1,23 @@
+commit b865bd1fb1ee46158247b7c0e6d9e434502f9beb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:01:27 2020 -0500
+
+    cmd/go: delete testdata/testonly dir: it isn't being used anywhere
+    
+    The TestGoBuildTestOnly test seems to be using files in testonly,
+    but it's actually creating different files in a tempdir GOPATH
+    that are completely unrelated.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie2c6d477bbb2eac7c013ee8dea9330a367b4f663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213821
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/testonly/p_test.go | 1 -
+ src/cmd/go/testdata/testonly2/t.go     | 6 ------
+ 2 files changed, 7 deletions(-)

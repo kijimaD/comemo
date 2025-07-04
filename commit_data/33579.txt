@@ -1,0 +1,25 @@
+commit 6a3d4be3b80054b1d802b73d5a519e252e0f82ed
+Author: Troels Thomsen <troels@thomsen.io>
+Date:   Tue Nov 14 23:22:19 2017 +0100
+
+    net: Forget lookups for canceled contexts
+    
+    A sequential lookup using any non-canceled context has a risk of
+    returning the result of the previous lookup for a canceled context (i.e.
+    an error).
+    
+    This is already prevented for timed out context by forgetting the host
+    immediately and extending this to also compare the error to
+    `context.Canceled` resolves this issue.
+    
+    Fixes #22724
+    
+    Change-Id: I7aafa1459a0de4dc5c4332988fbea23cbf4dba07
+    Reviewed-on: https://go-review.googlesource.com/77670
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup.go      |  2 +-
+ src/net/lookup_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

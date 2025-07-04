@@ -1,0 +1,13 @@
+commit ffa5e5f7fc51e791427468ebe00a6479191430d7
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Sat Oct 25 10:30:14 2014 -0700
+
+    cmd/go: pass $CGO_LDFLAGS to linker with the "gccgo" toolchain.
+    
+    LGTM=iant
+    R=iant, minux
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/157460043
+
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

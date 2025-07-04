@@ -1,0 +1,17 @@
+commit b649bdc7f3c99c5288c91a1ce148efadd86e19a4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 14 12:16:52 2019 -0700
+
+    cmd/compile: remove period from "not allowed in runtime" errors
+    
+    We don't punctuate compiler diagnostics.
+    
+    Change-Id: I19e1f30fbf04f0d1bfe6648fae26beaf3a06ee92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 2 +-
+ src/cmd/compile/internal/gc/esc.go     | 2 +-
+ src/cmd/compile/internal/gc/walk.go    | 2 +-
+ test/fixedbugs/issue14999.go           | 6 +++---
+ 4 files changed, 6 insertions(+), 6 deletions(-)

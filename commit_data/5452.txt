@@ -1,0 +1,13 @@
+commit fbf8d263f9925273b53fba32c7d1940430bee1f2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 7 10:16:16 2010 +1000
+
+    codelab/wiki: fix typo in demo URL
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1148041
+
+ doc/codelab/wiki/index.html | 2 +-
+ doc/codelab/wiki/wiki.html  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

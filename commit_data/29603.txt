@@ -1,0 +1,17 @@
+commit bbe96f5673fbb379ec3da581dba0d9cd603cc0d1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 14 18:24:37 2016 -0500
+
+    runtime: make work.bytesMarked 8-byte aligned
+    
+    Make atomic access on 32-bit architectures happy.
+    
+    Updates #17786.
+    
+    Change-Id: I42de63ff1381af42124dc51befc887160f71797d
+    Reviewed-on: https://go-review.googlesource.com/33235
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)

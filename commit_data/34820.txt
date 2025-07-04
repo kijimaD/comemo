@@ -1,0 +1,20 @@
+commit 02952ad7a84846524a15f4e2b0db8083f74ce836
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue Apr 3 22:33:03 2018 +0300
+
+    math/big: remove "else" from if with block that ends with return
+    
+    That "else" was needed due to gc DCE limitations.
+    Now it's not the case and we can avoid go lint complaints.
+    (See #23521 and https://golang.org/cl/91056.)
+    
+    There is inlining test for bigEndianWord, so if test
+    is passing, no performance regression should occur.
+    
+    Change-Id: Id84d63f361e5e51a52293904ff042966c83c16e9
+    Reviewed-on: https://go-review.googlesource.com/104555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/nat.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

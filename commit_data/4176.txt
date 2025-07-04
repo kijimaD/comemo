@@ -1,0 +1,12 @@
+commit d324a851c4fa14c62895b88dfb32f9f7327e1e04
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 20 11:16:57 2009 -0800
+
+    slight simplification made possible by the code now processing match states
+    in order of discovery.
+    
+    R=rsc
+    https://golang.org/cl/157112
+
+ src/pkg/regexp/regexp.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

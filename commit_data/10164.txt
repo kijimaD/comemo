@@ -1,0 +1,17 @@
+commit 2e79e8e54920c005af29447a85d7b241460c34cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 00:29:41 2011 -0400
+
+    rpc: avoid infinite loop on input error
+    
+    Fixes #1828.
+    Fixes #2179.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5305084
+
+ src/pkg/rpc/jsonrpc/all_test.go | 65 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rpc/server.go           | 20 ++++++++-----
+ src/pkg/rpc/server_test.go      |  3 +-
+ 3 files changed, 79 insertions(+), 9 deletions(-)

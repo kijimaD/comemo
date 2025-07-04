@@ -1,0 +1,25 @@
+commit 698bfa17a842890043098b972446e9b8dbc20841
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 23 22:32:16 2016 -0400
+
+    cmd/internal/obj: save link register in leaf function with non-empty frame on PPC64, ARM64, S390X
+    
+    The runtime traceback code assumes non-empty frame has link
+    link register saved on LR architectures. Make sure it is so in
+    the assember.
+    
+    Also make sure that LR is stored before update SP, so the traceback
+    code will not see a half-updated stack frame if a signal comes
+    during the execution of function prologue.
+    
+    Fixes #17381.
+    
+    Change-Id: I668b04501999b7f9b080275a2d1f8a57029cbbb3
+    Reviewed-on: https://go-review.googlesource.com/31760
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 64 +++++++++++++++++++++--------------
+ src/cmd/internal/obj/ppc64/obj9.go | 68 +++++++++++++++++++++++---------------
+ src/cmd/internal/obj/s390x/objz.go | 21 +++++++-----
+ test/fixedbugs/issue17381.go       | 54 ++++++++++++++++++++++++++++++
+ 4 files changed, 148 insertions(+), 59 deletions(-)

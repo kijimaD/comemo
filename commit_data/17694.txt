@@ -1,0 +1,19 @@
+commit 20db0f428a28a529146b5016b97061f2b13c54d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 24 16:35:35 2013 -0700
+
+    go/ast: add Slice3 field to SliceExpr
+    
+    If Slice3 is set, the expression is
+    a 3-index slice expression (2 colons).
+    Required for type-checking.
+    
+    Backward-compatible API extension.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/13826050
+
+ src/pkg/go/ast/ast.go       | 1 +
+ src/pkg/go/parser/parser.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 6b9e3f883e6820a1e94448ca81eba62341cd4836
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Thu Jul 29 21:15:52 2021 -0700
+
+    cmd/compile: don't emit write barriers for offsets of global addresses
+    
+    Currently, write barriers aren't emitted for global addresses, but they
+    are emitted for addresses offset of global addresses.
+    
+    This CL changes IsGlobalAddr to recognize offsets of global addresses
+    as globals too, removing write barriers for staticuint64s based
+    addresses. The logic added is the same as used in IsStackAddr.
+    
+    Updates #37612
+    
+    Change-Id: I537579f85b9ad02987d94f3ee0b4508b90097959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342129
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go |  3 +++
+ test/writebarrier.go                         | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,15 @@
+commit 737837c9d45946e6a43f4de5fe3309b9e06ba83f
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Oct 28 15:39:11 2021 +0800
+
+    regexp: use input.step() to advance one rune in Regexp.allMatches()
+    
+    Change-Id: I32944f4ed519419e168e62f9ed6df63961839259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359197
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/regexp/regexp.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit db9229def8bb23cf254e5027eaf9b5914220e621
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 12:39:50 2011 -0400
+
+    cgo: add GoBytes, fix gmp example
+    
+    Fixes #1640.
+    Fixes #2007.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4815063
+
+ misc/cgo/gmp/gmp.go        |  4 ++--
+ misc/cgo/stdio/file.go     |  1 +
+ src/cmd/cgo/ast.go         |  4 ++++
+ src/cmd/cgo/doc.go         | 16 ++++++++++++++++
+ src/cmd/cgo/gcc.go         |  8 ++++++++
+ src/cmd/cgo/out.go         | 15 +++++++++++++--
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/string.goc | 10 ++++++++++
+ 8 files changed, 55 insertions(+), 4 deletions(-)

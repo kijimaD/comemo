@@ -1,0 +1,21 @@
+commit 962834dd143311f764d331417fc208ce2045c61a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Nov 18 15:53:53 2017 +0000
+
+    bytes: make all readOp constants actually typed
+    
+    This is a regression introduced in golang.org/cl/28817. That change got
+    rid of the iota, which meant that the type was no longer applied to all
+    the constant names.
+    
+    Re-add the iota starting at -1, simplifying the code and adding the
+    types once more.
+    
+    Change-Id: I38bd0e04f8d298196bccd33651e29f5011401a8d
+    Reviewed-on: https://go-review.googlesource.com/78617
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

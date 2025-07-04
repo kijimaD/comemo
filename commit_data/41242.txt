@@ -1,0 +1,14 @@
+commit dd0aa799ebbcb42cbc8d15aaa3edf905e8e1d83a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 5 15:34:50 2020 -0800
+
+    doc/go1.14: quote {{ and }} in text/template note
+    
+    Fixes #37070
+    
+    Change-Id: I543957df264367e56c71a25bfaea5cf7935d438f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217979
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit e87cc3dc5b3bbfeb018744902516e5684ca31a7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 01:25:58 2013 -0500
+
+    exp/gotype: disable broken test
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7275045
+
+ src/pkg/exp/gotype/gotype_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

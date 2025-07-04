@@ -1,0 +1,14 @@
+commit ae5c4ea05d18fba80248cd01762365ca1ccff717
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 17:36:25 2012 -0800
+
+    reflect: test that PtrTo returns types that match program types
+    
+    The gccgo compiler was failing this test.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5631046
+
+ src/pkg/reflect/all_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

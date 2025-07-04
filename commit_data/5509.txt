@@ -1,0 +1,12 @@
+commit 48673d2745c5a778875ba3a71d1cd26658f3a7fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 21 14:39:10 2010 -0700
+
+    syscall: add Utimes, Futimes stubs for NaCl - fix build
+    
+    TBR=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/1262042
+
+ src/pkg/syscall/syscall_nacl.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

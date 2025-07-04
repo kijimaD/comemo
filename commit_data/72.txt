@@ -1,0 +1,17 @@
+commit 9bc7b08abbb53469ebc39fb6617b29da0756e858
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 8 17:12:15 2008 -0700
+
+    - changed literal syntax to use the convert notation
+    - fixed issued with function declarations/function literals
+    - added more tests and fixed existing tests
+    
+    SVN=118167
+
+ test/char_lit.go   |  5 +++--
+ test/float_lit.go  |  5 +++--
+ test/int_lit.go    |  5 +++--
+ test/string_lit.go |  5 +++--
+ test/test0.go      |  3 ++-
+ test/turing.go     | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 69 insertions(+), 9 deletions(-)

@@ -1,0 +1,42 @@
+commit 88cf932e98db8fe014399e05320128d76183f3fa
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Tue Nov 29 02:45:11 2016 -0800
+
+    cmd/compile: improve assignment count mismatch error message
+    
+    Given the following test cases:
+    
+        $ cat left_too_many.go
+        package main
+    
+        func main() {
+            a, err := make([]int, 1)
+        }
+    
+        $ cat right_too_many.go
+        package main
+    
+        func main() {
+            a := "foo", "bar"
+        }
+    
+    Before this change, the error messages are:
+    
+        ./left_too_many.go:4: assignment count mismatch: 2 = 1
+    
+        ./right_too_many.go:4: assignment count mismatch: 1 = 2
+    
+    After this change, the error messages are:
+    
+        ./left_too_many.go:4: assignment count mismatch: want 2 values, got 1
+    
+        ./right_too_many.go:4: assignment count mismatch: want 1 values, got 2
+    
+    Change-Id: I9ad346f122406bc9a785bf690ed7b3de76a422da
+    Reviewed-on: https://go-review.googlesource.com/33616
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

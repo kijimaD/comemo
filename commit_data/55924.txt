@@ -1,0 +1,29 @@
+commit f1d60500bcc48f06c8d322dac1e48dd4c22f5863
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Sep 20 14:13:35 2023 -0400
+
+    cmd/go/internal/test: add 'tests' vet check to 'go test' suite
+    
+    The tests analyser reports structural problems in test
+    declarations. Presumably most of these would be caught by
+    go test itself, which compiles and runs (some subset of) the
+    tests, but Benchmark and Fuzz functions are executed less
+    frequently and may benefit more from static checks.
+    
+    Also, reflect the change in go test help message.
+    
+    + release note
+    
+    Fixes golang/go#44251
+    
+    Change-Id: If5b9dee6d18fa0bc4de7f5f5f549eddeae953fc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ doc/next/3-tools.md                             | 9 +++++++++
+ src/cmd/go/alldocs.go                           | 2 +-
+ src/cmd/go/internal/test/test.go                | 4 ++--
+ src/cmd/go/testdata/script/test_bad_example.txt | 5 +++--
+ 4 files changed, 15 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 3043c355f430bb304bc0d09d8162632baa028a83
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Nov 3 10:30:14 2017 -0700
+
+    bytes: add more page boundary tests
+    
+    Make sure Index and IndexByte don't read past the queried byte slice.
+    
+    Hopefully will be helpful for CL 33597.
+    
+    Also remove the code which maps/unmaps the Go heap.
+    Much safer to play with protection bits off-heap.
+    
+    Change-Id: I50d73e879b2d83285e1bc7c3e810efe4c245fe75
+    Reviewed-on: https://go-review.googlesource.com/75890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/boundary_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/bytes/equal_test.go    | 47 ---------------------------
+ 2 files changed, 80 insertions(+), 47 deletions(-)

@@ -1,0 +1,16 @@
+commit 240a30da1b3f5d4d60640a09f135275e8fee8b92
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 15 09:44:22 2018 -0700
+
+    cmd/compile: check order temp has correct type
+    
+    Followon from CL 140306
+    
+    Change-Id: Ic71033d2301105b15b60645d895a076107f44a2e
+    Reviewed-on: https://go-review.googlesource.com/c/142178
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

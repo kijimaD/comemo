@@ -1,0 +1,15 @@
+commit ebc8013edfc009b1190c656e738b15fe9729cc89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 10:44:35 2012 -0800
+
+    exp/sql: copy when scanning into []byte by default
+    
+    Fixes #2698
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5539060
+
+ src/pkg/exp/sql/sql.go      | 30 +++++++++++++++++++++++++++---
+ src/pkg/exp/sql/sql_test.go | 41 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 66 insertions(+), 5 deletions(-)

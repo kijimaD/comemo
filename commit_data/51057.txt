@@ -1,0 +1,26 @@
+commit e72da1c15dc273b39dcb5dd87c56d5713dbc1b37
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 1 10:00:25 2022 -0400
+
+    runtime: skip TestArenaCollision on failed reservation
+    
+    If TestArenaCollision cannot reserve the address range it expects to
+    reserve, it currently fails somewhat mysteriously. Detect this case
+    and skip the test. This could lead to test rot if we wind up always
+    skipping this test, but it's not clear that there's a better answer.
+    If the test does fail, we now also log what it thinks it reserved so
+    the failure message is more useful in debugging any issues.
+    
+    Fixes #49415
+    Fixes #54597
+    
+    Change-Id: I05cf27258c1c0a7a3ac8d147f36bf8890820d59b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446877
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go | 13 +++++++++++--
+ src/runtime/malloc_test.go |  6 +++++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)

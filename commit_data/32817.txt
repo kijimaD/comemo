@@ -1,0 +1,40 @@
+commit 229aaac19e041ac74ab043d6ef09c8406bb0a9e7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 22 15:16:26 2017 -0400
+
+    runtime: remove getcallerpc argument
+    
+    Now that getcallerpc is a compiler intrinsic on x86 and non-x86
+    platforms don't need the argument, we can drop it.
+    
+    Sadly, this doesn't let us remove any dummy arguments since all of
+    those cases also use getcallersp, which still takes the argument
+    pointer, but this is at least an improvement.
+    
+    Change-Id: I9c34a41cf2c18cba57f59938390bf9491efb22d2
+    Reviewed-on: https://go-review.googlesource.com/65474
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/asm_arm.s       |  6 +++---
+ src/runtime/asm_arm64.s     |  6 +++---
+ src/runtime/asm_mips64x.s   |  6 +++---
+ src/runtime/asm_mipsx.s     |  6 +++---
+ src/runtime/asm_ppc64x.s    |  6 +++---
+ src/runtime/asm_s390x.s     |  6 +++---
+ src/runtime/chan.go         |  8 ++++----
+ src/runtime/hashmap.go      | 14 +++++++-------
+ src/runtime/hashmap_fast.go | 24 ++++++++++++------------
+ src/runtime/iface.go        | 28 ++++++++++++++--------------
+ src/runtime/mbarrier.go     |  8 ++++----
+ src/runtime/mprof.go        | 12 ++++++------
+ src/runtime/os_windows.go   |  2 +-
+ src/runtime/panic.go        |  4 ++--
+ src/runtime/proc.go         |  8 ++++----
+ src/runtime/select.go       |  6 +++---
+ src/runtime/slice.go        |  6 +++---
+ src/runtime/string.go       |  6 +++---
+ src/runtime/stubs.go        |  6 +++---
+ src/runtime/traceback.go    |  2 +-
+ 20 files changed, 85 insertions(+), 85 deletions(-)

@@ -1,0 +1,23 @@
+commit dfb0e4f6c744eb9bf629658bf7da313b2d1518e1
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 18 14:12:52 2018 +0100
+
+    runtime: avoid clearing memory during byte slice allocation in gobytes
+    
+    Avoid using make in gobytes which clears the byte slice backing
+    array unnecessarily since the content is overwritten immediately again.
+    
+    Check that the user provided length is positive and below the maximum
+    allowed allocation size explicitly in gobytes as this was done in makeslice
+    before this change.
+    
+    Fixes #23634
+    
+    Change-Id: Id852619e932aabfc468871c42ad07d34da91f45c
+    Reviewed-on: https://go-review.googlesource.com/94760
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/string.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

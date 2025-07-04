@@ -1,0 +1,13 @@
+commit 84ac357c791d94012735af54cbb7e38b31191ac9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 09:09:06 2010 -0800
+
+    codereview: split name list only on commas; some user names have spaces
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/184069
+
+ lib/codereview/codereview.cfg |  1 +
+ lib/codereview/codereview.py  | 31 ++++++++++++++++---------------
+ 2 files changed, 17 insertions(+), 15 deletions(-)

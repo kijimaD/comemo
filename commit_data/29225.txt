@@ -1,0 +1,14 @@
+commit ee457118cd7b11264719647fa6f7422bac2a4431
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Oct 26 00:01:58 2016 +0200
+
+    cmd/compile: cleanup checkmake
+    
+    Change-Id: Icea4661db4a254e64b2129f429e5ef21ec1612cb
+    Reviewed-on: https://go-review.googlesource.com/32162
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 36 ++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 23 deletions(-)

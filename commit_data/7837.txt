@@ -1,0 +1,14 @@
+commit 39ffd546bd575789e116f764cab8ee41de61becf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 23 14:24:30 2011 +1100
+
+    sync: fix example code
+    
+    Fixes #1631.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4303046
+
+ src/pkg/sync/waitgroup.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

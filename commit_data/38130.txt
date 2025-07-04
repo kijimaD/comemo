@@ -1,0 +1,18 @@
+commit 1d992f2e369e7e518ff57cd7508a15442d5df186
+Author: Juraj Sukop <sukop@users.noreply.github.com>
+Date:   Wed Feb 27 17:43:46 2019 +0000
+
+    math/big: better initial guess for nat.sqrt
+    
+    The proposed change introduces a better initial guess which is closer to the final value and therefore converges in fewer steps. Consider for example sqrt(8): previously the guess was 8, whereas now it is 4 (and the result is 2). All this change does is it computes the division by two more accurately while it keeps the guess ≥ √x.
+    
+    Change-Id: I917248d734a7b0488d14a647a063f674e56c4e30
+    GitHub-Last-Rev: c06d9d4876c8e7d6739f0e4b687e370fe1e9aad7
+    GitHub-Pull-Request: golang/go#28981
+    Reviewed-on: https://go-review.googlesource.com/c/163866
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

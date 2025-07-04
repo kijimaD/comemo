@@ -1,0 +1,16 @@
+commit 4874bc9b76da2362cdec0a8c6b56cd740d45c5ad
+Author: Nicholas Sullivan <nicholas.sullivan@gmail.com>
+Date:   Thu Sep 12 12:23:34 2013 -0400
+
+    crypto/x509: allow ECDSA public keys to be marshaled.
+    
+    The public key serialization from CreateCertificate is factored out to be
+    used in MarshalPKIXPublicKey.
+    Testcode with one P224 ECDSA keypair has been added.
+    
+    R=golang-dev, agl
+    CC=agl, golang-dev
+    https://golang.org/cl/13427044
+
+ src/pkg/crypto/x509/x509.go | 80 +++++++++++++++++++++++----------------------
+ 1 file changed, 41 insertions(+), 39 deletions(-)

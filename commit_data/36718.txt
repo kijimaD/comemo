@@ -1,0 +1,44 @@
+commit 6054fef17f2eedf3ef4825b6ca5b97e2ecf53bd6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 23 13:48:46 2018 +0200
+
+    test: fix bcecheck test on noopt builder
+    
+    The noopt builder is configured by setting GO_GCFLAGS=-N -l, but the
+    test/run.go test harness doesn't look at GO_GCFLAGS when processing
+    "errorcheck" files, it just calls compile:
+    
+      cmdline := []string{goTool(), "tool", "compile", /* etc */}
+    
+    This is working as intended, since it makes the tests more robust and
+    independent from the environment; errorcheck files are supposed to set
+    additional building flags, when needed, like in:
+    
+      // errorcheck -0 -N -l
+    
+    The test/bcecheck.go test used to work on the noopt builder (even if
+    bce is not active on -N -l) because the test was auto-contained and
+    the file always compiled with optimizations enabled.
+    
+    In CL 107355, a new bce test dependent on an external package
+    (encoding.binary) was added. On the noopt builder the external package
+    is built using -N -l, and this causes a test failure that broke the
+    noopt builder:
+    
+      https://build.golang.org/log/b2be319536285e5807ee9d66d6d0ec4d57433768
+    
+    To reproduce the failure, one can do:
+    
+      $ go install -a -gcflags="-N -l" std
+      $ go run run.go -- checkbce.go
+    
+    This change fixes the noopt builder breakage by removing the bce test
+    dependency on encoding/binary by defining a local Uint64() function to
+    be used in the test.
+    
+    Change-Id: Ife71aab662001442e715c32a0b7d758349a63ff1
+    Reviewed-on: https://go-review.googlesource.com/136855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/checkbce.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

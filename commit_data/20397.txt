@@ -1,0 +1,19 @@
+commit 47f251c1cede13dba3e478b2528fb89eede1b566
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 11 20:36:23 2014 -0700
+
+    runtime: fix cgo to handle the case where the G stack is copied.
+    
+    Tests will come in a separate CL after the funcdata stuff is resolved.
+    
+    Update #8696
+    
+    LGTM=iant, rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/138330045
+
+ src/runtime/asm_386.s   | 8 ++++++--
+ src/runtime/asm_amd64.s | 8 ++++++--
+ src/runtime/asm_arm.s   | 9 +++++++--
+ 3 files changed, 19 insertions(+), 6 deletions(-)

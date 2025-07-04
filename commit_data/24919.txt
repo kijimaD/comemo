@@ -1,0 +1,15 @@
+commit 292ad592913e3143a7b4db8ddb0513aea3020e2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:54:41 2015 -0500
+
+    cmd/compile: do not emit args_stackmap for func _
+    
+    Fixes #11699.
+    
+    Change-Id: I01bf506d76260bcdf828bbde52791e328aa441a5
+    Reviewed-on: https://go-review.googlesource.com/16921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go |  3 +++
+ test/fixedbugs/issue11699.go        | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

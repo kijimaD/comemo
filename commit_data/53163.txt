@@ -1,0 +1,43 @@
+commit 9c447b7cf630cb158fe5059bee3cf03d5ce56f97
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 11 14:32:56 2023 -0400
+
+    cmd/go: implement GOTOOLCHAIN=auto
+    
+    The documentation is yet to be written (more work in the go
+    command remains first). This CL implements the toolchain
+    selection described in
+    https://go.dev/design/57001-gotoolchain#the-and-lines-in-in-the-work-module
+    with these changes based on the issue discussion:
+    
+    1. GOTOOLCHAIN=auto looks for a go1.19.1 binary in $PATH
+    and if found uses it instead of downloading Go 1.19.1 as a module.
+    
+    2. GOTOOLCHAIN=path is like GOTOOLCHAIN=auto, with
+    downloading disabled.
+    
+    3. GOTOOLCHAIN=auto+version and GOTOOLCHAIN=path+version
+    set a different minimum version of Go to use during the version
+    selection. The default is to use the newer of what's on the go line
+    or the current toolchain. If you are have Go 1.22 installed locally
+    and want to switch to a minimum of Go 1.25 with go.mod files
+    allowed to bump even further, you would set GOTOOLCHAIN=auto+go1.25.
+    The minimum is also important when there is no go.mod involved,
+    such as when you write a tiny x.go program and run "go run x.go".
+    That would get Go 1.25 in this example, instead of falling back to
+    the local Go 1.22.
+    
+    Change-Id: I286625a24420424c313d1082b9949a463b2fe14a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494436
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/gotoolchain.go                  |  73 +++++++++++++++---
+ src/cmd/go/gotoolchain_port.go             | 117 +++++++++++++++++++++++++++++
+ src/cmd/go/gotoolchain_test.go             |  49 ++++++++++++
+ src/cmd/go/internal/base/path.go           |  18 +++--
+ src/cmd/go/internal/modload/init.go        |  41 +++++++---
+ src/cmd/go/testdata/script/gotoolchain.txt | 114 ++++++++++++++++++++++++++++
+ 6 files changed, 387 insertions(+), 25 deletions(-)

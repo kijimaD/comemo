@@ -1,0 +1,15 @@
+commit 73fd9e7d9389579b5a2ea401df18b7316fa66323
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Mon Sep 12 13:48:56 2011 -0400
+
+    websocket: Fix infinite recursion in WebSockAddr String()
+    
+    String() is already inherited from the embedded *url.URL
+    
+    R=ukai, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4992049
+
+ src/pkg/websocket/websocket.go      |  3 ---
+ src/pkg/websocket/websocket_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

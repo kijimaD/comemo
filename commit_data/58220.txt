@@ -1,0 +1,42 @@
+commit 4671276c5d5f2e51dd43e856267eac44cff18652
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Mon Nov 18 22:18:56 2024 +0100
+
+    crypto/tls: FIPS 140-3 mode
+    
+    Consolidates handling of FIPS 140-3 considerations for the tls package.
+    Considerations specific to certificates are now handled in tls instead
+    of x509 to limit the area-of-effect of FIPS as much as possible.
+    Boringcrypto specific prefixes are renamed as appropriate.
+    
+    For #69536
+    
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I1b1fef83c3599e4c9b98ad81db582ac93253030b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629675
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/boring/fipstls/stub.s       |  12 --
+ src/crypto/internal/boring/fipstls/tls.go       |  51 --------
+ src/crypto/tls/auth.go                          |   3 +-
+ src/crypto/tls/boring.go                        |  15 ---
+ src/crypto/tls/common.go                        |  66 +++++++++-
+ src/crypto/tls/defaults.go                      |   4 +-
+ src/crypto/tls/{boring_test.go => fips_test.go} | 156 +++++++++++++-----------
+ src/crypto/tls/fipsonly/fipsonly.go             |   4 +-
+ src/crypto/tls/fipsonly/fipsonly_test.go        |   6 +-
+ src/crypto/tls/handshake_client.go              |  25 ++--
+ src/crypto/tls/handshake_server.go              |  11 +-
+ src/crypto/tls/handshake_server_tls13.go        |   3 +-
+ src/crypto/tls/internal/fips140tls/fipstls.go   |  37 ++++++
+ src/crypto/tls/notboring.go                     |   9 --
+ src/crypto/x509/boring.go                       |  39 ------
+ src/crypto/x509/boring_test.go                  | 144 ----------------------
+ src/crypto/x509/notboring.go                    |   9 --
+ src/crypto/x509/verify.go                       |   7 --
+ src/go/build/deps_test.go                       |   8 +-
+ 19 files changed, 225 insertions(+), 384 deletions(-)

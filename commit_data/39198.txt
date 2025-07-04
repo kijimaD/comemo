@@ -1,0 +1,18 @@
+commit 5eeb372418466920cad237a89846556453bd91ca
+Author: taoyuanyuan <linuxty@gmail.com>
+Date:   Sun May 19 23:23:04 2019 +0000
+
+    internal/poll: avoid memory leak in Writev
+    
+    The chunks that were referenced by fd.iovecs would not be GC.
+    
+    Change-Id: I7bfcb91a3fef57a4a1861168e9cd3ab55ce1334e
+    GitHub-Last-Rev: e0b7f68447441fd89ed1a6e8aa37e2084fd863b2
+    GitHub-Pull-Request: golang/go#32138
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/writev.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,14 @@
+commit 452f3bc7599afcee9a5bda0caee4f7859c8d170a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 22 13:05:31 2013 -0700
+
+    doc: GCC 4.8.1 is not updated to Go 1.1
+    
+    I will try again for 4.8.2.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9663045
+
+ doc/go1.1.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

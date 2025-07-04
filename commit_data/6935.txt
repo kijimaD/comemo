@@ -1,0 +1,16 @@
+commit 9e26c4bd1a948bf61866fc483f14ad930b1b1dcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 15:34:45 2010 -0500
+
+    gc: complex(0)
+    
+    Fixes #1232.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3621041
+
+ src/cmd/gc/const.c    | 8 +++-----
+ src/cmd/gc/mparith1.c | 2 ++
+ test/cmplx.go         | 1 +
+ 3 files changed, 6 insertions(+), 5 deletions(-)

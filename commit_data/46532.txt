@@ -1,0 +1,29 @@
+commit 2fc7df93fe8e540ca101da33fe9157dfa7bdf6aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 10:20:02 2021 -0700
+
+    cmd/compile/internal/importer: remove // UNREVIEWED comments from tests
+    
+    The importer tests are exact copies of the corresponding test files in
+    $GOROOT/src/go/internal/gcimporter/testdata/. With these changes, diff
+    applied recursively doesn't show any differences anymore among the
+    existing files between the directories
+    
+            src/cmd/compile/internal/importer/testdata
+            src/go/internal/gcimporter/testdata
+    
+    Change-Id: I1fdd70a3d4d5e55f1fc580892d1d38cabbdab81b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351309
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/importer/testdata/a.go             | 1 -
+ src/cmd/compile/internal/importer/testdata/b.go             | 1 -
+ src/cmd/compile/internal/importer/testdata/exports.go       | 1 -
+ src/cmd/compile/internal/importer/testdata/issue15920.go    | 1 -
+ src/cmd/compile/internal/importer/testdata/issue20046.go    | 1 -
+ src/cmd/compile/internal/importer/testdata/issue25301.go    | 1 -
+ src/cmd/compile/internal/importer/testdata/issue25596.go    | 1 -
+ src/cmd/compile/internal/importer/testdata/p.go             | 1 -
+ src/cmd/compile/internal/importer/testdata/versions/test.go | 1 -
+ 9 files changed, 9 deletions(-)

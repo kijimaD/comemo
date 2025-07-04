@@ -1,0 +1,13 @@
+commit 96833d3a25078aae1b5e279775bebb09a054b4c8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 14 16:26:00 2012 +0400
+
+    cmd/gc: racewalk: fix instrumentation of structs
+    + do not instrument go.itab.*
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6819106
+
+ src/cmd/gc/racewalk.c | 48 +++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 33 insertions(+), 15 deletions(-)

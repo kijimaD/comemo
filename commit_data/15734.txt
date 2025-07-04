@@ -1,0 +1,15 @@
+commit f7ad816c5c13d334f1c0d350041e95cb507e47bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 17:57:13 2013 -0400
+
+    cmd/ld: fix 'use after free' error in new obj code
+    
+    Many thanks to Elias Naur for finding this with Valgrind on Linux.
+    Perhaps this is what is breaking the windows/amd64 builder.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7595044
+
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

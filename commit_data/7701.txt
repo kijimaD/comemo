@@ -1,0 +1,14 @@
+commit e17d4de4fefa4bbe2f426cba199acffe51e8b23d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Mar 8 15:02:02 2011 -0300
+
+    Make.cmd: also clean _test*
+    
+    Fixes #1593.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4266050
+
+ src/Make.cmd | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

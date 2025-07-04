@@ -1,0 +1,24 @@
+commit 832082b44e2965c136e53a9b8009d2e860766000
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 19 12:58:16 2016 -0700
+
+    cmd/compile: remove -A flag
+    
+    mkbuiltin.go now generates builtin.go using go/ast instead of running
+    the compiler, so we don't need the -A flag anymore.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ifa70f4f3c9feae10c723cbec81a0a47c39610090
+    Reviewed-on: https://go-review.googlesource.com/31497
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go    |  7 ++-----
+ src/cmd/compile/internal/gc/bexport.go  | 15 ++++++---------
+ src/cmd/compile/internal/gc/bimport.go  |  2 +-
+ src/cmd/compile/internal/gc/export.go   |  5 ++---
+ src/cmd/compile/internal/gc/init.go     |  5 -----
+ src/cmd/compile/internal/gc/main.go     |  5 -----
+ src/cmd/compile/internal/gc/pgen.go     |  3 ---
+ src/cmd/compile/internal/gc/universe.go |  4 ++--
+ 8 files changed, 13 insertions(+), 33 deletions(-)

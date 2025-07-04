@@ -1,0 +1,13 @@
+commit bfac91a6b9aee3bc19e8ab0fb0da0e754b53ffa2
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue Dec 7 15:57:00 2010 -0500
+
+    exec.LookPath: return os.PathError instad of os.ENOENT, it's more descriptive.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3448042
+
+ src/pkg/exec/lp_unix.go    | 4 ++--
+ src/pkg/exec/lp_windows.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit 5438be4541dce7d062c4d77ed626590597b39276
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 8 23:16:19 2009 -0700
+
+    write-only variable _
+    
+    R=ken
+    OCL=34465
+    CL=34470
+
+ src/cmd/5g/ggen.c        |  2 +-
+ src/cmd/6g/ggen.c        |  2 +-
+ src/cmd/8g/ggen.c        |  2 +-
+ src/cmd/gc/align.c       |  2 +-
+ src/cmd/gc/dcl.c         | 12 ++++---
+ src/cmd/gc/gen.c         | 59 +++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h          |  7 ++++
+ src/cmd/gc/lex.c         | 10 ++++++
+ src/cmd/gc/range.c       |  6 ++--
+ src/cmd/gc/subr.c        | 14 ++++++++
+ src/cmd/gc/typecheck.c   | 29 ++++++++++++----
+ src/cmd/gc/walk.c        |  6 +++-
+ test/blank.go            | 90 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/blank1.go           | 12 +++++++
+ test/fixedbugs/bug154.go |  2 +-
+ 15 files changed, 235 insertions(+), 20 deletions(-)

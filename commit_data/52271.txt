@@ -1,0 +1,21 @@
+commit 7ec69abf05822a377513eb7e08de5a12799e21c3
+Author: Tianon Gravi <tianon@debian.org>
+Date:   Mon Mar 13 21:32:49 2023 +0000
+
+    runtime/debug: replace "GOARM64" with "GOARM" in docs
+    
+    The former does not exist (yet) but the latter very much exists and is in active use.
+    
+    Change-Id: Ic8812b98a10f01061a211a0de4caa9e9cfff36fa
+    GitHub-Last-Rev: 0dab9f524c778b176e4e4b3652f53ea5e2873d26
+    GitHub-Pull-Request: golang/go#59014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476016
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/debug/mod.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

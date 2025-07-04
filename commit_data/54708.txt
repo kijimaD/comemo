@@ -1,0 +1,24 @@
+commit cc47df017da343ee33eee0f4f59974633ca5a486
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 10:34:30 2023 -0700
+
+    runtime: use real type size in map keys and values functions
+    
+    We were using the size stored in the map, which is the smaller
+    of the real type size and 128.
+    
+    As of CL 61538 we don't use these functions, but we expect to
+    use them again in the future after #61626 is resolved.
+    
+    Change-Id: I7bfb4af5f0e3a56361d4019a8ed7c1ec59ff31fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/export_test.go |  3 +++
+ src/runtime/map.go         |  4 ++--
+ src/runtime/map_test.go    | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

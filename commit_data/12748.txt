@@ -1,0 +1,15 @@
+commit 6492cac6dd3995535bd7ddd7ab11ca5047967ada
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 26 16:08:21 2012 +1100
+
+    run.bash: compile the codewalks
+    They could be tested but that requires more than seems wise right now.
+    
+    Update #2648.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5908054
+
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

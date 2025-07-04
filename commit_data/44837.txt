@@ -1,0 +1,27 @@
+commit 6f90ee36e90cb6a6adfd29ee51f0ef8f7e507003
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Aug 6 18:37:10 2020 -0400
+
+    math: simplify comparison in FMA when swapping p and z
+    
+    Discovered by Junchen Li on CL 246858, the comparison before p and z are
+    swapped can be simplified from
+    
+        pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2)))
+    
+    to
+    
+        pe < ze || pe == ze && pm1 < zm1
+    
+    because zm2 is initialized to 0 before the branch.
+    
+    Change-Id: Iee92d570038df2b0f8941ef6e422a022654ab2d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247241
+    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/fma.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit c9836be112d4c9f7836c2adcfa2f7e941c8a1ecd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 16:10:55 2012 +1100
+
+    doc: link to go1 and go1compat from docs index
+    
+    Fixes #3239.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5782049
+
+ doc/docs.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

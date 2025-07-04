@@ -1,0 +1,15 @@
+commit d00210f519a6d3c41feb1f16e2eb4583a745fb50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 1 23:27:33 2010 -0800
+
+    Match gccgo error messages.
+    
+    bug249.go:10:5: error: incompatible type in initialization
+    bug249.go:26:5: error: incompatible type in initialization
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198058
+
+ test/fixedbugs/bug249.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

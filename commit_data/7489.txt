@@ -1,0 +1,12 @@
+commit 6ccc96eea96058e36e30b4e051d32f5bd10f9816
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 16 21:20:50 2011 -0500
+
+    doc/devel/release: discuss StartProcess in release notes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4172051
+
+ doc/devel/release.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

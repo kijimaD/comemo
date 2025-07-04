@@ -1,0 +1,27 @@
+commit 4cba6c703f68a7c1718e589feaeb2530d7812fbf
+Author: Changkun Ou <hi@changkun.us>
+Date:   Sat Sep 19 23:32:12 2020 +0200
+
+    testing: send t.signal only if there is no panic
+    
+    If a signal is sent to t.signal before the panic is triggered,
+    a panicking test may end up with "warning: no tests to run" because
+    the tRunner that invokes the test in t.Run calls runtime.Goexit on
+    panic, which causes the panicking test not be recorded in runTests.
+    
+    Send the signal if and only if there is no panic.
+    
+    Fixes #41479
+    
+    Change-Id: I812f1303bfe02c443a1902732e68d21620d6672e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256098
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt | 14 ++++++++++++++
+ src/testing/testing.go                              | 10 ++++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

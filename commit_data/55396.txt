@@ -1,0 +1,21 @@
+commit 558919b45474bcdf191e9c9d8865699b036bc054
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 19 10:59:39 2024 +0100
+
+    runtime: avoid loading winmm.dll on newer Windows versions
+    
+    winmm.dll is only used for timeBeginPeriod and timeEndPeriod, which are
+    not needed on Windows versions supporting high resolution timers, that
+    is Windows 10 version 1803, and later.
+    
+    Updates #56745.
+    
+    Change-Id: Ie9576638fb8d2b4e648283bec3170aefa76f9f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

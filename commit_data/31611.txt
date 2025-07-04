@@ -1,0 +1,12 @@
+commit 7f6ce5168d7b26dde5067408daa2c22d9115da48
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue May 9 22:09:08 2017 -0700
+
+    cmd/compile/internal/ssa: fix spelling mistake
+    
+    Change-Id: I4b8f1b61c10f60ddb3687759af0be1641c1f78ce
+    Reviewed-on: https://go-review.googlesource.com/43111
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/compile/internal/ssa/cse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

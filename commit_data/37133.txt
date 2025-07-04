@@ -1,0 +1,29 @@
+commit 2dda040f19aa6a7551f090d8c5a3941e416b21df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 20:10:23 2018 -0700
+
+    cmd/compile/internal/gc: represent labels as bare Syms
+    
+    Avoids allocating an ONAME for OLABEL, OGOTO, and named OBREAK and
+    OCONTINUE nodes.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I359142cd48e8987b5bf29ac100752f8c497261c1
+    Reviewed-on: https://go-review.googlesource.com/c/145200
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go       | 17 +++++++++--------
+ src/cmd/compile/internal/gc/fmt.go       |  6 +++---
+ src/cmd/compile/internal/gc/iexport.go   |  3 ++-
+ src/cmd/compile/internal/gc/iimport.go   |  7 ++++++-
+ src/cmd/compile/internal/gc/inl.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/noder.go     |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go       |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/swt.go       |  9 +++++----
+ src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ 11 files changed, 47 insertions(+), 39 deletions(-)

@@ -1,0 +1,19 @@
+commit 2b49d129c48b0036ee595fbf7b91a0e9292f87ee
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 29 19:49:36 2016 +0200
+
+    cmd/compile: delete unused (*Node) SetInt, SetBigInt, Bool
+    
+    Introduced in CL 9263 (prepare to unexport gc.Mp*) and CL 9267
+    (prepare Node.Val to be unexported), their only callers were in
+    the old backend and all got deleted in CL 29168 (cmd/compile:
+    delete lots of the legacy backend).
+    
+    Update #16357
+    
+    Change-Id: I0a5d76b98b418e8ec0984c033c3bc0ac3fc5f38a
+    Reviewed-on: https://go-review.googlesource.com/29997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 28 ----------------------------
+ 1 file changed, 28 deletions(-)

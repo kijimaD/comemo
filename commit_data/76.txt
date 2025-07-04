@@ -1,0 +1,11 @@
+commit 9119f55e6dac9fd33bb94c4c00b7d5531286a56d
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 15 14:13:44 2008 -0700
+
+    add a couple of TODOs
+    fixed grammar for "Program"
+    
+    SVN=118923
+
+ doc/go_lang.txt | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

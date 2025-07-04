@@ -1,0 +1,18 @@
+commit ae8da3a28c4182acec1f74f22a615a68fc5c195d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 11 22:39:55 2013 -0800
+
+    go/types: len(((*T)(nil)).X) is const if X is an array
+    
+    Fixes #4744.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7305080
+
+ src/pkg/exp/gotype/gotype_test.go      |  2 +-
+ src/pkg/go/types/builtins.go           | 32 ++++++++++++++++++--------------
+ src/pkg/go/types/check.go              | 34 ++++++++++++++++++----------------
+ src/pkg/go/types/conversions.go        |  1 +
+ src/pkg/go/types/testdata/builtins.src |  8 ++++++++
+ 5 files changed, 46 insertions(+), 31 deletions(-)

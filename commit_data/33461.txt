@@ -1,0 +1,19 @@
+commit 8ac93e669dd18a65dd8c1dce37a6492ca078ba7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 6 10:16:34 2017 -0500
+
+    cmd/go: include package source dir in build action for non-GOROOT packages
+    
+    The package source dir is recorded in the archives,
+    so it must be recorded in the build action hash too.
+    
+    Fixes #22596.
+    
+    Change-Id: I1d3c2523181c302e9917e5fb79c26b00ea03077a
+    Reviewed-on: https://go-review.googlesource.com/76025
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go            | 28 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  8 ++++++++
+ 2 files changed, 36 insertions(+)

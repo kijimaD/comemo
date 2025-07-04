@@ -1,0 +1,20 @@
+commit c1fc8d529654e5a98f82e5d835d1c9f659957a1b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jun 28 23:29:13 2013 +0200
+
+    cmd/gc: fix missing export data for inlining in a few other cases.
+    
+    Exported inlined functions that perform a string conversion
+    using a non-exported named type may miss it in export data.
+    
+    Fixes #5755.
+    
+    R=rsc, golang-dev, ality, r
+    CC=golang-dev
+    https://golang.org/cl/10464043
+
+ src/cmd/gc/export.c                  |  5 +++
+ test/fixedbugs/issue5755.dir/a.go    | 60 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue5755.dir/main.go | 23 ++++++++++++++
+ test/fixedbugs/issue5755.go          | 10 ++++++
+ 4 files changed, 98 insertions(+)

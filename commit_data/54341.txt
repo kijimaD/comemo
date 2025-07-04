@@ -1,0 +1,34 @@
+commit 4beb33018b35d3a68f0ce41bee10f56512d1696e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 16:02:11 2023 +0200
+
+    runtime: remove slow time compatibility hacks for wine
+    
+    This reapplies CL 191759, which was reverted in CL 192622.
+    
+    Wine fixed the compatibility issue more than 3 years
+    ago, in version 5.10 (see [1]). We no longer have to keep the compatibility hack on our side.
+    
+    Updates #34021
+    
+    [1]: https://github.com/wine-mirror/wine/commit/1ae10889647c1c84c36660749508a42e99e64a5e
+    
+    Change-Id: I3b77701d01fdf58fbf350321fc0a957c0f247d32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526358
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/os_windows.go        | 78 ----------------------------------------
+ src/runtime/sys_windows_386.s    |  5 ---
+ src/runtime/sys_windows_amd64.s  |  5 ---
+ src/runtime/sys_windows_arm.s    |  7 ----
+ src/runtime/sys_windows_arm64.s  |  5 ---
+ src/runtime/time_windows_386.s   |  5 ---
+ src/runtime/time_windows_amd64.s |  6 ----
+ src/runtime/time_windows_arm.s   |  6 ----
+ src/runtime/time_windows_arm64.s |  6 ----
+ 9 files changed, 123 deletions(-)

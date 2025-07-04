@@ -1,0 +1,16 @@
+commit 0849dfd4a3f72182af0702bec22ffa8c772c3695
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 1 21:38:49 2018 -0800
+
+    test: add new test that gccgo failed to compile
+    
+    Updates #22305
+    
+    Change-Id: I0e6bbd880599fc1b70d0378b746d162d4a846c65
+    Reviewed-on: https://go-review.googlesource.com/91556
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue22305.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

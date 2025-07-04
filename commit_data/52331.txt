@@ -1,0 +1,16 @@
+commit 553506d39a44a4f56f4f801b15e82fea7f542403
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 17 12:40:25 2023 -0700
+
+    cmd/go: use platform.MustLinkExternal in externalLinkingForced
+    
+    Change-Id: If5613ae73d03c196f26340fd6293e37c78c29bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

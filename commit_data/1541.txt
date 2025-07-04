@@ -1,0 +1,15 @@
+commit 8c5bc7e93adae7546b4f1520d1b20f18ebe95d88
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 15:41:12 2009 -0800
+
+    use $GC, $GL in gotest, to match gccgo's gotest.
+    
+    use $GC in all_test.go for portability.
+    
+    R=r
+    DELTA=19  (12 added, 0 deleted, 7 changed)
+    OCL=23305
+    CL=23325
+
+ src/cmd/gotest/gotest | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

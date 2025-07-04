@@ -1,0 +1,12 @@
+commit 014c342b1e15755e2f68ff6ca568d7bdb325630d
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Wed Jan 11 13:23:33 2012 -0800
+
+    misc/dashboard/builder: fix comment in http.go
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5534074
+
+ misc/dashboard/builder/http.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

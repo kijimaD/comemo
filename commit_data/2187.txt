@@ -1,0 +1,24 @@
+commit 3619f1ea6a85b08f8c079b61115c567dd2e51f33
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 11 14:10:34 2009 -0700
+
+    change utf8.FullRuneInString and utf8.DecodeRuneInString
+    to use single string argument instead of string, index.
+    
+    R=r
+    DELTA=136  (9 added, 7 deleted, 120 changed)
+    OCL=28642
+    CL=28644
+
+ src/lib/fmt/print.go       |   4 +-
+ src/lib/go/ast/ast.go      |   2 +-
+ src/lib/json/parse.go      |   2 +-
+ src/lib/reflect/type.go    |   2 +-
+ src/lib/regexp/regexp.go   |   4 +-
+ src/lib/strconv/quote.go   | 158 ++++++++++++++++++++++-----------------------
+ src/lib/strings/strings.go |   9 +--
+ src/lib/utf8/utf8.go       |  21 +++---
+ src/lib/utf8/utf8_test.go  |  34 +++++-----
+ test/stringrange.go        |   2 +-
+ test/utf.go                |   2 +-
+ 11 files changed, 121 insertions(+), 119 deletions(-)

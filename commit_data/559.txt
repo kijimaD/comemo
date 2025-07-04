@@ -1,0 +1,15 @@
+commit 32556ef9e7cffec0fbd829dd9d01982d7fd6278a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 2 14:26:59 2008 -0700
+
+    in golden.out, replace $RUNFILE with '$RUNFILE'
+    and replace pid with PID
+    
+    R=r
+    DELTA=4  (2 added, 0 deleted, 2 changed)
+    OCL=14727
+    CL=14727
+
+ test/golden.out | 2 +-
+ test/run        | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

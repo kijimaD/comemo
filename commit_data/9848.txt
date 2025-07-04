@@ -1,0 +1,13 @@
+commit 85916146ea0f63fd9a1b8e1c224eae261ff337ba
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Oct 3 19:08:59 2011 +0100
+
+    runtime: fix usleep on linux/386 and re-enable parallel gc
+    
+    R=golang-dev, jsing, alex.brainman, cw, rsc
+    CC=golang-dev
+    https://golang.org/cl/5166047
+
+ src/pkg/runtime/linux/386/sys.s | 21 ++++++++++-----------
+ src/pkg/runtime/proc.c          |  2 --
+ 2 files changed, 10 insertions(+), 13 deletions(-)

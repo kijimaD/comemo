@@ -1,0 +1,13 @@
+commit cd9f417dbb5780d131d72f020160918befd2ccf3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 23:57:59 2015 -0400
+
+    cmd/compile: document Node fields used by each Op
+    
+    Change-Id: If969d7a06c83447ee38da30f1477a6cf4bfa1a03
+    Reviewed-on: https://go-review.googlesource.com/10691
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 241 +++++++++++++++++-----------------
+ 1 file changed, 122 insertions(+), 119 deletions(-)

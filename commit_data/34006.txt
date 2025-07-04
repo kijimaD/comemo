@@ -1,0 +1,21 @@
+commit 39687051e9e781bb438ad32154472356fddf98a8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 15 12:52:48 2018 +1100
+
+    cmd/go: clarify and simplify (a little) the description of go test's caching
+    
+    I found the previous text choppy and hard to follow, and in putting
+    this CL together, based entirely on the existing text, I found
+    several details that seemed misleading to me.
+    
+    This is my attempt to make the text simultaneously easier to
+    understand, more complete, and more precise. I may have failed in
+    all three, but I wanted to try.
+    
+    Change-Id: I088cb457f6fcad8f2b40236949cc3ac43455e600
+    Reviewed-on: https://go-review.googlesource.com/87735
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go            | 73 ++++++++++++++++++++++------------------
+ src/cmd/go/internal/test/test.go | 73 ++++++++++++++++++++++------------------
+ 2 files changed, 82 insertions(+), 64 deletions(-)

@@ -1,0 +1,12 @@
+commit 6500065543fa21a0918d78d528911012aabb1999
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Aug 4 00:22:39 2011 -0400
+
+    runtime: remove unnecessary locking
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4819051
+
+ src/pkg/runtime/proc.c | 3 ---
+ 1 file changed, 3 deletions(-)

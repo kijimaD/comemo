@@ -1,0 +1,23 @@
+commit d0751b1ad8d7a68586dc7567cee44e0ce323f26f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 15:57:45 2021 -0400
+
+    cmd/go: test with SIGTERM in test_fuzz_non_crash_signal
+    
+    The test currently uses only SIGKILL (which cannot be trapped by the
+    worker process) and SIGILL (which is handled by the Go runtime, and
+    does pretty unambiguously indicate a crash). It is missing a third
+    (and perhaps more likely) case: a signal like SIGTERM that is handled
+    by the Go runtime and causes the test to terminate, but nonetheless
+    does not indicate a crash.
+    
+    Change-Id: I0595a0917e977e8eb2c24ae8b706d734ce3b2f4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359482
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ .../testdata/script/test_fuzz_non_crash_signal.txt   | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

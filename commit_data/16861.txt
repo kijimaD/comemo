@@ -1,0 +1,12 @@
+commit 9b1f1833de07763b8c07f838a44d7e44a8837b18
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 24 09:41:06 2013 -0700
+
+    cc: generate argument pointer maps for C functions.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11683043
+
+ src/cmd/cc/pgen.c | 135 ++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 121 insertions(+), 14 deletions(-)

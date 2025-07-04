@@ -1,0 +1,78 @@
+commit 017ffcd10d980e7fe6ca101e253a12c9326fba37
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 1 16:35:43 2021 -0700
+
+    cmd/link, runtime: convert FUNCDATA relocations to offsets
+    
+    Every function has associated numbered extra funcdata to another symbol.
+    Prior to this change, a funcdata pointer was stored as a relocation.
+    
+    This change alters this to be an offset relative to go.func.* or go.funcrel.*.
+    
+    This reduces the number of relocations on darwin/arm64 by about 40%.
+    It also shrinks externally linked binaries. On darwin/arm64:
+    
+    size      before    after     Δ        %
+    addr2line 3788498   3699730   -88768   -2.343%
+    api       5100018   4951074   -148944  -2.920%
+    asm       4855234   4744274   -110960  -2.285%
+    buildid   2500162   2419986   -80176   -3.207%
+    cgo       4338258   4218306   -119952  -2.765%
+    compile   22764418  22132226  -632192  -2.777%
+    cover     4583186   4432770   -150416  -3.282%
+    dist      3200962   3094626   -106336  -3.322%
+    doc       3680402   3583602   -96800   -2.630%
+    fix       3114914   3023922   -90992   -2.921%
+    link      6308578   6154786   -153792  -2.438%
+    nm        3754338   3665826   -88512   -2.358%
+    objdump   4124738   4015234   -109504  -2.655%
+    pack      2232626   2155010   -77616   -3.476%
+    pprof     13497474  13044066  -453408  -3.359%
+    test2json 2483810   2402146   -81664   -3.288%
+    trace     10108898  9748802   -360096  -3.562%
+    vet       6884322   6681314   -203008  -2.949%
+    total     107320836 104167700 -3153136 -2.938%
+    
+    relocs    before  after   Δ       %
+    addr2line 33357   25563   -7794   -23.365%
+    api       31589   18409   -13180  -41.723%
+    asm       27825   18904   -8921   -32.061%
+    buildid   15603   9513    -6090   -39.031%
+    cgo       27809   17103   -10706  -38.498%
+    compile   114769  64829   -49940  -43.513%
+    cover     32932   19462   -13470  -40.902%
+    dist      18797   10796   -8001   -42.565%
+    doc       22891   13503   -9388   -41.012%
+    fix       19700   11465   -8235   -41.802%
+    link      37324   23198   -14126  -37.847%
+    nm        33226   25480   -7746   -23.313%
+    objdump   35237   26610   -8627   -24.483%
+    pack      13535   7951    -5584   -41.256%
+    pprof     97986   63961   -34025  -34.724%
+    test2json 15113   8735    -6378   -42.202%
+    trace     66786   39636   -27150  -40.652%
+    vet       43328   25971   -17357  -40.060%
+    total     687806  431088  -256718 -37.324%
+    
+    It should also incrementally speed up binary launching
+    and may reduce linker memory use.
+    
+    This is another step towards removing relocations so
+    that pages that were previously dirtied by the loader may remain clean,
+    which will offer memory savings useful in constrained environments like iOS.
+    
+    Removing the relocations in .stkobj symbols will allow some simplifications.
+    There will be no references into go.funcrel.*,
+    so we will no longer need to use the bottom bit to distinguish offset bases.
+    
+    Change-Id: I83d34c1701d6f3f515b9905941477d522441019d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352110
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go   | 90 +++++++++++++++++---------------------
+ src/cmd/link/internal/ld/symtab.go |  6 +++
+ src/runtime/symtab.go              | 14 +++++-
+ 3 files changed, 58 insertions(+), 52 deletions(-)

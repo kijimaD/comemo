@@ -1,0 +1,20 @@
+commit 3813f941f6ff80f64d14db35f8b6446e10e45411
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 18 16:04:45 2017 -0700
+
+    internal/poll: always decref if setting deadline fails
+    
+    No test because at present it is never called in a way that fails.
+    When #22114 is implemented, failure will be possible. Not including this
+    change in that work because this change is separable and clearly correct.
+    
+    Updates #22114
+    
+    Change-Id: I81eb9eec8800e8082d918c0e5fb71282f538267e
+    Reviewed-on: https://go-review.googlesource.com/71751
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_poll_runtime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

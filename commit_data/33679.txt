@@ -1,0 +1,16 @@
+commit ac0f890c578a0e44f5e39b952bc888093897e449
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 23 10:16:02 2017 +0100
+
+    cmd/dist: omit dragonfly/386 GOOS/GOARCH pair
+    
+    dragonfly/386 isn't a valid GOOS/GOARCH pair.
+    
+    Change-Id: I44374a932b20f0d49b2e509484143970eb5464c2
+    Reviewed-on: https://go-review.googlesource.com/79656
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

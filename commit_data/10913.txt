@@ -1,0 +1,17 @@
+commit e83cd7f750efe3ac2233f0589971f1e0e424382e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 17:54:40 2011 -0500
+
+    build: a round of fixes
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5503052
+
+ src/pkg/debug/gosym/pclntab_test.go       |  3 ++-
+ src/pkg/exp/inotify/inotify_linux_test.go |  5 +++++
+ src/pkg/runtime/Makefile                  |  2 +-
+ src/pkg/runtime/cgo/gcc_setenv.c          |  2 ++
+ src/pkg/runtime/cgo/trigger.go            | 10 ++++++++++
+ src/pkg/runtime/runtime.h                 |  3 ++-
+ 6 files changed, 22 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 1bca6a5ebcc4c624b8f3ef0b7c0df2f6db0507d3
+Author: Evan Hicks <evan.hicks2@gmail.com>
+Date:   Sat Jul 15 12:07:04 2017 -0600
+
+    strings: add example for LastIndexAny
+    
+    Change-Id: I69d1359d8868d4c5b173e4d831e38cea7dfeb713
+    Reviewed-on: https://go-review.googlesource.com/48859
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

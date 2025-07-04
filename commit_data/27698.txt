@@ -1,0 +1,12 @@
+commit 20fd1bb8bdbd8ead3d707ad13b560a375a7b3967
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 20 10:40:07 2016 +0900
+
+    doc/go1.7.html: don't mention obsolete RFC
+    
+    Change-Id: Ia978c10a97e4c24fd7cf1fa4a7c3bd886d20bbf8
+    Reviewed-on: https://go-review.googlesource.com/24241
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

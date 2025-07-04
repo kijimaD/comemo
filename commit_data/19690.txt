@@ -1,0 +1,13 @@
+commit 38e75f9d0e8a58ad30871dda7faa92dc9541d68f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:32:18 2014 +0200
+
+    syscall: remove more NxM assumptions on Plan 9
+    
+    LGTM=0intro, r
+    R=0intro, r
+    CC=ality, dave, golang-codereviews, jas, mischief, rsc
+    https://golang.org/cl/111910043
+
+ src/pkg/syscall/asm_plan9_amd64.s | 8 --------
+ 1 file changed, 8 deletions(-)

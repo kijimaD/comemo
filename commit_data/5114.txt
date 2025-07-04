@@ -1,0 +1,20 @@
+commit 371496e0b8eb63b6c26b9207860ed6fc1875e6f5
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Tue Mar 23 18:09:24 2010 -0700
+
+    websocket: implement new protocol
+    http://www.whatwg.org/specs/web-socket-protocol/
+    (draft of draft-hixie-thewebsocketprotocol-76)
+    
+    draft-hixie-thewebsocketprotocol-76 will introduce new handshake
+    incompatible draft 75 or prior.
+    http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/583041
+
+ src/pkg/websocket/client.go         | 229 +++++++++++++++++++++++++++++++++++-
+ src/pkg/websocket/server.go         | 152 ++++++++++++++++++++++--
+ src/pkg/websocket/websocket_test.go |  65 +++++++++-
+ 3 files changed, 431 insertions(+), 15 deletions(-)

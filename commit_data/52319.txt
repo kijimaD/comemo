@@ -1,0 +1,19 @@
+commit 192814985d28c2f63c13861aa918e394f2ee9f6e
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Apr 24 15:01:22 2022 +0800
+
+    runtime/trace: record HeapGoal when StartTrace
+    
+    Fixes #52517
+    
+    Change-Id: I06aa6112f14f264360c3bb0ffd4e1cd54ad22514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401777
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/trace.go | 3 +++
+ 1 file changed, 3 insertions(+)

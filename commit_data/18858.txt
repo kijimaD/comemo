@@ -1,0 +1,24 @@
+commit c115cda22c82e219654056f6864e9819b922febc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 13 19:04:00 2014 +0400
+
+    runtime: improve efence
+    Mark free memory blocks as unused.
+    On amd64 it allows the process to eat all 128 GB of heap
+    without killing the machine.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/74070043
+
+ src/pkg/runtime/mem_darwin.c    | 2 +-
+ src/pkg/runtime/mem_dragonfly.c | 2 +-
+ src/pkg/runtime/mem_freebsd.c   | 2 +-
+ src/pkg/runtime/mem_linux.c     | 2 +-
+ src/pkg/runtime/mem_nacl.c      | 2 +-
+ src/pkg/runtime/mem_netbsd.c    | 2 +-
+ src/pkg/runtime/mem_openbsd.c   | 2 +-
+ src/pkg/runtime/mem_solaris.c   | 2 +-
+ src/pkg/runtime/mem_windows.c   | 7 ++-----
+ 9 files changed, 10 insertions(+), 13 deletions(-)

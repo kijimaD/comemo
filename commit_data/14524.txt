@@ -1,0 +1,14 @@
+commit 85e451e2fe3aae0c5d066cd0ee5f178877139188
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 29 14:47:47 2012 -0800
+
+    go spec: receiver, parameter, and result names must always be unique
+    
+    Fixes #4450.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6845104
+
+ doc/go_spec.html | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

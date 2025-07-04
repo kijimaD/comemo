@@ -1,0 +1,28 @@
+commit 1c2d4da10f6edf9a83fb0cffaaf9f631f462d26b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Mar 9 18:01:26 2019 +0100
+
+    syscall: skip non-root user namespace test if kernel forbids
+    
+    The unprivileged_userns_clone sysctl prevents unpriviledged users from
+    creating namespaces, which the AmbientCaps test does. It's set to 0 by
+    default in a few Linux distributions (Debian and Arch, possibly
+    others), so we need to check it before running the test.
+    
+    I've verified that setting
+    
+      echo 1 > /proc/sys/kernel/unprivileged_userns_clone
+    
+    and then running the test *without this patch* makes it pass, which
+    proves that checking unprivileged_userns_clone is indeed sufficient.
+    
+    Fixes #30698
+    
+    Change-Id: Ib2079b5e714d7f2440ddf979c3e7cfda9a9c5005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166460
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

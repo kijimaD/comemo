@@ -1,0 +1,32 @@
+commit 8d8829c6718d571d0155753c6ef0c1118c903826
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 21:06:31 2012 -0800
+
+    cmd/go: add -p flag for parallelism (like make -j)
+    
+    On my MacBookAir4,1:
+    
+    19.94r   go install -a -p 1 std
+    12.36r   go install -a -p 2 std
+    9.76r    go install -a -p 3 std
+    10.77r   go install -a -p 4 std
+    
+    86.57r   go test -p 1 std -short
+    52.69r   go test -p 2 std -short
+    43.75r   go test -p 3 std -short
+    40.44r   go test -p 4 std -short
+    
+    157.50r          go test -p 1 std
+    99.58r   go test -p 2 std
+    87.24r   go test -p 3 std
+    80.18r   go test -p 4 std
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/5531057
+
+ src/cmd/go/build.go    | 109 ++++++++++++++++++++++++++++---------------------
+ src/cmd/go/run.go      |  17 ++++----
+ src/cmd/go/test.go     | 106 +++++++++++++++++++++++++++++++++--------------
+ src/cmd/go/testflag.go |  17 ++++++++
+ 4 files changed, 163 insertions(+), 86 deletions(-)

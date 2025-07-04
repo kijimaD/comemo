@@ -1,0 +1,14 @@
+commit a49172663cb4082dcbafa8200b70c93b1c19314a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jul 5 15:24:33 2012 -0400
+
+    cmd/cgo: make typedef map traversal order consistent
+            So that _cgo_gotypes.go will be the same for the same source
+            code.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6357067
+
+ src/cmd/cgo/out.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

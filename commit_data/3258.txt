@@ -1,0 +1,12 @@
+commit 61dd8363baf8e35201cc6fe176a88d9c22f27f26
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 11 11:51:00 2009 -0700
+
+    correct and clarify the rules about integer conversions.
+    
+    DELTA=15  (6 added, 1 deleted, 8 changed)
+    OCL=34549
+    CL=34564
+
+ doc/go_spec.html | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

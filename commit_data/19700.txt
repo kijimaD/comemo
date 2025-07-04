@@ -1,0 +1,13 @@
+commit fe71b387b32e59a3424b66bf7016c047f98ca1fd
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Jul 9 14:54:11 2014 -0400
+
+    androidtest.bash: missing !
+    
+    LGTM=iant
+    R=bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/112010045
+
+ src/androidtest.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

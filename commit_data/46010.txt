@@ -1,0 +1,24 @@
+commit 02f932e173c713333693993c509a663b9cb2bc8b
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:04:39 2021 -0400
+
+    go/types: better names for things (cleanup)
+    
+    This is a port of CL 339891 to go/types.
+    
+    Change-Id: If4d9bbb3ace45bec0f40082dd42ed2dd249100ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342432
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go   |  2 +-
+ src/go/types/interface.go     |  2 +-
+ src/go/types/termlist.go      | 22 ++++++-------
+ src/go/types/termlist_test.go | 76 +++++++++++++++++++++----------------------
+ src/go/types/typeset.go       | 20 ++++++------
+ src/go/types/typeterm.go      | 31 ++++++++----------
+ src/go/types/typeterm_test.go | 42 ++++++++++++------------
+ src/go/types/universe.go      |  2 +-
+ 8 files changed, 97 insertions(+), 100 deletions(-)

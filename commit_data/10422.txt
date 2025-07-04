@@ -1,0 +1,12 @@
+commit 8fdd6c05b1771a8e3a75f0fb073732c593472fcb
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Nov 16 17:34:18 2011 -0500
+
+    exp/ssh: add to pkg Makefile
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/5399045
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,39 @@
+commit c9321f3fb13aec7af5c72d3d11a6e3b4d88dced3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jan 29 12:47:30 2015 +0300
+
+    runtime: fix nosplit stack overflow
+    
+    The overflow happens only with -gcflags="-N -l"
+    and can be reproduced with:
+    
+    $ go test -gcflags="-N -l" -a -run=none net
+    
+    runtime.cgocall: nosplit stack overflow
+            504     assumed on entry to runtime.cgocall
+            480     after runtime.cgocall uses 24
+            472     on entry to runtime.cgocall_errno
+            408     after runtime.cgocall_errno uses 64
+            400     on entry to runtime.exitsyscall
+            288     after runtime.exitsyscall uses 112
+            280     on entry to runtime.exitsyscallfast
+            152     after runtime.exitsyscallfast uses 128
+            144     on entry to runtime.writebarrierptr
+            88      after runtime.writebarrierptr uses 56
+            80      on entry to runtime.writebarrierptr_nostore1
+            24      after runtime.writebarrierptr_nostore1 uses 56
+            16      on entry to runtime.acquirem
+            -24     after runtime.acquirem uses 40
+    
+    Move closure creation into separate function so that
+    frames of writebarrierptr_shadow and writebarrierptr_nostore1
+    are overlapped.
+    
+    Fixes #9721
+    
+    Change-Id: I40851f0786763ee964af34814edbc3e3d73cf4e7
+    Reviewed-on: https://go-review.googlesource.com/3418
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbarrier.go | 37 +++++++++++++++++++++----------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

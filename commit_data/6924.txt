@@ -1,0 +1,23 @@
+commit 5e54e9367566e9ce9334aae1e5ad76ac31673c29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Dec 12 13:13:07 2010 -0800
+
+    godoc: improved textual search
+    
+    - improved search result page
+    - clicking on files shows highlighted search phrase
+      (.go files loose their godoc-specific formatting and
+      highlighting in this mode - a better solution is in
+      the works)
+    - support for textual results
+    - fixed bug with non-URL escaped URL parameter (Query)
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3585041
+
+ lib/godoc/search.html  |  50 +++++++++++-------------
+ lib/godoc/search.txt   |  19 ++++++---
+ src/cmd/godoc/godoc.go | 103 ++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/godoc/index.go |  15 ++++---
+ 4 files changed, 126 insertions(+), 61 deletions(-)

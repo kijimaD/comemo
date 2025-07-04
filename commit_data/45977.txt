@@ -1,0 +1,24 @@
+commit 20a620fd9f7bc35739c1af3602d53808d0430814
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Aug 12 17:17:51 2021 -0400
+
+    runtime: drop SIGPROF while in ARM < 7 kernel helpers
+    
+    On Linux ARMv6 and below runtime/internal/atomic.Cas calls into a kernel
+    cas helper at a fixed address. If a SIGPROF arrives while executing the
+    kernel helper, the sigprof lostAtomic logic will miss that we are
+    potentially in the spinlock critical section, which could cause
+    a deadlock when using atomics later in sigprof.
+    
+    Fixes #47505
+    
+    Change-Id: If8ba0d0fc47e45d4e6c68eca98fac4c6ed4e43c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341889
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

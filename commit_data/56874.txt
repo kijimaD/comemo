@@ -1,0 +1,20 @@
+commit 87ec2c959c73e62bfae230ef7efca11ec2a90804
+Author: Julian Dax <julian.dax@posteo.de>
+Date:   Sun Jul 7 23:41:02 2024 +0200
+
+    testing: remove call to os.Exit in documentation for TestMain
+    
+    In the example for the TestMain function, os.Exit was called explicitly,
+    which is no longer necessary since Go 1.15 (see change #219639).
+    
+    Updates #34129
+    
+    Change-Id: Ia8021de0d5699742adbb7ab6d28b11c841e596dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596977
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

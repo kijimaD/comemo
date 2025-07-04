@@ -1,0 +1,12 @@
+commit c117da37a29ad92dd8b6c6abea236aadd7e71896
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Oct 19 16:35:15 2012 +1100
+
+    unsafe: fix a typo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6736048
+
+ src/pkg/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 620bd5a3bc640f60a00d8b49c27c51e8ce67e67b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 18 14:00:25 2018 -0400
+
+    cmd/go: write an hgrc file in TestMoveHG
+    
+    Some variants of Mercurial respond differently to “permission denied” errors
+    than to “file not found”, and we set HOME to point to an absolute path that may
+    produce the former instead of the latter.
+    
+    To discourage Mercurial from trying HOME, give it an explicit (empty)
+    configuration in the working directory instead.
+    
+    Change-Id: I82ae99a6892bba7fc3d41b77209ca181d24315e2
+    Reviewed-on: https://go-review.googlesource.com/136135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

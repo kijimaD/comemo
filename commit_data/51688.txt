@@ -1,0 +1,20 @@
+commit e590afcf2c2d046b1a4b6a11986a8e38a2b93ed7
+Author: fangguizhen <1297394526@qq.com>
+Date:   Thu Jan 19 03:12:12 2023 +0000
+
+    bytes, strings: rename field in CutSuffix tests
+    
+    Change-Id: I63181f6540fc1bfcfc988a16bf9fafbd3575cfdf
+    GitHub-Last-Rev: d90528730a92a087866c1bfc227a0a0bf1cdffbe
+    GitHub-Pull-Request: golang/go#57909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462284
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/bytes/bytes_test.go     | 6 +++---
+ src/strings/strings_test.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

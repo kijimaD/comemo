@@ -1,0 +1,13 @@
+commit 2a189845b619ec27772d4b21d2a3cb9e27d5fbb8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 17 15:53:17 2011 +1000
+
+    doc/codewalk: new Markov chain codewalk
+    
+    R=gri, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4891041
+
+ doc/codewalk/markov.go  | 130 ++++++++++++++++++++
+ doc/codewalk/markov.xml | 308 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 438 insertions(+)

@@ -1,0 +1,12 @@
+commit 6b055185532676696b7c242b8f1eda873368e398
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 13:09:30 2008 -0800
+
+    silence gcc warnings
+    
+    R=ken
+    OCL=18348
+    CL=18348
+
+ src/cmd/gc/walk.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

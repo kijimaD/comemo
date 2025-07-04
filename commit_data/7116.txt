@@ -1,0 +1,27 @@
+commit bff2c207e4ccc7a845727d38dec65e1ca4879b69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 17:20:26 2011 -0800
+
+    go/scanner: Make Init take a *token.File instead of a *token.FileSet.
+    
+    Until now, each scan of a file added a new file to the file set.
+    With this change, a file can be re-scanned using the same *token.File
+    w/o changing the file set. Eventually this will enable the re-use of
+    cached source code in godoc (for the fulltext index). At the moment,
+    source files are read over and over again from disk.
+    
+    This is the first step in that direction.
+    
+    R=r, rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4001041
+
+ src/cmd/godoc/format.go            |  4 +++-
+ src/cmd/godoc/index.go             |  3 ++-
+ src/cmd/godoc/spec.go              |  3 ++-
+ src/pkg/ebnf/parser.go             |  2 +-
+ src/pkg/exp/datafmt/parser.go      |  5 +++--
+ src/pkg/go/parser/parser.go        |  5 +++--
+ src/pkg/go/scanner/scanner.go      | 28 +++++++++++++++-------------
+ src/pkg/go/scanner/scanner_test.go | 21 +++++++++++++--------
+ 8 files changed, 42 insertions(+), 29 deletions(-)

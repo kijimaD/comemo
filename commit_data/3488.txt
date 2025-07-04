@@ -1,0 +1,15 @@
+commit 9aa68dbdb6023b3e9673249e23b83c309a416bdf
+Author: Dave Bort <dbort@golang.org>
+Date:   Fri Oct 9 15:16:00 2009 -0700
+
+    Move rand.go to rng.go to prepare for some surgery.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=637  (318 added, 318 deleted, 1 changed)
+    OCL=35534
+    CL=35536
+
+ src/pkg/rand/Makefile            | 2 +-
+ src/pkg/rand/{rand.go => rng.go} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)

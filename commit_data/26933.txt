@@ -1,0 +1,14 @@
+commit 24bd465bca145320bffd5b06e11da105226a1eae
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Apr 14 14:07:59 2016 -0400
+
+    test: use correct value in error message in init1.go
+    
+    Print numGC followed by numGC1, rather than printing numGC twice.
+    
+    Change-Id: I8e7144b6a11d4ae9be0d82d88b86fed04b906e2f
+    Reviewed-on: https://go-review.googlesource.com/22087
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/init1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

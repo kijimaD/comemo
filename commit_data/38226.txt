@@ -1,0 +1,18 @@
+commit 294edb272d5d145665bdf8b4254609eae0363a8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 12:31:18 2019 -0800
+
+    path/filepath: don't discard .. in EvalSymlinks
+    
+    EvalSymlinks was mishandling cases like "/x/../../y" or "../../../x"
+    where there is an extra ".." that goes past the start of the path.
+    
+    Fixes #30520
+    
+    Change-Id: I07525575f83009032fa1a99aa270c8d42007d276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164762
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/path/filepath/path_test.go | 100 +++++++++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go   |  10 ++++-
+ 2 files changed, 109 insertions(+), 1 deletion(-)

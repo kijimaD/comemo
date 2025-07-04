@@ -1,0 +1,16 @@
+commit f1781bec3b60898ddde6f905bc94feeb8fdd4ade
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Apr 25 12:14:30 2011 -0400
+
+    8g,8l: fix "set but not used" gcc error
+    
+    $ gcc --version
+    gcc (GCC) 4.6.0 20110415 (prerelease)
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4442080
+
+ src/cmd/8g/ggen.c | 4 ----
+ src/cmd/8l/obj.c  | 3 +--
+ 2 files changed, 1 insertion(+), 6 deletions(-)

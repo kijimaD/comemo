@@ -1,0 +1,16 @@
+commit edb1412c5091bfa9f1a05fb3a6da7e8b565bba70
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Oct 14 15:08:23 2008 -0700
+
+    interface equality
+    
+    R=r
+    OCL=17116
+    CL=17118
+
+ src/cmd/gc/lex.c       |  1 +
+ src/cmd/gc/sys.go      |  1 +
+ src/cmd/gc/sysimport.c |  1 +
+ src/cmd/gc/walk.c      | 28 +++++++++++++++++++++++++++-
+ src/runtime/iface.c    | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 77 insertions(+), 1 deletion(-)

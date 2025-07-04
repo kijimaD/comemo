@@ -1,0 +1,13 @@
+commit 47c7cf435705860dc143e8741616b8d6157de671
+Author: Peter Armitage <peter.armitage@gmail.com>
+Date:   Tue Dec 16 14:12:48 2014 +0000
+
+    syscall: fs_nacl: Unlock() should be deferred.
+    
+    Change-Id: Iea08b8f4e74a8cd4b4d317273046457c8db956a1
+    Reviewed-on: https://go-review.googlesource.com/1640
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/fs_nacl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

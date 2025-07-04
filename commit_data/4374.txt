@@ -1,0 +1,12 @@
+commit d08d33f38904b182b528f7006a4635b96fd5ede0
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Dec 10 11:42:01 2009 -0800
+
+    fix calling convention and make memmove restore the g and m
+    registers.
+    
+    R=rsc
+    https://golang.org/cl/166049
+
+ src/pkg/runtime/arm/memmove.s | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 5e1d0fcbed3060b00c33e48ae6fdbaa92965c287
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 8 15:21:58 2015 +1200
+
+    cmd/internal/obj, cmd/link: handle the fact that a few store/loads on ppc64 are DS form
+    
+    Change-Id: I4fe1af48ec1cd8a23e2f7f2a0257dc989ff7aced
+    Reviewed-on: https://go-review.googlesource.com/14235
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/link.go       | 12 +++++
+ src/cmd/internal/obj/ppc64/asm9.go | 66 ++++++++++++++++++++-------
+ src/cmd/link/internal/ppc64/asm.go | 91 +++++++++++++++++++++-----------------
+ 3 files changed, 113 insertions(+), 56 deletions(-)

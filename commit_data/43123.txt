@@ -1,0 +1,19 @@
+commit c4971a14a7cac78849f4d0908e7140263129bdf7
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Sep 24 15:33:45 2020 -0700
+
+    testing: add benchmark for TB.Helper
+    
+    Adds a benchmark for TB.Helper, to use as a judge of future
+    improvements like CL 231717.
+    
+    Change-Id: I17c40d482fc12caa3eb2c1cda39fd8c42356b422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257317
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/testing/helper_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

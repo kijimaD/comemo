@@ -1,0 +1,25 @@
+commit 06c0280440689be695fb3375105e09f58b44e82e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 8 20:37:27 2014 -0500
+
+    libmach: use different names for different Ureg types
+    
+    Everything was doing this already with #defines.
+    Do it right.
+    
+    R=golang-codereviews, jsing, 0intro, iant
+    CC=golang-codereviews
+    https://golang.org/cl/49090043
+
+ include/ureg_amd64.h |  3 ++-
+ include/ureg_arm.h   |  3 ++-
+ include/ureg_x86.h   |  3 ++-
+ src/cmd/prof/main.c  | 23 +++++++---------
+ src/libmach/5.c      |  4 +--
+ src/libmach/5db.c    |  2 --
+ src/libmach/6.c      |  4 +--
+ src/libmach/8.c      |  4 +--
+ src/libmach/8db.c    |  7 -----
+ src/libmach/darwin.c | 75 ++++++++++++++++++++++++----------------------------
+ src/libmach/linux.c  | 54 +++++++++++++++++--------------------
+ 11 files changed, 79 insertions(+), 103 deletions(-)

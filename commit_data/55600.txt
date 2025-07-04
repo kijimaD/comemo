@@ -1,0 +1,23 @@
+commit 5258d4ed60ffe272fe51d7793c4ca6f8cc054299
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 6 18:08:34 2024 -0500
+
+    cmd/link: add -randlayout flag to randomize function ordering
+    
+    Sometimes we found that benchmark results may strongly depend on
+    the ordering of functions laid out in the binary. This CL adds a
+    flag -randlayout=seed, which randomizes the function layout (in a
+    deterministic way), so can verify the benchmark results against
+    different function ordering.
+    
+    Change-Id: I85f33881bbfd4ca6812fbd4bec00bf475755a09e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562157
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go | 28 ++++++++++++++++++++++---
+ src/cmd/link/internal/ld/main.go |  1 +
+ src/cmd/link/internal/ld/pcln.go |  2 +-
+ src/cmd/link/link_test.go        | 44 ++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 69 insertions(+), 6 deletions(-)

@@ -1,0 +1,19 @@
+commit 6f0e427298fc38d3402a4771ff730adf29818a90
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 15 11:35:56 2015 -0700
+
+    syscall: fix TestCloneNEWUSERAndRemapNoRootDisableSetgroups the right way
+    
+    The problem was not the kernel version as I thought before, it was
+    that the test used the same number for both the UID and the GID.
+    Thanks to Chris Siebenmann for debugging this.
+    
+    Fixes #11220.
+    
+    Change-Id: Ib5077e182497155e84044683209590ee0f7c9dde
+    Reviewed-on: https://go-review.googlesource.com/11124
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/syscall/exec_linux_test.go | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

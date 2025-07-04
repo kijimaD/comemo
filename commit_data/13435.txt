@@ -1,0 +1,18 @@
+commit a0c688331f095126d8a079c249903e4a6728581f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 3 12:54:13 2012 +0400
+
+    runtime: refactor proc.c
+    1. Rename 'g' and 'm' local vars to 'gp' and 'mp' (convention already used in some functions)
+    'g' and 'm' are global vars that mean current goroutine and current machine,
+    when they are shadowed by local vars, it's confusing, no ability to debug log both, etc.
+    2. White-space shuffling.
+    No semantic changes.
+    In preparation to bigger changes.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6355061
+
+ src/pkg/runtime/proc.c | 182 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 91 insertions(+), 91 deletions(-)

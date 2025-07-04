@@ -1,0 +1,12 @@
+commit cc99d8ad0bb8a2299a72dcf123d615335ea09964
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 13 09:33:54 2012 -0400
+
+    gc: use quoted string format in import error
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5794077
+
+ src/cmd/gc/subr.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

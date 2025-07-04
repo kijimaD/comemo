@@ -1,0 +1,12 @@
+commit f842dc160bb48d2bd9c06f704f71cd10f4ea68c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 11 13:23:44 2012 +0900
+
+    cmd/dist: clear execute bit from source file
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5651072
+
+ src/cmd/dist/buf.c | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

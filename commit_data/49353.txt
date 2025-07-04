@@ -1,0 +1,36 @@
+commit af88fb6502ceee973aaa118471c9d953a10a68e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 28 14:06:43 2022 -0700
+
+    net: permit use of Resolver.PreferGo, netgo on Windows and Plan 9
+    
+    This reverts commit CL 401754 (440c9312c8) which reverted CL 400654,
+    thus reapplying CL 400654, re-adding the func init() { netGo = true }
+    to cgo_stub.go CL 400654 had originally removed (mistakenly during
+    development?) that had broken the darwin nocgo builder.
+    
+    Fixes #33097
+    
+    Change-Id: I90f59746d2ceb6b5d2bd832c9fc90068f8ff7417
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409234
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/net/addrselect.go            |   2 -
+ src/net/conf.go                  |  36 ++++-
+ src/net/dnsclient_unix.go        |  24 ++-
+ src/net/dnsconfig.go             |  43 +++++
+ src/net/dnsconfig_unix.go        |  36 +----
+ src/net/dnsconfig_windows.go     |  58 +++++++
+ src/net/lookup.go                | 226 +++++++++++++++++++++++++++
+ src/net/lookup_plan9.go          |  52 ++++++-
+ src/net/lookup_unix.go           | 205 +-----------------------
+ src/net/lookup_windows.go        |  93 +++++++----
+ src/net/net.go                   |   5 +-
+ src/net/net_fake.go              |   6 +
+ src/net/netgo.go                 |   9 ++
+ src/net/nss.go                   |   2 -
+ src/net/resolverdialfunc_test.go | 328 +++++++++++++++++++++++++++++++++++++++
+ 15 files changed, 835 insertions(+), 290 deletions(-)

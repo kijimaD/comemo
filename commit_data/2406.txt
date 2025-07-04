@@ -1,0 +1,13 @@
+commit bd61c4e56e1edc21b24691af22ac56cc5b8e2c09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 23:28:02 2009 -0700
+
+    disable automatic p4 sync (new default)
+    
+    TBR=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29969
+    CL=29969
+
+ usr/gri/pretty/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

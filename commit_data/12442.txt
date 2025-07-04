@@ -1,0 +1,12 @@
+commit 544a72cc86b9226f359bcce5aedd5010eb476ace
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 14:06:16 2012 +1100
+
+    exp/wingui: remove reference to Make.inc
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5757058
+
+ src/pkg/exp/wingui/Makefile | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

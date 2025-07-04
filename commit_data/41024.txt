@@ -1,0 +1,30 @@
+commit cd1b9c1d5a7bb8ea6ebec223ce11e91897584ef4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 19 17:44:58 2019 +0000
+
+    runtime: disable pageAlloc tests on OpenBSD in short mode
+    
+    This change disables pageAlloc tests on OpenBSD in short mode because
+    pageAlloc holds relatively large virtual memory reservations and we make
+    two during the pageAlloc tests. The runtime may also be carrying one
+    such reservation making the virtual memory requirement for testing the
+    Go runtime three times as much as just running a Go binary.
+    
+    This causes problems for folks who just want to build and test Go
+    (all.bash) on OpenBSD but either don't have machines with at least 4ish
+    GiB of RAM (per-process virtual memory limits are capped at some
+    constant factor times the amount of physical memory) or their
+    per-process virtual memory limits are low for other reasons.
+    
+    Fixes #36210.
+    
+    Change-Id: I8d89cfde448d4cd2fefff4ad6ffed90de63dd527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212177
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/mgcscavenge_test.go |  3 +++
+ src/runtime/mpagealloc_test.go  | 15 +++++++++++++++
+ src/runtime/mpagecache_test.go  |  6 ++++++
+ 3 files changed, 24 insertions(+)

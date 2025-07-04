@@ -1,0 +1,19 @@
+commit 0d7a2241cb684236f2728bb08514e7f256ac4a43
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 09:29:16 2016 -0700
+
+    runtime: update a few comments
+    
+    noescape is now 0 instructions with the SSA backend.
+    fast atomics are no longer a TODO (at least for amd64).
+    
+    Change-Id: Ib6e06f7471bef282a47ba236d8ce95404bb60a42
+    Reviewed-on: https://go-review.googlesource.com/28087
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go  | 10 +++++-----
+ src/runtime/stubs.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

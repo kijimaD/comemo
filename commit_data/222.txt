@@ -1,0 +1,10 @@
+commit 10296166a51206ecdb95f056550fc0cd3fc08f0a
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 24 18:14:32 2008 -0700
+
+    bug in returning a fat function result
+    
+    SVN=124436
+
+ src/cmd/6g/gen.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

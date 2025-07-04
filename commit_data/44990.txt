@@ -1,0 +1,17 @@
+commit 4bbe046aad2ca27f25d3811b061fb8f7926b8695
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 16:52:25 2021 -0700
+
+    cmd/compile/internal/syntax: add "~" operator
+    
+    Change-Id: I7991103d97b97260d9615b7f5baf7ec75ad87d1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307370
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/operator_string.go | 43 +++++++++++-----------
+ src/cmd/compile/internal/syntax/scanner.go         |  5 +++
+ src/cmd/compile/internal/syntax/scanner_test.go    |  5 ++-
+ src/cmd/compile/internal/syntax/tokens.go          |  7 ++--
+ test/fixedbugs/issue23587.go                       |  9 +++--
+ 5 files changed, 41 insertions(+), 28 deletions(-)

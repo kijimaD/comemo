@@ -1,0 +1,37 @@
+commit e5522c882dc63d3c2ae3b32090c96aa57b9cf805
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 10 12:50:55 2020 -0500
+
+    std: update golang.org/x/net to 20201209123823-ac852fbbde11
+    
+    Done with:
+    
+            go get -d golang.org/x/net@latest
+            go mod tidy
+            go mod vendor
+            go generate -run bundle std
+    
+    The cmd module was updated as well, but go mod tidy undoes the change
+    because the x/net module doesn't contribute any packages to cmd module.
+    cmd/internal/moddeps.TestDependencyVersionsConsistent is happy with it:
+    
+            // It's ok if there are undetected differences in modules that do not
+            // provide imported packages: we will not have to pull in any backports of
+            // fixes to those modules anyway.
+    
+    Fixes #31192.
+    Updates #42498.
+    
+    Change-Id: If303c9a7aa2ce8c2553fcb1ced7fccc9e6652ad6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277012
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go.mod                |  2 +-
+ src/go.sum                |  8 ++++----
+ src/net/http/h2_bundle.go | 12 ++++++++++--
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 16 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit d0a05f51f9d50622868df5e6032f40896b448426
+Author: John Dethridge <jcd@golang.org>
+Date:   Sat May 2 16:40:21 2015 +1000
+
+    debug/dwarf: compute ByteSize for more DWARF types
+    
+    When AttrByteSize is not present for a type, we can still determine the
+    size in two more cases: when the type is a Typedef referring to another
+    type, and when the type is a pointer and we know the default address
+    size.
+    
+    entry.go: return after setting an error if the offset is out of range.
+    
+    Change-Id: I63a922ca4e4ad2fc9e9be3e5b47f59fae7d0eb5c
+    Reviewed-on: https://go-review.googlesource.com/9663
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/debug/dwarf/entry.go    |  7 +++++++
+ src/debug/dwarf/type.go     | 10 ++++++++++
+ src/debug/dwarf/typeunit.go |  5 +++++
+ 3 files changed, 22 insertions(+)

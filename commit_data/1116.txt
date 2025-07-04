@@ -1,0 +1,17 @@
+commit bc0b4f0d2a610059afb95ef0360704714815187d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 13 10:35:44 2008 -0800
+
+    mike's map code
+    
+    R=r
+    OCL=19146
+    CL=19146
+
+ src/runtime/Makefile  |   4 +-
+ src/runtime/hashmap.c | 861 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/hashmap.h | 160 ++++++++++
+ src/runtime/map.c     | 252 ---------------
+ src/runtime/runtime.c |  44 ++-
+ src/runtime/runtime.h |   1 +
+ 6 files changed, 1059 insertions(+), 263 deletions(-)

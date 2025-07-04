@@ -1,0 +1,21 @@
+commit 603af813d6b93cf734b67551c2e776a1417e4603
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 10:24:39 2017 -0400
+
+    cmd/trace: list and link to worst mutator utilization windows
+    
+    This adds the ability to click a point on the MMU graph to show a list
+    of the worst 10 mutator utilization windows of the selected size. This
+    list in turn links to the trace viewer to drill down on specifically
+    what happened in each specific window.
+    
+    Change-Id: Ic1b72d8b37fbf2212211c513cf36b34788b30133
+    Reviewed-on: https://go-review.googlesource.com/c/60795
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/main.go  |  2 +-
+ src/cmd/trace/mmu.go   | 81 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/trace/trace.go | 30 +++++++++++++------
+ 3 files changed, 101 insertions(+), 12 deletions(-)

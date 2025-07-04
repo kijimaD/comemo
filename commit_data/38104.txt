@@ -1,0 +1,22 @@
+commit 8da1b01e4c850d7cfbcdf5294e90d893e91a6a27
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 15 12:15:11 2019 +0100
+
+    debug/pe: omit panic in (*File).ImportedSymbols on empty optional headers
+    
+    If a PE file with invalid optional header size (neither
+    sizeofOptionalHeader32 nor sizeofOptionalHeader64) is passed to NewFile,
+    the File.OptionalHeader will be nil which leads to a panic in
+    (*File).ImportedSymbols().
+    
+    Fixes #30250
+    
+    Change-Id: Ie97306de4a0e2dcfdc7b1b599891f574aa63adca
+    Reviewed-on: https://go-review.googlesource.com/c/162858
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/debug/pe/file.go      |  4 ++++
+ src/debug/pe/file_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

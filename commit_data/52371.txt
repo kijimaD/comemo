@@ -1,0 +1,20 @@
+commit bd20bf4807fe38b81b5cdf9159b2cd29d9990811
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 18:33:46 2023 -0400
+
+    slog: eliminate needsQuotingSet
+    
+    Delete the set of bytes that need quoting in TextHandler, because it
+    is almost identical to the set for JSON. Use JSONHandler's safeSet
+    with a few exceptions.
+    
+    Updates #56345.
+    
+    Change-Id: Iff6d309c067affef2e5ecfcebd6e1bb8f00f95b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478198
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/text_handler.go | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)

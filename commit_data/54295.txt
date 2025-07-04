@@ -1,0 +1,18 @@
+commit 227ec028244b8ad91c7dd5b69fca5150f99a4878
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 21:17:46 2023 -0700
+
+    cmd/internal/dwarf: replace Sym.Length with Context.Size
+    
+    Preparatory refactoring before next CL.
+    
+    Change-Id: I06fb4670b933fddff1a2a70f3cf1eb124cbd86ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524899
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go   | 8 ++++----
+ src/cmd/internal/obj/dwarf.go     | 7 +++----
+ src/cmd/link/internal/ld/dwarf.go | 9 ++++-----
+ 3 files changed, 11 insertions(+), 13 deletions(-)

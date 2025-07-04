@@ -1,0 +1,29 @@
+commit 0ac1e3b245e4bfadfc1d5b9a3aaa87e26c6f2030
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 11 17:54:18 2023 -0800
+
+    go/types, types2: flip message contents for reverse type inference errors
+    
+    Add a new flag 'reverse' to control the formatting of type inference
+    error messages.
+    
+    This change only impacts error messages.
+    
+    Fixes #60747.
+    
+    Change-Id: I81e13075e3157252ccc09f358bd29bd676c34499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549055
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go             |  6 ++++--
+ src/cmd/compile/internal/types2/infer.go            | 10 ++++++++--
+ src/go/types/call.go                                |  6 ++++--
+ src/go/types/infer.go                               | 10 ++++++++--
+ src/internal/types/testdata/examples/inference2.go  | 14 +++++++-------
+ src/internal/types/testdata/fixedbugs/issue60688.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue60747.go |  4 ++--
+ 7 files changed, 34 insertions(+), 18 deletions(-)

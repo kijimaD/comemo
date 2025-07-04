@@ -1,0 +1,12 @@
+commit ac91a514ff521999b142901ad9714ca3f47f01a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 16:50:48 2017 -0800
+
+    math/bits: fix incorrect doc strings for TrailingZeros functions
+    
+    Change-Id: I3e40018ab1903d3b9ada7ad7812ba71ea2a428e7
+    Reviewed-on: https://go-review.googlesource.com/37456
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/bits.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

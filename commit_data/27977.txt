@@ -1,0 +1,17 @@
+commit cf20525bf414c8268d8fe111460767d52f03df44
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 31 15:02:40 2016 -0700
+
+    cmd/compile: set correct line number for multiple defaults in switch error
+    
+    Fixes #15911.
+    
+    Change-Id: I500533484de61aa09abe4cecb010445e3176324e
+    Reviewed-on: https://go-review.googlesource.com/26760
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 1 +
+ test/switch6.go                    | 8 ++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 26089cfe257dd84d293f63550b3b89351106c478
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Mon Dec 12 18:10:11 2011 -0500
+
+    runtime: Changes to the runtime to support NetBSD.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5477052
+
+ src/pkg/runtime/netbsd/386/defs.h     | 146 +++++++++++++++
+ src/pkg/runtime/netbsd/386/rt0.s      |   6 +
+ src/pkg/runtime/netbsd/386/signal.c   | 189 ++++++++++++++++++++
+ src/pkg/runtime/netbsd/386/sys.s      | 324 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/netbsd/amd64/defs.h   | 158 +++++++++++++++++
+ src/pkg/runtime/netbsd/amd64/rt0.s    |   8 +
+ src/pkg/runtime/netbsd/amd64/signal.c | 199 +++++++++++++++++++++
+ src/pkg/runtime/netbsd/amd64/sys.s    | 268 ++++++++++++++++++++++++++++
+ src/pkg/runtime/netbsd/defs.go        | 109 ++++++++++++
+ src/pkg/runtime/netbsd/mem.c          |  85 +++++++++
+ src/pkg/runtime/netbsd/os.h           |  17 ++
+ src/pkg/runtime/netbsd/signals.h      |  52 ++++++
+ src/pkg/runtime/netbsd/thread.c       | 197 +++++++++++++++++++++
+ 13 files changed, 1758 insertions(+)

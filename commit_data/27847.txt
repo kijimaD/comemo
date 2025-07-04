@@ -1,0 +1,21 @@
+commit d251030fa6feac46e5686a78b9681625447a5871
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 16 09:19:05 2016 -0700
+
+    cmd/compile: don't fold >32bit constants into a MULQ
+    
+    Don't fold constant factors into a multiply
+    beyond the capacity of a MULQ instruction (32 bits).
+    
+    Fixes #16733
+    
+    Change-Id: Idc213c6cb06f7c94008a8cf9e60a9e77d085fd89
+    Reviewed-on: https://go-review.googlesource.com/27160
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 ++++-
+ test/fixedbugs/issue16733.go                 | 16 ++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit f91eb3c2f9e0621634a9cd16c2e9da903922fc53
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 18:55:30 2011 -0400
+
+    gc: composite literal double eval bug
+    
+    Fixes #2086.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4803055
+
+ src/cmd/gc/pgen.c        |  2 +-
+ src/cmd/gc/sinit.c       |  2 +-
+ test/fixedbugs/bug354.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

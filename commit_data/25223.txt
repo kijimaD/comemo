@@ -1,0 +1,12 @@
+commit 9d6e4b7e3acadf358eb5d809ec50a0c7cbe2365b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 10 10:09:55 2015 -0800
+
+    doc: go1.6.txt: go doc searches in breadth-first order
+    
+    Change-Id: I12a43b15e81a5e0b174c1c49e77f8307c567233b
+    Reviewed-on: https://go-review.googlesource.com/17697
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

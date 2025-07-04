@@ -1,0 +1,58 @@
+commit 0ad4f8b1f71827d81050b95ba46fadb0021f0337
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 00:25:10 2015 -0400
+
+    cmd/internal/gc: emit write barriers at lower level
+    
+    This is primarily preparation for inlining, not an optimization by itself,
+    but it still helps some.
+    
+    name                                       old                     new          delta
+    BenchmarkBinaryTree17              18.2s × (0.99,1.01)     17.9s × (0.99,1.01)  -1.57%
+    BenchmarkFannkuch11                4.44s × (1.00,1.00)     4.42s × (1.00,1.00)  -0.40%
+    BenchmarkFmtFprintfEmpty           119ns × (0.95,1.02)     118ns × (0.96,1.02)  ~
+    BenchmarkFmtFprintfString          501ns × (0.99,1.02)     486ns × (0.99,1.01)  -2.89%
+    BenchmarkFmtFprintfInt             474ns × (0.99,1.00)     457ns × (0.99,1.01)  -3.59%
+    BenchmarkFmtFprintfIntInt          792ns × (1.00,1.00)     768ns × (1.00,1.01)  -3.03%
+    BenchmarkFmtFprintfPrefixedInt     574ns × (1.00,1.01)     584ns × (0.99,1.03)  +1.83%
+    BenchmarkFmtFprintfFloat           749ns × (1.00,1.00)     739ns × (0.99,1.00)  -1.34%
+    BenchmarkFmtManyArgs              2.94µs × (1.00,1.01)    2.77µs × (1.00,1.00)  -5.76%
+    BenchmarkGobDecode                39.5ms × (0.99,1.01)    39.3ms × (0.99,1.01)  ~
+    BenchmarkGobEncode                39.4ms × (1.00,1.01)    39.4ms × (0.99,1.00)  ~
+    BenchmarkGzip                      658ms × (1.00,1.01)     661ms × (0.99,1.01)  ~
+    BenchmarkGunzip                    142ms × (1.00,1.00)     142ms × (1.00,1.00)  +0.22%
+    BenchmarkHTTPClientServer          134µs × (0.99,1.01)     133µs × (0.98,1.01)  ~
+    BenchmarkJSONEncode               57.1ms × (0.99,1.01)    56.5ms × (0.99,1.01)  ~
+    BenchmarkJSONDecode                141ms × (1.00,1.00)     143ms × (1.00,1.00)  +1.09%
+    BenchmarkMandelbrot200            6.01ms × (1.00,1.00)    6.01ms × (1.00,1.00)  ~
+    BenchmarkGoParse                  10.1ms × (0.91,1.09)     9.6ms × (0.94,1.07)  ~
+    BenchmarkRegexpMatchEasy0_32       207ns × (1.00,1.01)     210ns × (1.00,1.00)  +1.45%
+    BenchmarkRegexpMatchEasy0_1K       592ns × (0.99,1.00)     596ns × (0.99,1.01)  +0.68%
+    BenchmarkRegexpMatchEasy1_32       184ns × (0.99,1.01)     184ns × (0.99,1.01)  ~
+    BenchmarkRegexpMatchEasy1_1K      1.01µs × (1.00,1.00)    1.01µs × (0.99,1.01)  ~
+    BenchmarkRegexpMatchMedium_32      327ns × (0.99,1.00)     327ns × (1.00,1.01)  ~
+    BenchmarkRegexpMatchMedium_1K     92.5µs × (1.00,1.00)    93.0µs × (1.00,1.02)  +0.48%
+    BenchmarkRegexpMatchHard_32       4.79µs × (0.95,1.00)    4.76µs × (0.95,1.01)  ~
+    BenchmarkRegexpMatchHard_1K        136µs × (1.00,1.00)     136µs × (1.00,1.01)  ~
+    BenchmarkRevcomp                   900ms × (0.99,1.01)     892ms × (1.00,1.01)  ~
+    BenchmarkTemplate                  170ms × (0.99,1.01)     175ms × (0.99,1.00)  +2.95%
+    BenchmarkTimeParse                 645ns × (1.00,1.00)     638ns × (1.00,1.00)  -1.16%
+    BenchmarkTimeFormat                740ns × (1.00,1.00)     772ns × (1.00,1.00)  +4.39%
+    
+    Change-Id: I0be905e32791e0cb70ff01f169c4b309a971d981
+    Reviewed-on: https://go-review.googlesource.com/9159
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/align.go    |   5 +
+ src/cmd/internal/gc/cgen.go     | 218 ++++++++++++++++++++++++++++++----------
+ src/cmd/internal/gc/esc.go      |   2 +-
+ src/cmd/internal/gc/fmt.go      |   2 +-
+ src/cmd/internal/gc/gen.go      | 128 ++++++++++++++++-------
+ src/cmd/internal/gc/init.go     |   2 +-
+ src/cmd/internal/gc/racewalk.go |   2 +-
+ src/cmd/internal/gc/subr.go     |   2 +-
+ src/cmd/internal/gc/syntax.go   |   1 +
+ src/cmd/internal/gc/walk.go     |   7 +-
+ 10 files changed, 272 insertions(+), 97 deletions(-)

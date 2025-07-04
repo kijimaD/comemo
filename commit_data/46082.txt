@@ -1,0 +1,28 @@
+commit 740f7d73707fab5000791b71c2ab046e3e5544c7
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Aug 11 12:50:34 2021 +0100
+
+    archive/tar: unexport internal methods
+    
+    Many of the methods inside the archive/tar package don't need to be
+    exported. Doing so sets a bad precedent that it's OK to export methods
+    to indicate an internal public API.  That's not a good idea in general,
+    because exported methods increase cognitive load when reading code:
+    the reader needs to consider whether the exported method might be used
+    via some external interface or reflection.
+    
+    This CL should have no externally visible behaviour changes at all.
+    
+    Change-Id: I94a63de5e6a28e9ac8a283325217349ebce4f308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341410
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/archive/tar/common.go      |  38 ++++++------
+ src/archive/tar/format.go      | 138 ++++++++++++++++++++---------------------
+ src/archive/tar/reader.go      | 102 +++++++++++++++---------------
+ src/archive/tar/reader_test.go |  26 ++++----
+ src/archive/tar/writer.go      |  89 +++++++++++++-------------
+ src/archive/tar/writer_test.go |  14 ++---
+ 6 files changed, 206 insertions(+), 201 deletions(-)

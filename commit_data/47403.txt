@@ -1,0 +1,21 @@
+commit 1ec51087e57d242e5556210a426307984d9ef0b3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Nov 10 19:51:34 2021 +0100
+
+    cmd/link/internal/loadelf: better error message for ignored symbols
+    
+    Currently it's quite hard to debug these error messages about ignored symbols
+    because there are only some numbers and no symbol name. Add symbol name. Before:
+    135029: sym#952: ignoring symbol in section 11 (type 0)
+    After:
+    135029: sym#952 (_ZN11__sanitizer9SpinMutexC5Ev): ignoring symbol in section 11 (type 0)
+    
+    Change-Id: I7fec50b5798068c74827376613be529803838c5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363034
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

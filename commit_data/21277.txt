@@ -1,0 +1,15 @@
+commit 1d890ac0b246f25197ee8d6e370f8c07e99c998d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 16 09:11:17 2015 +1100
+
+    misc/makerelease: use built in "del" to remove files
+    
+    Git marks some of its files read only, so os.RemoveAll isn't sufficient
+    to remove them from the ".git" directory.
+    
+    Change-Id: I3150596931d1c77e7cf9fb8da1a999d2c6730121
+    Reviewed-on: https://go-review.googlesource.com/2930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

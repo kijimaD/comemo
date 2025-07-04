@@ -1,0 +1,14 @@
+commit 7971864267e9f6139ef1cd37ce70624e1b1cb92b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 17:48:17 2016 -0700
+
+    cmd/compile: simplify InitPlan
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Iaa0d78c2552efb29e67f6c99c7287f8566027add
+    Reviewed-on: https://go-review.googlesource.com/20673
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 35 +++++++++--------------------------
+ 1 file changed, 9 insertions(+), 26 deletions(-)

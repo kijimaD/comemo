@@ -1,0 +1,22 @@
+commit 7c388cc89c76bc7167287fb488afcaf5a4aa12bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 1 09:23:44 2019 -0500
+
+    go/internal/srcimporter: set -mod=vendor before running tests
+    
+    Otherwise, if the working directory is inside a standard-library
+    module, the test may try to fetch module contents from GOPROXY or
+    upstream.
+    
+    Updates #26924
+    Updates #30228
+    Updates #30241
+    
+    Change-Id: I4cb9a07721bd808fd094f7ed55a74cf7bce9cd6f
+    Reviewed-on: https://go-review.googlesource.com/c/164625
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/internal/srcimporter/srcimporter_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

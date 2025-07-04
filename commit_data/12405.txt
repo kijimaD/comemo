@@ -1,0 +1,12 @@
+commit 4e110af169869b07950fa6aa543f2625021bb3cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 22:28:02 2012 -0500
+
+    runtime: add Compiler
+    
+    R=iant, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5720073
+
+ src/pkg/runtime/compiler.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

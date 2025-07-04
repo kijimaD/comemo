@@ -1,0 +1,20 @@
+commit c9517b1ffe7c99a3fd2a748fab51645bd674ad75
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sun Oct 16 22:18:01 2016 +0200
+
+    compress/gzip, compress/zlib: add HuffmanOnly as compression levels.
+    
+    This exposes HuffmanOnly in zlib and gzip packages, which is currently
+    unavailable.
+    
+    Change-Id: If5d103bbc8b5fce2f5d740fd103a235c5d1ed7cd
+    Reviewed-on: https://go-review.googlesource.com/31186
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/gzip/gzip.go        |  9 +++++----
+ src/compress/zlib/writer.go      | 11 ++++++-----
+ src/compress/zlib/writer_test.go |  5 +++++
+ 3 files changed, 16 insertions(+), 9 deletions(-)

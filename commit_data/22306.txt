@@ -1,0 +1,22 @@
+commit 23810777867d0a7df1ef149ec6ed4135ce07fb01
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 18 13:29:22 2015 -0700
+
+    cmd/yacc: fix default action
+    
+    Previously, a production rule like
+    
+            A: B C D
+    
+    would cause yacc to check that A and B have the same declared types,
+    but then it would generate an implicit action of { $$ = $3 } (i.e.,
+    copy the value from D), even if A and D have different types.
+    
+    Fixes #10192.
+    
+    Change-Id: I51cfd7baa0011557141dca33b7af1d892cc6f49e
+    Reviewed-on: https://go-review.googlesource.com/7780
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/yacc/yacc.go | 3 ---
+ 1 file changed, 3 deletions(-)

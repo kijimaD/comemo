@@ -1,0 +1,14 @@
+commit d4a9bce70ae8eae016aa5cb8d60bb4566bf349fb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun May 22 14:59:25 2011 +1000
+
+    runtime: fix function args not checked warning on arm
+    
+    This tiny nit was driving me nuts
+    
+    R=rsc, ken, r
+    CC=golang-dev
+    https://golang.org/cl/4550069
+
+ src/pkg/runtime/arm/closure.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

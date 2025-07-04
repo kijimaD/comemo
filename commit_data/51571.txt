@@ -1,0 +1,38 @@
+commit 458241f981e0a8e1d9e0b2f6ae53be62f00001d2
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Dec 14 09:55:06 2022 -0800
+
+    net/http/httputil: don't add X-Forwarded-{Host,Proto} after invoking Director funcs
+    
+    This reverts CL 407414.
+    
+    When forwarding an inbound request that contains an existing
+    X-Forwarded-Host or X-Forwarded-Proto header, a proxy might want
+    to preserve the header from the inbound request, replace it with
+    its own header, or not include any header at all.
+    
+    CL 407414 replaces inbound X-Forwarded-{Host,Proto} headers by default,
+    and allows a Director func to disable sending these headers at all.
+    However, the Director hook API isn't sufficiently flexible to permit the
+    previous behavior of preserving inbound values unchanged.
+    
+    The new Rewrite API does have this flexibility; users of Rewrite can
+    easily pick the exact behavior they want.
+    
+    Revert the change to ReverseProxy when using a Director func.
+    Users who want a convenient way to set X-Forwarded-* headers to
+    reasonable values can migrate to Rewrite at their convenience,
+    and users depending on the current behavior will be unaffected.
+    
+    For #50465.
+    Fixes #57132.
+    
+    Change-Id: Ic42449c1bb525d6c9920bf721efbc519697f4f20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457595
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 30 +++++++------------
+ src/net/http/httputil/reverseproxy_test.go | 47 ++----------------------------
+ 2 files changed, 12 insertions(+), 65 deletions(-)

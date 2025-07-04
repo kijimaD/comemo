@@ -1,0 +1,12 @@
+commit 6302641c98603f51b09c5974e7a3680b00e9c107
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 10:50:56 2015 -0700
+
+    doc/go1.5.txt: go generate -run
+    
+    Change-Id: I8029640fe74731d7847390f371af37b85dec96cc
+    Reviewed-on: https://go-review.googlesource.com/9006
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

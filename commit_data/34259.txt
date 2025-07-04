@@ -1,0 +1,32 @@
+commit 252ee90971d87f099a2e67c3536a0481a535157f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 8 13:03:57 2018 +0100
+
+    encoding/xml: simplify slice-growing logic in rawToken
+    
+    It appears that old code (from 2009) in xml.(*Decoder).rawToken
+    replicates append's slice-growing functionality by allocating a new,
+    bigger backing array and then calling copy.
+    
+    Simplifying the code by replacing it with a single append call does
+    not seem to hurt performance:
+    
+    name         old time/op    new time/op    delta
+    Marshal-4      11.2µs ± 1%    11.3µs ±10%    ~     (p=0.069 n=19+17)
+    Unmarshal-4    28.6µs ± 1%    28.4µs ± 1%  -0.60%  (p=0.000 n=20+18)
+    
+    name         old alloc/op   new alloc/op   delta
+    Marshal-4      5.78kB ± 0%    5.78kB ± 0%    ~     (all equal)
+    Unmarshal-4    8.61kB ± 0%    8.27kB ± 0%  -3.90%  (p=0.000 n=20+20)
+    
+    name         old allocs/op  new allocs/op  delta
+    Marshal-4        23.0 ± 0%      23.0 ± 0%    ~     (all equal)
+    Unmarshal-4       189 ± 0%       190 ± 0%  +0.53%  (p=0.000 n=20+20)
+    
+    Change-Id: Ie580d1216a44760e611e63dee2c339af5465aea5
+    Reviewed-on: https://go-review.googlesource.com/86655
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/xml.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

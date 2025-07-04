@@ -1,0 +1,14 @@
+commit 8a103bd4ce34574c33d1f3558e0441df884c27f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 16:26:17 2016 +0000
+
+    doc: remove space in "Go 1. 8"
+    
+    And reflow paragraph while I'm at it.
+    
+    Change-Id: Ia13bb364783790fbd9f8b69ef268f8a4b71679cb
+    Reviewed-on: https://go-review.googlesource.com/33767
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/go1.8.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

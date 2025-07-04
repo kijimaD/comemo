@@ -1,0 +1,45 @@
+commit bcdaac63965473ce315681a7af7e169b741a01e1
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 15:48:33 2024 -0800
+
+    runtime: fix MapCycle test
+    
+    It wasn't actually testing what it says it was testing.
+    A random permutation isn't cyclic. It only probably hits a few
+    elements before entering a cycle.
+    Use an algorithm that generates a random cyclic permutation instead.
+    
+    Fixing the test makes the previous CL look less good. But it still helps.
+    
+    (Theory: Fixing the test makes it less cache friendly, so there are
+    more misses all around. That makes the benchmark slower, suppressing
+    the differences seen. Also fixing the benchmark makes the loop
+    iteration count less predictable, which hurts the raw loop
+    implementation somewhat.)
+    
+    (baseline = tip, experiment = tip+previous CL, noswiss = GOEXPERIMENT=noswissmap)
+    
+    goos: darwin
+    goarch: arm64
+    pkg: runtime
+    cpu: Apple M2 Ultra
+                │  baseline   │             experiment             │
+                │   sec/op    │   sec/op     vs base               │
+    MapCycle-24   20.59n ± 4%   18.99n ± 3%  -7.77% (p=0.000 n=10)
+    khr@Mac-Studio src % benchstat noswiss experiment
+    goos: darwin
+    goarch: arm64
+    pkg: runtime
+    cpu: Apple M2 Ultra
+                │   noswiss   │             experiment              │
+                │   sec/op    │   sec/op     vs base                │
+    MapCycle-24   16.12n ± 1%   18.99n ± 3%  +17.83% (p=0.000 n=10)
+    
+    Change-Id: I3a4edb814ba97fec020a6698c535ce3a87a9fc67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625900
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/map_benchmark_test.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

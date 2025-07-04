@@ -1,0 +1,21 @@
+commit d6098e4277bab633c2df752ed90e1e826918ca67
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 29 20:28:20 2016 -0700
+
+    cmd/compile: intrinsify sync/atomic for amd64
+    
+    Uses the same implementation as runtime/internal/atomic.
+    
+    Reorganize the intrinsic detector to make it more table-driven.
+    
+    Also works on amd64p32.
+    
+    Change-Id: I7a5238951d6018d7d5d1bc01f339f6ee9282b2d0
+    Reviewed-on: https://go-review.googlesource.com/28076
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 364 ++++++++++++++++++++++++++-----------
+ src/sync/atomic/asm_amd64.s        |   3 +
+ src/sync/atomic/asm_amd64p32.s     |  15 +-
+ src/sync/atomic/atomic_test.go     |   4 +
+ 4 files changed, 265 insertions(+), 121 deletions(-)

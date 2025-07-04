@@ -1,0 +1,39 @@
+commit 60f783d92bc07fa7ca78e8efccbbc841d9f9cbcb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 09:19:02 2013 -0500
+
+    cmd/ld: host linking support for linux/amd64
+    
+    Still to do: non-linux and non-amd64.
+    It may work on other ELF-based amd64 systems too, but untested.
+    
+    "go test -ldflags -hostobj $GOROOT/misc/cgo/test" passes.
+    
+    Much may yet change, but this seems a reasonable checkpoint.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/7369057
+
+ src/cmd/5l/asm.c                |  18 +--
+ src/cmd/5l/l.h                  |   2 +-
+ src/cmd/5l/obj.c                |   3 +
+ src/cmd/6l/asm.c                |  26 ++--
+ src/cmd/6l/l.h                  |   2 +-
+ src/cmd/6l/obj.c                |   6 +
+ src/cmd/8l/asm.c                |  20 +--
+ src/cmd/8l/l.h                  |   2 +-
+ src/cmd/8l/obj.c                |   4 +
+ src/cmd/ld/data.c               |  14 +-
+ src/cmd/ld/dwarf.c              |   8 +-
+ src/cmd/ld/go.c                 |  39 +++---
+ src/cmd/ld/ldelf.c              |   2 +-
+ src/cmd/ld/ldmacho.c            |   2 +-
+ src/cmd/ld/lib.c                | 303 +++++++++++++++++++++++++++++++++++-----
+ src/cmd/ld/lib.h                |  22 ++-
+ src/cmd/ld/macho.c              |  15 +-
+ src/cmd/ld/pe.c                 |   4 +-
+ src/cmd/ld/symtab.c             |  12 +-
+ src/pkg/runtime/cgo/callbacks.c |   6 +-
+ src/pkg/runtime/cgocall.c       |   6 +
+ 21 files changed, 393 insertions(+), 123 deletions(-)

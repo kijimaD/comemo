@@ -1,0 +1,18 @@
+commit 6f3da9d2f6b4f7dbbe5d15260d87ed2a84488fde
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 16 10:16:06 2021 -0800
+
+    README: pull gopher image from website
+    
+    Fixes breakage accidentally introduced by https://golang.org/cl/291711.
+    
+    Fixes #44295
+    
+    Change-Id: I76f3e5577d1d24027d4ed2a725b5b749ab2d059c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292629
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

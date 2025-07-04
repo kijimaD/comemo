@@ -1,0 +1,16 @@
+commit 0e48c674f5f8e906c03d1ea0055eb74959d149cc
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Thu Sep 3 08:27:34 2020 +0930
+
+    cmd/go: add -Wl,-Bsymbolic-functions to cgo flags whitelist
+    
+    Closes #41199
+    
+    Change-Id: Iab69358e8c39e6d2b2797c7ce750df63aa7e96b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,26 @@
+commit 3f45916433c7e868c75b7a23c9288f8c67447acc
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 5 10:24:30 2016 -0800
+
+    crypto/tls: reject SNI values with a trailing dot.
+    
+    SNI values may not include a trailing dot according to
+    https://tools.ietf.org/html/rfc6066#section-3. Although crypto/tls
+    handled this correctly as a client, it didn't reject this as a server.
+    
+    This change makes sending an SNI value with a trailing dot a fatal
+    error.
+    
+    Updates #18114.
+    
+    Change-Id: Ib7897ab40e98d4a7a4646ff8469a55233621f631
+    Reviewed-on: https://go-review.googlesource.com/33904
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_client.go        |  2 +-
+ src/crypto/tls/handshake_messages.go      | 11 ++++++++++-
+ src/crypto/tls/handshake_messages_test.go |  4 ++++
+ src/crypto/tls/handshake_server_test.go   |  4 ++++
+ 4 files changed, 19 insertions(+), 2 deletions(-)

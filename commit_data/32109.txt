@@ -1,0 +1,14 @@
+commit a279b53a18dbe317180e9e411ca7892294a62901
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 2 17:52:06 2017 -0700
+
+    reflect: document how DeepEqual handles cycles
+    
+    Fixes #20428
+    
+    Change-Id: Ia450e615728efd4ccb6e42117b547cac162f13a3
+    Reviewed-on: https://go-review.googlesource.com/52931
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/reflect/deepequal.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,35 @@
+commit e33794fbc2067515c7546ab3b35fe229eeec2a0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 10:29:23 2017 -0500
+
+    cmd/go: redefine -coverpkg to be a pattern list
+    
+    If you run
+    
+            go test -coverpkg=all fmt
+    
+    one possible interpretation is that you want coverage for all the
+    packages involved in the fmt test, not all the packages in the world.
+    Because coverpkg was previously defined as a list of packages
+    to be loaded, however, it meant all packages in the world.
+    
+    Now that the go command has a concept of package notation
+    being used as a matching filter instead of a direct enumeration,
+    apply that to -coverpkg, so that -coverpkg=all now has the
+    more useful filter interpretation.
+    
+    Fixes #10271.
+    Fixes #21283.
+    
+    Change-Id: Iddb77b21ba286d3dd65b62507af27e244865072d
+    Reviewed-on: https://go-review.googlesource.com/76876
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/alldocs.go                  | 32 ++++++++++++++++------------
+ src/cmd/go/go_test.go                  | 14 ++++++++++++
+ src/cmd/go/internal/load/flag.go       |  4 ++--
+ src/cmd/go/internal/load/search.go     |  4 ++--
+ src/cmd/go/internal/test/test.go       | 39 +++++++++++++++++++++-------------
+ src/cmd/go/testdata/src/sleepybad/p.go |  5 +++++
+ 6 files changed, 66 insertions(+), 32 deletions(-)

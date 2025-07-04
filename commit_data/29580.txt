@@ -1,0 +1,12 @@
+commit e0942b76c735a69df18d24a23fa16da1e5db8c2e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Nov 17 12:26:36 2016 -0500
+
+    cmd/asm/internal/asm: fix copy/paste errors in comment
+    
+    Change-Id: I0249b60e340710bea7b6671c9b7405c278b037bd
+    Reviewed-on: https://go-review.googlesource.com/33351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

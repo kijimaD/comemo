@@ -1,0 +1,15 @@
+commit 505f6e335e788c87881d4aa53cfa06a8c645009a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:43:33 2015 -0400
+
+    cmd/pprof: store temporary files in temporary directory
+    
+    Fixes #9180.
+    
+    Change-Id: Id5adaea0ca9005946fb89c88a10c6f59d8c0943c
+    Reviewed-on: https://go-review.googlesource.com/12202
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/pprof/internal/commands/commands.go | 20 +++++++++++++++++++-
+ src/cmd/pprof/internal/driver/driver.go     |  2 +-
+ 2 files changed, 20 insertions(+), 2 deletions(-)
