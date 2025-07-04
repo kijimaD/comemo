@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -170,7 +172,7 @@ func executePrompts(cliCommand string) error {
 	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 5) // 同時実行数を5に制限
+	sem := make(chan struct{}, 1) // 同時実行数を1に制限
 
 	for _, fileName := range shFiles {
 		wg.Add(1)
@@ -198,17 +200,47 @@ func executePrompts(cliCommand string) error {
 
 			fmt.Printf("Executing script: %s\n", scriptPath)
 
-			// 修正されたスクリプトをstdinから実行
-			cmd := exec.Command("/bin/bash")
+			// 修正されたスクリプトをstdinから実行（タイムアウト付き）
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer cancel()
+
+			cmd := exec.CommandContext(ctx, "/bin/bash")
 			cmd.Stdin = strings.NewReader(modifiedContent)
 			output, cmdErr := cmd.CombinedOutput() // stdoutとstderrを結合して取得
 
 			// Always check for token/quota related errors in the output
 			outputStr := string(output)
-			if strings.Contains(outputStr, "quota") || strings.Contains(outputStr, "token") || strings.Contains(outputStr, "rate limit") {
-				fmt.Fprintf(os.Stderr, "\n!!! Detected potential token/quota error. Terminating immediately. !!!\n")
+
+			// タイムアウトエラーをチェック
+			if ctx.Err() == context.DeadlineExceeded {
+				fmt.Fprintf(os.Stderr, "\n!!! Script execution timed out after 10 minutes. Terminating. !!!\n")
+				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
+				return
+			}
+
+			// 一日のクォータ制限に達した場合はプログラム全体を終了
+			if strings.Contains(outputStr, "Quota exceeded") ||
+				strings.Contains(outputStr, "quota metric") ||
+				strings.Contains(outputStr, "RESOURCE_EXHAUSTED") ||
+				strings.Contains(outputStr, "rateLimitExceeded") ||
+				strings.Contains(outputStr, "per day per user") {
+				fmt.Fprintf(os.Stderr, "\n!!! Daily quota limit reached. Terminating program. !!!\n")
+				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
+				fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
 				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
-				os.Exit(1)                                         // Terminate the program immediately
+				os.Exit(1) // プログラム全体を終了
+			}
+			
+			// その他のAPI エラーパターンをチェック
+			if strings.Contains(outputStr, "quota") ||
+				strings.Contains(outputStr, "token") ||
+				strings.Contains(outputStr, "rate limit") ||
+				strings.Contains(outputStr, "URL_RETRIEVAL_STATUS_ERROR") ||
+				strings.Contains(outputStr, "unable to access the content") {
+				fmt.Fprintf(os.Stderr, "\n!!! Detected potential API error. Script may have failed. !!!\n")
+				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
+				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
+				return                                             // スクリプトを削除せずに終了
 			}
 
 			if cmdErr != nil {
