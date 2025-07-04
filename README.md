@@ -1,7 +1,8 @@
 ## TODO
 
-- [ ] git submoduleを設定してリポジトリを持ってくる
-- [ ] より正確になるようなフロー設計する
+- [x] git submoduleを設定してリポジトリを持ってくる
+- [x] より正確になるようなフロー設計する
+- [ ]
 
 ## submodule
 
@@ -10,6 +11,7 @@ git submodule update --init
 git submodule update --remote
 ```
 
+## memo
 
 goディレクトリにあるリポジトリの全コミットに対して、解説を生成させたい。
 

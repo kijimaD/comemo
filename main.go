@@ -119,20 +119,20 @@ func generatePromptScript(hash string, index int, commitDataPath string) error {
 
 echo "🚀 Generating explanation for commit %d..."
 
-# Gemini CLIにプロンプトを渡す (実際のCLIコマンド名に要変更)
+# AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
-gemini -p <<'EOF'
+{{AI_CLI_COMMAND}} <<'EOF'
 %s
 EOF
 
-echo -e "\n✅ Done. Copy the output above and save it as: %s"
+echo -e "\n✅ Done. Output will be saved automatically to: %s"
 `, index, hash, index, prompt, outputPath)
 
 	return os.WriteFile(scriptPath, []byte(scriptContent), 0755)
 }
 
 // executePrompts は prompts ディレクトリ内のスクリプトを並列実行します。
-func executePrompts() error {
+func executePrompts(cliCommand string) error {
 	files, err := os.ReadDir(promptsDir)
 	if err != nil {
 		return fmt.Errorf("error reading prompts directory: %w", err)
@@ -150,10 +150,21 @@ func executePrompts() error {
 		return nil
 	}
 
-	fmt.Printf("\n--- Executing %d Prompt Scripts ---\n", len(shFiles))
+	// CLIコマンドの決定
+	var cliCommandLine string
+	switch cliCommand {
+	case "gemini":
+		cliCommandLine = "gemini -m gemini-2.5-flash -p"
+	case "claude":
+		cliCommandLine = "claude"
+	default:
+		cliCommandLine = cliCommand
+	}
+
+	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 2) // 同時実行数を2に制限
+	sem := make(chan struct{}, 1) // 同時実行数を1に制限
 
 	for _, fileName := range shFiles {
 		wg.Add(1)
@@ -164,6 +175,27 @@ func executePrompts() error {
 			defer func() { <-sem }()
 
 			scriptPath := filepath.Join(promptsDir, fName)
+
+			// ファイル名から出力ファイルのパスを決定
+			baseName := strings.TrimSuffix(fName, ".sh")
+			outputPath := filepath.Join(outputDir, baseName+".md")
+
+			// スクリプト内のプレースホルダーを置換
+			content, err := os.ReadFile(scriptPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading script %s: %v\n", scriptPath, err)
+				return
+			}
+
+			// プレースホルダーを実際のCLIコマンドに置換
+			modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cliCommandLine)
+
+			// 一時的に修正されたスクリプトを書き込む
+			if err := os.WriteFile(scriptPath, []byte(modifiedContent), 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing modified script %s: %v\n", scriptPath, err)
+				return
+			}
+
 			fmt.Printf("Executing script: %s\n", scriptPath)
 
 			// スクリプトを実行し、出力をキャプチャ
@@ -187,16 +219,46 @@ func executePrompts() error {
 				return // スクリプトは削除しない
 			}
 
-			// 成功した場合、標準出力を表示し、スクリプトを削除
+			// 成功した場合、出力をファイルに保存
 			fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
-			fmt.Printf("Output:\n%s\n", outputStr)
+
+			// AI の出力部分のみを抽出してファイルに保存
+			// "🚀 Generating explanation for commit" で始まる行より後の部分を抽出
+			lines := strings.Split(outputStr, "\n")
+			var aiOutput []string
+			capturing := false
+
+			for _, line := range lines {
+				// AI の実際の出力開始を検出
+				if strings.Contains(line, "# [インデックス") || (capturing && len(strings.TrimSpace(line)) > 0) {
+					capturing = true
+				}
+
+				// "✅ Done" メッセージが出たら終了
+				if strings.Contains(line, "✅ Done") {
+					break
+				}
+
+				if capturing {
+					aiOutput = append(aiOutput, line)
+				}
+			}
+
+			// AIの出力をファイルに保存
+			if len(aiOutput) > 0 {
+				aiOutputContent := strings.Join(aiOutput, "\n")
+				if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
+					fmt.Fprintf(os.Stderr, "Error saving output to %s: %v\n", outputPath, err)
+				} else {
+					fmt.Printf("Saved output to: %s\n", outputPath)
+				}
+			}
 
 			if err := os.Remove(scriptPath); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
 			} else {
 				fmt.Printf("Deleted script: %s\n", scriptPath)
 			}
-			fmt.Printf("--- End of Output for %s ---\n", scriptPath)
 
 		}(fileName)
 	}
@@ -326,7 +388,7 @@ func generatePrompts() error {
 // verify は生成されたファイル数とコミット数の一致を検証します。
 func verify() error {
 	fmt.Println("--- Verification Started ---")
-	
+
 	// 1. コミット数を取得
 	allHashes, err := getCommitHashes(goRepoPath)
 	if err != nil {
@@ -334,7 +396,7 @@ func verify() error {
 	}
 	commitCount := len(allHashes)
 	fmt.Printf("Total commits: %d\n", commitCount)
-	
+
 	// 2. commit_dataディレクトリ内のファイル数を取得
 	commitDataFiles, err := os.ReadDir(commitDataDir)
 	if err != nil {
@@ -345,7 +407,7 @@ func verify() error {
 			return fmt.Errorf("error reading commit_data directory: %w", err)
 		}
 	}
-	
+
 	commitDataCount := 0
 	for _, file := range commitDataFiles {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".txt") {
@@ -353,7 +415,7 @@ func verify() error {
 		}
 	}
 	fmt.Printf("commit_data files: %d\n", commitDataCount)
-	
+
 	// 3. promptsディレクトリ内のファイル数を取得
 	promptFiles, err := os.ReadDir(promptsDir)
 	if err != nil {
@@ -364,7 +426,7 @@ func verify() error {
 			return fmt.Errorf("error reading prompts directory: %w", err)
 		}
 	}
-	
+
 	promptCount := 0
 	for _, file := range promptFiles {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".sh") {
@@ -372,7 +434,7 @@ func verify() error {
 		}
 	}
 	fmt.Printf("prompt scripts: %d\n", promptCount)
-	
+
 	// 4. srcディレクトリ内の説明ファイル数を取得
 	outputFiles, err := os.ReadDir(outputDir)
 	if err != nil {
@@ -383,7 +445,7 @@ func verify() error {
 			return fmt.Errorf("error reading src directory: %w", err)
 		}
 	}
-	
+
 	outputCount := 0
 	for _, file := range outputFiles {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") && file.Name() != "SUMMARY.md" {
@@ -391,10 +453,10 @@ func verify() error {
 		}
 	}
 	fmt.Printf("explanation files: %d\n", outputCount)
-	
+
 	// 5. 検証結果の表示
 	fmt.Println("\n--- Verification Results ---")
-	
+
 	if commitDataCount != commitCount {
 		fmt.Printf("❌ Mismatch: commit_data files (%d) != total commits (%d)\n", commitDataCount, commitCount)
 		missing := commitCount - commitDataCount
@@ -406,7 +468,7 @@ func verify() error {
 	} else {
 		fmt.Printf("✅ commit_data files match total commits (%d)\n", commitCount)
 	}
-	
+
 	expectedPrompts := commitCount - promptCount
 	if promptCount > 0 {
 		fmt.Printf("✅ Found %d prompt scripts\n", promptCount)
@@ -416,7 +478,7 @@ func verify() error {
 	} else if commitDataCount > 0 {
 		fmt.Printf("⚠️  No prompt scripts found. Run 'generate' command to create them.\n")
 	}
-	
+
 	if outputCount > 0 {
 		fmt.Printf("✅ Found %d explanation files\n", outputCount)
 		remaining := commitCount - outputCount
@@ -426,7 +488,7 @@ func verify() error {
 	} else if commitCount > 0 {
 		fmt.Printf("⚠️  No explanation files found. Run 'execute' command after generating prompts.\n")
 	}
-	
+
 	// 6. 進捗サマリー
 	fmt.Println("\n--- Progress Summary ---")
 	if commitCount == 0 {
@@ -434,10 +496,10 @@ func verify() error {
 	} else {
 		collectProgress := float64(commitDataCount) / float64(commitCount) * 100
 		generateProgress := float64(outputCount) / float64(commitCount) * 100
-		
+
 		fmt.Printf("Data Collection: %.1f%% (%d/%d)\n", collectProgress, commitDataCount, commitCount)
 		fmt.Printf("Explanation Generation: %.1f%% (%d/%d)\n", generateProgress, outputCount, commitCount)
-		
+
 		if collectProgress == 100 && generateProgress == 100 {
 			fmt.Println("🎉 All commits have been processed!")
 		} else if collectProgress == 100 {
@@ -446,19 +508,24 @@ func verify() error {
 			fmt.Println("📥 Need to collect more commit data")
 		}
 	}
-	
+
 	fmt.Println("--- Verification Complete ---")
 	return nil
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <command>")
+		fmt.Println("Usage: go run main.go <command> [options]")
 		fmt.Println("Commands:")
-		fmt.Println("  collect   - Collects commit data from the 'go' repository.")
-		fmt.Println("  generate  - Generates prompt scripts for missing explanations.")
-		fmt.Println("  execute   - Executes generated prompt scripts in parallel.")
-		fmt.Println("  verify    - Verifies the consistency of generated files.")
+		fmt.Println("  collect                 - Collects commit data from the 'go' repository.")
+		fmt.Println("  generate                - Generates prompt scripts for missing explanations.")
+		fmt.Println("  execute [--cli=CMD]     - Executes generated prompt scripts in parallel.")
+		fmt.Println("  verify                  - Verifies the consistency of generated files.")
+		fmt.Println("")
+		fmt.Println("Options:")
+		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
+		fmt.Println("                            Supported: claude, gemini")
+		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
 
@@ -471,17 +538,41 @@ func main() {
 	case "generate":
 		err = generatePrompts()
 	case "execute":
-		err = executePrompts()
+		// executeコマンドの場合のみCLIオプションをパース
+		cliCommand := "claude"
+		for i := 2; i < len(os.Args); i++ {
+			arg := os.Args[i]
+			if strings.HasPrefix(arg, "--cli=") {
+				cliCommand = strings.TrimPrefix(arg, "--cli=")
+			}
+		}
+
+		// サポートされているCLIかチェック
+		supportedCLIs := map[string]bool{
+			"claude": true,
+			"gemini": true,
+		}
+		if !supportedCLIs[cliCommand] {
+			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, gemini\n", cliCommand)
+			os.Exit(1)
+		}
+
+		err = executePrompts(cliCommand)
 	case "verify":
 		err = verify()
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Usage: go run main.go <command>")
+		fmt.Println("Usage: go run main.go <command> [options]")
 		fmt.Println("Commands:")
-		fmt.Println("  collect   - Collects commit data from the 'go' repository.")
-		fmt.Println("  generate  - Generates prompt scripts for missing explanations.")
-		fmt.Println("  execute   - Executes generated prompt scripts in parallel.")
-		fmt.Println("  verify    - Verifies the consistency of generated files.")
+		fmt.Println("  collect                 - Collects commit data from the 'go' repository.")
+		fmt.Println("  generate                - Generates prompt scripts for missing explanations.")
+		fmt.Println("  execute [--cli=CMD]     - Executes generated prompt scripts in parallel.")
+		fmt.Println("  verify                  - Verifies the consistency of generated files.")
+		fmt.Println("")
+		fmt.Println("Options:")
+		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
+		fmt.Println("                            Supported: claude, gemini")
+		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
 
