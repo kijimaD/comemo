@@ -10,6 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	// ファイルパーミッション
+	filePermission   = 0644 // 通常のファイルのパーミッション
+	scriptPermission = 0755 // 実行可能なスクリプトのパーミッション
+	dirPermission    = 0755 // ディレクトリのパーミッション
+	
+	// テスト設定
+	maxTestCommits = 3 // テストで処理する最大コミット数
+)
+
 // TestGetCommitIndex は getCommitIndex 関数をテストします
 func TestGetCommitIndex(t *testing.T) {
 	tests := []struct {
@@ -116,7 +126,7 @@ func TestGetCommitHashes(t *testing.T) {
 
 	// テストファイルを作成してコミット
 	testFile := filepath.Join(tempDir, "test.txt")
-	err = os.WriteFile(testFile, []byte("test content"), 0644)
+	err = os.WriteFile(testFile, []byte("test content"), filePermission)
 	assert.NoError(t, err, "Failed to create test file")
 
 	_, err = runGitCommand(tempDir, "add", "test.txt")
@@ -145,7 +155,7 @@ func prepareCommitDataWithPath(t *testing.T, hash string, index int, repoPath, d
 	filePath := filepath.Join(dataDir, fmt.Sprintf("%d.txt", index))
 	commitData, err := runGitCommand(repoPath, "show", "--stat", hash)
 	assert.NoError(t, err, "failed to get commit data for %s", hash)
-	err = os.WriteFile(filePath, []byte(commitData), 0644)
+	err = os.WriteFile(filePath, []byte(commitData), filePermission)
 	assert.NoError(t, err, "failed to write commit data file")
 	return filePath
 }
@@ -241,7 +251,7 @@ func TestPrepareCommitData(t *testing.T) {
 
 	// テストファイルを作成してコミット
 	testFile := filepath.Join(repoDir, "test.txt")
-	err = os.WriteFile(testFile, []byte("test content"), 0644)
+	err = os.WriteFile(testFile, []byte("test content"), filePermission)
 	if err != nil {
 		t.Fatal("Failed to create test file")
 	}
@@ -294,16 +304,16 @@ func TestGeneratePromptScript(t *testing.T) {
 	commitDataDir := filepath.Join(tempDir, "commit_data")
 
 	// ディレクトリを作成
-	err := os.MkdirAll(promptsDir, 0755)
+	err := os.MkdirAll(promptsDir, dirPermission)
 	assert.NoError(t, err, "Failed to create prompts directory")
-	err = os.MkdirAll(outputDir, 0755)
+	err = os.MkdirAll(outputDir, dirPermission)
 	assert.NoError(t, err, "Failed to create output directory")
-	err = os.MkdirAll(commitDataDir, 0755)
+	err = os.MkdirAll(commitDataDir, dirPermission)
 	assert.NoError(t, err, "Failed to create commit data directory")
 
 	// テスト用のコミットデータファイルを作成
 	commitDataPath := filepath.Join(commitDataDir, "1.txt")
-	err = os.WriteFile(commitDataPath, []byte("test commit data"), 0644)
+	err = os.WriteFile(commitDataPath, []byte("test commit data"), filePermission)
 	assert.NoError(t, err, "Failed to create commit data file")
 
 	// Test generatePromptScriptWithPath
@@ -341,14 +351,14 @@ func TestGeneratePromptScript(t *testing.T) {
 func collectCommitsWithPath(t *testing.T, repoPath, dataDir string) {
 	t.Helper()
 	// コミットデータディレクトリを作成
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, dirPermission)
 	assert.NoError(t, err, "error creating directory %s", dataDir)
 
 	allHashes, err := getCommitHashes(repoPath)
 	assert.NoError(t, err, "error getting commit hashes")
 
 	// テストのために最初の3コミットのみを処理（全部63k+コミットの代わりに）
-	maxCommits := 3
+	maxCommits := maxTestCommits
 	if len(allHashes) > maxCommits {
 		allHashes = allHashes[:maxCommits]
 	}
@@ -393,9 +403,9 @@ func TestCollectCommits(t *testing.T) {
 	}
 
 	// いくつかのテストコミットを作成
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= maxTestCommits; i++ {
 		testFile := filepath.Join(repoDir, fmt.Sprintf("test%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), 0644)
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), filePermission)
 		assert.NoError(t, err, "Failed to create test file")
 
 		_, err = runGitCommand(repoDir, "add", fmt.Sprintf("test%d.txt", i))
@@ -413,7 +423,7 @@ func TestCollectCommits(t *testing.T) {
 	assert.NoError(t, err, "Expected commit data directory to be created")
 
 	// コミットデータファイルが作成されたかチェック
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= maxTestCommits; i++ {
 		commitDataFile := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", i))
 		_, err = os.Stat(commitDataFile)
 		assert.NoError(t, err, fmt.Sprintf("Expected commit data file %d to be created", i))
@@ -430,7 +440,7 @@ func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, comm
 	t.Helper()
 	// 必要なディレクトリを作成
 	for _, dir := range []string{promptsDir, outputDir} {
-		err := os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, dirPermission)
 		assert.NoError(t, err, "error creating directory %s", dir)
 	}
 
@@ -438,7 +448,7 @@ func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, comm
 	assert.NoError(t, err, "error getting commit hashes")
 
 	// テストのために最初の3コミットのみを処理
-	maxCommits := 3
+	maxCommits := maxTestCommits
 	if len(allHashes) > maxCommits {
 		allHashes = allHashes[:maxCommits]
 	}
@@ -490,9 +500,9 @@ func TestGeneratePrompts(t *testing.T) {
 	}
 
 	// テストコミットとコミットデータを作成
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= maxTestCommits; i++ {
 		testFile := filepath.Join(repoDir, fmt.Sprintf("test%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), 0644)
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), filePermission)
 		assert.NoError(t, err, "Failed to create test file")
 
 		_, err = runGitCommand(repoDir, "add", fmt.Sprintf("test%d.txt", i))
@@ -515,7 +525,7 @@ func TestGeneratePrompts(t *testing.T) {
 	assert.NoError(t, err, "Expected output directory to be created")
 
 	// プロンプトスクリプトが作成されたかチェック
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= maxTestCommits; i++ {
 		scriptFile := filepath.Join(promptsDir, fmt.Sprintf("%d.sh", i))
 		_, err = os.Stat(scriptFile)
 		assert.NoError(t, err, fmt.Sprintf("Expected prompt script %d to be created", i))
@@ -570,14 +580,14 @@ func TestExecutePrompts(t *testing.T) {
 	promptsDir := filepath.Join(tempDir, "prompts")
 	
 	// プロンプトディレクトリを作成
-	err := os.MkdirAll(promptsDir, 0755)
+	err := os.MkdirAll(promptsDir, dirPermission)
 	assert.NoError(t, err, "Failed to create prompts directory")
 
 	// 空のプロンプトディレクトリでテスト
 	executePromptsWithPath(t, promptsDir)
 
 	// 外部サービスを呼び出さないテストスクリプトを作成
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= maxTestCommits; i++ {
 		scriptPath := filepath.Join(promptsDir, fmt.Sprintf("test%d.sh", i))
 		scriptContent := fmt.Sprintf(`#!/bin/bash
 # Test script %d
@@ -587,7 +597,7 @@ echo "Hash: test-hash-%d"
 echo "Done."
 `, i, i, i, i)
 		
-		err = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+		err = os.WriteFile(scriptPath, []byte(scriptContent), scriptPermission)
 		assert.NoError(t, err, fmt.Sprintf("Failed to create test script %d", i))
 	}
 
