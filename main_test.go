@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGetCommitIndex tests the getCommitIndex function
+// TestGetCommitIndex は getCommitIndex 関数をテストします
 func TestGetCommitIndex(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -58,12 +58,12 @@ func TestGetCommitIndex(t *testing.T) {
 	}
 }
 
-// TestRunGitCommand tests the runGitCommand function
+// TestRunGitCommand は runGitCommand 関数をテストします
 func TestRunGitCommand(t *testing.T) {
-	// Create a temporary git repository for testing
+	// テスト用の一時的なgitリポジトリを作成
 	tempDir := t.TempDir()
 
-	// Initialize a git repository
+	// gitリポジトリを初期化
 	_, err := runGitCommand(tempDir, "init")
 	assert.NoError(t, err)
 
@@ -83,18 +83,18 @@ func TestRunGitCommand(t *testing.T) {
 	assert.Error(t, err, "Non-existent path should return error")
 }
 
-// TestGetCommitHashes tests the getCommitHashes function
+// TestGetCommitHashes は getCommitHashes 関数をテストします
 func TestGetCommitHashes(t *testing.T) {
-	// Create a temporary git repository for testing
+	// テスト用の一時的なgitリポジトリを作成
 	tempDir := t.TempDir()
 
-	// Initialize a git repository
+	// gitリポジトリを初期化
 	_, err := runGitCommand(tempDir, "init")
 	if err != nil {
 		t.Skip("Git not available or failed to initialize repository")
 	}
 
-	// Configure git user for commits
+	// コミット用のgitユーザーを設定
 	_, err = runGitCommand(tempDir, "config", "user.name", "Test User")
 	if err != nil {
 		t.Skip("Failed to configure git user.name")
@@ -114,7 +114,7 @@ func TestGetCommitHashes(t *testing.T) {
 		t.Logf("Empty repository returned error (expected): %v", err)
 	}
 
-	// Create a test file and commit
+	// テストファイルを作成してコミット
 	testFile := filepath.Join(tempDir, "test.txt")
 	err = os.WriteFile(testFile, []byte("test content"), 0644)
 	assert.NoError(t, err, "Failed to create test file")
@@ -139,7 +139,7 @@ func TestGetCommitHashes(t *testing.T) {
 	assert.Error(t, err, "Non-existent repository should return error")
 }
 
-// prepareCommitDataWithPath is a test helper function
+// prepareCommitDataWithPath はテストヘルパー関数です
 func prepareCommitDataWithPath(t *testing.T, hash string, index int, repoPath, dataDir string) string {
 	t.Helper()
 	filePath := filepath.Join(dataDir, fmt.Sprintf("%d.txt", index))
@@ -150,7 +150,7 @@ func prepareCommitDataWithPath(t *testing.T, hash string, index int, repoPath, d
 	return filePath
 }
 
-// generatePromptScriptWithPath is a test helper function
+// generatePromptScriptWithPath はテストヘルパー関数です
 func generatePromptScriptWithPath(t *testing.T, hash string, index int, commitDataPath, promptsDir, outputDir string) {
 	t.Helper()
 	scriptPath := filepath.Join(promptsDir, fmt.Sprintf("%d.sh", index))
@@ -215,21 +215,21 @@ echo -e "\n✅ Done. Copy the output above and save it as: %s"
 	assert.NoError(t, err, "failed to write script file")
 }
 
-// TestPrepareCommitData tests the prepareCommitData function
+// TestPrepareCommitData は prepareCommitData 関数をテストします
 func TestPrepareCommitData(t *testing.T) {
-	// Create a temporary directory for commit data
+	// コミットデータ用の一時ディレクトリを作成
 	tempDir := t.TempDir()
 
-	// Create a temporary git repository
+	// 一時的なgitリポジトリを作成
 	repoDir := t.TempDir()
 
-	// Initialize a git repository
+	// gitリポジトリを初期化
 	_, err := runGitCommand(repoDir, "init")
 	if err != nil {
 		t.Skip("Git not available")
 	}
 
-	// Configure git user for commits
+	// コミット用のgitユーザーを設定
 	_, err = runGitCommand(repoDir, "config", "user.name", "Test User")
 	if err != nil {
 		t.Skip("Failed to configure git user.name")
@@ -239,7 +239,7 @@ func TestPrepareCommitData(t *testing.T) {
 		t.Skip("Failed to configure git user.email")
 	}
 
-	// Create a test file and commit
+	// テストファイルを作成してコミット
 	testFile := filepath.Join(repoDir, "test.txt")
 	err = os.WriteFile(testFile, []byte("test content"), 0644)
 	if err != nil {
@@ -256,7 +256,7 @@ func TestPrepareCommitData(t *testing.T) {
 		t.Skip("Failed to create commit")
 	}
 
-	// Get the commit hash
+	// コミットハッシュを取得
 	hashes, err := getCommitHashes(repoDir)
 	if err != nil {
 		t.Skip("Failed to get commit hashes")
@@ -285,7 +285,7 @@ func TestPrepareCommitData(t *testing.T) {
 	// Note: Invalid hash test removed since helper now uses assert internally
 }
 
-// TestGeneratePromptScript tests the generatePromptScript function
+// TestGeneratePromptScript は generatePromptScript 関数をテストします
 func TestGeneratePromptScript(t *testing.T) {
 	// Create temporary directories
 	tempDir := t.TempDir()
@@ -293,7 +293,7 @@ func TestGeneratePromptScript(t *testing.T) {
 	outputDir := filepath.Join(tempDir, "src")
 	commitDataDir := filepath.Join(tempDir, "commit_data")
 
-	// Create directories
+	// ディレクトリを作成
 	err := os.MkdirAll(promptsDir, 0755)
 	assert.NoError(t, err, "Failed to create prompts directory")
 	err = os.MkdirAll(outputDir, 0755)
@@ -301,7 +301,7 @@ func TestGeneratePromptScript(t *testing.T) {
 	err = os.MkdirAll(commitDataDir, 0755)
 	assert.NoError(t, err, "Failed to create commit data directory")
 
-	// Create a test commit data file
+	// テスト用のコミットデータファイルを作成
 	commitDataPath := filepath.Join(commitDataDir, "1.txt")
 	err = os.WriteFile(commitDataPath, []byte("test commit data"), 0644)
 	assert.NoError(t, err, "Failed to create commit data file")
@@ -311,18 +311,18 @@ func TestGeneratePromptScript(t *testing.T) {
 	index := 1
 	generatePromptScriptWithPath(t, hash, index, commitDataPath, promptsDir, outputDir)
 
-	// Check if script file was created
+	// スクリプトファイルが作成されたかチェック
 	scriptPath := filepath.Join(promptsDir, "1.sh")
 	_, err = os.Stat(scriptPath)
 	assert.NoError(t, err, "Expected script file to be created")
 
-	// Check script content
+	// スクリプトの内容をチェック
 	content, err := os.ReadFile(scriptPath)
 	assert.NoError(t, err, "Failed to read script file")
 
 	scriptContent := string(content)
 
-	// Check if script contains expected elements
+	// スクリプトに期待される要素が含まれているかチェック
 	expectedElements := []string{
 		"#!/bin/bash",
 		hash,
@@ -337,17 +337,17 @@ func TestGeneratePromptScript(t *testing.T) {
 	}
 }
 
-// collectCommitsWithPath is a test helper function
+// collectCommitsWithPath はテストヘルパー関数です
 func collectCommitsWithPath(t *testing.T, repoPath, dataDir string) {
 	t.Helper()
-	// Create commit data directory
+	// コミットデータディレクトリを作成
 	err := os.MkdirAll(dataDir, 0755)
 	assert.NoError(t, err, "error creating directory %s", dataDir)
 
 	allHashes, err := getCommitHashes(repoPath)
 	assert.NoError(t, err, "error getting commit hashes")
 
-	// Process only first 3 commits for testing (instead of all 63k+ commits)
+	// テストのために最初の3コミットのみを処理（全部63k+コミットの代わりに）
 	maxCommits := 3
 	if len(allHashes) > maxCommits {
 		allHashes = allHashes[:maxCommits]
@@ -359,30 +359,30 @@ func collectCommitsWithPath(t *testing.T, repoPath, dataDir string) {
 			continue
 		}
 
-		// Check if commit data file already exists
+		// コミットデータファイルが既に存在するかチェック
 		commitDataFile := filepath.Join(dataDir, fmt.Sprintf("%d.txt", index))
 		if _, err := os.Stat(commitDataFile); err == nil {
-			continue // Skip if already exists
+			continue // 既に存在する場合はスキップ
 		}
 
 		prepareCommitDataWithPath(t, hash, index, repoPath, dataDir)
 	}
 }
 
-// TestCollectCommits tests the collectCommits function with limited data
+// TestCollectCommits は collectCommits 関数を限定されたデータでテストします
 func TestCollectCommits(t *testing.T) {
 	// Create temporary directories
 	tempDir := t.TempDir()
 	commitDataDir := filepath.Join(tempDir, "commit_data")
 	repoDir := t.TempDir()
 
-	// Create a minimal test git repository
+	// 最小限のテスト用gitリポジトリを作成
 	_, err := runGitCommand(repoDir, "init")
 	if err != nil {
 		t.Skip("Git not available")
 	}
 
-	// Configure git user
+	// gitユーザーを設定
 	_, err = runGitCommand(repoDir, "config", "user.name", "Test User")
 	if err != nil {
 		t.Skip("Failed to configure git user.name")
@@ -392,7 +392,7 @@ func TestCollectCommits(t *testing.T) {
 		t.Skip("Failed to configure git user.email")
 	}
 
-	// Create a few test commits
+	// いくつかのテストコミットを作成
 	for i := 1; i <= 3; i++ {
 		testFile := filepath.Join(repoDir, fmt.Sprintf("test%d.txt", i))
 		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), 0644)
@@ -408,27 +408,27 @@ func TestCollectCommits(t *testing.T) {
 	// Test collectCommitsWithPath with limited data
 	collectCommitsWithPath(t, repoDir, commitDataDir)
 
-	// Check if commit data directory exists
+	// コミットデータディレクトリが存在するかチェック
 	_, err = os.Stat(commitDataDir)
 	assert.NoError(t, err, "Expected commit data directory to be created")
 
-	// Check that commit data files were created
+	// コミットデータファイルが作成されたかチェック
 	for i := 1; i <= 3; i++ {
 		commitDataFile := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", i))
 		_, err = os.Stat(commitDataFile)
 		assert.NoError(t, err, fmt.Sprintf("Expected commit data file %d to be created", i))
 
-		// Check file content
+		// ファイルの内容をチェック
 		content, err := os.ReadFile(commitDataFile)
 		assert.NoError(t, err, "Failed to read commit data file")
 		assert.NotEmpty(t, content, "Expected non-empty commit data")
 	}
 }
 
-// generatePromptsWithPath is a test helper function
+// generatePromptsWithPath はテストヘルパー関数です
 func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, commitDataDir string) {
 	t.Helper()
-	// Create necessary directories
+	// 必要なディレクトリを作成
 	for _, dir := range []string{promptsDir, outputDir} {
 		err := os.MkdirAll(dir, 0755)
 		assert.NoError(t, err, "error creating directory %s", dir)
@@ -437,7 +437,7 @@ func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, comm
 	allHashes, err := getCommitHashes(repoPath)
 	assert.NoError(t, err, "error getting commit hashes")
 
-	// Process only first 3 commits for testing
+	// テストのために最初の3コミットのみを処理
 	maxCommits := 3
 	if len(allHashes) > maxCommits {
 		allHashes = allHashes[:maxCommits]
@@ -451,20 +451,20 @@ func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, comm
 
 		outputFile := filepath.Join(outputDir, fmt.Sprintf("%d.md", index))
 		if _, err := os.Stat(outputFile); err == nil {
-			continue // Skip if explanation already exists
+			continue // 既に説明が存在する場合はスキップ
 		}
 
-		// Check if commit data exists
+		// コミットデータが存在するかチェック
 		commitDataPath := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", index))
 		if _, err := os.Stat(commitDataPath); os.IsNotExist(err) {
-			continue // Skip if no commit data
+			continue // コミットデータがない場合はスキップ
 		}
 
 		generatePromptScriptWithPath(t, hash, index, commitDataPath, promptsDir, outputDir)
 	}
 }
 
-// TestGeneratePrompts tests the generatePrompts function with limited data
+// TestGeneratePrompts は generatePrompts 関数を限定されたデータでテストします
 func TestGeneratePrompts(t *testing.T) {
 	// Create temporary directories
 	tempDir := t.TempDir()
@@ -473,13 +473,13 @@ func TestGeneratePrompts(t *testing.T) {
 	commitDataDir := filepath.Join(tempDir, "commit_data")
 	repoDir := t.TempDir()
 
-	// Create a minimal test git repository
+	// 最小限のテスト用gitリポジトリを作成
 	_, err := runGitCommand(repoDir, "init")
 	if err != nil {
 		t.Skip("Git not available")
 	}
 
-	// Configure git user
+	// gitユーザーを設定
 	_, err = runGitCommand(repoDir, "config", "user.name", "Test User")
 	if err != nil {
 		t.Skip("Failed to configure git user.name")
@@ -489,7 +489,7 @@ func TestGeneratePrompts(t *testing.T) {
 		t.Skip("Failed to configure git user.email")
 	}
 
-	// Create test commits and commit data
+	// テストコミットとコミットデータを作成
 	for i := 1; i <= 3; i++ {
 		testFile := filepath.Join(repoDir, fmt.Sprintf("test%d.txt", i))
 		err = os.WriteFile(testFile, []byte(fmt.Sprintf("test content %d", i)), 0644)
@@ -502,25 +502,25 @@ func TestGeneratePrompts(t *testing.T) {
 		assert.NoError(t, err, "Failed to create commit")
 	}
 
-	// Create commit data first
+	// 最初にコミットデータを作成
 	collectCommitsWithPath(t, repoDir, commitDataDir)
 
 	// Test generatePromptsWithPath with limited data
 	generatePromptsWithPath(t, repoDir, promptsDir, outputDir, commitDataDir)
 
-	// Check if directories were created
+	// ディレクトリが作成されたかチェック
 	_, err = os.Stat(promptsDir)
 	assert.NoError(t, err, "Expected prompts directory to be created")
 	_, err = os.Stat(outputDir)
 	assert.NoError(t, err, "Expected output directory to be created")
 
-	// Check that prompt scripts were created
+	// プロンプトスクリプトが作成されたかチェック
 	for i := 1; i <= 3; i++ {
 		scriptFile := filepath.Join(promptsDir, fmt.Sprintf("%d.sh", i))
 		_, err = os.Stat(scriptFile)
 		assert.NoError(t, err, fmt.Sprintf("Expected prompt script %d to be created", i))
 
-		// Check script content
+		// スクリプトの内容をチェック
 		content, err := os.ReadFile(scriptFile)
 		assert.NoError(t, err, "Failed to read script file")
 		assert.NotEmpty(t, content, "Expected non-empty script content")
@@ -529,7 +529,7 @@ func TestGeneratePrompts(t *testing.T) {
 	}
 }
 
-// executePromptsWithPath is a test helper function for testing
+// executePromptsWithPath はテスト用のヘルパー関数です
 func executePromptsWithPath(t *testing.T, promptsDir string) {
 	t.Helper()
 	files, err := os.ReadDir(promptsDir)
@@ -543,40 +543,40 @@ func executePromptsWithPath(t *testing.T, promptsDir string) {
 	}
 
 	if len(shFiles) == 0 {
-		return // No scripts to execute
+		return // 実行するスクリプトなし
 	}
 
-	// For testing, we'll just validate that scripts exist and are readable
-	// without actually executing them
+	// テストのため、スクリプトが存在して読み取り可能であることを確認するだけ
+	// 実際には実行しない
 	for _, fileName := range shFiles {
 		scriptPath := filepath.Join(promptsDir, fileName)
 		
-		// Check if script is readable and has expected content
+		// スクリプトが読み取り可能で期待される内容を持つかチェック
 		content, err := os.ReadFile(scriptPath)
 		assert.NoError(t, err, "failed to read script %s", scriptPath)
 		
 		assert.NotEmpty(t, content, "script %s should not be empty", scriptPath)
 		
-		// Validate script has basic structure
+		// スクリプトが基本構造を持つか検証
 		scriptStr := string(content)
 		assert.Contains(t, scriptStr, "#!/bin/bash", "script %s should contain shebang", scriptPath)
 	}
 }
 
-// TestExecutePrompts tests the executePrompts function without running scripts
+// TestExecutePrompts は executePrompts 関数をスクリプトを実行せずにテストします
 func TestExecutePrompts(t *testing.T) {
 	// Create temporary directories
 	tempDir := t.TempDir()
 	promptsDir := filepath.Join(tempDir, "prompts")
 	
-	// Create prompts directory
+	// プロンプトディレクトリを作成
 	err := os.MkdirAll(promptsDir, 0755)
 	assert.NoError(t, err, "Failed to create prompts directory")
 
-	// Test with empty prompts directory
+	// 空のプロンプトディレクトリでテスト
 	executePromptsWithPath(t, promptsDir)
 
-	// Create test scripts that don't call external services
+	// 外部サービスを呼び出さないテストスクリプトを作成
 	for i := 1; i <= 3; i++ {
 		scriptPath := filepath.Join(promptsDir, fmt.Sprintf("test%d.sh", i))
 		scriptContent := fmt.Sprintf(`#!/bin/bash
@@ -591,6 +591,6 @@ echo "Done."
 		assert.NoError(t, err, fmt.Sprintf("Failed to create test script %d", i))
 	}
 
-	// Test executePromptsWithPath with test scripts
+	// テストスクリプトでexecutePromptsWithPathをテスト
 	executePromptsWithPath(t, promptsDir)
 }
