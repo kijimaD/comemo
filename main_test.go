@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestGetCommitIndex tests the getCommitIndex function
@@ -51,9 +53,7 @@ func TestGetCommitIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getCommitIndex(tt.allHashes, tt.targetHash)
-			if result != tt.expected {
-				t.Errorf("getCommitIndex() = %v, want %v", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "getCommitIndex should return expected index")
 		})
 	}
 }
@@ -62,42 +62,32 @@ func TestGetCommitIndex(t *testing.T) {
 func TestRunGitCommand(t *testing.T) {
 	// Create a temporary git repository for testing
 	tempDir := t.TempDir()
-	
+
 	// Initialize a git repository
 	_, err := runGitCommand(tempDir, "init")
-	if err != nil {
-		t.Skip("Git not available or failed to initialize repository")
-	}
+	assert.NoError(t, err)
 
 	// Test git status
 	output, err := runGitCommand(tempDir, "status", "--porcelain")
-	if err != nil {
-		t.Errorf("runGitCommand() error = %v", err)
-	}
-	
+	assert.NoError(t, err, "git status should not return error")
+
 	// Empty repository should have empty status
-	if strings.TrimSpace(output) != "" {
-		t.Errorf("Expected empty status, got: %v", output)
-	}
+	assert.Empty(t, strings.TrimSpace(output), "Expected empty status in new repository")
 
 	// Test invalid git command
 	_, err = runGitCommand(tempDir, "invalid-command")
-	if err == nil {
-		t.Errorf("Expected error for invalid git command, got nil")
-	}
+	assert.Error(t, err, "Invalid git command should return error")
 
 	// Test non-existent repository path
 	_, err = runGitCommand("/non/existent/path", "status")
-	if err == nil {
-		t.Errorf("Expected error for non-existent path, got nil")
-	}
+	assert.Error(t, err, "Non-existent path should return error")
 }
 
 // TestGetCommitHashes tests the getCommitHashes function
 func TestGetCommitHashes(t *testing.T) {
 	// Create a temporary git repository for testing
 	tempDir := t.TempDir()
-	
+
 	// Initialize a git repository
 	_, err := runGitCommand(tempDir, "init")
 	if err != nil {
@@ -118,9 +108,7 @@ func TestGetCommitHashes(t *testing.T) {
 	hashes, err := getCommitHashes(tempDir)
 	if err == nil {
 		// If no error, check that we get 0 hashes
-		if len(hashes) != 0 {
-			t.Errorf("Expected 0 hashes in empty repository, got %d", len(hashes))
-		}
+		assert.Empty(t, hashes, "Expected 0 hashes in empty repository")
 	} else {
 		// Error is expected for empty repository, just log it
 		t.Logf("Empty repository returned error (expected): %v", err)
@@ -129,9 +117,7 @@ func TestGetCommitHashes(t *testing.T) {
 	// Create a test file and commit
 	testFile := filepath.Join(tempDir, "test.txt")
 	err = os.WriteFile(testFile, []byte("test content"), 0644)
-	if err != nil {
-		t.Fatal("Failed to create test file")
-	}
+	assert.NoError(t, err, "Failed to create test file")
 
 	_, err = runGitCommand(tempDir, "add", "test.txt")
 	if err != nil {
@@ -145,18 +131,12 @@ func TestGetCommitHashes(t *testing.T) {
 
 	// Test repository with one commit
 	hashes, err = getCommitHashes(tempDir)
-	if err != nil {
-		t.Errorf("getCommitHashes() error = %v", err)
-	}
-	if len(hashes) != 1 {
-		t.Errorf("Expected 1 hash, got %d", len(hashes))
-	}
+	assert.NoError(t, err, "getCommitHashes should not return error for valid repository")
+	assert.Len(t, hashes, 1, "Expected 1 hash after creating commit")
 
 	// Test non-existent repository
 	_, err = getCommitHashes("/non/existent/path")
-	if err == nil {
-		t.Errorf("Expected error for non-existent repository, got nil")
-	}
+	assert.Error(t, err, "Non-existent repository should return error")
 }
 
 // prepareCommitDataWithPath is a test helper function
@@ -242,7 +222,7 @@ func TestPrepareCommitData(t *testing.T) {
 
 	// Create a temporary git repository
 	repoDir := t.TempDir()
-	
+
 	// Initialize a git repository
 	_, err := runGitCommand(repoDir, "init")
 	if err != nil {
@@ -289,34 +269,23 @@ func TestPrepareCommitData(t *testing.T) {
 	hash := hashes[0]
 	index := 1
 	filePath, err := prepareCommitDataWithPath(hash, index, repoDir, tempDir)
-	if err != nil {
-		t.Errorf("prepareCommitData() error = %v", err)
-	}
+	assert.NoError(t, err, "prepareCommitDataWithPath should not return error")
 
 	expectedPath := filepath.Join(tempDir, "1.txt")
-	if filePath != expectedPath {
-		t.Errorf("Expected file path %v, got %v", expectedPath, filePath)
-	}
+	assert.Equal(t, expectedPath, filePath, "File path should match expected path")
 
 	// Check if file was created
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		t.Errorf("Expected file to be created at %v", filePath)
-	}
+	_, err = os.Stat(filePath)
+	assert.NoError(t, err, "Expected file to be created")
 
 	// Check file content
 	content, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Errorf("Failed to read created file: %v", err)
-	}
-	if len(content) == 0 {
-		t.Errorf("Expected non-empty file content")
-	}
+	assert.NoError(t, err, "Failed to read created file")
+	assert.NotEmpty(t, content, "Expected non-empty file content")
 
 	// Test with invalid hash
 	_, err = prepareCommitDataWithPath("invalid-hash", 2, repoDir, tempDir)
-	if err == nil {
-		t.Errorf("Expected error for invalid hash, got nil")
-	}
+	assert.Error(t, err, "Invalid hash should return error")
 }
 
 // TestGeneratePromptScript tests the generatePromptScript function
@@ -329,47 +298,34 @@ func TestGeneratePromptScript(t *testing.T) {
 
 	// Create directories
 	err := os.MkdirAll(promptsDir, 0755)
-	if err != nil {
-		t.Fatal("Failed to create prompts directory")
-	}
+	assert.NoError(t, err, "Failed to create prompts directory")
 	err = os.MkdirAll(outputDir, 0755)
-	if err != nil {
-		t.Fatal("Failed to create output directory")
-	}
+	assert.NoError(t, err, "Failed to create output directory")
 	err = os.MkdirAll(commitDataDir, 0755)
-	if err != nil {
-		t.Fatal("Failed to create commit data directory")
-	}
+	assert.NoError(t, err, "Failed to create commit data directory")
 
 	// Create a test commit data file
 	commitDataPath := filepath.Join(commitDataDir, "1.txt")
 	err = os.WriteFile(commitDataPath, []byte("test commit data"), 0644)
-	if err != nil {
-		t.Fatal("Failed to create commit data file")
-	}
+	assert.NoError(t, err, "Failed to create commit data file")
 
 	// Test generatePromptScriptWithPath
 	hash := "test-hash-123"
 	index := 1
 	err = generatePromptScriptWithPath(hash, index, commitDataPath, promptsDir, outputDir)
-	if err != nil {
-		t.Errorf("generatePromptScript() error = %v", err)
-	}
+	assert.NoError(t, err, "generatePromptScriptWithPath should not return error")
 
 	// Check if script file was created
 	scriptPath := filepath.Join(promptsDir, "1.sh")
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		t.Errorf("Expected script file to be created at %v", scriptPath)
-	}
+	_, err = os.Stat(scriptPath)
+	assert.NoError(t, err, "Expected script file to be created")
 
 	// Check script content
 	content, err := os.ReadFile(scriptPath)
-	if err != nil {
-		t.Errorf("Failed to read script file: %v", err)
-	}
+	assert.NoError(t, err, "Failed to read script file")
 
 	scriptContent := string(content)
-	
+
 	// Check if script contains expected elements
 	expectedElements := []string{
 		"#!/bin/bash",
@@ -381,9 +337,7 @@ func TestGeneratePromptScript(t *testing.T) {
 	}
 
 	for _, element := range expectedElements {
-		if !strings.Contains(scriptContent, element) {
-			t.Errorf("Expected script to contain %v", element)
-		}
+		assert.Contains(t, scriptContent, element, fmt.Sprintf("Script should contain %v", element))
 	}
 }
 
@@ -396,14 +350,11 @@ func TestCollectCommits(t *testing.T) {
 
 	// Test collectCommits with actual repository
 	err := collectCommits()
-	if err != nil {
-		t.Errorf("collectCommits() error = %v", err)
-	}
+	assert.NoError(t, err, "collectCommits should not return error")
 
 	// Check if commit data directory exists
-	if _, err := os.Stat(commitDataDir); os.IsNotExist(err) {
-		t.Errorf("Expected commit data directory to be created")
-	}
+	_, err = os.Stat(commitDataDir)
+	assert.NoError(t, err, "Expected commit data directory to be created")
 }
 
 // TestGeneratePrompts tests the generatePrompts function
@@ -420,17 +371,13 @@ func TestGeneratePrompts(t *testing.T) {
 
 	// Test generatePrompts with actual repository
 	err := generatePrompts()
-	if err != nil {
-		t.Errorf("generatePrompts() error = %v", err)
-	}
+	assert.NoError(t, err, "generatePrompts should not return error")
 
 	// Check if directories were created
-	if _, err := os.Stat(promptsDir); os.IsNotExist(err) {
-		t.Errorf("Expected prompts directory to be created")
-	}
-	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		t.Errorf("Expected output directory to be created")
-	}
+	_, err = os.Stat(promptsDir)
+	assert.NoError(t, err, "Expected prompts directory to be created")
+	_, err = os.Stat(outputDir)
+	assert.NoError(t, err, "Expected output directory to be created")
 }
 
 // TestExecutePrompts tests the executePrompts function
