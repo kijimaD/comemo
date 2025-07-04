@@ -132,11 +132,10 @@ echo -e "\n✅ Done. Copy the output above and save it as: %s"
 }
 
 // executePrompts は prompts ディレクトリ内のスクリプトを並列実行します。
-func executePrompts() {
+func executePrompts() error {
 	files, err := os.ReadDir(promptsDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading prompts directory: %v\n", err)
-		return
+		return fmt.Errorf("error reading prompts directory: %w", err)
 	}
 
 	shFiles := []string{}
@@ -148,7 +147,7 @@ func executePrompts() {
 
 	if len(shFiles) == 0 {
 		fmt.Println("No prompt scripts to execute.")
-		return
+		return nil
 	}
 
 	fmt.Printf("\n--- Executing %d Prompt Scripts ---\n", len(shFiles))
@@ -213,20 +212,19 @@ func executePrompts() {
 	} else {
 		fmt.Println("\nAll prompt scripts executed successfully and were deleted.\n")
 	}
+	return nil
 }
 
 // collectCommits は goRepoPath からコミットデータを収集し、commitDataDir に保存します。
-func collectCommits() {
+func collectCommits() error {
 	// 必要なディレクトリを作成
 	if err := os.MkdirAll(commitDataDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating directory %s: %v\n", commitDataDir, err)
-		os.Exit(1)
+		return fmt.Errorf("error creating directory %s: %w", commitDataDir, err)
 	}
 
 	allHashes, err := getCommitHashes(goRepoPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error getting commit hashes: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
 
 	fmt.Printf("Found %d total commits. Collecting commit data...\n", len(allHashes))
@@ -263,15 +261,15 @@ func collectCommits() {
 	}
 	wg.Wait()
 	fmt.Println("\n--- Commit data collection complete ---")
+	return nil
 }
 
 // generatePrompts は収集されたコミットデータに基づいてプロンプトスクリプトを生成します。
-func generatePrompts() {
+func generatePrompts() error {
 	// 必要なディレクトリを作成
 	for _, dir := range []string{promptsDir, outputDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating directory %s: %v\n", dir, err)
-			os.Exit(1)
+			return fmt.Errorf("error creating directory %s: %w", dir, err)
 		}
 	}
 
@@ -280,8 +278,7 @@ func generatePrompts() {
 	// ここでは、getCommitHashes を再度実行し、commit_data の存在を確認する方式を採用
 	allHashes, err := getCommitHashes(goRepoPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error getting commit hashes: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
 
 	fmt.Printf("Found %d total commits. Generating prompt scripts for missing explanations...\n", len(allHashes))
@@ -323,6 +320,7 @@ func generatePrompts() {
 	}
 	wg.Wait()
 	fmt.Println("\n--- Prompt script generation complete ---")
+	return nil
 }
 
 func main() {
@@ -337,13 +335,14 @@ func main() {
 
 	command := os.Args[1]
 
+	var err error
 	switch command {
 	case "collect":
-		collectCommits()
+		err = collectCommits()
 	case "generate":
-		generatePrompts()
+		err = generatePrompts()
 	case "execute":
-		executePrompts()
+		err = executePrompts()
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		fmt.Println("Usage: go run main.go <command>")
@@ -351,6 +350,11 @@ func main() {
 		fmt.Println("  collect   - Collects commit data from the 'go' repository.")
 		fmt.Println("  generate  - Generates prompt scripts for missing explanations.")
 		fmt.Println("  execute   - Executes generated prompt scripts in parallel.")
+		os.Exit(1)
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
