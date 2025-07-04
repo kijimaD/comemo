@@ -3,9 +3,9 @@
 
 echo "🚀 Generating explanation for commit 32835..."
 
-# Gemini CLIにプロンプトを渡す (実際のCLIコマンド名に要変更)
+# AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
-gemini -p <<'EOF'
+{{AI_CLI_COMMAND}} <<'EOF'
 これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、`read_file("commit_data/32835.txt")` を実行して、コミット情報を取得してください。
