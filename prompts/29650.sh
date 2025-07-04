@@ -43,5 +43,3 @@ echo "🚀 Generating explanation for commit 29650..."
 ## 参考にした情報源リンク
 
 EOF
-
-echo -e "\n✅ Done. Output will be saved automatically to: src/29650.md"
