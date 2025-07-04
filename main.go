@@ -210,7 +210,7 @@ func executePrompts() error {
 		fmt.Printf("\n%d scripts failed to execute and remain in the '%s' directory.\n", len(remainingFiles), promptsDir)
 		fmt.Println("Please check the error messages above, fix the issues, and run the program again.")
 	} else {
-		fmt.Println("\nAll prompt scripts executed successfully and were deleted.\n")
+		fmt.Println("\nAll prompt scripts executed successfully and were deleted.")
 	}
 	return nil
 }
