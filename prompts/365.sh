@@ -44,4 +44,4 @@ echo "🚀 Generating explanation for commit 365..."
 
 EOF
 
-echo -e "\n✅ Done. Copy the output above and save it as: src/365.md"
+echo -e "\n✅ Done. Output will be saved automatically to: src/365.md"

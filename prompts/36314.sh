@@ -44,4 +44,4 @@ echo "🚀 Generating explanation for commit 36314..."
 
 EOF
 
-echo -e "\n✅ Done. Copy the output above and save it as: src/36314.md"
+echo -e "\n✅ Done. Output will be saved automatically to: src/36314.md"
