@@ -162,18 +162,16 @@ func executePrompts(cliCommand string) error {
 		cliCommandLine = "gemini -m gemini-2.5-flash -p"
 	case "claude":
 		cliCommandLine = "claude"
-	case "claude-haiku":
-		cliCommandLine = "claude --model claude-3-haiku-20240307"
 	case "claude-sonnet":
-		cliCommandLine = "claude --model claude-3-5-sonnet-20241022"
+		cliCommandLine = "claude --model sonnet"
 	default:
-		cliCommandLine = cliCommand
+		return fmt.Errorf("error subcommand: %s", cliCommand)
 	}
 
 	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 1) // 同時実行数を1に制限
+	sem := make(chan struct{}, 1)
 
 	for _, fileName := range shFiles {
 		wg.Add(1)
@@ -292,7 +290,7 @@ func executePrompts(cliCommand string) error {
 				}
 				fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
 				fmt.Printf("Saved output to: %s\n", outputPath)
-				
+
 				// 成功時のみスクリプトを削除
 				if err := os.Remove(scriptPath); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
@@ -576,7 +574,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, claude-haiku, claude-sonnet, gemini")
+		fmt.Println("                            Supported: claude, claude-sonnet, gemini")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
@@ -602,12 +600,11 @@ func main() {
 		// サポートされているCLIかチェック
 		supportedCLIs := map[string]bool{
 			"claude":        true,
-			"claude-haiku":  true,
 			"claude-sonnet": true,
 			"gemini":        true,
 		}
 		if !supportedCLIs[cliCommand] {
-			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, claude-haiku, claude-sonnet, gemini\n", cliCommand)
+			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, claude-sonnet, gemini\n", cliCommand)
 			os.Exit(1)
 		}
 
@@ -625,7 +622,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, claude-haiku, claude-sonnet, gemini")
+		fmt.Println("                            Supported: claude, claude-sonnet, gemini")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
