@@ -164,7 +164,7 @@ func executePrompts(cliCommand string) error {
 	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 1) // 同時実行数を1に制限
+	sem := make(chan struct{}, 5) // 同時実行数を5に制限
 
 	for _, fileName := range shFiles {
 		wg.Add(1)
@@ -187,19 +187,14 @@ func executePrompts(cliCommand string) error {
 				return
 			}
 
-			// プレースホルダーを実際のCLIコマンドに置換
+			// プレースホルダーを実際のCLIコマンドに置換（メモリ上でのみ）
 			modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cliCommandLine)
-
-			// 一時的に修正されたスクリプトを書き込む
-			if err := os.WriteFile(scriptPath, []byte(modifiedContent), 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Error writing modified script %s: %v\n", scriptPath, err)
-				return
-			}
 
 			fmt.Printf("Executing script: %s\n", scriptPath)
 
-			// スクリプトを実行し、出力をキャプチャ
-			cmd := exec.Command("/bin/bash", scriptPath)
+			// 修正されたスクリプトをstdinから実行
+			cmd := exec.Command("/bin/bash")
+			cmd.Stdin = strings.NewReader(modifiedContent)
 			output, cmdErr := cmd.CombinedOutput() // stdoutとstderrを結合して取得
 
 			// Always check for token/quota related errors in the output
