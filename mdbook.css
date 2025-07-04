@@ -1,0 +1,26 @@
+/* bootstrap5から持ってきた */
+:root {
+  --bs-primary:   #0d6efd;
+  --bs-secondary: #6c757d;
+  --bs-success:   #198754;
+  --bs-info:      #0dcaf0;
+  --bs-warning:   #ffc107;
+  --bs-danger:    #dc3545;
+  --bs-light:     #f8f9fa;
+  --bs-dark:      #212529;
+  --bs-white:     #ffffff;
+  --bs-black:     #000000;
+}
+
+figure {
+  display: table;
+  box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
+}
+
+figcaption {
+  caption-side: bottom;
+  font: italic smaller sans-serif;
+  text-align: center;
+  padding: 4px;
+  color: var(--bs-dark);
+}

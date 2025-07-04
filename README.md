@@ -4,6 +4,13 @@
 - [x] より正確になるようなフロー設計する
 - [ ]
 
+## run
+
+```shell
+docker build . -t comemo
+docker run --rm -d -v "$PWD/":/work -w /work -p 3003:3003 --name comemo-server comemo bash -c "mdbook serve -p 3003 -n 0.0.0.0"
+```
+
 ## submodule
 
 ```shell
