@@ -29,11 +29,17 @@ jobs:
     - name: 依存関係を検証
       run: go mod verify
 
-    - name: コードフォーマットチェック
+    - name: goimportsをインストール
+      run: go install golang.org/x/tools/cmd/goimports@latest
+      
+    - name: コードフォーマットチェック（goimports）
       run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+        if [ "$(goimports -l . | wc -l)" -gt 0 ]; then
           echo "以下のファイルがフォーマットされていません:"
-          gofmt -s -l .
+          goimports -l .
+          echo ""
+          echo "差分:"
+          goimports -d .
           exit 1
         fi
 
