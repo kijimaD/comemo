@@ -153,7 +153,7 @@ func executePrompts() error {
 	fmt.Printf("\n--- Executing %d Prompt Scripts ---\n", len(shFiles))
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 20) // 同時実行数を20に制限
+	sem := make(chan struct{}, 2) // 同時実行数を2に制限
 
 	for _, fileName := range shFiles {
 		wg.Add(1)
@@ -323,6 +323,134 @@ func generatePrompts() error {
 	return nil
 }
 
+// verify は生成されたファイル数とコミット数の一致を検証します。
+func verify() error {
+	fmt.Println("--- Verification Started ---")
+	
+	// 1. コミット数を取得
+	allHashes, err := getCommitHashes(goRepoPath)
+	if err != nil {
+		return fmt.Errorf("error getting commit hashes: %w", err)
+	}
+	commitCount := len(allHashes)
+	fmt.Printf("Total commits: %d\n", commitCount)
+	
+	// 2. commit_dataディレクトリ内のファイル数を取得
+	commitDataFiles, err := os.ReadDir(commitDataDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("commit_data directory does not exist: %s\n", commitDataDir)
+			commitDataFiles = []os.DirEntry{}
+		} else {
+			return fmt.Errorf("error reading commit_data directory: %w", err)
+		}
+	}
+	
+	commitDataCount := 0
+	for _, file := range commitDataFiles {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".txt") {
+			commitDataCount++
+		}
+	}
+	fmt.Printf("commit_data files: %d\n", commitDataCount)
+	
+	// 3. promptsディレクトリ内のファイル数を取得
+	promptFiles, err := os.ReadDir(promptsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("prompts directory does not exist: %s\n", promptsDir)
+			promptFiles = []os.DirEntry{}
+		} else {
+			return fmt.Errorf("error reading prompts directory: %w", err)
+		}
+	}
+	
+	promptCount := 0
+	for _, file := range promptFiles {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".sh") {
+			promptCount++
+		}
+	}
+	fmt.Printf("prompt scripts: %d\n", promptCount)
+	
+	// 4. srcディレクトリ内の説明ファイル数を取得
+	outputFiles, err := os.ReadDir(outputDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("src directory does not exist: %s\n", outputDir)
+			outputFiles = []os.DirEntry{}
+		} else {
+			return fmt.Errorf("error reading src directory: %w", err)
+		}
+	}
+	
+	outputCount := 0
+	for _, file := range outputFiles {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") && file.Name() != "SUMMARY.md" {
+			outputCount++
+		}
+	}
+	fmt.Printf("explanation files: %d\n", outputCount)
+	
+	// 5. 検証結果の表示
+	fmt.Println("\n--- Verification Results ---")
+	
+	if commitDataCount != commitCount {
+		fmt.Printf("❌ Mismatch: commit_data files (%d) != total commits (%d)\n", commitDataCount, commitCount)
+		missing := commitCount - commitDataCount
+		if missing > 0 {
+			fmt.Printf("   Missing %d commit data files. Run 'collect' command.\n", missing)
+		} else {
+			fmt.Printf("   Extra %d commit data files found.\n", -missing)
+		}
+	} else {
+		fmt.Printf("✅ commit_data files match total commits (%d)\n", commitCount)
+	}
+	
+	expectedPrompts := commitCount - promptCount
+	if promptCount > 0 {
+		fmt.Printf("✅ Found %d prompt scripts\n", promptCount)
+		if expectedPrompts > 0 {
+			fmt.Printf("   %d prompts may have been executed already\n", expectedPrompts)
+		}
+	} else if commitDataCount > 0 {
+		fmt.Printf("⚠️  No prompt scripts found. Run 'generate' command to create them.\n")
+	}
+	
+	if outputCount > 0 {
+		fmt.Printf("✅ Found %d explanation files\n", outputCount)
+		remaining := commitCount - outputCount
+		if remaining > 0 {
+			fmt.Printf("   %d explanations remaining to be generated\n", remaining)
+		}
+	} else if commitCount > 0 {
+		fmt.Printf("⚠️  No explanation files found. Run 'execute' command after generating prompts.\n")
+	}
+	
+	// 6. 進捗サマリー
+	fmt.Println("\n--- Progress Summary ---")
+	if commitCount == 0 {
+		fmt.Println("⚠️  No commits found in the repository")
+	} else {
+		collectProgress := float64(commitDataCount) / float64(commitCount) * 100
+		generateProgress := float64(outputCount) / float64(commitCount) * 100
+		
+		fmt.Printf("Data Collection: %.1f%% (%d/%d)\n", collectProgress, commitDataCount, commitCount)
+		fmt.Printf("Explanation Generation: %.1f%% (%d/%d)\n", generateProgress, outputCount, commitCount)
+		
+		if collectProgress == 100 && generateProgress == 100 {
+			fmt.Println("🎉 All commits have been processed!")
+		} else if collectProgress == 100 {
+			fmt.Println("📝 Ready for explanation generation")
+		} else {
+			fmt.Println("📥 Need to collect more commit data")
+		}
+	}
+	
+	fmt.Println("--- Verification Complete ---")
+	return nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run main.go <command>")
@@ -330,6 +458,7 @@ func main() {
 		fmt.Println("  collect   - Collects commit data from the 'go' repository.")
 		fmt.Println("  generate  - Generates prompt scripts for missing explanations.")
 		fmt.Println("  execute   - Executes generated prompt scripts in parallel.")
+		fmt.Println("  verify    - Verifies the consistency of generated files.")
 		os.Exit(1)
 	}
 
@@ -343,6 +472,8 @@ func main() {
 		err = generatePrompts()
 	case "execute":
 		err = executePrompts()
+	case "verify":
+		err = verify()
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		fmt.Println("Usage: go run main.go <command>")
@@ -350,6 +481,7 @@ func main() {
 		fmt.Println("  collect   - Collects commit data from the 'go' repository.")
 		fmt.Println("  generate  - Generates prompt scripts for missing explanations.")
 		fmt.Println("  execute   - Executes generated prompt scripts in parallel.")
+		fmt.Println("  verify    - Verifies the consistency of generated files.")
 		os.Exit(1)
 	}
 
